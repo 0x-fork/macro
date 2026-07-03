@@ -238,12 +238,12 @@ const ViewsSvc = new Svc('Views Service')
 const FavoritesSvc = new Svc('Favorites Service')
   .use('fetchErrors', fetchErrorsSvc)
   .fn('getFavorites', {
-    description: "Get the user's favorites and their team's favorites",
+    description: "Get the user's favorites",
     result: schemas.listFavoritesResponse.shape,
     throws: withFetchErrors(),
   })
   .fn('addFavorite', {
-    description: 'Favorite an entity in the user or team collection',
+    description: "Favorite an entity in the user's collection",
     args: schemas.addFavoriteBody.shape,
     modifies: true,
     result: schemas.addFavoriteResponse.shape,
@@ -258,13 +258,13 @@ const FavoritesSvc = new Svc('Favorites Service')
     throws: withFetchErrors(),
   })
   .fn('removeFavoriteByEntity', {
-    description: 'Remove a favorite by entity and scope',
+    description: 'Remove a favorite by entity',
     args: schemas.removeFavoriteByEntityQueryParams.shape,
     modifies: true,
     throws: withFetchErrors(),
   })
   .fn('reorderFavorites', {
-    description: 'Persist a manual order for a favorites collection',
+    description: "Persist a manual order for the user's favorites",
     args: schemas.reorderFavoritesBody.shape,
     modifies: true,
     throws: withFetchErrors(),

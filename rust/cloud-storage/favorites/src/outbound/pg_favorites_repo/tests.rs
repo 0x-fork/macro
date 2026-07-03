@@ -6,7 +6,6 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::PgFavoritesRepo;
-use crate::domain::models::{FavoriteOwner, FavoriteScope};
 use crate::domain::ports::FavoritesRepo;
 
 const USER_A: &str = "macro|user-a@macro.com";
@@ -34,27 +33,6 @@ async fn insert_user(pool: &PgPool, id: &str) {
         .expect("user should insert");
 }
 
-async fn insert_team(pool: &PgPool, owner: &str, members: &[&str]) -> Uuid {
-    let team_id = Uuid::now_v7();
-    sqlx::query(r#"INSERT INTO "team" (id, name, owner_id) VALUES ($1, 'test team', $2)"#)
-        .bind(team_id)
-        .bind(owner)
-        .execute(pool)
-        .await
-        .expect("team should insert");
-    for member in members {
-        sqlx::query(
-            r#"INSERT INTO "team_user" (user_id, team_id, team_role) VALUES ($1, $2, 'member')"#,
-        )
-        .bind(member)
-        .bind(team_id)
-        .execute(pool)
-        .await
-        .expect("team member should insert");
-    }
-    team_id
-}
-
 async fn insert_document(pool: &PgPool, id: &str, name: &str, owner: &str) {
     sqlx::query(r#"INSERT INTO "Document" (id, name, owner) VALUES ($1, $2, $3)"#)
         .bind(id)
@@ -69,69 +47,50 @@ async fn insert_document(pool: &PgPool, id: &str, name: &str, owner: &str) {
 async fn add_favorite_appends_and_is_idempotent(pool: PgPool) {
     insert_user(&pool, USER_A).await;
     let repo = PgFavoritesRepo::new(pool);
-    let owner = FavoriteOwner::User(user(USER_A));
 
     let first = repo
-        .add_favorite(
-            &owner,
-            &EntityType::Document.with_entity_str("doc-1"),
-            &user(USER_A),
-        )
+        .add_favorite(&user(USER_A), &EntityType::Document.with_entity_str("doc-1"))
         .await
         .expect("first favorite should insert");
     let second = repo
-        .add_favorite(
-            &owner,
-            &EntityType::Channel.with_entity_str("chan-1"),
-            &user(USER_A),
-        )
+        .add_favorite(&user(USER_A), &EntityType::Channel.with_entity_str("chan-1"))
         .await
         .expect("second favorite should insert");
     assert!(second.sort_order > first.sort_order);
-    assert_eq!(first.scope, FavoriteScope::User);
 
     let duplicate = repo
-        .add_favorite(
-            &owner,
-            &EntityType::Document.with_entity_str("doc-1"),
-            &user(USER_A),
-        )
+        .add_favorite(&user(USER_A), &EntityType::Document.with_entity_str("doc-1"))
         .await
         .expect("duplicate favorite should be a no-op");
     assert_eq!(duplicate.id, first.id);
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn count_favorites_counts_owner_collection(pool: PgPool) {
+async fn count_favorites_counts_user_collection(pool: PgPool) {
     insert_user(&pool, USER_A).await;
     let repo = PgFavoritesRepo::new(pool);
-    let owner = FavoriteOwner::User(user(USER_A));
 
     assert_eq!(
-        repo.count_favorites(&owner).await.expect("count should run"),
+        repo.count_favorites(&user(USER_A))
+            .await
+            .expect("count should run"),
         0
     );
 
     for entity_id in ["doc-1", "doc-2", "doc-3"] {
-        repo.add_favorite(
-            &owner,
-            &EntityType::Document.with_entity_str(entity_id),
-            &user(USER_A),
-        )
-        .await
-        .expect("favorite should insert");
+        repo.add_favorite(&user(USER_A), &EntityType::Document.with_entity_str(entity_id))
+            .await
+            .expect("favorite should insert");
     }
     // Re-adding an existing entity is a no-op and must not inflate the count.
-    repo.add_favorite(
-        &owner,
-        &EntityType::Document.with_entity_str("doc-1"),
-        &user(USER_A),
-    )
-    .await
-    .expect("duplicate favorite should be a no-op");
+    repo.add_favorite(&user(USER_A), &EntityType::Document.with_entity_str("doc-1"))
+        .await
+        .expect("duplicate favorite should be a no-op");
 
     assert_eq!(
-        repo.count_favorites(&owner).await.expect("count should run"),
+        repo.count_favorites(&user(USER_A))
+            .await
+            .expect("count should run"),
         3
     );
 }
@@ -147,27 +106,21 @@ async fn list_favorites_hydrates_names_and_skips_deleted(pool: PgPool) {
         .expect("document should soft delete");
 
     let repo = PgFavoritesRepo::new(pool);
-    let owner = FavoriteOwner::User(user(USER_A));
     for entity_id in ["doc-live", "doc-gone"] {
-        repo.add_favorite(
-            &owner,
-            &EntityType::Document.with_entity_str(entity_id),
-            &user(USER_A),
-        )
-        .await
-        .expect("favorite should insert");
+        repo.add_favorite(&user(USER_A), &EntityType::Document.with_entity_str(entity_id))
+            .await
+            .expect("favorite should insert");
     }
     // An entity with no local table (e.g. a foreign id) still lists, unhydrated.
     repo.add_favorite(
-        &owner,
-        &EntityType::EmailThread.with_entity_str(&Uuid::now_v7().to_string()),
         &user(USER_A),
+        &EntityType::EmailThread.with_entity_str(&Uuid::now_v7().to_string()),
     )
     .await
     .expect("email favorite should insert");
 
     let favorites = repo
-        .list_favorites(&owner)
+        .list_favorites(&user(USER_A))
         .await
         .expect("favorites should list");
     assert_eq!(favorites.len(), 2);
@@ -182,14 +135,9 @@ async fn remove_favorite_by_id_checks_ownership(pool: PgPool) {
     insert_user(&pool, USER_A).await;
     insert_user(&pool, USER_B).await;
     let repo = PgFavoritesRepo::new(pool);
-    let owner = FavoriteOwner::User(user(USER_A));
 
     let favorite = repo
-        .add_favorite(
-            &owner,
-            &EntityType::Document.with_entity_str("doc-1"),
-            &user(USER_A),
-        )
+        .add_favorite(&user(USER_A), &EntityType::Document.with_entity_str("doc-1"))
         .await
         .expect("favorite should insert");
 
@@ -207,58 +155,32 @@ async fn remove_favorite_by_id_checks_ownership(pool: PgPool) {
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn team_favorites_are_shared_and_removable_by_members(pool: PgPool) {
+async fn remove_favorite_by_entity_scopes_to_user(pool: PgPool) {
     insert_user(&pool, USER_A).await;
     insert_user(&pool, USER_B).await;
-    let team_id = insert_team(&pool, USER_A, &[USER_A, USER_B]).await;
-    let repo = PgFavoritesRepo::new(pool);
-    let owner = FavoriteOwner::Team(team_id);
-
-    let favorite = repo
-        .add_favorite(
-            &owner,
-            &EntityType::Channel.with_entity_str("chan-1"),
-            &user(USER_A),
-        )
-        .await
-        .expect("team favorite should insert");
-    assert_eq!(favorite.scope, FavoriteScope::Team);
-
-    // Another member of the team can remove it by id.
-    let removed = repo
-        .remove_favorite_by_id(&user(USER_B), favorite.id)
-        .await
-        .expect("delete by team member should run");
-    assert!(removed);
-}
-
-#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn remove_favorite_by_entity_scopes_to_owner(pool: PgPool) {
-    insert_user(&pool, USER_A).await;
     insert_document(&pool, "doc-1", "Doc 1", USER_A).await;
-    let team_id = insert_team(&pool, USER_A, &[USER_A]).await;
     let repo = PgFavoritesRepo::new(pool);
     let entity = EntityType::Document.with_entity_str("doc-1");
 
-    repo.add_favorite(&FavoriteOwner::User(user(USER_A)), &entity, &user(USER_A))
+    repo.add_favorite(&user(USER_A), &entity)
         .await
-        .expect("user favorite should insert");
-    repo.add_favorite(&FavoriteOwner::Team(team_id), &entity, &user(USER_A))
+        .expect("user A favorite should insert");
+    repo.add_favorite(&user(USER_B), &entity)
         .await
-        .expect("team favorite should insert");
+        .expect("user B favorite should insert");
 
     let removed = repo
-        .remove_favorite_by_entity(&FavoriteOwner::User(user(USER_A)), &entity)
+        .remove_favorite_by_entity(&user(USER_A), &entity)
         .await
-        .expect("user unfavorite should run");
+        .expect("user A unfavorite should run");
     assert!(removed);
 
-    // The team favorite for the same entity is untouched.
-    let team_favorites = repo
-        .list_favorites(&FavoriteOwner::Team(team_id))
+    // User B's favorite for the same entity is untouched.
+    let b_favorites = repo
+        .list_favorites(&user(USER_B))
         .await
-        .expect("team favorites should list");
-    assert_eq!(team_favorites.len(), 1);
+        .expect("user B favorites should list");
+    assert_eq!(b_favorites.len(), 1);
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -268,28 +190,23 @@ async fn reorder_favorites_sets_manual_order(pool: PgPool) {
         insert_document(&pool, entity_id, entity_id, USER_A).await;
     }
     let repo = PgFavoritesRepo::new(pool);
-    let owner = FavoriteOwner::User(user(USER_A));
 
     let mut ids = Vec::new();
     for entity_id in ["a", "b", "c"] {
         let favorite = repo
-            .add_favorite(
-                &owner,
-                &EntityType::Document.with_entity_str(entity_id),
-                &user(USER_A),
-            )
+            .add_favorite(&user(USER_A), &EntityType::Document.with_entity_str(entity_id))
             .await
             .expect("favorite should insert");
         ids.push(favorite.id);
     }
 
     ids.reverse();
-    repo.reorder_favorites(&owner, &ids)
+    repo.reorder_favorites(&user(USER_A), &ids)
         .await
         .expect("reorder should run");
 
     let favorites = repo
-        .list_favorites(&owner)
+        .list_favorites(&user(USER_A))
         .await
         .expect("favorites should list");
     let listed: Vec<Uuid> = favorites.iter().map(|f| f.id).collect();
@@ -297,49 +214,31 @@ async fn reorder_favorites_sets_manual_order(pool: PgPool) {
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn favorited_entities_covers_user_and_team_scopes(pool: PgPool) {
+async fn favorited_entities_returns_user_favorites(pool: PgPool) {
     insert_user(&pool, USER_A).await;
     insert_user(&pool, USER_B).await;
-    let team_id = insert_team(&pool, USER_A, &[USER_A, USER_B]).await;
     let repo = PgFavoritesRepo::new(pool);
 
     let user_entity = EntityType::Document.with_entity_str("doc-user");
-    let team_entity = EntityType::Channel.with_entity_str("chan-team");
     let other_entity = EntityType::Chat.with_entity_str("chat-other");
 
-    repo.add_favorite(
-        &FavoriteOwner::User(user(USER_A)),
-        &user_entity,
-        &user(USER_A),
-    )
-    .await
-    .expect("user favorite should insert");
-    repo.add_favorite(&FavoriteOwner::Team(team_id), &team_entity, &user(USER_B))
+    repo.add_favorite(&user(USER_A), &user_entity)
         .await
-        .expect("team favorite should insert");
+        .expect("user favorite should insert");
 
     let favorited = repo
-        .favorited_entities(
-            &user(USER_A),
-            &[
-                user_entity.copied(),
-                team_entity.copied(),
-                other_entity.copied(),
-            ],
-        )
+        .favorited_entities(&user(USER_A), &[user_entity.copied(), other_entity.copied()])
         .await
         .expect("favorited lookup should run");
 
-    assert_eq!(favorited.len(), 2);
+    assert_eq!(favorited.len(), 1);
     assert!(favorited.contains(&user_entity));
-    assert!(favorited.contains(&team_entity));
     assert!(!favorited.contains(&other_entity));
 
-    // USER_B did not personally favorite doc-user, but shares the team favorite.
+    // USER_B has not favorited the entity, so it is not returned for them.
     let favorited_b = repo
-        .favorited_entities(&user(USER_B), &[user_entity.copied(), team_entity.copied()])
+        .favorited_entities(&user(USER_B), &[user_entity.copied()])
         .await
         .expect("favorited lookup should run");
-    assert_eq!(favorited_b.len(), 1);
-    assert!(favorited_b.contains(&team_entity));
+    assert!(favorited_b.is_empty());
 }

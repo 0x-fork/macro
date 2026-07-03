@@ -5,7 +5,6 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AddFavoriteRequestEntityType } from './addFavoriteRequestEntityType';
-import type { FavoriteScope } from './favoriteScope';
 
 /**
  * Request body for favoriting an entity.
@@ -15,6 +14,4 @@ export interface AddFavoriteRequest {
   entityId: string;
   /** The type of the entity to favorite. */
   entityType: AddFavoriteRequestEntityType;
-  /** Which collection to add the favorite to. */
-  scope: FavoriteScope;
 }

@@ -1,40 +1,9 @@
 //! Domain models for favorites.
 
 use chrono::{DateTime, Utc};
-use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::{Entity, EntityType};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-/// Which collection a favorite belongs to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum FavoriteScope {
-    /// The requesting user's personal favorites.
-    User,
-    /// The favorites shared by the requesting user's team.
-    Team,
-}
-
-/// The owner of a favorites collection.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FavoriteOwner<'a> {
-    /// A user's personal collection.
-    User(MacroUserIdStr<'a>),
-    /// A team's shared collection.
-    Team(Uuid),
-}
-
-impl FavoriteOwner<'_> {
-    /// The [FavoriteScope] this owner corresponds to.
-    pub fn scope(&self) -> FavoriteScope {
-        match self {
-            FavoriteOwner::User(_) => FavoriteScope::User,
-            FavoriteOwner::Team(_) => FavoriteScope::Team,
-        }
-    }
-}
 
 /// A single favorited entity, including display metadata hydrated from the
 /// favorited entity where available.
@@ -44,8 +13,6 @@ impl FavoriteOwner<'_> {
 pub struct Favorite {
     /// Unique id of the favorite record.
     pub id: Uuid,
-    /// Whether this favorite belongs to the user's or the team's collection.
-    pub scope: FavoriteScope,
     /// The type of the favorited entity.
     // Inlined so the shared `EntityType` component name is not claimed in
     // specs that also expose the properties `EntityType` enum.
@@ -55,8 +22,6 @@ pub struct Favorite {
     pub entity_id: String,
     /// Manual ordering value; lower sorts first.
     pub sort_order: f64,
-    /// The user that created the favorite.
-    pub created_by: String,
     /// When the favorite was created.
     pub created_at: DateTime<Utc>,
     /// Display name of the favorited entity, when it could be resolved.
@@ -83,23 +48,19 @@ impl Favorite {
     }
 }
 
-/// The user's favorites together with their team's favorites.
+/// The user's favorites, in manual order.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct FavoritesList {
-    /// The requesting user's personal favorites, in manual order.
-    pub user: Vec<Favorite>,
-    /// The requesting user's team favorites, in manual order.
-    /// `None` when the user does not belong to a team.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub team: Option<Vec<Favorite>>,
+    /// The requesting user's favorites, in manual order.
+    pub favorites: Vec<Favorite>,
 }
 
 /// Errors returned by the favorites service.
 #[derive(Debug, thiserror::Error)]
 pub enum FavoritesError {
-    /// The favorite (or entity) could not be found in the owner's collection.
+    /// The favorite (or entity) could not be found in the user's collection.
     #[error("favorite not found")]
     NotFound,
     /// The request was invalid.

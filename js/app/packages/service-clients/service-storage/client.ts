@@ -35,7 +35,6 @@ import type {
   AddFavoriteRequest,
   CallRecordPreview,
   Favorite,
-  FavoriteScope,
   FavoritesList,
   ForeignEntity,
   GithubPullRequestsResponse,
@@ -2124,12 +2123,10 @@ export const storageServiceClient = {
     async removeFavoriteByEntity(params: {
       entityType: AddFavoriteRequest['entityType'];
       entityId: string;
-      scope: FavoriteScope;
     }) {
       const searchParams = new URLSearchParams({
         entityType: params.entityType,
         entityId: params.entityId,
-        scope: params.scope,
       });
       return await dssFetch(`/favorites?${searchParams}`, {
         method: 'DELETE',

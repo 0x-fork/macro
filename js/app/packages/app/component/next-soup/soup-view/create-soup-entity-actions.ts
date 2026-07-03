@@ -242,20 +242,6 @@ export function createSoupEntityActions(): {
         hotkeyToken: TOKENS.entity.action.favorite,
         onClick: handle(favoriteAction.executeWithSoup),
       });
-
-      if (favoriteAction.hasTeam()) {
-        const allTeamFavorited = entities.every((entity) =>
-          favoriteAction.isFavorited(entity, 'team')
-        );
-        middleItems.push({
-          id: 'favorite-team',
-          label: allTeamFavorited
-            ? 'Remove from team favorites'
-            : 'Add to team favorites',
-          icon: Star,
-          onClick: () => favoriteAction.executeWithSoup(entities, soup, 'team'),
-        });
-      }
     }
 
     if (canExecuteAll(moveToProjectAction.canExecute)) {

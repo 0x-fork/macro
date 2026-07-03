@@ -4,8 +4,6 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
-
-import type { FavoriteScope } from './favoriteScope';
 import type { RemoveFavoriteByEntityEntityType } from './removeFavoriteByEntityEntityType';
 
 export type RemoveFavoriteByEntityParams = {
@@ -17,8 +15,4 @@ export type RemoveFavoriteByEntityParams = {
    * The id of the favorited entity.
    */
   entityId: string;
-  /**
-   * Which collection to remove the favorite from.
-   */
-  scope: FavoriteScope;
 };

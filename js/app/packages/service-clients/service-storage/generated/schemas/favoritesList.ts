@@ -4,17 +4,12 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
-
 import type { Favorite } from './favorite';
-import type { FavoritesListTeam } from './favoritesListTeam';
 
 /**
- * The user's favorites together with their team's favorites.
+ * The user's favorites, in manual order.
  */
 export interface FavoritesList {
-  /** The requesting user's team favorites, in manual order.
-`None` when the user does not belong to a team. */
-  team?: FavoritesListTeam;
-  /** The requesting user's personal favorites, in manual order. */
-  user: Favorite[];
+  /** The requesting user's favorites, in manual order. */
+  favorites: Favorite[];
 }

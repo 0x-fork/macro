@@ -10,7 +10,6 @@ import type { FavoriteDocumentSubType } from './favoriteDocumentSubType';
 import type { FavoriteEntityType } from './favoriteEntityType';
 import type { FavoriteFileType } from './favoriteFileType';
 import type { FavoriteName } from './favoriteName';
-import type { FavoriteScope } from './favoriteScope';
 
 /**
  * A single favorited entity, including display metadata hydrated from the
@@ -23,8 +22,6 @@ export interface Favorite {
   channelType?: FavoriteChannelType;
   /** When the favorite was created. */
   createdAt: string;
-  /** The user that created the favorite. */
-  createdBy: string;
   /** Document sub type (e.g. `task`) of the favorited document, when applicable. */
   documentSubType?: FavoriteDocumentSubType;
   /** The id of the favorited entity. */
@@ -37,8 +34,6 @@ export interface Favorite {
   id: string;
   /** Display name of the favorited entity, when it could be resolved. */
   name?: FavoriteName;
-  /** Whether this favorite belongs to the user's or the team's collection. */
-  scope: FavoriteScope;
   /** Manual ordering value; lower sorts first. */
   sortOrder: number;
 }

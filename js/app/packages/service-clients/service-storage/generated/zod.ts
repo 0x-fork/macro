@@ -6219,11 +6219,11 @@ export const getEntityPermissionResponse = zod
   .describe('API response envelope for entity permissions.');
 
 /**
- * @summary List the caller's favorites and, when they belong to a team, the team's favorites.
+ * @summary List the caller's favorites.
  */
 export const listFavoritesResponse = zod
   .object({
-    team: zod
+    favorites: zod
       .array(
         zod
           .object({
@@ -6242,9 +6242,6 @@ export const listFavoritesResponse = zod
             createdAt: zod.iso
               .datetime({})
               .describe('When the favorite was created.'),
-            createdBy: zod
-              .string()
-              .describe('The user that created the favorite.'),
             documentSubType: zod
               .string()
               .nullish()
@@ -6283,9 +6280,6 @@ export const listFavoritesResponse = zod
               .describe(
                 'Display name of the favorited entity, when it could be resolved.'
               ),
-            scope: zod
-              .enum(['user', 'team'])
-              .describe('Which collection a favorite belongs to.'),
             sortOrder: zod
               .number()
               .describe('Manual ordering value; lower sorts first.'),
@@ -6294,87 +6288,12 @@ export const listFavoritesResponse = zod
             'A single favorited entity, including display metadata hydrated from the\nfavorited entity where available.'
           )
       )
-      .nullish()
-      .describe(
-        "The requesting user's team favorites, in manual order.\n`None` when the user does not belong to a team."
-      ),
-    user: zod
-      .array(
-        zod
-          .object({
-            channelId: zod
-              .string()
-              .nullish()
-              .describe(
-                'Owning channel id of the favorited channel message, when applicable.'
-              ),
-            channelType: zod
-              .string()
-              .nullish()
-              .describe(
-                'Channel type (e.g. `public`, `direct_message`) of the favorited channel, when applicable.'
-              ),
-            createdAt: zod.iso
-              .datetime({})
-              .describe('When the favorite was created.'),
-            createdBy: zod
-              .string()
-              .describe('The user that created the favorite.'),
-            documentSubType: zod
-              .string()
-              .nullish()
-              .describe(
-                'Document sub type (e.g. `task`) of the favorited document, when applicable.'
-              ),
-            entityId: zod.string().describe('The id of the favorited entity.'),
-            entityType: zod
-              .enum([
-                'user',
-                'chat',
-                'channel',
-                'channel_message',
-                'document',
-                'project',
-                'email_thread',
-                'team',
-                'call',
-                'foreign_entity',
-                'static_file',
-                'crm_company',
-                'crm_contact',
-              ])
-              .describe('The type of an entity in Macro')
-              .describe('The type of the favorited entity.'),
-            fileType: zod
-              .string()
-              .nullish()
-              .describe(
-                'File type of the favorited document, when applicable.'
-              ),
-            id: zod.uuid().describe('Unique id of the favorite record.'),
-            name: zod
-              .string()
-              .nullish()
-              .describe(
-                'Display name of the favorited entity, when it could be resolved.'
-              ),
-            scope: zod
-              .enum(['user', 'team'])
-              .describe('Which collection a favorite belongs to.'),
-            sortOrder: zod
-              .number()
-              .describe('Manual ordering value; lower sorts first.'),
-          })
-          .describe(
-            'A single favorited entity, including display metadata hydrated from the\nfavorited entity where available.'
-          )
-      )
-      .describe("The requesting user's personal favorites, in manual order."),
+      .describe("The requesting user's favorites, in manual order."),
   })
-  .describe("The user's favorites together with their team's favorites.");
+  .describe("The user's favorites, in manual order.");
 
 /**
- * @summary Favorite an entity in the caller's user or team collection.
+ * @summary Favorite an entity in the caller's collection.
  */
 export const addFavoriteBody = zod
   .object({
@@ -6397,9 +6316,6 @@ export const addFavoriteBody = zod
       ])
       .describe('The type of an entity in Macro')
       .describe('The type of the entity to favorite.'),
-    scope: zod
-      .enum(['user', 'team'])
-      .describe('Which collection a favorite belongs to.'),
   })
   .describe('Request body for favoriting an entity.');
 
@@ -6418,7 +6334,6 @@ export const addFavoriteResponse = zod
         'Channel type (e.g. `public`, `direct_message`) of the favorited channel, when applicable.'
       ),
     createdAt: zod.iso.datetime({}).describe('When the favorite was created.'),
-    createdBy: zod.string().describe('The user that created the favorite.'),
     documentSubType: zod
       .string()
       .nullish()
@@ -6455,9 +6370,6 @@ export const addFavoriteResponse = zod
       .describe(
         'Display name of the favorited entity, when it could be resolved.'
       ),
-    scope: zod
-      .enum(['user', 'team'])
-      .describe('Which collection a favorite belongs to.'),
     sortOrder: zod
       .number()
       .describe('Manual ordering value; lower sorts first.'),
@@ -6467,7 +6379,7 @@ export const addFavoriteResponse = zod
   );
 
 /**
- * @summary Remove a favorite by entity + scope.
+ * @summary Remove a favorite by entity.
  */
 export const removeFavoriteByEntityQueryParams = zod.object({
   entityType: zod
@@ -6488,9 +6400,6 @@ export const removeFavoriteByEntityQueryParams = zod.object({
     ])
     .describe('The type of the favorited entity.'),
   entityId: zod.string().describe('The id of the favorited entity.'),
-  scope: zod
-    .enum(['user', 'team'])
-    .describe('Which collection to remove the favorite from.'),
 });
 
 export const removeFavoriteByEntityResponseDefault = null;
@@ -6498,25 +6407,22 @@ export const removeFavoriteByEntityResponseDefault = null;
 export const removeFavoriteByEntityResponse = zod.unknown();
 
 /**
- * @summary Persist a manual order for one of the caller's favorites collections.
+ * @summary Persist a manual order for the caller's favorites.
  */
 export const reorderFavoritesBody = zod
   .object({
     favoriteIds: zod
       .array(zod.uuid())
-      .describe("The collection's favorite ids in the desired order."),
-    scope: zod
-      .enum(['user', 'team'])
-      .describe('Which collection a favorite belongs to.'),
+      .describe('The favorite ids in the desired order.'),
   })
-  .describe('Request body for reordering a favorites collection.');
+  .describe('Request body for reordering favorites.');
 
 export const reorderFavoritesResponseDefault = null;
 
 export const reorderFavoritesResponse = zod.unknown();
 
 /**
- * @summary Remove a favorite by record id from any collection the caller manages.
+ * @summary Remove a favorite by record id from the caller's collection.
  */
 export const removeFavoriteParams = zod.object({
   id: zod.uuid().describe('Favorite record id'),

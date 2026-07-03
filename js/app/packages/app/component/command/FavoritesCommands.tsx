@@ -16,28 +16,21 @@ import { createEffect, onCleanup } from 'solid-js';
 import { useSplitLayout } from '../split-layout/layout';
 import { CommandState } from './state';
 
-/** Command scopes for the favorites sub-views of the command menu. */
-export const USER_FAVORITES_COMMAND_SCOPE = 'command-scope-user-favorites';
-export const TEAM_FAVORITES_COMMAND_SCOPE = 'command-scope-team-favorites';
+/** Command scope for the favorites sub-view of the command menu. */
+export const FAVORITES_COMMAND_SCOPE = 'command-scope-favorites';
 
 registerScope({
   parentScopeId: 'global',
-  scopeId: USER_FAVORITES_COMMAND_SCOPE,
-  type: 'command',
-});
-
-registerScope({
-  parentScopeId: 'global',
-  scopeId: TEAM_FAVORITES_COMMAND_SCOPE,
+  scopeId: FAVORITES_COMMAND_SCOPE,
   type: 'command',
 });
 
 const FAVORITES_KEYWORDS = ['favorites', 'favorite', 'starred', 'pinned'];
 
 /**
- * Registers the "Your favorites" / "Team favorites" command-menu commands and
- * keeps the per-favorite commands in their sub-view scopes in sync with the
- * favorites data. Renders nothing.
+ * Registers the "Favorites" command-menu command and keeps the per-favorite
+ * commands in its sub-view scope in sync with the favorites data. Renders
+ * nothing.
  */
 export function FavoritesCommands() {
   const favorites = useFavoritesQuery();
@@ -68,13 +61,7 @@ export function FavoritesCommands() {
 
   staticGroup.addDisposer(
     CommandState.registerCommandScopePlaceholder(
-      USER_FAVORITES_COMMAND_SCOPE,
-      'Open favorite...'
-    )
-  );
-  staticGroup.addDisposer(
-    CommandState.registerCommandScopePlaceholder(
-      TEAM_FAVORITES_COMMAND_SCOPE,
+      FAVORITES_COMMAND_SCOPE,
       'Open favorite...'
     )
   );
@@ -82,38 +69,25 @@ export function FavoritesCommands() {
   staticGroup.add(
     registerHotkey({
       scopeId: 'global',
-      description: 'Your favorites',
+      description: 'Favorites',
       // An empty sub-view is a dead end, so hide the command until the user
       // has favorites.
-      condition: () => (favoritesData()?.user.length ?? 0) > 0,
+      condition: () => (favoritesData()?.favorites.length ?? 0) > 0,
       keyDownHandler: () => true,
-      activateCommandScopeId: USER_FAVORITES_COMMAND_SCOPE,
+      activateCommandScopeId: FAVORITES_COMMAND_SCOPE,
       keywords: FAVORITES_KEYWORDS,
       icon: Star,
     })
   );
 
-  staticGroup.add(
-    registerHotkey({
-      scopeId: 'global',
-      description: 'Team favorites',
-      // `team` is undefined when the user does not belong to a team.
-      condition: () => (favoritesData()?.team?.length ?? 0) > 0,
-      keyDownHandler: () => true,
-      activateCommandScopeId: TEAM_FAVORITES_COMMAND_SCOPE,
-      keywords: FAVORITES_KEYWORDS,
-      icon: Star,
-    })
-  );
-
-  const registerFavorites = (list: Favorite[], scopeId: string) => {
+  const registerFavorites = (list: Favorite[]) => {
     // Registered without a hotkey: bare digits would fight type-to-filter in
     // the sub-view's search input. The entries are still listed and openable
     // via arrow/enter or click (the handler runs with `e` undefined).
     list.forEach((favorite) => {
       dynamicGroup.add(
         registerHotkey({
-          scopeId,
+          scopeId: FAVORITES_COMMAND_SCOPE,
           description: favoriteDisplayName(favorite),
           keyDownHandler: () => {
             openFavorite(favorite);
@@ -136,8 +110,7 @@ export function FavoritesCommands() {
     const data = favoritesData();
     dynamicGroup.dispose();
     if (!data) return;
-    registerFavorites(data.user, USER_FAVORITES_COMMAND_SCOPE);
-    registerFavorites(data.team ?? [], TEAM_FAVORITES_COMMAND_SCOPE);
+    registerFavorites(data.favorites);
   });
 
   onCleanup(() => {

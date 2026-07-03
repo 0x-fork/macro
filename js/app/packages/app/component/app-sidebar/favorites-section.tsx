@@ -19,7 +19,6 @@ import {
   useReorderFavoritesMutation,
 } from '@queries/favorites/favorites';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
-import type { FavoriteScope } from '@service-storage/generated/schemas/favoriteScope';
 import { makePersisted } from '@solid-primitives/storage';
 import {
   createSortable,
@@ -36,7 +35,6 @@ import { createMemo, createSignal, For, Show } from 'solid-js';
  */
 export type FavoriteDragData = {
   dragType: 'favorite';
-  scope: FavoriteScope;
   iconType: EntityIconSelector;
   name: string;
   /** Read by the `pointerWithin` collision detector to skip collapsed rows. */
@@ -45,41 +43,23 @@ export type FavoriteDragData = {
 
 /**
  * Linear-style favorites for the expanded sidebar: a collapsible "Favorites"
- * list of the user's favorited entities, plus a "Team favorites" list when
- * the user belongs to a team. Rows navigate like other sidebar rows and are
- * drag-reorderable within their own list (never across scopes). Hidden
- * entirely in slim mode and when a scope has no favorites.
+ * list of the user's favorited entities. Rows navigate like other sidebar rows
+ * and are drag-reorderable. Hidden entirely in slim mode and when the user has
+ * no favorites.
  */
 export const FavoritesSection = (props: { sidebarState: SidebarState }) => {
   const favoritesQuery = useFavoritesQuery();
 
-  const userFavorites = () => favoritesQuery.data?.user ?? [];
-  const teamFavorites = () => favoritesQuery.data?.team ?? [];
+  const favorites = () => favoritesQuery.data?.favorites ?? [];
 
   return (
-    <Show
-      when={
-        props.sidebarState === 'expanded' &&
-        (userFavorites().length > 0 || teamFavorites().length > 0)
-      }
-    >
+    <Show when={props.sidebarState === 'expanded' && favorites().length > 0}>
       <div class="w-full shrink-0 max-h-[40%] overflow-y-auto overscroll-contain">
-        <Show when={userFavorites().length > 0}>
-          <FavoritesGroup
-            label="Favorites"
-            scope="user"
-            favorites={userFavorites()}
-            persistKey="sidebar-favorites-expanded"
-          />
-        </Show>
-        <Show when={teamFavorites().length > 0}>
-          <FavoritesGroup
-            label="Team favorites"
-            scope="team"
-            favorites={teamFavorites()}
-            persistKey="sidebar-team-favorites-expanded"
-          />
-        </Show>
+        <FavoritesGroup
+          label="Favorites"
+          favorites={favorites()}
+          persistKey="sidebar-favorites-expanded"
+        />
       </div>
     </Show>
   );
@@ -87,7 +67,6 @@ export const FavoritesSection = (props: { sidebarState: SidebarState }) => {
 
 const FavoritesGroup = (props: {
   label: string;
-  scope: FavoriteScope;
   favorites: Favorite[];
   persistKey: string;
 }) => {
@@ -104,23 +83,18 @@ const FavoritesGroup = (props: {
 
   dndActions?.onDragEnd(({ draggable, droppable }) => {
     const dragData = draggable.data;
-    if (dragData?.dragType !== 'favorite' || dragData.scope !== props.scope) {
-      return;
-    }
-    // Only reorder within this list: dropping outside it (including on the
-    // other scope's rows) leaves the order unchanged.
+    if (dragData?.dragType !== 'favorite') return;
+    // Dropping outside the list leaves the order unchanged.
     if (!droppable) return;
     const dropData = droppable.data;
-    if (dropData?.dragType !== 'favorite' || dropData.scope !== props.scope) {
-      return;
-    }
+    if (dropData?.dragType !== 'favorite') return;
     const current = ids();
     const fromIndex = current.indexOf(String(draggable.id));
     const toIndex = current.indexOf(String(droppable.id));
     if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
     const next = current.slice();
     next.splice(toIndex, 0, ...next.splice(fromIndex, 1));
-    reorderMutation.mutate({ scope: props.scope, favoriteIds: next });
+    reorderMutation.mutate({ favoriteIds: next });
   });
 
   return (
@@ -163,11 +137,7 @@ const FavoritesGroup = (props: {
                       : '0ms',
                   }}
                 >
-                  <FavoriteRow
-                    favorite={favorite}
-                    scope={props.scope}
-                    disabled={!expanded()}
-                  />
+                  <FavoriteRow favorite={favorite} disabled={!expanded()} />
                 </li>
               )}
             </For>
@@ -178,11 +148,7 @@ const FavoritesGroup = (props: {
   );
 };
 
-const FavoriteRow = (props: {
-  favorite: Favorite;
-  scope: FavoriteScope;
-  disabled: boolean;
-}) => {
+const FavoriteRow = (props: { favorite: Favorite; disabled: boolean }) => {
   const layout = useSplitLayout();
   const removeMutation = useRemoveFavoriteMutation();
   const [dndState] = useDragDropContext() ?? [];
@@ -196,12 +162,10 @@ const FavoriteRow = (props: {
   // `isDropTargetDisabled` is read by the app's `pointerWithin` collision
   // detector (see ItemDragAndDrop). A collapsed group still renders its rows
   // (clipped to 0 height for the expand/collapse animation), so without this
-  // their stale layout rects would overlap the other list and silently
-  // capture drops. Gating on `disabled` keeps collapsed rows out of collision
-  // detection entirely.
+  // their stale layout rects would capture drops. Gating on `disabled` keeps
+  // collapsed rows out of collision detection entirely.
   const sortable = createSortable(props.favorite.id, {
     dragType: 'favorite',
-    scope: props.scope,
     iconType: favoriteIconType(props.favorite),
     name: favoriteDisplayName(props.favorite),
     isDropTargetDisabled: () => props.disabled,
@@ -231,7 +195,6 @@ const FavoriteRow = (props: {
     removeMutation.mutate({
       entityType: props.favorite.entityType,
       entityId: props.favorite.entityId,
-      scope: props.scope,
     });
   };
 

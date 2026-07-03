@@ -3,10 +3,8 @@ import type { EntityData } from '@entity';
 import { storageServiceClient } from '@service-storage/client';
 import type { AddFavoriteRequest } from '@service-storage/generated/schemas/addFavoriteRequest';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
-import type { FavoriteScope } from '@service-storage/generated/schemas/favoriteScope';
 import type { FavoritesList } from '@service-storage/generated/schemas/favoritesList';
 import { useMutation, useQuery } from '@tanstack/solid-query';
-import type { Accessor } from 'solid-js';
 
 import { queryClient } from '../client';
 import { type MutationCallbacks, withCallbacks } from '../utils';
@@ -56,7 +54,7 @@ export function favoriteEntityKey(
   return `${entityType}:${entityId}`;
 }
 
-/** The user's favorites plus their team's favorites (if they have a team). */
+/** The user's favorites. */
 export function useFavoritesQuery() {
   return useQuery(() => ({
     queryKey: favoriteKeys.list.queryKey,
@@ -82,31 +80,6 @@ export function invalidateFavorites() {
   });
 }
 
-/**
- * Reactive lookup of the favorite records for an entity in each scope.
- * Both are undefined when the entity is not favorited (or favorites have
- * not loaded yet).
- */
-export function useFavoriteForEntity(
-  entityType: Accessor<FavoriteEntityType | undefined>,
-  entityId: Accessor<string | undefined>
-): Accessor<{ user?: Favorite; team?: Favorite; hasTeam: boolean }> {
-  const query = useFavoritesQuery();
-  return () => {
-    const type = entityType();
-    const id = entityId();
-    const data = query.data;
-    if (!type || !id || !data) return { hasTeam: !!data?.team };
-    const match = (favorite: Favorite) =>
-      favorite.entityType === type && favorite.entityId === id;
-    return {
-      user: data.user.find(match),
-      team: data.team?.find(match),
-      hasTeam: data.team !== undefined,
-    };
-  };
-}
-
 type FavoriteMutationContext = { rollback: () => void };
 
 type AddFavoriteArgs = AddFavoriteRequest;
@@ -130,18 +103,15 @@ export function useAddFavoriteMutation(callbacks?: AddFavoriteCallbacks) {
           const previous = readList();
           const optimistic: Favorite = {
             id: `optimistic-${args.entityType}-${args.entityId}`,
-            scope: args.scope,
             entityType: args.entityType,
             entityId: args.entityId,
             sortOrder: Number.MAX_SAFE_INTEGER,
-            createdBy: '',
             createdAt: new Date().toISOString(),
           };
-          writeList((prev) =>
-            args.scope === 'user'
-              ? { ...prev, user: [...prev.user, optimistic] }
-              : { ...prev, team: [...(prev.team ?? []), optimistic] }
-          );
+          writeList((prev) => ({
+            ...prev,
+            favorites: [...prev.favorites, optimistic],
+          }));
           return {
             rollback: () => {
               if (previous) {
@@ -163,7 +133,6 @@ export function useAddFavoriteMutation(callbacks?: AddFavoriteCallbacks) {
 type RemoveFavoriteArgs = {
   entityType: FavoriteEntityType;
   entityId: string;
-  scope: FavoriteScope;
 };
 type RemoveFavoriteCallbacks = MutationCallbacks<
   void,
@@ -191,11 +160,10 @@ export function useRemoveFavoriteMutation(callbacks?: RemoveFavoriteCallbacks) {
               favorite.entityType === args.entityType &&
               favorite.entityId === args.entityId
             );
-          writeList((prev) =>
-            args.scope === 'user'
-              ? { ...prev, user: prev.user.filter(keep) }
-              : { ...prev, team: prev.team?.filter(keep) }
-          );
+          writeList((prev) => ({
+            ...prev,
+            favorites: prev.favorites.filter(keep),
+          }));
           return {
             rollback: () => {
               if (previous) {
@@ -215,7 +183,6 @@ export function useRemoveFavoriteMutation(callbacks?: RemoveFavoriteCallbacks) {
 }
 
 type ReorderFavoritesArgs = {
-  scope: FavoriteScope;
   favoriteIds: string[];
 };
 type ReorderFavoritesCallbacks = MutationCallbacks<
@@ -239,10 +206,7 @@ export function useReorderFavoritesMutation(
       );
       if (favoriteIds.length === 0) return;
       await throwOnErr(() =>
-        storageServiceClient.favorites.reorderFavorites({
-          scope: args.scope,
-          favoriteIds,
-        })
+        storageServiceClient.favorites.reorderFavorites({ favoriteIds })
       );
     },
     ...withCallbacks<
@@ -267,11 +231,10 @@ export function useReorderFavoritesMutation(
             );
             return [...ordered, ...leftover];
           };
-          writeList((prev) =>
-            args.scope === 'user'
-              ? { ...prev, user: reorder(prev.user) }
-              : { ...prev, team: prev.team ? reorder(prev.team) : prev.team }
-          );
+          writeList((prev) => ({
+            ...prev,
+            favorites: reorder(prev.favorites),
+          }));
           return {
             rollback: () => {
               if (previous) {

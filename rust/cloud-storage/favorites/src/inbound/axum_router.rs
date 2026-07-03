@@ -4,16 +4,12 @@ use std::sync::Arc;
 
 use axum::{
     Json, Router,
-    extract::{FromRef, Path, Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{delete, get, patch, post},
 };
-use cowlike::CowLike;
-use entity_access::{
-    domain::{models::MemberTeamRole, ports::EntityAccessService},
-    inbound::axum_extractors::OptionalMacroUserTeamExtractor,
-};
+use entity_access::domain::ports::EntityAccessService;
 use model_entity::EntityType;
 use model_error_response::ErrorResponse;
 use model_user::axum_extractor::MacroUserExtractor;
@@ -21,7 +17,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::domain::{
-    models::{Favorite, FavoriteOwner, FavoriteScope, FavoritesError, FavoritesList},
+    models::{Favorite, FavoritesError, FavoritesList},
     ports::FavoritesService,
 };
 
@@ -52,24 +48,6 @@ where
             access_service,
         }
     }
-}
-
-impl<S, AccessSvc> FromRef<FavoritesRouterState<S, AccessSvc>> for Arc<AccessSvc> {
-    fn from_ref(state: &FavoritesRouterState<S, AccessSvc>) -> Self {
-        state.access_service.clone()
-    }
-}
-
-/// Extractor alias for the caller's optional team membership.
-type TeamExtractor<AccessSvc> = OptionalMacroUserTeamExtractor<MemberTeamRole, AccessSvc>;
-
-fn team_id_from_receipt<AccessSvc>(team: &TeamExtractor<AccessSvc>) -> Option<Uuid>
-where
-    AccessSvc: EntityAccessService,
-{
-    team.entity_access_receipt
-        .as_ref()
-        .and_then(|receipt| Uuid::parse_str(&receipt.entity().entity_id).ok())
 }
 
 /// Ensure the caller has at least view access to the entity they are trying
@@ -105,32 +83,14 @@ where
     }
 }
 
-/// Resolve the owner for the requested scope, erroring when a team scope is
-/// requested without a qualifying team membership.
-fn owner_for_scope<'a, AccessSvc>(
-    scope: FavoriteScope,
-    user: &'a MacroUserExtractor,
-    team: &TeamExtractor<AccessSvc>,
-) -> Result<FavoriteOwner<'a>, FavoritesApiError>
-where
-    AccessSvc: EntityAccessService,
-{
-    match scope {
-        FavoriteScope::User => Ok(FavoriteOwner::User(user.macro_user_id.copied())),
-        FavoriteScope::Team => team_id_from_receipt(team)
-            .map(FavoriteOwner::Team)
-            .ok_or(FavoritesApiError::NotInTeam),
-    }
-}
-
 /// Build the favorites router.
 ///
 /// Routes:
-/// - `GET /` — list the caller's favorites and their team's favorites.
-/// - `POST /` — favorite an entity in the user or team collection.
+/// - `GET /` — list the caller's favorites.
+/// - `POST /` — favorite an entity.
 /// - `DELETE /{id}` — remove a favorite by id.
-/// - `DELETE /` — remove a favorite by entity + scope (query params).
-/// - `PATCH /reorder` — persist a manual order for one collection.
+/// - `DELETE /` — remove a favorite by entity (query params).
+/// - `PATCH /reorder` — persist a manual order.
 pub fn favorites_router<S, AccessSvc, T>(state: FavoritesRouterState<S, AccessSvc>) -> Router<T>
 where
     S: FavoritesService,
@@ -160,8 +120,6 @@ pub struct AddFavoriteRequest {
     pub entity_type: EntityType,
     /// The id of the entity to favorite.
     pub entity_id: String,
-    /// Which collection to add the favorite to.
-    pub scope: FavoriteScope,
 }
 
 /// Query params for removing a favorite by entity.
@@ -173,21 +131,17 @@ pub struct RemoveFavoriteByEntityParams {
     pub entity_type: EntityType,
     /// The id of the favorited entity.
     pub entity_id: String,
-    /// Which collection to remove the favorite from.
-    pub scope: FavoriteScope,
 }
 
-/// Request body for reordering a favorites collection.
+/// Request body for reordering favorites.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ReorderFavoritesRequest {
-    /// Which collection to reorder.
-    pub scope: FavoriteScope,
-    /// The collection's favorite ids in the desired order.
+    /// The favorite ids in the desired order.
     pub favorite_ids: Vec<Uuid>,
 }
 
-/// List the caller's favorites and, when they belong to a team, the team's favorites.
+/// List the caller's favorites.
 #[utoipa::path(
     get,
     tag = "favorites",
@@ -203,33 +157,16 @@ pub struct ReorderFavoritesRequest {
 pub async fn list_favorites_handler<S, AccessSvc>(
     State(state): State<FavoritesRouterState<S, AccessSvc>>,
     user: MacroUserExtractor,
-    team: TeamExtractor<AccessSvc>,
 ) -> Result<Json<FavoritesList>, FavoritesApiError>
 where
     S: FavoritesService,
     AccessSvc: EntityAccessService,
 {
-    let user_owner = FavoriteOwner::User(user.macro_user_id.copied());
-    let team_id = team_id_from_receipt(&team);
-
-    let user_favorites = state.service.list_favorites(&user_owner).await?;
-    let team_favorites = match team_id {
-        Some(team_id) => Some(
-            state
-                .service
-                .list_favorites(&FavoriteOwner::Team(team_id))
-                .await?,
-        ),
-        None => None,
-    };
-
-    Ok(Json(FavoritesList {
-        user: user_favorites,
-        team: team_favorites,
-    }))
+    let favorites = state.service.list_favorites(&user.macro_user_id).await?;
+    Ok(Json(FavoritesList { favorites }))
 }
 
-/// Favorite an entity in the caller's user or team collection.
+/// Favorite an entity in the caller's collection.
 #[utoipa::path(
     post,
     tag = "favorites",
@@ -248,14 +185,12 @@ where
 pub async fn add_favorite_handler<S, AccessSvc>(
     State(state): State<FavoritesRouterState<S, AccessSvc>>,
     user: MacroUserExtractor,
-    team: TeamExtractor<AccessSvc>,
     Json(req): Json<AddFavoriteRequest>,
 ) -> Result<Json<Favorite>, FavoritesApiError>
 where
     S: FavoritesService,
     AccessSvc: EntityAccessService,
 {
-    let owner = owner_for_scope(req.scope, &user, &team)?;
     // Only let the caller favorite entities they can actually access, so a
     // favorite can't be used as an oracle for entity metadata (name, subject,
     // private-channel type) they were never allowed to see.
@@ -269,12 +204,12 @@ where
     let entity = req.entity_type.with_entity_str(&req.entity_id);
     let favorite = state
         .service
-        .add_favorite(&owner, &entity, &user.macro_user_id)
+        .add_favorite(&user.macro_user_id, &entity)
         .await?;
     Ok(Json(favorite))
 }
 
-/// Remove a favorite by record id from any collection the caller manages.
+/// Remove a favorite by record id from the caller's collection.
 #[utoipa::path(
     delete,
     tag = "favorites",
@@ -305,7 +240,7 @@ where
     Ok(Json(()))
 }
 
-/// Remove a favorite by entity + scope.
+/// Remove a favorite by entity.
 #[utoipa::path(
     delete,
     tag = "favorites",
@@ -315,7 +250,6 @@ where
     responses(
         (status = 200, body = ()),
         (status = 401, body = ErrorResponse),
-        (status = 403, body = ErrorResponse),
         (status = 404, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
@@ -324,23 +258,21 @@ where
 pub async fn remove_favorite_by_entity_handler<S, AccessSvc>(
     State(state): State<FavoritesRouterState<S, AccessSvc>>,
     user: MacroUserExtractor,
-    team: TeamExtractor<AccessSvc>,
     Query(params): Query<RemoveFavoriteByEntityParams>,
 ) -> Result<Json<()>, FavoritesApiError>
 where
     S: FavoritesService,
     AccessSvc: EntityAccessService,
 {
-    let owner = owner_for_scope(params.scope, &user, &team)?;
     let entity = params.entity_type.with_entity_str(&params.entity_id);
     state
         .service
-        .remove_favorite_by_entity(&owner, &entity)
+        .remove_favorite_by_entity(&user.macro_user_id, &entity)
         .await?;
     Ok(Json(()))
 }
 
-/// Persist a manual order for one of the caller's favorites collections.
+/// Persist a manual order for the caller's favorites.
 #[utoipa::path(
     patch,
     tag = "favorites",
@@ -351,7 +283,6 @@ where
         (status = 200, body = ()),
         (status = 400, body = ErrorResponse),
         (status = 401, body = ErrorResponse),
-        (status = 403, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
 )]
@@ -359,17 +290,15 @@ where
 pub async fn reorder_favorites_handler<S, AccessSvc>(
     State(state): State<FavoritesRouterState<S, AccessSvc>>,
     user: MacroUserExtractor,
-    team: TeamExtractor<AccessSvc>,
     Json(req): Json<ReorderFavoritesRequest>,
 ) -> Result<Json<()>, FavoritesApiError>
 where
     S: FavoritesService,
     AccessSvc: EntityAccessService,
 {
-    let owner = owner_for_scope(req.scope, &user, &team)?;
     state
         .service
-        .reorder_favorites(&owner, &req.favorite_ids)
+        .reorder_favorites(&user.macro_user_id, &req.favorite_ids)
         .await?;
     Ok(Json(()))
 }
@@ -377,9 +306,6 @@ where
 /// API-level error for favorites handlers.
 #[derive(Debug, thiserror::Error)]
 pub enum FavoritesApiError {
-    /// A team-scoped operation was requested by a user without a team.
-    #[error("you are not a member of a team")]
-    NotInTeam,
     /// The caller does not have access to the entity they tried to favorite.
     #[error("you do not have access to this entity")]
     Forbidden,
@@ -391,7 +317,6 @@ pub enum FavoritesApiError {
 impl IntoResponse for FavoritesApiError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match &self {
-            FavoritesApiError::NotInTeam => StatusCode::FORBIDDEN,
             FavoritesApiError::Forbidden => StatusCode::FORBIDDEN,
             FavoritesApiError::Favorites(FavoritesError::NotFound) => StatusCode::NOT_FOUND,
             FavoritesApiError::Favorites(FavoritesError::BadRequest(_)) => StatusCode::BAD_REQUEST,

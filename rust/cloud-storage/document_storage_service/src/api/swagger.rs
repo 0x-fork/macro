@@ -77,7 +77,7 @@ use documents_hex::inbound::axum_router::{
     edit_document::EditDocumentResponse, get_branch_name::BranchNameResponse,
     get_short_id::ShortIdResponse,
 };
-use favorites::domain::models::{Favorite, FavoriteScope, FavoritesList};
+use favorites::domain::models::{Favorite, FavoritesList};
 use favorites::inbound::axum_router::{AddFavoriteRequest, ReorderFavoritesRequest};
 use foreign_entity::domain::models::ForeignEntity;
 use model::document::response::{
@@ -410,7 +410,6 @@ use utoipa::OpenApi;
             SoupForeignEntity,
             ForeignEntity,
             Favorite,
-            FavoriteScope,
             FavoritesList,
             AddFavoriteRequest,
             ReorderFavoritesRequest,

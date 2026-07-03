@@ -4,14 +4,11 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
-import type { FavoriteScope } from './favoriteScope';
 
 /**
- * Request body for reordering a favorites collection.
+ * Request body for reordering favorites.
  */
 export interface ReorderFavoritesRequest {
-  /** The collection's favorite ids in the desired order. */
+  /** The favorite ids in the desired order. */
   favoriteIds: string[];
-  /** Which collection to reorder. */
-  scope: FavoriteScope;
 }

@@ -6693,7 +6693,7 @@
     "/favorites": {
       "get": {
         "tags": ["favorites"],
-        "summary": "List the caller's favorites and, when they belong to a team, the team's favorites.",
+        "summary": "List the caller's favorites.",
         "operationId": "list_favorites",
         "responses": {
           "200": {
@@ -6730,7 +6730,7 @@
       },
       "post": {
         "tags": ["favorites"],
-        "summary": "Favorite an entity in the caller's user or team collection.",
+        "summary": "Favorite an entity in the caller's collection.",
         "operationId": "add_favorite",
         "requestBody": {
           "content": {
@@ -6797,7 +6797,7 @@
       },
       "delete": {
         "tags": ["favorites"],
-        "summary": "Remove a favorite by entity + scope.",
+        "summary": "Remove a favorite by entity.",
         "operationId": "remove_favorite_by_entity",
         "parameters": [
           {
@@ -6833,15 +6833,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "scope",
-            "in": "query",
-            "description": "Which collection to remove the favorite from.",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/FavoriteScope"
-            }
           }
         ],
         "responses": {
@@ -6856,16 +6847,6 @@
             }
           },
           "401": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
             "description": "",
             "content": {
               "application/json": {
@@ -6901,7 +6882,7 @@
     "/favorites/reorder": {
       "patch": {
         "tags": ["favorites"],
-        "summary": "Persist a manual order for one of the caller's favorites collections.",
+        "summary": "Persist a manual order for the caller's favorites.",
         "operationId": "reorder_favorites",
         "requestBody": {
           "content": {
@@ -6944,16 +6925,6 @@
               }
             }
           },
-          "403": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
           "500": {
             "description": "",
             "content": {
@@ -6970,7 +6941,7 @@
     "/favorites/{id}": {
       "delete": {
         "tags": ["favorites"],
-        "summary": "Remove a favorite by record id from any collection the caller manages.",
+        "summary": "Remove a favorite by record id from the caller's collection.",
         "operationId": "remove_favorite",
         "parameters": [
           {
@@ -9629,7 +9600,7 @@
       "AddFavoriteRequest": {
         "type": "object",
         "description": "Request body for favoriting an entity.",
-        "required": ["entityType", "entityId", "scope"],
+        "required": ["entityType", "entityId"],
         "properties": {
           "entityId": {
             "type": "string",
@@ -9658,10 +9629,6 @@
               }
             ],
             "description": "The type of the entity to favorite."
-          },
-          "scope": {
-            "$ref": "#/components/schemas/FavoriteScope",
-            "description": "Which collection to add the favorite to."
           }
         }
       },
@@ -14403,15 +14370,7 @@
       "Favorite": {
         "type": "object",
         "description": "A single favorited entity, including display metadata hydrated from the\nfavorited entity where available.",
-        "required": [
-          "id",
-          "scope",
-          "entityType",
-          "entityId",
-          "sortOrder",
-          "createdBy",
-          "createdAt"
-        ],
+        "required": ["id", "entityType", "entityId", "sortOrder", "createdAt"],
         "properties": {
           "channelId": {
             "type": ["string", "null"],
@@ -14425,10 +14384,6 @@
             "type": "string",
             "format": "date-time",
             "description": "When the favorite was created."
-          },
-          "createdBy": {
-            "type": "string",
-            "description": "The user that created the favorite."
           },
           "documentSubType": {
             "type": ["string", "null"],
@@ -14475,10 +14430,6 @@
             "type": ["string", "null"],
             "description": "Display name of the favorited entity, when it could be resolved."
           },
-          "scope": {
-            "$ref": "#/components/schemas/FavoriteScope",
-            "description": "Whether this favorite belongs to the user's or the team's collection."
-          },
           "sortOrder": {
             "type": "number",
             "format": "double",
@@ -14486,29 +14437,17 @@
           }
         }
       },
-      "FavoriteScope": {
-        "type": "string",
-        "description": "Which collection a favorite belongs to.",
-        "enum": ["user", "team"]
-      },
       "FavoritesList": {
         "type": "object",
-        "description": "The user's favorites together with their team's favorites.",
-        "required": ["user"],
+        "description": "The user's favorites, in manual order.",
+        "required": ["favorites"],
         "properties": {
-          "team": {
-            "type": ["array", "null"],
-            "items": {
-              "$ref": "#/components/schemas/Favorite"
-            },
-            "description": "The requesting user's team favorites, in manual order.\n`None` when the user does not belong to a team."
-          },
-          "user": {
+          "favorites": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Favorite"
             },
-            "description": "The requesting user's personal favorites, in manual order."
+            "description": "The requesting user's favorites, in manual order."
           }
         }
       },
@@ -17687,8 +17626,8 @@
       },
       "ReorderFavoritesRequest": {
         "type": "object",
-        "description": "Request body for reordering a favorites collection.",
-        "required": ["scope", "favoriteIds"],
+        "description": "Request body for reordering favorites.",
+        "required": ["favoriteIds"],
         "properties": {
           "favoriteIds": {
             "type": "array",
@@ -17696,11 +17635,7 @@
               "type": "string",
               "format": "uuid"
             },
-            "description": "The collection's favorite ids in the desired order."
-          },
-          "scope": {
-            "$ref": "#/components/schemas/FavoriteScope",
-            "description": "Which collection to reorder."
+            "description": "The favorite ids in the desired order."
           }
         }
       },

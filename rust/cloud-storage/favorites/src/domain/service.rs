@@ -6,11 +6,11 @@ use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::Entity;
 use uuid::Uuid;
 
-use crate::domain::models::{Favorite, FavoriteOwner, FavoritesError};
+use crate::domain::models::{Favorite, FavoritesError};
 use crate::domain::ports::{FavoritesRepo, FavoritesService};
 
-/// Upper bound on favorites per collection; keeps reorder payloads and
-/// sidebar lists sane.
+/// Upper bound on favorites per user; keeps reorder payloads and sidebar
+/// lists sane.
 pub const MAX_FAVORITES_PER_COLLECTION: usize = 500;
 
 /// Concrete favorites service backed by a [FavoritesRepo].
@@ -47,9 +47,8 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn add_favorite(
         &self,
-        owner: &FavoriteOwner<'_>,
+        user_id: &MacroUserIdStr<'_>,
         entity: &Entity<'_>,
-        created_by: &MacroUserIdStr<'_>,
     ) -> Result<Favorite, FavoritesError> {
         validate_entity(entity)?;
         // Cap the collection at add time. Enforcing it here (rather than only
@@ -59,7 +58,7 @@ where
         // that is a harmless, fail-closed edge.
         let count = self
             .repo
-            .count_favorites(owner)
+            .count_favorites(user_id)
             .await
             .map_err(anyhow::Error::from)?;
         if count as usize >= MAX_FAVORITES_PER_COLLECTION {
@@ -69,7 +68,7 @@ where
         }
         Ok(self
             .repo
-            .add_favorite(owner, entity, created_by)
+            .add_favorite(user_id, entity)
             .await
             .map_err(anyhow::Error::from)?)
     }
@@ -77,11 +76,11 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn list_favorites(
         &self,
-        owner: &FavoriteOwner<'_>,
+        user_id: &MacroUserIdStr<'_>,
     ) -> Result<Vec<Favorite>, FavoritesError> {
         Ok(self
             .repo
-            .list_favorites(owner)
+            .list_favorites(user_id)
             .await
             .map_err(anyhow::Error::from)?)
     }
@@ -107,13 +106,13 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn remove_favorite_by_entity(
         &self,
-        owner: &FavoriteOwner<'_>,
+        user_id: &MacroUserIdStr<'_>,
         entity: &Entity<'_>,
     ) -> Result<(), FavoritesError> {
         validate_entity(entity)?;
         let removed = self
             .repo
-            .remove_favorite_by_entity(owner, entity)
+            .remove_favorite_by_entity(user_id, entity)
             .await
             .map_err(anyhow::Error::from)?;
         if removed {
@@ -126,7 +125,7 @@ where
     #[tracing::instrument(err, skip(self, ordered_ids))]
     async fn reorder_favorites(
         &self,
-        owner: &FavoriteOwner<'_>,
+        user_id: &MacroUserIdStr<'_>,
         ordered_ids: &[Uuid],
     ) -> Result<(), FavoritesError> {
         if ordered_ids.is_empty() {
@@ -145,7 +144,7 @@ where
         }
         Ok(self
             .repo
-            .reorder_favorites(owner, ordered_ids)
+            .reorder_favorites(user_id, ordered_ids)
             .await
             .map_err(anyhow::Error::from)?)
     }
