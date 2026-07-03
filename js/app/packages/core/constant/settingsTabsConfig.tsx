@@ -59,7 +59,7 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         label: 'Connected accounts',
         icon: CpuIcon,
       },
-      { tab: 'Agent', label: 'MCPs', icon: PlugIcon },
+      { tab: 'Agent', label: 'MCP server', icon: PlugIcon },
     ],
   },
   {

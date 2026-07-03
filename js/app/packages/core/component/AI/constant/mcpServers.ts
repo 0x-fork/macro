@@ -53,6 +53,28 @@ export const QUICK_CONNECT_SERVERS = [
   },
 ] as const;
 
+export type QuickConnectServer = (typeof QUICK_CONNECT_SERVERS)[number];
+
+/**
+ * Quick Connect servers surfaced directly on the Connected accounts page (with
+ * a one-line pitch) to encourage connecting, rather than being tucked away in
+ * the "Add server" dialog. Derived from {@link QUICK_CONNECT_SERVERS} so
+ * availability gating (e.g. dev-only Slack) applies automatically.
+ */
+const FEATURED_SERVER_TAGLINES: Record<string, string> = {
+  Linear: 'Create and update issues without leaving Macro.',
+  Slack: 'Search conversations and post updates to channels.',
+  Notion: 'Search your pages, databases, and wikis.',
+  PostHog: 'Query product analytics and user insights.',
+};
+
+export type FeaturedMcpServer = QuickConnectServer & { tagline: string };
+
+export const FEATURED_MCP_SERVERS: FeaturedMcpServer[] =
+  QUICK_CONNECT_SERVERS.filter(
+    (s) => FEATURED_SERVER_TAGLINES[s.server_name] !== undefined
+  ).map((s) => ({ ...s, tagline: FEATURED_SERVER_TAGLINES[s.server_name] }));
+
 export const QUICK_CONNECT_ICON_MAP: Map<string, SvgIcon> = new Map(
   QUICK_CONNECT_SERVERS.map((s) => [s.url, s.icon])
 );
