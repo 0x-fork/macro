@@ -64,7 +64,7 @@ const VARIANTS: Record<
     id: 'email/needs-attention',
     prompt: EMAIL_PROMPT,
     // Single-tool sweep over signal emails; ride the fastest provider.
-    model: 'cerebras/llama-3.3-70b',
+    model: 'cerebras/gpt-oss-120b',
   },
 };
 

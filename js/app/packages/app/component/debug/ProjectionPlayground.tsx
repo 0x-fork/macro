@@ -23,7 +23,7 @@ type ModelChoice = 'default' | 'fast' | 'cerebras' | 'custom';
 const MODEL_IDS: Record<Exclude<ModelChoice, 'custom'>, string | undefined> = {
   default: undefined,
   fast: 'anthropic/claude-haiku-4-5',
-  cerebras: 'cerebras/llama-3.3-70b',
+  cerebras: 'cerebras/gpt-oss-120b',
 };
 
 const AI_PROJECTION_UPDATED_MESSAGE_TYPE = 'ai_projection_updated';
@@ -47,7 +47,7 @@ export default function ProjectionPlayground() {
   const [prompt, setPrompt] = createSignal(DEFAULT_PROMPT);
   const [outputMode, setOutputMode] = createSignal<OutputMode>('text');
   const [modelChoice, setModelChoice] = createSignal<ModelChoice>('default');
-  const [customModel, setCustomModel] = createSignal('cerebras/llama-3.3-70b');
+  const [customModel, setCustomModel] = createSignal('cerebras/gpt-oss-120b');
   const [awaitGeneration, setAwaitGeneration] = createSignal(true);
   const [enabled, setEnabled] = createSignal(false);
   const [cadence, setCadence] = createSignal<RefreshCadence>('low');
@@ -169,7 +169,7 @@ export default function ProjectionPlayground() {
             <Show when={modelChoice() === 'custom'}>
               <input
                 class="w-full rounded-sm border border-edge-muted bg-surface p-1.5 text-sm outline-none focus:border-accent"
-                placeholder="provider/model, e.g. cerebras/llama-3.3-70b"
+                placeholder="provider/model, e.g. cerebras/gpt-oss-120b"
                 value={customModel()}
                 onInput={(event) => setCustomModel(event.currentTarget.value)}
               />

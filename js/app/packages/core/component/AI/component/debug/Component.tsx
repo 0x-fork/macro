@@ -300,7 +300,7 @@ function FullChatInner() {
 // A third provider (Cerebras) lets the gallery exercise multi-hop provider
 // fallback. It deliberately lives here, not in model.ts, so it never surfaces
 // in the real product model selector.
-const CEREBRAS_MODEL = 'cerebras/llama-3.3-70b';
+const CEREBRAS_MODEL = 'cerebras/gpt-oss-120b';
 const GALLERY_MODELS: string[] = [...Object.values(Model), CEREBRAS_MODEL];
 
 const galleryProvider = (id: string): string =>

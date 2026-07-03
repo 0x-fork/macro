@@ -45,7 +45,7 @@ export type CreateAIProjectionOptions<Schema extends z.ZodType = z.ZodType> = {
    * generated as schema-conforming JSON (prompted, non-strict — works across
    * providers) and `data` returns the parsed, validated object. */
   schema?: Schema;
-  /** Optional `provider/model` id (e.g. `cerebras/llama-3.3-70b`,
+  /** Optional `provider/model` id (e.g. `cerebras/gpt-oss-120b`,
    * `anthropic/claude-haiku-4-5`). Defaults to the server's default model. */
   model?: string;
   /** Whether the projection targets the user or their team. Default `user`. */
@@ -106,7 +106,7 @@ function toProjectionState(
  *   id: 'inbox/important',
  *   prompt: 'Summarize my most important unread emails.',
  *   schema: z.object({ items: z.array(z.string()) }),
- *   model: 'cerebras/llama-3.3-70b',
+ *   model: 'cerebras/gpt-oss-120b',
  *   awaitGeneration: true,
  *   enabled: inboxOpen(),
  * }));
