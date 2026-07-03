@@ -102,6 +102,14 @@ export async function openChatWithMessage(message: string) {
   await createAndOpenChat({ message });
 }
 
+/** Open a new chat with `attachments` and immediately send `message`. */
+export async function openChatWithMessageAndAttachments(
+  message: string,
+  attachments: Attachment[]
+) {
+  await createAndOpenChat({ message, attachments });
+}
+
 export function ChatWithAgentButton(props: { entity: ChatWithAgentEntity }) {
   const [hovering, setHovering] = createSignal(false);
 
