@@ -304,7 +304,7 @@ function ServerRow(props: { server: ServerResponse }) {
     <IntegrationRow
       icon={(() => {
         const C = Icon();
-        return <C class="size-5 text-accent" />;
+        return <C class="size-5" />;
       })()}
       title={
         <span class="flex items-center gap-1.5">
@@ -425,7 +425,7 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
 
   return (
     <IntegrationRow
-      icon={<props.server.icon class="size-5 text-accent" />}
+      icon={<props.server.icon class="size-5" />}
       title={props.server.server_name}
       description={props.server.tagline}
     >
