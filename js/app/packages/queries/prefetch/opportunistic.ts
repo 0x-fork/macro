@@ -46,6 +46,7 @@ const CANDIDATE_LIMITS: Record<PrefetchEntityKind, number> = {
   channel: 40,
   emailThread: 50,
   document: 40,
+  chat: 20,
 };
 
 /** Signal weights: inbox notifications are the strongest "will open next" hint. */
@@ -85,6 +86,8 @@ function soupItemToRef(item: SoupApiItem): PrefetchEntityRef | undefined {
       return { kind: 'channel', id: item.data.channel.id };
     case 'emailThread':
       return { kind: 'emailThread', id: item.data.id };
+    case 'chat':
+      return { kind: 'chat', id: item.data.id };
     case 'document':
       // Only markdown-backed docs (incl. tasks/snippets) have Loro content.
       return item.data.fileType === 'md'
@@ -183,16 +186,18 @@ function historySource(): RankedPrefetchSource {
   // block registry out of this startup-adjacent module's import graph.
   const items =
     queryClient.getQueryData<HistoryItem[]>(historyKeys.list.queryKey) ?? [];
-  const documents = items.filter(
-    (item) => item.type === 'document' && item.fileType === 'md'
+  const prefetchable = items.filter(
+    (item) =>
+      (item.type === 'document' && item.fileType === 'md') ||
+      item.type === 'chat'
   );
-  const scored = sortByScoreDesc(documents, (item) =>
+  const scored = sortByScoreDesc(prefetchable, (item) =>
     toEpochMillis(item.updatedAt ?? null)
   );
   return {
     weight: HISTORY_SOURCE_WEIGHT,
     entries: scored.map((item) => ({
-      kind: 'document' as const,
+      kind: item.type === 'chat' ? ('chat' as const) : ('document' as const),
       id: item.id,
     })),
   };
@@ -213,6 +218,13 @@ async function prefetchEmailThread(threadId: string): Promise<void> {
   // fetchInfiniteQuery under the hood: respects the 5-minute staleTime and
   // auto-persists via the email-threads scope.
   await fetchAndCacheThread(threadId);
+}
+
+async function prefetchChat(chatId: string): Promise<void> {
+  // Cache-first within the chat stale window; the result auto-persists via
+  // the chats scope, so recently used agents open instantly and offline.
+  const { prefetchChatLoad } = await import('../cognition/chat-load');
+  await prefetchChatLoad(chatId);
 }
 
 async function prefetchDocument(documentId: string): Promise<void> {
@@ -251,6 +263,7 @@ async function prefetchCandidate(candidate: PrefetchCandidate): Promise<void> {
     if (candidate.kind === 'channel') await prefetchChannel(candidate.id);
     else if (candidate.kind === 'emailThread')
       await prefetchEmailThread(candidate.id);
+    else if (candidate.kind === 'chat') await prefetchChat(candidate.id);
     else await prefetchDocument(candidate.id);
   } catch (error) {
     console.debug('[prefetch] opportunistic prefetch failed', {

@@ -1,5 +1,4 @@
 import type { BlockName } from '@core/block';
-import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
   blocks as BLOCK_REGISTRY,
   resolveBlockAlias,
@@ -86,7 +85,6 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   // first tree builds — creating a split was the one path that still did
   // its full mount synchronously inside the click task.
   const [displayedMount, setDisplayedMount] = createSignal<SplitMount>();
-  const swapPending = () => displayedMount() !== props.mount;
 
   let swapGeneration = 0;
   let cleanedUp = false;
@@ -100,9 +98,12 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
     }
     const generation = ++swapGeneration;
     // rAF alone fires before the frame commits; the nested timeout lands
-    // right after the shimmer paints. Rapid re-navigation supersedes any
-    // scheduled swap via the generation counter and always lands on the
-    // latest mount.
+    // right after the click's paint (nav highlight, active states), so the
+    // expensive teardown+mount never blocks that feedback. The outgoing
+    // view stays visible untouched until the new tree is fully built —
+    // content swaps once, with no blank/shimmer frame in between. Rapid
+    // re-navigation supersedes any scheduled swap via the generation
+    // counter and always lands on the latest mount.
     requestAnimationFrame(() => {
       setTimeout(() => {
         if (cleanedUp || generation !== swapGeneration) return;
@@ -200,14 +201,6 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
             hostEl = el;
           }}
         />
-      </Show>
-      <Show when={swapPending()}>
-        {/* Covers the outgoing view until the deferred swap lands, so the
-            click paints feedback immediately instead of freezing on the
-            old view. */}
-        <div class="absolute inset-0 z-10 flex flex-col bg-surface">
-          <LoadingBlock />
-        </div>
       </Show>
     </div>
   );

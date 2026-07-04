@@ -138,6 +138,13 @@ export function createQueryPersistenceScopes(
       shouldPersist: (queryKey) =>
         queryKey[0] === 'preview' && queryKey[1] === 'item',
     }),
+    // Chat/agent open payloads (chat + message history). Restoring them
+    // makes reopening an agent instant on cold starts and lets previously
+    // opened agents open offline. The payload carries no credentials.
+    contentScope('chats', {
+      shouldPersist: (queryKey) =>
+        partialMatchKey(queryKey, ['entity', 'chatLoad']),
+    }),
     // User info is THE blocking round trip on warm reloads: sidebar and
     // every list panel gate on isAuthenticated(), so nothing else (even
     // IDB-restored content) can paint until it returns. Restoring it makes

@@ -193,7 +193,10 @@ function filterDataToQueryFilters(data: QueryState): EntityFilters {
 }
 
 const SEARCH_SERVICE_DEBOUNCE_MS = 300;
-const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 20;
+// Long enough that a normal typing cadence coalesces into one full-pool
+// fuzzy scan per pause instead of one per keystroke; the scan (plus its
+// second highlight pass) is the heaviest synchronous work while typing.
+const LOCAL_FUZZY_SEARCH_DEBOUNCE_MS = 120;
 // Max number of non-channel local results to feature. Channels bypass this
 // limit since they are only searched locally, not via the backend search service.
 const FEATURED_COUNT = 3;

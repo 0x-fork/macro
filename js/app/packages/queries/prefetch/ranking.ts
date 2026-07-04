@@ -7,7 +7,11 @@
  * flags) — only each source's ordering matters.
  */
 
-export type PrefetchEntityKind = 'channel' | 'emailThread' | 'document';
+export type PrefetchEntityKind =
+  | 'channel'
+  | 'emailThread'
+  | 'document'
+  | 'chat';
 
 export type PrefetchEntityRef = Readonly<{
   kind: PrefetchEntityKind;
@@ -53,6 +57,7 @@ export function fusePrefetchSources(
     channel: 0,
     emailThread: 0,
     document: 0,
+    chat: 0,
   };
   return ranked.filter((candidate) => {
     if (taken[candidate.kind] >= limits[candidate.kind]) return false;

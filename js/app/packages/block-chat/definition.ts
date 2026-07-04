@@ -1,7 +1,12 @@
 import { defineBlock, type ExtractLoadType, LoadErrors } from '@core/block';
 import { Model } from '@core/component/AI/constant/model';
-import { cognitionApiServiceClient } from '@service-cognition/client';
+import {
+  ChatLoadError,
+  fetchChatLoad,
+  prefetchChatLoad,
+} from '@queries/cognition/chat-load';
 import type { Entity } from '@service-cognition/generated/schemas/entity';
+import type { GetChatResponse } from '@service-cognition/generated/schemas/getChatResponse';
 import type { DocumentMetadata } from '@service-storage/generated/schemas/documentMetadata';
 import { ok } from 'neverthrow';
 import { lazy } from 'solid-js';
@@ -18,24 +23,36 @@ export const definition = defineBlock({
   // definition itself stays eager for file-type routing.
   component: lazy(() => import('./component/Block')),
   liveTrackingEnabled: true,
+  // Recently viewed chats keep their live tree (stream state included)
+  // parked for instant reattach, like emails.
+  keepAlive: true,
   async load(source, intent) {
     if (source.type === 'dss') {
-      // Fetch the chat from dcs
       const chatId = source.id;
-      const res = await cognitionApiServiceClient.getChat({ chat_id: chatId });
-      if (
-        res.isErr() &&
-        res.error.some((error) => error.code === 'UNAUTHORIZED')
-      )
-        return LoadErrors.INVALID;
-      if (res.isErr()) return LoadErrors.MISSING;
-      const chat = res.value;
 
       if (intent === 'preload') {
+        // Warm the cache without blocking; the real open reuses it.
+        void prefetchChatLoad(chatId);
         return ok({
           type: 'preload',
           origin: source,
         });
+      }
+
+      // Through the query client: cache-first within the stale window,
+      // warmed by the opportunistic prefetch, persisted to IDB via the
+      // 'chats' scope (with offline fallback to the last known payload).
+      let chat: GetChatResponse;
+      try {
+        chat = await fetchChatLoad(chatId);
+      } catch (error) {
+        if (
+          error instanceof ChatLoadError &&
+          error.codes.includes('UNAUTHORIZED')
+        ) {
+          return LoadErrors.INVALID;
+        }
+        return LoadErrors.MISSING;
       }
 
       return ok({

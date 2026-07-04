@@ -576,7 +576,11 @@ export const SoupViewContextProvider: FlowComponent<
     }
   );
 
-  const baseEntities = () => {
+  // Memos, not plain functions: the predicate/dedupe/sort pipeline is read
+  // by both source.data consumers and the rows memo, and would otherwise
+  // run in full for each reader on every update (noticeable while search
+  // results stream in).
+  const baseEntities = createMemo(() => {
     let transformed = items();
     const ctx = getFilterContext();
 
@@ -602,9 +606,9 @@ export const SoupViewContextProvider: FlowComponent<
     }
 
     return transformed;
-  };
+  });
 
-  const entities = () => {
+  const entities = createMemo(() => {
     const base = baseEntities();
     if (!ENABLE_FEATURED_SEARCH_RESULTS || !search.isSearching()) return base;
 
@@ -623,7 +627,7 @@ export const SoupViewContextProvider: FlowComponent<
     const rest = base.filter((e) => !featuredIdSet.has(e.id));
 
     return [...featured, ...rest];
-  };
+  });
 
   const groupQueries = createGroupedSoupQueries({
     initialPage: createMemo(() => {
@@ -704,6 +708,54 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
+  // Section metas are cached by key (count updated in place) so rows can
+  // keep a stable `group` reference across recomputes — a prerequisite for
+  // the row cache below.
+  const dateSectionMetaCache = new Map<DateSectionKey, GroupMeta>();
+  const dateSectionMeta = (key: DateSectionKey, count: number): GroupMeta => {
+    let meta = dateSectionMetaCache.get(key);
+    if (!meta) {
+      meta = buildDateSectionMeta(key, count);
+      dateSectionMetaCache.set(key, meta);
+    } else {
+      meta.count = count;
+    }
+    return meta;
+  };
+
+  // Rows are cached by id so an unchanged entity keeps a stable object
+  // identity across recomputes. The virtualizer's <For> reconciles by
+  // reference, so stable rows let it move existing DOM nodes instead of
+  // tearing down and rebuilding the entire visible slice — previously
+  // every search keystroke's result update recreated all visible rows
+  // (context menus, entity layouts, a markdown title parse each). Only
+  // the flat paths use the cache; the server-grouped path rebuilds group
+  // metas per update and stays as-is.
+  let rowCache = new Map<string, SoupRow>();
+  const buildRowCached = (
+    nextCache: Map<string, SoupRow>,
+    options: {
+      id: string;
+      index: number;
+      original: SoupEntity;
+      group?: GroupMeta;
+      isGrouped?: boolean;
+    }
+  ): SoupRow => {
+    const cached = rowCache.get(options.id);
+    const row =
+      cached &&
+      cached.original === options.original &&
+      cached.group === options.group &&
+      cached.getIsGrouped() === (options.isGrouped ?? false) &&
+      !cached.getIsLoadMore()
+        ? cached
+        : soup.buildRow(options);
+    row.index = options.index;
+    nextCache.set(options.id, row);
+    return row;
+  };
+
   const rows = createMemo((): SoupRow[] => {
     const field = groupByField();
     const groups = itemsQuery.data?.groups;
@@ -711,10 +763,13 @@ export const SoupViewContextProvider: FlowComponent<
     if (!enabled() || !field || !groups || search.isSearching()) {
       const list = entities();
       const timestampOf = dateSectionTimestamp();
+      const nextCache = new Map<string, SoupRow>();
       if (!timestampOf || list.length === 0) {
-        return list.map((entity, index) =>
-          soup.buildRow({ id: entity.id, index, original: entity })
+        const result = list.map((entity, index) =>
+          buildRowCached(nextCache, { id: entity.id, index, original: entity })
         );
+        rowCache = nextCache;
+        return result;
       }
 
       // Single pass over the already-sorted list; headers are injected at
@@ -736,12 +791,12 @@ export const SoupViewContextProvider: FlowComponent<
         const sectionKey = sections[i]!;
         if (sectionKey !== currentKey) {
           currentKey = sectionKey;
-          currentMeta = buildDateSectionMeta(
+          currentMeta = dateSectionMeta(
             sectionKey,
             counts.get(sectionKey) ?? 0
           );
           result.push(
-            soup.buildRow({
+            buildRowCached(nextCache, {
               id: `header:${dateSectionGroupKey(sectionKey)}`,
               index: index++,
               original: entity,
@@ -751,7 +806,7 @@ export const SoupViewContextProvider: FlowComponent<
           );
         }
         result.push(
-          soup.buildRow({
+          buildRowCached(nextCache, {
             id: entity.id,
             index: index++,
             original: entity,
@@ -759,6 +814,7 @@ export const SoupViewContextProvider: FlowComponent<
           })
         );
       }
+      rowCache = nextCache;
       return result;
     }
 

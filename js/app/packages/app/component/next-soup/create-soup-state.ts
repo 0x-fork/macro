@@ -140,17 +140,23 @@ export const createSoupState = <TId extends string = FilterID>(
       isGrouped = false,
       isLoadMore = false,
     } = options;
-    return {
+    // isFocused reads the row's own (mutable) index rather than capturing
+    // it, so a cached row object can be reused across list recomputes with
+    // only its index updated (see buildRowCached in soup-view-context).
+    // Position changes re-resolve focusedIndex via setRows, so the signal
+    // read keeps the highlight reactive.
+    const row: SoupRow = {
       id,
       index,
       original,
       group,
       getIsGrouped: () => isGrouped,
       getIsLoadMore: () => isLoadMore,
-      isFocused: () => focusedIndex() === index,
+      isFocused: () => focusedIndex() === row.index,
       isSelected: () =>
         !isGrouped && !isLoadMore && selection.isSelected(original.id),
     };
+    return row;
   };
 
   const [rows, setRowsInternal] = createSignal<SoupRow[]>(

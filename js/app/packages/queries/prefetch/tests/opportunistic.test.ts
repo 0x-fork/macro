@@ -15,6 +15,7 @@ const LIMITS: Record<PrefetchEntityKind, number> = {
   channel: 2,
   emailThread: 2,
   document: 2,
+  chat: 2,
 };
 
 describe('fusePrefetchSources', () => {
@@ -36,7 +37,7 @@ describe('fusePrefetchSources', () => {
           ],
         },
       ],
-      { channel: 10, emailThread: 10, document: 10 }
+      { channel: 10, emailThread: 10, document: 10, chat: 10 }
     );
 
     expect(fused[0]).toMatchObject({ kind: 'channel', id: 'b' });
