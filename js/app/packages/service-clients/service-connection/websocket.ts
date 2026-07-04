@@ -28,6 +28,14 @@ export type FromWebsocketMessage = {
 };
 
 async function resolveWsUrl() {
+  // jsdom's WebSocket cannot connect (its 'ws' backend is stubbed out in
+  // browser builds) and throws inside its own async internals where no
+  // caller can catch, failing vitest runs with unhandled errors whenever
+  // this module-scope singleton is reached through an import graph. Bail
+  // before any fetch; the connect error is caught and retried normally.
+  if (import.meta.env.MODE === 'test') {
+    throw new Error('Websocket connections are disabled under vitest');
+  }
   if (ENABLE_BEARER_TOKEN_AUTH) {
     const apiToken = await getMacroApiToken();
     if (!apiToken) throw new Error('No Macro API token');

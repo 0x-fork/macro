@@ -379,6 +379,17 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
       if (this.binaryType !== undefined) {
         this._underlyingWebsocket.binaryType = this.binaryType;
       }
+    } catch (error) {
+      // Url resolution (e.g. the token fetch) or socket construction
+      // failed: no underlying socket exists, so no close event will ever
+      // fire. Without this catch, the un-awaited constructor/retry calls
+      // turn the error into an unhandled rejection and the connection
+      // never retries.
+      console.error('Websocket connect attempt failed', error);
+      if (!this._closedByUser) {
+        this.connectionState = WebsocketConnectionState.Closed;
+        this.scheduleConnectionRetryIfNeeded();
+      }
     } finally {
       this.connectPending = false;
     }
