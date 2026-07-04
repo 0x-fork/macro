@@ -132,6 +132,13 @@ export function createQueryPersistenceScopes(
         partialMatchKey(queryKey, notificationKeys.user._def),
       dehydrate: trimInfiniteQueryPages(3),
     }),
+    // Entity previews (names, icons, file types) back mentions, tabs, and
+    // list rows everywhere; restoring them makes cold starts paint real
+    // names instead of placeholders.
+    contentScope('previews', {
+      shouldPersist: (queryKey) =>
+        queryKey[0] === 'preview' && queryKey[1] === 'item',
+    }),
     ...(isNativeMobilePlatform()
       ? [
           {

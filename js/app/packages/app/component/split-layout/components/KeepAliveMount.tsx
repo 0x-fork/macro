@@ -22,7 +22,7 @@ import { KeepAliveVisibilityProvider } from './keep-alive-visibility';
  * Each parked tree keeps its queries observed (staying fresh) and its DOM
  * built, so revisits reattach instead of rebuilding.
  */
-const KEEP_ALIVE_CAP = 5;
+const KEEP_ALIVE_CAP = 8;
 
 type BlockMount = Extract<SplitMount, { kind: 'block' }>;
 
@@ -82,7 +82,10 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   let hostEl: HTMLDivElement | undefined;
   let activeEntry: CacheEntry | undefined;
 
-  const [displayedMount, setDisplayedMount] = createSignal(props.mount);
+  // Starts empty so a brand-new split also paints its shimmer before the
+  // first tree builds — creating a split was the one path that still did
+  // its full mount synchronously inside the click task.
+  const [displayedMount, setDisplayedMount] = createSignal<SplitMount>();
   const swapPending = () => displayedMount() !== props.mount;
 
   let swapGeneration = 0;
@@ -91,7 +94,7 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
     const next = props.mount;
     const current = untrack(displayedMount);
     if (next === current) return;
-    if (!shouldDeferSwap(current, next)) {
+    if (current && !shouldDeferSwap(current, next)) {
       setDisplayedMount(next);
       return;
     }
@@ -163,6 +166,7 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
 
   createEffect(() => {
     const mount = displayedMount();
+    if (!mount) return;
     if (!isKeepAliveMount(mount)) {
       // A non-keep-alive mount is showing; parked trees must go dormant.
       deactivateCurrent();
@@ -183,8 +187,12 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   return (
     <div class="relative size-full min-h-0">
       <Show
-        when={isKeepAliveMount(displayedMount())}
-        fallback={<Dynamic component={displayedMount().element} />}
+        when={displayedMount() && isKeepAliveMount(displayedMount()!)}
+        fallback={
+          <Show when={displayedMount()}>
+            {(mount) => <Dynamic component={mount().element} />}
+          </Show>
+        }
       >
         <div
           style={{ display: 'contents' }}

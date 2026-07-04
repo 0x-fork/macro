@@ -181,18 +181,15 @@ function createBlockElement({
   return () => {
     onMount(() => {
       onElementMount?.();
-      console.log(
-        'mounting block with id:',
-        id,
-        'type:',
-        type,
-        'params:',
-        opts?.params
-      );
+      if (import.meta.env.DEV) {
+        console.log('mounting block', { id, type, params: opts?.params });
+      }
     });
 
     onCleanup(() => {
-      console.log('unmounting block with id:', id, 'type:', type);
+      if (import.meta.env.DEV) {
+        console.log('unmounting block', { id, type });
+      }
       onElementCleanup?.();
     });
 

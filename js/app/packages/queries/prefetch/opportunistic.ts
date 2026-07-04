@@ -43,9 +43,9 @@ const START_DELAY_MS = 12_000;
 const CONCURRENCY = 2;
 
 const CANDIDATE_LIMITS: Record<PrefetchEntityKind, number> = {
-  channel: 20,
+  channel: 40,
   emailThread: 50,
-  document: 25,
+  document: 40,
 };
 
 /** Signal weights: inbox notifications are the strongest "will open next" hint. */

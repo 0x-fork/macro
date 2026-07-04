@@ -9,13 +9,15 @@ import { fetchBinaryDocumentData } from '@queries/storage/binary-document';
 import { fetchBinary } from '@service-storage/util/fetchBinary';
 import { makeFileFromBlob } from '@service-storage/util/makeFileFromBlob';
 import { err, ok } from 'neverthrow';
-import CanvasBlock from './component/Block';
+import { lazy } from 'solid-js';
 import type { Canvas } from './model/CanvasModel';
 
 export const definition = defineBlock({
   name: 'canvas',
   description: 'edit canvas',
-  component: CanvasBlock,
+  // Lazy chunk: keeps this block's UI out of the entry bundle; the
+  // definition itself stays eager for file-type routing.
+  component: lazy(() => import('./component/Block')),
   accepted: {
     canvas: 'application/x-macro-canvas',
   },
