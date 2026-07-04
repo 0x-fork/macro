@@ -6,7 +6,7 @@ import type { SplitHandle } from '@app/component/split-layout/layoutManager';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
+import { createHotkeyGroup } from '@core/hotkey/hotkeys';
 import { activeScope, hotkeyScopeTree } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import {
@@ -26,6 +26,7 @@ import { type Accessor, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { SoupState } from '../create-soup-state';
 import { type TabbedListView, VIEW_TAB_LISTS } from './soup-view-tabs';
+import { useViewHotkeyRegistrar } from './view-hotkeys';
 
 type UseSoupViewHotkeysOptions = {
   splitId: string;
@@ -71,6 +72,9 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     }
     return '';
   };
+
+  // View trees are keep-alive parked, not disposed; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
 
   const group = createHotkeyGroup();
 

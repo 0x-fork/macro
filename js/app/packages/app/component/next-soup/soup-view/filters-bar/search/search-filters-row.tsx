@@ -1,7 +1,7 @@
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { createSignal, For } from 'solid-js';
+import { useViewHotkeyRegistrar } from '../../view-hotkeys';
 import { SearchFacetChip } from './search-facet-chip';
 import { useSearchFacets } from './search-facets';
 import { createSearchFiltersController } from './search-filters-state';
@@ -15,6 +15,9 @@ export function SearchFiltersRow() {
   const facets = useSearchFacets(controller);
   const panel = useSplitPanelOrThrow();
   const [typeMenuOpen, setTypeMenuOpen] = createSignal(false);
+
+  // View trees are keep-alive parked, not disposed; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
 
   registerHotkey({
     hotkey: 'f',

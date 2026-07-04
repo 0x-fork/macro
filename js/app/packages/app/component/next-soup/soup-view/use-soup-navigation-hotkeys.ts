@@ -1,5 +1,7 @@
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
+import { useKeepAliveVisible } from '@app/component/split-layout/components/keep-alive-visibility';
 import type { SplitHandle } from '@app/component/split-layout/layoutManager';
+import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { isListViewID } from '@app/constants/list-views';
 import { entityIdSelector } from '@core/dom-selectors';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
@@ -111,6 +113,16 @@ export const useSoupNavigationHotkeys = (
     return true;
   };
 
+  // With keep-alive, every view's tree stays mounted, so these split-scope
+  // registrations coexist ('add') and conditions route keys to the right
+  // view. j/k stay live for the LAST SHOWN view while a block opened from
+  // it is on screen (that view is parked but is the panel's active list
+  // soup); everything else only fires while its view is visible.
+  const keepAliveVisible = useKeepAliveVisible();
+  const panelForRelevance = useSplitPanel();
+  const isRelevantView = () =>
+    keepAliveVisible() || panelForRelevance?.activeListSoup() === soup;
+
   const group = createHotkeyGroup();
 
   const { fetchNextPage, isFetching, isFetchingNextPage, hasNextPage } =
@@ -183,7 +195,8 @@ export const useSoupNavigationHotkeys = (
     scopeId,
     description: 'Down',
     hotkeyToken: TOKENS.entity.step.end,
-    condition: canRunListNavigation,
+    registrationType: 'add',
+    condition: () => isRelevantView() && canRunListNavigation(),
     keyDownHandler: navigateDown,
     hide: true,
   });
@@ -192,6 +205,8 @@ export const useSoupNavigationHotkeys = (
     hotkey: ['arrowdown'],
     scopeId,
     description: 'Down',
+    registrationType: 'add',
+    condition: keepAliveVisible,
     keyDownHandler: navigateDown,
     hide: true,
   }).withGroup(group);
@@ -203,8 +218,9 @@ export const useSoupNavigationHotkeys = (
     hotkey: ['k'],
     scopeId,
     hotkeyToken: TOKENS.entity.step.start,
+    registrationType: 'add',
     description: 'Up',
-    condition: canRunListNavigation,
+    condition: () => isRelevantView() && canRunListNavigation(),
     keyDownHandler: navigateUp,
     hide: true,
   });
@@ -213,6 +229,8 @@ export const useSoupNavigationHotkeys = (
     hotkey: ['arrowup'],
     scopeId,
     description: 'Up',
+    registrationType: 'add',
+    condition: keepAliveVisible,
     keyDownHandler: navigateUp,
     hide: true,
   }).withGroup(group);
@@ -223,6 +241,8 @@ export const useSoupNavigationHotkeys = (
     scopeId,
     description: 'Select up',
     hotkeyToken: TOKENS.entity.select.start,
+    registrationType: 'add',
+    condition: keepAliveVisible,
     keyDownHandler: () => {
       return handleNavigationSelection(-1);
     },
@@ -235,6 +255,8 @@ export const useSoupNavigationHotkeys = (
     scopeId,
     description: 'Select down',
     hotkeyToken: TOKENS.entity.select.end,
+    registrationType: 'add',
+    condition: keepAliveVisible,
     keyDownHandler: () => {
       return handleNavigationSelection(1);
     },
@@ -295,6 +317,7 @@ export const useSoupNavigationHotkeys = (
       return false;
     },
     registrationType: 'add',
+    condition: keepAliveVisible,
     handlerPriority: 4,
     hide: true,
   }).withGroup(group);
@@ -317,6 +340,7 @@ export const useSoupNavigationHotkeys = (
       return false;
     },
     registrationType: 'add',
+    condition: keepAliveVisible,
     handlerPriority: 4,
     hide: true,
   }).withGroup(group);

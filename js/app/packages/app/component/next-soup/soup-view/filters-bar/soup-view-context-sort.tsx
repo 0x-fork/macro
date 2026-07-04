@@ -11,9 +11,9 @@ import {
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
-import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { createMemo, createSignal, Match, Switch } from 'solid-js';
+import { useViewHotkeyRegistrar } from '../view-hotkeys';
 
 type SortOpenProps = {
   open: boolean;
@@ -24,6 +24,9 @@ export const SoupViewContextSort = () => {
   const panel = useSplitPanelOrThrow();
 
   const [sortOpen, setSortOpen] = createSignal(false);
+
+  // View trees are keep-alive parked, not disposed; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
 
   registerHotkey({
     hotkey: 's',

@@ -15,7 +15,6 @@ import {
   ENABLE_NEW_INBOX_FLAG,
   ENABLE_NEW_INBOX_OVERRIDE,
 } from '@core/constant/featureFlags';
-import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
@@ -23,6 +22,7 @@ import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-s
 import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, Show } from 'solid-js';
 import { useSoup } from '../../soup-context';
+import { useViewHotkeyRegistrar } from '../view-hotkeys';
 
 export function SoupFiltersBar() {
   const { resetToTabDefaults, consolidatedFiltersList } =
@@ -46,6 +46,9 @@ export function SoupFiltersBar() {
     analytics.track('preview_panel_use');
     soup.setPreviewEntity(focused);
   };
+
+  // View trees are keep-alive parked, not disposed; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
 
   registerHotkey({
     hotkeyToken: TOKENS.unifiedList.togglePreview,

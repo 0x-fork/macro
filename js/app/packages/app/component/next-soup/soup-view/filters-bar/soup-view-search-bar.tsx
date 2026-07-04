@@ -4,7 +4,6 @@ import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-contex
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
-import { registerHotkey } from '@core/hotkey/hotkeys';
 import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import { markdownToPlainText } from '@lexical-core/utils/parsers';
 import XIcon from '@phosphor/x.svg?component-solid';
@@ -23,6 +22,7 @@ import {
   onMount,
   Show,
 } from 'solid-js';
+import { useViewHotkeyRegistrar } from '../view-hotkeys';
 
 type SearchbarVariant = 'filled' | 'secondary';
 
@@ -113,6 +113,9 @@ export const SoupSearchbar = (props: SoupSearchbarProps) => {
       setSearchText(markdownToPlainText(markdown).trim());
     })
   );
+
+  // View trees are keep-alive parked, not disposed; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
 
   const searchHotkey = registerHotkey({
     hotkey: ['cmd+f'],

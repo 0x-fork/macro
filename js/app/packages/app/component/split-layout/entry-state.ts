@@ -1,10 +1,12 @@
 import {
   type Accessor,
+  createEffect,
   createSignal,
   onCleanup,
   type Setter,
   untrack,
 } from 'solid-js';
+import { useKeepAliveVisible } from './components/keep-alive-visibility';
 import type { EntryState, NavigationCause } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 
@@ -44,8 +46,17 @@ export function useEntryState<T>(
 
   const [value, setValue] = createSignal<T>(initial);
 
-  const teardown = handle.registerEntryStateCaptor(key, () => value());
-  onCleanup(teardown);
+  // Captors are per-split and last-write-wins per key. Keep-alive parks
+  // whole trees without disposing them, so an unconditional registration
+  // from a parked tree would capture ITS value into every entry the user
+  // navigates away from. Only the visible tree's captor is registered;
+  // outside keep-alive this is registered on mount as before.
+  const visible = useKeepAliveVisible();
+  createEffect(() => {
+    if (!visible()) return;
+    const teardown = handle.registerEntryStateCaptor(key, () => value());
+    onCleanup(teardown);
+  });
 
   return [value, setValue];
 }

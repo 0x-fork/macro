@@ -14,10 +14,14 @@ import type {
   GroupHeaderProps,
   SoupRow,
 } from '@app/component/next-soup/create-soup-state';
+import { createSoupState } from '@app/component/next-soup/create-soup-state';
 import { buildDocumentTypeQuery } from '@app/component/next-soup/filters/configs/document-type-query';
 import type { Query } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
-import { useSoup } from '@app/component/next-soup/soup-context';
+import {
+  SoupContextProvider,
+  useSoup,
+} from '@app/component/next-soup/soup-context';
 import { isDateSectionGroupKey } from '@app/component/next-soup/soup-view/date-sections';
 import { registerDocumentsFilterSplit } from '@app/component/next-soup/soup-view/documents-filter-controllers';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
@@ -31,7 +35,11 @@ import {
   persistSoupNavigationTouchHighlight,
   soupNavigationTouchHighlight,
 } from '@app/component/next-soup/soup-view/soup-navigation-touch-highlight';
-import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
+import {
+  SoupViewContextProvider,
+  useMaybeSoupView,
+  useSoupView,
+} from '@app/component/next-soup/soup-view/soup-view-context';
 import { SoupViewCreateButton } from '@app/component/next-soup/soup-view/soup-view-create-button';
 import { SoupViewFileDropzone } from '@app/component/next-soup/soup-view/soup-view-file-dropzone';
 import {
@@ -54,6 +62,7 @@ import {
 } from '@app/component/PreviewPanel';
 import { SoupChatInput } from '@app/component/SoupChatInput';
 import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
+import { useKeepAliveVisible } from '@app/component/split-layout/components/keep-alive-visibility';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -80,7 +89,7 @@ import {
   soupListContainerAttribute,
   soupListContainerSelector,
 } from '@core/dom-selectors';
-import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import { useDisplayName } from '@core/user/displayName';
@@ -121,6 +130,7 @@ import {
   createMemo,
   createRenderEffect,
   createSignal,
+  type FlowComponent,
   type JSX,
   Match,
   on,
@@ -129,6 +139,7 @@ import {
   Show,
   Suspense,
   Switch,
+  untrack,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
@@ -136,6 +147,7 @@ import type { CacheSnapshot } from 'virtua/unstable_core';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
+import { useViewHotkeyRegistrar } from './view-hotkeys';
 
 const WIDE_SPLIT_PANEL_BREAKPOINT = 512;
 
@@ -329,11 +341,17 @@ const MobileTabLoadingBar = () => (
 const useSoupNotificationInvalidators = () => {
   const notificationSource = useGlobalNotificationSource();
   const entityQueryClient = useQueryClient();
+  // One live instance per parked view would otherwise multiply every
+  // notification into N cache-wide invalidations; the invalidations are
+  // cache-level, so the visible instance's trigger covers parked views'
+  // queries too.
+  const visible = useKeepAliveVisible();
 
   createEffectOnEntityTypeNotification(
     notificationSource,
     'channel',
     (notification) => {
+      if (!visible()) return;
       refetchSoupEntity(notification.entity_id, 'channel');
       invalidateSoupEntity(notification.entity_id);
       invalidateEntityNotifications(notification.entity_id);
@@ -344,6 +362,7 @@ const useSoupNotificationInvalidators = () => {
     notificationSource,
     'chat',
     (notification) => {
+      if (!visible()) return;
       refetchSoupEntity(notification.entity_id, 'chat');
       invalidateSoupEntity(notification.entity_id);
       invalidateEntityNotifications(notification.entity_id);
@@ -354,6 +373,7 @@ const useSoupNotificationInvalidators = () => {
     notificationSource,
     'email_thread',
     (notification) => {
+      if (!visible()) return;
       refetchSoupEntity(notification.entity_id, 'emailThread');
       invalidateSoupEntity(notification.entity_id);
       // invalidate thread cache so thread gets fetched (with new message) on next load
@@ -367,6 +387,7 @@ const useSoupNotificationInvalidators = () => {
     notificationSource,
     'document',
     (notification) => {
+      if (!visible()) return;
       if (notification.notification_event_type === 'task_assigned') {
         refetchSoupEntity(notification.entity_id, 'document');
         invalidateSoupEntity(notification.entity_id);
@@ -379,6 +400,7 @@ const useSoupNotificationInvalidators = () => {
     notificationSource,
     'foreign_entity',
     (notification) => {
+      if (!visible()) return;
       refetchSoupEntity(notification.entity_id, 'foreignEntity');
       invalidateSoupEntity(notification.entity_id);
       invalidateEntityNotifications(notification.entity_id);
@@ -416,8 +438,48 @@ interface SoupViewProps {
 }
 
 export const SoupView = (props: SoupViewProps) => {
+  // Views rendered under an existing provider (project block, popover,
+  // preview) keep it. Top-level list views own a provider pair bound to
+  // their per-view soup state, so each view's keep-alive-parked tree keeps
+  // its own rows/focus/filters — shared state made a reattached view
+  // render whichever view was configured last.
+  const existing = useMaybeSoupView();
+  if (existing) return <SoupViewInner {...props} />;
+  return (
+    <OwnedListViewProviders>
+      <SoupViewInner {...props} />
+    </OwnedListViewProviders>
+  );
+};
+
+const OwnedListViewProviders: FlowComponent = (props) => {
+  const panel = useSplitPanelOrThrow();
+  // A top-level list view mounts exactly when the split's content switches
+  // to it, so the content id at mount IS this view's id.
+  const contentId = untrack(() => panel.handle.content().id);
+  const viewId = isListViewID(contentId) ? contentId : undefined;
+  const soup = viewId ? panel.getSoupForView(viewId) : createSoupState();
+  const visible = useKeepAliveVisible();
+
+  // The panel-level soup facade (header prev/next, block mark-done
+  // advance, j/k from an opened entity) follows the last shown list view.
+  createEffect(() => {
+    if (visible()) panel.setActiveListSoup(soup);
+  });
+
+  return (
+    <SoupContextProvider soup={soup}>
+      <SoupViewContextProvider soup={soup} viewId={viewId}>
+        {props.children}
+      </SoupViewContextProvider>
+    </SoupContextProvider>
+  );
+};
+
+const SoupViewInner = (props: SoupViewProps) => {
   const soup = useSoup();
   const panel = useSplitPanelOrThrow();
+  const registerViewHotkey = useViewHotkeyRegistrar();
   const soupView = useSoupView();
 
   const entryState = panel.handle.currentEntryState();
@@ -521,7 +583,11 @@ export const SoupView = (props: SoupViewProps) => {
     onCleanup(dispose);
   });
 
+  // Parked instances must not fight the visible content for the split's
+  // display name.
+  const displayNameVisible = useKeepAliveVisible();
   createEffect(() => {
+    if (!displayNameVisible()) return;
     panel.handle.setDisplayName(props.viewName);
   });
 
@@ -537,7 +603,15 @@ export const SoupView = (props: SoupViewProps) => {
 
   useSoupNotificationInvalidators();
 
+  const mountContentId = untrack(() => {
+    const content = panel.handle.content();
+    return content.type === 'component' ? content.id : undefined;
+  });
   const component = createMemo(() => {
+    // Pinned for list views: this tree may be keep-alive parked, and
+    // deriving from live content would flip every row's component (and
+    // re-render all rows) whenever the split shows something else.
+    if (mountContentId && isListViewID(mountContentId)) return mountContentId;
     const content = panel.handle.content();
 
     if (content.type !== 'component') return;
@@ -563,11 +637,10 @@ export const SoupView = (props: SoupViewProps) => {
   const [mobileSearchOpen, setMobileSearchOpen] = createSignal(false);
   const [searchIsCollapsed, setSearchIsCollapsed] = createSignal(false);
 
-  registerHotkey({
+  registerViewHotkey({
     hotkey: 'cmd+f',
     hotkeyToken: TOKENS.soup.openSearch,
     scopeId: panel.splitHotkeyScope,
-    registrationType: 'add',
     description: 'Search',
     keyDownHandler: () => {
       if (isMobile()) {
@@ -876,7 +949,14 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
   // Register soup view hotkeys (jump navigation, enter, escape, cmd+k, etc.)
   const { applyTabPreset } = useApplyPreset();
+  // Pinned for list views (this tree may be keep-alive parked); see the
+  // matching memo in SoupViewInner.
+  const mountedListView = untrack(() => {
+    const { type, id } = panel.handle.content();
+    return type === 'component' && isListViewID(id) ? id : undefined;
+  });
   const currentView = () => {
+    if (mountedListView) return mountedListView;
     const { type, id } = panel.handle.content();
     if (type !== 'component') return;
     return isListViewID(id) ? id : undefined;
@@ -1080,11 +1160,22 @@ export const SoupViewList = (props: SoupViewListProps) => {
     | string
     | undefined;
   soup.setPreviewEntity(persistedPreview);
-  const previewCaptorTeardown = panel.handle.registerEntryStateCaptor(
-    'soup.preview',
-    () => soup.previewEntity()
-  );
-  onCleanup(previewCaptorTeardown);
+  // Captors run for the entry being navigated away from; a parked
+  // keep-alive instance must not write its state into another view's
+  // entry, so registration follows visibility.
+  const captorVisible = useKeepAliveVisible();
+  const registerCaptorWhileVisible = (
+    key: string,
+    capture: () => unknown
+  ): void => {
+    createEffect(() => {
+      if (!captorVisible()) return;
+      const teardown = panel.handle.registerEntryStateCaptor(key, capture);
+      onCleanup(teardown);
+    });
+  };
+
+  registerCaptorWhileVisible('soup.preview', () => soup.previewEntity());
 
   // The new inbox opens with the preview pane active by default. Wait for the
   // flag to resolve and a row to focus, then open the preview once — after that
@@ -1102,24 +1193,21 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
   // Which groups are collapsed is also per-entry state: captured on nav-away
   // and restored on back/forward.
-  const collapsedCaptorTeardown = panel.handle.registerEntryStateCaptor(
-    'soup.collapsedGroups',
-    () => [...soup.grouping.collapsedGroups()]
-  );
-  onCleanup(collapsedCaptorTeardown);
+  registerCaptorWhileVisible('soup.collapsedGroups', () => [
+    ...soup.grouping.collapsedGroups(),
+  ]);
 
   // Active grouping is per-entry state too, so back/forward restores the
   // grouping the user left each entry with. `null` (vs. key absent) records
   // an explicit "no grouping" choice, which would otherwise be
   // indistinguishable from a fresh entry.
-  const groupByCaptorTeardown = panel.handle.registerEntryStateCaptor(
+  registerCaptorWhileVisible(
     'soup.groupBy',
     () => soup.grouping.activeGroupId() ?? null
   );
-  onCleanup(groupByCaptorTeardown);
 
   if (!isProjectList) {
-    const listStateCaptorTeardown = panel.handle.registerEntryStateCaptor(
+    registerCaptorWhileVisible(
       SOUP_LIST_STATE_ENTRY_KEY,
       (): SoupListEntryState => {
         const virtualHandle = virtualizerHandle();
@@ -1130,7 +1218,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
         };
       }
     );
-    onCleanup(listStateCaptorTeardown);
   }
 
   // Handles restoring scroll + focus.
@@ -1172,7 +1259,11 @@ export const SoupViewList = (props: SoupViewListProps) => {
       (!!soup.previewEntity() || panel.previewState[0]()) && !!soup.focus.item()
   );
 
+  // Only the visible instance drives the panel-shared preview flag: two
+  // live (one parked) list trees with different preview-ness would
+  // otherwise ping-pong the shared boolean in an unbounded effect cascade.
   createEffect(() => {
+    if (!captorVisible()) return;
     const hasPreviewEntity = !!soup.previewEntity();
     const [getPreview, setPreview] = panel.previewState;
     if (hasPreviewEntity !== getPreview()) {

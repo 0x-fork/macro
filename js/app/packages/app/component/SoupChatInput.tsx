@@ -1,5 +1,6 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { useSoup } from '@app/component/next-soup/soup-context';
+import { useViewHotkeyRegistrar } from '@app/component/next-soup/soup-view/view-hotkeys';
 import { buildChatEditor } from '@core/component/AI/component/input/buildChatEditor';
 import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
 import {
@@ -16,12 +17,11 @@ import {
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isPaymentError } from '@core/util/handlePaymentError';
-
 import { createRenameDssEntityMutation } from '@macro-entity';
 import { invalidateAllSoup } from '@queries/soup/cache';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { ChatInput } from 'core/component/AI/component/input/ChatInput';
-import { registerHotkey, useHotkeyDOMScope } from 'core/hotkey/hotkeys';
+import { useHotkeyDOMScope } from 'core/hotkey/hotkeys';
 import { createEffect, onMount } from 'solid-js';
 import { useSplitPanelOrThrow } from './split-layout/layoutUtils';
 
@@ -60,6 +60,9 @@ function SoupChatInputInner() {
   });
 
   // cmd+j - Focus AI chat
+  // Rendered inside (potentially keep-alive parked) view trees; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
+
   registerHotkey({
     hotkey: 'cmd+j',
     scopeId: splitPanelContext.splitHotkeyScope,

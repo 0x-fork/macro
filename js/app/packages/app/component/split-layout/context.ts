@@ -1,3 +1,5 @@
+import type { SoupState } from '@app/component/next-soup/create-soup-state';
+import type { ListView } from '@app/constants/list-views';
 import type { NullableSize } from '@solid-primitives/resize-observer';
 import {
   type Accessor,
@@ -101,6 +103,20 @@ export type SplitPanelContextType = {
   titleFileMenuActions: Accessor<SplitFileMenuActionGroups | undefined>;
   setTitleFileMenuActions: Setter<SplitFileMenuActionGroups | undefined>;
   headerCollapser: HeaderCollapser;
+  /**
+   * Per-list-view soup states, created lazily and kept for the panel's
+   * lifetime. Each list view's (potentially keep-alive-parked) tree owns
+   * one, so views never share list state — the shared-state design made a
+   * reattached view render whichever view was configured last.
+   */
+  getSoupForView: (viewId: ListView) => SoupState;
+  /**
+   * The soup of the most recently shown list view: what the panel-level
+   * SoupContext facade, the header prev/next buttons, and j/k from an
+   * opened block act on. Latches — parking a view does not clear it.
+   */
+  activeListSoup: Accessor<SoupState | undefined>;
+  setActiveListSoup: (soup: SoupState) => void;
 };
 
 export const SplitPanelContext = createContext<SplitPanelContextType>();

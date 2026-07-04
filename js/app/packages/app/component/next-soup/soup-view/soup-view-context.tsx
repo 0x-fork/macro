@@ -34,6 +34,7 @@ import {
   registerInboxFilterSplit,
 } from '@app/component/next-soup/soup-view/inbox-filter-controllers';
 import { deduplicateEntities } from '@app/component/next-soup/utils';
+import { useKeepAliveVisible } from '@app/component/split-layout/components/keep-alive-visibility';
 import { useEntryState } from '@app/component/split-layout/entry-state';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import {
@@ -166,6 +167,13 @@ export const useMaybeSoupView = () => useContext(SoupViewContext);
 interface SoupViewContextProviderProps extends SoupViewInitializeOptions {
   soup?: SoupState;
   initialEnabled?: boolean;
+  /**
+   * Pins this instance to one list view. Owned per-view instances (see
+   * SoupView) pass it so a keep-alive-parked tree keeps its own view's
+   * configuration while the split shows something else; without it the
+   * view is derived live from the split content (project block, popover).
+   */
+  viewId?: ListView;
 }
 
 type ApiSortMethod = Exclude<
@@ -179,11 +187,31 @@ const VALID_API_SORT_METHODS: ApiSortMethod[] = [
   'viewed_updated',
 ];
 
+const UNSET = Symbol('unset');
+
 export const SoupViewContextProvider: FlowComponent<
   SoupViewContextProviderProps
 > = (props) => {
   const soup = props.soup ?? createSoupState();
   const [enabled, setEnabled] = createSignal(props.initialEnabled ?? false);
+  const visible = useKeepAliveVisible();
+
+  /**
+   * Entry state belongs to the split's CURRENT history entry. A parked
+   * keep-alive instance would read (and react to) whatever entry the user
+   * navigated to — e.g. the mail view's tab flipping to undefined while an
+   * email is open — so entry-state reads freeze at their last visible
+   * value and thaw on reattach, when the entry is this view's again.
+   */
+  const frozenWhileHidden = <T,>(source: () => T): (() => T) => {
+    let last: T | typeof UNSET = UNSET;
+    return createMemo(() => {
+      if (visible() || last === UNSET) {
+        last = source();
+      }
+      return last as T;
+    });
+  };
   const [config, setConfig] = createSignal<SoupViewInitializeOptions>({
     initialQuery: props.initialQuery,
     initialClientFilters: props.initialClientFilters,
@@ -219,23 +247,35 @@ export const SoupViewContextProvider: FlowComponent<
     initial: props.initialQuery,
   });
 
-  const filterCaptorTeardown = panel.handle.registerEntryStateCaptor(
+  // Captors run for the entry being navigated AWAY from; a parked
+  // instance's captor would write its (other view's) state into that
+  // entry, so captors are only registered while this instance is visible.
+  const registerCaptorWhileVisible = (
+    key: string,
+    capture: () => unknown
+  ): void => {
+    createEffect(() => {
+      if (!visible()) return;
+      const teardown = panel.handle.registerEntryStateCaptor(key, capture);
+      onCleanup(teardown);
+    });
+  };
+
+  registerCaptorWhileVisible(
     'search.filters',
     () => structuredClone(unwrap(store.state)) as Query
   );
-  onCleanup(filterCaptorTeardown);
 
   // Client-side predicate state (drives the "Type: X" chips and other
   // toggleable filters) also needs to round-trip per entry, since the chip UI
   // reads predicates directly and would otherwise show empty after back-nav.
-  const predicatesCaptorTeardown = panel.handle.registerEntryStateCaptor(
+  registerCaptorWhileVisible(
     'search.predicates',
     (): SetPredicatesInput<string> => ({
       and: [...soup.predicates.andIds()],
       or: [...soup.predicates.orIds()],
     })
   );
-  onCleanup(predicatesCaptorTeardown);
 
   const invalidateCache = () => {
     const groupBy = groupByField();
@@ -280,14 +320,16 @@ export const SoupViewContextProvider: FlowComponent<
 
   const [searchPaused, setSearchPaused] = createSignal(false);
   const sourceSearchPaused = createMemo(() => searchPaused() || !enabled());
-  const [assigneeFilter, setAssigneeFilter] = useEntryState<string[]>(
+  const [rawAssigneeFilter, setAssigneeFilter] = useEntryState<string[]>(
     'soup.assigneeFilter',
     { default: [] }
   );
-  const [inboxFilter, setInboxFilter] = useEntryState<string[] | undefined>(
+  const assigneeFilter = frozenWhileHidden(rawAssigneeFilter);
+  const [rawInboxFilter, setInboxFilter] = useEntryState<string[] | undefined>(
     INBOX_FILTER_ENTRY_KEY,
     { default: undefined }
   );
+  const inboxFilter = frozenWhileHidden(rawInboxFilter);
 
   // Expose the mail view's inbox filter to consumers outside the split tree
   // (the sidebar's nested account rows read and set it by split id). The
@@ -296,6 +338,11 @@ export const SoupViewContextProvider: FlowComponent<
   // shown view — registering also flushes any filter the sidebar queued while
   // navigating here, so a sidebar inbox selection takes on the first click.
   createEffect(() => {
+    // Only the VISIBLE mail instance registers: registration is
+    // last-write-wins per split and flushes any queued sidebar filter to
+    // the registrant, so a parked non-mail instance registering here would
+    // consume the filter into the wrong view's query.
+    if (activeListView() !== 'mail' || !visible()) return;
     const content = panel.handle.content();
     if (content.type === 'component' && content.id === 'mail') {
       const dispose = registerInboxFilterSplit(panel.handle.id, {
@@ -305,14 +352,16 @@ export const SoupViewContextProvider: FlowComponent<
       onCleanup(dispose);
     }
   });
-  const [activeTab, setActiveTab] = useEntryState<string | undefined>(
+  const [rawActiveTab, setActiveTab] = useEntryState<string | undefined>(
     'soup.tab',
     { default: undefined }
   );
-  const [readFilter, setReadFilter] = useEntryState<ReadFilter>(
+  const activeTab = frozenWhileHidden(rawActiveTab);
+  const [rawReadFilter, setReadFilter] = useEntryState<ReadFilter>(
     'soup.readFilter',
     { default: 'unread' }
   );
+  const readFilter = frozenWhileHidden(rawReadFilter);
 
   const groupByField = createMemo((): GroupByField | undefined => {
     const id = soup.grouping.activeGroupId();
@@ -339,6 +388,9 @@ export const SoupViewContextProvider: FlowComponent<
   const notificationSource = useGlobalNotificationSource();
 
   const activeListView = createMemo<ListView | undefined>(() => {
+    // Owned per-view instances stay pinned to their view even while their
+    // tree is parked and the split shows something else.
+    if (props.viewId) return props.viewId;
     const content = panel.handle.content();
     if (content.type !== 'component') return;
     return isListViewID(content.id) ? content.id : undefined;
@@ -442,9 +494,10 @@ export const SoupViewContextProvider: FlowComponent<
     compileToAst(applyViewFilters(queryFilters.state))
   );
 
-  const [searchText, setSearchText] = useEntryState<string>('search.text', {
+  const [rawSearchText, setSearchText] = useEntryState<string>('search.text', {
     default: props.initialSearchText ?? '',
   });
+  const searchText = frozenWhileHidden(rawSearchText);
 
   const search = createSearchState({
     soup,

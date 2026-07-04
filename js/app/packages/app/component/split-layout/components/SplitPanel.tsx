@@ -1,8 +1,14 @@
 import { MobileTopEdgeFade } from '@app/component/mobile/MobileEdgeFade';
-import { createSoupState } from '@app/component/next-soup/create-soup-state';
+import {
+  createSoupState,
+  type SoupState,
+} from '@app/component/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
-import { SoupViewContextProvider } from '@app/component/next-soup/soup-view/soup-view-context';
-import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
+import {
+  isListViewID,
+  LIST_VIEW_ID,
+  type ListView,
+} from '@app/constants/list-views';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { splitContainerAttribute } from '@core/dom-selectors';
 import { isMobile } from '@core/mobile/isMobile';
@@ -15,9 +21,11 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  getOwner,
   on,
   onCleanup,
   onMount,
+  runWithOwner,
   Show,
   Suspense,
 } from 'solid-js';
@@ -91,8 +99,45 @@ export function SplitPanel(props: SplitPanelProps) {
     splitHotkeyScope,
   });
 
-  const nextSoup = createSoupState({
-    initialPredicates: { and: ['explicit-noise'] },
+  // One soup state per list view, created lazily under the panel's owner
+  // and kept for the panel's lifetime. Each view's (potentially keep-alive
+  // parked) tree owns its state, so views never bleed rows/focus/filters
+  // into each other.
+  const panelOwner = getOwner();
+  const createPanelSoupState = () =>
+    runWithOwner(panelOwner, () =>
+      createSoupState({ initialPredicates: { and: ['explicit-noise'] } })
+    )!;
+  const soupStates = new Map<ListView, SoupState>();
+  const getSoupForView = (viewId: ListView): SoupState => {
+    let state = soupStates.get(viewId);
+    if (!state) {
+      state = createPanelSoupState();
+      soupStates.set(viewId, state);
+    }
+    return state;
+  };
+
+  const [activeListSoup, setActiveListSoup] = createSignal<SoupState>();
+  // Consumers outside the view trees (header nav buttons, SoupChatInput,
+  // blocks' mark-done advance, j/k from an opened entity) hold one stable
+  // SoupState reference for the panel's lifetime; the facade routes every
+  // access to the most recently shown list view's state. The fallback is a
+  // detached empty state so panels that never show a list still satisfy
+  // useSoup consumers.
+  let fallbackSoup: SoupState | undefined;
+  const currentPanelSoup = () => {
+    const active = activeListSoup();
+    if (active) return active;
+    if (!fallbackSoup) {
+      fallbackSoup = createPanelSoupState();
+    }
+    return fallbackSoup;
+  };
+  const panelSoupFacade = new Proxy({} as SoupState, {
+    get: (_target, prop) =>
+      Reflect.get(currentPanelSoup(), prop as keyof SoupState),
+    has: (_target, prop) => prop in currentPanelSoup(),
   });
 
   createEffect(
@@ -144,19 +189,8 @@ export function SplitPanel(props: SplitPanelProps) {
     () => isMobile() && isListViewID(props.handle.content().id)
   );
 
-  // A split that has never shown a unified-list view skips the soup view
-  // machinery entirely (list queries, search state, notification
-  // subscriptions) — building that graph dominates split creation for
-  // document/email splits. Latches true so the machinery (and its entry
-  // state, j/k-from-block navigation, keep-alive cache) persists across
-  // list<->block swaps once created.
-  const everListView = createMemo<boolean>(
-    (prev) => prev || isListViewID(props.handle.content().id),
-    false
-  );
-
   return (
-    <SoupContextProvider soup={nextSoup}>
+    <SoupContextProvider soup={panelSoupFacade}>
       <SplitPanelContext.Provider
         value={{
           previewState: [previewState, setPreviewState],
@@ -175,6 +209,9 @@ export function SplitPanel(props: SplitPanelProps) {
             };
           },
           headerCollapser,
+          getSoupForView,
+          activeListSoup,
+          setActiveListSoup: (soup: SoupState) => setActiveListSoup(soup),
           layoutRefs,
           titleFileMenuRef,
           setTitleFileMenuRef,
@@ -265,14 +302,7 @@ export function SplitPanel(props: SplitPanelProps) {
                     )}
                   >
                     <Suspense>
-                      <Show
-                        when={everListView()}
-                        fallback={<KeepAliveMount mount={props.split.mount} />}
-                      >
-                        <SoupViewContextProvider soup={nextSoup}>
-                          <KeepAliveMount mount={props.split.mount} />
-                        </SoupViewContextProvider>
-                      </Show>
+                      <KeepAliveMount mount={props.split.mount} />
                     </Suspense>
                   </div>
                   <Show when={bottomPanel()}>

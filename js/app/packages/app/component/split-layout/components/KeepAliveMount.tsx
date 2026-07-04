@@ -1,3 +1,4 @@
+import { isListViewID } from '@app/constants/list-views';
 import type { BlockName } from '@core/block';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
@@ -18,13 +19,14 @@ import type { SplitMount } from '../layoutManager';
 import { KeepAliveVisibilityProvider } from './keep-alive-visibility';
 
 /**
- * Live trees retained per panel: the active mount plus recently viewed ones.
- * Each parked tree keeps its queries observed (staying fresh) and its DOM
- * built, so revisits reattach instead of rebuilding.
+ * Live block trees retained per panel: the active mount plus recently
+ * viewed ones. Each parked tree keeps its queries observed (staying fresh)
+ * and its DOM built, so revisits reattach instead of rebuilding. List-view
+ * component trees are exempt from this cap (see evictBeyondCap).
  */
 const KEEP_ALIVE_CAP = 8;
 
-type BlockMount = Extract<SplitMount, { kind: 'block' }>;
+const BLOCK_KEY_PREFIX = 'block:';
 
 type CacheEntry = {
   container: HTMLDivElement;
@@ -34,14 +36,30 @@ type CacheEntry = {
   setActive: (active: boolean) => void;
 };
 
-function keepAliveKey(mount: BlockMount): string {
-  return `${mount.type}:${mount.id}`;
+function keepAliveKey(mount: SplitMount): string {
+  if (mount.kind === 'block') {
+    return `${BLOCK_KEY_PREFIX}${mount.type}:${mount.id}`;
+  }
+  // Param variants of a view must not share a parked tree — the element
+  // was resolved with the params baked in.
+  const params = mount.params ? JSON.stringify(mount.params) : '';
+  return `component:${mount.name}:${params}`;
 }
 
-function isKeepAliveMount(mount: SplitMount): mount is BlockMount {
-  if (mount.kind !== 'block') return false;
-  const resolved = resolveBlockAlias(mount.type as BlockName);
-  return !!BLOCK_REGISTRY[resolved]?.keepAlive;
+function isKeepAliveMount(mount: SplitMount): boolean {
+  if (mount.kind === 'block') {
+    const resolved = resolveBlockAlias(mount.type as BlockName);
+    return !!BLOCK_REGISTRY[resolved]?.keepAlive;
+  }
+  // List views park their whole tree (own per-view soup state included, see
+  // getSoupForView) so switching views reattaches rows, scroll position,
+  // and focus in one frame instead of rebuilding the list. Parameterized
+  // variants (command-menu searches, param'd documents views) are
+  // excluded: they are unbounded in number and share one per-view-id soup
+  // state, so parking them would both leak live trees and let multiple
+  // live writers fight over the visible rows.
+  const hasParams = mount.params && Object.keys(mount.params).length > 0;
+  return isListViewID(mount.name) && !hasParams;
 }
 
 /**
@@ -88,13 +106,19 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   const [displayedMount, setDisplayedMount] = createSignal<SplitMount>();
   const swapPending = () => displayedMount() !== props.mount;
 
+  // Reattaching an already-parked tree is one cheap synchronous frame —
+  // deferring it would only add a shimmer flash. Parked list views and
+  // blocks therefore swap in immediately, rows/scroll/focus intact.
+  const isParked = (mount: SplitMount) =>
+    isKeepAliveMount(mount) && cache.has(keepAliveKey(mount));
+
   let swapGeneration = 0;
   let cleanedUp = false;
   createEffect(() => {
     const next = props.mount;
     const current = untrack(displayedMount);
     if (next === current) return;
-    if (current && !shouldDeferSwap(current, next)) {
+    if (current && (isParked(next) || !shouldDeferSwap(current, next))) {
       setDisplayedMount(next);
       return;
     }
@@ -122,9 +146,16 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   };
 
   const evictBeyondCap = (activeKey: string) => {
-    while (cache.size > KEEP_ALIVE_CAP) {
+    // Only block trees count against (and are evicted by) the cap:
+    // list-view component trees are bounded by the handful of list views
+    // and must survive long block-reading sessions so switching back stays
+    // instant.
+    const blockEntries = () =>
+      [...cache.entries()].filter(([key]) => key.startsWith(BLOCK_KEY_PREFIX));
+    let entries = blockEntries();
+    while (entries.length > KEEP_ALIVE_CAP) {
       let oldest: [string, CacheEntry] | undefined;
-      for (const candidate of cache.entries()) {
+      for (const candidate of entries) {
         if (candidate[0] === activeKey) continue;
         if (!oldest || candidate[1].lastUsed < oldest[1].lastUsed) {
           oldest = candidate;
@@ -134,10 +165,11 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
       oldest[1].container.remove();
       oldest[1].dispose();
       cache.delete(oldest[0]);
+      entries = blockEntries();
     }
   };
 
-  const showKeepAlive = (mount: BlockMount) => {
+  const showKeepAlive = (mount: SplitMount) => {
     const key = keepAliveKey(mount);
     let entry = cache.get(key);
     if (!entry) {

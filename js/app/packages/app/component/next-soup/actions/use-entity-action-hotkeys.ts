@@ -8,13 +8,14 @@ import type { SplitHandle } from '@app/component/split-layout/layoutManager';
 import { isListViewID } from '@app/constants/list-views';
 import { useUserId } from '@core/context/user';
 import { HotkeyTags } from '@core/hotkey/constants';
-import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
+import { createHotkeyGroup } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { type EntityData, isTaskEntity } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { Property, PropertyDefinitionDomain } from '@property/types';
 import { onCleanup } from 'solid-js';
 import type { SoupState } from '../create-soup-state';
+import { useViewHotkeyRegistrar } from '../soup-view/view-hotkeys';
 import {
   makeCopyAction,
   makeCopyBranchNameAction,
@@ -44,6 +45,9 @@ export const useEntityActionHotkeys = (
 
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
+
+  // View trees are keep-alive parked, not disposed; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
 
   const group = createHotkeyGroup();
 

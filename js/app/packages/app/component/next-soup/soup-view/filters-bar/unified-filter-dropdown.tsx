@@ -29,7 +29,6 @@ import {
   ENABLE_NEW_INBOX_OVERRIDE,
 } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
-import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
@@ -53,6 +52,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
+import { useViewHotkeyRegistrar } from '../view-hotkeys';
 import {
   type FilterCategory,
   filterInboxGithubPrOption,
@@ -710,6 +710,9 @@ export const UnifiedFilterDropdown = (
     tagFilter.enabled() &&
     tagFilter.hasTags() &&
     (isTasksView() || isDocumentsView());
+
+  // View trees are keep-alive parked, not disposed; see view-hotkeys.
+  const registerHotkey = useViewHotkeyRegistrar();
 
   registerHotkey({
     hotkey: 'f',

@@ -1,4 +1,9 @@
+import {
+  createSoupState,
+  type SoupState,
+} from '@app/component/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
+import type { ListView } from '@app/constants/list-views';
 import clickOutside from '@core/directive/clickOutside';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { Dialog, Panel } from '@ui';
@@ -101,8 +106,24 @@ function PopoverSplitModal(props: {
     currentEntryState: () => undefined,
   };
 
+  // Popovers get their own isolated soup states (rarely used: only if a
+  // popover ever hosts a list view).
+  const popoverSoupStates = new Map<ListView, SoupState>();
+  const [popoverActiveListSoup, setPopoverActiveListSoup] =
+    createSignal<SoupState>();
+
   const stubPanelContext: SplitPanelContextType = {
     handle: stubHandle,
+    getSoupForView: (viewId: ListView) => {
+      let state = popoverSoupStates.get(viewId);
+      if (!state) {
+        state = createSoupState();
+        popoverSoupStates.set(viewId, state);
+      }
+      return state;
+    },
+    activeListSoup: popoverActiveListSoup,
+    setActiveListSoup: setPopoverActiveListSoup,
     splitHotkeyScope: `popover-${props.popover.id}`,
     isPanelActive: () => true,
     panelRef,
