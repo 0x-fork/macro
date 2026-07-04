@@ -205,31 +205,47 @@ async fn test_label_and_read_mutations_bump_the_thread_watermark(
         .await?;
     assert_eq!(ids(&after_label), vec![T1]);
 
-    // Removing it bumps again.
+    // Removing it bumps again. Each step queries with `since` just past the
+    // previous watermark, so the assertion can only be satisfied by that
+    // step's own bump.
     let watermark_after_label = after_label[0].watermark;
     repo.delete_message_labels_batch(&[msg], "IMPORTANT", link_a)
         .await?;
     let after_unlabel = repo
-        .thread_delta(&delta_query(vec![link_a], since, false, 100))
+        .thread_delta(&delta_query(
+            vec![link_a],
+            watermark_after_label + chrono::Duration::microseconds(1),
+            false,
+            100,
+        ))
         .await?;
     assert_eq!(ids(&after_unlabel), vec![T1]);
-    assert!(after_unlabel[0].watermark >= watermark_after_label);
 
     // Read-status flips bump too.
-    let t1_watermark = after_unlabel[0].watermark;
+    let watermark_after_unlabel = after_unlabel[0].watermark;
     repo.update_message_read_status_batch(&[msg], link_a, true)
         .await?;
     let after_read = repo
-        .thread_delta(&delta_query(vec![link_a], since, false, 100))
+        .thread_delta(&delta_query(
+            vec![link_a],
+            watermark_after_unlabel + chrono::Duration::microseconds(1),
+            false,
+            100,
+        ))
         .await?;
     assert_eq!(after_read[0].thread_id, t1);
-    assert!(after_read[0].watermark >= t1_watermark);
 
     // Starred flips bump too.
+    let watermark_after_read = after_read[0].watermark;
     repo.update_message_starred_status_batch(&[msg], link_a, true)
         .await?;
     let after_star = repo
-        .thread_delta(&delta_query(vec![link_a], since, false, 100))
+        .thread_delta(&delta_query(
+            vec![link_a],
+            watermark_after_read + chrono::Duration::microseconds(1),
+            false,
+            100,
+        ))
         .await?;
     assert_eq!(after_star[0].thread_id, t1);
 

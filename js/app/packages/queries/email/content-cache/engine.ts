@@ -160,9 +160,17 @@ export class EmailContentSyncEngine {
     private readonly config: EmailContentSyncConfig = DEFAULT_SYNC_CONFIG
   ) {}
 
-  /** Client ms of the last completed sync; drives seed freshness. */
+  /**
+   * Client ms of the last sync completed by THIS engine instance; drives
+   * seed freshness. Deliberately not the persisted value: a previous
+   * session's sync proves nothing about changes that happened while the
+   * app was closed (missed websocket events are simply lost), so nothing
+   * may be served as provably-fresh until this session has synced.
+   */
+  private sessionLastSyncAt = 0;
+
   get lastSyncCompletedAt(): number {
-    return this.syncState.lastSyncAt;
+    return this.sessionLastSyncAt;
   }
 
   get isStarted(): boolean {
@@ -242,42 +250,27 @@ export class EmailContentSyncEngine {
     }, delay);
   }
 
-  /** Targeted hydration (e.g. a websocket event that names the thread). */
-  prioritizeThread(threadId: string, linkId: string): void {
-    if (!this.started) return;
-    // No digest yet: synthesize a pending one so guards and bookkeeping
-    // exist; the next delta sync will supply the real watermark.
-    if (!this.digests.has(threadId)) {
-      void this.ports.store
-        .recordPendingDigests(
-          [{ threadId, linkId, watermark: normalizeWatermark(EPOCH) }],
-          null,
-          this.ports.now()
-        )
-        .then((recorded) => {
-          for (const digest of recorded) {
-            this.digests.set(digest.threadId, digest);
-          }
-        });
-    }
-    this.enqueue(threadId, 'front');
-    void this.drainQueue();
-  }
-
-  /** A thread changed on the server; mark it pending and re-hydrate. */
-  markThreadChanged(threadId: string, linkId: string): void {
+  /**
+   * A targeted websocket event says this thread changed. The digest (if we
+   * track one) goes pending immediately — in memory only — so the thread
+   * stops being served-as-fresh right away; the woken delta sync then
+   * records the real new watermark and the queue hydrates exactly once.
+   * Deliberately no immediate fetch: hydrating before the delta supplies
+   * the new watermark would double the getThread traffic (once now at the
+   * old watermark, once again when the newer digest lands).
+   */
+  markThreadChanged(threadId: string): void {
     if (!this.started) return;
     const digest = this.digests.get(threadId);
     if (digest) {
       digest.state = 'pending';
-      this.digests.set(threadId, digest);
+      this.enqueue(threadId, 'front');
     }
-    this.prioritizeThread(threadId, linkId);
+    this.wake('thread-changed');
   }
 
-  /** The server deleted this thread (targeted delete event). */
+  /** The server deleted this thread (targeted delete event / open-path 404). */
   async dropThread(threadId: string): Promise<void> {
-    if (!this.started) return;
     this.digests.delete(threadId);
     await this.ports.store.deleteThread(threadId);
   }
@@ -285,7 +278,9 @@ export class EmailContentSyncEngine {
   /**
    * A delete event that can't name its thread: nothing may be served as
    * fresh for this link until re-verified. The most recent threads are
-   * re-hydrated eagerly; the rest heal on open (network path) or age out.
+   * re-verified on the next sync (a deletion leaves no digest, so the queue
+   * is the only path back to `hydrated` — or to a 404 that drops the row);
+   * the rest heal on open (network path) or age out.
    */
   async onUntargetedDelete(linkId: string): Promise<void> {
     if (!this.started) return;
@@ -299,7 +294,7 @@ export class EmailContentSyncEngine {
       .sort((a, b) => compareWatermarks(b.watermark, a.watermark))
       .slice(0, this.config.deleteSweepCount);
     for (const digest of recent) this.enqueue(digest.threadId);
-    void this.drainQueue();
+    this.wake('delete-sweep');
   }
 
   async dropLink(linkId: string): Promise<void> {
@@ -316,10 +311,17 @@ export class EmailContentSyncEngine {
     }
     if (this.backfillingLinks.delete(linkId)) {
       // Backfill rewrote history with fresh updated_at values; re-run the
-      // recency bootstrap instead of enumerating the whole rewrite.
+      // recency bootstrap instead of enumerating the whole rewrite. The
+      // read-modify-write goes against the store (not the in-memory copy,
+      // whose cursor can lag mid-sync).
       this.syncState = { ...this.syncState, bootstrappedAt: null };
-      void this.ports.store.putSyncState(this.syncState);
-      this.wake('backfill-complete');
+      void this.ports.store
+        .getSyncState()
+        .then((stored) =>
+          this.ports.store.putSyncState({ ...stored, bootstrappedAt: null })
+        )
+        .catch(() => {})
+        .then(() => this.wake('backfill-complete'));
     }
   }
 
@@ -344,13 +346,28 @@ export class EmailContentSyncEngine {
         } else {
           await this.incrementalSync();
         }
+        // Pick transiently-failed digests back up (attempts > 0: fresh
+        // pendings are either already queued or deliberately excluded, e.g.
+        // beyond the delete-sweep cap) — enqueue() dedupes against the
+        // live queue.
+        for (const digest of this.digests.values()) {
+          if (
+            digest.state === 'pending' &&
+            digest.attempts > 0 &&
+            digest.attempts < this.config.maxHydrationAttempts
+          ) {
+            this.enqueue(digest.threadId);
+          }
+        }
         await this.drainQueue();
+        const now = this.ports.now();
         this.syncState = {
           ...(await this.ports.store.getSyncState()),
-          lastSyncAt: this.ports.now(),
+          lastSyncAt: now,
           bootstrappedAt: this.syncState.bootstrappedAt,
         };
         await this.ports.store.putSyncState(this.syncState);
+        this.sessionLastSyncAt = now;
         await this.maybePrune();
       }
     } catch (err) {
@@ -538,6 +555,11 @@ export class EmailContentSyncEngine {
       this.hydrationsThisCycle++;
       try {
         await this.hydrateThread(digest);
+      } catch (err) {
+        // Store writes can reject (e.g. the store closed under a stopping
+        // engine); one failure must not kill the worker or leak an
+        // unhandled rejection out of the sibling workers' Promise.all.
+        console.error('[email-content-cache] hydration failed', err);
       } finally {
         this.inFlight.delete(threadId);
       }
@@ -586,6 +608,3 @@ export class EmailContentSyncEngine {
     for (const threadId of removed) this.digests.delete(threadId);
   }
 }
-
-/** Sentinel watermark for synthesized digests (predates everything real). */
-const EPOCH = '1970-01-01T00:00:00Z';

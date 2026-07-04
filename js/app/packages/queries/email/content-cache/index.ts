@@ -24,14 +24,13 @@ const LEGACY_PERSIST_DB = 'email-threads-persist-v1';
 let store: EmailContentStore | null = null;
 let engine: EmailContentSyncEngine | null = null;
 let startedForUserId: string | null = null;
+/** Monotonic token so a superseded (concurrent) start abandons its work. */
+let startToken = 0;
 
+// 401 is deliberately absent: it is caller-level (expired session), not
+// thread-level — treating it as gone would erode the cache on auth blips.
 function isGoneCode(code: unknown): boolean {
-  return (
-    code === 'NOT_FOUND' ||
-    code === 'GONE' ||
-    code === 'FORBIDDEN' ||
-    code === 'UNAUTHORIZED'
-  );
+  return code === 'NOT_FOUND' || code === 'GONE' || code === 'FORBIDDEN';
 }
 
 /** Builds the exact InfiniteData shape useThreadQuery caches. */
@@ -86,6 +85,7 @@ export async function startEmailContentSync(userId: string): Promise<void> {
   if (startedForUserId === userId && engine?.isStarted) return;
 
   stopEmailContentSync();
+  const token = ++startToken;
 
   try {
     // The legacy per-query store is bypassed under the flag; its orphaned
@@ -95,6 +95,10 @@ export async function startEmailContentSync(userId: string): Promise<void> {
 
     const nextStore = new EmailContentStore();
     await nextStore.open(userId);
+    if (token !== startToken) {
+      nextStore.close();
+      return;
+    }
 
     const nextEngine = new EmailContentSyncEngine(
       {
@@ -111,14 +115,24 @@ export async function startEmailContentSync(userId: string): Promise<void> {
     store = nextStore;
     engine = nextEngine;
     startedForUserId = userId;
+
+    // Apply evictions that raced the start (e.g. a 404 seen pre-start).
+    for (const threadId of pendingDeletions) {
+      void nextStore.deleteThread(threadId).catch(() => {});
+    }
+    pendingDeletions.clear();
+
     await nextEngine.start();
   } catch (err) {
     console.error('[email-content-cache] failed to start', err);
-    stopEmailContentSync();
+    if (token === startToken) stopEmailContentSync();
   }
 }
 
 export function stopEmailContentSync(): void {
+  // Also invalidates any in-flight start (e.g. logout while starting), so
+  // a superseded start can never resurrect an engine after logout.
+  startToken++;
   engine?.stop();
   store?.close();
   engine = null;
@@ -147,16 +161,16 @@ export function handleEmailContentSyncEvent(
 ): void {
   if (!engine) return;
 
-  if (event.event === 'delete_message') {
-    if (event.thread_id) {
-      // Re-verify instead of blind-dropping: partial deletes leave the
-      // thread alive, and the hydration 404s when it's fully gone.
-      engine.markThreadChanged(event.thread_id, event.link_id);
-    } else {
-      void engine.onUntargetedDelete(event.link_id);
-    }
-  } else if (event.thread_id) {
-    engine.markThreadChanged(event.thread_id, event.link_id);
+  if (event.event === 'delete_message' && !event.thread_id) {
+    void engine.onUntargetedDelete(event.link_id);
+    return;
+  }
+
+  if (event.thread_id) {
+    // Targeted (including partial deletes, which leave the thread alive —
+    // re-verification 404s when it's fully gone and drops the entry).
+    engine.markThreadChanged(event.thread_id);
+    return;
   }
 
   engine.wake(event.event);
@@ -181,14 +195,33 @@ export function onEmailContentSyncLinkRemoved(linkId: string): void {
  * cache then either, except the brief window before start — during which
  * draft threads are already excluded from serving by `hasDrafts`).
  */
+/**
+ * Evictions requested before the engine/store started (rare pre-auth
+ * window); drained on the next successful start so e.g. a 404 seen during
+ * that window still removes the ghost entry.
+ */
+const pendingDeletions = new Set<string>();
+
 export const emailContentCache = {
   /** Draft save/delete, send: the cached snapshot is no longer trustworthy. */
   evictThread(threadId: string): void {
-    void store?.evictThread(threadId, Date.now()).catch(() => {});
+    if (!store) {
+      if (ENABLE_EMAIL_CONTENT_SYNC) pendingDeletions.add(threadId);
+      return;
+    }
+    void store.evictThread(threadId, Date.now()).catch(() => {});
   },
   /** The thread is gone on the server (open path saw a 404/410). */
   deleteThread(threadId: string): void {
-    void engine?.dropThread(threadId).catch(() => {});
+    if (engine) {
+      void engine.dropThread(threadId).catch(() => {});
+    } else if (store) {
+      // Straight through the store so the eviction still works when the
+      // engine failed to start.
+      void store.deleteThread(threadId).catch(() => {});
+    } else if (ENABLE_EMAIL_CONTENT_SYNC) {
+      pendingDeletions.add(threadId);
+    }
   },
   /** Mirror an optimistic archive into the cached pages. */
   patchThreadFlags(
@@ -247,8 +280,13 @@ export async function trySeedThreadFromContentCache(
     digest.state === 'hydrated' &&
     Date.now() - engine.lastSyncCompletedAt < DEFAULT_SYNC_CONFIG.freshWindowMs;
 
+  // A stale seed is stamped epoch-old so the caller's fetchInfiniteQuery
+  // always revalidates — staleTime would otherwise short-circuit it and
+  // serve a snapshot we KNOW may be behind (e.g. a pending digest for the
+  // very message the user was just notified about). The data stays resident
+  // purely as the offline fallback.
   queryClient.setQueryData(queryKey, entry.data, {
-    updatedAt: provablyFresh ? Date.now() : entry.hydratedAt,
+    updatedAt: provablyFresh ? Date.now() : 0,
   });
   return provablyFresh ? 'fresh' : 'stale-seeded';
 }

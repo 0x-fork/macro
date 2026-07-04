@@ -130,8 +130,9 @@ queue), websocket reconnect, visibility→visible, and a 10-minute fallback
 tick. While a link is backfilling (`backfill_progress` events / `SYNCING`
 links) the engine pauses for it; on completion it re-bootstraps.
 
-Bootstrap (first run): one or two `order=desc` pages over a 30-day window,
-hydrating at most 300 threads. Deeper history is simply not pre-cached.
+Bootstrap (first run): one `order=desc` page over a 30-day window,
+hydrating at most 300 threads (drained gradually under the per-cycle cap).
+Deeper history is simply not pre-cached.
 
 Deletes are physical and carry no digests. Targeted `delete_message`
 events evict the exact thread (a re-hydration 404 confirms full deletion);
@@ -144,8 +145,10 @@ ages out.
 `fetchAndCacheThread` (the email block's single load path) seeds from L2
 before falling back to the network, but only serves the seed as the result
 when it is **provably current**: the entry is `hydrated` (not pending), has
-no drafts, and the engine completed a sync recently. Then the query is
-seeded fresh and the open completes with zero network on the critical path.
+no drafts, and *this session's* engine completed a sync recently (a previous
+session's sync proves nothing about changes that happened while the app was
+closed). Then the query is seeded fresh and the open completes with zero
+network on the critical path.
 In every other case the open awaits the network exactly as today — except
 that a network *failure* with a seeded entry returns the cached thread
 instead of an error (offline reads). The seed always aborts if the query

@@ -24,7 +24,7 @@ import { compareWatermarks } from './watermark';
  * - the incoming watermark must not be older than the stored one.
  */
 
-export const EMAIL_CONTENT_CACHE_DB = 'email-content-cache-v1';
+const EMAIL_CONTENT_CACHE_DB = 'email-content-cache-v1';
 const DB_VERSION = 1;
 
 const THREADS = 'threads';
@@ -264,9 +264,10 @@ export class EmailContentStore {
   }
 
   /**
-   * Lands a hydration. Returns the updated digest, or `null` when the write
-   * was rejected by a guard (generation change, eviction epoch, or a newer
-   * stored watermark with the digest left pending for a re-fetch).
+   * Lands a hydration. Returns the updated digest — left `pending` at the
+   * stored (newer) watermark when a fresher digest arrived mid-fetch, so it
+   * re-hydrates — or `null` when the write was rejected by a guard
+   * (generation change, eviction epoch, digest deleted mid-flight).
    */
   async completeHydration(write: HydrationWrite): Promise<ThreadDigest | null> {
     const db = this.requireDb();
@@ -279,9 +280,17 @@ export class EmailContentStore {
     const digests = tx.objectStore(DIGESTS);
     const existing = await digests.get(write.threadId);
 
+    // Digests are always recorded pending before a hydration starts, so a
+    // missing row means the thread was deleted mid-flight (e.g. an open-path
+    // 404) — landing the response would resurrect a ghost.
+    if (!existing) {
+      await tx.done;
+      return null;
+    }
+
     // Evicted after this hydration started (e.g. a draft save): the response
     // predates the eviction, so it must not land.
-    if (existing && existing.evictedAt > write.startedAt) {
+    if (existing.evictedAt > write.startedAt) {
       await tx.done;
       return null;
     }
@@ -290,7 +299,7 @@ export class EmailContentStore {
     // freshest we have, so store it, but leave the digest pending at the
     // newer watermark so it re-hydrates.
     const newerExists =
-      existing && compareWatermarks(existing.watermark, write.watermark) > 0;
+      compareWatermarks(existing.watermark, write.watermark) > 0;
 
     const digest: ThreadDigest = {
       threadId: write.threadId,
@@ -298,11 +307,11 @@ export class EmailContentStore {
       watermark: newerExists ? existing.watermark : write.watermark,
       state: newerExists ? 'pending' : 'hydrated',
       hasDrafts: write.hasDrafts,
-      seenAt: existing?.seenAt ?? write.startedAt,
+      seenAt: existing.seenAt,
       cachedAt: Date.now(),
       size: write.data === undefined ? 0 : write.size,
       attempts: 0,
-      evictedAt: existing?.evictedAt ?? 0,
+      evictedAt: existing.evictedAt,
       lastHydrationStartedAt: write.startedAt,
     };
     await digests.put(digest);
@@ -413,7 +422,14 @@ export class EmailContentStore {
     const tx = db.transaction(DIGESTS, 'readwrite');
     const updated: ThreadDigest[] = [];
     for (const digest of await tx.store.index('linkId').getAll(linkId)) {
-      const next: ThreadDigest = { ...digest, state: 'pending', cachedAt: now };
+      // evictedAt also fences out hydrations already in flight — their
+      // responses predate the delete this downgrade is reacting to.
+      const next: ThreadDigest = {
+        ...digest,
+        state: 'pending',
+        cachedAt: now,
+        evictedAt: now,
+      };
       await tx.store.put(next);
       updated.push(next);
     }

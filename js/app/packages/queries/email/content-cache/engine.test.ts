@@ -78,19 +78,20 @@ class FakeStore implements ContentStorePort {
     size: number;
   }) {
     const existing = this.digests.get(write.threadId);
-    if (existing && existing.evictedAt > write.startedAt) return null;
-    const newerExists = existing && existing.watermark > write.watermark;
+    if (!existing) return null;
+    if (existing.evictedAt > write.startedAt) return null;
+    const newerExists = existing.watermark > write.watermark;
     const digest: ThreadDigest = {
       threadId: write.threadId,
       linkId: write.linkId,
       watermark: newerExists ? existing.watermark : write.watermark,
       state: newerExists ? 'pending' : 'hydrated',
       hasDrafts: write.hasDrafts,
-      seenAt: existing?.seenAt ?? write.startedAt,
+      seenAt: existing.seenAt,
       cachedAt: write.startedAt,
       size: write.size,
       attempts: 0,
-      evictedAt: existing?.evictedAt ?? 0,
+      evictedAt: existing.evictedAt,
       lastHydrationStartedAt: write.startedAt,
     };
     this.digests.set(write.threadId, digest);
@@ -116,7 +117,12 @@ class FakeStore implements ContentStorePort {
     const updated: ThreadDigest[] = [];
     for (const [id, d] of this.digests) {
       if (d.linkId !== linkId) continue;
-      const next: ThreadDigest = { ...d, state: 'pending', cachedAt: now };
+      const next: ThreadDigest = {
+        ...d,
+        state: 'pending',
+        cachedAt: now,
+        evictedAt: now,
+      };
       this.digests.set(id, next);
       updated.push(next);
     }
@@ -375,17 +381,58 @@ describe('hydration outcomes', () => {
 
     // Next wakes retry until the attempt cap, then stop.
     h.deltaPages.push({ items: [] });
-    h.engine.prioritizeThread('t1', 'l1');
+    h.engine.markThreadChanged('t1');
     await flush();
     expect(h.store.digests.get('t1')?.attempts).toBe(2);
 
-    h.engine.prioritizeThread('t1', 'l1');
+    h.deltaPages.push({ items: [] });
+    h.engine.markThreadChanged('t1');
     await flush();
     expect(h.store.digests.get('t1')?.attempts).toBe(2);
   });
 });
 
 describe('events', () => {
+  it('marks a changed thread pending and hydrates it once via the sync', async () => {
+    const h = makeHarness();
+    // Pre-seeded before start so the engine loads it into memory.
+    h.store.digests.set('t1', {
+      threadId: 't1',
+      linkId: 'l1',
+      watermark: W1,
+      state: 'hydrated',
+      hasDrafts: false,
+      seenAt: 0,
+      cachedAt: 0,
+      size: 10,
+      attempts: 0,
+      evictedAt: 0,
+      lastHydrationStartedAt: 0,
+    });
+    h.store.syncState = {
+      cursorWatermark: W1,
+      lastSyncAt: 0,
+      bootstrappedAt: 1,
+    };
+    h.deltaPages.push({ items: [] });
+    await h.engine.start();
+    await flush();
+    expect(h.hydrations).toEqual([]);
+
+    // The event marks it pending; the woken sync supplies the new watermark
+    // and exactly one hydration happens.
+    h.deltaPages.push({
+      items: [{ thread_id: 't1', link_id: 'l1', watermark: W2 }],
+    });
+    h.engine.markThreadChanged('t1');
+    expect(h.engine.getDigest('t1')?.state).toBe('pending');
+    await flush();
+
+    expect(h.hydrations).toEqual(['t1']);
+    expect(h.store.digests.get('t1')?.state).toBe('hydrated');
+    expect(h.store.digests.get('t1')?.watermark).toBe(W2);
+  });
+
   it('untargeted deletes downgrade the link and re-verify recent threads', async () => {
     const h = makeHarness({ config: { deleteSweepCount: 1 } });
     h.deltaPages.push({
@@ -398,6 +445,7 @@ describe('events', () => {
     await flush();
     expect(h.store.digests.get('t1')?.state).toBe('hydrated');
 
+    h.deltaPages.push({ items: [] });
     await h.engine.onUntargetedDelete('l1');
     await flush();
 
