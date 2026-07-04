@@ -51,8 +51,9 @@ import {
   toNotificationEntity,
 } from '@entity';
 import {
+  compositeEntity,
+  type UnifiedNotification,
   useEntityTypeNotifications,
-  useNotificationsForEntity,
 } from '@notifications';
 import { useQueryClient } from '@queries/client';
 import type {
@@ -135,6 +136,9 @@ interface SoupViewContextValues {
 }
 
 const SoupViewContext = createContext<SoupViewContextValues>();
+
+/** Stable identity so absent-notification reads don't churn consumers. */
+const EMPTY_NOTIFICATIONS: UnifiedNotification[] = [];
 
 export const useSoupView = () => {
   const context = useContext(SoupViewContext);
@@ -468,12 +472,17 @@ export const SoupViewContextProvider: FlowComponent<
   });
 
   const attachNotifications = (entity: EntityData) => {
+    // Plain closure instead of useNotificationsForEntity: the hook wraps
+    // this same map lookup in a createMemo, and creating + disposing one
+    // owned computation per entity every time the items/rows memos re-run
+    // (every view switch, every soup update) is the dominant synchronous
+    // cost of switching list views. Consumers read `notifications()` inside
+    // their own computations, so reactivity is identical.
+    const key = compositeEntity(toNotificationEntity(entity));
     return {
       ...entity,
-      notifications: useNotificationsForEntity(
-        notificationSource,
-        toNotificationEntity(entity)
-      ),
+      notifications: () =>
+        notificationSource.notificationsByEntity()[key] ?? EMPTY_NOTIFICATIONS,
     };
   };
 
