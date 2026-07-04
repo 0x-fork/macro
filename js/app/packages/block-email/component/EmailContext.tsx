@@ -341,35 +341,29 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
 
     if (!thread?.db_id) return false;
 
-    archiveMutation.mutate({
-      threadId: thread.db_id,
-      archive: thread.inbox_visible,
-      linkId: toHeaderLinkId(thread.link_id),
-    });
-
-    if (!props) return false;
-
+    // Exactly one archive path runs. The mark-done action already flags the
+    // thread archived (optimistically, with undo); firing archiveMutation
+    // alongside it double-archives — and on an already-archived thread the
+    // two requests would conflict (toggle-unarchive vs. mark-done).
     const selectedRow = soup?.items.get(thread.db_id);
 
-    if (selectedRow) {
-      if (soup) {
-        markAsDoneAction.executeWithSoup(
-          [selectedRow.original],
-          soup,
-          (nextEntity) => {
-            const splitHandle = splitPanel?.handle;
-            if (!splitHandle) return;
-            void openEntityInSplitFromUnifiedList(nextEntity, {
-              splitHandle,
-              mergeHistory: true,
-              referredFrom: splitHandle.referredFrom(),
-            });
-          }
-        );
-      } else {
-        markAsDoneAction.execute([selectedRow.original]);
-      }
+    if (soup && selectedRow) {
+      markAsDoneAction.executeWithSoup(
+        [selectedRow.original],
+        soup,
+        (nextEntity) => {
+          const splitHandle = splitPanel?.handle;
+          if (!splitHandle) return;
+          void openEntityInSplitFromUnifiedList(nextEntity, {
+            splitHandle,
+            mergeHistory: true,
+            referredFrom: splitHandle.referredFrom(),
+          });
+        }
+      );
     } else {
+      // No surviving list row (deep link, thread already triaged): keep the
+      // plain archive toggle.
       archiveMutation.mutate({
         threadId: thread.db_id,
         archive: thread.inbox_visible,

@@ -870,7 +870,9 @@ export async function executeMarkEntitiesDone(args: {
       queryKey: notificationKeys.user._def,
       refetchType: 'none',
     }),
-    ...emailIds.map((id) => invalidateSoupEntity(id)),
+    // The optimistic removal already updated the visible lists; an active
+    // refetch here re-renders the list right after the server confirms.
+    ...emailIds.map((id) => invalidateSoupEntity(id, { refetchType: 'none' })),
   ]);
 }
 
