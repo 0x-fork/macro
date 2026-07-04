@@ -6,14 +6,16 @@ import {
 } from '@core/block';
 import { storageServiceClient } from '@service-storage/client';
 import { err, ok } from 'neverthrow';
-import BlockCode from './component/Block';
+import { lazy } from 'solid-js';
 import { supportedExtensions } from './util/languageSupport';
 
 export const definition = defineBlock({
   name: 'code',
   description: 'Edit code files with syntax highlighting and formatting',
   aliases: [{ name: 'csv', defaultFileName: 'New CSV' }],
-  component: BlockCode,
+  // Lazy chunk: keeps this block's UI out of the entry bundle; the
+  // definition itself stays eager for file-type routing.
+  component: lazy(() => import('./component/Block')),
   async load(source, intent) {
     if (intent === 'preload') {
       return ok({

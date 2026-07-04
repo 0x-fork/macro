@@ -135,13 +135,24 @@ export function SplitPanel(props: SplitPanelProps) {
     setContentOffsetTop(offset);
   });
 
-  function multipleSplits() {
+  const multipleSplits = createMemo(() => {
     const splits = globalSplitManager()?.splits?.();
     return Boolean(splits && splits.length > 1);
-  }
+  });
 
   const shouldHideSplitHeader = createMemo(
     () => isMobile() && isListViewID(props.handle.content().id)
+  );
+
+  // A split that has never shown a unified-list view skips the soup view
+  // machinery entirely (list queries, search state, notification
+  // subscriptions) — building that graph dominates split creation for
+  // document/email splits. Latches true so the machinery (and its entry
+  // state, j/k-from-block navigation, keep-alive cache) persists across
+  // list<->block swaps once created.
+  const everListView = createMemo<boolean>(
+    (prev) => prev || isListViewID(props.handle.content().id),
+    false
   );
 
   return (
@@ -254,9 +265,14 @@ export function SplitPanel(props: SplitPanelProps) {
                     )}
                   >
                     <Suspense>
-                      <SoupViewContextProvider soup={nextSoup}>
-                        <KeepAliveMount mount={props.split.mount} />
-                      </SoupViewContextProvider>
+                      <Show
+                        when={everListView()}
+                        fallback={<KeepAliveMount mount={props.split.mount} />}
+                      >
+                        <SoupViewContextProvider soup={nextSoup}>
+                          <KeepAliveMount mount={props.split.mount} />
+                        </SoupViewContextProvider>
+                      </Show>
                     </Suspense>
                   </div>
                   <Show when={bottomPanel()}>

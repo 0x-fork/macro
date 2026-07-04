@@ -4,7 +4,7 @@ import { cognitionApiServiceClient } from '@service-cognition/client';
 import type { Entity } from '@service-cognition/generated/schemas/entity';
 import type { DocumentMetadata } from '@service-storage/generated/schemas/documentMetadata';
 import { ok } from 'neverthrow';
-import BlockChat from './component/Block';
+import { lazy } from 'solid-js';
 
 export const DEFAULT_CHAT_NAME = 'New Chat';
 
@@ -14,7 +14,9 @@ export const definition = defineBlock({
   name: 'chat',
   description: '',
   defaultFilename: DEFAULT_CHAT_NAME,
-  component: BlockChat,
+  // Lazy chunk: keeps this block's UI out of the entry bundle; the
+  // definition itself stays eager for file-type routing.
+  component: lazy(() => import('./component/Block')),
   liveTrackingEnabled: true,
   async load(source, intent) {
     if (source.type === 'dss') {
