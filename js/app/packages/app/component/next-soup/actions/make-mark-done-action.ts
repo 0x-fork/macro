@@ -13,9 +13,8 @@ import type { HotkeyGroup } from '@core/hotkey/types';
 import type { EntityData } from '@entity';
 import type { NotificationSource } from '@notifications';
 import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
-import { warmEmailThread } from '@queries/prefetch/opportunistic';
 import { useUndoableMutation } from '@queries/undo';
-import type { SoupRow, SoupState } from '../create-soup-state';
+import type { SoupState } from '../create-soup-state';
 
 // Valid list views where the mark done should be allowed to run
 const VALID_MARK_DONE_LIST_VIEWS: `${ListView}-${string}`[] = [
@@ -168,22 +167,6 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     });
   };
 
-  // Nearest entity row scanning from `start` in `step` direction — group
-  // headers and load-more rows are not landable (and a header row can
-  // vanish entirely when its section empties out).
-  const nearestEntityRow = (
-    soup: SoupState,
-    start: number,
-    step: 1 | -1
-  ): SoupRow | undefined => {
-    for (let i = start; i >= 0 && i < soup.items.count(); i += step) {
-      const row = soup.items.at(i);
-      if (!row) return undefined;
-      if (!row.getIsGrouped() && !row.getIsLoadMore()) return row;
-    }
-    return undefined;
-  };
-
   const executeWithSoup = async (
     entities: EntityData[],
     soup: SoupState,
@@ -192,8 +175,7 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     const currentIndex = soup.focus.index();
     const focusedIdBeforeMarkDone = soup.focus.id();
     const nextRow =
-      nearestEntityRow(soup, currentIndex + 1, 1) ??
-      nearestEntityRow(soup, currentIndex - 1, -1);
+      soup.items.at(currentIndex + 1) ?? soup.items.at(currentIndex - 1);
 
     if (soup.collapseEntity.shouldCollapse()) {
       const collapse = soup.collapseEntity.callback();
@@ -209,16 +191,6 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     soup.selection.clear();
 
     if (nextRow) {
-      // Superhuman-style read-ahead: the advance opens nextRow immediately
-      // and the one after is the likely follow-up (chained e presses), so
-      // both get their thread content warmed before the block asks for it.
-      if (nextRow.original.type === 'email') {
-        warmEmailThread(nextRow.original.id);
-      }
-      const upcoming = nearestEntityRow(soup, nextRow.index + 1, 1);
-      if (upcoming && upcoming.original.type === 'email') {
-        warmEmailThread(upcoming.original.id);
-      }
       soup.focus.set(nextRow.id);
       onNavigate?.(nextRow.original);
     }

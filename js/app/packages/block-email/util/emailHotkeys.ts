@@ -3,9 +3,7 @@ import { registerHotkey } from 'core/hotkey/hotkeys';
 
 interface EmailHotkeyHandlers {
   blockSender: () => boolean;
-  reply: () => boolean;
-  replyAll: () => boolean;
-  forward: () => boolean;
+  markDone: () => boolean;
   markSenderSignal: () => boolean;
   markSenderNoise: () => boolean;
   navigateToPreviousMessage: () => boolean;
@@ -16,25 +14,25 @@ export function registerEmailHotkeys(
   scopeId: string,
   handlers: EmailHotkeyHandlers
 ) {
-  // 'e' (mark done) is deliberately NOT registered here: the block-scope
-  // registration in use-block-entity-commands owns it, running the single
-  // optimistic mark-done path. A second registration here would override
-  // it with a duplicate archive round trip.
   registerHotkey({
-    hotkey: 'r',
+    hotkey: 'opt+r',
     scopeId: scopeId,
     description: 'Reply to thread',
-    keyDownHandler: handlers.reply,
+    keyDownHandler: () => {
+      // handlers.setReplyMode('reply');
+      return true;
+    },
     hotkeyToken: TOKENS.email.reply,
     displayPriority: 9,
   });
-  // Reply-all's key is 'enter', handled by the email block's enter handler
-  // (which also expands collapsed messages); this unkeyed registration
-  // keeps the action visible in the command menu.
   registerHotkey({
+    hotkey: 'r',
     scopeId: scopeId,
     description: 'Reply all to thread',
-    keyDownHandler: handlers.replyAll,
+    keyDownHandler: () => {
+      // handlers.setReplyMode('reply-all');
+      return true;
+    },
     hotkeyToken: TOKENS.email.replyAll,
     displayPriority: 8,
   });
@@ -42,9 +40,22 @@ export function registerEmailHotkeys(
     hotkey: 'f',
     scopeId: scopeId,
     description: 'Forward thread',
-    keyDownHandler: handlers.forward,
+    keyDownHandler: () => {
+      // TODO: Populate to field
+      // TODO: Attachments from last/current selected message
+      // handlers.setReplyMode('forward');
+      return true;
+    },
     hotkeyToken: TOKENS.email.forward,
     displayPriority: 7,
+  });
+  registerHotkey({
+    hotkey: 'e',
+    scopeId,
+    description: 'Mark done',
+    keyDownHandler: handlers.markDone,
+    hotkeyToken: TOKENS.entity.action.markDone,
+    displayPriority: 10,
   });
   registerHotkey({
     scopeId: scopeId,

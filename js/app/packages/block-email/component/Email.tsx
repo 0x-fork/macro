@@ -1,7 +1,5 @@
 import { AskMacroButton } from '@app/component/ChatWithAgentButton';
 import { SidePanel } from '@app/component/side-panel';
-import { splitBackInterceptor } from '@app/component/split-layout/back-interceptor';
-import { useKeepAliveVisible } from '@app/component/split-layout/components/keep-alive-visibility';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { EmailCompose } from '@block-email/component/compose/Compose';
@@ -45,7 +43,6 @@ import { EmailFormContextProvider } from './EmailFormContext';
 import { EmailParticipants } from './EmailParticipants';
 import { MessageList } from './MessageList';
 import { ModalsProvider } from './ModalsProvider';
-import { type OpenReplyCompose, ReplyHotkeyBridge } from './ReplyHotkeyBridge';
 import { EmailSidePanelSections } from './sidepanel/EmailSidePanelSections';
 import { TopBar } from './TopBar';
 
@@ -443,17 +440,10 @@ function EmailContent(props: EmailViewProps) {
   const navigateToPreviousMessage = () => navigateMessage('prev');
   const navigateToNextMessage = () => navigateMessage('next');
 
-  // Set by ReplyHotkeyBridge once the form provider subtree mounts; the
-  // hotkeys are registered up here where the registry isn't in scope.
-  const [openReplyCompose, setOpenReplyCompose] =
-    createSignal<OpenReplyCompose>();
-
   onMount(() => {
     registerEmailHotkeys(scopeId(), {
       blockSender: context.blockSender,
-      reply: () => openReplyCompose()?.('reply') ?? false,
-      replyAll: () => openReplyCompose()?.('reply-all') ?? false,
-      forward: () => openReplyCompose()?.('forward') ?? false,
+      markDone: context.archiveThread,
       markSenderSignal: context.markSenderSignal,
       markSenderNoise: context.markSenderNoise,
       navigateToPreviousMessage,
@@ -474,16 +464,10 @@ function EmailContent(props: EmailViewProps) {
 
   let markdownDomRef!: HTMLDivElement;
 
-  // Parked keep-alive trees track the same block-scope signal, so their
-  // signal-scoped handlers can re-register onto the active scope; the
-  // visibility guard keeps a hidden thread from swallowing the keys.
-  const keepAliveVisible = useKeepAliveVisible();
-
   registerScopeSignalHotkey(scopeId, {
     hotkey: 'enter',
     description: 'Focus Email Input',
     keyDownHandler: () => {
-      if (!keepAliveVisible()) return false;
       const focusedId = context.messages.focusedID();
 
       // If a message is focused and collapsed, expand it
@@ -502,11 +486,7 @@ function EmailContent(props: EmailViewProps) {
         }
       }
 
-      // Otherwise, open the reply-all compose (Superhuman's enter),
-      // falling back to focusing the main input.
-      if (openReplyCompose()?.('reply-all')) {
-        return true;
-      }
+      // Otherwise, focus the main email input
       if (markdownDomRef) {
         markdownDomRef.focus();
         return true;
@@ -521,7 +501,6 @@ function EmailContent(props: EmailViewProps) {
     hotkey: 'escape',
     description: 'Collapse message',
     keyDownHandler: () => {
-      if (!keepAliveVisible()) return false;
       // Skip if focus is in an editable area (compose input handles its own Escape)
       const activeEl = document.activeElement;
       if (
@@ -533,40 +512,22 @@ function EmailContent(props: EmailViewProps) {
       }
 
       const focusedId = context.messages.focusedID();
+      if (!focusedId) return false;
 
-      if (focusedId) {
-        // If there's an active reply, just clear it (don't collapse the message)
-        if (context.messages.replyingToMessageId() === focusedId) {
-          context.messages.setReplyingToMessageId(undefined);
-          return true;
-        }
-
-        // If message is expanded and not the last message, collapse it
-        if (context.messages.isBodyExpanded(focusedId)) {
-          const messages = context.messages.list();
-          const lastMessage = messages[messages.length - 1];
-          if (lastMessage?.db_id !== focusedId) {
-            context.messages.setExpandedBodyId(focusedId, false);
-            return true;
-          }
-        }
+      // If there's an active reply, just clear it (don't collapse the message)
+      if (context.messages.replyingToMessageId() === focusedId) {
+        context.messages.setReplyingToMessageId(undefined);
+        return true;
       }
 
-      // Nothing left to dismiss inside the thread: back out to the
-      // originating list view (Superhuman's esc), landing on this email —
-      // the list keeps the live focus via the shared panel-level soup
-      // state. Only for threads opened from a list; a deep-linked block
-      // has nowhere sensible to go back to.
-      const handle = splitPanel?.handle;
-      const referredFrom = handle?.referredFrom();
-      if (
-        handle &&
-        (referredFrom === 'inbox' || referredFrom === 'mail') &&
-        handle.canGoBack()
-      ) {
-        if (splitBackInterceptor()?.()) return true;
-        handle.goBack();
-        return true;
+      // If message is expanded and not the last message, collapse it
+      if (context.messages.isBodyExpanded(focusedId)) {
+        const messages = context.messages.list();
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.db_id !== focusedId) {
+          context.messages.setExpandedBodyId(focusedId, false);
+          return true;
+        }
       }
       return false;
     },
@@ -667,7 +628,6 @@ function EmailContent(props: EmailViewProps) {
                 onRecipientsChange: context.onRecipientsChange,
               }}
             >
-              <ReplyHotkeyBridge expose={setOpenReplyCompose} />
               {/* Edge-to-edge on mobile: the message list carries its own
                   insets in-scroll and under-scrolls the floating chrome. */}
               <div class="size-full bg-surface select-none overscroll-none overflow-hidden flex flex-col">

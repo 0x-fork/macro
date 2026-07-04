@@ -119,17 +119,12 @@ export function getSoupEntityById(entityId: string): SoupApiItem | undefined {
 /**
  * Mark stale only the soup queries containing a specific entity.
  * Prefer this over `invalidateAllSoup` when you know the affected entity ID.
- * Pass `refetchType: 'none'` when an optimistic cache update already
- * reflects the change and an immediate refetch would only churn the list.
  */
-export function invalidateSoupEntity(
-  entityId: string,
-  options?: { refetchType?: 'active' | 'inactive' | 'all' | 'none' }
-): void {
+export function invalidateSoupEntity(entityId: string): void {
   const normalizer = getSoupNormalizer();
   const keys = normalizer.getDependentQueriesByIds([soupNormKey(entityId)]);
   for (const queryKey of keys) {
-    queryClient.invalidateQueries({ queryKey, ...options });
+    queryClient.invalidateQueries({ queryKey });
   }
 }
 

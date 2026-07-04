@@ -1153,21 +1153,11 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
     const cached = readListEntryState();
     if (cached) {
-      // j/k from inside an open block advances the shared panel-level
-      // focus, but those mergeHistory navigations never re-capture this
-      // entry's snapshot — so a live focus is newer than the snapshot and
-      // wins; back/esc must land on the last-viewed item, not the first.
-      const liveFocusId = soup.focus.id();
-      soup.focus.set(liveFocusId ?? cached.focus);
+      soup.focus.set(cached.focus);
       const handle = virtualizerHandle();
       if (!handle) return;
 
-      if (liveFocusId && liveFocusId !== cached.focus) {
-        const index = soup.items.indexOf(liveFocusId);
-        if (index >= 0) handle.scrollToIndex(index, { align: 'nearest' });
-      } else {
-        handle.scrollTo(cached.scrollOffset ?? 0);
-      }
+      handle.scrollTo(cached.scrollOffset ?? 0);
       restored = true;
       registerFocusEffects(false);
       return;

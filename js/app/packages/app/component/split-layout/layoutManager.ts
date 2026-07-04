@@ -103,11 +103,6 @@ type BlockMount = {
 type ComponentMount = {
   kind: 'component';
   name: string;
-  /**
-   * The content params the component was resolved with; part of the
-   * keep-alive identity so param variants never share a parked tree.
-   */
-  params?: Record<string, unknown>;
   element: ElementFn;
   meta: Store<ComponentMeta>;
   updateMeta: (data: Omit<ComponentMeta, 'kind'>) => void;
@@ -461,7 +456,6 @@ function createPinnedMount(
     return {
       kind: 'component',
       name: content.id,
-      params: content.params,
       element: resolved.element,
       meta,
       updateMeta,
