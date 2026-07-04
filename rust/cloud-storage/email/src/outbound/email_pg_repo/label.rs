@@ -217,19 +217,32 @@ pub(crate) async fn insert_message_labels_batch(
         return Ok(());
     }
 
+    // The trailing thread bump keeps email_threads.updated_at authoritative
+    // as the thread's content watermark (delta feed / search reindex key on
+    // it); scoped to messages the insert actually changed.
     sqlx::query!(
         r#"
-        INSERT INTO email_message_labels (message_id, label_id)
-        SELECT
-            unnested_message_id,
-            l.id
-        FROM
-            UNNEST($1::uuid[]) AS t(unnested_message_id)
-        CROSS JOIN
-            email_labels l
-        WHERE
-            l.link_id = $2 AND l.provider_label_id = $3
-        ON CONFLICT (message_id, label_id) DO NOTHING
+        WITH ins AS (
+            INSERT INTO email_message_labels (message_id, label_id)
+            SELECT
+                unnested_message_id,
+                l.id
+            FROM
+                UNNEST($1::uuid[]) AS t(unnested_message_id)
+            CROSS JOIN
+                email_labels l
+            WHERE
+                l.link_id = $2 AND l.provider_label_id = $3
+            ON CONFLICT (message_id, label_id) DO NOTHING
+            RETURNING message_id
+        )
+        UPDATE email_threads t
+        SET updated_at = NOW()
+        WHERE t.id IN (
+            SELECT DISTINCT m.thread_id
+            FROM email_messages m
+            WHERE m.id IN (SELECT message_id FROM ins)
+        )
         "#,
         message_ids,
         link_id,
@@ -252,15 +265,26 @@ pub(crate) async fn delete_message_labels_batch(
         return Ok(());
     }
 
+    // See insert_message_labels_batch for why the thread bump rides along.
     sqlx::query!(
         r#"
-        DELETE FROM email_message_labels
-        WHERE
-            message_id = ANY($1)
-            AND label_id = (
-                SELECT id FROM email_labels
-                WHERE link_id = $2 AND provider_label_id = $3
-            )
+        WITH del AS (
+            DELETE FROM email_message_labels
+            WHERE
+                message_id = ANY($1)
+                AND label_id = (
+                    SELECT id FROM email_labels
+                    WHERE link_id = $2 AND provider_label_id = $3
+                )
+            RETURNING message_id
+        )
+        UPDATE email_threads t
+        SET updated_at = NOW()
+        WHERE t.id IN (
+            SELECT DISTINCT m.thread_id
+            FROM email_messages m
+            WHERE m.id IN (SELECT message_id FROM del)
+        )
         "#,
         message_ids,
         link_id,
@@ -283,15 +307,22 @@ pub(crate) async fn update_message_read_status_batch(
         return Ok(());
     }
 
+    // See insert_message_labels_batch for why the thread bump rides along.
     sqlx::query!(
         r#"
-        UPDATE email_messages m
-        SET
-            is_read = $1,
-            updated_at = NOW()
-        WHERE
-            m.id = ANY($2)
-            AND m.link_id = $3
+        WITH updated AS (
+            UPDATE email_messages m
+            SET
+                is_read = $1,
+                updated_at = NOW()
+            WHERE
+                m.id = ANY($2)
+                AND m.link_id = $3
+            RETURNING m.thread_id
+        )
+        UPDATE email_threads t
+        SET updated_at = NOW()
+        WHERE t.id IN (SELECT DISTINCT thread_id FROM updated)
         "#,
         is_read,
         message_ids,
@@ -314,15 +345,22 @@ pub(crate) async fn update_message_starred_status_batch(
         return Ok(());
     }
 
+    // See insert_message_labels_batch for why the thread bump rides along.
     sqlx::query!(
         r#"
-        UPDATE email_messages m
-        SET
-            is_starred = $1,
-            updated_at = NOW()
-        WHERE
-            m.id = ANY($2)
-            AND m.link_id = $3
+        WITH updated AS (
+            UPDATE email_messages m
+            SET
+                is_starred = $1,
+                updated_at = NOW()
+            WHERE
+                m.id = ANY($2)
+                AND m.link_id = $3
+            RETURNING m.thread_id
+        )
+        UPDATE email_threads t
+        SET updated_at = NOW()
+        WHERE t.id IN (SELECT DISTINCT thread_id FROM updated)
         "#,
         is_starred,
         message_ids,

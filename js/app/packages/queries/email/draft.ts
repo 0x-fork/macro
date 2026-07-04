@@ -9,6 +9,7 @@ import type {
 import { useMutation } from '@tanstack/solid-query';
 import { queryClient } from '../client';
 import { type MutationCallbacks, withCallbacks } from '../utils';
+import { emailContentCache } from './content-cache';
 import { emailKeys } from './keys';
 
 type CreateDraftParams = {
@@ -55,6 +56,10 @@ export function useSaveDraftMutation(
           queryClient.invalidateQueries({
             queryKey: emailKeys.threadMessages(threadId).queryKey,
           });
+          // Same reasoning for the durable content cache: the eviction epoch
+          // also stops an in-flight background hydration (fetched before this
+          // save) from resurrecting the pre-save snapshot.
+          emailContentCache.evictThread(threadId);
         },
       },
       callbacks
@@ -99,6 +104,7 @@ export function useDeleteDraftMutation(
           // finds nothing to update.
           if (vars.threadId) {
             refetchSoupEntity(vars.threadId, 'emailThread');
+            emailContentCache.evictThread(vars.threadId);
           }
         },
       },

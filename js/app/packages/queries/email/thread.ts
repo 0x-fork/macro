@@ -23,6 +23,10 @@ import { queryClient } from '../client';
 import { optimisticUpdateSoupEntity } from '../soup/cache';
 import { invalidateAllSoup } from '../soup/normalized-cache';
 import { type MutationCallbacks, withCallbacks } from '../utils';
+import {
+  emailContentCache,
+  trySeedThreadFromContentCache,
+} from './content-cache';
 import { emailKeys } from './keys';
 
 const THREAD_STALE_TIME = 5 * 60 * 1000;
@@ -87,17 +91,40 @@ function flattenThreadPages(
   };
 }
 
+function errorsInclude(error: unknown, codes: readonly string[]): boolean {
+  return (
+    Array.isArray(error) &&
+    error.some((e) => codes.includes((e as { code?: string })?.code ?? ''))
+  );
+}
+
 /**
- * Imperatively fetch a thread (for use outside of components).
- * Returns cached data if fresh, otherwise fetches from server.
+ * Imperatively fetch a thread (for use outside of components) — the email
+ * block's single load path.
  *
- * TODO: Most of the time we have the updated_at timestamp of an email before we fetch it.
- * Would be nice to accept that as a parameter and only fetch if it's stale.
+ * With the email content cache enabled (docs/email-content-cache.md), the
+ * thread query is seeded from the durable cache first: a provably current
+ * seed completes the open with zero network on the critical path; a stale
+ * seed still awaits the network but serves as an offline fallback when the
+ * fetch fails. Otherwise this behaves exactly as before: returns cached data
+ * if fresh, fetches from the server if not.
  */
 export async function fetchAndCacheThread(
   threadId: string
 ): ReturnType<typeof emailClient.getThread> {
-  let data: InfiniteData<Thread, number> | undefined;
+  const seeded = await trySeedThreadFromContentCache(threadId);
+
+  const readSeededThread = () => {
+    const data = queryClient.getQueryData<InfiniteData<Thread, number>>(
+      emailKeys.threadMessages(threadId).queryKey
+    );
+    return data && flattenThreadPages(data);
+  };
+
+  if (seeded === 'fresh') {
+    const thread = readSeededThread();
+    if (thread) return ok({ thread });
+  }
 
   const result = await catchToResult(
     async () =>
@@ -105,12 +132,23 @@ export async function fetchAndCacheThread(
   );
 
   if (result.isErr()) {
+    if (errorsInclude(result.error, ['NOT_FOUND', 'GONE'])) {
+      // The thread is gone on the server; drop the cached ghost so it can't
+      // be served again.
+      emailContentCache.deleteThread(threadId);
+      queryClient.removeQueries({
+        queryKey: emailKeys.threadMessages(threadId).queryKey,
+      });
+    } else if (seeded === 'stale-seeded') {
+      // Network failure with a cached snapshot: serve the cache (offline
+      // reads) instead of an error.
+      const thread = readSeededThread();
+      if (thread) return ok({ thread });
+    }
     return err(result.error as any);
   }
 
-  data = result.value;
-
-  const thread = flattenThreadPages(data);
+  const thread = flattenThreadPages(result.value);
   return ok({ thread: thread! });
 }
 
@@ -231,6 +269,12 @@ async function threadArchiveOnMutate(params: ArchiveThreadParams) {
       }
   );
 
+  // Mirror into the durable content cache so a reopen before the server-side
+  // watermark bump re-hydrates doesn't show the pre-archive flag.
+  emailContentCache.patchThreadFlags(params.threadId, {
+    inbox_visible: !params.archive,
+  });
+
   return { previousData };
 }
 
@@ -268,6 +312,9 @@ export function useArchiveThreadMutation(
               context.previousData
             );
           }
+          emailContentCache.patchThreadFlags(params.threadId, {
+            inbox_visible: params.archive,
+          });
         },
         onSettled: (_data, _error, params) => {
           queryClient.invalidateQueries({
@@ -310,6 +357,9 @@ export function useSendMessageMutation(
             queryClient.invalidateQueries({
               queryKey: emailKeys.threadMessages(threadID).queryKey,
             });
+            // The sent message's final form comes from the server; the
+            // cached snapshot (with the draft) is no longer trustworthy.
+            emailContentCache.evictThread(threadID);
           }
           queryClient.invalidateQueries({
             queryKey: emailKeys.previews._def,

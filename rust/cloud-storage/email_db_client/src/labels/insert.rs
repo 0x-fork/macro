@@ -70,30 +70,44 @@ where
         anyhow::bail!("Provider label ID cannot be empty");
     }
 
-    let result = sqlx::query!(
+    // The `touch` CTE keeps email_threads.updated_at authoritative as the
+    // thread's content watermark (delta feed / search reindex key on it);
+    // scoped to messages the insert actually changed.
+    let inserted = sqlx::query_scalar!(
         r#"
-        INSERT INTO email_message_labels (message_id, label_id)
-        SELECT
-            unnested_message_id,
-            l.id
-        FROM
-            UNNEST($1::uuid[]) AS t(unnested_message_id)
-        CROSS JOIN
-            email_labels l
-        WHERE
-            l.link_id = $2 AND l.provider_label_id = $3
-        ON CONFLICT (message_id, label_id) DO NOTHING
+        WITH ins AS (
+            INSERT INTO email_message_labels (message_id, label_id)
+            SELECT
+                unnested_message_id,
+                l.id
+            FROM
+                UNNEST($1::uuid[]) AS t(unnested_message_id)
+            CROSS JOIN
+                email_labels l
+            WHERE
+                l.link_id = $2 AND l.provider_label_id = $3
+            ON CONFLICT (message_id, label_id) DO NOTHING
+            RETURNING message_id
+        ),
+        touch AS (
+            UPDATE email_threads t
+            SET updated_at = NOW()
+            WHERE t.id IN (
+                SELECT DISTINCT m.thread_id
+                FROM email_messages m
+                WHERE m.id IN (SELECT message_id FROM ins)
+            )
+        )
+        SELECT COUNT(*) AS "count!" FROM ins
         "#,
         message_ids,
         link_id,
         provider_label_id
     )
-    .execute(executor)
+    .fetch_one(executor)
     .await?;
 
-    let rows_affected = result.rows_affected() as usize;
-
-    Ok(rows_affected)
+    Ok(inserted as usize)
 }
 
 /// Inserts or updates labels for a user.

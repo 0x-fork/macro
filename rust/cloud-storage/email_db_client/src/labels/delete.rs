@@ -21,26 +21,40 @@ where
         anyhow::bail!("Provider label ID cannot be empty");
     }
 
-    let result = sqlx::query!(
+    // The `touch` CTE keeps email_threads.updated_at authoritative as the
+    // thread's content watermark (delta feed / search reindex key on it);
+    // scoped to messages the delete actually changed.
+    let deleted = sqlx::query_scalar!(
         r#"
-        DELETE FROM email_message_labels
-        WHERE 
-            message_id = ANY($1) 
-            AND label_id = (
-                SELECT id FROM email_labels
-                WHERE link_id = $2 AND provider_label_id = $3
+        WITH del AS (
+            DELETE FROM email_message_labels
+            WHERE
+                message_id = ANY($1)
+                AND label_id = (
+                    SELECT id FROM email_labels
+                    WHERE link_id = $2 AND provider_label_id = $3
+                )
+            RETURNING message_id
+        ),
+        touch AS (
+            UPDATE email_threads t
+            SET updated_at = NOW()
+            WHERE t.id IN (
+                SELECT DISTINCT m.thread_id
+                FROM email_messages m
+                WHERE m.id IN (SELECT message_id FROM del)
             )
+        )
+        SELECT COUNT(*) AS "count!" FROM del
         "#,
         message_ids,
         link_id,
         provider_label_id
     )
-    .execute(executor)
+    .fetch_one(executor)
     .await?;
 
-    let rows_affected = result.rows_affected() as usize;
-
-    Ok(rows_affected)
+    Ok(deleted as usize)
 }
 
 // delete all the message labels for a message.

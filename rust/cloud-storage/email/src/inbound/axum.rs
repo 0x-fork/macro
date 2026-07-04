@@ -1,5 +1,6 @@
 pub mod api_types;
 pub mod axum_impls;
+pub mod delta_router;
 pub mod draft_router;
 pub mod email_filter_router;
 pub mod get_thread_router;
@@ -11,11 +12,12 @@ pub mod thread_project_router;
 
 pub use api_types::{
     ApiAttachment, ApiAttachmentDraft, ApiAttachmentForwarded, ApiContact, ApiContactInfo,
-    ApiDraftContactInfo, ApiDraftInput, ApiDraftOutput, ApiLabel, ApiLabelListVisibility,
-    ApiLabelType, ApiMessage, ApiMessageAttachment, ApiMessageLabel, ApiMessageListVisibility,
-    ApiPaginatedThreadCursor, ApiRecipientType, ApiSortMethod, ApiThread,
-    ApiThreadPreviewCursorInner, CreateDraftRequest, CreateDraftResponse, GetThreadParams,
-    GetThreadResponse, SendMessageRequest, SendMessageResponse,
+    ApiDeltaOrder, ApiDraftContactInfo, ApiDraftInput, ApiDraftOutput, ApiLabel,
+    ApiLabelListVisibility, ApiLabelType, ApiMessage, ApiMessageAttachment, ApiMessageLabel,
+    ApiMessageListVisibility, ApiPaginatedThreadCursor, ApiRecipientType, ApiSortMethod, ApiThread,
+    ApiThreadDelta, ApiThreadDigest, ApiThreadPreviewCursorInner, CreateDraftRequest,
+    CreateDraftResponse, GetThreadDeltaParams, GetThreadParams, GetThreadResponse,
+    SendMessageRequest, SendMessageResponse,
 };
 pub use axum_impls::{
     EmailLinkErr, EmailLinkExtractor, GetPreviewsCursorError, GetPreviewsCursorParams,

@@ -5,11 +5,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { RefreshEmailEventOneOfNineEvent } from './refreshEmailEventOneOfNineEvent';
+import type { RefreshEmailEventOneOfNineThreadId } from './refreshEmailEventOneOfNineThreadId';
 
 /**
- * The inbox `link_id` was removed and its data torn down.
+ * A message was deleted for `link_id`; `thread_id` as on
+[`Self::UpsertMessage`].
  */
 export type RefreshEmailEventOneOfNine = {
   event: RefreshEmailEventOneOfNineEvent;
   link_id: string;
+  thread_id?: RefreshEmailEventOneOfNineThreadId;
 };

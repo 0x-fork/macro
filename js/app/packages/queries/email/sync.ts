@@ -4,8 +4,8 @@ import { invalidateAllSoup } from '@queries/soup/normalized-cache';
 import {
   BackfillStatus,
   type RefreshEmailEvent,
-  RefreshEmailEventOneOfOneoneEvent,
-  RefreshEmailEventOneOfOnethreeEvent,
+  RefreshEmailEventOneOfOnefourEvent,
+  RefreshEmailEventOneOfOnesixEvent,
 } from '@service-email/generated/schemas';
 import { leadingAndTrailing, throttle } from '@solid-primitives/scheduled';
 import {
@@ -13,6 +13,11 @@ import {
   invalidateBackfillJobs,
   setBackfillProgress,
 } from './backfill';
+import {
+  handleEmailContentSyncEvent,
+  onEmailContentSyncLinkRemoved,
+  setEmailContentSyncBackfill,
+} from './content-cache';
 import { invalidateEmailLinks } from './link';
 
 const BACKFILL_SOUP_REFRESH_INTERVAL = 5_000;
@@ -37,8 +42,9 @@ function asRefreshEmailEvent(payload: unknown): RefreshEmailEvent | undefined {
  * Handles `refresh_email` websocket events. Steady-state mutations
  * (`upsert_message`, `update_labels`, `delete_message`) already invalidate soup
  * through the notification-driven path, and reacting to them again would
- * double-refetch, so only `backfill_progress`, `backfill`, `link_removed`, and
- * `photo_synced` act here.
+ * double-refetch — for query invalidation they remain ignored here, but they
+ * do wake the email content cache's sync engine
+ * (docs/email-content-cache.md), which only writes its own durable store.
  *
  * Backfill produces no notifications, so these are its only refresh signals.
  * `backfill_progress` carries live progress: it refetches soup (throttled,
@@ -52,11 +58,24 @@ export function handleRefreshEmail(payload: unknown): void {
   const event = asRefreshEmailEvent(payload);
   if (!event) return;
 
+  // Steady-state content changes: wake the content cache engine (targeted
+  // when the event names its thread). Soup invalidation stays on the
+  // notification path — see the doc comment above.
+  if (
+    event.event === 'upsert_message' ||
+    event.event === 'update_labels' ||
+    event.event === 'delete_message'
+  ) {
+    handleEmailContentSyncEvent(event);
+    return;
+  }
+
   // An inbox finished its async teardown — drop its now-deleted threads and
   // settle its links row. This is the only reliable signal that teardown is
   // done; refetching on the delete request itself races the cascade delete.
   if (event.event === 'link_removed') {
     clearBackfillProgress(event.link_id);
+    onEmailContentSyncLinkRemoved(event.link_id);
     invalidateAllSoup();
     invalidateEmailLinks();
     invalidateBackfillJobs();
@@ -65,7 +84,7 @@ export function handleRefreshEmail(payload: unknown): void {
 
   // The inbox's own photo finished uploading; refetch links to pick up the
   // newly-derived `photo_url`.
-  if (event.event === RefreshEmailEventOneOfOneoneEvent.photo_synced) {
+  if (event.event === RefreshEmailEventOneOfOnefourEvent.photo_synced) {
     invalidateEmailLinks();
     return;
   }
@@ -75,6 +94,7 @@ export function handleRefreshEmail(payload: unknown): void {
   if (event.event === 'backfill') {
     if (event.status === BackfillStatus.failed) {
       clearBackfillProgress(event.link_id);
+      setEmailContentSyncBackfill(event.link_id, false);
       invalidateEmailLinks();
       invalidateBackfillJobs();
       if (ENABLE_INBOX_SYNC_STATUS) {
@@ -88,8 +108,15 @@ export function handleRefreshEmail(payload: unknown): void {
   // progress UI and keep soup fresh (throttled, one event per batch). On
   // completion, drop the progress entry and settle the links row out of
   // `SYNCING` with a toast.
-  if (event.event === RefreshEmailEventOneOfOnethreeEvent.backfill_progress) {
+  if (event.event === RefreshEmailEventOneOfOnesixEvent.backfill_progress) {
     throttledBackfillSoupRefresh();
+
+    // Pause the content cache engine while the backfill floods the mailbox
+    // with fresh updated_at values; it re-bootstraps on completion.
+    setEmailContentSyncBackfill(
+      event.link_id,
+      event.status === BackfillStatus.progress
+    );
 
     if (event.status === BackfillStatus.complete) {
       clearBackfillProgress(event.link_id);

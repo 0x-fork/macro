@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH updated AS (\n            UPDATE email_messages m\n            SET\n                is_read = $1,\n                updated_at = NOW()\n            FROM email_links l\n            WHERE\n                m.id = ANY($2)\n                AND m.link_id = l.id\n                AND l.fusionauth_user_id = $3\n            RETURNING m.id, m.thread_id\n        ),\n        touch AS (\n            UPDATE email_threads t\n            SET updated_at = NOW()\n            WHERE t.id IN (SELECT DISTINCT thread_id FROM updated)\n        )\n        SELECT id FROM updated\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "UuidArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c33f67e2b8101c92cc04e8555126bcb8048781140d731b046ec5bd5fbf32e1e2"
+}

@@ -3,7 +3,8 @@ use crate::domain::{
         Attachment, AttachmentDraft, AttachmentForwarded, Contact, ContactInfo, EmailErr,
         EmailFilter, EmailThreadPreview, Label, Link, LinkLabel, MessageAttachment, MessageLabel,
         MessageRow, ParsedAddresses, PreviewCursorQuery, ResolvedDraftInput, SimpleMessage,
-        SimpleMessageInfo, ThreadRow, UpsertEmailFilterInput, UpsertedContacts, UserProvider,
+        SimpleMessageInfo, ThreadDeltaDigest, ThreadDeltaQuery, ThreadRow, UpsertEmailFilterInput,
+        UpsertedContacts, UserProvider,
     },
     ports::{EmailRepo, LinkEmailSettings, RecipientsByMessageId},
 };
@@ -15,6 +16,7 @@ use uuid::Uuid;
 
 mod contact;
 mod db_types;
+mod delta;
 mod draft;
 mod dynamic;
 mod email_filter;
@@ -73,6 +75,13 @@ impl EmailRepo for EmailPgRepo {
         user_id: MacroUserIdStr<'static>,
     ) -> Result<Vec<EmailThreadPreview>, Self::Err> {
         preview::previews_for_view_cursor(&self.pool, query, user_id).await
+    }
+
+    async fn thread_delta(
+        &self,
+        query: &ThreadDeltaQuery,
+    ) -> Result<Vec<ThreadDeltaDigest>, Self::Err> {
+        delta::thread_delta(&self.pool, query).await
     }
 
     async fn attachments_by_thread_ids(

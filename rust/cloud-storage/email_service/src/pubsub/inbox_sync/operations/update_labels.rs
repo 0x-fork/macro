@@ -164,7 +164,10 @@ pub async fn update_labels(
         cg_refresh_email(
             &ctx.connection_gateway_client,
             link.macro_id.as_ref(),
-            RefreshEmailEvent::UpdateLabels { link_id: link.id },
+            RefreshEmailEvent::UpdateLabels {
+                link_id: link.id,
+                thread_id: Some(db_message.thread_db_id),
+            },
         )
         .await;
     }

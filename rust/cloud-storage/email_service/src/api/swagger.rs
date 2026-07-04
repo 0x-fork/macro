@@ -25,10 +25,11 @@ use crate::api::email::threads::archived::ArchiveThreadRequest;
 use crate::api::{email, health};
 use ::email::inbound;
 use ::email::inbound::axum::api_types::{
-    ApiDraftContactInfo, ApiDraftInput, ApiDraftOutput, ApiPaginatedThreadCursor, ApiSortMethod,
-    ApiThread, CreateDraftRequest as HexCreateDraftRequest,
-    CreateDraftResponse as HexCreateDraftResponse, GetThreadResponse,
-    SendMessageRequest as HexSendMessageRequest, SendMessageResponse as HexSendMessageResponse,
+    ApiDeltaOrder, ApiDraftContactInfo, ApiDraftInput, ApiDraftOutput, ApiPaginatedThreadCursor,
+    ApiSortMethod, ApiThread, ApiThreadDelta, ApiThreadDigest,
+    CreateDraftRequest as HexCreateDraftRequest, CreateDraftResponse as HexCreateDraftResponse,
+    GetThreadResponse, SendMessageRequest as HexSendMessageRequest,
+    SendMessageResponse as HexSendMessageResponse,
 };
 use ::email::inbound::axum::axum_impls::GetPreviewsCursorParams;
 use ::email::inbound::axum::email_filter_router::{
@@ -88,6 +89,7 @@ use utoipa::OpenApi;
         inbound::axum::thread_labels_router::update_thread_labels_handler,
         inbound::axum::previews_router::cursor_handler,
         inbound::axum::get_thread_router::get_thread_handler,
+        inbound::axum::delta_router::delta_handler,
         inbound::axum::thread_project_router::update_thread_project_handler,
         email::links::list::list_links_handler,
         email::links::health_check::health_check_handler,
@@ -153,6 +155,10 @@ use utoipa::OpenApi;
             ApiPaginatedThreadCursor,
             PreviewView,
             PreviewViewStandardLabel,
+            // Delta feed types
+            ApiDeltaOrder,
+            ApiThreadDelta,
+            ApiThreadDigest,
             // Attachment types
             GetAttachmentResponse,
             GetAttachmentDocumentIDResponse,

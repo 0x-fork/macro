@@ -1,5 +1,8 @@
+mod delta;
 mod draft;
 mod send;
+
+pub use delta::{ApiDeltaOrder, ApiThreadDelta, ApiThreadDigest, GetThreadDeltaParams};
 
 pub use draft::{
     ApiDraftContactInfo, ApiDraftInput, ApiDraftOutput, CreateDraftRequest, CreateDraftResponse,

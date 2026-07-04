@@ -10,6 +10,7 @@ import type {
   AddDraftAttachmentRequest,
   AddDraftAttachmentResponse,
   ApiPaginatedThreadCursor,
+  ApiThreadDelta,
   CreateDraftRequest,
   CreateDraftResponse,
   GetAttachmentDocumentIDResponse,
@@ -164,6 +165,32 @@ export const emailClient = {
         }
       )
     ).map((result) => result);
+  },
+  /**
+   * The change feed backing the email content cache
+   * (docs/email-content-cache.md): digests for every thread across the
+   * caller's inboxes whose content changed at or after `since`,
+   * keyset-paginated by `(watermark, thread_id)`. Pass the same `order` on
+   * every page of one pagination — the cursor does not carry it.
+   */
+  async getThreadDelta(
+    args: {
+      since: string;
+      limit?: number;
+      order?: 'asc' | 'desc';
+      cursor?: string;
+    },
+    init?: SafeFetchInit
+  ) {
+    const p = Object.entries(args)
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    return await emailFetch<ApiThreadDelta>(`/email/threads/delta?${p}`, {
+      method: 'GET',
+      ...init,
+    });
   },
   async updateMessageLabelBatch(args: UpdateLabelBatchRequest) {
     const { message_ids, label_id, value } = args;

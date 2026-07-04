@@ -4,13 +4,13 @@
  * email_service
  * OpenAPI spec version: 0.1.0
  */
-import type { RefreshEmailEventOneOfOneoneEvent } from './refreshEmailEventOneOfOneoneEvent';
+import type { RefreshEmailEventOneOfOnefourEvent } from './refreshEmailEventOneOfOnefourEvent';
 
 /**
  * The self-contact photo for `link_id` finished uploading to static
 file storage, so the inbox's derived `photo_url` is now available.
  */
-export type RefreshEmailEventOneOfOneone = {
-  event: RefreshEmailEventOneOfOneoneEvent;
+export type RefreshEmailEventOneOfOnefour = {
+  event: RefreshEmailEventOneOfOnefourEvent;
   link_id: string;
 };

@@ -2196,6 +2196,96 @@
         }
       }
     },
+    "/email/threads/delta": {
+      "get": {
+        "tags": ["Threads"],
+        "summary": "The change feed backing the client-side email content cache: digests for\nevery thread across the caller's inboxes whose content changed at or after\n`since`, keyset-paginated by `(watermark, thread_id)` ascending. Digests\nonly say *what* changed and when; content is hydrated through\n`GET /email/threads/{thread_id}`.",
+        "operationId": "get_thread_delta",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "description": "Change horizon: return digests for threads whose content changed at or\nafter this instant. Clamped server-side to a 90-day maximum age.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max digests per page. Defaults to 200, clamped to [20, 500].",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "Feed direction; defaults to asc. Pass the same value on every page of\none pagination — the cursor does not carry it.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ApiDeltaOrder"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque cursor from the previous page's next_cursor.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiThreadDelta"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/email/threads/previews/cursor/{view}": {
       "get": {
         "tags": ["Previews"],
@@ -2993,6 +3083,11 @@
           }
         }
       },
+      "ApiDeltaOrder": {
+        "type": "string",
+        "description": "Feed direction for the thread delta feed.",
+        "enum": ["asc", "desc"]
+      },
       "ApiDraftContactInfo": {
         "type": "object",
         "description": "Contact info for draft request/response (backward-compatible with MessageToSend shape).",
@@ -3592,6 +3687,42 @@
             "type": ["string", "null"]
           },
           "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiThreadDelta": {
+        "type": "object",
+        "description": "One page of the thread delta feed, ordered by `(watermark, thread_id)`\nascending.",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiThreadDigest"
+            }
+          },
+          "next_cursor": {
+            "type": ["string", "null"],
+            "description": "Opaque cursor for the next page; absent when this page is the last."
+          }
+        }
+      },
+      "ApiThreadDigest": {
+        "type": "object",
+        "description": "A minimal \"this thread changed\" record. The watermark is the greatest\n`updated_at` across the thread row and its messages — compare it against a\nlocally cached watermark to decide whether content must be re-fetched.",
+        "required": ["thread_id", "link_id", "watermark"],
+        "properties": {
+          "link_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "thread_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "watermark": {
             "type": "string",
             "format": "date-time"
           }
@@ -4695,7 +4826,7 @@
           },
           {
             "type": "object",
-            "description": "A message was inserted or updated for `link_id`.",
+            "description": "A message was inserted or updated for `link_id`. `thread_id` narrows\nthe change to one thread when the emitter knows it (optional so\nevents from older emitters still deserialize).",
             "required": ["link_id", "event"],
             "properties": {
               "event": {
@@ -4705,12 +4836,16 @@
               "link_id": {
                 "type": "string",
                 "format": "uuid"
+              },
+              "thread_id": {
+                "type": ["string", "null"],
+                "format": "uuid"
               }
             }
           },
           {
             "type": "object",
-            "description": "Labels changed for `link_id`.",
+            "description": "Labels changed for `link_id`; `thread_id` as on [`Self::UpsertMessage`].",
             "required": ["link_id", "event"],
             "properties": {
               "event": {
@@ -4720,12 +4855,16 @@
               "link_id": {
                 "type": "string",
                 "format": "uuid"
+              },
+              "thread_id": {
+                "type": ["string", "null"],
+                "format": "uuid"
               }
             }
           },
           {
             "type": "object",
-            "description": "A message was deleted for `link_id`.",
+            "description": "A message was deleted for `link_id`; `thread_id` as on\n[`Self::UpsertMessage`].",
             "required": ["link_id", "event"],
             "properties": {
               "event": {
@@ -4734,6 +4873,10 @@
               },
               "link_id": {
                 "type": "string",
+                "format": "uuid"
+              },
+              "thread_id": {
+                "type": ["string", "null"],
                 "format": "uuid"
               }
             }

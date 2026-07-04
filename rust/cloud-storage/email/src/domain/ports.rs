@@ -3,8 +3,8 @@ use crate::domain::models::{
     CreatedDraft, EmailErr, EmailFilter, EmailThreadPreview, EnrichedEmailThreadPreview,
     GetEmailsRequest, Label, Link, LinkLabel, MessageAttachment, MessageLabel, MessageRow,
     ParsedAddresses, ParsedThread, PreviewCursorQuery, RecipientType, ResolvedDraftInput,
-    SimpleMessage, SimpleMessageInfo, Thread, ThreadRow, UpdateThreadLabelsResult,
-    UpsertEmailFilterInput, UpsertedContacts, UserProvider,
+    SimpleMessage, SimpleMessageInfo, Thread, ThreadDeltaDigest, ThreadDeltaQuery, ThreadRow,
+    UpdateThreadLabelsResult, UpsertEmailFilterInput, UpsertedContacts, UserProvider,
 };
 use chrono::{DateTime, Utc};
 use entity_access::domain::models::{EditAccessLevel, EntityAccessReceipt, ViewAccessLevel};
@@ -104,6 +104,15 @@ pub trait EmailRepo: Send + Sync + 'static {
         &self,
         thread_id: Uuid,
     ) -> impl Future<Output = Result<Option<ThreadRow>, Self::Err>> + Send;
+
+    /// Fetch one page of thread change digests across the given inboxes:
+    /// every thread whose content watermark (thread `updated_at` or any
+    /// message `updated_at`) is at or after the query's lower bound, ordered
+    /// by `(watermark, thread_id)` ascending for keyset pagination.
+    fn thread_delta(
+        &self,
+        query: &ThreadDeltaQuery,
+    ) -> impl Future<Output = Result<Vec<ThreadDeltaDigest>, Self::Err>> + Send;
 
     /// Fetch paginated messages for a thread, ordered by internal_date_ts descending.
     fn messages_by_thread_id_paginated(
@@ -391,6 +400,21 @@ pub trait EmailService: Send + Sync + 'static {
         offset: i64,
         limit: i64,
     ) -> impl Future<Output = Result<Option<Thread>, EmailErr>> + Send;
+
+    /// Fetch one page of the thread delta feed: change digests for every
+    /// thread in `link_ids` whose content changed at or after `since`,
+    /// keyset-paginated by `(watermark, thread_id)` ascending. Backs the
+    /// client-side email content cache.
+    fn get_thread_delta(
+        &self,
+        link_ids: Vec<Uuid>,
+        since: DateTime<Utc>,
+        limit: Option<u32>,
+        descending: bool,
+        query: models_pagination::Query<Uuid, SimpleSortMethod, ()>,
+    ) -> impl Future<
+        Output = Result<PaginatedCursor<ThreadDeltaDigest, Uuid, SimpleSortMethod, ()>, EmailErr>,
+    > + Send;
 
     /// Fetch a thread with lightweight parsed messages (no attachments or scheduled send times).
     fn get_thread_parsed(

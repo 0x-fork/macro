@@ -6,7 +6,7 @@
  */
 
 import type { BackfillStatus } from './backfillStatus';
-import type { RefreshEmailEventOneOfOnethreeEvent } from './refreshEmailEventOneOfOnethreeEvent';
+import type { RefreshEmailEventOneOfOnesixEvent } from './refreshEmailEventOneOfOnesixEvent';
 
 /**
  * Live backfill progress for `link_id`, for driving a progress indicator on
@@ -15,9 +15,9 @@ Counts reflect the Redis progress counters; the priority pass may bump
 both above the raw mailbox size, but in lockstep, so the ratio holds.
 Appended last so existing variants keep their generated TS names.
  */
-export type RefreshEmailEventOneOfOnethree = {
+export type RefreshEmailEventOneOfOnesix = {
   completed_threads: number;
-  event: RefreshEmailEventOneOfOnethreeEvent;
+  event: RefreshEmailEventOneOfOnesixEvent;
   link_id: string;
   status: BackfillStatus;
   total_threads: number;

@@ -5,11 +5,15 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { RefreshEmailEventOneOfThreeEvent } from './refreshEmailEventOneOfThreeEvent';
+import type { RefreshEmailEventOneOfThreeThreadId } from './refreshEmailEventOneOfThreeThreadId';
 
 /**
- * A message was inserted or updated for `link_id`.
+ * A message was inserted or updated for `link_id`. `thread_id` narrows
+the change to one thread when the emitter knows it (optional so
+events from older emitters still deserialize).
  */
 export type RefreshEmailEventOneOfThree = {
   event: RefreshEmailEventOneOfThreeEvent;
   link_id: string;
+  thread_id?: RefreshEmailEventOneOfThreeThreadId;
 };

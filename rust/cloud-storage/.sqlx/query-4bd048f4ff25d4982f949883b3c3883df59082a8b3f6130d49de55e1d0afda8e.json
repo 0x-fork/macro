@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH ins AS (\n            INSERT INTO email_message_labels (message_id, label_id)\n            SELECT\n                unnested_message_id,\n                l.id\n            FROM\n                UNNEST($1::uuid[]) AS t(unnested_message_id)\n            CROSS JOIN\n                email_labels l\n            WHERE\n                l.link_id = $2 AND l.provider_label_id = $3\n            ON CONFLICT (message_id, label_id) DO NOTHING\n            RETURNING message_id\n        ),\n        touch AS (\n            UPDATE email_threads t\n            SET updated_at = NOW()\n            WHERE t.id IN (\n                SELECT DISTINCT m.thread_id\n                FROM email_messages m\n                WHERE m.id IN (SELECT message_id FROM ins)\n            )\n        )\n        SELECT COUNT(*) AS \"count!\" FROM ins\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "4bd048f4ff25d4982f949883b3c3883df59082a8b3f6130d49de55e1d0afda8e"
+}

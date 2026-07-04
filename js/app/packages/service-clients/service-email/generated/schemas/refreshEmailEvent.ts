@@ -5,11 +5,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { RefreshEmailEventOneOf } from './refreshEmailEventOneOf';
-import type { RefreshEmailEventOneOfFive } from './refreshEmailEventOneOfFive';
 import type { RefreshEmailEventOneOfNine } from './refreshEmailEventOneOfNine';
-import type { RefreshEmailEventOneOfOneone } from './refreshEmailEventOneOfOneone';
-import type { RefreshEmailEventOneOfOnethree } from './refreshEmailEventOneOfOnethree';
-import type { RefreshEmailEventOneOfSeven } from './refreshEmailEventOneOfSeven';
+import type { RefreshEmailEventOneOfOnefour } from './refreshEmailEventOneOfOnefour';
+import type { RefreshEmailEventOneOfOnesix } from './refreshEmailEventOneOfOnesix';
+import type { RefreshEmailEventOneOfOnetwo } from './refreshEmailEventOneOfOnetwo';
+import type { RefreshEmailEventOneOfSix } from './refreshEmailEventOneOfSix';
 import type { RefreshEmailEventOneOfThree } from './refreshEmailEventOneOfThree';
 
 /**
@@ -19,8 +19,8 @@ inbox that changed and the kind of change.
 export type RefreshEmailEvent =
   | RefreshEmailEventOneOf
   | RefreshEmailEventOneOfThree
-  | RefreshEmailEventOneOfFive
-  | RefreshEmailEventOneOfSeven
+  | RefreshEmailEventOneOfSix
   | RefreshEmailEventOneOfNine
-  | RefreshEmailEventOneOfOneone
-  | RefreshEmailEventOneOfOnethree;
+  | RefreshEmailEventOneOfOnetwo
+  | RefreshEmailEventOneOfOnefour
+  | RefreshEmailEventOneOfOnesix;

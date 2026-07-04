@@ -10,6 +10,7 @@ import type {
   AddForwardedAttachmentRequest,
   AddForwardedAttachmentResponse,
   ApiPaginatedThreadCursor,
+  ApiThreadDelta,
   ArchiveThreadRequest,
   BlockSenderRequest,
   CancelBackfillParams,
@@ -25,6 +26,7 @@ import type {
   GetBackfillJobResponse,
   GetScheduledMessagesParams,
   GetScheduledResponse,
+  GetThreadDeltaParams,
   GetThreadMessagesHandlerParams,
   GetThreadParams,
   GetThreadResponse,
@@ -2389,6 +2391,83 @@ export const disableSync = async (
     status: res.status,
     headers: res.headers,
   } as disableSyncResponse;
+};
+
+/**
+ * @summary The change feed backing the client-side email content cache: digests for
+every thread across the caller's inboxes whose content changed at or after
+`since`, keyset-paginated by `(watermark, thread_id)` ascending. Digests
+only say *what* changed and when; content is hydrated through
+`GET /email/threads/{thread_id}`.
+ */
+export type getThreadDeltaResponse200 = {
+  data: ApiThreadDelta;
+  status: 200;
+};
+
+export type getThreadDeltaResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type getThreadDeltaResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getThreadDeltaResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getThreadDeltaResponseSuccess = getThreadDeltaResponse200 & {
+  headers: Headers;
+};
+export type getThreadDeltaResponseError = (
+  | getThreadDeltaResponse400
+  | getThreadDeltaResponse401
+  | getThreadDeltaResponse500
+) & {
+  headers: Headers;
+};
+
+export type getThreadDeltaResponse =
+  | getThreadDeltaResponseSuccess
+  | getThreadDeltaResponseError;
+
+export const getGetThreadDeltaUrl = (params: GetThreadDeltaParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/email/threads/delta?${stringifiedParams}`
+    : `/email/threads/delta`;
+};
+
+export const getThreadDelta = async (
+  params: GetThreadDeltaParams,
+  options?: RequestInit
+): Promise<getThreadDeltaResponse> => {
+  const res = await fetch(getGetThreadDeltaUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getThreadDeltaResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getThreadDeltaResponse;
 };
 
 /**

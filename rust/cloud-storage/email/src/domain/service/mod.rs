@@ -1,3 +1,4 @@
+mod delta;
 mod draft;
 mod previews;
 mod send;
@@ -129,6 +130,21 @@ where
     ) -> Result<PaginatedCursor<EnrichedEmailThreadPreview, Uuid, SimpleSortMethod, ()>, EmailErr>
     {
         self.get_email_thread_previews_impl(req).await
+    }
+
+    async fn get_thread_delta(
+        &self,
+        link_ids: Vec<Uuid>,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: Option<u32>,
+        descending: bool,
+        query: models_pagination::Query<Uuid, SimpleSortMethod, ()>,
+    ) -> Result<
+        PaginatedCursor<crate::domain::models::ThreadDeltaDigest, Uuid, SimpleSortMethod, ()>,
+        EmailErr,
+    > {
+        self.get_thread_delta_impl(link_ids, since, limit, descending, query)
+            .await
     }
 
     async fn get_link_by_auth_id_and_macro_id(

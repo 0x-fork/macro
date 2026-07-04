@@ -5,6 +5,11 @@ import {
 } from '@queries/channel/sync';
 import { handleCommsTyping } from '@queries/channel/typing';
 import { invalidateContacts } from '@queries/contacts/contacts';
+import {
+  startEmailContentSync,
+  stopEmailContentSync,
+  wakeEmailContentSync,
+} from '@queries/email/content-cache';
 import { handleRefreshEmail } from '@queries/email/sync';
 import {
   applyNotificationStatusUpdate,
@@ -15,8 +20,17 @@ import { handleTaskDuplicateMatchesUpdated } from '@queries/storage/task-duplica
 // listener. Must be imported somewhere that always loads on app start — this
 // provider is guaranteed to mount alongside the other sync handlers.
 import '@queries/agent-schedule/sync';
-import { createConnectionWebsocketEffect } from '@service-connection/websocket';
-import type { Accessor, ParentProps } from 'solid-js';
+import {
+  ws as connectionGatewayWebsocket,
+  createConnectionWebsocketEffect,
+} from '@service-connection/websocket';
+import { createReconnectEffect } from '@websocket';
+import {
+  type Accessor,
+  createEffect,
+  onCleanup,
+  type ParentProps,
+} from 'solid-js';
 import { match } from 'ts-pattern';
 
 type SyncProviderProps = ParentProps<{
@@ -49,6 +63,31 @@ function withParsedWebsocketPayload<T>(
 }
 
 export function QuerySyncProvider(props: SyncProviderProps) {
+  // The email content cache's sync engine lives for as long as a user is
+  // logged in (external imperative system, hence the effect). Missed
+  // websocket events are simply lost, so reconnect and tab-visibility both
+  // wake a catch-up delta sync.
+  createEffect(() => {
+    const userId = props.userId();
+    if (userId) void startEmailContentSync(userId);
+    else stopEmailContentSync();
+  });
+  onCleanup(stopEmailContentSync);
+
+  createReconnectEffect(connectionGatewayWebsocket, () => {
+    wakeEmailContentSync('reconnect');
+  });
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      wakeEmailContentSync('visible');
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  onCleanup(() =>
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+  );
+
   createConnectionWebsocketEffect((data) => {
     match(data)
       .with({ type: 'contacts_invalidation' }, () => {

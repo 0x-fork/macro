@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH updated AS (\n            UPDATE email_messages m\n            SET\n                is_read = $1,\n                updated_at = NOW()\n            WHERE\n                m.id = ANY($2)\n                AND m.link_id = $3\n            RETURNING m.thread_id\n        )\n        UPDATE email_threads t\n        SET updated_at = NOW()\n        WHERE t.id IN (SELECT DISTINCT thread_id FROM updated)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "UuidArray",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bd661b06d96720433ef57469347870feb76699c099a2b3c2f819ae8eb9faecef"
+}

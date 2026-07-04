@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        WITH del AS (\n            DELETE FROM email_message_labels\n            WHERE\n                message_id = ANY($1)\n                AND label_id = (\n                    SELECT id FROM email_labels\n                    WHERE link_id = $2 AND provider_label_id = $3\n                )\n            RETURNING message_id\n        ),\n        touch AS (\n            UPDATE email_threads t\n            SET updated_at = NOW()\n            WHERE t.id IN (\n                SELECT DISTINCT m.thread_id\n                FROM email_messages m\n                WHERE m.id IN (SELECT message_id FROM del)\n            )\n        )\n        SELECT COUNT(*) AS \"count!\" FROM del\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "35e212dc8b2ffca3601508dc490c28cc21c2b65758f35cd679272677a0f46291"
+}

@@ -24,12 +24,27 @@ pub enum RefreshEmailEvent {
         link_id: Uuid,
         status: BackfillStatus,
     },
-    /// A message was inserted or updated for `link_id`.
-    UpsertMessage { link_id: Uuid },
-    /// Labels changed for `link_id`.
-    UpdateLabels { link_id: Uuid },
-    /// A message was deleted for `link_id`.
-    DeleteMessage { link_id: Uuid },
+    /// A message was inserted or updated for `link_id`. `thread_id` narrows
+    /// the change to one thread when the emitter knows it (optional so
+    /// events from older emitters still deserialize).
+    UpsertMessage {
+        link_id: Uuid,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        thread_id: Option<Uuid>,
+    },
+    /// Labels changed for `link_id`; `thread_id` as on [`Self::UpsertMessage`].
+    UpdateLabels {
+        link_id: Uuid,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        thread_id: Option<Uuid>,
+    },
+    /// A message was deleted for `link_id`; `thread_id` as on
+    /// [`Self::UpsertMessage`].
+    DeleteMessage {
+        link_id: Uuid,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        thread_id: Option<Uuid>,
+    },
     /// The inbox `link_id` was removed and its data torn down.
     LinkRemoved { link_id: Uuid },
     /// The self-contact photo for `link_id` finished uploading to static

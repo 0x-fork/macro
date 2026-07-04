@@ -248,7 +248,10 @@ pub async fn upsert_message(
     cg_refresh_email(
         &ctx.connection_gateway_client,
         link.macro_id.as_ref(),
-        RefreshEmailEvent::UpsertMessage { link_id: link.id },
+        RefreshEmailEvent::UpsertMessage {
+            link_id: link.id,
+            thread_id: Some(thread_db_id),
+        },
     )
     .await;
 

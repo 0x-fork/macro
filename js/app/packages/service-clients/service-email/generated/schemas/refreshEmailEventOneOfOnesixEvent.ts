@@ -5,10 +5,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type RefreshEmailEventOneOfOnethreeEvent =
-  (typeof RefreshEmailEventOneOfOnethreeEvent)[keyof typeof RefreshEmailEventOneOfOnethreeEvent];
+export type RefreshEmailEventOneOfOnesixEvent =
+  (typeof RefreshEmailEventOneOfOnesixEvent)[keyof typeof RefreshEmailEventOneOfOnesixEvent];
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const RefreshEmailEventOneOfOnethreeEvent = {
+export const RefreshEmailEventOneOfOnesixEvent = {
   backfill_progress: 'backfill_progress',
 } as const;

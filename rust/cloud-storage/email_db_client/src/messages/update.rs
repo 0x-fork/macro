@@ -55,18 +55,28 @@ where
         return Ok(0);
     }
 
+    // The `touch` CTE keeps email_threads.updated_at authoritative as the
+    // thread's content watermark (delta feed / search reindex key on it).
     let result = sqlx::query!(
         r#"
-        UPDATE email_messages m
-        SET
-            is_read = $1,
-            updated_at = NOW()
-        FROM email_links l
-        WHERE
-            m.id = ANY($2)
-            AND m.link_id = l.id
-            AND l.fusionauth_user_id = $3
-        RETURNING m.id
+        WITH updated AS (
+            UPDATE email_messages m
+            SET
+                is_read = $1,
+                updated_at = NOW()
+            FROM email_links l
+            WHERE
+                m.id = ANY($2)
+                AND m.link_id = l.id
+                AND l.fusionauth_user_id = $3
+            RETURNING m.id, m.thread_id
+        ),
+        touch AS (
+            UPDATE email_threads t
+            SET updated_at = NOW()
+            WHERE t.id IN (SELECT DISTINCT thread_id FROM updated)
+        )
+        SELECT id FROM updated
         "#,
         is_read,
         &message_ids,
@@ -103,18 +113,27 @@ where
         return Ok(0);
     }
 
+    // See update_message_read_status_batch for why the thread bump rides along.
     let result = sqlx::query!(
         r#"
-        UPDATE email_messages m
-        SET
-            is_starred = $1,
-            updated_at = NOW()
-        FROM email_links l
-        WHERE
-            m.id = ANY($2)
-            AND m.link_id = l.id
-            AND l.fusionauth_user_id = $3
-        RETURNING m.id
+        WITH updated AS (
+            UPDATE email_messages m
+            SET
+                is_starred = $1,
+                updated_at = NOW()
+            FROM email_links l
+            WHERE
+                m.id = ANY($2)
+                AND m.link_id = l.id
+                AND l.fusionauth_user_id = $3
+            RETURNING m.id, m.thread_id
+        ),
+        touch AS (
+            UPDATE email_threads t
+            SET updated_at = NOW()
+            WHERE t.id IN (SELECT DISTINCT thread_id FROM updated)
+        )
+        SELECT id FROM updated
         "#,
         is_starred,
         &message_ids,

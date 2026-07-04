@@ -23,6 +23,10 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
     let hex_thread_routes =
         email::inbound::axum::get_thread_router::thread_router(state.email_thread_state.clone());
 
+    // /email/threads/delta — the change feed backing the client email content
+    // cache. Static segment, so it takes precedence over /{thread_id}.
+    let hex_delta_routes = email::inbound::axum::delta_router::router(state.email_service.clone());
+
     let hex_thread_labels_routes = email::inbound::axum::thread_labels_router::thread_labels_router::<
         ApiContext,
         crate::api::context::EmailSvc,
@@ -37,6 +41,7 @@ pub fn router(state: ApiContext) -> Router<ApiContext> {
     Router::new()
         .merge(routes)
         .merge(hex_thread_routes)
+        .merge(hex_delta_routes)
         .merge(hex_thread_labels_routes)
         .merge(hex_thread_project_routes)
 }

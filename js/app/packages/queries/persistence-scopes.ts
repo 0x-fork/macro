@@ -1,3 +1,4 @@
+import { ENABLE_EMAIL_CONTENT_SYNC } from '@core/constant/featureFlags';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { hasLoginCookie } from '@core/util/cookies';
 import { partialMatchKey, type QueryKey } from '@tanstack/query-core';
@@ -31,15 +32,22 @@ export function createQueryPersistenceScopes(
       buster,
       shouldPersist: shouldPersistChannelQuery,
     },
-    {
-      store: createPerQueryIDBStore({
-        dbName: createPersistenceKey('email-threads', 1),
-      }),
-      maxAge: { value: 7, unit: 'd' },
-      buster,
-      shouldPersist: (queryKey) =>
-        partialMatchKey(queryKey, ['email', 'threadMessages']),
-    },
+    // The email content cache (docs/email-content-cache.md) supersedes this
+    // scope: it persists thread content durably, decoupled from query GC.
+    // Running both would race two IDB writers over the same queries.
+    ...(ENABLE_EMAIL_CONTENT_SYNC
+      ? []
+      : [
+          {
+            store: createPerQueryIDBStore({
+              dbName: createPersistenceKey('email-threads', 1),
+            }),
+            maxAge: { value: 7, unit: 'd' },
+            buster,
+            shouldPersist: (queryKey: QueryKey) =>
+              partialMatchKey(queryKey, ['email', 'threadMessages']),
+          } satisfies PersistScope,
+        ]),
     ...(isNativeMobilePlatform()
       ? [
           {

@@ -1,5 +1,6 @@
 pub mod attachment;
 pub mod contact;
+pub mod delta;
 pub mod draft;
 pub mod email_filter;
 pub mod error;
@@ -15,6 +16,7 @@ mod tests;
 
 pub use attachment::{Attachment, AttachmentDraft, AttachmentForwarded, MessageAttachment};
 pub use contact::{Contact, ContactInfo, RecipientType};
+pub use delta::{ThreadDeltaDigest, ThreadDeltaQuery};
 pub use draft::{
     CreateDraftInput, CreatedDraft, ParsedAddresses, ResolvedDraftInput, SimpleMessageInfo,
     UpsertedContacts, UpsertedRecipient,

@@ -10,5 +10,5 @@ export type RefreshEmailEventOneOfNineEvent =
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const RefreshEmailEventOneOfNineEvent = {
-  link_removed: 'link_removed',
+  delete_message: 'delete_message',
 } as const;

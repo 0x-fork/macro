@@ -271,6 +271,16 @@ export const ENABLE_INBOX_SYNC_STATUS = resolveFeatureFlag(
   true
 );
 
+// The email content cache + delta-sync engine (docs/email-content-cache.md):
+// thread content is synced ahead of time into IndexedDB and served instantly
+// on open. Build-time because the legacy per-query persistence scope for
+// thread queries must be bypassed at module load when this is on. Dev/local
+// only for now; override with VITE_ENABLE_EMAIL_CONTENT_SYNC.
+export const ENABLE_EMAIL_CONTENT_SYNC = resolveFeatureFlag(
+  'ENABLE_EMAIL_CONTENT_SYNC',
+  DEV_MODE_ENV
+);
+
 const _ENABLE_TASKS_TABS = resolveFeatureFlag('ENABLE_TASKS_TABS', true);
 
 export const ENABLE_EMAIL_SHARING = resolveFeatureFlag(

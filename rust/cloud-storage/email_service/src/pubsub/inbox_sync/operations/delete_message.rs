@@ -118,7 +118,10 @@ pub async fn delete_message(
     cg_refresh_email(
         &ctx.connection_gateway_client,
         link.macro_id.as_ref(),
-        RefreshEmailEvent::DeleteMessage { link_id: link.id },
+        RefreshEmailEvent::DeleteMessage {
+            link_id: link.id,
+            thread_id: Some(message.thread_db_id),
+        },
     )
     .await;
 

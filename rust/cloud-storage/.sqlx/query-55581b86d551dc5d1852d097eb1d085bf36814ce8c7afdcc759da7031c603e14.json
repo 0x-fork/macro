@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                d.thread_id AS \"thread_id!\",\n                d.link_id AS \"link_id!\",\n                d.watermark AS \"watermark!\"\n            FROM unnest($1::uuid[]) AS l(link_id)\n            CROSS JOIN LATERAL (\n                SELECT t.id AS thread_id, t.link_id, t.updated_at AS watermark\n                FROM email_threads t\n                WHERE t.link_id = l.link_id\n                  AND t.updated_at >= $2\n                  AND (t.updated_at, t.id)\n                      < (COALESCE($3::timestamptz, 'infinity'::timestamptz), $4::uuid)\n                ORDER BY t.updated_at DESC, t.id DESC\n                LIMIT $5\n            ) d\n            ORDER BY d.watermark DESC, d.thread_id DESC\n            LIMIT $5\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "link_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "watermark!",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Timestamptz",
+        "Timestamptz",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "55581b86d551dc5d1852d097eb1d085bf36814ce8c7afdcc759da7031c603e14"
+}

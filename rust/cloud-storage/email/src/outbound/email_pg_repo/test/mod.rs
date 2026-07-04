@@ -1,4 +1,5 @@
 mod crm_scope_dynamic_query;
+mod delta;
 mod draft;
 mod dynamic_query;
 mod importance_pagination;
