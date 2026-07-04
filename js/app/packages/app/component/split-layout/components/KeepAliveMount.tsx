@@ -1,0 +1,118 @@
+import type { BlockName } from '@core/block';
+import {
+  blocks as BLOCK_REGISTRY,
+  resolveBlockAlias,
+} from '@core/constant/allBlocks';
+import { createEffect, createRoot, getOwner, onCleanup, Show } from 'solid-js';
+import { Dynamic, insert } from 'solid-js/web';
+import type { SplitMount } from '../layoutManager';
+
+/**
+ * Live trees retained per panel: the active mount plus recently viewed ones.
+ * Each parked tree keeps its queries observed (staying fresh) and its DOM
+ * built, so revisits reattach instead of rebuilding.
+ */
+const KEEP_ALIVE_CAP = 5;
+
+type BlockMount = Extract<SplitMount, { kind: 'block' }>;
+
+type CacheEntry = {
+  container: HTMLDivElement;
+  dispose: () => void;
+  lastUsed: number;
+};
+
+function keepAliveKey(mount: BlockMount): string {
+  return `${mount.type}:${mount.id}`;
+}
+
+function isKeepAliveMount(mount: SplitMount): mount is BlockMount {
+  if (mount.kind !== 'block') return false;
+  const resolved = resolveBlockAlias(mount.type as BlockName);
+  return !!BLOCK_REGISTRY[resolved]?.keepAlive;
+}
+
+/**
+ * Renders a split's mount, keeping an LRU of recently viewed keep-alive
+ * blocks (see `defineBlock`'s `keepAlive` flag) alive in detached
+ * containers instead of disposing them on navigation. Navigating between
+ * emails with j/k previously destroyed and rebuilt the whole block tree —
+ * orchestrator instance, load pipeline, Suspense boundaries, per-message
+ * shadow DOMs — on every switch; with keep-alive, revisits reattach the
+ * existing tree in one frame.
+ *
+ * Containers are rendered into roots created under this component's owner,
+ * so context (split panel, query client, theme, router) resolves normally.
+ * Detached trees stay subscribed to their queries — which also keeps them
+ * fresh — and are disposed on LRU eviction or panel teardown.
+ */
+export function KeepAliveMount(props: { mount: SplitMount }) {
+  const owner = getOwner();
+  const cache = new Map<string, CacheEntry>();
+  let hostEl: HTMLDivElement | undefined;
+
+  const evictBeyondCap = (activeKey: string) => {
+    while (cache.size > KEEP_ALIVE_CAP) {
+      let oldest: [string, CacheEntry] | undefined;
+      for (const candidate of cache.entries()) {
+        if (candidate[0] === activeKey) continue;
+        if (!oldest || candidate[1].lastUsed < oldest[1].lastUsed) {
+          oldest = candidate;
+        }
+      }
+      if (!oldest) return;
+      oldest[1].container.remove();
+      oldest[1].dispose();
+      cache.delete(oldest[0]);
+    }
+  };
+
+  const showKeepAlive = (mount: BlockMount) => {
+    const key = keepAliveKey(mount);
+    let entry = cache.get(key);
+    if (!entry) {
+      const container = document.createElement('div');
+      container.style.display = 'contents';
+      let dispose = () => {};
+      createRoot((d) => {
+        dispose = d;
+        insert(container, mount.element());
+      }, owner);
+      entry = { container, dispose, lastUsed: 0 };
+      cache.set(key, entry);
+    }
+    entry.lastUsed = Date.now();
+    if (hostEl && entry.container.parentElement !== hostEl) {
+      hostEl.replaceChildren(entry.container);
+    }
+    evictBeyondCap(key);
+  };
+
+  createEffect(() => {
+    const mount = props.mount;
+    if (!isKeepAliveMount(mount)) return;
+    showKeepAlive(mount);
+  });
+
+  onCleanup(() => {
+    for (const entry of cache.values()) {
+      entry.container.remove();
+      entry.dispose();
+    }
+    cache.clear();
+  });
+
+  return (
+    <Show
+      when={isKeepAliveMount(props.mount)}
+      fallback={<Dynamic component={props.mount.element} />}
+    >
+      <div
+        style={{ display: 'contents' }}
+        ref={(el) => {
+          hostEl = el;
+        }}
+      />
+    </Show>
+  );
+}

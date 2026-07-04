@@ -9,6 +9,9 @@ export const definition = defineBlock({
   component: EmailBlock,
   liveTrackingEnabled: true,
   syncServiceEnabled: false,
+  // j/k reading flow: keep recent threads' trees alive so revisits reattach
+  // instantly instead of rebuilding the block.
+  keepAlive: true,
   defaultFilename: '[No subject]',
 
   async load(source) {

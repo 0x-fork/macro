@@ -15,12 +15,13 @@ import {
 import { createContextProvider } from '@solid-primitives/context';
 import {
   type Component,
+  createMemo,
   createRenderEffect,
   createSignal,
   Show,
   Suspense,
 } from 'solid-js';
-import { Dynamic } from 'solid-js/web';
+import { KeepAliveMount } from './split-layout/components/KeepAliveMount';
 import {
   SplitPanelContext,
   type SplitPanelContextType,
@@ -69,13 +70,18 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
     150
   );
 
-  const blockInstance = () => {
-    const aliasContext = isTaskEntity(props.selectedEntity)
+  // Driven by the throttled entity and memoized so rapid scrubbing through
+  // rows doesn't create and mount a block per intermediate row: managed
+  // instances are cached by type+id, so refocusing the same entity yields
+  // the identical instance and the mount below doesn't swap.
+  const blockInstance = createMemo(() => {
+    const selectedEntity = throttledSelectedEntity();
+    const aliasContext = isTaskEntity(selectedEntity)
       ? ({
           alias: 'task',
           baseType: 'md',
         } as BlockAliasContext)
-      : isSnippetEntity(props.selectedEntity)
+      : isSnippetEntity(selectedEntity)
         ? ({
             alias: 'snippet',
             baseType: 'md',
@@ -84,40 +90,53 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
 
     let blockType: BlockName;
     let blockId: string;
-    if (props.selectedEntity.type === 'document') {
-      blockType = fileTypeToResolvedBlockName(props.selectedEntity.fileType);
-      blockId = props.selectedEntity.id;
+    if (selectedEntity.type === 'document') {
+      blockType = fileTypeToResolvedBlockName(selectedEntity.fileType);
+      blockId = selectedEntity.id;
     } else if (
-      props.selectedEntity.type === 'channel_message' ||
-      props.selectedEntity.type === 'channel_thread'
+      selectedEntity.type === 'channel_message' ||
+      selectedEntity.type === 'channel_thread'
     ) {
       blockType = 'channel';
-      blockId = props.selectedEntity.channelId;
-    } else if (props.selectedEntity.type === 'foreign') {
+      blockId = selectedEntity.channelId;
+    } else if (selectedEntity.type === 'foreign') {
       // GitHub PRs preview in the dedicated /pr block (keyed by foreign entity
       // id); other foreign sources fall back to the generic unknown block.
       // Mirrors the open path in openEntityInSplitFromUnifiedList, which is
       // also gated on USE_MACRO_PR_SUMMARY_BLOCK.
       blockType =
-        USE_MACRO_PR_SUMMARY_BLOCK && isGithubPrEntity(props.selectedEntity)
+        USE_MACRO_PR_SUMMARY_BLOCK && isGithubPrEntity(selectedEntity)
           ? 'pr'
           : 'unknown';
-      blockId = props.selectedEntity.id;
-    } else if (props.selectedEntity.type === 'crm_company') {
+      blockId = selectedEntity.id;
+    } else if (selectedEntity.type === 'crm_company') {
       blockType = 'company';
-      blockId = props.selectedEntity.id;
-    } else if (props.selectedEntity.type === 'crm_contact') {
+      blockId = selectedEntity.id;
+    } else if (selectedEntity.type === 'crm_contact') {
       blockType = 'contact';
-      blockId = props.selectedEntity.id;
+      blockId = selectedEntity.id;
     } else {
-      blockType = props.selectedEntity.type;
-      blockId = props.selectedEntity.id;
+      blockType = selectedEntity.type;
+      blockId = selectedEntity.id;
     }
 
     return props.orchestrator.createBlockInstance(blockType, blockId, {
       aliasContext,
     });
-  };
+  });
+
+  // Keep-alive-eligible blocks (e.g. email) retain their built trees across
+  // preview switches; everything else falls back to a plain mount.
+  const previewMount = createMemo(() => {
+    const instance = blockInstance();
+    return {
+      kind: 'block' as const,
+      type: instance.type,
+      id: instance.id,
+      handle: { type: instance.type, id: instance.id },
+      element: instance.element,
+    };
+  });
   const [interactedWith, setInteractedWith] = createSignal(false);
 
   createRenderEffect((prevId: string) => {
@@ -217,7 +236,7 @@ const PreviewPanelContent: Component<NonNullableFields<PreviewPanel>> = (
             onFocusOut={props.onFocusOut}
           >
             <Suspense>
-              <Dynamic component={blockInstance().element} />
+              <KeepAliveMount mount={previewMount()} />
             </Suspense>
           </PreviewPanelContext>
         </SplitPanelContext.Provider>

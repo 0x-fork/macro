@@ -21,7 +21,6 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { Dynamic } from 'solid-js/web';
 import {
   type SplitBottomPanelRegistration,
   type SplitFileMenuActionGroups,
@@ -32,6 +31,7 @@ import { useSplitLayout } from '../layout';
 import type { SplitHandle, SplitState } from '../layoutManager';
 import { registerSplitHotkeys } from '../registerSplitHotkeys';
 import { createHeaderCollapser } from '../utils/createHeaderCollapser';
+import { KeepAliveMount } from './KeepAliveMount';
 import { SplitDrawerGroup } from './SplitDrawerContext';
 import { SplitHeader } from './SplitHeader';
 import { SplitToolbar } from './SplitToolbar';
@@ -255,7 +255,7 @@ export function SplitPanel(props: SplitPanelProps) {
                   >
                     <Suspense>
                       <SoupViewContextProvider soup={nextSoup}>
-                        <Dynamic component={props.split.mount.element} />
+                        <KeepAliveMount mount={props.split.mount} />
                       </SoupViewContextProvider>
                     </Suspense>
                   </div>

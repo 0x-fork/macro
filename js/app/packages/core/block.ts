@@ -389,6 +389,15 @@ export type BlockDefinition<
 
   editPermissionEnabled?: boolean;
 
+  /**
+   * Keep recently viewed instances of this block alive (detached, LRU) when
+   * the user navigates away within a split, so revisits reattach the built
+   * tree instead of remounting it. Only suitable for blocks whose mounted
+   * tree is safe to retain off-DOM (queries stay subscribed, effects stay
+   * live). See KeepAliveMount in the split layout.
+   */
+  keepAlive?: boolean;
+
   /** Alias block names that should route to this block type with optional custom default filenames */
   aliases?: Array<{ name: BlockAlias; defaultFileName?: string }>;
 };

@@ -43,9 +43,9 @@ const START_DELAY_MS = 12_000;
 const CONCURRENCY = 2;
 
 const CANDIDATE_LIMITS: Record<PrefetchEntityKind, number> = {
-  channel: 8,
-  emailThread: 20,
-  document: 12,
+  channel: 20,
+  emailThread: 50,
+  document: 25,
 };
 
 /** Signal weights: inbox notifications are the strongest "will open next" hint. */
@@ -340,7 +340,7 @@ export function scheduleOpportunisticPrefetch(): void {
  * their data is older than a threshold just under the staleTime. Results
  * persist via the email-threads scope, keeping the inbox readable offline.
  */
-const INBOX_EMAIL_WARM_LIMIT = 25;
+const INBOX_EMAIL_WARM_LIMIT = 100;
 /** Repeat-protection only; freshness is governed by the threshold below. */
 const INBOX_EMAIL_WARM_TTL_MS = 3 * 60 * 1000;
 const INBOX_EMAIL_WARM_DEBOUNCE_MS = 300;
