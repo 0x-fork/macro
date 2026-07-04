@@ -1,6 +1,8 @@
 import { AskMacroButton } from '@app/component/ChatWithAgentButton';
+import { useMaybePreviewPanel } from '@app/component/PreviewPanel';
 import { SidePanel } from '@app/component/side-panel';
 import { splitBackInterceptor } from '@app/component/split-layout/back-interceptor';
+import { useKeepAliveVisible } from '@app/component/split-layout/components/keep-alive-visibility';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { isListViewID } from '@app/constants/list-views';
@@ -83,7 +85,14 @@ function EmailContent(props: EmailViewProps) {
 
   const context = useEmailContext();
   const splitPanel = useSplitPanel();
+  const previewPanel = useMaybePreviewPanel();
   const { isLoading: isUserLoading } = useUserContext();
+
+  // Whether this tree is the split's visible keep-alive content. Gates the
+  // hotkey conditions below: after esc-ing back to the list this tree stays
+  // parked (alive) and the hotkey system's active scope can still point at
+  // it, so ungated handlers would act on a hidden thread.
+  const keepAliveVisible = useKeepAliveVisible();
 
   const [isScrolled, setIsScrolled] = createSignal(false);
 
@@ -451,17 +460,23 @@ function EmailContent(props: EmailViewProps) {
     createSignal<OpenReplyCompose>();
 
   onMount(() => {
-    registerEmailHotkeys(scopeId(), {
-      blockSender: context.blockSender,
-      markDone: context.archiveThread,
-      reply: () => openReplyCompose()?.('reply') ?? false,
-      replyAll: () => openReplyCompose()?.('reply-all') ?? false,
-      forward: () => openReplyCompose()?.('forward') ?? false,
-      markSenderSignal: context.markSenderSignal,
-      markSenderNoise: context.markSenderNoise,
-      navigateToPreviousMessage,
-      navigateToNextMessage,
-    });
+    registerEmailHotkeys(
+      scopeId(),
+      {
+        blockSender: context.blockSender,
+        markDone: context.archiveThread,
+        reply: () => openReplyCompose()?.('reply') ?? false,
+        replyAll: () => openReplyCompose()?.('reply-all') ?? false,
+        forward: () => openReplyCompose()?.('forward') ?? false,
+        markSenderSignal: context.markSenderSignal,
+        markSenderNoise: context.markSenderNoise,
+        navigateToPreviousMessage,
+        navigateToNextMessage,
+      },
+      // Parked trees keep their registrations alive; the condition keeps
+      // them from firing (or showing in the command menu) while hidden.
+      { condition: () => keepAliveVisible() }
+    );
   });
 
   // In preview mode, switching between Soup tabs was causing this createEffect to overflow the stack. We should figure out that root cause, this flag fixes it for now.
@@ -475,11 +490,30 @@ function EmailContent(props: EmailViewProps) {
     hasRun = true;
   });
 
+  // Refocus the block every time it becomes the visible keep-alive tree.
+  // The mount-time focus above runs while keep-alive is still building the
+  // tree in a DETACHED container — focus() there is a silent no-op — and
+  // reattaching a parked tree doesn't remount. Without focus inside the
+  // block its hotkey scope never activates, so r/f/enter/esc dispatch
+  // against the list's stale scope and die. Fullscreen only: in the
+  // preview pane focus must stay on the list so j/k keep advancing it.
+  createEffect(() => {
+    if (previewPanel) return;
+    if (isTouchDevice()) return;
+    if (!keepAliveVisible()) return;
+    const el = blockElement();
+    if (!el?.isConnected) return;
+    // Never steal focus from within the block (e.g. the compose input).
+    if (el.contains(document.activeElement)) return;
+    el.focus({ preventScroll: true });
+  });
+
   let markdownDomRef!: HTMLDivElement;
 
   registerScopeSignalHotkey(scopeId, {
     hotkey: 'enter',
     description: 'Focus Email Input',
+    condition: () => keepAliveVisible(),
     keyDownHandler: () => {
       const focusedId = context.messages.focusedID();
 
@@ -524,6 +558,7 @@ function EmailContent(props: EmailViewProps) {
   registerScopeSignalHotkey(scopeId, {
     hotkey: 'escape',
     description: 'Collapse message',
+    condition: () => keepAliveVisible(),
     keyDownHandler: () => {
       // Skip if focus is in an editable area (compose input handles its own Escape)
       const activeEl = document.activeElement;

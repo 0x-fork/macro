@@ -15,11 +15,17 @@ interface EmailHotkeyHandlers {
 
 export function registerEmailHotkeys(
   scopeId: string,
-  handlers: EmailHotkeyHandlers
+  handlers: EmailHotkeyHandlers,
+  options?: {
+    /** Applied to every registration; gates dispatch and command-menu display. */
+    condition?: () => boolean;
+  }
 ) {
+  const condition = options?.condition;
   registerHotkey({
     hotkey: 'r',
     scopeId: scopeId,
+    condition,
     description: 'Reply to thread',
     keyDownHandler: handlers.reply,
     hotkeyToken: TOKENS.email.reply,
@@ -30,6 +36,7 @@ export function registerEmailHotkeys(
   // registration keeps the action visible in the command menu.
   registerHotkey({
     scopeId: scopeId,
+    condition,
     description: 'Reply all to thread',
     keyDownHandler: handlers.replyAll,
     hotkeyToken: TOKENS.email.replyAll,
@@ -38,6 +45,7 @@ export function registerEmailHotkeys(
   registerHotkey({
     hotkey: 'f',
     scopeId: scopeId,
+    condition,
     description: 'Forward thread',
     keyDownHandler: handlers.forward,
     hotkeyToken: TOKENS.email.forward,
@@ -46,6 +54,7 @@ export function registerEmailHotkeys(
   registerHotkey({
     hotkey: 'e',
     scopeId,
+    condition,
     description: 'Mark done',
     keyDownHandler: handlers.markDone,
     hotkeyToken: TOKENS.entity.action.markDone,
@@ -53,6 +62,7 @@ export function registerEmailHotkeys(
   });
   registerHotkey({
     scopeId: scopeId,
+    condition,
     description: 'Block sender',
     keyDownHandler: handlers.blockSender,
     hotkeyToken: TOKENS.email.blockSender,
@@ -60,6 +70,7 @@ export function registerEmailHotkeys(
   });
   registerHotkey({
     scopeId: scopeId,
+    condition,
     description: 'Mark sender as Signal',
     keyDownHandler: handlers.markSenderSignal,
     hotkeyToken: TOKENS.email.markSenderSignal,
@@ -67,6 +78,7 @@ export function registerEmailHotkeys(
   });
   registerHotkey({
     scopeId: scopeId,
+    condition,
     description: 'Mark sender as Noise',
     keyDownHandler: handlers.markSenderNoise,
     hotkeyToken: TOKENS.email.markSenderNoise,
@@ -75,6 +87,7 @@ export function registerEmailHotkeys(
   registerHotkey({
     hotkey: 'arrowup',
     scopeId,
+    condition,
     description: 'Previous message',
     keyDownHandler: handlers.navigateToPreviousMessage,
     hotkeyToken: TOKENS.email.previousMessage,
@@ -82,6 +95,7 @@ export function registerEmailHotkeys(
   registerHotkey({
     hotkey: 'arrowdown',
     scopeId,
+    condition,
     description: 'Next message',
     keyDownHandler: handlers.navigateToNextMessage,
     hotkeyToken: TOKENS.email.nextMessage,

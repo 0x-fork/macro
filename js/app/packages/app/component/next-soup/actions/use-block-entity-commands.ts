@@ -4,6 +4,7 @@ import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils
 import { useMaybePreviewPanel } from '@app/component/PreviewPanel';
 import { useAllProperties } from '@app/component/property-edit-modal/hooks/useAllProperties';
 import { openPropertyEditor } from '@app/component/property-edit-modal/state/propertyEditor';
+import { useKeepAliveVisible } from '@app/component/split-layout/components/keep-alive-visibility';
 import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { useBlockId } from '@core/block';
 import { useQuickAccess } from '@core/context/quickAccess';
@@ -41,6 +42,12 @@ export const useBlockEntityCommands = () => {
   const soup = useMaybeSoup();
   const splitPanel = useSplitPanel();
   const previewPanel = useMaybePreviewPanel();
+  // Keep-alive parks block trees alive after navigation, and the hotkey
+  // system's active scope can keep pointing at a parked block's scope (it
+  // only moves on focusin). Every condition below is therefore gated on
+  // this tree being the visible one, so e/m/rename can never act on a
+  // hidden block's entity. Always true for normally mounted trees.
+  const keepAliveVisible = useKeepAliveVisible();
 
   const markDone = makeMarkDoneAction({
     userId: () => userId(),
@@ -131,6 +138,7 @@ export const useBlockEntityCommands = () => {
       description: 'Mark done',
       keyDownHandler: runMarkDone,
       condition: () => {
+        if (!keepAliveVisible()) return false;
         if (!canUseMarkDoneHotkey()) return false;
         const entity = getEntity();
         return entity !== undefined && markDone.canExecute(entity);
@@ -146,6 +154,7 @@ export const useBlockEntityCommands = () => {
       description: 'Mark done',
       keyDownHandler: runMarkDone,
       condition: () => {
+        if (!keepAliveVisible()) return false;
         if (canUseMarkDoneHotkey()) return false;
         const entity = getEntity();
         return entity !== undefined && markDone.canExecute(entity);
@@ -165,6 +174,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && deleteAction.canExecute(entity);
       },
@@ -185,6 +195,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && renameAction.canExecute(entity);
       },
@@ -203,6 +214,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && copyAction.canExecute(entity);
       },
@@ -225,6 +237,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && moveToProjectAction.canExecute(entity);
       },
@@ -246,6 +259,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && copyLinkAction.canExecute(entity);
       },
@@ -268,6 +282,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && copyBranchNameAction.canExecute(entity);
       },
@@ -288,6 +303,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && copyEntityIdAction.canExecute(entity);
       },
@@ -306,6 +322,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return entity !== undefined && isTaskEntity(entity);
       },
@@ -324,6 +341,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return (
           entity !== undefined && isTaskEntity(entity) && Boolean(priority())
@@ -344,6 +362,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return (
           entity !== undefined && isTaskEntity(entity) && Boolean(assignees())
@@ -364,6 +383,7 @@ export const useBlockEntityCommands = () => {
         return true;
       },
       condition: () => {
+        if (!keepAliveVisible()) return false;
         const entity = getEntity();
         return (
           entity !== undefined && isTaskEntity(entity) && Boolean(status())

@@ -223,13 +223,16 @@ export function KeepAliveMount(props: {
     const key = keepAliveKey(mount);
     const entry = ensureEntry(mount);
     entry.lastUsed = Date.now();
+    // Attach BEFORE activating: effects gated on the visibility signal
+    // (the email block focusing itself, portal mounts) must run against
+    // connected DOM — focus() on a detached element is a silent no-op.
+    if (hostEl && entry.container.parentElement !== hostEl) {
+      hostEl.replaceChildren(entry.container);
+    }
     if (entry !== activeEntry) {
       deactivateCurrent();
       activeEntry = entry;
       entry.setActive(true);
-    }
-    if (hostEl && entry.container.parentElement !== hostEl) {
-      hostEl.replaceChildren(entry.container);
     }
     evictBeyondCap(key);
   };
