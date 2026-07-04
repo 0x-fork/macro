@@ -1,4 +1,5 @@
 import type { BlockName } from '@core/block';
+import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
   blocks as BLOCK_REGISTRY,
   resolveBlockAlias,
@@ -10,6 +11,7 @@ import {
   getOwner,
   onCleanup,
   Show,
+  untrack,
 } from 'solid-js';
 import { Dynamic, insert } from 'solid-js/web';
 import type { SplitMount } from '../layoutManager';
@@ -43,6 +45,19 @@ function isKeepAliveMount(mount: SplitMount): mount is BlockMount {
 }
 
 /**
+ * Disposing a fully rendered list view and mounting the next view's shell
+ * is the expensive part of a mount swap. Doing it synchronously inside the
+ * click task blocks paint — the clicked nav item doesn't even highlight
+ * until the whole teardown+mount completes. Swaps involving a 'component'
+ * mount (the soup list views) are therefore deferred past the next paint;
+ * block-to-block swaps (e.g. j/k between keep-alive emails) stay
+ * synchronous because reattaching a parked tree is already one cheap frame.
+ */
+function shouldDeferSwap(prev: SplitMount, next: SplitMount): boolean {
+  return prev.kind === 'component' || next.kind === 'component';
+}
+
+/**
  * Renders a split's mount, keeping an LRU of recently viewed keep-alive
  * blocks (see `defineBlock`'s `keepAlive` flag) alive in detached
  * containers instead of disposing them on navigation. Navigating between
@@ -55,12 +70,43 @@ function isKeepAliveMount(mount: SplitMount): mount is BlockMount {
  * so context (split panel, query client, theme, router) resolves normally.
  * Detached trees stay subscribed to their queries — which also keeps them
  * fresh — and are disposed on LRU eviction or panel teardown.
+ *
+ * The displayed mount intentionally lags `props.mount` by one frame for
+ * expensive swaps (see shouldDeferSwap): the click task only paints a
+ * shimmer overlay and the nav's active state, and the teardown+mount runs
+ * right after that paint.
  */
 export function KeepAliveMount(props: { mount: SplitMount }) {
   const owner = getOwner();
   const cache = new Map<string, CacheEntry>();
   let hostEl: HTMLDivElement | undefined;
   let activeEntry: CacheEntry | undefined;
+
+  const [displayedMount, setDisplayedMount] = createSignal(props.mount);
+  const swapPending = () => displayedMount() !== props.mount;
+
+  let swapGeneration = 0;
+  let cleanedUp = false;
+  createEffect(() => {
+    const next = props.mount;
+    const current = untrack(displayedMount);
+    if (next === current) return;
+    if (!shouldDeferSwap(current, next)) {
+      setDisplayedMount(next);
+      return;
+    }
+    const generation = ++swapGeneration;
+    // rAF alone fires before the frame commits; the nested timeout lands
+    // right after the shimmer paints. Rapid re-navigation supersedes any
+    // scheduled swap via the generation counter and always lands on the
+    // latest mount.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (cleanedUp || generation !== swapGeneration) return;
+        setDisplayedMount(untrack(() => props.mount));
+      }, 0);
+    });
+  });
 
   const deactivateCurrent = () => {
     activeEntry?.setActive(false);
@@ -116,7 +162,7 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   };
 
   createEffect(() => {
-    const mount = props.mount;
+    const mount = displayedMount();
     if (!isKeepAliveMount(mount)) {
       // A non-keep-alive mount is showing; parked trees must go dormant.
       deactivateCurrent();
@@ -126,6 +172,7 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   });
 
   onCleanup(() => {
+    cleanedUp = true;
     for (const entry of cache.values()) {
       entry.container.remove();
       entry.dispose();
@@ -134,16 +181,26 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   });
 
   return (
-    <Show
-      when={isKeepAliveMount(props.mount)}
-      fallback={<Dynamic component={props.mount.element} />}
-    >
-      <div
-        style={{ display: 'contents' }}
-        ref={(el) => {
-          hostEl = el;
-        }}
-      />
-    </Show>
+    <div class="relative size-full min-h-0">
+      <Show
+        when={isKeepAliveMount(displayedMount())}
+        fallback={<Dynamic component={displayedMount().element} />}
+      >
+        <div
+          style={{ display: 'contents' }}
+          ref={(el) => {
+            hostEl = el;
+          }}
+        />
+      </Show>
+      <Show when={swapPending()}>
+        {/* Covers the outgoing view until the deferred swap lands, so the
+            click paints feedback immediately instead of freezing on the
+            old view. */}
+        <div class="absolute inset-0 z-10 flex flex-col bg-surface">
+          <LoadingBlock />
+        </div>
+      </Show>
+    </div>
   );
 }
