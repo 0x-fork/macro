@@ -276,6 +276,37 @@ describe('setupQueryPersistence', () => {
     expect(queryClient.getQueryData(messageQueryKey)).toEqual(restored);
   });
 
+  it('persists and restores under a normalized storage hash', async () => {
+    const queryClient = new QueryClient();
+    const store = createMockStore();
+    // Normalize away the volatile last key element (e.g. a feature-flag
+    // transport or live filter list) so cold-start keys hit settled entries.
+    const storageHash = (key: readonly unknown[]) =>
+      JSON.stringify(key.slice(0, 2));
+    const scope = createScope(['soup'], store, {
+      storageHash,
+      evictOnRemoval: false,
+    });
+
+    setupQueryPersistence({ queryClient, scopes: [scope] });
+
+    // Settled session persists under the normalized hash.
+    queryClient.setQueryData(['soup', 'view-a', 'graphql'], { value: 'list' });
+    expect(store.entries.has(JSON.stringify(['soup', 'view-a']))).toBe(true);
+
+    // A cold start mounts the same view with a different volatile suffix.
+    void queryClient.prefetchQuery({
+      queryKey: ['soup', 'view-a', undefined],
+      queryFn: () => new Promise(() => {}),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(queryClient.getQueryData(['soup', 'view-a', undefined])).toEqual({
+      value: 'list',
+    });
+  });
+
   it('trims infinite query pages via trimInfiniteQueryPages', () => {
     const trim = trimInfiniteQueryPages(2);
     expect(

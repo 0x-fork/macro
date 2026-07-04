@@ -1,6 +1,6 @@
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { hasLoginCookie } from '@core/util/cookies';
-import { partialMatchKey, type QueryKey } from '@tanstack/query-core';
+import { hashKey, partialMatchKey, type QueryKey } from '@tanstack/query-core';
 import { authKeys } from './auth/keys';
 import { channelKeys } from './channel/keys';
 import {
@@ -49,25 +49,53 @@ export function dehydrateDocumentLoadQuery(
   return { ...data, token: '' };
 }
 
+/**
+ * Storage hash for soup list queries. The exact query key embeds two parts
+ * that differ between a cold start and a settled session, so an exact-hash
+ * lookup would never restore:
+ * - `transport` (index 5) flips undefined -> 'graphql' once feature flags
+ *   finish their async bootstrap; the data is identical either way.
+ * - the body's `cthf` target (channel-thread filter) embeds a live
+ *   notification-derived thread-id list that is empty at startup and
+ *   changes as notifications arrive/clear.
+ * Both are dropped, so all variants of one logical view share a slot and
+ * the cold-start query restores the last settled result; the background
+ * refetch reconciles any filter drift.
+ */
+export function soupListStorageHash(queryKey: QueryKey): string {
+  const [scope, family, params, body, groupBy] = queryKey;
+  const normalizedBody =
+    typeof body === 'object' && body !== null
+      ? { ...body, cthf: undefined }
+      : body;
+  return hashKey([scope, family, params, normalizedBody, groupBy]);
+}
+
 let activeScopes: readonly PersistScope[] = [];
 
 export function createQueryPersistenceScopes(
   buster: string
 ): readonly PersistScope[] {
   /**
-   * A scope that caches content for cold starts: restore is gated on an
-   * apparent login, and entries survive query-cache eviction (their queries
-   * are routinely garbage-collected minutes after unmount), expiring via
-   * maxAge, the buster, and the startup sweep instead.
+   * A scope that caches content for cold starts: entries survive
+   * query-cache eviction (their queries are routinely garbage-collected
+   * minutes after unmount), expiring via maxAge, the buster, and the
+   * startup sweep instead.
+   *
+   * Deliberately NOT gated on hasLoginCookie: the login marker is a
+   * script-set cookie/localStorage flag that Safari ITP evicts and
+   * logout/re-login windows clear, so gating restore on it silently
+   * disables caching for valid sessions. A query only mounts (and thus
+   * restores) from authenticated UI, and logout does not clear these
+   * stores either way.
    */
   const contentScope = (
     name: string,
-    options: Pick<PersistScope, 'shouldPersist' | 'dehydrate'>
+    options: Pick<PersistScope, 'shouldPersist' | 'dehydrate' | 'storageHash'>
   ): PersistScope => ({
     store: createPerQueryIDBStore({ dbName: createPersistenceKey(name, 1) }),
     maxAge: { value: 7, unit: 'd' },
     buster,
-    shouldRestore: hasLoginCookie,
     evictOnRemoval: false,
     ...options,
   });
@@ -89,6 +117,7 @@ export function createQueryPersistenceScopes(
     contentScope('soup-list-queries', {
       shouldPersist: (queryKey) =>
         partialMatchKey(queryKey, soupKeys.astItems._def),
+      storageHash: soupListStorageHash,
     }),
     // Viewer's own permission level per entity. Restoring it un-suspends
     // EntityPermissionsGate instantly on cold starts (e.g. opening a channel

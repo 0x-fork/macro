@@ -15,6 +15,12 @@ export type PerQueryPersistence = {
   remove: (queryHash: string) => void;
   flush: () => Promise<void>;
   /**
+   * Opens the backing database ahead of the first read. Restores race the
+   * network fetch, so paying the connection cost at startup instead of on
+   * the first `get` makes cached paints win consistently.
+   */
+  open?: () => Promise<void>;
+  /**
    * Deletes every persisted entry that fails the predicate. Scopes that keep
    * entries across query-cache eviction rely on this to bound growth.
    */
@@ -154,6 +160,10 @@ export function createPerQueryIDBStore(
         timer = null;
       }
       await flush();
+    },
+
+    open: async () => {
+      await openDB(dbName);
     },
 
     sweep: async (isValid) => {

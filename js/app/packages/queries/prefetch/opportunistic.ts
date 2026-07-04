@@ -12,6 +12,7 @@ import type { InfiniteData } from '@tanstack/query-core';
 import { channelMessagesQueryOptions } from '../channel/channel-messages';
 import { channelKeys } from '../channel/keys';
 import { queryClient } from '../client';
+import { emailKeys } from '../email/keys';
 import { historyKeys } from '../history/keys';
 import type { HistoryItem } from '../history/types';
 import { notificationKeys } from '../notification/keys';
@@ -43,7 +44,7 @@ const CONCURRENCY = 2;
 
 const CANDIDATE_LIMITS: Record<PrefetchEntityKind, number> = {
   channel: 8,
-  emailThread: 12,
+  emailThread: 20,
   document: 12,
 };
 
@@ -318,6 +319,8 @@ export function scheduleOpportunisticPrefetch(): void {
   if (scheduled) return;
   scheduled = true;
 
+  setupInboxEmailWarming();
+
   setTimeout(() => {
     // Same idiom as packages/app/index.tsx: requestIdleCallback is missing
     // on some mobile webviews.
@@ -325,6 +328,117 @@ export function scheduleOpportunisticPrefetch(): void {
       window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
     scheduleIdleTask(() => void runOpportunisticPrefetch());
   }, START_DELAY_MS);
+}
+
+/**
+ * Inbox email warming: whenever a soup list query (re)loads — startup,
+ * refetch, or new mail arriving — prefetch the email threads visible in it
+ * so even a first-ever open paints from cache. fetchAndCacheThread respects
+ * the 5-minute staleTime, and the results persist via the email-threads
+ * scope, so this keeps the visible inbox readable offline too.
+ */
+const INBOX_EMAIL_WARM_LIMIT = 25;
+const INBOX_EMAIL_WARM_TTL_MS = 15 * 60 * 1000;
+const INBOX_EMAIL_WARM_DEBOUNCE_MS = 2_000;
+const INBOX_EMAIL_FRESH_MS = 5 * 60 * 1000;
+
+const recentEmailWarm = new Map<string, number>();
+let inboxWarmTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Email thread ids across cached soup list queries, in list order. */
+function collectSoupEmailThreadIds(): string[] {
+  const queries = queryClient.getQueriesData<InfiniteData<SoupAstItemsPage>>({
+    queryKey: soupKeys.astItems._def,
+  });
+
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const [, data] of queries) {
+    for (const page of data?.pages ?? []) {
+      const items =
+        page.kind === 'flat' ? page.items : Object.values(page.items);
+      for (const item of items) {
+        if (item.tag !== 'emailThread') continue;
+        const id = item.data.id;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        ids.push(id);
+      }
+    }
+  }
+  return ids;
+}
+
+async function warmInboxEmailThreads(): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  const now = Date.now();
+  const tasks: Array<() => Promise<void>> = [];
+  for (const id of collectSoupEmailThreadIds()) {
+    if (tasks.length >= INBOX_EMAIL_WARM_LIMIT) break;
+
+    const last = recentEmailWarm.get(id);
+    if (last && now - last < INBOX_EMAIL_WARM_TTL_MS) continue;
+
+    // Already warm in memory: just refresh the TTL, no fetch needed.
+    const state = queryClient.getQueryState(
+      emailKeys.threadMessages(id).queryKey
+    );
+    if (
+      state?.status === 'success' &&
+      now - state.dataUpdatedAt < INBOX_EMAIL_FRESH_MS
+    ) {
+      recentEmailWarm.set(id, now);
+      continue;
+    }
+
+    recentEmailWarm.set(id, now);
+    tasks.push(() => prefetchEmailThread(id).catch(() => {}));
+  }
+
+  if (tasks.length === 0) return;
+  await runPool(tasks, CONCURRENCY);
+}
+
+/**
+ * Warms one email thread's messages immediately (TTL-deduped, respects the
+ * thread query's staleTime). Used for j/k neighbor prefetch in the inbox so
+ * the next thread in the travel direction is already cached when opened.
+ */
+export function warmEmailThread(threadId: string): void {
+  if (!threadId) return;
+  const now = Date.now();
+  const last = recentEmailWarm.get(threadId);
+  if (last && now - last < INBOX_EMAIL_WARM_TTL_MS) return;
+
+  const state = queryClient.getQueryState(
+    emailKeys.threadMessages(threadId).queryKey
+  );
+  if (
+    state?.status === 'success' &&
+    now - state.dataUpdatedAt < INBOX_EMAIL_FRESH_MS
+  ) {
+    recentEmailWarm.set(threadId, now);
+    return;
+  }
+
+  recentEmailWarm.set(threadId, now);
+  void prefetchEmailThread(threadId).catch(() => {});
+}
+
+function setupInboxEmailWarming(): void {
+  queryClient.getQueryCache().subscribe((event) => {
+    if (event.type !== 'updated') return;
+    if (event.query.state.status !== 'success') return;
+    const key = event.query.queryKey;
+    if (key[0] !== 'soup' || key[1] !== 'astItems') return;
+
+    if (inboxWarmTimer) return;
+    inboxWarmTimer = setTimeout(() => {
+      inboxWarmTimer = null;
+      void warmInboxEmailThreads();
+    }, INBOX_EMAIL_WARM_DEBOUNCE_MS);
+  });
 }
 
 /** Channels warmed from live message traffic, with a TTL so a chatty

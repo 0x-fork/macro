@@ -134,10 +134,46 @@ interface ParsedEmailContent {
   hasTable: boolean;
 }
 
+/**
+ * Cross-mount memo for parsed bodies. The email reading pane is remounted
+ * on every thread switch (j/k), which would re-run DOMParser + tree walks
+ * per message; the output is plain strings, so caching by input is safe.
+ * Bounded LRU — message bodies can be large.
+ */
+const PARSE_CACHE_MAX_ENTRIES = 100;
+const parseCache = new Map<string, ParsedEmailContent>();
+
 export function parseEmailContent(
   htmlContent: string,
   removeSignature: boolean = true,
   removeTrailingBrs: boolean = true
+): ParsedEmailContent {
+  const cacheKey = `${removeSignature}:${removeTrailingBrs}:${htmlContent}`;
+  const cached = parseCache.get(cacheKey);
+  if (cached) {
+    // Refresh recency (Map preserves insertion order).
+    parseCache.delete(cacheKey);
+    parseCache.set(cacheKey, cached);
+    return cached;
+  }
+
+  const result = parseEmailContentUncached(
+    htmlContent,
+    removeSignature,
+    removeTrailingBrs
+  );
+  parseCache.set(cacheKey, result);
+  if (parseCache.size > PARSE_CACHE_MAX_ENTRIES) {
+    const oldest = parseCache.keys().next().value;
+    if (oldest !== undefined) parseCache.delete(oldest);
+  }
+  return result;
+}
+
+function parseEmailContentUncached(
+  htmlContent: string,
+  removeSignature: boolean,
+  removeTrailingBrs: boolean
 ): ParsedEmailContent {
   const parser = new DOMParser();
   const doc = parser.parseFromString(htmlContent, 'text/html');

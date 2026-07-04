@@ -5,6 +5,7 @@ import { entityIdSelector } from '@core/dom-selectors';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { EntityData } from '@entity';
+import { warmEmailThread } from '@queries/prefetch/opportunistic';
 import { type Accessor, createMemo, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { SoupState } from '../create-soup-state';
@@ -122,6 +123,15 @@ export const useSoupNavigationHotkeys = (
     fetchNextPage?.();
   };
 
+  /**
+   * Warms the entity one step further in the travel direction so the next
+   * j/k press opens from cache (Superhuman-style read-ahead).
+   */
+  const warmUpcomingEntity = (offset: number) => {
+    const upcoming = soup.navigate.peekOffset(offset)?.row.original;
+    if (upcoming?.type === 'email') warmEmailThread(upcoming.id);
+  };
+
   const navigateDown = () => {
     const rowCount = soup.rows().length;
     const next = soup.navigate.down();
@@ -133,6 +143,7 @@ export const useSoupNavigationHotkeys = (
 
     scrollTo(next.index);
     openEntity(next.row.original);
+    warmUpcomingEntity(1);
 
     if (next.index >= rowCount - 1 - LOAD_MORE_DISTANCE_FROM_END) {
       fetchNextPageIfNeeded();
@@ -148,6 +159,7 @@ export const useSoupNavigationHotkeys = (
 
     scrollTo(next.index);
     openEntity(next.row.original);
+    warmUpcomingEntity(-1);
 
     return true;
   };

@@ -43,7 +43,19 @@ export type PersistScope = Readonly<{
    * expiry is then handled by maxAge, the buster, and the startup sweep.
    */
   evictOnRemoval?: boolean;
+  /**
+   * Storage key for a query, defaulting to its exact query hash. Scopes
+   * whose query keys embed volatile parts (async feature flags, live
+   * notification-derived filters) provide a normalized hash here so that a
+   * cold start's not-yet-settled key still restores the entry persisted
+   * under the settled key; the background refetch reconciles any drift.
+   */
+  storageHash?: (queryKey: QueryKey) => string;
 }>;
+
+function storageHashFor(scope: PersistScope, query: Query): string {
+  return scope.storageHash?.(query.queryKey) ?? query.queryHash;
+}
 
 type QueryClientLike = {
   getQueryCache: () => {
@@ -114,7 +126,10 @@ async function handleRestore(
   const state = queryClient.getQueryState(query.queryKey);
   if (state && state.status === 'success') return;
 
-  const entry = await getValidPersistedEntry(scope, query.queryHash);
+  const entry = await getValidPersistedEntry(
+    scope,
+    storageHashFor(scope, query)
+  );
   if (!entry) return;
 
   const current = queryClient.getQueryState(query.queryKey);
@@ -135,7 +150,7 @@ function handleUpdate(scope: PersistScope, query: Query): void {
     : query.state.data;
   if (data === undefined) return;
   scope.store.set({
-    queryHash: query.queryHash,
+    queryHash: storageHashFor(scope, query),
     queryKey: query.queryKey,
     data,
     dataUpdatedAt: query.state.dataUpdatedAt,
@@ -158,7 +173,10 @@ export async function readPersistedQueryData<T>(
   if (!scope) return undefined;
   if (scope.shouldRestore && !scope.shouldRestore(queryKey)) return undefined;
 
-  const entry = await getValidPersistedEntry(scope, hashKey(queryKey));
+  const entry = await getValidPersistedEntry(
+    scope,
+    scope.storageHash?.(queryKey) ?? hashKey(queryKey)
+  );
   return entry?.data as T | undefined;
 }
 
@@ -227,6 +245,12 @@ export function setupQueryPersistence(
 ): () => void {
   const { queryClient, scopes } = params;
 
+  // Open every store's database now so the first restore doesn't pay the
+  // connection cost while racing its query's network fetch.
+  for (const scope of scopes) {
+    scope.store.open?.().catch(() => {});
+  }
+
   const findScope = (queryKey: QueryKey) =>
     scopes.find((s) => s.shouldPersist(queryKey));
 
@@ -240,6 +264,9 @@ export function setupQueryPersistence(
     if (document.visibilityState === 'hidden') flushAll();
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
+  // pagehide fires on refresh/navigation even when visibilitychange does
+  // not (notably Safari/iOS), so debounced writes aren't lost on reload.
+  window.addEventListener('pagehide', flushAll);
 
   const sweepTimer = setTimeout(
     () => sweepPersistScopes(scopes),
@@ -261,7 +288,7 @@ export function setupQueryPersistence(
     } else if (type === 'updated') {
       handleUpdate(scope, query);
     } else if (scope.evictOnRemoval ?? true) {
-      scope.store.remove(query.queryHash);
+      scope.store.remove(storageHashFor(scope, query));
     }
   });
 
@@ -269,5 +296,6 @@ export function setupQueryPersistence(
     clearTimeout(sweepTimer);
     cacheUnsubscribe();
     document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pagehide', flushAll);
   };
 }
