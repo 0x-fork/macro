@@ -1208,7 +1208,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
                   'border-r border-edge-muted'
               )}
             >
-              <Show when={isMobile() && source.isPlaceholderData()}>
+              {/* Tab switches keep the previous tab's rows via
+                  placeholderData; without an indicator a slow view (e.g.
+                  Sent) reads as frozen. Shown on all platforms. */}
+              <Show when={source.isPlaceholderData()}>
                 <MobileTabLoadingBar />
               </Show>
               <StaticMarkdownContext>

@@ -354,7 +354,15 @@ const INBOX_EMAIL_WARM_CONCURRENCY = 3;
 const recentEmailWarm = new Map<string, number>();
 let inboxWarmTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Email thread ids across cached soup list queries, in list order. */
+/** True for soup list queries backing the email INBOX views. Warming keys
+ * off these only: warming from Sent/Drafts/label lists would stampede up
+ * to the full warm limit of thread fetches every time such a tab opens. */
+function isInboxSoupQueryKey(queryKey: readonly unknown[]): boolean {
+  const body = queryKey[3] as { emailView?: string } | undefined;
+  return body?.emailView === 'inbox';
+}
+
+/** Email thread ids across cached inbox soup queries, in list order. */
 function collectSoupEmailThreadIds(): string[] {
   const queries = queryClient.getQueriesData<InfiniteData<SoupAstItemsPage>>({
     queryKey: soupKeys.astItems._def,
@@ -362,7 +370,8 @@ function collectSoupEmailThreadIds(): string[] {
 
   const ids: string[] = [];
   const seen = new Set<string>();
-  for (const [, data] of queries) {
+  for (const [queryKey, data] of queries) {
+    if (!isInboxSoupQueryKey(queryKey)) continue;
     for (const page of data?.pages ?? []) {
       const items =
         page.kind === 'flat' ? page.items : Object.values(page.items);
@@ -444,6 +453,7 @@ function setupInboxEmailWarming(): void {
     if (event.query.state.status !== 'success') return;
     const key = event.query.queryKey;
     if (key[0] !== 'soup' || key[1] !== 'astItems') return;
+    if (!isInboxSoupQueryKey(key)) return;
 
     if (inboxWarmTimer) return;
     inboxWarmTimer = setTimeout(() => {

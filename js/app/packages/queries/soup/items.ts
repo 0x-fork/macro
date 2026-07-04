@@ -2,6 +2,7 @@ import { filterSoupItemByRequestBody } from '@app/component/next-soup/filters/qu
 import { throwOnErr } from '@core/util/result';
 import type { EntityData } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import { queryClient } from '@queries/client';
 import {
   parseGroupMeta,
   serializeGroupByField,
@@ -141,6 +142,42 @@ export const useSoupItemsQuery = (
     meta: { itemFilter, normalize: true },
   }));
 };
+
+/**
+ * Warms the first (flat) page of a soup list query into the cache — and,
+ * via the soup-list-queries persistence scope, into IndexedDB — so a view
+ * opened later paints instantly instead of paying a cold fetch (email tab
+ * views like Sent can take seconds server-side). Fetches over REST; the
+ * mounted view may key by graphql transport, but the persistence layer's
+ * normalized storage hash shares one slot across transports, so a restore
+ * still hits. No-op while fresh or for grouped queries.
+ */
+export async function prefetchSoupAstItemsFirstPage(
+  args: SoupAstItemsQueryArgs
+): Promise<void> {
+  if (args.groupBy) return;
+  const { params, body } = args;
+  await queryClient.prefetchInfiniteQuery({
+    queryKey: soupKeys.astItems(args).queryKey,
+    queryFn: async (): Promise<SoupAstItemsPage> => {
+      const response = await throwOnErr(
+        async () =>
+          await storageServiceClient.getSoupAstItems({
+            params: { cursor: null },
+            body: { ...body, ...params },
+          })
+      );
+      return {
+        kind: 'flat',
+        items: response.items,
+        nextCursor: response.next_cursor ?? null,
+      };
+    },
+    initialPageParam: null as string | null,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
 
 export const useSoupAstItemsQuery = (
   args: Accessor<SoupAstItemsQueryArgs>,

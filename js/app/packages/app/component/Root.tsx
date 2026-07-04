@@ -2,6 +2,7 @@ import {
   AnalyticsContextProvider,
   useAnalytics,
 } from '@app/component/analytics-context';
+import { scheduleMailViewWarming } from '@app/component/next-soup/soup-view/warm-mail-views';
 import { GlobalShareInboxConflictDialog } from '@app/component/ShareInboxConflictDialog';
 import { DEFAULT_ROUTE } from '@app/constants/defaultRoute';
 import { ROUTER_BASE } from '@app/constants/routerBase';
@@ -464,6 +465,13 @@ function UserInfoSideEffects() {
       // Warm caches for entities the user is likely to open (frecency,
       // inbox, recent activity). Idle-scheduled; runs once per session.
       scheduleOpportunisticPrefetch();
+      // Warm the slow mail tab views (Sent, Drafts, …) so first clicks
+      // serve from cache instead of a multi-second cold fetch.
+      scheduleMailViewWarming({
+        userId: user.id,
+        email: user.email,
+        isTeamAdmin: false,
+      });
 
       if (posthog.instance._isIdentified() || identified) {
         return;
