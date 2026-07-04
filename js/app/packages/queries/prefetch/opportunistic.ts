@@ -332,15 +332,24 @@ export function scheduleOpportunisticPrefetch(): void {
 
 /**
  * Inbox email warming: whenever a soup list query (re)loads — startup,
- * refetch, or new mail arriving — prefetch the email threads visible in it
- * so even a first-ever open paints from cache. fetchAndCacheThread respects
- * the 5-minute staleTime, and the results persist via the email-threads
- * scope, so this keeps the visible inbox readable offline too.
+ * refetch, or new mail arriving — and on a steady re-warm cycle, prefetch
+ * the email threads visible in it. The email block's load() only resolves
+ * without a network round-trip when the thread query is FRESH (within its
+ * 5-minute staleTime), so flicker-free j/k depends on keeping the visible
+ * inbox perpetually fresh, not merely cached: threads are re-warmed once
+ * their data is older than a threshold just under the staleTime. Results
+ * persist via the email-threads scope, keeping the inbox readable offline.
  */
 const INBOX_EMAIL_WARM_LIMIT = 25;
-const INBOX_EMAIL_WARM_TTL_MS = 15 * 60 * 1000;
-const INBOX_EMAIL_WARM_DEBOUNCE_MS = 2_000;
-const INBOX_EMAIL_FRESH_MS = 5 * 60 * 1000;
+/** Repeat-protection only; freshness is governed by the threshold below. */
+const INBOX_EMAIL_WARM_TTL_MS = 3 * 60 * 1000;
+const INBOX_EMAIL_WARM_DEBOUNCE_MS = 300;
+/** Re-warm data older than this — just under THREAD_STALE_TIME (5 min) so
+ * the block loader always finds fresh data and resolves from cache. */
+const INBOX_EMAIL_REWARM_AGE_MS = 4 * 60 * 1000;
+/** Steady re-warm cadence while the tab is visible. */
+const INBOX_EMAIL_REWARM_INTERVAL_MS = 4 * 60 * 1000;
+const INBOX_EMAIL_WARM_CONCURRENCY = 3;
 
 const recentEmailWarm = new Map<string, number>();
 let inboxWarmTimer: ReturnType<typeof setTimeout> | null = null;
@@ -369,35 +378,50 @@ function collectSoupEmailThreadIds(): string[] {
   return ids;
 }
 
+/**
+ * Decides whether one thread needs a warm fetch right now. Skips threads
+ * that were attempted very recently, are still fresh enough for the block
+ * loader's cache fast-path, or are actively open (refetching an observed
+ * thread query re-triggers its Suspense boundary and resets scroll — the
+ * open view manages its own lifecycle).
+ */
+function shouldWarmEmailThread(threadId: string, now: number): boolean {
+  const last = recentEmailWarm.get(threadId);
+  if (last && now - last < INBOX_EMAIL_WARM_TTL_MS) return false;
+
+  const queryKey = emailKeys.threadMessages(threadId).queryKey;
+  const query = queryClient.getQueryCache().find({ queryKey });
+  if (query && query.getObserversCount() > 0) {
+    recentEmailWarm.set(threadId, now);
+    return false;
+  }
+  if (
+    query?.state.status === 'success' &&
+    now - query.state.dataUpdatedAt < INBOX_EMAIL_REWARM_AGE_MS
+  ) {
+    recentEmailWarm.set(threadId, now);
+    return false;
+  }
+  return true;
+}
+
 async function warmInboxEmailThreads(): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden')
+    return;
 
   const now = Date.now();
   const tasks: Array<() => Promise<void>> = [];
   for (const id of collectSoupEmailThreadIds()) {
     if (tasks.length >= INBOX_EMAIL_WARM_LIMIT) break;
-
-    const last = recentEmailWarm.get(id);
-    if (last && now - last < INBOX_EMAIL_WARM_TTL_MS) continue;
-
-    // Already warm in memory: just refresh the TTL, no fetch needed.
-    const state = queryClient.getQueryState(
-      emailKeys.threadMessages(id).queryKey
-    );
-    if (
-      state?.status === 'success' &&
-      now - state.dataUpdatedAt < INBOX_EMAIL_FRESH_MS
-    ) {
-      recentEmailWarm.set(id, now);
-      continue;
-    }
+    if (!shouldWarmEmailThread(id, now)) continue;
 
     recentEmailWarm.set(id, now);
     tasks.push(() => prefetchEmailThread(id).catch(() => {}));
   }
 
   if (tasks.length === 0) return;
-  await runPool(tasks, CONCURRENCY);
+  await runPool(tasks, INBOX_EMAIL_WARM_CONCURRENCY);
 }
 
 /**
@@ -408,19 +432,7 @@ async function warmInboxEmailThreads(): Promise<void> {
 export function warmEmailThread(threadId: string): void {
   if (!threadId) return;
   const now = Date.now();
-  const last = recentEmailWarm.get(threadId);
-  if (last && now - last < INBOX_EMAIL_WARM_TTL_MS) return;
-
-  const state = queryClient.getQueryState(
-    emailKeys.threadMessages(threadId).queryKey
-  );
-  if (
-    state?.status === 'success' &&
-    now - state.dataUpdatedAt < INBOX_EMAIL_FRESH_MS
-  ) {
-    recentEmailWarm.set(threadId, now);
-    return;
-  }
+  if (!shouldWarmEmailThread(threadId, now)) return;
 
   recentEmailWarm.set(threadId, now);
   void prefetchEmailThread(threadId).catch(() => {});
@@ -439,6 +451,13 @@ function setupInboxEmailWarming(): void {
       void warmInboxEmailThreads();
     }, INBOX_EMAIL_WARM_DEBOUNCE_MS);
   });
+
+  // Steady re-warm keeps the visible inbox inside the thread staleTime, so
+  // j/k opens resolve from cache even after the tab has idled a while.
+  setInterval(
+    () => void warmInboxEmailThreads(),
+    INBOX_EMAIL_REWARM_INTERVAL_MS
+  );
 }
 
 /** Channels warmed from live message traffic, with a TTL so a chatty
