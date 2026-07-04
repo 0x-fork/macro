@@ -24,6 +24,7 @@ export const handler = async (event) => {
       statusCode: '404',
       headers: {
         'Content-Type': 'text/html',
+        'Cache-Control': 'public, max-age=0, stale-while-revalidate=86400',
       },
       body: 'Not Found',
     };
@@ -38,6 +39,7 @@ export const handler = async (event) => {
         statusCode: '200',
         headers: {
           'Content-Type': 'text/html',
+          'Cache-Control': 'public, max-age=0, stale-while-revalidate=86400',
         },
         body: template,
       };
@@ -66,6 +68,7 @@ export const handler = async (event) => {
       statusCode: '200',
       headers: {
         'Content-Type': 'text/html',
+        'Cache-Control': 'public, max-age=0, stale-while-revalidate=86400',
       },
       body,
     };
@@ -75,6 +78,7 @@ export const handler = async (event) => {
       statusCode: '200',
       headers: {
         'Content-Type': 'text/html',
+        'Cache-Control': 'public, max-age=0, stale-while-revalidate=86400',
       },
       body: template,
     };

@@ -1,5 +1,5 @@
 import { exec, execSync } from 'node:child_process';
-import { unwatchFile, watchFile } from 'node:fs';
+import { readFileSync, unwatchFile, watchFile } from 'node:fs';
 import { resolve } from 'node:path';
 import tailwind from '@tailwindcss/vite';
 import { Features } from 'lightningcss';
@@ -67,6 +67,28 @@ function gitBranchHmrPlugin(): Plugin {
   };
 }
 
+/**
+ * Emits service-worker.js (see that file for the caching strategy) as
+ * dist/sw.js with the build version stamped in, so each deploy gets a
+ * fresh shell cache. Hand-rolled instead of vite-plugin-pwa/workbox: the
+ * strategy is ~100 lines and adding build-time dependencies requires
+ * lockfile churn against private git deps. Registration is web-only in
+ * index.tsx; Tauri ships assets locally and never registers it.
+ */
+function serviceWorkerPlugin(): Plugin {
+  return {
+    name: 'macro-service-worker',
+    apply: 'build',
+    generateBundle() {
+      const source = readFileSync(
+        resolve(__dirname, 'service-worker.js'),
+        'utf-8'
+      ).replaceAll('__BUILD_VERSION__', appVersion);
+      this.emitFile({ type: 'asset', fileName: 'sw.js', source });
+    },
+  };
+}
+
 export const createAppViteConfig = (): UserConfigFn => {
   return ({ command, mode }) => {
     const ENV_MODE = process.env.MODE ?? mode;
@@ -92,6 +114,7 @@ export const createAppViteConfig = (): UserConfigFn => {
           root: '../../',
         }),
         gitBranchHmrPlugin(),
+        serviceWorkerPlugin(),
       ],
       define: defineEnv(ENV_MODE, command),
       clearScreen: false,

@@ -115,7 +115,10 @@ const syncAssetsCommand = new command.local.Command(
 const updateHashedAssetsMetadataCommand = webAppAssets.id.apply(
   (bucketName) => {
     const prefix = `s3://${bucketName}/app`;
-    return pulumi.interpolate`aws s3 cp ${prefix} ${prefix} --recursive --exclude "*" --include "*.js" --include "*.js.map" --include "assets/*" --metadata-directive REPLACE --cache-control "public, max-age=31536000, immutable" --acl public-read && echo "${Date.now()}"`;
+    // sw.js is the one unhashed .js file: the service worker script must
+    // never be immutable or clients would stop receiving updates. It gets
+    // its own no-cache stamp below.
+    return pulumi.interpolate`aws s3 cp ${prefix} ${prefix} --recursive --exclude "*" --include "*.js" --include "*.js.map" --include "assets/*" --exclude "sw.js" --metadata-directive REPLACE --cache-control "public, max-age=31536000, immutable" --acl public-read && echo "${Date.now()}"`;
   }
 );
 
@@ -127,16 +130,20 @@ const hashedAssetsMetadataCommand = new command.local.Command(
   { dependsOn: [webAppAssets, syncAssetsCommand], replaceOnChanges: ['*'] }
 );
 
-// Using the bucket ID we will now update the index.html object metadata so
-// the HTML is always revalidated. `no-cache` (vs the previous `no-store`)
-// still forces a conditional request on every load — deploys take effect
-// immediately — but lets an unchanged HTML answer with a 304 instead of a
-// full re-download.
+// Using the bucket ID we will now update the index.html and sw.js object
+// metadata. The HTML uses stale-while-revalidate: browsers serve the cached
+// shell instantly (zero blocking round trip) and revalidate in the
+// background, so a deploy is picked up on the following load — the right
+// trade for a roughly-daily deploy cadence. Safari ignores s-w-r and falls
+// back to revalidate-always; the service worker covers it there. sw.js
+// itself is no-cache so browsers always check for a new worker (which is
+// how new builds propagate).
 // Use randomValue as part of the command so it's considered new on every deployment.
 const updateIndexHtmlObjectMetadataCommand = webAppAssets.id.apply(
   (bucketName) => {
     const object = `s3://${bucketName}/app/index.html`;
-    return pulumi.interpolate`aws s3 cp ${object} ${object} --metadata-directive REPLACE --content-type "text/html" --cache-control "public, no-cache" --acl public-read && echo "${Date.now()}"`;
+    const swObject = `s3://${bucketName}/app/sw.js`;
+    return pulumi.interpolate`aws s3 cp ${object} ${object} --metadata-directive REPLACE --content-type "text/html" --cache-control "public, max-age=0, stale-while-revalidate=86400" --acl public-read && (aws s3 cp ${swObject} ${swObject} --metadata-directive REPLACE --content-type "application/javascript" --cache-control "public, no-cache" --acl public-read || echo "no sw.js to stamp") && echo "${Date.now()}"`;
   }
 );
 

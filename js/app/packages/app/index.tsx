@@ -110,6 +110,21 @@ function main() {
       });
     });
 
+    // Web only: the service worker precaches the HTML shell (instant
+    // navigations, offline) and cache-first-serves hashed assets. Tauri
+    // ships assets locally and must not register one. Registered at idle —
+    // it only matters for the NEXT load.
+    if (!isTauri() && 'serviceWorker' in navigator) {
+      scheduleIdleTask(() => {
+        const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+        navigator.serviceWorker
+          .register(`${base}/sw.js`)
+          .catch((error) =>
+            console.error('Service worker registration failed', error)
+          );
+      });
+    }
+
     // this event is emitted when dynamically loading a module fails
     // for example when you're using the app and a new version is deployed
     window.addEventListener('vite:preloadError', () =>
