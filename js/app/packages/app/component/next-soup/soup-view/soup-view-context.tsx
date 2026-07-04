@@ -21,6 +21,15 @@ import {
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
 import { createSearchState } from '@app/component/next-soup/soup-view/create-search-state';
 import {
+  assignDateSections,
+  DATE_SECTION_LABELS,
+  DATE_SECTION_SORT_TIMESTAMPS,
+  type DateSectionKey,
+  dateSectionCutoffs,
+  dateSectionDayTick,
+  dateSectionGroupKey,
+} from '@app/component/next-soup/soup-view/date-sections';
+import {
   INBOX_FILTER_ENTRY_KEY,
   registerInboxFilterSplit,
 } from '@app/component/next-soup/soup-view/inbox-filter-controllers';
@@ -665,14 +674,92 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
+  // Superhuman-style date sections for the mail list, derived client-side
+  // from the flat query's own sort timestamps — cached/warmed/persisted
+  // pages keep serving instantly and no grouped-query round trip happens.
+  // Returns the timestamp accessor when sections apply, undefined otherwise.
+  const dateSectionTimestamp = createMemo(() => {
+    if (activeListView() !== 'mail') return undefined;
+    if (search.isSearching()) return undefined;
+    if (groupByField()) return undefined;
+    const primary = soup.sort.active()[0];
+    // Oldest-first ordering would invert the section ranges.
+    if (primary?.reversed) return undefined;
+    return DATE_SECTION_SORT_TIMESTAMPS[primary?.id ?? 'updated_at'];
+  });
+
+  const buildDateSectionMeta = (
+    key: DateSectionKey,
+    count: number
+  ): GroupMeta => {
+    const groupKey = dateSectionGroupKey(key);
+    return {
+      key: groupKey,
+      value: undefined,
+      label: DATE_SECTION_LABELS[key],
+      count,
+      isExpanded: () => soup.grouping.isExpanded(groupKey),
+      toggle: () => soup.grouping.toggle(groupKey),
+      skipOnNavigate: true,
+    };
+  };
+
   const rows = createMemo((): SoupRow[] => {
     const field = groupByField();
     const groups = itemsQuery.data?.groups;
 
     if (!enabled() || !field || !groups || search.isSearching()) {
-      return entities().map((entity, index) =>
-        soup.buildRow({ id: entity.id, index, original: entity })
-      );
+      const list = entities();
+      const timestampOf = dateSectionTimestamp();
+      if (!timestampOf || list.length === 0) {
+        return list.map((entity, index) =>
+          soup.buildRow({ id: entity.id, index, original: entity })
+        );
+      }
+
+      // Single pass over the already-sorted list; headers are injected at
+      // section boundaries. Re-buckets when the calendar day rolls over.
+      dateSectionDayTick();
+      const cutoffs = dateSectionCutoffs();
+      const sections = assignDateSections(list, timestampOf, cutoffs);
+      const counts = new Map<DateSectionKey, number>();
+      for (const key of sections) {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+
+      const result: SoupRow[] = [];
+      let index = 0;
+      let currentKey: DateSectionKey | undefined;
+      let currentMeta: GroupMeta | undefined;
+      for (let i = 0; i < list.length; i++) {
+        const entity = list[i]!;
+        const sectionKey = sections[i]!;
+        if (sectionKey !== currentKey) {
+          currentKey = sectionKey;
+          currentMeta = buildDateSectionMeta(
+            sectionKey,
+            counts.get(sectionKey) ?? 0
+          );
+          result.push(
+            soup.buildRow({
+              id: `header:${dateSectionGroupKey(sectionKey)}`,
+              index: index++,
+              original: entity,
+              group: currentMeta,
+              isGrouped: true,
+            })
+          );
+        }
+        result.push(
+          soup.buildRow({
+            id: entity.id,
+            index: index++,
+            original: entity,
+            group: currentMeta,
+          })
+        );
+      }
+      return result;
     }
 
     const result: SoupRow[] = [];

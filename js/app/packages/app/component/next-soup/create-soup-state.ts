@@ -40,6 +40,12 @@ export type GroupMeta = {
   isExpanded: () => boolean;
   toggle: () => void;
   renderHeader?: (props: GroupHeaderProps) => JSX.Element;
+  /**
+   * Keyboard navigation passes over this group's header row (it stays
+   * click-toggleable). Date sections in the mail list set this so j/k flows
+   * email-to-email without stopping on section labels.
+   */
+  skipOnNavigate?: boolean;
 };
 
 export type SoupRow = {
@@ -224,7 +230,7 @@ export const createSoupState = <TId extends string = FilterID>(
   const shouldSkipRow = (row: SoupRow): boolean => {
     if (!row.group) return false;
     if (row.getIsGrouped()) {
-      return !!skipGroupHeaders;
+      return !!skipGroupHeaders || !!row.group.skipOnNavigate;
     }
     return !row.group.isExpanded();
   };

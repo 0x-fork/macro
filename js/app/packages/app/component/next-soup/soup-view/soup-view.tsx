@@ -18,6 +18,7 @@ import { buildDocumentTypeQuery } from '@app/component/next-soup/filters/configs
 import type { Query } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import { useSoup } from '@app/component/next-soup/soup-context';
+import { isDateSectionGroupKey } from '@app/component/next-soup/soup-view/date-sections';
 import { registerDocumentsFilterSplit } from '@app/component/next-soup/soup-view/documents-filter-controllers';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { InboxSelector } from '@app/component/next-soup/soup-view/filters-bar/inbox-selector';
@@ -281,6 +282,34 @@ const DefaultGroupHeader = (
       >
         {props.group.count}
       </span>
+    </SoupSectionHeader>
+  );
+};
+
+/**
+ * Minimal header for client-side date sections (Today / Yesterday / …) in
+ * the mail list: chevron + label, no icon or count pill — the count only
+ * reflects loaded pages, and DefaultGroupHeader's icon lookup expects a
+ * property option key.
+ */
+const DateSectionHeader = (
+  props: GroupHeaderProps & { highlighted?: boolean }
+) => {
+  return (
+    <SoupSectionHeader
+      onClick={() => props.group.toggle()}
+      highlighted={props.highlighted}
+    >
+      <Layer depth={3}>
+        <div class="flex items-center justify-center size-4.5 rounded-xs group-hover/header:bg-ink/5">
+          <ChevronRightIcon
+            class={cn('size-2.5', {
+              'rotate-90': props.group.isExpanded(),
+            })}
+          />
+        </div>
+      </Layer>
+      <span class="truncate">{props.group.label}</span>
     </SoupSectionHeader>
   );
 };
@@ -1356,7 +1385,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                         <Dynamic
                                           component={
                                             group().renderHeader ??
-                                            DefaultGroupHeader
+                                            (isDateSectionGroupKey(group().key)
+                                              ? DateSectionHeader
+                                              : DefaultGroupHeader)
                                           }
                                           group={group()}
                                           highlighted={row.isFocused()}
