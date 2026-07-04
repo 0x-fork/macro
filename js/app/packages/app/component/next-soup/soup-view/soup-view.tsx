@@ -139,6 +139,10 @@ import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
 
 const WIDE_SPLIT_PANEL_BREAKPOINT = 512;
 
+/** See listRenderReady: mounts within this window of navigation start are
+ * treated as part of the initial page load and render rows immediately. */
+const INITIAL_PAGE_LOAD_WINDOW_MS = 5_000;
+
 export const SoupSectionHeader = (props: {
   children: JSX.Element;
   onClick?: () => void;
@@ -798,8 +802,16 @@ export const SoupViewList = (props: SoupViewListProps) => {
   // plus a loading shimmer, and the list lands a frame later. The gate must
   // be the FIRST Switch branch: reading rows() in any earlier condition
   // would trigger the expensive memos before paint.
-  const [listRenderReady, setListRenderReady] = createSignal(false);
+  // Deferring the first rows render keeps left-nav switches snappy (the nav
+  // highlight paints before the expensive list build), but during the
+  // initial page load there is no previous view worth protecting — the
+  // deferral would only hold IDB-restored rows behind a shimmer for an
+  // extra frame. performance.now() is time since navigation start, so a
+  // small window distinguishes page-load mounts from later nav switches.
+  const isInitialPageLoad = performance.now() < INITIAL_PAGE_LOAD_WINDOW_MS;
+  const [listRenderReady, setListRenderReady] = createSignal(isInitialPageLoad);
   onMount(() => {
+    if (listRenderReady()) return;
     // rAF alone fires before the frame commits; the nested timeout lands
     // right after the first paint.
     requestAnimationFrame(() => {

@@ -104,12 +104,39 @@ const syncAssetsCommand = new command.local.Command(
   }
 );
 
-// Using the bucket ID we will now update the index.html object metadata to include correct no-store header to disable caching
+// Stamp long-term caching metadata onto the content-hashed build outputs
+// (root-level [name]-[hash].js chunks/maps and everything under assets/).
+// Their filenames change whenever their content does, so browsers can cache
+// them forever and repeat page loads serve JS/CSS/fonts straight from disk
+// instead of revalidating each one. Unhashed files (manifest.json, icons,
+// sounds) are deliberately not matched and keep default caching; index.html
+// is re-stamped below and its command depends on this one, so its header
+// always wins.
+const updateHashedAssetsMetadataCommand = webAppAssets.id.apply(
+  (bucketName) => {
+    const prefix = `s3://${bucketName}/app`;
+    return pulumi.interpolate`aws s3 cp ${prefix} ${prefix} --recursive --exclude "*" --include "*.js" --include "*.js.map" --include "assets/*" --metadata-directive REPLACE --cache-control "public, max-age=31536000, immutable" --acl public-read && echo "${Date.now()}"`;
+  }
+);
+
+const hashedAssetsMetadataCommand = new command.local.Command(
+  'hashed-assets-metadata-command',
+  {
+    create: updateHashedAssetsMetadataCommand,
+  },
+  { dependsOn: [webAppAssets, syncAssetsCommand], replaceOnChanges: ['*'] }
+);
+
+// Using the bucket ID we will now update the index.html object metadata so
+// the HTML is always revalidated. `no-cache` (vs the previous `no-store`)
+// still forces a conditional request on every load — deploys take effect
+// immediately — but lets an unchanged HTML answer with a 304 instead of a
+// full re-download.
 // Use randomValue as part of the command so it's considered new on every deployment.
 const updateIndexHtmlObjectMetadataCommand = webAppAssets.id.apply(
   (bucketName) => {
     const object = `s3://${bucketName}/app/index.html`;
-    return pulumi.interpolate`aws s3 cp ${object} ${object} --metadata-directive REPLACE --content-type "text/html" --cache-control "no-store" --acl public-read && echo "${Date.now()}"`;
+    return pulumi.interpolate`aws s3 cp ${object} ${object} --metadata-directive REPLACE --content-type "text/html" --cache-control "public, no-cache" --acl public-read && echo "${Date.now()}"`;
   }
 );
 
@@ -119,7 +146,10 @@ new command.local.Command(
   {
     create: updateIndexHtmlObjectMetadataCommand,
   },
-  { dependsOn: [webAppAssets, syncAssetsCommand], replaceOnChanges: ['*'] }
+  {
+    dependsOn: [webAppAssets, syncAssetsCommand, hashedAssetsMetadataCommand],
+    replaceOnChanges: ['*'],
+  }
 );
 
 // First, create an IAM role and attach the AWSLambdaBasicExecutionRole policy

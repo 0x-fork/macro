@@ -1,4 +1,3 @@
-import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { hasLoginCookie } from '@core/util/cookies';
 import { hashKey, partialMatchKey, type QueryKey } from '@tanstack/query-core';
 import { authKeys } from './auth/keys';
@@ -139,20 +138,24 @@ export function createQueryPersistenceScopes(
       shouldPersist: (queryKey) =>
         queryKey[0] === 'preview' && queryKey[1] === 'item',
     }),
-    ...(isNativeMobilePlatform()
-      ? [
-          {
-            store: createPerQueryIDBStore({
-              dbName: createPersistenceKey('user-info', 1),
-            }),
-            maxAge: { value: 7, unit: 'd' },
-            buster,
-            shouldPersist: (queryKey: QueryKey) =>
-              partialMatchKey(queryKey, authKeys.userInfo.queryKey),
-            shouldRestore: hasLoginCookie,
-          } satisfies PersistScope,
-        ]
-      : []),
+    // User info is THE blocking round trip on warm reloads: sidebar and
+    // every list panel gate on isAuthenticated(), so nothing else (even
+    // IDB-restored content) can paint until it returns. Restoring it makes
+    // the authenticated shell render immediately while the auth request
+    // reconciles in the background (15s staleTime forces that refetch);
+    // a confirmed `authenticated: false` still collapses the gates.
+    // Restore stays behind hasLoginCookie so a logout (which clears the
+    // marker) never resurrects an authenticated shell.
+    {
+      store: createPerQueryIDBStore({
+        dbName: createPersistenceKey('user-info', 1),
+      }),
+      maxAge: { value: 7, unit: 'd' },
+      buster,
+      shouldPersist: (queryKey: QueryKey) =>
+        partialMatchKey(queryKey, authKeys.userInfo.queryKey),
+      shouldRestore: hasLoginCookie,
+    } satisfies PersistScope,
   ];
   return activeScopes;
 }
