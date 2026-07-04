@@ -4,6 +4,9 @@ import { registerHotkey } from 'core/hotkey/hotkeys';
 interface EmailHotkeyHandlers {
   blockSender: () => boolean;
   markDone: () => boolean;
+  reply: () => boolean;
+  replyAll: () => boolean;
+  forward: () => boolean;
   markSenderSignal: () => boolean;
   markSenderNoise: () => boolean;
   navigateToPreviousMessage: () => boolean;
@@ -15,24 +18,20 @@ export function registerEmailHotkeys(
   handlers: EmailHotkeyHandlers
 ) {
   registerHotkey({
-    hotkey: 'opt+r',
+    hotkey: 'r',
     scopeId: scopeId,
     description: 'Reply to thread',
-    keyDownHandler: () => {
-      // handlers.setReplyMode('reply');
-      return true;
-    },
+    keyDownHandler: handlers.reply,
     hotkeyToken: TOKENS.email.reply,
     displayPriority: 9,
   });
+  // Reply-all's key is 'enter', handled by the email block's enter handler
+  // (which first runs its expand/reply-to-focused steps); this unkeyed
+  // registration keeps the action visible in the command menu.
   registerHotkey({
-    hotkey: 'r',
     scopeId: scopeId,
     description: 'Reply all to thread',
-    keyDownHandler: () => {
-      // handlers.setReplyMode('reply-all');
-      return true;
-    },
+    keyDownHandler: handlers.replyAll,
     hotkeyToken: TOKENS.email.replyAll,
     displayPriority: 8,
   });
@@ -40,12 +39,7 @@ export function registerEmailHotkeys(
     hotkey: 'f',
     scopeId: scopeId,
     description: 'Forward thread',
-    keyDownHandler: () => {
-      // TODO: Populate to field
-      // TODO: Attachments from last/current selected message
-      // handlers.setReplyMode('forward');
-      return true;
-    },
+    keyDownHandler: handlers.forward,
     hotkeyToken: TOKENS.email.forward,
     displayPriority: 7,
   });
