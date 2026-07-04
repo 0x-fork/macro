@@ -7,10 +7,13 @@ import {
   dehydrateChannelContentQuery,
   shouldPersistChannelContentQuery,
 } from './channel/message-persistence';
+import { entityKeys } from './entity/keys';
+import { notificationKeys } from './notification/keys';
 import {
   createPersistenceKey,
   type PersistScope,
   readPersistedQueryData,
+  trimInfiniteQueryPages,
 } from './persistence';
 import { createPerQueryIDBStore } from './persistence/per-query-idb';
 import { soupKeys } from './soup/keys';
@@ -86,6 +89,19 @@ export function createQueryPersistenceScopes(
     contentScope('soup-list-queries', {
       shouldPersist: (queryKey) =>
         partialMatchKey(queryKey, soupKeys.astItems._def),
+    }),
+    // Viewer's own permission level per entity. Restoring it un-suspends
+    // EntityPermissionsGate instantly on cold starts (e.g. opening a channel
+    // from a notification tap); the server stays authoritative and the
+    // background refetch reconciles.
+    contentScope('entity-permissions', {
+      shouldPersist: (queryKey) =>
+        partialMatchKey(queryKey, entityKeys.permissions._def),
+    }),
+    contentScope('notifications', {
+      shouldPersist: (queryKey) =>
+        partialMatchKey(queryKey, notificationKeys.user._def),
+      dehydrate: trimInfiniteQueryPages(3),
     }),
     ...(isNativeMobilePlatform()
       ? [

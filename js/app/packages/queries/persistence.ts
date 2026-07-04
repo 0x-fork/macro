@@ -162,6 +162,27 @@ export async function readPersistedQueryData<T>(
   return entry?.data as T | undefined;
 }
 
+/**
+ * Generic dehydrate for infinite queries: persists only the first
+ * `maxPages` pages (with their pageParams) so long pagination sessions
+ * don't balloon the store. Non-infinite data passes through unchanged.
+ */
+export function trimInfiniteQueryPages(
+  maxPages: number
+): (queryKey: QueryKey, data: unknown) => unknown {
+  return (_queryKey, data) => {
+    if (typeof data !== 'object' || data === null) return data;
+    const infinite = data as { pages?: unknown[]; pageParams?: unknown[] };
+    if (!Array.isArray(infinite.pages) || !Array.isArray(infinite.pageParams))
+      return data;
+    if (infinite.pages.length <= maxPages) return data;
+    return {
+      pages: infinite.pages.slice(0, maxPages),
+      pageParams: infinite.pageParams.slice(0, maxPages),
+    };
+  };
+}
+
 /** Delay before sweeping stores so the sweep stays off the startup path. */
 const SWEEP_DELAY_MS = 15_000;
 

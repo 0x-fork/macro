@@ -2,6 +2,7 @@ import type { SplitManager } from '@app/component/split-layout/layoutManager';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { URL_PARAMS } from '@block-channel/constants';
 import type { BlockOrchestrator } from '@core/orchestrator';
+import { seedChannelTargetFromPersistence } from '@queries/channel/target-warmup';
 
 export function getChannelParams(
   messageId: string,
@@ -43,6 +44,12 @@ export async function navigateToChannelMessage(
   const params = getChannelParams(messageId, threadId);
   const splitManager = options?.splitManager ?? globalSplitManager();
   if (!splitManager) return;
+
+  // If the persisted bottom-of-conversation cache already holds the target
+  // (top-level) message, restore it before the channel mounts so the view
+  // opens the default query variant and paints instantly from cache instead
+  // of blocking on a load-around fetch. Millisecond IDB read; best-effort.
+  await seedChannelTargetFromPersistence(channelId, threadId ?? messageId);
 
   const existing = splitManager.getSplitByContent('channel', channelId);
   if (existing) {

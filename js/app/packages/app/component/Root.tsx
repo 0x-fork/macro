@@ -57,6 +57,7 @@ import {
 import { useChatRenameWebsocketSync } from '@queries/chat';
 import { prefetchHistory } from '@queries/history/history';
 import { invalidateUserNotifications } from '@queries/notification/user-notifications';
+import { scheduleOpportunisticPrefetch } from '@queries/prefetch/opportunistic';
 import { QuerySyncProvider } from '@queries/sync/SyncProvider';
 import { MutationUndoProvider } from '@queries/undo';
 import { useReopenTrackedEntitiesOnReconnect } from '@service-connection/client';
@@ -459,6 +460,10 @@ function UserInfoSideEffects() {
       }
 
       if (!user || !user.authenticated) return;
+
+      // Warm caches for entities the user is likely to open (frecency,
+      // inbox, recent activity). Idle-scheduled; runs once per session.
+      scheduleOpportunisticPrefetch();
 
       if (posthog.instance._isIdentified() || identified) {
         return;

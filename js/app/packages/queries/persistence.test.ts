@@ -10,6 +10,7 @@ import {
   type PersistScope,
   readPersistedQueryData,
   setupQueryPersistence,
+  trimInfiniteQueryPages,
 } from './persistence';
 import type {
   PerQueryPersistence,
@@ -273,6 +274,21 @@ describe('setupQueryPersistence', () => {
     await Promise.resolve();
 
     expect(queryClient.getQueryData(messageQueryKey)).toEqual(restored);
+  });
+
+  it('trims infinite query pages via trimInfiniteQueryPages', () => {
+    const trim = trimInfiniteQueryPages(2);
+    expect(
+      trim(['notification'], {
+        pages: [1, 2, 3],
+        pageParams: ['a', 'b', 'c'],
+      })
+    ).toEqual({ pages: [1, 2], pageParams: ['a', 'b'] });
+    expect(trim(['notification'], { pages: [1], pageParams: ['a'] })).toEqual({
+      pages: [1],
+      pageParams: ['a'],
+    });
+    expect(trim(['notification'], { value: 1 })).toEqual({ value: 1 });
   });
 
   it('blanks the token when persisting document load bundles', () => {

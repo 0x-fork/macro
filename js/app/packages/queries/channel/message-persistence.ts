@@ -75,3 +75,13 @@ export function dehydrateChannelContentQuery(
     pageParams: data.pageParams.slice(0, MAX_PERSISTED_CHANNEL_MESSAGE_PAGES),
   };
 }
+
+/** True when the cache slice contains the given top-level message. */
+export function channelMessagesDataContains(
+  data: ChannelMessagesData,
+  messageId: string
+): boolean {
+  return data.pages.some((page) =>
+    page.items.some((message) => message.id === messageId)
+  );
+}

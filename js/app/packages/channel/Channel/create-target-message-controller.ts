@@ -3,6 +3,7 @@ import {
   getChannelMessagesQueryKey,
 } from '@queries/channel/channel-messages';
 import { isBottomOfConversationSlice } from '@queries/channel/message-persistence';
+import { isMessageInDefaultChannelCache } from '@queries/channel/target-warmup';
 import { queryClient } from '@queries/client';
 import { type Accessor, createEffect, on } from 'solid-js';
 import { createStore } from 'solid-js/store';
@@ -40,10 +41,23 @@ type TargetMessageData = {
 export function createTargetMessageController(
   options: CreateTargetMessageControllerOptions
 ) {
+  // When the target message is already in the default (bottom) cache —
+  // e.g. restored from persistence by a notification tap's pre-seed — mount
+  // the default query variant so the channel paints instantly from cache
+  // and just scroll to the target, instead of a load-around fetch.
+  const initialTargetIsCached =
+    options.initialTargetMessageId !== undefined &&
+    isMessageInDefaultChannelCache(
+      options.channelId(),
+      options.initialTargetMessageId
+    );
+
   const initialTargetMessageData: TargetMessageData = {
     activeTargetMessageId: options.initialTargetMessageId,
     activeTargetMessageReplyId: options.initialTargetMessageReplyId,
-    loadAroundMessageId: options.initialTargetMessageId,
+    loadAroundMessageId: initialTargetIsCached
+      ? undefined
+      : options.initialTargetMessageId,
     pendingScrollTargetId: options.initialTargetMessageId,
     pendingTargetReplyId: options.initialTargetMessageReplyId,
   };

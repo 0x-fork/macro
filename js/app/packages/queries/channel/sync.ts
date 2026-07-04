@@ -4,6 +4,7 @@ import type { ApiCountedReaction as CountedReaction } from '@service-storage/gen
 import type { ApiMessageAttachment as ApiAttachment } from '@service-storage/generated/schemas/apiMessageAttachment';
 import type { ApiMessageSender } from '@service-storage/generated/schemas/apiMessageSender';
 import { consumeNonce } from '../nonce';
+import { warmChannelOnIncomingMessage } from '../prefetch/opportunistic';
 import { ChannelNonceKeys } from './keys';
 import { senderFromStorageId } from './message-sender';
 import {
@@ -55,6 +56,10 @@ type CommsAttachmentPayload = {
  * - Catches edge cases like server-side message modifications
  */
 export function handleCommsMessage(payload: CommsMessagePayload): void {
+  // A channel messaging you now is the likeliest next open (its push
+  // notification points here) — warm its first page if nothing is cached.
+  warmChannelOnIncomingMessage(payload.channel_id);
+
   const isExternalUpdate = !consumeNonce(
     ChannelNonceKeys.MESSAGE,
     payload.nonce
