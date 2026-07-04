@@ -761,6 +761,23 @@ export const SoupViewList = (props: SoupViewListProps) => {
   const [focusEffectsEnabled, setFocusEffectsEnabled] = createSignal(false);
   const [moveInitialFocus, setMoveInitialFocus] = createSignal(true);
 
+  // Defer the heavy list render (rows transform + virtualizer + row DOM) to
+  // just after this view's first paint. Switching left-nav views mounts a
+  // fresh SoupView synchronously inside the click task; without the defer
+  // the browser can't paint until the whole list is built, which reads as
+  // the app hanging. With it, the panel swaps instantly to the view chrome
+  // plus a loading shimmer, and the list lands a frame later. The gate must
+  // be the FIRST Switch branch: reading rows() in any earlier condition
+  // would trigger the expensive memos before paint.
+  const [listRenderReady, setListRenderReady] = createSignal(false);
+  onMount(() => {
+    // rAF alone fires before the frame commits; the nested timeout lands
+    // right after the first paint.
+    requestAnimationFrame(() => {
+      setTimeout(() => setListRenderReady(true), 0);
+    });
+  });
+
   let initialLoad = true;
 
   // Initial load: focus first entity once rows arrive
@@ -768,14 +785,18 @@ export const SoupViewList = (props: SoupViewListProps) => {
   // and moveInitialFocus were not set correctly by the methods below. So
   // we need to also use them as deps for this effect. `initialLoad` should
   // handle not running after the initial load
-  createEffect(
-    on([rows, focusEffectsEnabled, moveInitialFocus], () => {
-      if (!focusEffectsEnabled() || !moveInitialFocus()) return;
-      if (!initialLoad || source.isLoading()) return;
-      focusFirstEntity();
-      initialLoad = false;
-    })
-  );
+  createEffect(() => {
+    // Deferred-list gate first: reading rows() before the view's first
+    // paint would rebuild the whole list synchronously inside the nav
+    // switch (see listRenderReady). Conditional tracking replaces the
+    // previous on([rows, ...]) form, which read rows eagerly at mount.
+    if (!listRenderReady()) return;
+    rows();
+    if (!focusEffectsEnabled() || !moveInitialFocus()) return;
+    if (!initialLoad || source.isLoading()) return;
+    focusFirstEntity();
+    initialLoad = false;
+  });
 
   // Focus first entity on filter/search changes
   createEffect(
@@ -1192,6 +1213,14 @@ export const SoupViewList = (props: SoupViewListProps) => {
               </Show>
               <StaticMarkdownContext>
                 <Switch>
+                  {/* Must stay the first branch: it keeps rows() (and its
+                      expensive upstream memos) from being read before the
+                      view's first paint. */}
+                  <Match when={!listRenderReady()}>
+                    <div class="flex-1 min-h-0 flex flex-col mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)">
+                      <LoadingBlock />
+                    </div>
+                  </Match>
                   <Match when={source.isFetching() && !rows().length}>
                     {/* Non-list states pad the chrome top themselves — the
                         panel leaves list views unpadded so rows can
