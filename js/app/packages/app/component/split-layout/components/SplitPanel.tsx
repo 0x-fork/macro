@@ -302,7 +302,10 @@ export function SplitPanel(props: SplitPanelProps) {
                     )}
                   >
                     <Suspense>
-                      <KeepAliveMount mount={props.split.mount} />
+                      <KeepAliveMount
+                        mount={props.split.mount}
+                        warmListViews={() => props.active}
+                      />
                     </Suspense>
                   </div>
                   <Show when={bottomPanel()}>

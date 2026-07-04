@@ -446,26 +446,37 @@ function newSplitId(): SplitId {
   );
 }
 
+/**
+ * Builds a ComponentMount outside the navigation flow — used by keep-alive
+ * warm-up to pre-build list view trees before their first visit.
+ */
+export function createComponentMount(
+  id: string,
+  params?: Record<string, unknown>
+): SplitMount {
+  const resolved = resolveComponent(id, params);
+  const [meta, setMeta] = createStore<ComponentMeta>(
+    resolved.initialMeta ?? {}
+  );
+  const updateMeta = (data: Omit<ComponentMeta, 'kind'>) => {
+    setMeta({ kind: id, ...data } as ComponentMeta);
+  };
+  return {
+    kind: 'component',
+    name: id,
+    params,
+    element: resolved.element,
+    meta,
+    updateMeta,
+  };
+}
+
 function createPinnedMount(
   orchestrator: BlockOrchestrator,
   content: SplitContent
 ): SplitMount {
   if (content.type === 'component') {
-    const resolved = resolveComponent(content.id, content.params);
-    const [meta, setMeta] = createStore<ComponentMeta>(
-      resolved.initialMeta ?? {}
-    );
-    const updateMeta = (data: Omit<ComponentMeta, 'kind'>) => {
-      setMeta({ kind: content.id, ...data } as ComponentMeta);
-    };
-    return {
-      kind: 'component',
-      name: content.id,
-      params: content.params,
-      element: resolved.element,
-      meta,
-      updateMeta,
-    };
+    return createComponentMount(content.id, content.params);
   }
 
   const blockType = resolveBlockAlias(content.type);

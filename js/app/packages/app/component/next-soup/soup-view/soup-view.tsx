@@ -62,7 +62,10 @@ import {
 } from '@app/component/PreviewPanel';
 import { SoupChatInput } from '@app/component/SoupChatInput';
 import { CollapsibleHeaderItem } from '@app/component/split-layout/components/CollapsibleHeaderItem';
-import { useKeepAliveVisible } from '@app/component/split-layout/components/keep-alive-visibility';
+import {
+  useKeepAliveContentKey,
+  useKeepAliveVisible,
+} from '@app/component/split-layout/components/keep-alive-visibility';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -454,9 +457,12 @@ export const SoupView = (props: SoupViewProps) => {
 
 const OwnedListViewProviders: FlowComponent = (props) => {
   const panel = useSplitPanelOrThrow();
-  // A top-level list view mounts exactly when the split's content switches
-  // to it, so the content id at mount IS this view's id.
-  const contentId = untrack(() => panel.handle.content().id);
+  // Inside keep-alive the tree's own content key is authoritative — warm-up
+  // builds trees while some other view is on screen. Otherwise a top-level
+  // list view mounts exactly when the split's content switches to it, so
+  // the content id at mount IS this view's id.
+  const contentId =
+    useKeepAliveContentKey() ?? untrack(() => panel.handle.content().id);
   const viewId = isListViewID(contentId) ? contentId : undefined;
   const soup = viewId ? panel.getSoupForView(viewId) : createSoupState();
   const visible = useKeepAliveVisible();
@@ -482,8 +488,16 @@ const SoupViewInner = (props: SoupViewProps) => {
   const registerViewHotkey = useViewHotkeyRegistrar();
   const soupView = useSoupView();
 
-  const entryState = panel.handle.currentEntryState();
-  const contentId = panel.handle.content().id;
+  // Warm-up builds this tree while another view is on screen: its entry
+  // state (and per-view preference keys) must come from this view's
+  // identity, not whatever entry is current. Mismatch = first visit.
+  const ownContentKey = useKeepAliveContentKey();
+  const contentId = ownContentKey ?? panel.handle.content().id;
+  const isOwnEntry = () =>
+    !ownContentKey || panel.handle.content().id === ownContentKey;
+  const entryState = untrack(isOwnEntry)
+    ? panel.handle.currentEntryState()
+    : undefined;
 
   const persistedFilters = entryState?.['search.filters'] as Query | undefined;
 
@@ -604,6 +618,7 @@ const SoupViewInner = (props: SoupViewProps) => {
   useSoupNotificationInvalidators();
 
   const mountContentId = untrack(() => {
+    if (ownContentKey) return ownContentKey;
     const content = panel.handle.content();
     return content.type === 'component' ? content.id : undefined;
   });
@@ -820,6 +835,9 @@ interface SoupViewListProps {
 
 export const SoupViewList = (props: SoupViewListProps) => {
   const panel = useSplitPanelOrThrow();
+  // The content id this keep-alive tree was built FOR; authoritative over
+  // the split's live content, which may be a different (warming) view.
+  const listOwnContentKey = useKeepAliveContentKey();
   const {
     soup,
     source,
@@ -952,6 +970,9 @@ export const SoupViewList = (props: SoupViewListProps) => {
   // Pinned for list views (this tree may be keep-alive parked); see the
   // matching memo in SoupViewInner.
   const mountedListView = untrack(() => {
+    if (listOwnContentKey && isListViewID(listOwnContentKey)) {
+      return listOwnContentKey;
+    }
     const { type, id } = panel.handle.content();
     return type === 'component' && isListViewID(id) ? id : undefined;
   });
@@ -1145,20 +1166,30 @@ export const SoupViewList = (props: SoupViewListProps) => {
   );
 
   const isProjectList = panel.handle.content().type === 'project';
-  const contentId = panel.handle.content().id;
+  const contentId = listOwnContentKey ?? panel.handle.content().id;
 
-  const readListEntryState = () =>
-    panel.handle.currentEntryState()?.[SOUP_LIST_STATE_ENTRY_KEY] as
+  // Warmed/parked trees must not read another entry's list state (scroll
+  // offset, focus, virtualizer measurements belong to the view on screen).
+  const readListEntryState = () => {
+    if (listOwnContentKey && panel.handle.content().id !== listOwnContentKey) {
+      return undefined;
+    }
+    return panel.handle.currentEntryState()?.[SOUP_LIST_STATE_ENTRY_KEY] as
       | SoupListEntryState
       | undefined;
+  };
 
   // Preview-pane open state is transient per history entry: captured into
   // per-entry state on nav-away and restored on back/forward. Read
   // synchronously in the body so the first render sees the correct value
-  // and we avoid a transient flash where the pane is closed.
-  const persistedPreview = panel.handle.currentEntryState()?.['soup.preview'] as
-    | string
-    | undefined;
+  // and we avoid a transient flash where the pane is closed. Warmed trees
+  // (own key ≠ live content) must not adopt another entry's preview.
+  const persistedPreview =
+    listOwnContentKey && panel.handle.content().id !== listOwnContentKey
+      ? undefined
+      : (panel.handle.currentEntryState()?.['soup.preview'] as
+          | string
+          | undefined);
   soup.setPreviewEntity(persistedPreview);
   // Captors run for the entry being navigated away from; a parked
   // keep-alive instance must not write its state into another view's

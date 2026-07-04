@@ -6,7 +6,10 @@ import {
   type Setter,
   untrack,
 } from 'solid-js';
-import { useKeepAliveVisible } from './components/keep-alive-visibility';
+import {
+  useKeepAliveContentKey,
+  useKeepAliveVisible,
+} from './components/keep-alive-visibility';
 import type { EntryState, NavigationCause } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 
@@ -38,8 +41,17 @@ export function useEntryState<T>(
   const panel = useSplitPanelOrThrow();
   const handle = panel.handle;
 
+  // Keep-alive warm-up builds trees while some OTHER content is on screen;
+  // reading the current entry's blob there would seed this tree with
+  // another view's state. A mismatched content key means "no persisted
+  // state" — exactly what a first visit would see.
+  const keepAliveContentKey = useKeepAliveContentKey();
   const persisted = untrack(() => {
-    const blob = (handle.content() as { state?: EntryState }).state;
+    const content = handle.content() as { id?: string; state?: EntryState };
+    if (keepAliveContentKey && content.id !== keepAliveContentKey) {
+      return undefined;
+    }
+    const blob = content.state;
     return blob && key in blob ? (blob[key] as T) : undefined;
   });
   const initial = persisted !== undefined ? persisted : options.default;

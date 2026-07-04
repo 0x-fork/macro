@@ -41,3 +41,19 @@ export const KeepAliveVisibilityProvider: FlowComponent<{
 export function useKeepAliveVisible(): Accessor<boolean> {
   return useContext(KeepAliveVisibilityContext) ?? ALWAYS_VISIBLE;
 }
+
+const KeepAliveContentKeyContext = createContext<string>();
+
+export const KeepAliveContentKeyProvider = KeepAliveContentKeyContext.Provider;
+
+/**
+ * The content id this keep-alive tree was created FOR (component view id
+ * or block id). Warm-up builds trees while some other content is on
+ * screen, so anything that initializes from "the current entry/content"
+ * (entry state, view id capture, per-view preference keys) must check the
+ * live content against this key and fall back to defaults on mismatch.
+ * Undefined outside keep-alive trees.
+ */
+export function useKeepAliveContentKey(): string | undefined {
+  return useContext(KeepAliveContentKeyContext);
+}

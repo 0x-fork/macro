@@ -18,15 +18,29 @@ import {
 import { useUserContext } from '@core/context/user';
 import type { ViewId } from '@core/types/view';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
-import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
+import {
+  type Component,
+  createEffect,
+  type JSXElement,
+  lazy,
+  onMount,
+  Show,
+} from 'solid-js';
 import { EmailCompose } from '../../../block-email/component/compose/Compose';
 import { SettingsPanelComponentWrapper } from '../settings/Settings';
+import { useKeepAliveVisible } from './components/keep-alive-visibility';
 import type { SplitContent } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 
 function usePageViewTracking(pageTitle: string) {
   const analytics = useAnalytics();
-  onMount(() => {
+  // Fire on first VISIBLE, not on mount: keep-alive warm-up builds these
+  // trees parked in the background, which must not count as a page view.
+  const visible = useKeepAliveVisible();
+  let tracked = false;
+  createEffect(() => {
+    if (tracked || !visible()) return;
+    tracked = true;
     analytics.pageView(pageTitle);
   });
 }

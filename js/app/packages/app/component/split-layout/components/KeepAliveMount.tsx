@@ -1,10 +1,12 @@
-import { isListViewID } from '@app/constants/list-views';
+import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import type { BlockName } from '@core/block';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
   blocks as BLOCK_REGISTRY,
   resolveBlockAlias,
 } from '@core/constant/allBlocks';
+import { useUserContext } from '@core/context/user';
+import { isMobile } from '@core/mobile/isMobile';
 import {
   createEffect,
   createRoot,
@@ -15,8 +17,11 @@ import {
   untrack,
 } from 'solid-js';
 import { Dynamic, insert } from 'solid-js/web';
-import type { SplitMount } from '../layoutManager';
-import { KeepAliveVisibilityProvider } from './keep-alive-visibility';
+import { createComponentMount, type SplitMount } from '../layoutManager';
+import {
+  KeepAliveContentKeyProvider,
+  KeepAliveVisibilityProvider,
+} from './keep-alive-visibility';
 
 /**
  * Live block trees retained per panel: the active mount plus recently
@@ -94,7 +99,26 @@ function shouldDeferSwap(prev: SplitMount, next: SplitMount): boolean {
  * shimmer overlay and the nav's active state, and the teardown+mount runs
  * right after that paint.
  */
-export function KeepAliveMount(props: { mount: SplitMount }) {
+/**
+ * Sidebar list views pre-built at idle after auth so the FIRST visit of a
+ * session reattaches a warm tree instead of building cold. Ordered by how
+ * likely the user is to click them next.
+ */
+const WARM_LIST_VIEWS = [
+  LIST_VIEW_ID.inbox,
+  LIST_VIEW_ID.mail,
+  LIST_VIEW_ID.documents,
+  LIST_VIEW_ID.agents,
+  LIST_VIEW_ID.tasks,
+] as const;
+
+const WARM_START_DELAY_MS = 4_000;
+
+export function KeepAliveMount(props: {
+  mount: SplitMount;
+  /** Warm-up only runs for the active panel to bound total tree cost. */
+  warmListViews?: () => boolean;
+}) {
   const owner = getOwner();
   const cache = new Map<string, CacheEntry>();
   let hostEl: HTMLDivElement | undefined;
@@ -169,7 +193,7 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
     }
   };
 
-  const showKeepAlive = (mount: SplitMount) => {
+  const ensureEntry = (mount: SplitMount): CacheEntry => {
     const key = keepAliveKey(mount);
     let entry = cache.get(key);
     if (!entry) {
@@ -177,18 +201,27 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
       container.style.display = 'contents';
       let dispose = () => {};
       const [active, setActive] = createSignal(false);
+      const contentKey = mount.kind === 'component' ? mount.name : mount.id;
       createRoot((d) => {
         dispose = d;
         insert(
           container,
           <KeepAliveVisibilityProvider value={active}>
-            {mount.element()}
+            <KeepAliveContentKeyProvider value={contentKey}>
+              {mount.element()}
+            </KeepAliveContentKeyProvider>
           </KeepAliveVisibilityProvider>
         );
       }, owner);
       entry = { container, dispose, lastUsed: 0, setActive };
       cache.set(key, entry);
     }
+    return entry;
+  };
+
+  const showKeepAlive = (mount: SplitMount) => {
+    const key = keepAliveKey(mount);
+    const entry = ensureEntry(mount);
     entry.lastUsed = Date.now();
     if (entry !== activeEntry) {
       deactivateCurrent();
@@ -210,6 +243,39 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
       return;
     }
     showKeepAlive(mount);
+  });
+
+  // Pre-build the sidebar list views at idle once authenticated, so first
+  // visits this session reattach instead of building cold. Trees are
+  // created parked (inactive): their entry-state/hotkey/portal integrations
+  // all gate on visibility and the content key, and their queries mount and
+  // restore from IDB in the background — a fresh page load warms itself.
+  const { isAuthenticated } = useUserContext();
+  let warmingStarted = false;
+  createEffect(() => {
+    if (warmingStarted) return;
+    if (isMobile()) return; // 5 extra live trees is too heavy for phones.
+    if (!props.warmListViews?.()) return;
+    if (isAuthenticated() !== true) return;
+    warmingStarted = true;
+
+    const queue = [...WARM_LIST_VIEWS];
+    const scheduleIdle =
+      typeof requestIdleCallback === 'function'
+        ? (cb: () => void) =>
+            requestIdleCallback(() => cb(), { timeout: 2_000 })
+        : (cb: () => void) => setTimeout(cb, 200);
+    const warmNext = () => {
+      if (cleanedUp) return;
+      const next = queue.shift();
+      if (!next) return;
+      const mount = createComponentMount(next);
+      if (!cache.has(keepAliveKey(mount))) {
+        ensureEntry(mount);
+      }
+      scheduleIdle(warmNext);
+    };
+    setTimeout(() => scheduleIdle(warmNext), WARM_START_DELAY_MS);
   });
 
   onCleanup(() => {
