@@ -3,9 +3,17 @@ import {
   blocks as BLOCK_REGISTRY,
   resolveBlockAlias,
 } from '@core/constant/allBlocks';
-import { createEffect, createRoot, getOwner, onCleanup, Show } from 'solid-js';
+import {
+  createEffect,
+  createRoot,
+  createSignal,
+  getOwner,
+  onCleanup,
+  Show,
+} from 'solid-js';
 import { Dynamic, insert } from 'solid-js/web';
 import type { SplitMount } from '../layoutManager';
+import { KeepAliveVisibilityProvider } from './keep-alive-visibility';
 
 /**
  * Live trees retained per panel: the active mount plus recently viewed ones.
@@ -20,6 +28,8 @@ type CacheEntry = {
   container: HTMLDivElement;
   dispose: () => void;
   lastUsed: number;
+  /** Gates the tree's portals/shared-state writes; see useKeepAliveVisible. */
+  setActive: (active: boolean) => void;
 };
 
 function keepAliveKey(mount: BlockMount): string {
@@ -50,6 +60,12 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
   const owner = getOwner();
   const cache = new Map<string, CacheEntry>();
   let hostEl: HTMLDivElement | undefined;
+  let activeEntry: CacheEntry | undefined;
+
+  const deactivateCurrent = () => {
+    activeEntry?.setActive(false);
+    activeEntry = undefined;
+  };
 
   const evictBeyondCap = (activeKey: string) => {
     while (cache.size > KEEP_ALIVE_CAP) {
@@ -74,14 +90,25 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
       const container = document.createElement('div');
       container.style.display = 'contents';
       let dispose = () => {};
+      const [active, setActive] = createSignal(false);
       createRoot((d) => {
         dispose = d;
-        insert(container, mount.element());
+        insert(
+          container,
+          <KeepAliveVisibilityProvider value={active}>
+            {mount.element()}
+          </KeepAliveVisibilityProvider>
+        );
       }, owner);
-      entry = { container, dispose, lastUsed: 0 };
+      entry = { container, dispose, lastUsed: 0, setActive };
       cache.set(key, entry);
     }
     entry.lastUsed = Date.now();
+    if (entry !== activeEntry) {
+      deactivateCurrent();
+      activeEntry = entry;
+      entry.setActive(true);
+    }
     if (hostEl && entry.container.parentElement !== hostEl) {
       hostEl.replaceChildren(entry.container);
     }
@@ -90,7 +117,11 @@ export function KeepAliveMount(props: { mount: SplitMount }) {
 
   createEffect(() => {
     const mount = props.mount;
-    if (!isKeepAliveMount(mount)) return;
+    if (!isKeepAliveMount(mount)) {
+      // A non-keep-alive mount is showing; parked trees must go dormant.
+      deactivateCurrent();
+      return;
+    }
     showKeepAlive(mount);
   });
 

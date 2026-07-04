@@ -7,6 +7,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { useSplitPanelOrThrow } from '../layoutUtils';
+import { useKeepAliveVisible } from './keep-alive-visibility';
 
 export function SplitToolbar(props: { ref: Setter<HTMLDivElement | null> }) {
   const panel = useSplitPanelOrThrow();
@@ -63,8 +64,10 @@ export function SplitToolbarLeft(
     }
   });
 
+  const visible = useKeepAliveVisible();
+
   return (
-    <Show when={panel.layoutRefs.toolbarLeft}>
+    <Show when={visible() && panel.layoutRefs.toolbarLeft}>
       <Portal
         ref={(div) => {
           setPortalRef(div);
@@ -96,8 +99,10 @@ export function SplitToolbarRight(props: ParentProps<{ order?: number }>) {
       ref.classList.remove(...halfWidthClasses());
     }
   });
+  const visible = useKeepAliveVisible();
+
   return (
-    <Show when={panel.layoutRefs.toolbarRight}>
+    <Show when={visible() && panel.layoutRefs.toolbarRight}>
       <Portal
         ref={(div) => {
           setPortalRef(div);

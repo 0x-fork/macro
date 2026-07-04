@@ -39,6 +39,7 @@ import {
 } from '../context';
 import { useSplitPanelOrThrow } from '../layoutUtils';
 import { HeaderIsland } from './HeaderIsland';
+import { useKeepAliveVisible } from './keep-alive-visibility';
 
 export function StaticSplitLabel(props: {
   label: string;
@@ -49,7 +50,10 @@ export function StaticSplitLabel(props: {
   colorIcon?: boolean;
 }) {
   const panel = useSplitPanelOrThrow();
+  const visible = useKeepAliveVisible();
   createEffect(() => {
+    // Parked keep-alive trees must not rename the split they're parked in.
+    if (!visible()) return;
     panel.handle.setDisplayName(props.label);
   });
   const openTitleFileMenu = (e: MouseEvent) => {
@@ -113,8 +117,11 @@ export function SplitLabel(props: {
   maxDisplayLength?: number;
 }) {
   const panel = useSplitPanelOrThrow();
+  const visible = useKeepAliveVisible();
 
   createEffect(() => {
+    // Parked keep-alive trees must not rename the split they're parked in.
+    if (!visible()) return;
     panel.handle.setDisplayName(props.label);
   });
 
@@ -194,6 +201,7 @@ export function BlockItemSplitLabel(props: {
   const displayName = () => props.name?.() ?? fileName();
   const blockName = useBlockAliasedName();
   const isOwner = useIsDocumentOwner();
+  const visible = useKeepAliveVisible();
 
   const targetType = () => {
     // archive files have a special icon
@@ -207,6 +215,8 @@ export function BlockItemSplitLabel(props: {
   };
 
   createEffect(() => {
+    // Parked keep-alive trees must not rename the split they're parked in.
+    if (!visible()) return;
     panel.handle.setDisplayName(displayName());
   });
 
@@ -305,9 +315,10 @@ function SplitLabelContextMenu(props: ParentProps) {
 
 export function SplitTitleFileMenu(props: ParentProps) {
   const panel = useSplitPanelOrThrow();
+  const visible = useKeepAliveVisible();
 
   return (
-    <Show when={panel.titleFileMenuRef()}>
+    <Show when={visible() && panel.titleFileMenuRef()}>
       <Portal
         mount={panel.titleFileMenuRef()}
         ref={(div) => {

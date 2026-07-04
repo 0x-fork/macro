@@ -40,6 +40,7 @@ import { SplitLayoutContext, SplitPanelContext } from '../context';
 import type { SplitContent } from '../layoutManager';
 import { canSpotlight } from '../utils/canSpotlight';
 import { HeaderIsland } from './HeaderIsland';
+import { useKeepAliveVisible } from './keep-alive-visibility';
 
 function getEntitySplitContent(data: EntityDragEvent['draggable']['data']):
   | {
@@ -489,9 +490,10 @@ export function SplitHeaderLeft(props: ParentProps) {
   const ctx = useContext(SplitPanelContext);
   if (!ctx)
     throw new Error('<SplitHeaderLeft> must be used within a <SplitLayout>');
+  const visible = useKeepAliveVisible();
 
   return (
-    <Show when={ctx.layoutRefs.headerLeft}>
+    <Show when={visible() && ctx.layoutRefs.headerLeft}>
       <Portal
         mount={ctx.layoutRefs.headerLeft}
         ref={(div) => (div.style.display = 'contents')}
@@ -506,9 +508,10 @@ export function SplitHeaderRight(props: ParentProps) {
   const ctx = useContext(SplitPanelContext);
   if (!ctx)
     throw new Error('<SplitHeaderRight> must be used within a <SplitLayout>');
+  const visible = useKeepAliveVisible();
 
   return (
-    <Show when={ctx.layoutRefs.headerRight}>
+    <Show when={visible() && ctx.layoutRefs.headerRight}>
       <Portal
         mount={ctx.layoutRefs.headerRight}
         ref={(div) => (div.style.display = 'contents')}
