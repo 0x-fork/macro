@@ -30,14 +30,13 @@ export {
   type BuildEntityDataArgs,
   buildEntityData,
 } from './utils/buildEntityData';
-export { createEntityDraggable } from './utils/draggable';
-
 export { unreadFilterFn } from './utils/filter';
 export {
   filterNotDoneNotifications,
   filterValidNotifications,
   toNotificationEntity,
 } from './utils/notification';
+export { pressActivation } from './utils/press';
 export { useIsShared } from './utils/shared';
 export {
   getPropertyOptionLabel,

@@ -1,15 +1,14 @@
 import '@entity/composed/ListEntity.css';
 import { EntityRow, EntityRowContext } from '@app/component/mobile/EntityRow';
-import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import {
-  createEntityDraggable,
   Entity,
   filterNotDoneNotifications,
   filterValidNotifications,
   isWithNotification,
+  pressActivation,
   unreadFilterFn,
   useIsShared,
 } from '@entity';
@@ -31,7 +30,6 @@ import {
   getStreamState,
   subscribeToStreamState,
 } from '@service-connection/stream-events';
-import { mergeRefs } from '@solid-primitives/refs';
 import { cn } from '@ui/utils/classname';
 import {
   createEffect,
@@ -123,24 +121,19 @@ export function TaskListEntity(props: TaskListEntityProps) {
     onProjectClick: props.onProjectClick,
   });
 
-  const draggable = createEntityDraggable({
-    entity: props.entity,
-    splitId: useSplitPanel()?.handle?.id,
-  });
-
   const isWide = useListLayout()?.isWide ?? (() => true);
 
   return (
     <Entity.Root
       entity={props.entity}
-      onClick={(e) => {
+      onMouseDown={pressActivation((e) => {
         if (e.metaKey && props.onChecked) {
           props.onChecked(!props.checked, e.shiftKey);
           return;
         }
         props.onClick?.(e);
-      }}
-      ref={mergeRefs(props.ref, draggable)}
+      })}
+      ref={props.ref}
       class={cn(
         'soup-list-entity @container/entity w-[calc(100%-0.5rem)] mr-1 relative group/narrow flex flex-col py-0.5 rounded-lg',
         {

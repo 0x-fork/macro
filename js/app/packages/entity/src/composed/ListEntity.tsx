@@ -1,6 +1,5 @@
 import './ListEntity.css';
 import { EntityRow, EntityRowContext } from '@app/component/mobile/EntityRow';
-import { useSplitPanel } from '@app/component/split-layout/layoutUtils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
@@ -14,7 +13,6 @@ import {
   getStreamState,
   subscribeToStreamState,
 } from '@service-connection/stream-events';
-import { mergeRefs } from '@solid-primitives/refs';
 import { cn } from '@ui';
 import {
   createEffect,
@@ -35,12 +33,12 @@ import {
 import { isChannelEntity, isEmailEntity } from '../types/entity';
 import { isWithNotification } from '../types/notification';
 import { isSearchEntity } from '../types/search';
-import { createEntityDraggable } from '../utils/draggable';
 import { unreadFilterFn } from '../utils/filter';
 import {
   filterNotDoneNotifications,
   filterValidNotifications,
 } from '../utils/notification';
+import { pressActivation } from '../utils/press';
 import { useIsShared } from '../utils/shared';
 import { NarrowInboxLayout } from './list-entity/narrow-inbox-layout';
 import { NarrowLayout } from './list-entity/narrow-layout';
@@ -145,11 +143,6 @@ export function ListEntity(props: ListEntityProps) {
     onProjectClick: props.onProjectClick,
   });
 
-  const draggable = createEntityDraggable({
-    entity: props.entity,
-    splitId: useSplitPanel()?.handle?.id,
-  });
-
   const isWide = useListLayout()?.isWide ?? (() => true);
 
   const mobileStacks = createMemo(() => {
@@ -189,14 +182,14 @@ export function ListEntity(props: ListEntityProps) {
   return (
     <Entity.Root
       entity={props.entity}
-      onClick={(e) => {
+      onMouseDown={pressActivation((e) => {
         if (e.metaKey && props.onChecked) {
           props.onChecked(!props.checked, e.shiftKey);
           return;
         }
         props.onClick?.(e);
-      }}
-      ref={mergeRefs(props.ref, draggable)}
+      })}
+      ref={props.ref}
       class={cn(
         'soup-list-entity rounded-lg @container/entity w-[calc(100%-0.5rem)] mr-1 relative group/narrow flex flex-col py-0.5',
         {

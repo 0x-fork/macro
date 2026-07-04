@@ -1,4 +1,5 @@
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { pressActivation } from '@entity';
 import { cn } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 
@@ -34,6 +35,8 @@ function Root(props: RootProps): JSX.Element {
     event.preventDefault();
     props.onClick?.(event as unknown as MouseEvent);
   };
+  // Rows act on press (mousedown), not click — see pressActivation.
+  const onMouseDown = pressActivation((event) => props.onClick?.(event));
 
   return (
     <div
@@ -53,7 +56,7 @@ function Root(props: RootProps): JSX.Element {
       )}
       role={interactive() ? 'button' : undefined}
       tabIndex={interactive() ? 0 : undefined}
-      onClick={props.onClick}
+      onMouseDown={onMouseDown}
       onKeyDown={onKeyDown}
     >
       {props.children}
