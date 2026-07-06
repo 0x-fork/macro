@@ -7537,6 +7537,7 @@ name = "macro_event_topics"
 version = "0.1.0"
 dependencies = [
  "sealed",
+ "serde_json",
  "thiserror 2.0.18",
  "workspace-hack",
 ]
@@ -15073,7 +15074,9 @@ dependencies = [
  "libc",
  "macro_aws_config",
  "macro_env_var",
+ "macro_event_topics",
  "macro_queues",
+ "rdkafka",
  "serde",
  "serde_json",
  "serde_yaml",
