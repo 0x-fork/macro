@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     rc::Rc,
     sync::{Arc, LazyLock},
 };
@@ -25,7 +25,7 @@ use crate::{
     generated::schema::InitializeFromSnapshotRequest,
     keepalive::{DEFAULT_TIME_TO_LIVE, keepalive},
     mutex::Mutex,
-    socket::{Socket, protocol},
+    socket::{InboundBuffers, Socket, protocol},
     state::DocumentState,
     storage::{
         SessionStorage, backends::durable_kv::DurableKVStorage, get_snapshot_storage,
@@ -117,6 +117,8 @@ pub struct DocumentSyncSession {
     awareness: EphemeralStore,
     /// a map from websocket's ID's to websocket metadata
     ws_meta_map: Arc<Mutex<WsMetaMap>>,
+    /// partial inbound messages being reassembled, keyed by websocket id
+    inbound: InboundBuffers,
 }
 
 mod u64_serde_strings {
@@ -300,11 +302,15 @@ async fn bump_alarm(state: &State) -> Result<()> {
 
 impl DocumentSyncSession {
     pub(crate) fn socket_for(&self, ws: &WebSocket) -> Socket {
-        Socket::new(ws.clone())
+        Socket::new(ws.clone(), self.inbound.clone())
     }
 
     pub(crate) fn get_sockets(&self) -> Vec<Socket> {
-        self.state.get_websockets().into_iter().map(Socket::new).collect()
+        self.state
+            .get_websockets()
+            .into_iter()
+            .map(|ws| Socket::new(ws, self.inbound.clone()))
+            .collect()
     }
 
     async fn inner_fetch(&self, req: Request) -> Result<Response> {
@@ -819,6 +825,7 @@ impl DurableObject for DocumentSyncSession {
             session_storage: Mutex::new(None),
             awareness: EphemeralStore::new(5_000),
             ws_meta_map: Arc::new(Mutex::new(Default::default())),
+            inbound: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -855,7 +862,7 @@ impl DurableObject for DocumentSyncSession {
     async fn websocket_message(&self, ws: WebSocket, msg: WebSocketIncomingMessage) -> Result<()> {
         const PONG: &str = "pong";
         const PING: &str = "ping";
-        let binary_message = match msg {
+        let frame = match msg {
             WebSocketIncomingMessage::String(message) => {
                 // TODO do keepalive?
                 if message == PING {
@@ -868,13 +875,21 @@ impl DurableObject for DocumentSyncSession {
             WebSocketIncomingMessage::Binary(bm) => bm,
         };
 
+        // Reassemble the wire frames into a whole message before processing;
+        // small messages arrive in a single frame and pass straight through.
+        let socket = self.socket_for(&ws);
+        let ws_id = get_ws_id(&self.state, &ws)?;
+        let Some(message) = socket.receive(&ws_id, &frame)? else {
+            return Ok(()); // frame buffered; awaiting the rest of the message
+        };
+
         protocol::process_message(
-            &self.socket_for(&ws),
+            &socket,
             &self.document_id().await?,
             &*self.document_state().await?,
             &*self.session_storage().await?,
             &self.awareness,
-            binary_message,
+            message,
             self,
         )
         .await
@@ -961,6 +976,12 @@ impl DurableObject for DocumentSyncSession {
         _reason: String,
         _was_clean: bool,
     ) -> Result<()> {
+        // Drop any half-received message from this connection so a partial left
+        // by a mid-message disconnect doesn't linger.
+        if let Ok(ws_id) = get_ws_id(&self.state, &ws) {
+            self.socket_for(&ws).forget(&ws_id);
+        }
+
         let peer_ids = Wsm::new(self, &ws).get_peer_ids().await?;
         for peer_id in peer_ids {
             self.awareness.delete(&peer_id.to_string());

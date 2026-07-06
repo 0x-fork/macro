@@ -24,7 +24,7 @@ import {
   WebsocketConnectionState,
 } from '@websocket';
 import { platformWebSocketFactory } from '@websocket/platform/factory';
-import { framedWebSocketFactory } from '@websocket/platform/framed-websocket';
+import { framedWebSocketFactory } from '@websocket/platform/framing';
 import {
   createReconnectEffect,
   createSocketEffect,

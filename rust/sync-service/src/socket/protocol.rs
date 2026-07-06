@@ -22,7 +22,11 @@ pub fn send_initial_sync(socket: &Socket, snapshot: &[u8], awareness: &[u8]) -> 
 }
 
 /// Broadcasts an awareness update to every connected peer except `from`.
-pub fn broadcast_awareness(dss: &DocumentSyncSession, from: &Socket, awareness: &[u8]) -> Result<()> {
+pub fn broadcast_awareness(
+    dss: &DocumentSyncSession,
+    from: &Socket,
+    awareness: &[u8],
+) -> Result<()> {
     for socket in dss.get_sockets() {
         if socket == *from {
             continue;
