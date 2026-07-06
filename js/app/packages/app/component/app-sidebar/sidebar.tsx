@@ -40,6 +40,7 @@ import { inboxIconProps } from '@core/component/inboxIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_CALLS,
+  ENABLE_CODEBASE,
   ENABLE_CRM,
   ENABLE_HOME_OVERRIDE,
   ENABLE_NEW_PRICING_OVERRIDE,
@@ -73,6 +74,7 @@ import { ContextMenu } from '@kobalte/core/context-menu';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretUpIcon from '@phosphor/caret-up.svg';
 import GearIcon from '@phosphor/gear.svg';
+import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
 import HomeIcon from '@phosphor/house.svg';
 import SignOutIcon from '@phosphor/sign-out.svg';
 import { useEmailLinksQuery } from '@queries/email/link';
@@ -682,6 +684,15 @@ const CALLS_LINK: SidebarItem = {
   hotkeyToken: TOKENS.sidebar.goTo.calls,
 };
 
+const CODEBASE_LINK: SidebarItem = {
+  id: 'codebase',
+  label: 'Codebase',
+  href: '/codebase',
+  icon: GitPullRequestIcon,
+  hotkey: 'g',
+  hotkeyToken: TOKENS.sidebar.goTo.codebase,
+};
+
 const DASHBOARD_LINK: SidebarItem = {
   id: 'home',
   label: 'Home',
@@ -726,7 +737,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
   const [hotkeyVisible, setHotkeyVisible] = createSignal(false);
 
-  const visibleLinks = createMemo((): SidebarItem[] => {
+  const buildLinks = (): SidebarItem[] => {
     let links: SidebarItem[] = [...SIDEBAR_LINKS];
 
     if (homeViewEnabled().enabled) {
@@ -738,23 +749,25 @@ export const AppSidebar = (props: AppSidebarProps) => {
       links = [...links.slice(0, idx + 1), CALLS_LINK, ...links.slice(idx + 1)];
     }
 
-    return links.filter((link) => !link.hiddenFromSidebar);
-  });
-
-  const hotkeyLinks = createMemo((): SidebarItem[] => {
-    let links: SidebarItem[] = [...SIDEBAR_LINKS];
-
-    if (homeViewEnabled().enabled) {
-      links = [DASHBOARD_LINK, ...links];
-    }
-
-    if (ENABLE_CALLS()) {
-      const idx = links.findIndex((l) => l.id === 'channels');
-      links = [...links.slice(0, idx + 1), CALLS_LINK, ...links.slice(idx + 1)];
+    if (ENABLE_CODEBASE()) {
+      // Below Calls when present, otherwise directly below Channels.
+      const anchor = ENABLE_CALLS() ? 'calls' : 'channels';
+      const idx = links.findIndex((l) => l.id === anchor);
+      links = [
+        ...links.slice(0, idx + 1),
+        CODEBASE_LINK,
+        ...links.slice(idx + 1),
+      ];
     }
 
     return links;
-  });
+  };
+
+  const visibleLinks = createMemo((): SidebarItem[] =>
+    buildLinks().filter((link) => !link.hiddenFromSidebar)
+  );
+
+  const hotkeyLinks = createMemo((): SidebarItem[] => buildLinks());
 
   const resetHotkeysState = () => {
     setHotkeyVisible(false);

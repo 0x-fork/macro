@@ -32,6 +32,17 @@ export default defineConfig({
         },
       },
       {
+        // Codebase view tests (scoped — the rest of packages/app isn't wired
+        // into vitest yet).
+        extends: './packages/queries/vitest.config.ts',
+        test: {
+          include: [
+            'packages/app/component/codebase/**/*.{test,spec}.{ts,tsx}',
+          ],
+          name: 'app-codebase',
+        },
+      },
+      {
         test: {
           include: ['scripts/**/*.{test,spec}.{ts,tsx}'],
           name: 'scripts',

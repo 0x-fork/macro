@@ -302,6 +302,10 @@ const ROUTES: RouteDefinition[] = [
     component: LAYOUT_ROUTE.component,
   },
   {
+    path: '/codebase',
+    component: LAYOUT_ROUTE.component,
+  },
+  {
     path: '/companies',
     component: LAYOUT_ROUTE.component,
   },

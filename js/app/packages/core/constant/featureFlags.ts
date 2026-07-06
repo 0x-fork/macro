@@ -370,6 +370,19 @@ export function ENABLE_CALLS(): boolean {
   return analytics.posthog.isFeatureEnabled('enable-calls') ?? false;
 }
 
+// Codebase view: sidebar tab combining GitHub PRs, tasks, and delivery
+// insights. PostHog-gated with a dev-mode default.
+export const ENABLE_CODEBASE_FLAG = 'enable-codebase';
+const ENABLE_CODEBASE_OVERRIDE = DEV_MODE_ENV ? true : undefined;
+
+export function ENABLE_CODEBASE(): boolean {
+  if (ENABLE_CODEBASE_OVERRIDE !== undefined) {
+    return ENABLE_CODEBASE_OVERRIDE;
+  }
+
+  return analytics.posthog.isFeatureEnabled(ENABLE_CODEBASE_FLAG) ?? false;
+}
+
 export const ENABLE_NEW_ONBOARDING_OVERRIDE = DEV_MODE_ENV ? true : undefined;
 
 export const ENABLE_NEW_LOGIN_OVERRIDE = DEV_MODE_ENV ? true : undefined;

@@ -1,5 +1,6 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { getViewPreset } from '@app/component/app-sidebar/soup-filter-presets';
+import { CodebaseView } from '@app/component/codebase/codebase-view';
 import { Home } from '@app/component/home';
 import { queryStateFrom } from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
@@ -12,6 +13,7 @@ import { useIsAuthenticated } from '@core/auth';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
   DEV_MODE_ENV,
+  ENABLE_CODEBASE,
   ENABLE_CRM,
   LOCAL_ONLY,
 } from '@core/constant/featureFlags';
@@ -267,6 +269,19 @@ registerComponent(
         initialGroupBy={preset?.groupBy}
       />
     );
+  })
+);
+
+registerComponent(
+  'codebase',
+  withAuth(() => {
+    // Registered even when the feature is off so direct navigation / restored
+    // splits redirect instead of throwing in resolveComponent.
+    if (!ENABLE_CODEBASE()) {
+      return <RedirectSplit to={{ type: 'component', id: 'inbox' }} />;
+    }
+    usePageViewTracking('codebase');
+    return <CodebaseView />;
   })
 );
 

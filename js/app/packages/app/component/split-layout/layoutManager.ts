@@ -140,6 +140,7 @@ export type PopoverSplitHandle = {
 
 export type ReferredFrom =
   | ListView
+  | 'codebase'
   | 'kommand-menu'
   | 'mention'
   | 'attachment'

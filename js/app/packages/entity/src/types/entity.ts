@@ -49,6 +49,12 @@ export type GithubPullRequestEntity = ForeignEntityBase & {
     repo: string;
     url: string;
     status: 'open' | 'merged' | 'closed';
+    /**
+     * True when GitHub reports the pull request as a draft. Enrichment-only:
+     * the backend doesn't persist it yet, so it's absent on most records and
+     * draft PRs fall back to `status: 'open'`.
+     */
+    draft?: boolean;
     additions: number;
     deletions: number;
     comments: GithubPullRequestComment[];

@@ -687,11 +687,12 @@ export const mapApiSoupItemToEntity = (item: DisplayableSoupItem): SoupEntity =>
       return out;
     })
     .with({ tag: 'foreignEntity' }, (item) => {
-      // `authorLogin`/`authorId` are enrichment-only fields the backend now
-      // returns but that aren't on the base generated schema yet.
+      // `authorLogin`/`authorId`/`draft` are enrichment-only fields the
+      // backend now returns but that aren't on the base generated schema yet.
       const metadata = item.data.metadata as unknown as GithubPullRequest & {
         authorLogin?: string | null;
         authorId?: number | null;
+        draft?: boolean | null;
       };
 
       let status: GithubPullRequestEntity['metadata']['status'] = 'open';
@@ -720,6 +721,7 @@ export const mapApiSoupItemToEntity = (item: DisplayableSoupItem): SoupEntity =>
           repo: metadata.repo,
           url: metadata.url,
           status: status,
+          draft: metadata.draft ?? undefined,
           additions: metadata.additions ?? 0,
           deletions: metadata.deletions ?? 0,
           comments: metadata.comments ?? [],
