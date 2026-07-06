@@ -8,7 +8,7 @@ mod test;
 use crate::domain::{
     models::{
         AccessError, AccessLevel, CallChannelInfo, ChannelRoleResult, CrmEntityAccess, EntityType,
-        UserTeamInfo,
+        MessageThreadParent, UserTeamInfo,
     },
     ports::AccessRepository,
 };
@@ -243,6 +243,16 @@ impl AccessRepository for PgAccessRepository {
         channel_id: &Uuid,
     ) -> Result<Vec<MacroUserIdStr<'static>>, AccessError> {
         queries::channel_users::get_channel_users(&self.pool, channel_id)
+            .await
+            .map_err(|_| AccessError::Internal)
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn get_message_thread_parent(
+        &self,
+        message_id: &Uuid,
+    ) -> Result<Option<MessageThreadParent>, AccessError> {
+        queries::message_thread_parent::get_message_thread_parent(&self.pool, message_id)
             .await
             .map_err(|_| AccessError::Internal)
     }

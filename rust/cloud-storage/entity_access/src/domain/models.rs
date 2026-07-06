@@ -252,6 +252,19 @@ pub struct Entity {
     pub entity_type: EntityType,
 }
 
+/// The parent entity of a message thread (`comms_messages` row).
+///
+/// Kept stringly typed: the parent columns are the soft
+/// `(parent_type, parent_id)` reference pair, and unknown types must not fail
+/// resolution (they resolve to no access instead).
+#[derive(Debug, Clone)]
+pub struct MessageThreadParent {
+    /// The snake_case entity type string from `comms_messages.parent_type`.
+    pub entity_type: String,
+    /// The parent entity id.
+    pub entity_id: String,
+}
+
 /// The entity access auth type
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(untagged)]

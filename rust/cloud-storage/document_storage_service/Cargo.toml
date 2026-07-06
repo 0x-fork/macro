@@ -65,6 +65,7 @@ crm = { path = "../crm" }
 document_sub_type = { path = "../document_sub_type" }
 documents_hex = { path = "../documents", package = "documents" }
 embedding = { path = "../embedding" }
+message_threads = { path = "../message_threads" }
 task_dedup = { path = "../task_dedup" }
 dynamodb_client = { path = "../dynamodb_client" }
 email = { path = "../email", features = ["outbound", "ports"] }

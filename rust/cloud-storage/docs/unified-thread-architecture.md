@@ -1,6 +1,6 @@
 # Unified Thread Architecture — Research & Migration Plan
 
-**Status:** Research / proposal
+**Status:** Research / proposal — with a draft implementation of phases 1–2 on this branch (see §9)
 **Scope:** Unify channel threads and comment threads into a single "message thread on any entity" abstraction; migrate existing comment threads to the channel-message shape; assess AI chat (and email) as future candidates.
 
 ---
@@ -261,6 +261,33 @@ Email threads are an immutable provider mirror (per-inbox rows keyed by `provide
 | 6 | Evaluate `ChatMessage` unification | Decision gate, not a commitment |
 
 ---
+
+## 9. Draft implementation (phases 1–2) on this branch
+
+What exists in code, and what deliberately does not yet.
+
+### Implemented
+
+**Schema** (`macro_db_client/migrations/`):
+- `20260706190536_message_parent_entity.sql` — nullable `parent_type`/`parent_id` on `comms_messages` (NULL = legacy channel row), backfill, `channel_id` relaxed to NULL with a consistency CHECK, expression indexes on the `COALESCE(parent_type,'channel')` form, and the `comms_thread_details` side table (resolved, `mark_id`, legacy identity).
+- `20260706190546_comment_thread_migration_scaffolding.sql` — `legacy_comment_message_map` (per-comment old→new id map) and `"ThreadAnchor"."threadMessageId"` for the PDF anchor re-key.
+- The parent columns stay nullable in this draft so existing test fixtures keep working; a follow-up migration flips them NOT NULL after fixture cleanup.
+
+**`message_threads` crate** (new, hexagonal): parent-generic `ThreadService` with `ThreadParent` (validated entity parent), post/list/get-thread/replies, resolved flag, reactions, mention mirroring into `comms_entity_mentions`, and a legacy-thread resolve. Outbound: `PgThreadsRepo` (all reads use the COALESCE parent form), `EntityAccessRecipientResolver` (audience = `get_users_by_entity`), `ConnectionGatewayThreadRealtimePublisher` (`thread_message` / `thread_reaction` events, parent-tagged, per-user fan-out like channels). Inbound: `/message_threads/{entity_type}/{entity_id}[...]` routes authorized against the parent via `EntityPermissionExtractor` — View (or channel membership) to read, Comment (or membership) to write.
+
+**Access resolution** (`entity_access`): `EntityType::ChannelMessage` now resolves by delegating to the message's parent entity (`get_message_thread_parent` repo query + `get_channel_message_access` in the service), in both `get_access_level` and `get_entity_permission`. Threads are now real, addressable entities.
+
+**Channel write paths** now stamp `parent_type='channel'`/`parent_id` on insert (`pg_channels_repo::create_message`, `comms_db_client` `create_message`/`seed_message`).
+
+**`backfill_comment_threads` binary** (modeled on `backfill_entity_access`): idempotent, keyset-batched phases — annotation roots → annotation replies → CRM roots → CRM replies → PDF anchor re-key → mention re-parse into `comms_entity_mentions`. Mention extraction is a deliberately tolerant per-tag scan rather than `mention_utils::ParsedXmlText`, because the strict parser fails the whole text on one malformed legacy payload (smoke-tested: that silently dropped valid mentions). `verify` prints source-vs-migrated counts. Legacy tables are never written. Verified end-to-end against seeded legacy data locally. One correction to §2.2 discovered while seeding: today's schema **does** have FKs on `"Thread"`/`"Comment"` (owner → `"User"`, documentId → `"Document"`, threadId → `"Thread"`), so the pre-backfill orphan problem is smaller than the research suggested.
+
+### Deliberately not in this draft
+
+- **Notification fan-out for entity threads** — the audience resolver exists, but the per-parent notification *policy* (mention > participant > assignee > owner) is a product decision; the service carries a TODO where dispatch belongs.
+- **Shim writes from the legacy endpoints** — pointing `/annotations/comments/*` and `/crm/comments/*` at the unified service requires either allocating legacy numeric ids (dual-write) or landing the frontend cutover simultaneously, because the legacy response shapes expose BIGSERIAL ids. Decision needed; see §4.3 step 2.
+- **Frontend cutover** — `DiscussionSource` adapters onto `/message_threads` + `thread_message` websocket routing in `SyncProvider`.
+- **Message edit/delete on the unified routes**, unread activity, search indexing for entity threads, and converging `channels` message paths onto `ThreadService`.
+- **PDF `modificationData` regeneration** — mechanical once reads cut over (`build_pdf_modification_data` keeps reading legacy tables until then).
 
 ## Appendix: key files
 

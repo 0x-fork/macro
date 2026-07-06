@@ -1,0 +1,31 @@
+[package]
+edition = "2024"
+name = "message_threads"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+channel_sender = { path = "../channel_sender" }
+chrono = { workspace = true }
+connection_gateway_client = { path = "../connection_gateway_client" }
+entity_access = { path = "../entity_access", default-features = false, features = [
+  "inbound",
+  "ports",
+] }
+macro_user_id = { path = "../macro_user_id", features = ["sqlx"] }
+macro_uuid = { path = "../macro_uuid" }
+model-entity = { path = "../model-entity" }
+model_user = { path = "../model_user", features = ["axum"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+uuid = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+tokio = { workspace = true }

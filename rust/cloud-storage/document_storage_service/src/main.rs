@@ -721,6 +721,18 @@ async fn main() -> anyhow::Result<()> {
             channels_service,
             (*entity_access_service).clone(),
         ),
+        message_threads_state: message_threads::inbound::axum_router::MessageThreadsRouterState::new(
+            message_threads::domain::service::ThreadServiceImpl::new(
+                message_threads::outbound::pg_threads_repo::PgThreadsRepo::new(db.clone()),
+                message_threads::outbound::connection_gateway_realtime::ConnectionGatewayThreadRealtimePublisher::new(
+                    conn_gateway_client.clone(),
+                ),
+                message_threads::outbound::entity_access_recipients::EntityAccessRecipientResolver::new(
+                    entity_access_service.clone(),
+                ),
+            ),
+            entity_access_service.clone(),
+        ),
         bots_state: bots::inbound::axum_router::BotsRouterState::new(
             bots_service.clone(),
             (*entity_access_service).clone(),

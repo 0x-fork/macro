@@ -115,6 +115,50 @@ where
         self.repo.get_crm_contact_access(entity_id, user_id).await
     }
 
+    /// Get access level for a message thread by delegating to its parent
+    /// entity.
+    ///
+    /// A thread (`EntityType::ChannelMessage`, keyed by its root message id)
+    /// carries no access of its own: its audience is exactly the audience of
+    /// the parent entity — channel members for channel-parented threads,
+    /// share-permission holders for entity-parented threads.
+    async fn get_channel_message_access(
+        &self,
+        message_id: &str,
+        user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> Result<Option<AccessLevel>, AccessError> {
+        let message_uuid = Uuid::from_str(message_id)
+            .map_err(|_| AccessError::BadRequest("Invalid message ID format"))?;
+        let Some(parent) = self.repo.get_message_thread_parent(&message_uuid).await? else {
+            return Ok(None);
+        };
+        let Ok(parent_type) = parent.entity_type.parse::<EntityType>() else {
+            return Ok(None);
+        };
+        match parent_type {
+            EntityType::Document
+            | EntityType::Chat
+            | EntityType::Project
+            | EntityType::EmailThread
+            | EntityType::Call => {
+                self.get_optimized_access(&parent.entity_id, user_id, parent_type)
+                    .await
+            }
+            EntityType::Channel => self.get_channel_access(&parent.entity_id, user_id).await,
+            EntityType::CrmCompany => Ok(self
+                .get_crm_company_access(&parent.entity_id, user_id)
+                .await?
+                .map(|a| a.access_level)),
+            EntityType::CrmContact => Ok(self
+                .get_crm_contact_access(&parent.entity_id, user_id)
+                .await?
+                .map(|a| a.access_level)),
+            // A message never parents another message, and the remaining
+            // types are not valid thread parents.
+            _ => Ok(None),
+        }
+    }
+
     /// Resolve a call id string to the channel id that owns it.
     ///
     /// Looks up both the active `calls` table and the archived `call_records`
@@ -191,8 +235,10 @@ where
                 .map(|a| a.access_level)),
             // Static files are always viewable. This is wrong for owners
             EntityType::StaticFile => Ok(Some(AccessLevel::View)),
+            // A message thread inherits its parent entity's access.
+            EntityType::ChannelMessage => self.get_channel_message_access(entity_id, user_id).await,
             // These entity types either don't have access checks implemented yet, or they should not have access checks.
-            EntityType::Team | EntityType::User | EntityType::ChannelMessage => Ok(None),
+            EntityType::Team | EntityType::User => Ok(None),
         }
     }
 
@@ -290,6 +336,15 @@ where
                     .get_channel_role(&channel_uuid, user_id, user_org_id)
                     .await?;
                 channel_role_result_to_permission(result)
+            }
+            EntityType::ChannelMessage => {
+                let access = self.get_channel_message_access(entity_id, user_id).await?;
+                match access {
+                    Some(level) => Ok(EntityPermission::AccessLevel {
+                        access_level: level,
+                    }),
+                    None => Err(AccessError::Unauthorized),
+                }
             }
             _ => Err(AccessError::BadRequest("Unsupported entity type")),
         }

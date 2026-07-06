@@ -245,6 +245,13 @@ impl AccessRepository for MockRepo {
         Ok(self.channel_users.lock().await.clone())
     }
 
+    async fn get_message_thread_parent(
+        &self,
+        _message_id: &Uuid,
+    ) -> Result<Option<crate::domain::models::MessageThreadParent>, AccessError> {
+        Ok(None)
+    }
+
     async fn get_call_channel(
         &self,
         _call_id: &Uuid,

@@ -60,6 +60,14 @@ use github::outbound::pg_github_sync_repo::PgGithubSyncRepo;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_env_var::env_var;
 use macro_sha_count_client::Redis;
+use message_threads::{
+    domain::service::ThreadServiceImpl,
+    inbound::axum_router::MessageThreadsRouterState,
+    outbound::{
+        connection_gateway_realtime::ConnectionGatewayThreadRealtimePublisher,
+        entity_access_recipients::EntityAccessRecipientResolver, pg_threads_repo::PgThreadsRepo,
+    },
+};
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
 use opensearch_client::OpensearchClient;
@@ -235,6 +243,17 @@ pub(crate) type DssChannelService = ChannelServiceImpl<
 /// Type alias for the channels router state.
 pub(crate) type DssChannelsState = ChannelsRouterState<DssChannelService, EntityAccessService>;
 
+/// Type alias for the unified message-threads service wired into DSS.
+pub(crate) type DssMessageThreadService = ThreadServiceImpl<
+    PgThreadsRepo,
+    ConnectionGatewayThreadRealtimePublisher,
+    EntityAccessRecipientResolver<EntityAccessService>,
+>;
+
+/// Type alias for the unified message-threads router state.
+pub(crate) type DssMessageThreadsState =
+    MessageThreadsRouterState<DssMessageThreadService, EntityAccessService>;
+
 /// Type alias for the bots service wired into DSS.
 pub(crate) type DssBotService = BotServiceImpl<PgBotsRepo>;
 
@@ -346,6 +365,7 @@ pub(crate) struct ApiContext {
     pub entity_access_service: Arc<EntityAccessService>,
     pub documents_state: DocumentsState,
     pub channels_state: DssChannelsState,
+    pub message_threads_state: DssMessageThreadsState,
     pub bots_state: DssBotsState,
     pub channel_bot_webhook_state: DssChannelBotWebhookState,
     pub call_state: DssCallState,

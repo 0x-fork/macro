@@ -5,7 +5,7 @@
 use super::models::EntityType;
 use crate::domain::models::{
     AccessError, AccessLevel, CallChannelInfo, ChannelRoleResult, CrmEntityAccess,
-    EntityAccessReceipt, EntityPermission, RequiredPermission, UserTeamInfo,
+    EntityAccessReceipt, EntityPermission, MessageThreadParent, RequiredPermission, UserTeamInfo,
 };
 use macro_user_id::{lowercased::Lowercase, user_id::MacroUserId, user_id::MacroUserIdStr};
 use std::future::Future;
@@ -123,6 +123,16 @@ pub trait AccessRepository: Clone + Send + Sync + 'static {
         &self,
         channel_id: &Uuid,
     ) -> impl Future<Output = Result<Vec<MacroUserIdStr<'static>>, AccessError>> + Send;
+
+    /// Resolve the parent entity of a message thread (`comms_messages` row).
+    ///
+    /// Reads the polymorphic `(parent_type, parent_id)` pair, treating legacy
+    /// NULLs as channel-parented. Returns `None` when the message does not
+    /// exist.
+    fn get_message_thread_parent(
+        &self,
+        message_id: &Uuid,
+    ) -> impl Future<Output = Result<Option<MessageThreadParent>, AccessError>> + Send;
 
     /// Resolve a call ID to its channel ID and share permission ID.
     ///
