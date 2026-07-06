@@ -1,7 +1,7 @@
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { ApiChannelMessage } from '@service-storage/generated/schemas/apiChannelMessage';
-import type { Accessor } from 'solid-js';
+import { type Accessor, createEffect, on } from 'solid-js';
 import type { MessageActions, MessageData } from '../Message';
 import { isBotMessage } from '../Thread/utils/message-actions';
 import type { MessageSelection } from './create-message-selection';
@@ -64,6 +64,34 @@ export function createChannelHotkeys(options: CreateChannelHotkeysOptions) {
     if (!id) return undefined;
     return options.messageById().get(id);
   };
+
+  const isOwnSelectedMessage = () => {
+    const msg = getSelectedMessage();
+    return !!msg && msg.sender_id === options.userId();
+  };
+
+  // A selected message should own the message-level hotkeys (edit, reply,
+  // delete). Selection is signal-only, so DOM focus can still sit on an
+  // ancestor block scope — e.g. a channel opened from the inbox, where the
+  // block registers `e` as "mark done". Hotkey dispatch only walks up from the
+  // active scope, so when the block scope is active its `e` fires before the
+  // deeper message-list `e` is ever considered. Move focus into the message
+  // list when a message becomes selected so the message-list scope is active
+  // and its bindings take precedence. Skip when focus is already inside the
+  // list (including an open reply editor) or the composer so we never steal it.
+  createEffect(
+    on(
+      () => options.selection.selectedId(),
+      (selectedId) => {
+        if (!selectedId || !messageListEl) return;
+        const active = document.activeElement;
+        if (messageListEl.contains(active)) return;
+        if (inputEl?.contains(active)) return;
+        messageListEl.focus({ preventScroll: true });
+      },
+      { defer: true }
+    )
+  );
 
   registerHotkey({
     scopeId: messageListScope,
@@ -129,18 +157,18 @@ export function createChannelHotkeys(options: CreateChannelHotkeysOptions) {
     hotkey: 'e',
     hotkeyToken: TOKENS.channel.editMessage,
     description: 'Edit message',
-    condition: () => {
-      if (!canRunSelectionActionHotkeys()) return false;
-      const msg = getSelectedMessage();
-      return canEditSelectedMessageFromHotkey({
-        hasSelection: true,
-        isEditing: options.isEditing(),
-        isOwnMessage: !!msg && msg.sender_id === options.userId(),
-      });
-    },
+    // Active whenever a message is selected (and we're not mid-edit) so the
+    // selection claims `e` for the message layer and it never falls through to
+    // a block-level binding such as the inbox "mark done". Only the user's own
+    // message opens the editor; a selected message we can't edit captures the
+    // key as a no-op. `hide` keeps the command-menu entry scoped to own
+    // messages, matching the previous behavior.
+    condition: canRunSelectionActionHotkeys,
+    hide: () => !isOwnSelectedMessage(),
     keyDownHandler: () => {
       const msg = getSelectedMessage();
       if (!msg) return false;
+      if (msg.sender_id !== options.userId()) return true;
       const actions = options.getMessageActions(msg);
       actions?.onEdit?.({ message: msg });
       return true;
