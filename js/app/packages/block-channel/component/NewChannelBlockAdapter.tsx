@@ -43,7 +43,9 @@ import { useBlockId } from '@core/block';
 import { EntityPermissionsGate } from '@core/component/EntityPermissionsGate';
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import { useChannelName, useChannelType } from '@core/context/channels';
+import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { awaitCondition, createMethodRegistration } from '@core/orchestrator';
+import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
 import { useActiveCallQuery } from '@queries/call/call';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
@@ -179,6 +181,19 @@ function NewTop(props: { channelId: string }) {
 
 export function NewChannelBlockAdapter(props: BlockChannelProps) {
   useBlockEntityCommands();
+
+  // Document/chat/project blocks get a block hotkey scope from
+  // DocumentBlockContainer, which is what lets `useBlockEntityCommands`
+  // register the per-entity command set (Favorite, Copy Link, Copy ID, and
+  // Rename for owners) into a scope the command menu reads. The channel block
+  // has no such container, so those commands never reached its command menu.
+  // Establish the block scope here and attach it to the channel root so focus
+  // inside the channel activates it, matching every other entity block. Each
+  // command's own `canExecute`/`condition` still gates what actually applies
+  // to a channel.
+  const setHotkeyScope = blockHotkeyScopeSignal.set;
+  const [attachBlockHotkeys, blockScopeId] = useHotkeyDOMScope('channel');
+  setHotkeyScope(blockScopeId);
 
   const isPreview = !!useMaybePreviewPanel();
   const splitPanel = useSplitPanelOrThrow();
@@ -400,6 +415,7 @@ export function NewChannelBlockAdapter(props: BlockChannelProps) {
           onHandled={() => setPendingJoinCall(false)}
         />
         <div
+          ref={attachBlockHotkeys}
           class={cn(
             'h-full flex flex-col px-2 mobile:px-0',
             // The channel block is full-frame on mobile (messages scroll
