@@ -14,6 +14,7 @@ mod assign_labels;
 mod build_appimage_on_tag;
 mod build_desktop_on_tag;
 mod build_dmg_on_tag;
+mod cancel_stuck_cloud_storage_deploys;
 mod check_generated;
 mod check_node_modules_nix;
 mod cleanup_preview;
@@ -112,6 +113,16 @@ const WORKFLOWS: &[WorkflowFile] = &[
         slug: "code_check_infra",
         file_name: "code_check_infra.yml",
         render_yaml: || render_gh_workflow(code_check_infra::code_check_infra)(),
+    },
+    WorkflowFile {
+        slug: "cancel_stuck_cloud_storage_deploys",
+        file_name: "cancel_stuck_cloud_storage_deploys.yml",
+        render_yaml: || {
+            render_patched(
+                cancel_stuck_cloud_storage_deploys::cancel_stuck_cloud_storage_deploys,
+                cancel_stuck_cloud_storage_deploys::patch,
+            )
+        },
     },
     WorkflowFile {
         slug: "cleanup_preview",
