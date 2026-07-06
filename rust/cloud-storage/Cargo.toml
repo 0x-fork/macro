@@ -41,6 +41,7 @@ members = [
   "macro_event_broker",
   "macro_event_topics",
   "macro_queues",
+  "macro_sync_service_jwt",
   "mcp_service",
   "memory",
   "notification_sandbox",

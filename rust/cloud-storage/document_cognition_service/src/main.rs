@@ -290,6 +290,14 @@ async fn main() -> anyhow::Result<()> {
         (*entity_access_service).clone(),
         lexical_client_for_tools,
         sync_service_client.clone(),
+        documents::outbound::editing_worker_client::ReqwestEditingWorkerClient::new(
+            config.ai_editing_worker_url.clone(),
+            std::sync::Arc::new(reqwest::Client::new()),
+        ),
+        config
+            .document_permission_jwt_secret_key
+            .as_ref()
+            .to_string(),
     );
 
     tracing::info!("initialized document tool context");
