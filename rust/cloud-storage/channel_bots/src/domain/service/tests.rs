@@ -362,7 +362,7 @@ fn persona_event(
             id: trigger_id,
             channel_id,
             thread_id,
-            sender_id: Sender::User(user_id(sender_email)),
+            sender_id: Sender::new_from_user(user_id(sender_email)),
             content: content.to_string(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -615,7 +615,10 @@ async fn task_agent_prompt_layers_instructions_and_participants() {
             participant(channel_id, "macro|alice@example.com"),
             participant(channel_id, "macro|teo@example.com"),
             // Bot participants are not assignment candidates.
-            participant(channel_id, &bot_id::MACRO_AI_BOT_ID.to_storage_string()),
+            participant(
+                channel_id,
+                bot_id::MACRO_AI_BOT_ID.into_storage_id().as_ref(),
+            ),
         ],
     });
     let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
@@ -722,7 +725,7 @@ async fn task_agent_reply_is_posted_as_the_macro_bot() {
 
     assert_eq!(
         channels.posted_actors.lock().unwrap().clone(),
-        vec![Sender::Bot(bot_id::MACRO_AI_BOT_ID)]
+        vec![Sender::new_from_bot(bot_id::MACRO_AI_BOT_ID)]
     );
     assert_eq!(
         channels.patched.lock().unwrap().clone(),

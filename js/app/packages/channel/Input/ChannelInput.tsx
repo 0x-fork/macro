@@ -32,7 +32,12 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { macroAiMentionUser, taskAgentMentionUser } from '../macroAi';
+import {
+  isMacroAiId,
+  isTaskAgentId,
+  macroAiMentionUser,
+  taskAgentMentionUser,
+} from '../macroAi';
 import { CHANNEL_FILE_PICKER_ACCEPT } from './accepted-file-types';
 import { createInputAttachmentTracker } from './attachment-tracker';
 import { createConfiguredChannelMarkdownEditor } from './configured-markdown-editor';
@@ -221,9 +226,12 @@ export function ChannelInput(props: ChannelInputProps) {
   // and re-tagged as bots at send time.
   const mentionUsers: Accessor<IUser[]> = () => {
     const base = props.participants?.() ?? [];
-    const agents = [macroAiMentionUser(), taskAgentMentionUser()].filter(
-      (agent) => !base.some((user) => user.id === agent.id)
-    );
+    const agents = [
+      { user: macroAiMentionUser(), matches: isMacroAiId },
+      { user: taskAgentMentionUser(), matches: isTaskAgentId },
+    ]
+      .filter(({ matches }) => !base.some((user) => matches(user.id)))
+      .map(({ user }) => user);
     return [...agents, ...base];
   };
 
@@ -381,7 +389,7 @@ export function ChannelInput(props: ChannelInputProps) {
           data-collapsed-input-file-picker
         />
         <CollapsedInput
-          class="mobile:rounded-full"
+          class="mobile:rounded-full mobile:island"
           draft={inputState.view().value}
           renderDraft={(draft) => (
             <StaticMarkdown
@@ -410,8 +418,13 @@ export function ChannelInput(props: ChannelInputProps) {
         }}
         onFocusIn={() => setIsFocused(true)}
         active={isFocused()}
-        class={cn('rounded-xl mobile:rounded-3xl', isCollapsed() && 'hidden')}
-        depth={2}
+        class={cn(
+          'rounded-xl mobile:rounded-3xl mobile:island',
+          isCollapsed() && 'hidden'
+        )}
+        bgToken={isMobile() ? 'chrome' : undefined}
+        hideBorder={isMobile()}
+        depth={isMobile() ? 3 : 2}
         solid
       >
         <Input.DropZone

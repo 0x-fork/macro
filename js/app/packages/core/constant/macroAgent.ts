@@ -5,6 +5,13 @@
  */
 export const MACRO_AGENT_BOT_ID = '00000000-0000-0000-0000-00000000a1a1';
 
+/**
+ * Canonical principal id for Macro, matching the `bot|<uuid>` form used for
+ * bot senders and participants everywhere else. New mentions must always use
+ * this form; the bare UUID is only accepted for historical content.
+ */
+export const MACRO_AGENT_PRINCIPAL_ID = `bot|${MACRO_AGENT_BOT_ID}`;
+
 /** Display name for Macro. */
 export const MACRO_AGENT_NAME = 'Macro';
 
@@ -17,6 +24,13 @@ export const MACRO_AGENT_HANDLE = 'macro';
  * create a task from the message and assign it; replies still come from Macro.
  */
 export const TASK_AGENT_BOT_ID = '00000000-0000-0000-0000-00000000a1a2';
+
+/**
+ * Canonical principal id for TaskAgent, matching the `bot|<uuid>` form used
+ * for bot senders and participants everywhere else. New mentions must always
+ * use this form; the bare UUID is only accepted for historical content.
+ */
+export const TASK_AGENT_PRINCIPAL_ID = `bot|${TASK_AGENT_BOT_ID}`;
 
 /** Display name for the TaskAgent shorthand. */
 export const TASK_AGENT_NAME = 'TaskAgent';
