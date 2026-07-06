@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO comms_thread_details (root_message_id, resolved)\n            VALUES ($1, $2)\n            ON CONFLICT (root_message_id) DO UPDATE\n            SET resolved = EXCLUDED.resolved,\n                updated_at = now()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a794aad2a68452d2d8b384bd243587ba2551b3704b257ff23da2d3dfc66487a3"
+}

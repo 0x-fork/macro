@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                d.root_message_id,\n                COALESCE(m.parent_type, 'channel') AS \"parent_type!\",\n                COALESCE(m.parent_id, m.channel_id::text) AS \"parent_id!\"\n            FROM comms_thread_details d\n            JOIN comms_messages m ON m.id = d.root_message_id\n            WHERE d.legacy_source = $1 AND d.legacy_thread_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "root_message_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "parent_type!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "parent_id!",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "dca473124b88c55e0878db4247469e9a17a37bfc4123a4730f22fbcba07e645d"
+}

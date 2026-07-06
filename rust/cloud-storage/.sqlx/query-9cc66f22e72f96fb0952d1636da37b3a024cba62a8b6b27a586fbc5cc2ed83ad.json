@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                m.id,\n                COALESCE(m.parent_type, 'channel') AS \"parent_type!\",\n                COALESCE(m.parent_id, m.channel_id::text) AS \"parent_id!\",\n                COALESCE(m.thread_id, m.id) AS \"thread_id!\"\n            FROM comms_messages m\n            WHERE m.id = $1 AND m.deleted_at IS NULL\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "parent_type!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "parent_id!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "thread_id!",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "9cc66f22e72f96fb0952d1636da37b3a024cba62a8b6b27a586fbc5cc2ed83ad"
+}

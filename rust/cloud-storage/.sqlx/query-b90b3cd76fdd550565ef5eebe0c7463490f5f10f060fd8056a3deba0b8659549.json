@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO comms_thread_details (root_message_id, mark_id)\n            VALUES ($1, $2)\n            ON CONFLICT (root_message_id) DO UPDATE\n            SET mark_id = COALESCE(comms_thread_details.mark_id, EXCLUDED.mark_id),\n                updated_at = now()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b90b3cd76fdd550565ef5eebe0c7463490f5f10f060fd8056a3deba0b8659549"
+}

@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                m.id,\n                COALESCE(m.parent_type, 'channel') AS \"parent_type!\",\n                COALESCE(m.parent_id, m.channel_id::text) AS \"parent_id!\",\n                m.thread_id,\n                m.sender_id,\n                m.triggered_by_user_id,\n                m.content,\n                m.created_at,\n                m.updated_at,\n                m.edited_at::timestamptz AS \"edited_at?\",\n                m.deleted_at::timestamptz AS \"deleted_at?\"\n            FROM comms_messages m\n            WHERE m.thread_id = $1 AND m.deleted_at IS NULL\n            ORDER BY m.created_at ASC, m.id ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "parent_type!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "parent_id!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "thread_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "sender_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "triggered_by_user_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "content",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "edited_at?",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "deleted_at?",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "b1c6e04cb8f829d0e62b03c0a929e6b4b9389544a2a3141bb6ac6a947568b5e0"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            COALESCE(parent_type, 'channel') AS \"entity_type!\",\n            COALESCE(parent_id, channel_id::text) AS \"entity_id!\"\n        FROM comms_messages\n        WHERE id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entity_type!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "entity_id!",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "aa40768675254f58d2cccffe5daeb7e21ced8f6b9d563a21dda954a014111eb6"
+}

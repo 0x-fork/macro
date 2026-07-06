@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO comms_entity_mentions (id, source_entity_type, source_entity_id, entity_type, entity_id, user_id)\n            SELECT gen_random_uuid(), 'message', $1::text, t.entity_type, t.entity_id, NULL\n            FROM UNNEST($2::text[], $3::text[]) AS t(entity_type, entity_id)\n            WHERE NOT EXISTS (\n                SELECT 1 FROM comms_entity_mentions em\n                WHERE em.source_entity_type = 'message'\n                  AND em.source_entity_id = $1::text\n                  AND em.entity_type = t.entity_type\n                  AND em.entity_id = t.entity_id\n            )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e55918640a1a1067d5dadf419b7405d51de5f0707b15634904d57014f4a22bef"
+}

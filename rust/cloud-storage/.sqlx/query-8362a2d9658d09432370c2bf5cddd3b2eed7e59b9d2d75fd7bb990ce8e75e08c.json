@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                INSERT INTO comms_reactions (message_id, emoji, user_id)\n                VALUES ($1, $2, $3)\n                ON CONFLICT (message_id, emoji, user_id) DO NOTHING\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8362a2d9658d09432370c2bf5cddd3b2eed7e59b9d2d75fd7bb990ce8e75e08c"
+}
