@@ -17,7 +17,10 @@ import {
   type FacetSelection,
   mergeAst,
 } from '@app/component/next-soup/filters/facet-store';
-import { EMAIL_INBOX } from '@app/component/next-soup/filters/facets';
+import {
+  EMAIL_INBOX,
+  type FacetCtx,
+} from '@app/component/next-soup/filters/facets';
 import {
   compileToAst,
   NIL_UUID,
@@ -26,6 +29,7 @@ import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter
 import type { Query } from '@app/component/next-soup/filters/filter-store/query-store';
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
 import { createSearchState } from '@app/component/next-soup/soup-view/create-search-state';
+import { useTagOptions } from '@app/component/next-soup/soup-view/filters-bar/tag-filter';
 import {
   INBOX_FILTER_ENTRY_KEY,
   registerInboxFilterSplit,
@@ -37,10 +41,13 @@ import {
   isListViewID,
   type ListView,
   soupItemMatchesListView,
+  soupItemMatchesTagFilter,
 } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_FEATURED_SEARCH_RESULTS,
+  ENABLE_GRAPHQL_SOUP_FLAG,
+  ENABLE_GRAPHQL_SOUP_OVERRIDE,
   ENABLE_NEW_INBOX_FLAG,
   ENABLE_NEW_INBOX_OVERRIDE,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
@@ -179,7 +186,6 @@ export const SoupViewContextProvider: FlowComponent<
   const isTeamAdmin = useIsTeamAdmin();
   const presetCtx = (): PresetContext => ({
     userId: user.userId(),
-    email: user.email(),
     isTeamAdmin: isTeamAdmin(),
   });
   const soup = props.soup ?? createSoupState();
@@ -191,6 +197,14 @@ export const SoupViewContextProvider: FlowComponent<
     disableLocalSearch: props.disableLocalSearch,
     additionalEntities: props.additionalEntities,
   });
+
+  const useGraphqlSoupFF = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
+    enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
+  });
+  // GraphQL soup transport: opt-in via flag, and only for the flat (non-grouped)
+  // path — grouped queries stay on the default transport.
+  const resolveTransport = (groupBy: GroupByField | undefined) =>
+    useGraphqlSoupFF().enabled && !groupBy ? 'graphql' : undefined;
 
   const soupParams = createMemo(() => {
     const sortId = soup.sort.active()[0]?.id ?? 'updated_at';
@@ -417,10 +431,17 @@ export const SoupViewContextProvider: FlowComponent<
     return filters;
   };
 
+  // Tag definitions feed the `tag` facet's compile clause (option id → owning
+  // property-definition id). Reactive, so the list re-filters once tags load.
+  const tagOptions = useTagOptions();
+  const facetCtx = (): FacetCtx => ({ tagDefs: tagOptions.defByOption() });
+
   const soupBody = createMemo(() => {
     const emailView = activePreset()?.filters?.emailView;
     return {
-      ...applyNewInboxFilters(mergeAst(inboxFacetAst(), soup.facets.compile())),
+      ...applyNewInboxFilters(
+        mergeAst(inboxFacetAst(), soup.facets.compile(facetCtx()))
+      ),
       ...(emailView ? { emailView } : {}),
     };
   });
@@ -433,8 +454,14 @@ export const SoupViewContextProvider: FlowComponent<
       soupBody,
       (_body, prevBody) => {
         if (!prevBody) return;
+        const groupBy = groupByField();
         queryClient.setQueryData(
-          soupKeys.astItems({ params: soupParams(), body: prevBody }).queryKey,
+          soupKeys.astItems({
+            params: soupParams(),
+            body: prevBody,
+            groupBy,
+            transport: resolveTransport(groupBy),
+          }).queryKey,
           (prev: InfiniteData<SoupPage> | SoupPage | undefined) => {
             if (!prev || !('pages' in prev)) return prev;
             prev.pages.splice(1, prev.pages.length);
@@ -477,7 +504,6 @@ export const SoupViewContextProvider: FlowComponent<
       enabledOverride: ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
     }
   );
-
   // Create filter context for context-aware filter predicates
   const getFilterContext = (): FilterContext => ({
     userId: userId(),
@@ -495,19 +521,29 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
+  // Active tag option ids, used to gate optimistic websocket inserts so an
+  // active tag filter is honored even on the grouped render path.
+  const activeTagOptionIds = createMemo(() => soup.facets.getSelected('tag'));
+
   const itemsQuery = useSoupAstItemsQuery(
-    () => ({
-      params: soupParams(),
-      body: soupBody(),
-      groupBy: groupByField(),
-    }),
+    () => {
+      const groupBy = groupByField();
+      return {
+        params: soupParams(),
+        body: soupBody(),
+        groupBy,
+        transport: resolveTransport(groupBy),
+      };
+    },
     () => {
       const view = activeListView();
       return {
         enabled: !search.isSearching(),
         showSupportedForeignEntities: showSupportedForeignEntitiesFF().enabled,
         meta: {
-          itemFilter: (item) => soupItemMatchesListView(item, view),
+          itemFilter: (item) =>
+            soupItemMatchesListView(item, view) &&
+            soupItemMatchesTagFilter(item, activeTagOptionIds()),
         },
       };
     }
@@ -628,7 +664,9 @@ export const SoupViewContextProvider: FlowComponent<
       return {
         enabled: enabled() && !search.isSearching(),
         meta: {
-          itemFilter: (item) => soupItemMatchesListView(item, view),
+          itemFilter: (item) =>
+            soupItemMatchesListView(item, view) &&
+            soupItemMatchesTagFilter(item, activeTagOptionIds()),
         },
       };
     },

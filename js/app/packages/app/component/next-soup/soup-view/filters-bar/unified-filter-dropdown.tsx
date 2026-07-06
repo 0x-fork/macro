@@ -39,6 +39,7 @@ import {
   SearchableMultiSelectInline,
   type SearchableOption,
 } from './searchable-multi-select';
+import { useTagFilter } from './tag-filter';
 
 export const TypeIndicator = (props: { active: boolean }) => (
   <span
@@ -300,6 +301,13 @@ export const UnifiedFilterDropdown = (
   const handleAssigneeChange = (ids: string[]) => setAssigneeFilter(ids);
 
   const isTasksView = () => currentView() === 'tasks';
+  const isDocumentsView = () => currentView() === 'documents';
+
+  const tagFilter = useTagFilter();
+  const showTagsFilter = () =>
+    tagFilter.enabled() &&
+    tagFilter.hasTags() &&
+    (isTasksView() || isDocumentsView());
 
   registerHotkey({
     hotkey: 'f',
@@ -338,7 +346,14 @@ export const UnifiedFilterDropdown = (
   };
 
   return (
-    <Show when={categories().length > 0 || isTasksView() || isNewInbox()}>
+    <Show
+      when={
+        categories().length > 0 ||
+        isTasksView() ||
+        isNewInbox() ||
+        showTagsFilter()
+      }
+    >
       <Dropdown
         open={open()}
         onOpenChange={handleOpenChange}
@@ -358,7 +373,7 @@ export const UnifiedFilterDropdown = (
           </Switch>
         </Show>
 
-        <Dropdown.Content>
+        <Dropdown.Content class="shadow-menu">
           <Dropdown.Group>
             <Show when={isNewInbox()}>
               <ReadStatusSubmenu
@@ -468,6 +483,16 @@ export const UnifiedFilterDropdown = (
                   );
                 }}
               </For>
+            </Show>
+
+            <Show when={showTagsFilter()}>
+              <SearchableFilterSubmenu
+                label="Tags"
+                options={tagFilter.options}
+                activeIds={tagFilter.activeIds}
+                onChange={tagFilter.onChange}
+                placeholder="Filter by tag..."
+              />
             </Show>
           </Dropdown.Group>
         </Dropdown.Content>

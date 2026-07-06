@@ -6,7 +6,7 @@ import {
   isTaskEntity,
 } from '@entity';
 import { NIL_UUID } from '../facet-store';
-import { facet } from './base';
+import { facet, selectProp } from './base';
 
 export const SEARCH_TYPE = facet({
   id: 'search-type',
@@ -119,4 +119,22 @@ export const TASK_CREATED_BY = facet({
     id: userId,
     clause: (b) => ({ df: b.eq('documentOwnerId', userId) }),
   }),
+});
+
+// Selected tag option ids (open id space). `mode: 'or'` makes the facet store
+// OR every selected tag into one `propf` group — across definitions — which
+// then ANDs with the status/priority groups. The owning definition id comes
+// from `ctx.tagDefs` (option ids are unique, but the backend literal needs it);
+// unloaded options resolve to no clause. Search reads the raw selection as
+// `tag_option_ids` and ignores this clause.
+export const TAG = facet({
+  id: 'tag',
+  mode: 'or',
+  options: (optionId, ctx) => {
+    const propertyId = ctx.tagDefs?.get(optionId);
+    return {
+      id: optionId,
+      clause: propertyId ? selectProp(propertyId, optionId) : undefined,
+    };
+  },
 });

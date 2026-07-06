@@ -55,6 +55,10 @@ use email::{
     outbound::EmailPgRepo,
 };
 use embedding::embedding_provider::openai::TextEmbedding3Small;
+use favorites::{
+    domain::service::FavoritesServiceImpl, inbound::axum_router::FavoritesRouterState,
+    outbound::pg_favorites_repo::PgFavoritesRepo,
+};
 use foreign_entity::{
     domain::service::ForeignEntityServiceImpl, inbound::axum_router::ForeignEntityRouterState,
     outbound::pg_foreign_entity_repo::PgForeignEntityRepo,
@@ -88,12 +92,12 @@ use std::sync::Arc;
 use sync_service_client::SyncServiceClient;
 use system_properties::{PgSystemPropertiesRepository, SystemPropertiesServiceImpl};
 use task_dedup::{
-    TaskDedupConfig, TaskDedupService,
+    TaskDedupService,
     outbound::{
+        cohere::CohereReranker,
         connection_gateway::ConnectionGatewayTaskDedupNotifier,
         judge::AgentDuplicateJudge,
         postgres::{PgTaskMatchRepo, PgTaskVectorDb},
-        reranker::NoOpReranker,
     },
 };
 
@@ -586,7 +590,6 @@ async fn main() -> anyhow::Result<()> {
 
     let sqs_client = Arc::new(sqs_client);
     let conn_gateway_client = Arc::new(conn_gateway_client);
-    let task_dedup_config = TaskDedupConfig::default();
     // The OpenAI key is injected as the required `OPENAI_API_KEY` env var
     // (resolved from the `openai-key` secret at deploy time by the infra stack),
     // the same way `document_cognition_service` consumes it. Fail fast if it's
@@ -596,11 +599,15 @@ async fn main() -> anyhow::Result<()> {
         !openai_api_key.trim().is_empty(),
         "OpenAI API key is required for task dedup embeddings",
     );
+    let cohere_api_key = config.cohere_api_key.as_ref().to_owned();
+    anyhow::ensure!(
+        !cohere_api_key.trim().is_empty(),
+        "Cohere API key is required for task dedup reranking",
+    );
     let task_dedup_service = Arc::new(TaskDedupService::new(
-        task_dedup_config.clone(),
         TextEmbedding3Small::new(openai_api_key),
         PgTaskVectorDb::new(db.clone()),
-        NoOpReranker,
+        CohereReranker::new(cohere_api_key),
         Arc::new(AgentDuplicateJudge::new(ai_usage::pg_recorder(db.clone()))),
         Arc::new(ConnectionGatewayTaskDedupNotifier::new(
             conn_gateway_client.clone(),
@@ -668,11 +675,20 @@ async fn main() -> anyhow::Result<()> {
         foreign_entity_service_for_soup,
     ));
 
+    let favorites_service = Arc::new(FavoritesServiceImpl::new(PgFavoritesRepo::new(db.clone())));
+
     let api_context = ApiContext {
         contacts_ingress: contacts_ingress.clone(),
         soup_router_state: SoupRouterState::from_arc(
             soup_service.clone(),
             email_service,
+            entity_access_service.clone(),
+        )
+        .with_favorites_reader(Arc::new(
+            service::soup_favorites_reader::DssSoupFavoritesReader(favorites_service.clone()),
+        )),
+        favorites_state: FavoritesRouterState::new(
+            favorites_service,
             entity_access_service.clone(),
         ),
         #[cfg(feature = "graphql")]

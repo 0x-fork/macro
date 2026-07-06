@@ -9,6 +9,7 @@ import { PROPERTY_OPTION_IDS } from '@property/constants';
 import { type Accessor, createMemo, type JSX } from 'solid-js';
 import { useInboxPicker } from '../inbox-picker';
 import type { SearchableOption } from '../searchable-multi-select';
+import { useTagOptions } from '../tag-filter';
 import type {
   SearchFiltersController,
   SearchIndexId,
@@ -283,6 +284,8 @@ export function useSearchFacets(
     setSelectedIds: controller.setEmailInbox,
   });
 
+  const tagSource = useTagOptions();
+
   const type = singleFacet({
     id: 'type',
     label: 'Type',
@@ -438,6 +441,21 @@ export function useSearchFacets(
     onChange: controller.setTaskCreatedBy,
   });
 
+  const tags = multiFacet({
+    id: 'tags',
+    label: 'Tags',
+    neutralLabel: 'Any tag',
+    placeholder: 'Filter by tag...',
+    options: tagSource.options,
+    activeIds: controller.tags,
+    onChange: controller.setTags,
+  });
+
+  // Tags show only where tagging applies (documents/tasks), gated behind the
+  // tags feature flag, and hidden when the caller has no tags defined.
+  const tagFacets = (): SearchFacetVM[] =>
+    tagSource.enabled() && tagSource.hasTags() ? [tags] : [];
+
   return createMemo(() => {
     switch (controller.type()) {
       case 'email':
@@ -449,7 +467,16 @@ export function useSearchFacets(
       case 'calls':
         return [type, callIn, callFrom, callStatus];
       case 'task':
-        return [type, taskStatus, taskPriority, taskAssignee, taskCreatedBy];
+        return [
+          type,
+          taskStatus,
+          taskPriority,
+          taskAssignee,
+          taskCreatedBy,
+          ...tagFacets(),
+        ];
+      case 'document-or-file':
+        return [type, ...tagFacets()];
       default:
         return [type];
     }

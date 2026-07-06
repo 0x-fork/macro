@@ -1,6 +1,7 @@
 import { useAnalytics } from '@app/component/analytics-context';
 import { SidebarActiveCallWidget } from '@app/component/app-sidebar/active-call-widget';
 import { ChannelsUnreadWidget } from '@app/component/app-sidebar/channels-unread-widget';
+import { FavoritesSection } from '@app/component/app-sidebar/favorites-section';
 import {
   InviteModal,
   setInviteModalOpen,
@@ -603,7 +604,7 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
         </span>
         <CaretUpIcon class="size-3 text-ink-extra-muted shrink-0 group-data-[slim=true]/sidebar:hidden" />
       </Dropdown.Trigger>
-      <Dropdown.Content class="min-w-64">
+      <Dropdown.Content class="min-w-64 shadow-menu">
         <Dropdown.Group class="p-1.5 gap-0">
           <div class="flex items-center gap-3 px-1 py-1">
             <Show
@@ -695,7 +696,11 @@ const DASHBOARD_LINK: SidebarItem = {
  * widget. Label/icon come from the settings tab config (see
  * `getSettingsTabItem`); this list only decides which tabs to promote.
  */
-const PROMOTED_SETTINGS_TABS: SettingsTab[] = ['Mobile App', 'Agent', 'Team'];
+const PROMOTED_SETTINGS_TABS: SettingsTab[] = [
+  'Mobile App',
+  'Connected',
+  'Team',
+];
 
 export const AppSidebar = (props: AppSidebarProps) => {
   const layout = useSplitLayout();
@@ -850,6 +855,8 @@ export const AppSidebar = (props: AppSidebarProps) => {
       <div class="px-2">
         <hr class="border-transparent my-2" />
       </div>
+
+      <FavoritesSection sidebarState={props.sidebarState ?? 'expanded'} />
 
       <div class="min-h-0 flex-1 overflow-hidden">
         <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />

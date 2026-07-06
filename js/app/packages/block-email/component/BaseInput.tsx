@@ -379,6 +379,7 @@ type UndoReplySnapshot = {
   draftId: string;
   bodyHtml: string;
   attachments: DraftFormAttachment[];
+  includeSignature: boolean;
 };
 // Set on send, persists across navigation, only consumed by undoSend.
 let undoSendSnapshot: UndoReplySnapshot | null = null;
@@ -521,6 +522,7 @@ export function BaseInput(props: {
       for (const attachment of restoredSnapshot.attachments) {
         form().attachments.add(attachment);
       }
+      setIncludeSignature(restoredSnapshot.includeSignature);
     });
   }
 
@@ -535,6 +537,7 @@ export function BaseInput(props: {
     for (const attachment of snapshot.attachments) {
       form().attachments.add(attachment);
     }
+    setIncludeSignature(snapshot.includeSignature);
   };
   onCleanup(() => {
     restoreUndoCallback = null;
@@ -576,11 +579,10 @@ export function BaseInput(props: {
             };
           }
         );
-        // Mark stale so next navigation fetches fresh data
-        queryClient.invalidateQueries({
-          queryKey: emailKeys.threadMessages(threadId).queryKey,
-          refetchType: 'none',
-        });
+        // Wipe the thread cache on unmount so the next visit fetches fresh
+        // data (with the restored draft). Deferred to avoid Suspense DOM
+        // detach while the thread is open.
+        markThreadDraftSaved(threadId);
       }
 
       const snapshot = undoSendSnapshot;
@@ -853,10 +855,13 @@ export function BaseInput(props: {
   // After a send, the bottom input stays mounted and its replyingTo flips to
   // the just-sent message once the thread refetches. Cancel the inhibited
   // post-send save and re-enable saves so a fresh edit under the new form
-  // context can be persisted.
+  // context can be persisted. The memo gates on the db_id *value*: replyingTo
+  // is recreated on every thread/draft refetch (e.g. after a debounced draft
+  // save), and resetting on those would resurrect a dismissed signature.
+  const replyingToDbId = createMemo(() => props.replyingTo()?.db_id);
   createEffect(
     on(
-      () => props.replyingTo()?.db_id,
+      replyingToDbId,
       () => {
         if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
         pendingSend = false;
@@ -1021,6 +1026,7 @@ export function BaseInput(props: {
           draftId: snapshotDraftId,
           bodyHtml: snapshotHtml,
           attachments: [...form().attachments.list()],
+          includeSignature: includeSignature(),
         };
       }
     }
@@ -1804,7 +1810,10 @@ export function BaseInput(props: {
             />
           )}
         </Show>
-        <div class="flex flex-row w-full h-9 justify-between items-end px-2 pb-2 pt-0.5 space-x-2">
+        {/* No fixed height: the send button (size-7.5) is taller than the icon
+            buttons, and a fixed h-9 minus the vertical padding left it 4px short
+            — with items-end it bled upward over the signature bar above. */}
+        <div class="flex flex-row w-full justify-between items-end px-2 pb-2 pt-1.5 space-x-2">
           <div class="flex flex-row items-center gap-1">
             <div class="relative flex">
               <Button

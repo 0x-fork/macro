@@ -330,6 +330,74 @@ describe('ctx-relative values', () => {
   });
 });
 
+// ── tag facet (ctx-resolved propf, OR across definitions) ──────────────────────
+
+const TAG_A_DEF = 'tag-def-a';
+const TAG_B_DEF = 'tag-def-b';
+
+// Mirrors the real `tag` facet: option ids are stored bare, and each option's
+// owning definition id is resolved from `ctx.tagDefs` at compile so the propf
+// literal carries the right `pd`. `mode: 'or'` is what unions them.
+const TAG: Facet = {
+  id: 'tag',
+  mode: 'or',
+  options: (optionId, ctx) => {
+    const pd = (ctx as { tagDefs?: ReadonlyMap<string, string> })?.tagDefs?.get(
+      optionId
+    );
+    return {
+      id: optionId,
+      clause: pd
+        ? {
+            propf: eq('properties', {
+              propertyId: pd,
+              type: 'select' as const,
+              value: optionId,
+            }),
+          }
+        : undefined,
+    };
+  },
+};
+
+describe('tag facet', () => {
+  it('ORs tags across definitions and ANDs with status; pd from ctx', () => {
+    createRoot((dispose) => {
+      const s = createFacetStore([TASK_STATUS, TAG]);
+      s.toggle('task-status', 'not-started');
+      s.toggle('tag', 'ta'); // owned by def A
+      s.toggle('tag', 'tb'); // owned by def B
+      const tagDefs = new Map([
+        ['ta', TAG_A_DEF],
+        ['tb', TAG_B_DEF],
+      ]);
+      // status AND (tagA OR tagB) — the tags union into one group despite
+      // belonging to different definitions.
+      expect(s.compile({ tagDefs }).propf).toEqual({
+        '&': [
+          { l: { pd: STATUS_DEF, v: { so: 'not-started' } } },
+          {
+            '|': [
+              { l: { pd: TAG_A_DEF, v: { so: 'ta' } } },
+              { l: { pd: TAG_B_DEF, v: { so: 'tb' } } },
+            ],
+          },
+        ],
+      });
+      dispose();
+    });
+  });
+
+  it('unloaded tag (no ctx definition) compiles to no clause', () => {
+    createRoot((dispose) => {
+      const s = createFacetStore([TAG]);
+      s.toggle('tag', 'ta');
+      expect(s.compile({ tagDefs: new Map() })).toEqual({});
+      dispose();
+    });
+  });
+});
+
 // ── store lifecycle ───────────────────────────────────────────────────────────
 
 describe('store lifecycle', () => {

@@ -1,4 +1,3 @@
-import { useAddInboxGate } from '@app/component/AddInboxDialog';
 import {
   MobileDrawer,
   scrollToFocusedInput,
@@ -104,7 +103,6 @@ export const MobileFilterDrawer = () => {
     enabledOverride: ENABLE_MULTI_INBOX_OVERRIDE,
   });
   const addInbox = useAddInboxFlow();
-  const guardAddInbox = useAddInboxGate();
 
   // Mirrors the desktop InboxSelector's visibility rule so the "Add inbox"
   // action stays discoverable with zero or one inbox connected. Also stays
@@ -227,7 +225,7 @@ export const MobileFilterDrawer = () => {
           variant="ghost"
           size="sm"
           depth={3}
-          class="island pointer-events-auto relative size-10 shrink-0 rounded-full bg-surface [&_svg]:size-5"
+          class="island bg-chrome pointer-events-auto relative size-10 shrink-0 rounded-full [&_svg]:size-5"
           ref={pressPulse}
         >
           <SlidersHorizontalIcon />
@@ -403,7 +401,7 @@ export const MobileFilterDrawer = () => {
                           <button
                             type="button"
                             class="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-hover transition-colors text-left bg-surface not-last:mb-px"
-                            onClick={() => guardAddInbox(() => void addInbox())}
+                            onClick={() => void addInbox()}
                           >
                             <span class="size-4 flex items-center justify-center shrink-0">
                               <PlusIcon class="size-4 text-ink-muted" />

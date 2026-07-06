@@ -108,6 +108,7 @@ export function buildSearchEntityFilters(
     'task-priority': taskPriority = [],
     assignee = [],
     'task-created-by': taskCreatedBy = [],
+    tag = [],
   } = selection;
 
   const type = (searchType[0] as SearchTypeValue | undefined) ?? 'all';
@@ -200,6 +201,14 @@ export function buildSearchEntityFilters(
 
       break;
     }
+  }
+
+  // Tags: match on the option ids alone (globally unique), OR'd across all tag
+  // definitions. No definition id is sent — the backend matches values only.
+  // Only the document/task types carry tags (matching the search UI), so a tag
+  // selection never silently empties an email/channel/call search.
+  if ((type === 'task' || type === 'document-or-file') && tag.length) {
+    filters.tag_option_ids = tag;
   }
 
   return filters;

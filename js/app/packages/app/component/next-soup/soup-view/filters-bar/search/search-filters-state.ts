@@ -91,6 +91,11 @@ export function createSearchFiltersController() {
   const setTaskCreatedBy = (ids: string[]) =>
     soup.facets.set('task-created-by', ids);
 
+  // Selected tag option ids. Persist across type switches like every other
+  // facet; the search request and soup list only emit them where tags apply.
+  const tags = createMemo(() => soup.facets.getSelected('tag'));
+  const setTags = (ids: string[]) => soup.facets.set('tag', ids);
+
   return {
     type,
     setType,
@@ -116,6 +121,8 @@ export function createSearchFiltersController() {
     setTaskAssignees,
     taskCreatedBy,
     setTaskCreatedBy,
+    tags,
+    setTags,
   };
 }
 

@@ -16,6 +16,7 @@ import {
   EMAIL_IMPORTANCE,
   EMAIL_INBOX,
   SEARCH_TYPE,
+  TAG,
   TASK_CREATED_BY,
 } from './search';
 import { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
@@ -39,6 +40,7 @@ export {
   EMAIL_IMPORTANCE,
   EMAIL_INBOX,
   SEARCH_TYPE,
+  TAG,
   TASK_CREATED_BY,
 } from './search';
 export { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
@@ -66,6 +68,7 @@ export const ALL_FACETS = [
   CALL_FROM,
   CALL_STATUS,
   TASK_CREATED_BY,
+  TAG,
 ] as const;
 
 export type FacetId = (typeof ALL_FACETS)[number]['id'];

@@ -1069,6 +1069,30 @@ export interface DocumentSearchResult {
   score?: number | null;
 }
 /**
+ * Apply AI-driven edits to a Macro document in place -- rewriting, inserting, formatting, or restructuring. If the response contains a `clarification` field, invoke again with the requested info appended to `instructions`. To insert mention(s), include each person's userId and email. To insert document-card(s), include each document's documentId and documentName.
+ */
+export interface EditDocument {
+  /**
+   * The ID of the document to edit.
+   */
+  document_id: string;
+  /**
+   * Natural language instructions. For mention(s), include userId and email per person. For document-card(s), include documentId and documentName per document. You may need to look these up.
+   */
+  instructions: string;
+}
+export interface EditDocumentResponse {
+  /**
+   * If present, invoke this tool again with this information appended to `instructions`.
+   */
+  clarification?: string | null;
+  /**
+   * A short outcome for the model -- whether the edit was applied or
+   * interrupted -- never the underlying list of edit operations.
+   */
+  summary: string;
+}
+/**
  * A recipient for an email.
  */
 export interface EmailRecipient {
@@ -2608,6 +2632,19 @@ export interface SearchToolsResponse {
    * Tools matching the query. Call `LoadTools` with the names you want to use.
    */
   results: ToolMatch[];
+}
+/**
+ * Learn what Macro is and how it works. Call this whenever the user asks an open-ended question about Macro itself — what it is, what it's for, what it can do, or how to do something in Macro — instead of answering from memory (your training data may be stale). Takes no arguments. Returns an overview of Macro and a map of links into the official docs at docs.macro.com; every docs page is readable as Markdown (append `.md` to its URL), so follow up with WebFetch on the relevant page for details and cite it.
+ */
+export type SelfKnowledge = {};
+/**
+ * The response for the [`SelfKnowledge`] tool: a single Markdown about-page.
+ */
+export interface SelfKnowledgeResponse {
+  /**
+   * An overview of Macro and a routing map into the docs at docs.macro.com.
+   */
+  about: string;
 }
 /**
  * Send or reply to a channel on behalf of the user. Only use this when explicitly asked to send a message

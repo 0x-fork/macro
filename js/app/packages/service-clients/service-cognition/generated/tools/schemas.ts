@@ -497,6 +497,16 @@ export const DisplayResults = z.object({ view: z.any() });
 
 export const DisplayResultsResponse = z.object({ message: z.string() });
 
+export const EditDocument = z.object({
+  document_id: z.string(),
+  instructions: z.string(),
+});
+
+export const EditDocumentResponse = z.object({
+  clarification: z.union([z.string(), z.null()]).optional(),
+  summary: z.string(),
+});
+
 export const GetEntityProperties = z.object({
   entity_id: z.string(),
   entity_type: z.enum([
@@ -1977,6 +1987,10 @@ export const SearchTools = z.object({ query: z.string() });
 export const SearchToolsResponse = z.object({
   results: z.array(z.object({ description: z.string(), name: z.string() })),
 });
+
+export const SelfKnowledge = z.record(z.any());
+
+export const SelfKnowledgeResponse = z.object({ about: z.string() });
 
 export const SendChannelMessage = z.object({
   channel_id: z.string().uuid(),

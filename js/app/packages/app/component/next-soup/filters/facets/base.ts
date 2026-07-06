@@ -8,6 +8,10 @@ export type FacetCtx = {
   assignees?: string[];
   // some preset predicates (focus/unread) test notification state
   notificationSource?: NotificationSource;
+  // tag option id → owning property-definition id, so the tag facet can build
+  // its `propf` clause (option ids are unique but the backend literal needs the
+  // definition). Absent/unloaded options compile to no clause.
+  tagDefs?: ReadonlyMap<string, string>;
 };
 
 // Define facet helper with typed context

@@ -29,6 +29,7 @@ function usePageViewTracking(pageTitle: string) {
   const analytics = useAnalytics();
   onMount(() => {
     analytics.pageView(pageTitle);
+    analytics.track('open_view', { viewId: pageTitle });
   });
 }
 
@@ -160,7 +161,6 @@ registerComponent(
     const user = useUserContext();
     const preset = getViewPreset('agents', undefined, {
       userId: user.userId(),
-      email: user.email(),
       isTeamAdmin: false,
     });
     const automationEntities = useAutomationEntities();
@@ -201,7 +201,6 @@ registerComponent(
     const user = useUserContext();
     const preset = getViewPreset('documents', undefined, {
       userId: user.userId(),
-      email: user.email(),
       isTeamAdmin: false,
     });
     const initialFilters =
@@ -231,7 +230,6 @@ registerComponent(
     const user = useUserContext();
     const preset = getViewPreset('tasks', undefined, {
       userId: user.userId(),
-      email: user.email(),
       isTeamAdmin: false,
     });
     return (
@@ -309,7 +307,6 @@ registerComponent(
     const user = useUserContext();
     const preset = getViewPreset('folders', undefined, {
       userId: user.userId(),
-      email: user.email(),
       isTeamAdmin: false,
     });
     return (
@@ -464,6 +461,11 @@ if (DEV_MODE_ENV) {
         () => import('@app/component/next-soup/debug/DocumentWherePlayground')
       )
     )
+  );
+
+  registerComponent(
+    'projection-playground',
+    withAuth(lazy(() => import('@app/component/debug/ProjectionPlayground')))
   );
 
   // NOTE (seamus) : putting pixel icons on dev/staging for aidan
