@@ -148,7 +148,12 @@ export function DiscussionThreadView(props: { thread: ViewThread }) {
         : undefined,
       onDelete:
         own && canEdit()
-          ? async () => {
+          ? async ({ event }) => {
+              // The delete button is still focused when it's removed from the
+              // DOM after the comment unmounts, which makes the browser reset
+              // the nearest scroll container to the top. Blurring first keeps
+              // deletion from disturbing scroll position.
+              (event?.currentTarget as HTMLElement | null)?.blur();
               await source.deleteComment(comment);
             }
           : undefined,
