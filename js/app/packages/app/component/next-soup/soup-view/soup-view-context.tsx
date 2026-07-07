@@ -13,18 +13,17 @@ import {
 import type { FilterContext } from '@app/component/next-soup/filters/configs/';
 import {
   type BackendAstMap,
+  compileClause,
   compileFacets,
+  defineClause,
   type FacetSelection,
   mergeAst,
+  NIL_UUID,
 } from '@app/component/next-soup/filters/facet-store';
 import {
   EMAIL_INBOX,
   type FacetCtx,
 } from '@app/component/next-soup/filters/facets';
-import {
-  compileToAst,
-  NIL_UUID,
-} from '@app/component/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/component/next-soup/filters/filter-store/predicates-store';
 import type { Query } from '@app/component/next-soup/filters/filter-store/query-store';
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
@@ -378,22 +377,26 @@ export const SoupViewContextProvider: FlowComponent<
 
     const { threadIds, seen } = params;
 
-    const dynamic = compileToAst({
-      include: {
-        ...(threadIds.length ? { channelThreadId: threadIds } : {}),
-        callStatus: 'MISSED',
-        ...(seen !== undefined
-          ? {
-              documentSeen: seen,
-              emailSeen: seen,
-              channelSeen: seen,
-              chatSeen: seen,
-              folderSeen: seen,
-            }
-          : {}),
-      },
-      exclude: {},
-    });
+    // Empty threads ⇒ NIL the channel-thread target (show none), matching the
+    // soup list's default. `restrict: false` keeps this a plain refinement.
+    const dynamic = compileClause(
+      defineClause(
+        {
+          callStatus: 'MISSED',
+          channelThreadId: threadIds.length ? threadIds : NIL_UUID,
+          ...(seen !== undefined
+            ? {
+                documentSeen: seen,
+                emailSeen: seen,
+                channelSeen: seen,
+                chatSeen: seen,
+                folderSeen: seen,
+              }
+            : {}),
+        },
+        { restrict: false }
+      )
+    );
 
     const seenAst: BackendAstMap = {};
     for (const target of ['df', 'ef', 'chanf', 'cf', 'pf'] as const) {

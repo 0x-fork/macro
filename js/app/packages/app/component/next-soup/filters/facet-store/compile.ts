@@ -178,6 +178,23 @@ export const compileFacets = <Ctx>(
   return result;
 };
 
+// Compile a standalone clause (target → expr) to a backend AST map — for
+// ad-hoc filters built with `defineClause` outside the facet-selection flow
+// (e.g. the inbox's notification-derived thread/read/call scoping).
+export const compileClause = (optionClause: OptionClause): BackendAstMap => {
+  const out: BackendAstMap = {};
+
+  for (const target of Object.keys(optionClause) as Target[]) {
+    const expr = optionClause[target];
+    if (!expr) continue;
+
+    const ast = compileExpr(target, expr);
+    if (ast) out[target] = ast;
+  }
+
+  return out;
+};
+
 // AND two compiled maps per target (e.g. a preset baseline with the user's
 // facet selection at the request boundary).
 export const mergeAst = (a: BackendAstMap, b: BackendAstMap): BackendAstMap => {
