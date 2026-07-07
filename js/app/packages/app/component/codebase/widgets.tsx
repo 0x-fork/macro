@@ -3,18 +3,20 @@ import { PROPERTY_OPTION_IDS } from '@property/constants';
 import { createMemo, type JSX, Show } from 'solid-js';
 import { AuthorAvatar } from './author-avatar';
 import {
+  BeeswarmChart,
   DivergingBarChart,
   DivergingLegend,
   HorizontalBarList,
   LegendSwatch,
   StackedStatusBar,
   StatTile,
+  ThroughputChart,
+  ThroughputLegend,
   TrendLineChart,
-  WeeklyActivityChart,
-  WeeklyActivityLegend,
 } from './charts';
 import {
   computeContributorLeaderboard,
+  computeCycleTimeByAuthor,
   computePrStats,
   computeRepoBreakdown,
   computeWeeklyChurn,
@@ -69,12 +71,24 @@ export function Card(props: {
   subtitle?: string;
   actions?: JSX.Element;
   children: JSX.Element;
+  /**
+   * Boxed panel (default) vs plain editorial section — the insights tab lays
+   * plain cards out with hairline dividers and generous spacing instead.
+   */
+  inset?: boolean;
 }) {
+  const inset = () => props.inset ?? true;
   return (
-    <section class="flex flex-col gap-3 rounded-xl bg-surface/50 p-4 ring ring-edge-muted ring-inset">
+    <section
+      class={
+        inset()
+          ? 'flex flex-col gap-3 rounded-xl bg-surface/50 p-4 ring ring-edge-muted ring-inset'
+          : 'flex flex-col gap-5'
+      }
+    >
       <div class="flex items-start justify-between gap-3">
-        <div class="flex flex-col">
-          <h3 class="text-sm font-semibold text-ink">{props.title}</h3>
+        <div class="flex flex-col gap-0.5">
+          <h3 class="text-[13px] font-semibold text-ink">{props.title}</h3>
           {props.subtitle && (
             <span class="text-xs text-ink-extra-muted">{props.subtitle}</span>
           )}
@@ -114,6 +128,7 @@ export function PrStatTiles(props: {
 
 export function ActivityCard(props: {
   pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
 }) {
   const weeklyActivity = createMemo(() =>
     computeWeeklyPrActivity(props.pullRequests)
@@ -121,16 +136,20 @@ export function ActivityCard(props: {
 
   return (
     <Card
-      title="Pull request activity"
-      subtitle="Opened vs merged per week, trailing 8 weeks"
-      actions={<WeeklyActivityLegend />}
+      title="Throughput"
+      subtitle="Cumulative PRs opened vs merged, with weekly merged volume — trailing 8 weeks"
+      actions={<ThroughputLegend />}
+      inset={props.inset}
     >
-      <WeeklyActivityChart data={weeklyActivity()} />
+      <ThroughputChart data={weeklyActivity()} />
     </Card>
   );
 }
 
-export function TaskStatusCard(props: { tasks: TaskEntity[] }) {
+export function TaskStatusCard(props: {
+  tasks: TaskEntity[];
+  inset?: boolean;
+}) {
   const openTaskCount = createMemo(
     () => props.tasks.filter((task) => !task.subType.is_completed).length
   );
@@ -147,6 +166,7 @@ export function TaskStatusCard(props: { tasks: TaskEntity[] }) {
     <Card
       title="Task statuses"
       subtitle={`${openTaskCount()} open of ${props.tasks.length} recent tasks`}
+      inset={props.inset}
     >
       <StackedStatusBar segments={segments()} />
     </Card>
@@ -216,6 +236,7 @@ export function VelocityStatTiles(props: {
 /** PR velocity: median time-to-merge per week. */
 export function VelocityCard(props: {
   pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
 }) {
   const data = createMemo(() =>
     computeWeeklyVelocity(props.pullRequests).map((week) => ({
@@ -230,6 +251,7 @@ export function VelocityCard(props: {
     <Card
       title="PR velocity"
       subtitle="Median days from first activity to merge, per week"
+      inset={props.inset}
     >
       <TrendLineChart
         data={data()}
@@ -241,7 +263,10 @@ export function VelocityCard(props: {
 }
 
 /** Weekly code churn: lines added above the baseline, deleted below. */
-export function ChurnCard(props: { pullRequests: GithubPullRequestEntity[] }) {
+export function ChurnCard(props: {
+  pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
+}) {
   const data = createMemo(() =>
     computeWeeklyChurn(props.pullRequests).map((week) => ({
       label: week.label,
@@ -257,6 +282,7 @@ export function ChurnCard(props: { pullRequests: GithubPullRequestEntity[] }) {
       actions={
         <DivergingLegend positiveLabel="Added" negativeLabel="Deleted" />
       }
+      inset={props.inset}
     >
       <DivergingBarChart
         data={data()}
@@ -271,6 +297,7 @@ export function ChurnCard(props: { pullRequests: GithubPullRequestEntity[] }) {
 /** Big vs small PRs: distribution across size buckets. */
 export function SizeDistributionCard(props: {
   pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
 }) {
   const segments = createMemo(() => {
     const counts = countPrSizeBuckets(props.pullRequests);
@@ -286,6 +313,7 @@ export function SizeDistributionCard(props: {
     <Card
       title="PR size"
       subtitle="Changed lines per PR — small PRs merge faster"
+      inset={props.inset}
     >
       <StackedStatusBar segments={segments()} />
     </Card>
@@ -295,6 +323,7 @@ export function SizeDistributionCard(props: {
 /** Frontend / backend / infra split, auto-detected from repo + title. */
 export function AreaBreakdownCard(props: {
   pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
 }) {
   const segments = createMemo(() => {
     const counts = countPullRequestAreas(props.pullRequests);
@@ -307,7 +336,11 @@ export function AreaBreakdownCard(props: {
   });
 
   return (
-    <Card title="Work areas" subtitle="Auto-detected from repo and PR titles">
+    <Card
+      title="Work areas"
+      subtitle="Auto-detected from repo and PR titles"
+      inset={props.inset}
+    >
       <StackedStatusBar segments={segments()} />
     </Card>
   );
@@ -318,6 +351,7 @@ const PROJECT_ROW_LIMIT = 8;
 /** Per-project (repo) PR breakdown: open vs merged vs closed. */
 export function ProjectBreakdownCard(props: {
   pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
 }) {
   const breakdown = createMemo(() => computeRepoBreakdown(props.pullRequests));
 
@@ -350,6 +384,7 @@ export function ProjectBreakdownCard(props: {
           <LegendSwatch color={CLOSED_COLOR} label="Closed" />
         </div>
       }
+      inset={props.inset}
     >
       <Show
         when={rows().length > 0}
@@ -371,6 +406,7 @@ const CONTRIBUTOR_ROW_LIMIT = 8;
 /** Merged-PR leaderboard for the trailing 30 days. */
 export function ContributorsCard(props: {
   pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
 }) {
   const leaderboard = createMemo(() =>
     computeContributorLeaderboard(props.pullRequests)
@@ -394,7 +430,11 @@ export function ContributorsCard(props: {
   );
 
   return (
-    <Card title="Contributors" subtitle="PRs merged in the last 30 days">
+    <Card
+      title="Contributors"
+      subtitle="PRs merged in the last 30 days"
+      inset={props.inset}
+    >
       <Show
         when={rows().length > 0}
         fallback={
@@ -404,6 +444,55 @@ export function ContributorsCard(props: {
         }
       >
         <HorizontalBarList rows={rows()} formatValue={(value) => `${value}`} />
+      </Show>
+    </Card>
+  );
+}
+
+/** Distinct-but-related hues for beeswarm groups; identity also carries via
+ * the column label under each swarm. */
+const BEESWARM_COLORS = [
+  'var(--color-accent)',
+  'var(--color-accent-60)',
+  'var(--color-accent-150)',
+  'var(--color-accent-240)',
+  'var(--color-accent-300)',
+];
+
+/** Cycle time per author: one dot per merged PR, median tick per column. */
+export function CycleTimeCard(props: {
+  pullRequests: GithubPullRequestEntity[];
+  inset?: boolean;
+}) {
+  const groups = createMemo(() =>
+    computeCycleTimeByAuthor(props.pullRequests).map((group, index) => ({
+      key: group.key,
+      label: group.authorLogin ?? 'Unknown',
+      color: BEESWARM_COLORS[index % BEESWARM_COLORS.length],
+      samples: group.samples,
+      median: group.medianDays,
+    }))
+  );
+
+  return (
+    <Card
+      title="Cycle time by author"
+      subtitle="Days from first activity to merge, one dot per PR — trailing 8 weeks"
+      inset={props.inset}
+    >
+      <Show
+        when={groups().length > 0}
+        fallback={
+          <div class="text-sm text-ink-muted">
+            Nothing merged in the last 8 weeks.
+          </div>
+        }
+      >
+        <BeeswarmChart
+          groups={groups()}
+          unit="d"
+          ariaLabel="Days to merge per pull request, grouped by author"
+        />
       </Show>
     </Card>
   );

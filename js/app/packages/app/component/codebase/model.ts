@@ -577,6 +577,57 @@ export function computeContributorLeaderboard(
   );
 }
 
+export type CycleTimeGroup = {
+  key: string;
+  authorLogin: string | undefined;
+  /** Days-to-merge samples for PRs merged in the window. */
+  samples: number[];
+  medianDays: number | undefined;
+};
+
+/**
+ * Per-author cycle-time samples (days from first activity to merge) for PRs
+ * merged in the trailing `days`, largest sample count first. Feeds the
+ * beeswarm chart; authors beyond `maxGroups` are dropped, not folded.
+ */
+export function computeCycleTimeByAuthor(
+  pullRequests: GithubPullRequestEntity[],
+  { days = 56, maxGroups = 5 }: { days?: number; maxGroups?: number } = {},
+  now = new Date()
+): CycleTimeGroup[] {
+  const cutoff = now.getTime() - days * DAY_MS;
+  const groups = new Map<string, CycleTimeGroup>();
+
+  for (const pullRequest of pullRequests) {
+    if (pullRequest.metadata.status !== 'merged') continue;
+    const merged = toTime(pullRequest.updatedAt);
+    if (merged === undefined || merged < cutoff) continue;
+    const cycleDays = pullRequestCycleDays(pullRequest);
+    if (cycleDays === undefined) continue;
+
+    const key = pullRequestAuthorKey(pullRequest);
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        key,
+        authorLogin: pullRequest.metadata.authorLogin,
+        samples: [],
+        medianDays: undefined,
+      };
+      groups.set(key, group);
+    }
+    group.samples.push(cycleDays);
+  }
+
+  return [...groups.values()]
+    .sort(
+      (a, b) =>
+        b.samples.length - a.samples.length || a.key.localeCompare(b.key)
+    )
+    .slice(0, maxGroups)
+    .map((group) => ({ ...group, medianDays: median(group.samples) }));
+}
+
 /** Open PRs (incl. drafts) with no activity for at least `days`. */
 export function countStalePullRequests(
   pullRequests: GithubPullRequestEntity[],

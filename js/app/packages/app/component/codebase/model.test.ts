@@ -3,6 +3,7 @@ import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { describe, expect, it } from 'vitest';
 import {
   computeContributorLeaderboard,
+  computeCycleTimeByAuthor,
   computePrStats,
   computeRepoBreakdown,
   computeWeeklyChurn,
@@ -451,6 +452,59 @@ describe('computeContributorLeaderboard', () => {
       ['alice', 2],
       ['bob', 1],
     ]);
+  });
+});
+
+describe('computeCycleTimeByAuthor', () => {
+  it('collects per-author samples with medians, largest group first', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const groups = computeCycleTimeByAuthor(
+      [
+        makePullRequest({
+          id: 'a1',
+          createdAt: '2026-07-01T00:00:00Z',
+          updatedAt: '2026-07-03T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'alice' },
+        }),
+        makePullRequest({
+          id: 'a2',
+          createdAt: '2026-07-01T00:00:00Z',
+          updatedAt: '2026-07-05T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'alice' },
+        }),
+        makePullRequest({
+          id: 'b1',
+          createdAt: '2026-07-01T00:00:00Z',
+          updatedAt: '2026-07-02T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'bob' },
+        }),
+        makePullRequest({ id: 'open', metadata: { authorLogin: 'bob' } }),
+      ],
+      {},
+      now
+    );
+
+    expect(groups.map((g) => g.key)).toEqual(['alice', 'bob']);
+    expect(groups[0].samples).toEqual([2, 4]);
+    expect(groups[0].medianDays).toBe(3);
+    expect(groups[1].samples).toEqual([1]);
+  });
+
+  it('caps the number of groups', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const groups = computeCycleTimeByAuthor(
+      ['a', 'b', 'c'].map((login) =>
+        makePullRequest({
+          id: login,
+          createdAt: '2026-07-01T00:00:00Z',
+          updatedAt: '2026-07-02T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: login },
+        })
+      ),
+      { maxGroups: 2 },
+      now
+    );
+    expect(groups).toHaveLength(2);
   });
 });
 
