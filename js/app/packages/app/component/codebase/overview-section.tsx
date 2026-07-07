@@ -1,24 +1,32 @@
+import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { SidePanel } from '@app/component/side-panel';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
+import { globalSplitManager } from '@app/signal/splitLayout';
+import { TabsInset } from '@core/component/TabsInset';
 import {
   type EntityData,
+  formatRelativeTimestamp,
   type GithubPullRequestEntity,
   ListEntity,
   ListLayoutProvider,
   type TaskEntity,
 } from '@entity';
+import { openNotification, useEntityTypeNotifications } from '@notifications';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
-import ChatCircleIcon from '@phosphor/chat-circle.svg';
+import CheckIcon from '@phosphor/check.svg';
 import GitMergeIcon from '@phosphor/git-merge.svg';
 import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
+import SortAscendingIcon from '@phosphor/sort-ascending.svg';
 import SparkleIcon from '@phosphor/sparkle.svg';
+import StackSimpleIcon from '@phosphor/stack-simple.svg';
+import UsersIcon from '@phosphor/users.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
-import WarningCircleIcon from '@phosphor/warning-circle.svg';
 import { useGithubLinkStatusQuery } from '@queries/auth/github-link';
 import { useContacts } from '@queries/contacts/contacts';
 import { useCurrentTeamQuery } from '@queries/team/teams';
-import { cn, EmptyStatePanel } from '@ui';
+import { Button, cn, Dropdown, EmptyStatePanel } from '@ui';
 import {
   createMemo,
   createSignal,
@@ -34,41 +42,48 @@ import {
   ConnectGithubOverview,
   ConnectGithubRailSections,
 } from './connect-github';
+import { useCodebasePullRequests, useCodebaseTasks } from './data';
 import {
-  useCodebasePullRequests,
-  useCodebaseTasks,
-  useProjectNames,
-} from './data';
-import {
+  attentionReasonPhrase,
   averageOpenAgeDays,
   buildEngineerBentos,
-  computeNeedsAttention,
+  computeReviewAttention,
   computeWeeklyPrActivity,
   countStalePullRequests,
   countTasksByStatus,
-  groupPullRequestsByAuthor,
+  groupPullRequests,
+  matchesPrStatusFilter,
   medianTimeToMergeDays,
-  type PullRequestAuthorGroup,
+  PR_GROUP_OPTIONS,
+  PR_SORT_OPTIONS,
+  PR_STATUS_FILTERS,
+  PR_STATUS_LABELS,
+  type PrGroupId,
+  type PrSortId,
+  type PrStatusFilter,
+  type PullRequestGroup,
+  pullRequestAuthorKey,
   pullRequestDisplayStatus,
+  type ReviewAttentionItem,
+  sortPullRequests,
   UNKNOWN_AUTHOR_KEY,
 } from './model';
 import {
   useEngineerSummariesQuery,
   useTeamDailySummaryQuery,
 } from './summaries';
-import {
-  createTaskLinkIndex,
-  PullRequestRowWithTasks,
-  taskStatusColor,
-} from './task-links';
+import { createTaskLinkIndex, PullRequestRowWithTasks } from './task-links';
 import { formatDays, TASK_STATUS_SEGMENTS } from './widgets';
 
-/** Rows shown in the needs-attention card before expanding. */
-const ATTENTION_LIMIT = 6;
 /** Linked-task pills shown per PR row. */
 const TASK_PILL_LIMIT = 2;
+/** Reason chips shown per attention row before collapsing into "+N". */
+const REASON_LIMIT = 2;
 
-const NUMBER_FORMAT = new Intl.NumberFormat();
+const STATUS_TAB_ITEMS = PR_STATUS_FILTERS.map((value) => ({
+  value,
+  label: PR_STATUS_LABELS[value],
+}));
 
 function PrStatusIcon(props: { pullRequest: GithubPullRequestEntity }) {
   const status = () => pullRequestDisplayStatus(props.pullRequest);
@@ -90,22 +105,7 @@ function PrStatusIcon(props: { pullRequest: GithubPullRequestEntity }) {
   );
 }
 
-function MiniCard(props: {
-  onClick: (event: MouseEvent) => void;
-  children: JSX.Element;
-}) {
-  return (
-    <button
-      type="button"
-      class="flex w-full flex-col gap-1 rounded-lg bg-ink/3 px-2.5 py-2 text-left outline-none hover:bg-ink/6 focus-visible:ring focus-visible:ring-accent/40"
-      onClick={(event) => props.onClick(event)}
-    >
-      {props.children}
-    </button>
-  );
-}
-
-/** Small chip appended to a mini-card's title row (e.g. "stale 12d"). */
+/** Small chip appended to a row (e.g. "jbecke requested your review"). */
 function MetaChip(props: { class?: string; children: JSX.Element }) {
   return (
     <span
@@ -116,69 +116,6 @@ function MetaChip(props: { class?: string; children: JSX.Element }) {
     >
       {props.children}
     </span>
-  );
-}
-
-function PullRequestMiniCard(props: {
-  pullRequest: GithubPullRequestEntity;
-  onOpen: (entity: EntityData, event: MouseEvent) => void;
-  chip?: JSX.Element;
-}) {
-  const meta = () => props.pullRequest.metadata;
-  return (
-    <MiniCard onClick={(event) => props.onOpen(props.pullRequest, event)}>
-      <div class="flex w-full items-center gap-1.5">
-        <PrStatusIcon pullRequest={props.pullRequest} />
-        <span class="min-w-0 flex-1 truncate text-xs font-medium text-ink">
-          {meta().name}
-        </span>
-        {props.chip}
-      </div>
-      <div class="flex w-full items-center gap-2 pl-5 text-[11px] text-ink-extra-muted tabular-nums">
-        <span class="truncate">
-          {meta().repo}#{meta().number}
-        </span>
-        <span class="shrink-0 text-success/80">
-          +{NUMBER_FORMAT.format(meta().additions)}
-        </span>
-        <span class="shrink-0 text-failure/80">
-          −{NUMBER_FORMAT.format(meta().deletions)}
-        </span>
-        <Show when={meta().comments.length > 0}>
-          <span class="inline-flex shrink-0 items-center gap-0.5">
-            <ChatCircleIcon class="size-3" />
-            {meta().comments.length}
-          </span>
-        </Show>
-      </div>
-    </MiniCard>
-  );
-}
-
-function TaskMiniCard(props: {
-  task: TaskEntity;
-  projectName?: string;
-  onOpen: (entity: EntityData, event: MouseEvent) => void;
-  chip?: JSX.Element;
-}) {
-  return (
-    <MiniCard onClick={(event) => props.onOpen(props.task, event)}>
-      <div class="flex w-full items-center gap-1.5">
-        <span
-          class="size-2 shrink-0 rounded-full"
-          style={{ 'background-color': taskStatusColor(props.task) }}
-        />
-        <span class="min-w-0 flex-1 truncate text-xs font-medium text-ink">
-          {props.task.name}
-        </span>
-        {props.chip}
-      </div>
-      <Show when={props.projectName}>
-        <div class="w-full truncate pl-3.5 text-[11px] text-ink-extra-muted">
-          {props.projectName}
-        </div>
-      </Show>
-    </MiniCard>
   );
 }
 
@@ -241,134 +178,158 @@ function TeamDailySummary(props: {
 }
 
 /**
- * The exceptions worth acting on: open PRs with failing checks, stale open
- * PRs, and tasks sitting in review. Collapsible; the overflow line expands
- * the row list in place.
+ * One PR that needs me, with why: chips built from the underlying inbox
+ * notifications ("requested your review" / "mentioned you"). The check
+ * button marks those notifications done, which clears the row here and in
+ * the inbox alike.
  */
-function NeedsAttentionCard(props: {
-  pullRequests: GithubPullRequestEntity[];
-  tasks: TaskEntity[];
-  projectNames: Map<string, string>;
-  onOpen: (entity: EntityData, event: MouseEvent) => void;
+function AttentionRow(props: {
+  item: ReviewAttentionItem;
+  onOpen: (item: ReviewAttentionItem, event: MouseEvent) => void;
+  onDone: (item: ReviewAttentionItem) => void;
 }) {
-  const [open, setOpen] = createSignal(true);
-  const [showAll, setShowAll] = createSignal(false);
-
-  const attention = createMemo(() =>
-    computeNeedsAttention(props.pullRequests, props.tasks)
-  );
-
-  const total = () =>
-    attention().failingChecks.length +
-    attention().stale.length +
-    attention().inReviewTasks.length;
-
-  const rows = createMemo((): JSX.Element[] => {
-    const { failingChecks, stale, inReviewTasks } = attention();
-    const items: JSX.Element[] = [];
-
-    for (const pullRequest of failingChecks) {
-      items.push(
-        <PullRequestMiniCard
-          pullRequest={pullRequest}
-          onOpen={props.onOpen}
-          chip={
-            <MetaChip class="bg-failure/10 text-failure">
-              <WarningCircleIcon class="size-3" />
-              CI failing
-            </MetaChip>
-          }
-        />
-      );
-    }
-    for (const { pullRequest, quietDays } of stale) {
-      items.push(
-        <PullRequestMiniCard
-          pullRequest={pullRequest}
-          onOpen={props.onOpen}
-          chip={
-            <MetaChip class="bg-alert/15 text-alert-ink">
-              stale {quietDays}d
-            </MetaChip>
-          }
-        />
-      );
-    }
-    for (const task of inReviewTasks) {
-      items.push(
-        <TaskMiniCard
-          task={task}
-          projectName={
-            task.projectId ? props.projectNames.get(task.projectId) : undefined
-          }
-          onOpen={props.onOpen}
-          chip={<MetaChip class="bg-accent/10 text-accent">in review</MetaChip>}
-        />
-      );
-    }
-    return items;
-  });
-
-  const visibleRows = () =>
-    showAll() ? rows() : rows().slice(0, ATTENTION_LIMIT);
+  const reasons = () => props.item.reasons.slice(0, REASON_LIMIT);
+  const overflow = () => props.item.reasons.length - REASON_LIMIT;
 
   return (
-    <Show when={total() > 0}>
-      <section class="flex flex-col rounded-xl bg-surface/50 px-4 py-3 ring ring-edge-muted ring-inset">
-        <button
-          type="button"
-          class="group flex w-full items-center gap-2 text-left outline-none"
-          onClick={() => setOpen((prev) => !prev)}
-        >
-          <CaretRightIcon
-            class={cn(
-              'size-3 shrink-0 text-ink-muted transition-transform duration-90',
-              open() && 'rotate-90'
-            )}
-          />
-          <span class="text-[13px] font-semibold text-ink group-hover:underline">
-            Needs attention
-          </span>
-          <span class="text-[11px] text-ink-extra-muted tabular-nums">
-            {attention().failingChecks.length} failing ·{' '}
-            {attention().stale.length} stale ·{' '}
-            {attention().inReviewTasks.length} in review
-          </span>
-        </button>
-        <Show when={open()}>
-          <div class="flex flex-col gap-2.5 pt-2.5">
-            <div class="grid grid-cols-1 gap-1.5 @3xl:grid-cols-2">
-              <For each={visibleRows()}>{(row) => row}</For>
-            </div>
-            <Show when={total() > ATTENTION_LIMIT}>
-              <button
-                type="button"
-                class="self-start text-[11px] text-ink-muted tabular-nums outline-none hover:text-ink"
-                onClick={() => setShowAll((prev) => !prev)}
-              >
-                {showAll() ? 'Show less' : `+${total() - ATTENTION_LIMIT} more`}
-              </button>
+    <div
+      class="group/attention flex w-full cursor-pointer items-center gap-2 rounded-lg bg-ink/3 px-2.5 py-2 hover:bg-ink/6"
+      onClick={(event) => props.onOpen(props.item, event)}
+    >
+      <Show
+        when={props.item.pullRequest}
+        fallback={
+          <GitPullRequestIcon class="size-3.5 shrink-0 text-ink-muted" />
+        }
+      >
+        {(pullRequest) => <PrStatusIcon pullRequest={pullRequest()} />}
+      </Show>
+      <span class="min-w-0 flex-1 truncate text-xs font-medium text-ink">
+        {props.item.title}
+        <span class="pl-2 font-normal text-[11px] text-ink-extra-muted">
+          {props.item.reference}
+        </span>
+      </span>
+      <For each={reasons()}>
+        {(reason) => (
+          <MetaChip class="bg-accent/10 text-accent">
+            <Show when={reason.actorLogin}>
+              <AuthorAvatar login={reason.actorLogin} class="size-3 shrink-0" />
+              <span class="max-w-24 truncate">{reason.actorLogin}</span>
             </Show>
-          </div>
-        </Show>
-      </section>
-    </Show>
+            {attentionReasonPhrase(reason.tag)}
+            <span class="font-normal text-accent/70">
+              {formatRelativeTimestamp(new Date(reason.createdAt), {
+                condensed: true,
+              })}
+            </span>
+          </MetaChip>
+        )}
+      </For>
+      <Show when={overflow() > 0}>
+        <span class="shrink-0 text-[10px] text-ink-extra-muted tabular-nums">
+          +{overflow()}
+        </span>
+      </Show>
+      <button
+        type="button"
+        title="Mark done"
+        class="shrink-0 rounded-md p-1 text-ink-extra-muted opacity-0 outline-none transition-opacity hover:bg-ink/8 hover:text-ink group-hover/attention:opacity-100 focus-visible:opacity-100"
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onDone(props.item);
+        }}
+      >
+        <CheckIcon class="size-3.5" />
+      </button>
+    </div>
   );
 }
 
-function AuthorGroupHeader(props: {
-  group: PullRequestAuthorGroup;
+/**
+ * "Requires my attention": PRs where I was mentioned or my review was
+ * requested, driven by the same notifications as the inbox. Collapsible.
+ */
+function RequiresAttentionCard(props: {
+  items: ReviewAttentionItem[];
+  onOpen: (item: ReviewAttentionItem, event: MouseEvent) => void;
+  onDone: (item: ReviewAttentionItem) => void;
+}) {
+  const [open, setOpen] = createSignal(true);
+
+  return (
+    <section class="flex flex-col rounded-xl bg-surface/50 px-4 py-3 ring ring-edge-muted ring-inset">
+      <button
+        type="button"
+        class="group flex w-full items-center gap-2 text-left outline-none"
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <CaretRightIcon
+          class={cn(
+            'size-3 shrink-0 text-ink-muted transition-transform duration-90',
+            open() && 'rotate-90'
+          )}
+        />
+        <span class="text-[13px] font-semibold text-ink group-hover:underline">
+          Requires my attention
+        </span>
+        <span class="text-[11px] text-ink-extra-muted tabular-nums">
+          {props.items.length === 0
+            ? 'all caught up'
+            : `${props.items.length} pull request${props.items.length === 1 ? '' : 's'}`}
+        </span>
+      </button>
+      <Show when={open() && props.items.length > 0}>
+        <div class="flex flex-col gap-1.5 pt-2.5">
+          <For each={props.items}>
+            {(item) => (
+              <AttentionRow
+                item={item}
+                onOpen={props.onOpen}
+                onDone={props.onDone}
+              />
+            )}
+          </For>
+        </div>
+      </Show>
+    </section>
+  );
+}
+
+function SectionHeading(props: { title: string; meta?: string }) {
+  return (
+    <div class="flex items-baseline gap-2 px-3 pb-1">
+      <h2 class="text-[13px] font-semibold text-ink">{props.title}</h2>
+      <Show when={props.meta}>
+        <span class="text-[11px] text-ink-extra-muted tabular-nums">
+          {props.meta}
+        </span>
+      </Show>
+    </div>
+  );
+}
+
+/**
+ * Header above each group in the "Everyone" list. Person groups get the
+ * avatar and per-engineer AI summary; other groupings a plain label.
+ */
+function GroupHeader(props: {
+  group: PullRequestGroup;
+  showAvatar: boolean;
   summary?: string;
 }) {
   return (
     <div class="flex flex-col gap-1 px-3 pt-4 pb-1.5">
       <div class="flex items-center gap-2">
-        <AuthorAvatar login={props.group.authorLogin} class="size-5 shrink-0" />
-        <span class="text-sm font-semibold text-ink">
-          {props.group.authorLogin ?? 'Unknown author'}
-        </span>
+        <Show when={props.showAvatar}>
+          <AuthorAvatar
+            login={props.group.authorLogin}
+            class="size-5 shrink-0"
+          />
+        </Show>
+        <span class="text-sm font-semibold text-ink">{props.group.label}</span>
         <span class="text-xs text-ink-extra-muted tabular-nums">
-          {props.group.openCount} open
+          {props.group.openCount} open · {props.group.pullRequests.length} total
         </span>
       </div>
       <Show when={props.summary}>
@@ -462,20 +423,24 @@ function InsightsRail(props: {
 }
 
 /**
- * The Overview tab: the team's open pull requests as a unified list grouped
- * by author (with an AI summary per engineer), linked-task pills on the
- * right of each row, a collapsible daily digest and needs-attention card up
- * top, and key insight charts docked in the entity-style right side panel.
- * Scoped to the current team's members when the user belongs to a team.
+ * The Overview tab, top to bottom: my open pull requests, the PRs that
+ * require my attention (driven by my mention / review-request notifications,
+ * like the inbox), and everyone's pull requests as a filterable, groupable,
+ * sortable unified list — with key insight charts docked in the right side
+ * panel. Scoped to the current team's members when the user belongs to one.
  */
 export function OverviewSection() {
   const panel = useSplitPanelOrThrow();
   const githubLink = useGithubLinkStatusQuery();
   const { query: prQuery, pullRequests } = useCodebasePullRequests();
   const { tasks } = useCodebaseTasks();
-  const projectNames = useProjectNames();
   const contacts = useContacts();
   const team = useCurrentTeamQuery();
+  const notificationSource = useGlobalNotificationSource();
+  const foreignEntityNotifications = useEntityTypeNotifications(
+    notificationSource,
+    'foreign_entity'
+  );
 
   const githubDisconnected = () =>
     githubLink.isSuccess && githubLink.data?.status !== 'linked';
@@ -487,20 +452,69 @@ export function OverviewSection() {
       : undefined;
   });
 
-  const openPullRequests = createMemo(() =>
-    pullRequests().filter((pullRequest) => {
-      const status = pullRequestDisplayStatus(pullRequest);
-      return status === 'open' || status === 'draft';
-    })
-  );
-
-  const groups = createMemo(() =>
-    groupPullRequestsByAuthor(openPullRequests())
-  );
-
   const openTasks = createMemo(() =>
     tasks().filter((task) => !task.subType.is_completed)
   );
+  const taskLinks = createTaskLinkIndex(openTasks);
+
+  // --- My pull requests ------------------------------------------------
+  const myPullRequests = createMemo(() => {
+    const login = githubLink.data?.username;
+    if (!login) return [];
+    return pullRequests().filter((pullRequest) => {
+      if (pullRequest.metadata.authorLogin !== login) return false;
+      const status = pullRequestDisplayStatus(pullRequest);
+      return status === 'open' || status === 'draft';
+    });
+  });
+
+  // --- Requires my attention -------------------------------------------
+  const attentionItems = createMemo(() =>
+    computeReviewAttention(foreignEntityNotifications(), pullRequests())
+  );
+
+  // --- Everyone ---------------------------------------------------------
+  const [statusFilter, setStatusFilter] = createSignal<PrStatusFilter>('open');
+  const [authorFilter, setAuthorFilter] = createSignal<string[]>([]);
+  const [groupBy, setGroupBy] = createSignal<PrGroupId>('author');
+  const [sortId, setSortId] = createSignal<PrSortId>('updated');
+
+  const authors = createMemo(() => {
+    const logins = new Set<string>();
+    for (const pullRequest of pullRequests()) {
+      logins.add(pullRequestAuthorKey(pullRequest));
+    }
+    return [...logins].sort((a, b) => a.localeCompare(b));
+  });
+
+  const toggleAuthor = (login: string, checked: boolean) => {
+    setAuthorFilter((current) =>
+      checked ? [...current, login] : current.filter((l) => l !== login)
+    );
+  };
+
+  const filtered = createMemo(() => {
+    const selectedAuthors = authorFilter();
+    return pullRequests().filter((pullRequest) => {
+      if (!matchesPrStatusFilter(pullRequest, statusFilter())) return false;
+      if (
+        selectedAuthors.length > 0 &&
+        !selectedAuthors.includes(pullRequestAuthorKey(pullRequest))
+      ) {
+        return false;
+      }
+      return true;
+    });
+  });
+
+  const groups = createMemo(() =>
+    groupPullRequests(sortPullRequests(filtered(), sortId()), groupBy())
+  );
+
+  const groupLabel = () =>
+    PR_GROUP_OPTIONS.find((option) => option.id === groupBy())?.label ?? '';
+  const sortLabel = () =>
+    PR_SORT_OPTIONS.find((option) => option.id === sortId())?.label ?? '';
 
   // Per-engineer AI summaries, keyed by author login (bentos exist purely to
   // feed the digest builder and reuse its team scoping).
@@ -510,8 +524,6 @@ export function OverviewSection() {
     })
   );
   const engineerSummaries = useEngineerSummariesQuery(bentos, pullRequests);
-
-  const taskLinks = createTaskLinkIndex(openTasks);
 
   const openInCurrentSplit = (entity: EntityData, event: MouseEvent) => {
     void openEntityInSplitFromUnifiedList(entity, {
@@ -529,6 +541,30 @@ export function OverviewSection() {
     });
   };
 
+  const openAttentionItem = (item: ReviewAttentionItem, event: MouseEvent) => {
+    // Prefer the loaded PR row; fall back to the inbox's own notification
+    // navigation when the PR is outside the current query window.
+    if (item.pullRequest) {
+      openInCurrentSplit(item.pullRequest, event);
+      return;
+    }
+    const notificationId = item.reasons[0]?.notificationId;
+    const notification = foreignEntityNotifications().find(
+      (n) => n.id === notificationId
+    );
+    const manager = globalSplitManager();
+    if (notification && manager) {
+      openNotification(notification, manager, event.metaKey || event.ctrlKey);
+    }
+  };
+
+  const markAttentionDone = (item: ReviewAttentionItem) => {
+    const ids = new Set(item.notificationIds);
+    void notificationSource.bulkMarkAsDone(
+      foreignEntityNotifications().filter((n) => ids.has(n.id))
+    );
+  };
+
   let listRef: HTMLDivElement | undefined;
 
   return (
@@ -542,66 +578,262 @@ export function OverviewSection() {
             <Match when={githubDisconnected()}>
               <ConnectGithubOverview />
             </Match>
-            <Match when={prQuery.isLoading && groups().length === 0}>
+            <Match when={prQuery.isLoading && pullRequests().length === 0}>
               <div class="px-6 py-6 text-sm text-ink-muted">Loading team…</div>
             </Match>
-            <Match when={groups().length === 0}>
+            <Match
+              when={
+                pullRequests().length === 0 && attentionItems().length === 0
+              }
+            >
               <EmptyStatePanel
                 centered
                 graphic={UsersThreeIcon}
                 graphicClass="h-24 w-24 text-ink-extra-muted"
-                title="No open pull requests"
-                description="Your team's open pull requests will show up here, grouped by engineer."
+                title="No pull requests"
+                description="Pull requests from your connected GitHub account will show up here as they see activity."
               />
             </Match>
             <Match when={true}>
-              <div class="flex w-full flex-col gap-3 px-4 py-4">
-                <TeamDailySummary
-                  pullRequests={pullRequests()}
-                  tasks={tasks()}
-                />
-                <NeedsAttentionCard
-                  pullRequests={pullRequests()}
-                  tasks={tasks()}
-                  projectNames={projectNames()}
-                  onOpen={openInCurrentSplit}
-                />
+              <div
+                ref={listRef}
+                class="flex w-full flex-col gap-4 px-4 py-4 pb-8"
+              >
+                <ListLayoutProvider ref={() => listRef}>
+                  <section>
+                    <SectionHeading
+                      title="My pull requests"
+                      meta={
+                        myPullRequests().length > 0
+                          ? `${myPullRequests().length} open`
+                          : undefined
+                      }
+                    />
+                    <Show
+                      when={myPullRequests().length > 0}
+                      fallback={
+                        <p class="px-3 py-1 text-xs text-ink-extra-muted">
+                          Nothing open right now.
+                        </p>
+                      }
+                    >
+                      <For each={myPullRequests()}>
+                        {(pullRequest) => (
+                          <PullRequestRowWithTasks
+                            linked={taskLinks.tasksFor(pullRequest)}
+                            pillLimit={TASK_PILL_LIMIT}
+                            onOpenTask={openTaskInNewSplit}
+                          >
+                            <ListEntity
+                              entity={pullRequest}
+                              hideCheckbox
+                              onClick={(event) =>
+                                openInCurrentSplit(pullRequest, event)
+                              }
+                            />
+                          </PullRequestRowWithTasks>
+                        )}
+                      </For>
+                    </Show>
+                  </section>
 
-                <div ref={listRef} class="pb-4">
-                  <ListLayoutProvider ref={() => listRef}>
-                    <For each={groups()}>
-                      {(group) => (
-                        <section>
-                          <AuthorGroupHeader
-                            group={group}
-                            summary={
-                              group.key === UNKNOWN_AUTHOR_KEY
-                                ? undefined
-                                : engineerSummaries.data?.get(group.key)
-                            }
-                          />
-                          <For each={group.pullRequests}>
-                            {(pullRequest) => (
-                              <PullRequestRowWithTasks
-                                linked={taskLinks.tasksFor(pullRequest)}
-                                pillLimit={TASK_PILL_LIMIT}
-                                onOpenTask={openTaskInNewSplit}
-                              >
-                                <ListEntity
-                                  entity={pullRequest}
-                                  hideCheckbox
-                                  onClick={(event) =>
-                                    openInCurrentSplit(pullRequest, event)
+                  <RequiresAttentionCard
+                    items={attentionItems()}
+                    onOpen={openAttentionItem}
+                    onDone={markAttentionDone}
+                  />
+
+                  <TeamDailySummary
+                    pullRequests={pullRequests()}
+                    tasks={tasks()}
+                  />
+
+                  <section>
+                    <SectionHeading title="Everyone" />
+                    <div class="flex flex-wrap items-center gap-2 px-3 py-1.5">
+                      <TabsInset
+                        list={STATUS_TAB_ITEMS}
+                        value={statusFilter()}
+                        onChange={(value) =>
+                          setStatusFilter(value as PrStatusFilter)
+                        }
+                      />
+                      <Dropdown placement="bottom-start" gutter={4}>
+                        <Dropdown.Trigger
+                          variant="ghost"
+                          size="sm"
+                          class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                        >
+                          <UsersIcon class="size-3.5" />
+                          {authorFilter().length > 0
+                            ? `${authorFilter().length} selected`
+                            : 'Anyone'}
+                          <CaretDownIcon class="size-3 text-ink-extra-muted" />
+                        </Dropdown.Trigger>
+                        <Dropdown.Content class="min-w-56 max-h-80 overflow-y-auto shadow-menu">
+                          <Dropdown.Group class="p-1">
+                            <For each={authors()}>
+                              {(login) => (
+                                <Dropdown.CheckboxItem
+                                  class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
+                                  checked={authorFilter().includes(login)}
+                                  onChange={(checked: boolean) =>
+                                    toggleAuthor(login, checked)
                                   }
-                                />
-                              </PullRequestRowWithTasks>
-                            )}
-                          </For>
-                        </section>
-                      )}
-                    </For>
-                  </ListLayoutProvider>
-                </div>
+                                  closeOnSelect={false}
+                                >
+                                  <AuthorAvatar
+                                    login={
+                                      login === UNKNOWN_AUTHOR_KEY
+                                        ? undefined
+                                        : login
+                                    }
+                                    class="size-4 shrink-0"
+                                  />
+                                  <span class="flex-1 truncate">
+                                    {login === UNKNOWN_AUTHOR_KEY
+                                      ? 'Unknown author'
+                                      : login}
+                                  </span>
+                                  <Show when={authorFilter().includes(login)}>
+                                    <span class="text-xs text-accent">✓</span>
+                                  </Show>
+                                </Dropdown.CheckboxItem>
+                              )}
+                            </For>
+                            <Show when={authorFilter().length > 0}>
+                              <Dropdown.Item
+                                class="mt-1 rounded-md px-2 py-1.5 text-sm text-ink-muted outline-none data-highlighted:bg-ink/5"
+                                onSelect={() => setAuthorFilter([])}
+                              >
+                                Clear author filter
+                              </Dropdown.Item>
+                            </Show>
+                          </Dropdown.Group>
+                        </Dropdown.Content>
+                      </Dropdown>
+                      <Dropdown placement="bottom-start" gutter={4}>
+                        <Dropdown.Trigger
+                          variant="ghost"
+                          size="sm"
+                          class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                        >
+                          <StackSimpleIcon class="size-3.5" />
+                          {groupLabel()}
+                          <CaretDownIcon class="size-3 text-ink-extra-muted" />
+                        </Dropdown.Trigger>
+                        <Dropdown.Content class="min-w-44 shadow-menu">
+                          <Dropdown.Group class="p-1">
+                            <For each={PR_GROUP_OPTIONS}>
+                              {(option) => (
+                                <Dropdown.Item
+                                  class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
+                                  onSelect={() => setGroupBy(option.id)}
+                                >
+                                  <span class="flex-1">{option.label}</span>
+                                  <Show when={groupBy() === option.id}>
+                                    <CheckIcon class="size-3.5 text-accent" />
+                                  </Show>
+                                </Dropdown.Item>
+                              )}
+                            </For>
+                          </Dropdown.Group>
+                        </Dropdown.Content>
+                      </Dropdown>
+                      <Dropdown placement="bottom-start" gutter={4}>
+                        <Dropdown.Trigger
+                          variant="ghost"
+                          size="sm"
+                          class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                        >
+                          <SortAscendingIcon class="size-3.5" />
+                          {sortLabel()}
+                          <CaretDownIcon class="size-3 text-ink-extra-muted" />
+                        </Dropdown.Trigger>
+                        <Dropdown.Content class="min-w-44 shadow-menu">
+                          <Dropdown.Group class="p-1">
+                            <For each={PR_SORT_OPTIONS}>
+                              {(option) => (
+                                <Dropdown.Item
+                                  class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
+                                  onSelect={() => setSortId(option.id)}
+                                >
+                                  <span class="flex-1">{option.label}</span>
+                                  <Show when={sortId() === option.id}>
+                                    <CheckIcon class="size-3.5 text-accent" />
+                                  </Show>
+                                </Dropdown.Item>
+                              )}
+                            </For>
+                          </Dropdown.Group>
+                        </Dropdown.Content>
+                      </Dropdown>
+                      <span class="ml-auto text-xs text-ink-extra-muted tabular-nums">
+                        {filtered().length} pull requests
+                      </span>
+                    </div>
+
+                    <Show
+                      when={groups().length > 0}
+                      fallback={
+                        <p class="px-3 py-2 text-xs text-ink-extra-muted">
+                          No pull requests match the current filters.
+                        </p>
+                      }
+                    >
+                      <For each={groups()}>
+                        {(group) => (
+                          <section>
+                            <Show when={group.label !== ''}>
+                              <GroupHeader
+                                group={group}
+                                showAvatar={groupBy() === 'author'}
+                                summary={
+                                  groupBy() === 'author' &&
+                                  group.key !== UNKNOWN_AUTHOR_KEY
+                                    ? engineerSummaries.data?.get(group.key)
+                                    : undefined
+                                }
+                              />
+                            </Show>
+                            <For each={group.pullRequests}>
+                              {(pullRequest) => (
+                                <PullRequestRowWithTasks
+                                  linked={taskLinks.tasksFor(pullRequest)}
+                                  pillLimit={TASK_PILL_LIMIT}
+                                  onOpenTask={openTaskInNewSplit}
+                                >
+                                  <ListEntity
+                                    entity={pullRequest}
+                                    hideCheckbox
+                                    onClick={(event) =>
+                                      openInCurrentSplit(pullRequest, event)
+                                    }
+                                  />
+                                </PullRequestRowWithTasks>
+                              )}
+                            </For>
+                          </section>
+                        )}
+                      </For>
+                    </Show>
+                    <Show when={prQuery.hasNextPage}>
+                      <div class="flex justify-center pt-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          class="text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                          disabled={prQuery.isFetchingNextPage}
+                          onClick={() => void prQuery.fetchNextPage()}
+                        >
+                          {prQuery.isFetchingNextPage
+                            ? 'Loading…'
+                            : 'Load more'}
+                        </Button>
+                      </div>
+                    </Show>
+                  </section>
+                </ListLayoutProvider>
               </div>
             </Match>
           </Switch>

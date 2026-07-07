@@ -726,59 +726,306 @@ export function countTasksByStatus(
   return counts;
 }
 
-export type StalePullRequest = {
-  pullRequest: GithubPullRequestEntity;
-  quietDays: number;
-};
+export const PR_SORT_OPTIONS = [
+  { id: 'updated', label: 'Recently updated' },
+  { id: 'newest', label: 'Newest' },
+  { id: 'oldest', label: 'Oldest' },
+  { id: 'largest', label: 'Most changed' },
+  { id: 'comments', label: 'Most comments' },
+] as const;
 
-export type NeedsAttention = {
-  /** Open PRs with at least one failing check run. */
-  failingChecks: GithubPullRequestEntity[];
-  /** Open PRs quiet for `staleDays`+ (excluding ones already failing). */
-  stale: StalePullRequest[];
-  /** Open tasks sitting in review. */
-  inReviewTasks: TaskEntity[];
-};
+export type PrSortId = (typeof PR_SORT_OPTIONS)[number]['id'];
 
-/** The exceptions worth acting on, deduped across buckets. */
-export function computeNeedsAttention(
+/** Returns a new array; ties keep the incoming (updated-at) order. */
+export function sortPullRequests(
   pullRequests: GithubPullRequestEntity[],
-  tasks: TaskEntity[],
-  staleDays = 7,
-  now = new Date()
-): NeedsAttention {
-  const cutoff = now.getTime() - staleDays * DAY_MS;
-  const failingChecks: GithubPullRequestEntity[] = [];
-  const stale: StalePullRequest[] = [];
+  sortId: PrSortId
+): GithubPullRequestEntity[] {
+  const sorted = [...pullRequests];
+  switch (sortId) {
+    case 'updated':
+      sorted.sort(
+        (a, b) => (toTime(b.updatedAt) ?? 0) - (toTime(a.updatedAt) ?? 0)
+      );
+      break;
+    case 'newest':
+      sorted.sort(
+        (a, b) => (toTime(b.createdAt) ?? 0) - (toTime(a.createdAt) ?? 0)
+      );
+      break;
+    case 'oldest':
+      sorted.sort(
+        (a, b) => (toTime(a.createdAt) ?? 0) - (toTime(b.createdAt) ?? 0)
+      );
+      break;
+    case 'largest':
+      sorted.sort(
+        (a, b) =>
+          b.metadata.additions +
+          b.metadata.deletions -
+          (a.metadata.additions + a.metadata.deletions)
+      );
+      break;
+    case 'comments':
+      sorted.sort(
+        (a, b) => b.metadata.comments.length - a.metadata.comments.length
+      );
+      break;
+  }
+  return sorted;
+}
 
-  for (const pullRequest of pullRequests) {
-    const status = pullRequestDisplayStatus(pullRequest);
-    if (status !== 'open' && status !== 'draft') continue;
+export const PR_GROUP_OPTIONS = [
+  { id: 'author', label: 'Person' },
+  { id: 'status', label: 'Status' },
+  { id: 'repo', label: 'Repository' },
+  { id: 'none', label: 'No grouping' },
+] as const;
 
-    if (hasFailingChecks(pullRequest)) {
-      failingChecks.push(pullRequest);
-      continue;
+export type PrGroupId = (typeof PR_GROUP_OPTIONS)[number]['id'];
+
+export const PR_STATUS_LABELS: Record<PrStatusFilter, string> = {
+  all: 'All',
+  open: 'Open',
+  draft: 'Draft',
+  merged: 'Merged',
+  closed: 'Closed',
+};
+
+const STATUS_GROUP_ORDER: PrDisplayStatus[] = [
+  'open',
+  'draft',
+  'merged',
+  'closed',
+];
+
+export type PullRequestGroup = {
+  key: string;
+  label: string;
+  /** Set on author groups so headers can render avatars / AI summaries. */
+  authorLogin?: string;
+  pullRequests: GithubPullRequestEntity[];
+  openCount: number;
+};
+
+/**
+ * Groups pull requests for the unified list. The incoming order (i.e. the
+ * active sort) is preserved within each group; only the groups themselves get
+ * a grouping-specific order. `none` yields a single unlabeled group.
+ */
+export function groupPullRequests(
+  pullRequests: GithubPullRequestEntity[],
+  groupBy: PrGroupId
+): PullRequestGroup[] {
+  const openCount = (list: GithubPullRequestEntity[]) =>
+    list.filter((pullRequest) => {
+      const status = pullRequestDisplayStatus(pullRequest);
+      return status === 'open' || status === 'draft';
+    }).length;
+
+  if (groupBy === 'none') {
+    if (pullRequests.length === 0) return [];
+    return [
+      {
+        key: 'all',
+        label: '',
+        pullRequests,
+        openCount: openCount(pullRequests),
+      },
+    ];
+  }
+
+  if (groupBy === 'author') {
+    return groupPullRequestsByAuthor(pullRequests).map((group) => ({
+      key: group.key,
+      label: group.authorLogin ?? 'Unknown author',
+      authorLogin: group.authorLogin,
+      pullRequests: group.pullRequests,
+      openCount: group.openCount,
+    }));
+  }
+
+  if (groupBy === 'status') {
+    const buckets = new Map<PrDisplayStatus, GithubPullRequestEntity[]>();
+    for (const pullRequest of pullRequests) {
+      const status = pullRequestDisplayStatus(pullRequest);
+      const bucket = buckets.get(status);
+      if (bucket) bucket.push(pullRequest);
+      else buckets.set(status, [pullRequest]);
     }
+    return STATUS_GROUP_ORDER.filter((status) => buckets.has(status)).map(
+      (status) => {
+        const list = buckets.get(status) ?? [];
+        return {
+          key: status,
+          label: PR_STATUS_LABELS[status],
+          pullRequests: list,
+          openCount: openCount(list),
+        };
+      }
+    );
+  }
 
-    const updated = toTime(pullRequest.updatedAt);
-    if (updated !== undefined && updated < cutoff) {
-      stale.push({
-        pullRequest,
-        quietDays: Math.floor((now.getTime() - updated) / DAY_MS),
+  const byRepo = new Map<string, GithubPullRequestEntity[]>();
+  for (const pullRequest of pullRequests) {
+    const key = `${pullRequest.metadata.owner}/${pullRequest.metadata.repo}`;
+    const bucket = byRepo.get(key);
+    if (bucket) bucket.push(pullRequest);
+    else byRepo.set(key, [pullRequest]);
+  }
+  return [...byRepo.entries()]
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    .map(([key, list]) => ({
+      key,
+      label: key,
+      pullRequests: list,
+      openCount: openCount(list),
+    }));
+}
+
+/** The notification tags that put a PR in "Requires my attention". */
+export const ATTENTION_NOTIFICATION_TAGS = [
+  'github_review_requested',
+  'github_pr_mention',
+] as const;
+
+export type AttentionTag = (typeof ATTENTION_NOTIFICATION_TAGS)[number];
+
+/**
+ * The slice of a user notification the attention section reads. Structural
+ * (rather than `UnifiedNotification`) so this stays unit-testable without the
+ * generated notification-service client types.
+ */
+export type AttentionNotificationLike = {
+  id: string;
+  done: boolean;
+  created_at: string;
+  notification_metadata: { tag: string; content?: unknown };
+};
+
+/** The common fields every GitHub PR notification's metadata carries. */
+type GithubNotificationContent = {
+  githubKey?: string;
+  title?: string;
+  displayName?: string;
+  owner?: string;
+  repo?: string;
+  number?: number;
+  url?: string;
+  senderGithubLogin?: string | null;
+};
+
+export type AttentionReason = {
+  notificationId: string;
+  tag: AttentionTag;
+  /** GitHub login of whoever mentioned me / requested the review. */
+  actorLogin?: string;
+  createdAt: string;
+};
+
+export function attentionReasonPhrase(tag: AttentionTag): string {
+  return tag === 'github_review_requested'
+    ? 'requested your review'
+    : 'mentioned you';
+}
+
+export type ReviewAttentionItem = {
+  /** `owner/repo/pull/number` — the same key used for task↔PR joins. */
+  githubKey: string;
+  title: string;
+  /** Compact reference, e.g. `macro-inc/macro#4543`. */
+  reference: string;
+  url?: string;
+  /** The loaded soup row, when the PR is inside the current query window. */
+  pullRequest?: GithubPullRequestEntity;
+  /** Why this PR needs me, most recent first, deduped per (kind, actor). */
+  reasons: AttentionReason[];
+  /** Every underlying not-done notification id (for mark-as-done). */
+  notificationIds: string[];
+  latestAt: number;
+};
+
+/**
+ * Builds "Requires my attention" from the user's own notifications: PRs where
+ * I was mentioned or my review was requested, joined to loaded PR rows via
+ * the shared github key. Done notifications are excluded, so clearing them in
+ * the inbox clears the section too.
+ */
+export function computeReviewAttention(
+  notifications: AttentionNotificationLike[],
+  pullRequests: GithubPullRequestEntity[]
+): ReviewAttentionItem[] {
+  const prByKey = new Map<string, GithubPullRequestEntity>();
+  for (const pullRequest of pullRequests) {
+    prByKey.set(pullRequestGithubKey(pullRequest), pullRequest);
+  }
+
+  const tags = new Set<string>(ATTENTION_NOTIFICATION_TAGS);
+  const items = new Map<string, ReviewAttentionItem>();
+
+  for (const notification of notifications) {
+    if (notification.done) continue;
+    const tag = notification.notification_metadata.tag;
+    if (!tags.has(tag)) continue;
+    const content = notification.notification_metadata.content as
+      | GithubNotificationContent
+      | undefined;
+    const githubKey = content?.githubKey;
+    if (!githubKey) continue;
+    const createdAt = toTime(notification.created_at) ?? 0;
+
+    let item = items.get(githubKey);
+    if (!item) {
+      const loaded = prByKey.get(githubKey);
+      item = {
+        githubKey,
+        title:
+          loaded?.metadata.name ??
+          content.title ??
+          content.displayName ??
+          githubKey,
+        reference:
+          content.owner && content.repo && content.number !== undefined
+            ? `${content.owner}/${content.repo}#${content.number}`
+            : githubKey,
+        url: content.url,
+        pullRequest: loaded,
+        reasons: [],
+        notificationIds: [],
+        latestAt: createdAt,
+      };
+      items.set(githubKey, item);
+    }
+    item.notificationIds.push(notification.id);
+    if (createdAt > item.latestAt) item.latestAt = createdAt;
+
+    const actorLogin = content.senderGithubLogin ?? undefined;
+    const existing = item.reasons.find(
+      (reason) => reason.tag === tag && reason.actorLogin === actorLogin
+    );
+    if (existing) {
+      if (createdAt > (toTime(existing.createdAt) ?? 0)) {
+        existing.createdAt = notification.created_at;
+        existing.notificationId = notification.id;
+      }
+    } else {
+      item.reasons.push({
+        notificationId: notification.id,
+        tag: tag as AttentionTag,
+        actorLogin,
+        createdAt: notification.created_at,
       });
     }
   }
 
-  stale.sort((a, b) => b.quietDays - a.quietDays);
-
-  const inReviewTasks = tasks.filter(
-    (task) =>
-      !task.subType.is_completed &&
-      getTaskStatusOptionId(task as TaskEntityWithProperties) ===
-        PROPERTY_OPTION_IDS.STATUS.IN_REVIEW
-  );
-
-  return { failingChecks, stale, inReviewTasks };
+  const result = [...items.values()];
+  for (const item of result) {
+    item.reasons.sort(
+      (a, b) => (toTime(b.createdAt) ?? 0) - (toTime(a.createdAt) ?? 0)
+    );
+  }
+  result.sort((a, b) => b.latestAt - a.latestAt);
+  return result;
 }
 
 export const UNASSIGNED_KEY = 'unassigned';

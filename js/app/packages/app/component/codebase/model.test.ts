@@ -2,21 +2,23 @@ import type { GithubPullRequestEntity, TaskEntity } from '@entity/types/entity';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { describe, expect, it } from 'vitest';
 import {
+  type AttentionNotificationLike,
   averageOpenAgeDays,
   buildEngineerBentos,
   buildEngineerDigests,
   buildTeamActivityDigest,
   computeContributorLeaderboard,
   computeCycleTimeByAuthor,
-  computeNeedsAttention,
   computePrStats,
   computeRepoBreakdown,
+  computeReviewAttention,
   computeWeeklyChurn,
   computeWeeklyPrActivity,
   computeWeeklyVelocity,
   countStalePullRequests,
   countTasksByStatus,
   detectPullRequestArea,
+  groupPullRequests,
   groupPullRequestsByAuthor,
   groupTasksByAssignee,
   groupTasksByProject,
@@ -27,6 +29,7 @@ import {
   pullRequestDisplayStatus,
   pullRequestGithubKey,
   pullRequestSizeBucket,
+  sortPullRequests,
 } from './model';
 
 type PullRequestOverrides = Omit<
@@ -722,43 +725,187 @@ describe('buildEngineerBentos team scoping', () => {
   });
 });
 
-describe('computeNeedsAttention', () => {
-  it('separates failing checks from stale PRs and finds in-review tasks', () => {
-    const now = new Date('2026-07-06T12:00:00Z');
-    const result = computeNeedsAttention(
+describe('sortPullRequests', () => {
+  const prs = [
+    makePullRequest({
+      id: 'small-old',
+      createdAt: '2026-07-01T00:00:00Z',
+      updatedAt: '2026-07-02T00:00:00Z',
+      metadata: { additions: 1, deletions: 1, comments: [] },
+    }),
+    makePullRequest({
+      id: 'big-new',
+      createdAt: '2026-07-05T00:00:00Z',
+      updatedAt: '2026-07-06T00:00:00Z',
+      metadata: {
+        additions: 500,
+        deletions: 100,
+        comments: [{ id: 1 }, { id: 2 }] as never,
+      },
+    }),
+    makePullRequest({
+      id: 'mid',
+      createdAt: '2026-07-03T00:00:00Z',
+      updatedAt: '2026-07-04T00:00:00Z',
+      metadata: { additions: 10, deletions: 5, comments: [{ id: 3 }] as never },
+    }),
+  ];
+
+  it('sorts by each option without mutating the input', () => {
+    const ids = (sortId: Parameters<typeof sortPullRequests>[1]) =>
+      sortPullRequests(prs, sortId).map((pr) => pr.id);
+
+    expect(ids('updated')).toEqual(['big-new', 'mid', 'small-old']);
+    expect(ids('newest')).toEqual(['big-new', 'mid', 'small-old']);
+    expect(ids('oldest')).toEqual(['small-old', 'mid', 'big-new']);
+    expect(ids('largest')).toEqual(['big-new', 'mid', 'small-old']);
+    expect(ids('comments')).toEqual(['big-new', 'mid', 'small-old']);
+    expect(prs.map((pr) => pr.id)).toEqual(['small-old', 'big-new', 'mid']);
+  });
+});
+
+describe('groupPullRequests', () => {
+  const prs = [
+    makePullRequest({
+      id: 'a1',
+      metadata: { authorLogin: 'alice', status: 'open' },
+    }),
+    makePullRequest({
+      id: 'b1',
+      metadata: { authorLogin: 'bob', status: 'merged', repo: 'other' },
+    }),
+    makePullRequest({
+      id: 'a2',
+      metadata: { authorLogin: 'alice', status: 'open', draft: true },
+    }),
+  ];
+
+  it('groups by author with avatars-friendly metadata', () => {
+    const groups = groupPullRequests(prs, 'author');
+    expect(groups.map((g) => g.key)).toEqual(['alice', 'bob']);
+    expect(groups[0].authorLogin).toBe('alice');
+    expect(groups[0].openCount).toBe(2);
+  });
+
+  it('groups by status in display order', () => {
+    const groups = groupPullRequests(prs, 'status');
+    expect(groups.map((g) => g.key)).toEqual(['open', 'draft', 'merged']);
+    expect(groups.map((g) => g.label)).toEqual(['Open', 'Draft', 'Merged']);
+    expect(groups[2].openCount).toBe(0);
+  });
+
+  it('groups by repository, biggest first', () => {
+    const groups = groupPullRequests(prs, 'repo');
+    expect(groups.map((g) => g.key)).toEqual([
+      'macro-inc/macro',
+      'macro-inc/other',
+    ]);
+    expect(groups[0].pullRequests.map((pr) => pr.id)).toEqual(['a1', 'a2']);
+  });
+
+  it('returns a single unlabeled group for none', () => {
+    const groups = groupPullRequests(prs, 'none');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].label).toBe('');
+    expect(groups[0].pullRequests).toHaveLength(3);
+    expect(groupPullRequests([], 'none')).toEqual([]);
+  });
+});
+
+describe('computeReviewAttention', () => {
+  const notification = (
+    overrides: Partial<AttentionNotificationLike> & {
+      content?: Record<string, unknown>;
+      tag?: string;
+    } = {}
+  ): AttentionNotificationLike => {
+    const { content, tag, ...rest } = overrides;
+    return {
+      id: 'n1',
+      done: false,
+      created_at: '2026-07-06T00:00:00Z',
+      ...rest,
+      notification_metadata: {
+        tag: tag ?? 'github_review_requested',
+        content: {
+          githubKey: 'macro-inc/macro/pull/1',
+          title: 'Add feature',
+          owner: 'macro-inc',
+          repo: 'macro',
+          number: 1,
+          url: 'https://github.com/macro-inc/macro/pull/1',
+          senderGithubLogin: 'alice',
+          ...content,
+        },
+      },
+    };
+  };
+
+  it('keeps only not-done mention / review-request notifications', () => {
+    const items = computeReviewAttention(
       [
-        makePullRequest({
-          id: 'failing',
-          updatedAt: '2026-06-01T00:00:00Z',
-          metadata: {
-            checks: [
-              { id: 1, name: 'ci', status: 'completed', conclusion: 'failure' },
-            ],
-          },
-        }),
-        makePullRequest({ id: 'stale', updatedAt: '2026-06-20T00:00:00Z' }),
-        makePullRequest({ id: 'fresh', updatedAt: '2026-07-06T00:00:00Z' }),
-        makePullRequest({
-          id: 'merged',
-          updatedAt: '2026-01-01T00:00:00Z',
-          metadata: { status: 'merged' },
+        notification({ id: 'n1' }),
+        notification({ id: 'n2', done: true }),
+        notification({ id: 'n3', tag: 'github_pr_comment' }),
+      ],
+      []
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0].notificationIds).toEqual(['n1']);
+    expect(items[0].reference).toBe('macro-inc/macro#1');
+  });
+
+  it('joins to loaded PRs via the github key and dedupes reasons per actor', () => {
+    const pr = makePullRequest({ id: 'row-1', name: 'Live title' });
+    const items = computeReviewAttention(
+      [
+        notification({ id: 'n1', created_at: '2026-07-05T00:00:00Z' }),
+        notification({ id: 'n2', created_at: '2026-07-06T00:00:00Z' }),
+        notification({
+          id: 'n3',
+          tag: 'github_pr_mention',
+          created_at: '2026-07-04T00:00:00Z',
+          content: { senderGithubLogin: 'bob' },
         }),
       ],
-      [
-        makeTask({
-          id: 'reviewing',
-          statusOptionId: PROPERTY_OPTION_IDS.STATUS.IN_REVIEW,
-        }),
-        makeTask({ id: 'building' }),
-      ],
-      7,
-      now
+      [pr]
     );
 
-    expect(result.failingChecks.map((pr) => pr.id)).toEqual(['failing']);
-    expect(result.stale.map((s) => s.pullRequest.id)).toEqual(['stale']);
-    expect(result.stale[0].quietDays).toBe(16);
-    expect(result.inReviewTasks.map((t) => t.id)).toEqual(['reviewing']);
+    expect(items).toHaveLength(1);
+    const item = items[0];
+    expect(item.pullRequest?.id).toBe('row-1');
+    expect(item.title).toBe('Add feature');
+    expect(item.notificationIds).toEqual(['n1', 'n2', 'n3']);
+    // Two review requests from alice collapse into one reason with the
+    // latest timestamp; bob's mention stays separate. Most recent first.
+    expect(
+      item.reasons.map((r) => [r.tag, r.actorLogin, r.notificationId])
+    ).toEqual([
+      ['github_review_requested', 'alice', 'n2'],
+      ['github_pr_mention', 'bob', 'n3'],
+    ]);
+  });
+
+  it('sorts items by most recent activity', () => {
+    const items = computeReviewAttention(
+      [
+        notification({
+          id: 'old',
+          created_at: '2026-07-01T00:00:00Z',
+          content: { githubKey: 'macro-inc/macro/pull/1', number: 1 },
+        }),
+        notification({
+          id: 'new',
+          created_at: '2026-07-06T00:00:00Z',
+          content: { githubKey: 'macro-inc/macro/pull/2', number: 2 },
+        }),
+      ],
+      []
+    );
+    expect(items.map((i) => i.reference)).toEqual([
+      'macro-inc/macro#2',
+      'macro-inc/macro#1',
+    ]);
   });
 });
 
