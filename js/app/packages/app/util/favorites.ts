@@ -60,7 +60,7 @@ export function favoriteIconType(favorite: Favorite): EntityIconSelector {
  * The preview entity that names a favorite: the favorite's own entity for
  * kinds the preview pipeline covers, the owning channel for channel-message
  * favorites, and undefined for kinds without a preview fetcher
- * (e.g. crm_contact), which fall back to the API-hydrated name.
+ * (e.g. crm_contact), which fall back to their entity-kind label.
  */
 function favoritePreviewEntity(favorite: Favorite): ItemEntity | undefined {
   switch (favorite.entityType) {
@@ -86,10 +86,10 @@ function favoritePreviewEntity(favorite: Favorite): ItemEntity | undefined {
 /**
  * Non-reactive display name for a favorite, read from the preview cache.
  * Previews are the app-wide name pipeline: viewer-relative for DM channels
- * (the favorite itself has no name for those) and written to by optimistic
- * renames, so favorites need no rename special-casing. Falls back to the
- * name hydrated on the favorite, then the entity kind, for previews not yet
- * cached and kinds previews don't cover.
+ * and written to by optimistic renames, so favorites need no rename
+ * special-casing (the favorites API deliberately returns no name). Falls
+ * back to the entity-kind label for previews not yet cached and kinds
+ * previews don't cover.
  *
  * Inside components prefer `useFavoriteDisplayName`, which subscribes to the
  * preview instead of only reading whatever happens to be cached.
@@ -105,7 +105,6 @@ export function favoriteDisplayName(favorite: Favorite): string {
     }
   }
   return (
-    favorite.name?.trim() ||
     getIconConfig(favoriteIconType(favorite) ?? 'default').prettyName ||
     'Untitled'
   );
