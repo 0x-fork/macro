@@ -80,7 +80,10 @@ export function FavoritesCommands() {
       dynamicGroup.add(
         registerHotkey({
           scopeId: FAVORITES_COMMAND_SCOPE,
-          description: favoriteDisplayName(favorite),
+          // A callback so each render re-reads the preview cache, where
+          // names resolve (and renames land), warmed by the sidebar's
+          // favorite rows.
+          description: () => favoriteDisplayName(favorite),
           keyDownHandler: () => {
             openFavorite(favorite);
             return true;

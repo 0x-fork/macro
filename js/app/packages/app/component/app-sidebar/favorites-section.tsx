@@ -2,9 +2,9 @@ import type { SidebarState } from '@app/component/app-sidebar/sidebar';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
-  favoriteDisplayName,
   favoriteIconType,
   favoriteSplitContent,
+  useFavoriteDisplayName,
 } from '@app/util/favorites';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import {
@@ -167,7 +167,7 @@ const FavoriteRow = (props: { favorite: Favorite; disabled: boolean }) => {
   const [dndState] = useDragDropContext() ?? [];
 
   const iconType = () => favoriteIconType(props.favorite);
-  const displayName = () => favoriteDisplayName(props.favorite);
+  const displayName = useFavoriteDisplayName(props.favorite);
 
   // `For` keys rows by favorite identity, so the favorite (and drag data
   // derived from it) is stable for the row's lifetime.
@@ -177,12 +177,17 @@ const FavoriteRow = (props: { favorite: Favorite; disabled: boolean }) => {
   // (clipped to 0 height for the expand/collapse animation), so without this
   // their stale layout rects would capture drops. Gating on `disabled` keeps
   // collapsed rows out of collision detection entirely.
+  //
+  // `name` is a getter so the drag overlay chip reads the row's live display
+  // name (names resolve asynchronously through the preview cache).
   const sortable = createSortable(
     favoriteEntityKey(props.favorite.entityType, props.favorite.entityId),
     {
       dragType: 'favorite',
       iconType: favoriteIconType(props.favorite),
-      name: favoriteDisplayName(props.favorite),
+      get name() {
+        return displayName();
+      },
       isDropTargetDisabled: () => props.disabled,
     } satisfies FavoriteDragData
   );
