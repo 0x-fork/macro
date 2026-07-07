@@ -312,9 +312,28 @@ const useSoupNotificationInvalidators = () => {
     notificationSource,
     'channel',
     (notification) => {
+      const meta = notification.notification_metadata;
+
+      let threadId;
+
+      if (
+        meta.tag === 'channel_mention' ||
+        meta.tag === 'channel_message_reply'
+      ) {
+        threadId = meta.content.threadId?.toString();
+      }
+
       refetchSoupEntity(notification.entity_id, 'channel');
       invalidateSoupEntity(notification.entity_id);
       invalidateEntityNotifications(notification.entity_id);
+
+      // For new inbox, we want to display channel threads so we should refetch the thread
+      // item if this notification was for a thread
+      if (threadId) {
+        refetchSoupEntity(threadId, 'channelThread');
+        invalidateSoupEntity(threadId);
+        invalidateEntityNotifications(threadId);
+      }
     }
   );
 
@@ -1651,12 +1670,20 @@ export const SoupViewList = (props: SoupViewListProps) => {
                 )}
               >
                 <Show
-                  when={soup.focus.item()}
+                  when={
+                    (soup.focus.row() && !isNewInboxEnabled()) ||
+                    (soup.focus.row()?.getIsGrouped() === false &&
+                      isNewInboxEnabled())
+                  }
                   fallback={
                     <EmptyStatePanel
                       graphic={EmptyStatePreviewIcon}
                       title="Nothing selected"
-                      description="Select an item from your inbox to preview it here."
+                      description={
+                        isNewInboxEnabled()
+                          ? 'Select an item from your inbox to preview it here.'
+                          : 'Select an item from the list to preview it here'
+                      }
                       centered
                     />
                   }
