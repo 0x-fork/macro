@@ -122,6 +122,7 @@
   --content-tertiary:   var(--c2);
   --content-link:       var(--a0);
   --content-link-hover: oklch(from var(--a0) l c h / 0.8);
+  --content-destructive: var(--color-failure-ink);
 
   /* Borders — translucent, ink-tinted, adaptive */
   --border-primary:   var(--b4);
@@ -130,13 +131,18 @@
 
   /* Buttons — neutral fill ramp (foregrounds reuse the content ramp; no on-* tokens) */
   --button-primary:   var(--b4);
-  --button-secondary: var(--b2);
+  --button-secondary: oklch(from var(--c0) l c h / 0.08); /* translucent so it reads on any surface */
   --button-tertiary:  transparent;
 
   /* Button interaction states — translucent overlays */
   --button-hover:    var(--b2);
   --button-active:   var(--b1);
   --button-selected: var(--color-accent-bg);
+
+  /* Destructive button — subtle failure tint (paired with content-destructive). */
+  --button-destructive:        oklch(from var(--color-failure) l c h / 0.15);
+  --button-destructive-hover:  oklch(from var(--color-failure) l c h / 0.25);
+  --button-destructive-active: oklch(from var(--color-failure) l c h / 0.35);
 
   /* scuffed: defualt 0.15, used for transition jamming, currently disabled */
   --transition: 0s;
@@ -185,6 +191,7 @@
   --color-content-tertiary:  var(--content-tertiary);
   --color-content-link:       var(--content-link);
   --color-content-link-hover: var(--content-link-hover);
+  --color-content-destructive: var(--content-destructive);
 
   --color-edge-primary:      var(--border-primary);
   --color-edge-secondary:    var(--border-secondary);
@@ -196,6 +203,9 @@
   --color-button-hover:      var(--button-hover);
   --color-button-active:     var(--button-active);
   --color-button-selected:   var(--button-selected);
+  --color-button-destructive:        var(--button-destructive);
+  --color-button-destructive-hover:  var(--button-destructive-hover);
+  --color-button-destructive-active: var(--button-destructive-active);
 
   --color-ink:             var(--c0);
   --color-ink-muted:       var(--c1);
@@ -307,7 +317,7 @@
    the color mappings), so this is the single place the migrated look is defined.
    Every value derives from the raw a/b/c channels plus --depth, so custom themes
    recolor for free. Higher specificity plus unlayered wins over :root. Only
-   value-change tokens live here; renames (content, buttons, links) do not. */
+   value-change tokens live here; pure renames do not. */
 :root.semantic-v2 {
   /* Surfaces become elevation-derived (panel 0.2 / raised 0.4 / overlay 0.6 / top 1.0).
      --color-panel is a v2-only token (no flag-off alias) — defined only here, so
