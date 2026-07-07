@@ -212,7 +212,7 @@ const OPEN_COLOR = 'var(--color-accent)';
 const MERGED_COLOR = 'var(--color-success)';
 const CLOSED_COLOR = 'var(--color-ink-placeholder)';
 
-function formatDays(days: number | undefined): string {
+export function formatDays(days: number | undefined): string {
   if (days === undefined) return '—';
   if (days < 1) return `${Math.max(1, Math.round(days * 24))}h`;
   return `${days >= 10 ? Math.round(days) : Math.round(days * 10) / 10}d`;

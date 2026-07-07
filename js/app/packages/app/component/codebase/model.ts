@@ -648,6 +648,23 @@ export function countStalePullRequests(
   return stale;
 }
 
+/** Mean age (days since first activity) across open PRs, incl. drafts. */
+export function averageOpenAgeDays(
+  pullRequests: GithubPullRequestEntity[],
+  now = new Date()
+): number | undefined {
+  const ages: number[] = [];
+  for (const pullRequest of pullRequests) {
+    const status = pullRequestDisplayStatus(pullRequest);
+    if (status !== 'open' && status !== 'draft') continue;
+    const created = toTime(pullRequest.createdAt);
+    if (created === undefined) continue;
+    ages.push(Math.max(0, (now.getTime() - created) / DAY_MS));
+  }
+  if (ages.length === 0) return undefined;
+  return ages.reduce((sum, age) => sum + age, 0) / ages.length;
+}
+
 /** Median time-to-merge (days) for PRs merged in the trailing `days`. */
 export function medianTimeToMergeDays(
   pullRequests: GithubPullRequestEntity[],
@@ -959,4 +976,138 @@ export function buildEngineerBentos(
   }
 
   return sorted;
+}
+
+const SUMMARY_LIST_CAP = 20;
+
+function withinWindow(
+  value: string | number | Date | null | undefined,
+  cutoff: number
+): boolean {
+  const time = toTime(value);
+  return time !== undefined && time >= cutoff;
+}
+
+export type TeamActivityDigest = {
+  /** Compact plaintext fed to the summarizer (and hashed for caching). */
+  digest: string;
+  eventCount: number;
+};
+
+/**
+ * Compact digest of the team's trailing-day activity: merges, newly opened
+ * PRs, completed tasks, and tasks that moved into review.
+ */
+export function buildTeamActivityDigest(
+  pullRequests: GithubPullRequestEntity[],
+  tasks: TaskEntity[],
+  hours = 24,
+  now = new Date()
+): TeamActivityDigest {
+  const cutoff = now.getTime() - hours * 60 * 60 * 1000;
+  const lines: string[] = [];
+  let eventCount = 0;
+
+  const push = (line: string) => {
+    eventCount += 1;
+    if (lines.length < SUMMARY_LIST_CAP * 2) lines.push(line);
+  };
+
+  for (const pullRequest of pullRequests) {
+    const meta = pullRequest.metadata;
+    const author = meta.authorLogin ?? 'unknown';
+    if (
+      meta.status === 'merged' &&
+      withinWindow(pullRequest.updatedAt, cutoff)
+    ) {
+      push(
+        `MERGED by ${author}: ${meta.name} (${meta.repo}, +${meta.additions}/−${meta.deletions})`
+      );
+    } else if (withinWindow(pullRequest.createdAt, cutoff)) {
+      push(`OPENED by ${author}: ${meta.name} (${meta.repo})`);
+    }
+  }
+
+  for (const task of tasks) {
+    if (!withinWindow(task.updatedAt, cutoff)) continue;
+    const statusId = getTaskStatusOptionId(task as TaskEntityWithProperties);
+    if (task.subType.is_completed) {
+      push(`TASK COMPLETED: ${task.name}`);
+    } else if (statusId === PROPERTY_OPTION_IDS.STATUS.IN_REVIEW) {
+      push(`TASK IN REVIEW: ${task.name}`);
+    }
+  }
+
+  return { digest: lines.join('\n'), eventCount };
+}
+
+export type EngineerDigest = {
+  key: string;
+  displayName: string;
+  digest: string;
+};
+
+/**
+ * Per-engineer digest of recent merges (trailing `days`) plus what's open
+ * now, for the bento summaries. Engineers with no material go missing from
+ * the result rather than producing empty prompts.
+ */
+export function buildEngineerDigests(
+  bentos: EngineerBento[],
+  pullRequests: GithubPullRequestEntity[],
+  days = 7,
+  now = new Date()
+): EngineerDigest[] {
+  const cutoff = now.getTime() - days * DAY_MS;
+
+  const mergedByAuthor = new Map<string, string[]>();
+  for (const pullRequest of pullRequests) {
+    if (pullRequest.metadata.status !== 'merged') continue;
+    if (!withinWindow(pullRequest.updatedAt, cutoff)) continue;
+    const key = pullRequestAuthorKey(pullRequest);
+    const list = mergedByAuthor.get(key) ?? [];
+    if (list.length < SUMMARY_LIST_CAP) {
+      list.push(pullRequest.metadata.name);
+    }
+    mergedByAuthor.set(key, list);
+  }
+
+  const digests: EngineerDigest[] = [];
+  for (const bento of bentos) {
+    if (bento.key === UNASSIGNED_KEY) continue;
+
+    const parts: string[] = [];
+    const merged = mergedByAuthor.get(bento.key);
+    if (merged?.length) {
+      parts.push(`MERGED (last ${days}d): ${merged.join(' | ')}`);
+    }
+    if (bento.openPullRequests.length) {
+      const open = bento.openPullRequests
+        .slice(0, SUMMARY_LIST_CAP)
+        .map((pullRequest) => {
+          const created = toTime(pullRequest.createdAt);
+          const age =
+            created !== undefined
+              ? `${Math.max(0, Math.round((now.getTime() - created) / DAY_MS))}d`
+              : '?';
+          return `${pullRequest.metadata.name} (open ${age})`;
+        });
+      parts.push(`OPEN PRS: ${open.join(' | ')}`);
+    }
+    if (bento.openTasks.length) {
+      const tasks = bento.openTasks
+        .slice(0, SUMMARY_LIST_CAP)
+        .map((task) => task.name);
+      parts.push(`OPEN TASKS: ${tasks.join(' | ')}`);
+    }
+
+    if (parts.length === 0) continue;
+    digests.push({
+      key: bento.key,
+      displayName: bento.displayName,
+      digest: parts.join('\n'),
+    });
+  }
+
+  return digests;
 }

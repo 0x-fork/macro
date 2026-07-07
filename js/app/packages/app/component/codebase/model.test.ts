@@ -2,7 +2,10 @@ import type { GithubPullRequestEntity, TaskEntity } from '@entity/types/entity';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { describe, expect, it } from 'vitest';
 import {
+  averageOpenAgeDays,
   buildEngineerBentos,
+  buildEngineerDigests,
+  buildTeamActivityDigest,
   computeContributorLeaderboard,
   computeCycleTimeByAuthor,
   computeNeedsAttention,
@@ -743,5 +746,116 @@ describe('computeNeedsAttention', () => {
     expect(result.stale.map((s) => s.pullRequest.id)).toEqual(['stale']);
     expect(result.stale[0].quietDays).toBe(16);
     expect(result.inReviewTasks.map((t) => t.id)).toEqual(['reviewing']);
+  });
+});
+
+describe('averageOpenAgeDays', () => {
+  it('averages age of open PRs only', () => {
+    const now = new Date('2026-07-07T00:00:00Z');
+    expect(
+      averageOpenAgeDays(
+        [
+          makePullRequest({ id: 'a', createdAt: '2026-07-05T00:00:00Z' }),
+          makePullRequest({ id: 'b', createdAt: '2026-07-01T00:00:00Z' }),
+          makePullRequest({
+            id: 'merged',
+            createdAt: '2026-01-01T00:00:00Z',
+            metadata: { status: 'merged' },
+          }),
+        ],
+        now
+      )
+    ).toBe(4);
+    expect(averageOpenAgeDays([], now)).toBeUndefined();
+  });
+});
+
+describe('buildTeamActivityDigest', () => {
+  it('collects merges, opens, and task movement inside the window', () => {
+    const now = new Date('2026-07-07T00:00:00Z');
+    const { digest, eventCount } = buildTeamActivityDigest(
+      [
+        makePullRequest({
+          id: 'merged',
+          updatedAt: '2026-07-06T12:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'alice', name: 'Ship it' },
+        }),
+        makePullRequest({
+          id: 'opened',
+          createdAt: '2026-07-06T20:00:00Z',
+          metadata: { authorLogin: 'bob', name: 'New thing' },
+        }),
+        makePullRequest({ id: 'old', createdAt: '2026-06-01T00:00:00Z' }),
+      ],
+      [
+        makeTask({
+          id: 'done',
+          updatedAt: '2026-07-06T18:00:00Z',
+          subType: { type: 'task', is_completed: true },
+        }),
+        makeTask({
+          id: 'reviewing',
+          updatedAt: '2026-07-06T18:00:00Z',
+          statusOptionId: PROPERTY_OPTION_IDS.STATUS.IN_REVIEW,
+        }),
+        makeTask({ id: 'quiet', updatedAt: '2026-06-01T00:00:00Z' }),
+      ],
+      24,
+      now
+    );
+
+    expect(eventCount).toBe(4);
+    expect(digest).toContain('MERGED by alice: Ship it');
+    expect(digest).toContain('OPENED by bob: New thing');
+    expect(digest).toContain('TASK COMPLETED');
+    expect(digest).toContain('TASK IN REVIEW');
+  });
+});
+
+describe('buildEngineerDigests', () => {
+  it('builds per-engineer digests and skips empty/unassigned ones', () => {
+    const now = new Date('2026-07-07T00:00:00Z');
+    const bentos: Parameters<typeof buildEngineerDigests>[0] = [
+      {
+        key: 'alice',
+        githubLogin: 'alice',
+        displayName: 'Alice',
+        openPullRequests: [
+          makePullRequest({
+            id: 'wip',
+            createdAt: '2026-07-04T00:00:00Z',
+            metadata: { authorLogin: 'alice', name: 'WIP thing' },
+          }),
+        ],
+        openTasks: [makeTask({ id: 't1', name: 'Fix the flux' })],
+        mergedLast30Days: 1,
+      },
+      {
+        key: 'unassigned',
+        displayName: 'Unassigned',
+        openPullRequests: [],
+        openTasks: [makeTask({ id: 't2' })],
+        mergedLast30Days: 0,
+      },
+    ];
+
+    const digests = buildEngineerDigests(
+      bentos,
+      [
+        makePullRequest({
+          id: 'shipped',
+          updatedAt: '2026-07-05T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'alice', name: 'Shipped' },
+        }),
+      ],
+      7,
+      now
+    );
+
+    expect(digests).toHaveLength(1);
+    expect(digests[0].key).toBe('alice');
+    expect(digests[0].digest).toContain('MERGED (last 7d): Shipped');
+    expect(digests[0].digest).toContain('OPEN PRS: WIP thing (open 3d)');
+    expect(digests[0].digest).toContain('OPEN TASKS: Fix the flux');
   });
 });

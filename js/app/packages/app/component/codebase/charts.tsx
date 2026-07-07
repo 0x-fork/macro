@@ -1154,9 +1154,9 @@ type DonutChartProps = {
 };
 
 const DONUT_SIZE = 200;
-const DONUT_RADIUS = 74;
-const DONUT_STROKE = 18;
-const DONUT_GAP_DEG = 2.5;
+const DONUT_RADIUS = 78;
+const DONUT_STROKE = 11;
+const DONUT_GAP_DEG = 2;
 
 function polar(angleDeg: number, radius: number): Point {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -1186,15 +1186,13 @@ export function DonutChart(props: DonutChartProps) {
     const total = visible.reduce((sum, segment) => sum + segment.count, 0);
     if (total === 0) return [];
 
-    // Round linecaps extend half the stroke width past each arc end.
-    const capDeg = (DONUT_STROKE / 2 / DONUT_RADIUS) * (180 / Math.PI);
     const gap = visible.length > 1 ? DONUT_GAP_DEG : 0;
 
     let cursor = 0;
     return visible.map((segment) => {
       const sweep = (segment.count / total) * 360;
-      const start = cursor + gap / 2 + capDeg;
-      const end = cursor + sweep - gap / 2 - capDeg;
+      const start = cursor + gap / 2;
+      const end = cursor + sweep - gap / 2;
       cursor += sweep;
       return { segment, start, end, mid: cursor - sweep / 2 };
     });
@@ -1213,14 +1211,14 @@ export function DonutChart(props: DonutChartProps) {
         height={DONUT_SIZE}
         onMouseLeave={() => setHovered(undefined)}
       >
-        {/* Track ring behind the segments */}
+        {/* Faint track ring behind the segments */}
         <circle
           cx={DONUT_SIZE / 2}
           cy={DONUT_SIZE / 2}
           r={DONUT_RADIUS}
           fill="none"
           stroke="var(--color-ink)"
-          stroke-opacity={0.05}
+          stroke-opacity={0.04}
           stroke-width={DONUT_STROKE}
         />
         <For each={arcs()}>
@@ -1245,8 +1243,8 @@ export function DonutChart(props: DonutChartProps) {
                   d={donutArcPath(arc.start, arc.end)}
                   fill="none"
                   stroke={arc.segment.color}
-                  stroke-width={active() ? DONUT_STROKE + 4 : DONUT_STROKE}
-                  stroke-linecap="round"
+                  stroke-width={active() ? DONUT_STROKE + 3 : DONUT_STROKE}
+                  stroke-linecap="butt"
                   opacity={dimmed() ? 0.35 : 1}
                   onMouseEnter={() => setHovered(arc.segment.key)}
                 />
