@@ -2,14 +2,22 @@ import type { GithubPullRequestEntity, TaskEntity } from '@entity/types/entity';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { describe, expect, it } from 'vitest';
 import {
+  computeContributorLeaderboard,
   computePrStats,
+  computeRepoBreakdown,
+  computeWeeklyChurn,
   computeWeeklyPrActivity,
+  computeWeeklyVelocity,
+  countStalePullRequests,
   countTasksByStatus,
+  detectPullRequestArea,
   groupPullRequestsByAuthor,
   groupTasksByProject,
   hasFailingChecks,
   matchesPrStatusFilter,
+  medianTimeToMergeDays,
   pullRequestDisplayStatus,
+  pullRequestSizeBucket,
 } from './model';
 
 type PullRequestOverrides = Omit<
@@ -281,5 +289,212 @@ describe('hasFailingChecks', () => {
     });
     expect(hasFailingChecks(failing)).toBe(true);
     expect(hasFailingChecks(passing)).toBe(false);
+  });
+});
+
+describe('pullRequestSizeBucket', () => {
+  it('buckets by total changed lines', () => {
+    const bucketFor = (additions: number, deletions: number) =>
+      pullRequestSizeBucket(
+        makePullRequest({ metadata: { additions, deletions } })
+      );
+    expect(bucketFor(4, 5)).toBe('xs');
+    expect(bucketFor(50, 40)).toBe('s');
+    expect(bucketFor(300, 100)).toBe('m');
+    expect(bucketFor(600, 300)).toBe('l');
+    expect(bucketFor(2000, 0)).toBe('xl');
+  });
+});
+
+describe('detectPullRequestArea', () => {
+  it('classifies from title and repo keywords', () => {
+    const areaFor = (name: string, repo = 'macro') =>
+      detectPullRequestArea(makePullRequest({ metadata: { name, repo } }));
+    expect(areaFor('fix(ui): sidebar layout glitch')).toBe('frontend');
+    expect(areaFor('add sqlx migration for foreign entities')).toBe('backend');
+    expect(areaFor('chore: bump docker base image')).toBe('infra');
+    expect(areaFor('update README')).toBe('docs');
+    expect(areaFor('miscellaneous change')).toBe('other');
+  });
+
+  it('prefers infra/docs keywords over broader area words', () => {
+    expect(
+      detectPullRequestArea(
+        makePullRequest({ metadata: { name: 'ci: run ui tests on deploy' } })
+      )
+    ).toBe('infra');
+  });
+});
+
+describe('computeWeeklyVelocity', () => {
+  it('reports median cycle days for weeks with merges and gaps otherwise', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const weeks = computeWeeklyVelocity(
+      [
+        makePullRequest({
+          id: 'fast',
+          createdAt: '2026-07-05T00:00:00Z',
+          updatedAt: '2026-07-06T00:00:00Z',
+          metadata: { status: 'merged' },
+        }),
+        makePullRequest({
+          id: 'slow',
+          createdAt: '2026-07-01T00:00:00Z',
+          updatedAt: '2026-07-06T00:00:00Z',
+          metadata: { status: 'merged' },
+        }),
+        makePullRequest({ id: 'open', createdAt: '2026-07-01T00:00:00Z' }),
+      ],
+      4,
+      now
+    );
+
+    const last = weeks[weeks.length - 1];
+    expect(last.mergedCount).toBe(2);
+    expect(last.medianDays).toBe(3);
+    expect(weeks[0].medianDays).toBeUndefined();
+  });
+});
+
+describe('computeWeeklyChurn', () => {
+  it('sums additions and deletions by merge week', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const weeks = computeWeeklyChurn(
+      [
+        makePullRequest({
+          id: 'a',
+          updatedAt: '2026-07-06T00:00:00Z',
+          metadata: { status: 'merged', additions: 100, deletions: 20 },
+        }),
+        makePullRequest({
+          id: 'b',
+          // Sunday July 5 lands in the previous Monday-based week.
+          updatedAt: '2026-07-05T00:00:00Z',
+          metadata: { status: 'merged', additions: 10, deletions: 5 },
+        }),
+        makePullRequest({
+          id: 'open',
+          metadata: { additions: 999, deletions: 999 },
+        }),
+      ],
+      4,
+      now
+    );
+
+    const last = weeks[weeks.length - 1];
+    expect(last.additions).toBe(100);
+    expect(last.deletions).toBe(20);
+    const previous = weeks[weeks.length - 2];
+    expect(previous.additions).toBe(10);
+    expect(previous.deletions).toBe(5);
+  });
+});
+
+describe('computeRepoBreakdown', () => {
+  it('counts per repo by display status, largest repo first', () => {
+    const rows = computeRepoBreakdown([
+      makePullRequest({ id: 'a', metadata: { repo: 'macro' } }),
+      makePullRequest({
+        id: 'b',
+        metadata: { repo: 'macro', status: 'merged' },
+      }),
+      makePullRequest({
+        id: 'c',
+        metadata: { repo: 'macro', status: 'closed' },
+      }),
+      makePullRequest({ id: 'd', metadata: { repo: 'pdf.js', draft: true } }),
+    ]);
+
+    expect(rows[0]).toEqual({
+      repo: 'macro-inc/macro',
+      open: 1,
+      merged: 1,
+      closed: 1,
+      total: 3,
+    });
+    expect(rows[1].repo).toBe('macro-inc/pdf.js');
+    expect(rows[1].open).toBe(1);
+  });
+});
+
+describe('computeContributorLeaderboard', () => {
+  it('ranks authors by PRs merged in the window', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const rows = computeContributorLeaderboard(
+      [
+        makePullRequest({
+          id: 'a',
+          updatedAt: '2026-07-01T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'alice', additions: 10 },
+        }),
+        makePullRequest({
+          id: 'b',
+          updatedAt: '2026-07-02T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'alice' },
+        }),
+        makePullRequest({
+          id: 'c',
+          updatedAt: '2026-07-02T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'bob' },
+        }),
+        makePullRequest({
+          id: 'too-old',
+          updatedAt: '2026-01-01T00:00:00Z',
+          metadata: { status: 'merged', authorLogin: 'bob' },
+        }),
+      ],
+      30,
+      now
+    );
+
+    expect(rows.map((r) => [r.key, r.merged])).toEqual([
+      ['alice', 2],
+      ['bob', 1],
+    ]);
+  });
+});
+
+describe('stale + median helpers', () => {
+  it('counts open PRs quiet for 7+ days', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    expect(
+      countStalePullRequests(
+        [
+          makePullRequest({ id: 'stale', updatedAt: '2026-06-20T00:00:00Z' }),
+          makePullRequest({ id: 'fresh', updatedAt: '2026-07-05T00:00:00Z' }),
+          makePullRequest({
+            id: 'merged',
+            updatedAt: '2026-06-01T00:00:00Z',
+            metadata: { status: 'merged' },
+          }),
+        ],
+        7,
+        now
+      )
+    ).toBe(1);
+  });
+
+  it('computes median time-to-merge over the window', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    expect(
+      medianTimeToMergeDays(
+        [
+          makePullRequest({
+            id: 'a',
+            createdAt: '2026-07-01T00:00:00Z',
+            updatedAt: '2026-07-03T00:00:00Z',
+            metadata: { status: 'merged' },
+          }),
+          makePullRequest({
+            id: 'b',
+            createdAt: '2026-07-01T00:00:00Z',
+            updatedAt: '2026-07-05T00:00:00Z',
+            metadata: { status: 'merged' },
+          }),
+        ],
+        30,
+        now
+      )
+    ).toBe(3);
   });
 });

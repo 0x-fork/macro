@@ -285,6 +285,333 @@ export function computeWeeklyPrActivity(
   return buckets;
 }
 
+/** Millis-parsed timestamp, or undefined when absent/invalid. */
+function toTime(
+  value: string | number | Date | null | undefined
+): number | undefined {
+  if (value == null) return undefined;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? undefined : time;
+}
+
+/**
+ * Days from the entity record's creation to its last update. For merged PRs
+ * the record is created when the PR is first seen and last updated at merge,
+ * so this approximates time-to-merge (merge timestamps aren't stored).
+ */
+export function pullRequestCycleDays(
+  pullRequest: GithubPullRequestEntity
+): number | undefined {
+  const created = toTime(pullRequest.createdAt);
+  const updated = toTime(pullRequest.updatedAt);
+  if (created === undefined || updated === undefined) return undefined;
+  const days = (updated - created) / DAY_MS;
+  return days >= 0 ? days : undefined;
+}
+
+function median(values: number[]): number | undefined {
+  if (values.length === 0) return undefined;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+export type WeeklyVelocity = {
+  weekStart: Date;
+  label: string;
+  /** Median days from first-seen to merge for PRs merged this week. */
+  medianDays: number | undefined;
+  mergedCount: number;
+};
+
+/**
+ * PR velocity: median time-to-merge for PRs merged in each trailing week.
+ * Weeks with no merges carry `medianDays: undefined` (a gap, not a zero).
+ */
+export function computeWeeklyVelocity(
+  pullRequests: GithubPullRequestEntity[],
+  weeks = 8,
+  now = new Date()
+): WeeklyVelocity[] {
+  const activity = computeWeeklyPrActivity(pullRequests, weeks, now);
+  const samples: number[][] = activity.map(() => []);
+
+  for (const pullRequest of pullRequests) {
+    if (pullRequest.metadata.status !== 'merged') continue;
+    const merged = toTime(pullRequest.updatedAt);
+    if (merged === undefined) continue;
+    const index = activity.findIndex(
+      (week, i) =>
+        merged >= week.weekStart.getTime() &&
+        (i === activity.length - 1 ||
+          merged < activity[i + 1].weekStart.getTime())
+    );
+    if (index === -1) continue;
+    const days = pullRequestCycleDays(pullRequest);
+    if (days !== undefined) samples[index].push(days);
+  }
+
+  return activity.map((week, index) => ({
+    weekStart: week.weekStart,
+    label: week.label,
+    medianDays: median(samples[index]),
+    mergedCount: samples[index].length,
+  }));
+}
+
+export type WeeklyChurn = {
+  weekStart: Date;
+  label: string;
+  /** Lines added across PRs merged this week. */
+  additions: number;
+  /** Lines deleted across PRs merged this week. */
+  deletions: number;
+};
+
+/** Code churn: additions/deletions of PRs merged in each trailing week. */
+export function computeWeeklyChurn(
+  pullRequests: GithubPullRequestEntity[],
+  weeks = 8,
+  now = new Date()
+): WeeklyChurn[] {
+  const activity = computeWeeklyPrActivity(pullRequests, weeks, now);
+  const churn: WeeklyChurn[] = activity.map((week) => ({
+    weekStart: week.weekStart,
+    label: week.label,
+    additions: 0,
+    deletions: 0,
+  }));
+
+  for (const pullRequest of pullRequests) {
+    if (pullRequest.metadata.status !== 'merged') continue;
+    const merged = toTime(pullRequest.updatedAt);
+    if (merged === undefined) continue;
+    const index = churn.findIndex(
+      (week, i) =>
+        merged >= week.weekStart.getTime() &&
+        (i === churn.length - 1 || merged < churn[i + 1].weekStart.getTime())
+    );
+    if (index === -1) continue;
+    churn[index].additions += pullRequest.metadata.additions;
+    churn[index].deletions += pullRequest.metadata.deletions;
+  }
+
+  return churn;
+}
+
+export const PR_SIZE_BUCKETS = [
+  { key: 'xs', label: 'XS', description: '< 10 lines', max: 10 },
+  { key: 's', label: 'S', description: '< 100 lines', max: 100 },
+  { key: 'm', label: 'M', description: '< 500 lines', max: 500 },
+  { key: 'l', label: 'L', description: '< 1,000 lines', max: 1000 },
+  {
+    key: 'xl',
+    label: 'XL',
+    description: '1,000+ lines',
+    max: Number.POSITIVE_INFINITY,
+  },
+] as const;
+
+export type PrSizeBucketKey = (typeof PR_SIZE_BUCKETS)[number]['key'];
+
+/** Bucket a PR by total changed lines (additions + deletions). */
+export function pullRequestSizeBucket(
+  pullRequest: GithubPullRequestEntity
+): PrSizeBucketKey {
+  const changed =
+    pullRequest.metadata.additions + pullRequest.metadata.deletions;
+  for (const bucket of PR_SIZE_BUCKETS) {
+    if (changed < bucket.max) return bucket.key;
+  }
+  return 'xl';
+}
+
+export function countPrSizeBuckets(
+  pullRequests: GithubPullRequestEntity[]
+): Map<PrSizeBucketKey, number> {
+  const counts = new Map<PrSizeBucketKey, number>();
+  for (const pullRequest of pullRequests) {
+    const key = pullRequestSizeBucket(pullRequest);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+export const PR_AREAS = [
+  'frontend',
+  'backend',
+  'infra',
+  'docs',
+  'other',
+] as const;
+
+export type PrArea = (typeof PR_AREAS)[number];
+
+const AREA_KEYWORDS: Array<{ area: Exclude<PrArea, 'other'>; words: RegExp }> =
+  [
+    {
+      area: 'infra',
+      words:
+        /\b(infra|ci|cd|deploy|deployment|docker|k8s|kubernetes|terraform|pulumi|helm|pipeline|workflow|release|build)\b/,
+    },
+    {
+      area: 'docs',
+      words: /\b(docs?|readme|documentation|changelog|onboarding)\b/,
+    },
+    {
+      area: 'frontend',
+      words:
+        /\b(frontend|front-end|ui|ux|css|tailwind|component|design|web|app|react|solid|sidebar|modal|button|layout|style|styles|dark mode|icon|animation)\b/,
+    },
+    {
+      area: 'backend',
+      words:
+        /\b(backend|back-end|api|server|service|rust|db|database|sql|sqlx|migration|queue|worker|lambda|webhook|auth|storage|endpoint|graphql|cache|redis)\b/,
+    },
+  ];
+
+/**
+ * Best-effort area classification from repo name and PR title keywords. The
+ * soup metadata carries no file paths, so this is a heuristic; unmatched PRs
+ * land in 'other'.
+ */
+export function detectPullRequestArea(
+  pullRequest: GithubPullRequestEntity
+): PrArea {
+  const haystack =
+    `${pullRequest.metadata.repo} ${pullRequest.metadata.name}`.toLowerCase();
+  for (const { area, words } of AREA_KEYWORDS) {
+    if (words.test(haystack)) return area;
+  }
+  return 'other';
+}
+
+export function countPullRequestAreas(
+  pullRequests: GithubPullRequestEntity[]
+): Map<PrArea, number> {
+  const counts = new Map<PrArea, number>();
+  for (const pullRequest of pullRequests) {
+    const area = detectPullRequestArea(pullRequest);
+    counts.set(area, (counts.get(area) ?? 0) + 1);
+  }
+  return counts;
+}
+
+export type RepoBreakdownRow = {
+  /** `owner/repo` — the auto-detected project a PR belongs to. */
+  repo: string;
+  open: number;
+  merged: number;
+  closed: number;
+  total: number;
+};
+
+/** Per-repo PR counts (auto-detected project grouping), largest first. */
+export function computeRepoBreakdown(
+  pullRequests: GithubPullRequestEntity[]
+): RepoBreakdownRow[] {
+  const rows = new Map<string, RepoBreakdownRow>();
+
+  for (const pullRequest of pullRequests) {
+    const repo = `${pullRequest.metadata.owner}/${pullRequest.metadata.repo}`;
+    let row = rows.get(repo);
+    if (!row) {
+      row = { repo, open: 0, merged: 0, closed: 0, total: 0 };
+      rows.set(repo, row);
+    }
+    const status = pullRequestDisplayStatus(pullRequest);
+    if (status === 'open' || status === 'draft') row.open += 1;
+    else if (status === 'merged') row.merged += 1;
+    else row.closed += 1;
+    row.total += 1;
+  }
+
+  return [...rows.values()].sort(
+    (a, b) => b.total - a.total || a.repo.localeCompare(b.repo)
+  );
+}
+
+export type ContributorRow = {
+  authorLogin: string | undefined;
+  key: string;
+  merged: number;
+  additions: number;
+  deletions: number;
+};
+
+/** Merged-PR leaderboard over the trailing `days`, largest first. */
+export function computeContributorLeaderboard(
+  pullRequests: GithubPullRequestEntity[],
+  days = 30,
+  now = new Date()
+): ContributorRow[] {
+  const cutoff = now.getTime() - days * DAY_MS;
+  const rows = new Map<string, ContributorRow>();
+
+  for (const pullRequest of pullRequests) {
+    if (pullRequest.metadata.status !== 'merged') continue;
+    const merged = toTime(pullRequest.updatedAt);
+    if (merged === undefined || merged < cutoff) continue;
+
+    const key = pullRequestAuthorKey(pullRequest);
+    let row = rows.get(key);
+    if (!row) {
+      row = {
+        key,
+        authorLogin: pullRequest.metadata.authorLogin,
+        merged: 0,
+        additions: 0,
+        deletions: 0,
+      };
+      rows.set(key, row);
+    }
+    row.merged += 1;
+    row.additions += pullRequest.metadata.additions;
+    row.deletions += pullRequest.metadata.deletions;
+  }
+
+  return [...rows.values()].sort(
+    (a, b) => b.merged - a.merged || a.key.localeCompare(b.key)
+  );
+}
+
+/** Open PRs (incl. drafts) with no activity for at least `days`. */
+export function countStalePullRequests(
+  pullRequests: GithubPullRequestEntity[],
+  days = 7,
+  now = new Date()
+): number {
+  const cutoff = now.getTime() - days * DAY_MS;
+  let stale = 0;
+  for (const pullRequest of pullRequests) {
+    const status = pullRequestDisplayStatus(pullRequest);
+    if (status !== 'open' && status !== 'draft') continue;
+    const updated = toTime(pullRequest.updatedAt);
+    if (updated !== undefined && updated < cutoff) stale += 1;
+  }
+  return stale;
+}
+
+/** Median time-to-merge (days) for PRs merged in the trailing `days`. */
+export function medianTimeToMergeDays(
+  pullRequests: GithubPullRequestEntity[],
+  days = 30,
+  now = new Date()
+): number | undefined {
+  const cutoff = now.getTime() - days * DAY_MS;
+  const samples: number[] = [];
+  for (const pullRequest of pullRequests) {
+    if (pullRequest.metadata.status !== 'merged') continue;
+    const merged = toTime(pullRequest.updatedAt);
+    if (merged === undefined || merged < cutoff) continue;
+    const cycleDays = pullRequestCycleDays(pullRequest);
+    if (cycleDays !== undefined) samples.push(cycleDays);
+  }
+  return median(samples);
+}
+
 export const TASK_STATUS_ORDER = [
   PROPERTY_OPTION_IDS.STATUS.NOT_STARTED,
   PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS,
