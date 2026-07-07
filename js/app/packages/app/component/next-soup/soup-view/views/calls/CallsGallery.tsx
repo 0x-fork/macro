@@ -16,6 +16,7 @@ import SquaresFourIcon from '@phosphor/squares-four.svg';
 import { usePropertyEntityDisplay } from '@property/hooks';
 import { useCallRecordQuery } from '@queries/call/call';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
+import { Key } from '@solid-primitives/keyed';
 import { Button, cn, Tooltip } from '@ui';
 import { createEffect, createSignal, For, on, onCleanup, Show } from 'solid-js';
 
@@ -281,18 +282,24 @@ export function CallsGalleryView(props: {
           'grid-template-columns': `repeat(${props.columns}, minmax(0, 1fr))`,
         }}
       >
-        <For each={pageRows()}>
+        {/* Key by entity id, not row reference: the soup store rebuilds
+            every SoupRow object whenever a page settles (initial load and
+            each prefetch), so a reference-keyed <For> would remount every
+            card — resetting the preview fetch and re-decoding the <img>,
+            which flashes. Keying by id keeps instances mounted across those
+            rebuilds; only genuinely new calls mount. */}
+        <Key each={pageRows()} by={(row) => row.original.id}>
           {(row) => (
-            <SoupEntityContextMenu entity={row.original}>
+            <SoupEntityContextMenu entity={row().original}>
               <CallCard
-                entity={row.original as CallEntity}
-                highlighted={row.isFocused()}
-                onClick={(event) => props.onEntityClick(row, event)}
-                onMouseMove={() => props.onEntityMouseMove?.(row)}
+                entity={row().original as CallEntity}
+                highlighted={row().isFocused()}
+                onClick={(event) => props.onEntityClick(row(), event)}
+                onMouseMove={() => props.onEntityMouseMove?.(row())}
               />
             </SoupEntityContextMenu>
           )}
-        </For>
+        </Key>
       </div>
       <div class="flex items-center justify-center gap-2 py-2">
         <Button
