@@ -3,7 +3,10 @@ import type {
   TaskEntity,
   TaskEntityWithProperties,
 } from '@entity/types/entity';
-import { getTaskStatusOptionId } from '@entity/utils/task-properties';
+import {
+  getTaskAssigneeIds,
+  getTaskStatusOptionId,
+} from '@entity/utils/task-properties';
 import { PROPERTY_OPTION_IDS } from '@property/constants';
 
 /**
@@ -692,4 +695,200 @@ export function countTasksByStatus(
   }
 
   return counts;
+}
+
+export const UNASSIGNED_KEY = 'unassigned';
+
+/**
+ * Groups tasks by assignee user id (multi-assignee tasks appear under each
+ * assignee); tasks with no assignee land under {@link UNASSIGNED_KEY}.
+ */
+export function groupTasksByAssignee(
+  tasks: TaskEntity[]
+): Map<string, TaskEntity[]> {
+  const groups = new Map<string, TaskEntity[]>();
+  const push = (key: string, task: TaskEntity) => {
+    const list = groups.get(key);
+    if (list) list.push(task);
+    else groups.set(key, [task]);
+  };
+
+  for (const task of tasks) {
+    const assignees = getTaskAssigneeIds(task as TaskEntityWithProperties);
+    if (assignees.length === 0) {
+      push(UNASSIGNED_KEY, task);
+      continue;
+    }
+    for (const userId of assignees) {
+      push(userId, task);
+    }
+  }
+
+  return groups;
+}
+
+export type EngineerContact = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+function normalizeIdentity(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Best-effort GitHub-login ↔ workspace-user match (no mapping is stored).
+ * Matches when the normalized login equals the contact's concatenated name or
+ * email local-part, or is a ≥5-char prefix of either the name or
+ * first-initial+last-name (e.g. "jbecke" → "Jacob Beckerman" → "jbeckerman").
+ */
+export function matchContactForLogin(
+  login: string,
+  contacts: EngineerContact[]
+): EngineerContact | undefined {
+  const normalized = normalizeIdentity(login);
+  if (!normalized) return undefined;
+
+  for (const contact of contacts) {
+    const nameConcat = normalizeIdentity(contact.name);
+    const localPart = normalizeIdentity(contact.email.split('@')[0] ?? '');
+    const nameParts = contact.name
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(normalizeIdentity);
+    const initialLast =
+      nameParts.length >= 2
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1]}`
+        : '';
+
+    if (normalized === nameConcat || normalized === localPart) return contact;
+    if (
+      normalized.length >= 5 &&
+      ((initialLast && initialLast.startsWith(normalized)) ||
+        nameConcat.startsWith(normalized))
+    ) {
+      return contact;
+    }
+  }
+
+  return undefined;
+}
+
+export type EngineerBento = {
+  /** GitHub login when known, else the workspace user id, else 'unassigned'. */
+  key: string;
+  githubLogin?: string;
+  userId?: string;
+  displayName: string;
+  openPullRequests: GithubPullRequestEntity[];
+  openTasks: TaskEntity[];
+  mergedLast30Days: number;
+};
+
+/**
+ * One bento per engineer: their open PRs (by GitHub author) joined with
+ * their open tasks (by workspace assignee, via {@link matchContactForLogin}).
+ * Assignees without PRs get their own bento; unassigned tasks come last.
+ */
+export function buildEngineerBentos(
+  pullRequests: GithubPullRequestEntity[],
+  tasks: TaskEntity[],
+  contacts: EngineerContact[],
+  now = new Date()
+): EngineerBento[] {
+  const mergedCutoff = now.getTime() - 30 * DAY_MS;
+  const contactsById = new Map(contacts.map((c) => [c.id, c]));
+
+  const openTasksByAssignee = groupTasksByAssignee(
+    tasks.filter((task) => !task.subType.is_completed)
+  );
+  const claimedUserIds = new Set<string>();
+
+  const bentos: EngineerBento[] = [];
+  const bentosByAuthor = new Map<string, EngineerBento>();
+
+  for (const pullRequest of pullRequests) {
+    const status = pullRequestDisplayStatus(pullRequest);
+    const authorKey = pullRequestAuthorKey(pullRequest);
+
+    let bento = bentosByAuthor.get(authorKey);
+    if (!bento) {
+      const login = pullRequest.metadata.authorLogin;
+      const contact = login ? matchContactForLogin(login, contacts) : undefined;
+      bento = {
+        key: authorKey,
+        githubLogin: login,
+        userId: contact?.id,
+        displayName: contact?.name || login || 'Unknown author',
+        openPullRequests: [],
+        openTasks: [],
+        mergedLast30Days: 0,
+      };
+      if (contact) claimedUserIds.add(contact.id);
+      bentosByAuthor.set(authorKey, bento);
+      bentos.push(bento);
+    }
+
+    if (status === 'open' || status === 'draft') {
+      bento.openPullRequests.push(pullRequest);
+    } else if (status === 'merged') {
+      const merged = pullRequest.updatedAt
+        ? new Date(pullRequest.updatedAt).getTime()
+        : Number.NaN;
+      if (!Number.isNaN(merged) && merged >= mergedCutoff) {
+        bento.mergedLast30Days += 1;
+      }
+    }
+  }
+
+  for (const bento of bentos) {
+    if (bento.userId) {
+      bento.openTasks = openTasksByAssignee.get(bento.userId) ?? [];
+    }
+  }
+
+  // Assignees whose tasks weren't claimed by a PR author bento.
+  for (const [userId, assignedTasks] of openTasksByAssignee) {
+    if (userId === UNASSIGNED_KEY || claimedUserIds.has(userId)) continue;
+    const contact = contactsById.get(userId);
+    bentos.push({
+      key: userId,
+      userId,
+      displayName: contact?.name || 'Unknown teammate',
+      openPullRequests: [],
+      openTasks: assignedTasks,
+      mergedLast30Days: 0,
+    });
+  }
+
+  const sorted = bentos
+    .filter(
+      (bento) =>
+        bento.openPullRequests.length > 0 ||
+        bento.openTasks.length > 0 ||
+        bento.mergedLast30Days > 0
+    )
+    .sort(
+      (a, b) =>
+        b.openPullRequests.length +
+          b.openTasks.length -
+          (a.openPullRequests.length + a.openTasks.length) ||
+        b.mergedLast30Days - a.mergedLast30Days ||
+        a.displayName.localeCompare(b.displayName)
+    );
+
+  const unassigned = openTasksByAssignee.get(UNASSIGNED_KEY);
+  if (unassigned?.length) {
+    sorted.push({
+      key: UNASSIGNED_KEY,
+      displayName: 'Unassigned',
+      openPullRequests: [],
+      openTasks: unassigned,
+      mergedLast30Days: 0,
+    });
+  }
+
+  return sorted;
 }

@@ -2,6 +2,7 @@ import type { GithubPullRequestEntity, TaskEntity } from '@entity/types/entity';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { describe, expect, it } from 'vitest';
 import {
+  buildEngineerBentos,
   computeContributorLeaderboard,
   computeCycleTimeByAuthor,
   computePrStats,
@@ -13,8 +14,10 @@ import {
   countTasksByStatus,
   detectPullRequestArea,
   groupPullRequestsByAuthor,
+  groupTasksByAssignee,
   groupTasksByProject,
   hasFailingChecks,
+  matchContactForLogin,
   matchesPrStatusFilter,
   medianTimeToMergeDays,
   pullRequestDisplayStatus,
@@ -550,5 +553,119 @@ describe('stale + median helpers', () => {
         now
       )
     ).toBe(3);
+  });
+});
+
+describe('groupTasksByAssignee', () => {
+  it('groups by assignee, multi-assignee tasks in each, unassigned separate', () => {
+    const withAssignees = (id: string, userIds: string[]) =>
+      ({
+        ...makeTask({ id }),
+        properties: [
+          {
+            definition: { id: SYSTEM_PROPERTY_IDS.ASSIGNEES },
+            value: {
+              type: 'EntityReference',
+              value: userIds.map((entityId) => ({
+                entity_type: 'USER',
+                entity_id: entityId,
+              })),
+            },
+          },
+        ],
+      }) as TaskEntity;
+
+    const groups = groupTasksByAssignee([
+      withAssignees('t1', ['u1']),
+      withAssignees('t2', ['u1', 'u2']),
+      makeTask({ id: 't3' }),
+    ]);
+
+    expect(groups.get('u1')?.map((t) => t.id)).toEqual(['t1', 't2']);
+    expect(groups.get('u2')?.map((t) => t.id)).toEqual(['t2']);
+    expect(groups.get('unassigned')?.map((t) => t.id)).toEqual(['t3']);
+  });
+});
+
+describe('matchContactForLogin', () => {
+  const contacts = [
+    { id: 'u1', name: 'Jacob Beckerman', email: 'jacob@macro.com' },
+    { id: 'u2', name: 'Ada Lovelace', email: 'ada@macro.com' },
+  ];
+
+  it('matches email local-part and concatenated name exactly', () => {
+    expect(matchContactForLogin('jacob', contacts)?.id).toBe('u1');
+    expect(matchContactForLogin('AdaLovelace', contacts)?.id).toBe('u2');
+  });
+
+  it('matches first-initial+lastname prefixes of 5+ chars', () => {
+    expect(matchContactForLogin('jbecke', contacts)?.id).toBe('u1');
+    // Too short to trust as a prefix.
+    expect(matchContactForLogin('jbec', contacts)).toBeUndefined();
+    expect(matchContactForLogin('someoneelse', contacts)).toBeUndefined();
+  });
+});
+
+describe('buildEngineerBentos', () => {
+  const contacts = [
+    { id: 'u1', name: 'Jacob Beckerman', email: 'jacob@macro.com' },
+  ];
+  const assigned = (id: string, userId: string) =>
+    ({
+      ...makeTask({ id }),
+      properties: [
+        {
+          definition: { id: SYSTEM_PROPERTY_IDS.ASSIGNEES },
+          value: {
+            type: 'EntityReference',
+            value: [{ entity_type: 'USER', entity_id: userId }],
+          },
+        },
+      ],
+    }) as TaskEntity;
+
+  it('joins PR authors with matched assignees and appends unassigned last', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const bentos = buildEngineerBentos(
+      [
+        makePullRequest({ id: 'p1', metadata: { authorLogin: 'jbecke' } }),
+        makePullRequest({
+          id: 'p2',
+          updatedAt: '2026-07-01T00:00:00Z',
+          metadata: { authorLogin: 'jbecke', status: 'merged' },
+        }),
+      ],
+      [assigned('t1', 'u1'), makeTask({ id: 't2' })],
+      contacts,
+      now
+    );
+
+    expect(bentos).toHaveLength(2);
+    expect(bentos[0].displayName).toBe('Jacob Beckerman');
+    expect(bentos[0].githubLogin).toBe('jbecke');
+    expect(bentos[0].openPullRequests.map((pr) => pr.id)).toEqual(['p1']);
+    expect(bentos[0].openTasks.map((t) => t.id)).toEqual(['t1']);
+    expect(bentos[0].mergedLast30Days).toBe(1);
+    expect(bentos[1].key).toBe('unassigned');
+    expect(bentos[1].openTasks.map((t) => t.id)).toEqual(['t2']);
+  });
+
+  it('gives unmatched assignees their own bento and skips completed tasks', () => {
+    const bentos = buildEngineerBentos(
+      [],
+      [
+        assigned('t1', 'u-unknown'),
+        {
+          ...assigned('t2', 'u-unknown'),
+          subType: { type: 'task', is_completed: true },
+        } as TaskEntity,
+      ],
+      contacts,
+      new Date('2026-07-06T12:00:00Z')
+    );
+
+    expect(bentos).toHaveLength(1);
+    expect(bentos[0].displayName).toBe('Unknown teammate');
+    expect(bentos[0].openTasks.map((t) => t.id)).toEqual(['t1']);
   });
 });

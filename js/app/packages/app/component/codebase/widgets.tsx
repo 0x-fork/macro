@@ -38,7 +38,7 @@ import {
  * Insights tab.
  */
 
-const TASK_STATUS_SEGMENTS = [
+export const TASK_STATUS_SEGMENTS = [
   {
     key: PROPERTY_OPTION_IDS.STATUS.NOT_STARTED,
     label: 'Not started',
