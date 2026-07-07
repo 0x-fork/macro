@@ -2,6 +2,7 @@ import type { GithubPullRequestEntity, TaskEntity } from '@entity/types/entity';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { describe, expect, it } from 'vitest';
 import {
+  computePrStats,
   computeWeeklyPrActivity,
   countTasksByStatus,
   groupPullRequestsByAuthor,
@@ -221,6 +222,44 @@ describe('countTasksByStatus', () => {
     expect(counts.get(PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS)).toBe(1);
     expect(counts.get(PROPERTY_OPTION_IDS.STATUS.NOT_STARTED)).toBe(1);
     expect(counts.get(PROPERTY_OPTION_IDS.STATUS.COMPLETED)).toBe(1);
+  });
+});
+
+describe('computePrStats', () => {
+  it('computes headline numbers with a 30-day merge window', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const stats = computePrStats(
+      [
+        makePullRequest({ id: 'open' }),
+        makePullRequest({
+          id: 'draft',
+          metadata: {
+            draft: true,
+            checks: [
+              { id: 1, name: 'ci', status: 'completed', conclusion: 'failure' },
+            ],
+          },
+        }),
+        makePullRequest({
+          id: 'merged-recent',
+          updatedAt: '2026-07-01T00:00:00Z',
+          metadata: { status: 'merged' },
+        }),
+        makePullRequest({
+          id: 'merged-old',
+          updatedAt: '2026-01-01T00:00:00Z',
+          metadata: { status: 'merged' },
+        }),
+      ],
+      now
+    );
+
+    expect(stats).toEqual({
+      open: 1,
+      draft: 1,
+      mergedLast30Days: 1,
+      failingChecks: 1,
+    });
   });
 });
 

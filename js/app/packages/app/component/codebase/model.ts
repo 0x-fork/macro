@@ -165,6 +165,50 @@ export function hasFailingChecks(
   );
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export type PrStats = {
+  open: number;
+  draft: number;
+  mergedLast30Days: number;
+  failingChecks: number;
+};
+
+/** Headline pull request numbers for the stat tiles. */
+export function computePrStats(
+  pullRequests: GithubPullRequestEntity[],
+  now = new Date()
+): PrStats {
+  const stats: PrStats = {
+    open: 0,
+    draft: 0,
+    mergedLast30Days: 0,
+    failingChecks: 0,
+  };
+  const mergedCutoff = now.getTime() - 30 * DAY_MS;
+
+  for (const pullRequest of pullRequests) {
+    const status = pullRequestDisplayStatus(pullRequest);
+    if (status === 'open') stats.open += 1;
+    if (status === 'draft') stats.draft += 1;
+    if (
+      pullRequest.metadata.status === 'merged' &&
+      pullRequest.updatedAt != null &&
+      new Date(pullRequest.updatedAt).getTime() >= mergedCutoff
+    ) {
+      stats.mergedLast30Days += 1;
+    }
+    if (
+      (status === 'open' || status === 'draft') &&
+      hasFailingChecks(pullRequest)
+    ) {
+      stats.failingChecks += 1;
+    }
+  }
+
+  return stats;
+}
+
 export type WeeklyPrActivity = {
   weekStart: Date;
   label: string;

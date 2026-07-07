@@ -8,10 +8,12 @@ import { useGithubLinkStatusQuery } from '@queries/auth/github-link';
 import { EmptyStatePanel } from '@ui';
 import { createEffect, Match, Show, Switch } from 'solid-js';
 import { InsightsSection } from './insights-section';
+import { OverviewSection } from './overview-section';
 import { PullRequestsSection } from './pull-requests-section';
 import { TasksSection } from './tasks-section';
 
 const CODEBASE_TABS = [
+  { value: 'overview', label: 'Overview' },
   { value: 'pull-requests', label: 'Pull requests' },
   { value: 'tasks', label: 'Tasks' },
   { value: 'insights', label: 'Insights' },
@@ -34,7 +36,7 @@ export function CodebaseView() {
   });
 
   const [activeTab, setActiveTab] = useEntryState<CodebaseTab>('codebase.tab', {
-    default: 'pull-requests',
+    default: 'overview',
   });
 
   const githubLinked = () => githubLink.data?.status === 'linked';
@@ -73,6 +75,12 @@ export function CodebaseView() {
         }
       >
         <Switch>
+          <Match when={activeTab() === 'overview'}>
+            <OverviewSection
+              onShowPullRequests={() => setActiveTab('pull-requests')}
+              onShowTasks={() => setActiveTab('tasks')}
+            />
+          </Match>
           <Match when={activeTab() === 'pull-requests'}>
             <PullRequestsSection />
           </Match>
