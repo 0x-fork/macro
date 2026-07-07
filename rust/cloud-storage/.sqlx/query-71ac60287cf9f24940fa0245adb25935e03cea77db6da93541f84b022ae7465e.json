@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT et.id, em.subject as \"subject?\"\n            FROM email_threads et\n            LEFT JOIN LATERAL (\n                SELECT m.subject\n                FROM email_messages m\n                WHERE m.thread_id = et.id AND m.is_draft = false\n                ORDER BY m.internal_date_ts DESC NULLS LAST\n                LIMIT 1\n            ) em ON true\n            WHERE et.id = ANY($1)\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "subject?",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "71ac60287cf9f24940fa0245adb25935e03cea77db6da93541f84b022ae7465e"
+}

@@ -175,9 +175,8 @@ async fn list_favorites_hydrates_uuid_keyed_entities(pool: PgPool) {
     )
     .await
     .expect("channel favorite should insert");
-    // A favorite whose entity_id is not a valid uuid must not break the
-    // listing (the uuid tables are joined on a casted entity_id); it lists
-    // unhydrated.
+    // A favorite whose entity_id is not a valid uuid can never exist in the
+    // uuid-keyed channels table, so it must list unhydrated.
     repo.add_favorite(
         &user(USER_A),
         &EntityType::Channel.with_entity_str("not-a-uuid"),

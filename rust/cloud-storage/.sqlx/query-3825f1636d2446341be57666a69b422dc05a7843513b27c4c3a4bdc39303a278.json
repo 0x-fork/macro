@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO favorite (user_id, entity_type, entity_id, sort_order)\n            VALUES (\n                $1, $2, $3,\n                COALESCE((SELECT MAX(sort_order) + 1 FROM favorite WHERE user_id = $1), 0)\n            )\n            ON CONFLICT (user_id, entity_type, entity_id)\n                DO UPDATE SET updated_at = now()\n            RETURNING\n                entity_type as \"entity_type!\",\n                entity_id as \"entity_id!\",\n                sort_order as \"sort_order!\",\n                created_at as \"created_at!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entity_type!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "entity_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "sort_order!",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3825f1636d2446341be57666a69b422dc05a7843513b27c4c3a4bdc39303a278"
+}

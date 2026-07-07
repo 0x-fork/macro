@@ -3,12 +3,13 @@
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::{Entity, EntityType};
 use sqlx::PgPool;
+use uuid::Uuid;
 
 use crate::domain::models::Favorite;
 use crate::domain::ports::FavoritesRepo;
@@ -42,14 +43,10 @@ struct FavoriteRow {
     entity_id: String,
     sort_order: f64,
     created_at: DateTime<Utc>,
-    name: Option<String>,
-    file_type: Option<String>,
-    document_sub_type: Option<String>,
-    channel_type: Option<String>,
-    channel_id: Option<String>,
 }
 
 impl FavoriteRow {
+    /// Convert to a [Favorite] with no display metadata hydrated.
     fn into_favorite(self) -> Result<Favorite, FavoritesRepoErr> {
         let entity_type: EntityType = self
             .entity_type
@@ -60,12 +57,186 @@ impl FavoriteRow {
             entity_id: self.entity_id,
             sort_order: self.sort_order,
             created_at: self.created_at,
-            name: self.name,
-            file_type: self.file_type,
-            document_sub_type: self.document_sub_type,
-            channel_type: self.channel_type,
-            channel_id: self.channel_id,
+            name: None,
+            file_type: None,
+            document_sub_type: None,
+            channel_type: None,
+            channel_id: None,
         })
+    }
+}
+
+struct DocumentMeta {
+    name: Option<String>,
+    file_type: Option<String>,
+    sub_type: Option<String>,
+}
+
+struct ChannelMeta {
+    name: Option<String>,
+    channel_type: String,
+}
+
+/// Display-metadata hydration for [`PgFavoritesRepo::list_favorites`].
+///
+/// Each favorited entity type is hydrated with its own batch query keyed on
+/// correctly typed ids (`text[]` or `uuid[]`), so every lookup is an index
+/// probe on the target table's primary key. Hydrating everything in a single
+/// query is a trap here: the id columns of the comms/email tables are `uuid`
+/// while `favorite.entity_id` is `text`, and joining them via
+/// `big_table.id::text = f.entity_id` puts a cast on the indexed column,
+/// which Postgres cannot serve from the index — every favorites list then
+/// seq-scans those tables.
+impl PgFavoritesRepo {
+    /// Uuids parsed from the favorites of the given entity type. Ids that are
+    /// not valid uuids cannot exist in a uuid-keyed table, so they are simply
+    /// left out (and end up unhydrated, like any other lookup miss).
+    fn uuid_ids(rows: &[FavoriteRow], entity_type: &str) -> Vec<Uuid> {
+        rows.iter()
+            .filter(|r| r.entity_type == entity_type)
+            .filter_map(|r| r.entity_id.parse().ok())
+            .collect()
+    }
+
+    fn text_ids(rows: &[FavoriteRow], entity_type: &str) -> Vec<String> {
+        rows.iter()
+            .filter(|r| r.entity_type == entity_type)
+            .map(|r| r.entity_id.clone())
+            .collect()
+    }
+
+    /// Live (non-deleted) documents by id. A favorite missing from the map is
+    /// deleted or gone and gets dropped from the listing.
+    async fn document_meta(
+        &self,
+        ids: &[String],
+    ) -> Result<HashMap<String, DocumentMeta>, FavoritesRepoErr> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = sqlx::query!(
+            r#"
+            SELECT
+                d.id,
+                d.name as "name?",
+                d."fileType" as "file_type?",
+                dt.sub_type::text as "sub_type?"
+            FROM "Document" d
+            LEFT JOIN document_sub_type dt ON dt.document_id = d.id
+            WHERE d.id = ANY($1) AND d."deletedAt" IS NULL
+            "#,
+            ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                (
+                    r.id,
+                    DocumentMeta {
+                        name: r.name,
+                        file_type: r.file_type,
+                        sub_type: r.sub_type,
+                    },
+                )
+            })
+            .collect())
+    }
+
+    /// Live (non-deleted) chat names by id. A favorite missing from the map
+    /// is deleted or gone and gets dropped from the listing.
+    async fn chat_names(
+        &self,
+        ids: &[String],
+    ) -> Result<HashMap<String, Option<String>>, FavoritesRepoErr> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = sqlx::query!(
+            r#"SELECT id, name as "name?" FROM "Chat" WHERE id = ANY($1) AND "deletedAt" IS NULL"#,
+            ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| (r.id, r.name)).collect())
+    }
+
+    /// Live (non-deleted) project names by id. A favorite missing from the
+    /// map is deleted or gone and gets dropped from the listing.
+    async fn project_names(
+        &self,
+        ids: &[String],
+    ) -> Result<HashMap<String, Option<String>>, FavoritesRepoErr> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = sqlx::query!(
+            r#"SELECT id, name as "name?" FROM "Project" WHERE id = ANY($1) AND "deletedAt" IS NULL"#,
+            ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| (r.id, r.name)).collect())
+    }
+
+    async fn channel_meta(
+        &self,
+        ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, ChannelMeta>, FavoritesRepoErr> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = sqlx::query!(
+            r#"
+            SELECT id, name as "name?", channel_type::text as "channel_type!"
+            FROM comms_channels
+            WHERE id = ANY($1)
+            "#,
+            ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| {
+                (
+                    r.id,
+                    ChannelMeta {
+                        name: r.name,
+                        channel_type: r.channel_type,
+                    },
+                )
+            })
+            .collect())
+    }
+
+    /// Subject of the latest non-draft message per thread.
+    async fn email_thread_subjects(
+        &self,
+        ids: &[Uuid],
+    ) -> Result<HashMap<Uuid, Option<String>>, FavoritesRepoErr> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let rows = sqlx::query!(
+            r#"
+            SELECT et.id, em.subject as "subject?"
+            FROM email_threads et
+            LEFT JOIN LATERAL (
+                SELECT m.subject
+                FROM email_messages m
+                WHERE m.thread_id = et.id AND m.is_draft = false
+                ORDER BY m.internal_date_ts DESC NULLS LAST
+                LIMIT 1
+            ) em ON true
+            WHERE et.id = ANY($1)
+            "#,
+            ids,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| (r.id, r.subject)).collect())
     }
 }
 
@@ -93,12 +264,7 @@ impl FavoritesRepo for PgFavoritesRepo {
                 entity_type as "entity_type!",
                 entity_id as "entity_id!",
                 sort_order as "sort_order!",
-                created_at as "created_at!",
-                NULL::text as "name?",
-                NULL::text as "file_type?",
-                NULL::text as "document_sub_type?",
-                NULL::text as "channel_type?",
-                NULL::text as "channel_id?"
+                created_at as "created_at!"
             "#,
             user_id.as_ref(),
             entity_type,
@@ -125,65 +291,85 @@ impl FavoritesRepo for PgFavoritesRepo {
         &self,
         user_id: &MacroUserIdStr<'_>,
     ) -> Result<Vec<Favorite>, Self::Err> {
-        // Resolves display metadata for the favorited entity where possible and
-        // omits favorites whose target is deleted.
+        // The bare collection first (one probe of favorite_user_sort_idx),
+        // then display metadata per entity type — see the hydration impl
+        // block above for why this is deliberately not a single query.
+        // Favorites whose document/chat/project target is deleted or missing
+        // are omitted; other types list even when unhydrated.
         let rows = sqlx::query_as!(
             FavoriteRow,
             r#"
-            SELECT
-                f.entity_type as "entity_type!",
-                f.entity_id as "entity_id!",
-                f.sort_order as "sort_order!",
-                f.created_at as "created_at!",
-                CASE f.entity_type
-                    WHEN 'document' THEN d.name
-                    WHEN 'chat' THEN c.name
-                    WHEN 'project' THEN p.name
-                    WHEN 'channel' THEN ch.name::text
-                    WHEN 'email_thread' THEN em.subject
-                END as "name?",
-                d."fileType" as "file_type?",
-                dt.sub_type::text as "document_sub_type?",
-                ch.channel_type::text as "channel_type?",
-                cm.channel_id::text as "channel_id?"
-            FROM favorite f
-            -- The comms/email tables key on uuid while favorite.entity_id is
-            -- text. Compare in uuid (casting the favorite side) so their
-            -- primary-key indexes are usable; casting the table side to text
-            -- forced a full scan of each table on every listing. The regex
-            -- guard keeps non-uuid entity_ids from failing the cast: they
-            -- yield NULL and simply don't hydrate.
-            CROSS JOIN LATERAL (
-                SELECT CASE
-                    WHEN f.entity_id ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
-                        THEN f.entity_id::uuid
-                END AS entity_uuid
-            ) fid
-            LEFT JOIN "Document" d ON f.entity_type = 'document' AND d.id = f.entity_id
-            LEFT JOIN document_sub_type dt ON f.entity_type = 'document' AND dt.document_id = f.entity_id
-            LEFT JOIN "Chat" c ON f.entity_type = 'chat' AND c.id = f.entity_id
-            LEFT JOIN "Project" p ON f.entity_type = 'project' AND p.id = f.entity_id
-            LEFT JOIN comms_channels ch ON f.entity_type = 'channel' AND ch.id = fid.entity_uuid
-            LEFT JOIN comms_messages cm ON f.entity_type = 'channel_message' AND cm.id = fid.entity_uuid
-            LEFT JOIN email_threads et ON f.entity_type = 'email_thread' AND et.id = fid.entity_uuid
-            LEFT JOIN LATERAL (
-                SELECT m.subject
-                FROM email_messages m
-                WHERE m.thread_id = et.id AND m.is_draft = false
-                ORDER BY m.internal_date_ts DESC NULLS LAST
-                LIMIT 1
-            ) em ON f.entity_type = 'email_thread'
-            WHERE f.user_id = $1
-                AND (f.entity_type <> 'document' OR (d.id IS NOT NULL AND d."deletedAt" IS NULL))
-                AND (f.entity_type <> 'chat' OR (c.id IS NOT NULL AND c."deletedAt" IS NULL))
-                AND (f.entity_type <> 'project' OR (p.id IS NOT NULL AND p."deletedAt" IS NULL))
-            ORDER BY f.sort_order ASC, f.created_at ASC
+            SELECT entity_type, entity_id, sort_order, created_at
+            FROM favorite
+            WHERE user_id = $1
+            ORDER BY sort_order ASC, created_at ASC
             "#,
             user_id.as_ref(),
         )
         .fetch_all(&self.pool)
         .await?;
-        rows.into_iter().map(FavoriteRow::into_favorite).collect()
+
+        let documents = self
+            .document_meta(&Self::text_ids(&rows, "document"))
+            .await?;
+        let chats = self.chat_names(&Self::text_ids(&rows, "chat")).await?;
+        let projects = self
+            .project_names(&Self::text_ids(&rows, "project"))
+            .await?;
+        let channels = self.channel_meta(&Self::uuid_ids(&rows, "channel")).await?;
+        let email_subjects = self
+            .email_thread_subjects(&Self::uuid_ids(&rows, "email_thread"))
+            .await?;
+
+        let mut favorites = Vec::with_capacity(rows.len());
+        for row in rows {
+            let mut favorite = row.into_favorite()?;
+            match favorite.entity_type {
+                EntityType::Document => {
+                    let Some(meta) = documents.get(&favorite.entity_id) else {
+                        continue;
+                    };
+                    favorite.name = meta.name.clone();
+                    favorite.file_type = meta.file_type.clone();
+                    favorite.document_sub_type = meta.sub_type.clone();
+                }
+                EntityType::Chat => {
+                    let Some(name) = chats.get(&favorite.entity_id) else {
+                        continue;
+                    };
+                    favorite.name = name.clone();
+                }
+                EntityType::Project => {
+                    let Some(name) = projects.get(&favorite.entity_id) else {
+                        continue;
+                    };
+                    favorite.name = name.clone();
+                }
+                EntityType::Channel => {
+                    if let Some(meta) = favorite
+                        .entity_id
+                        .parse::<Uuid>()
+                        .ok()
+                        .and_then(|id| channels.get(&id))
+                    {
+                        favorite.name = meta.name.clone();
+                        favorite.channel_type = Some(meta.channel_type.clone());
+                    }
+                }
+                EntityType::EmailThread => {
+                    favorite.name = favorite
+                        .entity_id
+                        .parse::<Uuid>()
+                        .ok()
+                        .and_then(|id| email_subjects.get(&id))
+                        .cloned()
+                        .flatten();
+                }
+                _ => {}
+            }
+            favorites.push(favorite);
+        }
+        Ok(favorites)
     }
 
     #[tracing::instrument(err, skip(self))]
