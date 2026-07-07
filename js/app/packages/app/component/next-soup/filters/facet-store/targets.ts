@@ -31,6 +31,7 @@ export const FILTER_TARGETS = {
   // df — documents / files / tasks
   df: {
     documentId: { backend: 'id' },
+    documentProjectId: { backend: 'pid' },
     fileType: { backend: 'ft' },
     fileAssoc: { backend: 'fa' },
     subType: { backend: 'dst' },
@@ -132,6 +133,7 @@ type FilterTargetsMeta = {
   // df — documents / files / tasks
   df: {
     documentId: string[];
+    documentProjectId: string[];
     fileType: string[];
     fileAssoc: string[];
     subType: string[];

@@ -4,7 +4,6 @@ import {
   createSoupState,
   type SoupState,
 } from '@app/component/next-soup/create-soup-state';
-import { defineQueryFilters } from '@app/component/next-soup/filters/filter-store';
 import { SoupContextProvider } from '@app/component/next-soup/soup-context';
 import { SoupViewList } from '@app/component/next-soup/soup-view/soup-view';
 import { SoupViewContextProvider } from '@app/component/next-soup/soup-view/soup-view-context';
@@ -106,6 +105,8 @@ const Block: Component = () => {
           PROJECT_ENTITY_TYPES.includes(entity.type),
       },
     ],
+    // Scope the block to this project across documents/chats/folders/emails.
+    initialFacets: { 'project-scope': [projectId] },
   });
 
   // Preview can only work one level deep — don't register the toggle when
@@ -153,7 +154,6 @@ const Block: Component = () => {
             when={ENABLE_PROJECT_VIEW_PREVIEW}
             fallback={
               <ProjectEntityList
-                projectId={projectId}
                 soup={projectSoup}
                 // Scope is already attached by the block container so we can use that
                 // Change this when we remove blocks
@@ -172,7 +172,6 @@ const Block: Component = () => {
                 }}
               >
                 <ProjectEntityList
-                  projectId={projectId}
                   soup={projectSoup}
                   // Scope is already attached by the block container so we can use that
                   // Change this when we remove blocks
@@ -187,29 +186,10 @@ const Block: Component = () => {
   );
 };
 
-const ProjectEntityList = (props: {
-  scopeId: string;
-  projectId: string;
-  soup: SoupState;
-}) => {
+const ProjectEntityList = (props: { scopeId: string; soup: SoupState }) => {
   return (
     <SoupContextProvider soup={props.soup}>
-      <SoupViewContextProvider
-        soup={props.soup}
-        initialEnabled
-        initialQuery={defineQueryFilters({
-          include: {
-            // Filter documents by project
-            projectId: [props.projectId],
-            // Filter chats by project
-            chatProjectId: [props.projectId],
-            // Filter projects by project (current project only)
-            folderId: [props.projectId],
-            // Filter emails by project
-            emailProjectId: [props.projectId],
-          },
-        })}
-      >
+      <SoupViewContextProvider soup={props.soup} initialEnabled>
         <SoupViewList customScrollbarHidden={true} scopeId={props.scopeId} />
       </SoupViewContextProvider>
     </SoupContextProvider>

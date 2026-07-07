@@ -53,6 +53,7 @@ type ComponentFactory = (params?: Record<string, any>) => JSXElement;
 type DocumentsComponentParams = {
   initialFilters?: Query;
   initialClientFilters?: SetPredicatesInput<string>;
+  initialFacets?: FacetSelection;
 };
 
 function mergeClientFilters(
@@ -211,12 +212,20 @@ registerComponent(
       preset?.clientFilters,
       params.initialClientFilters
     );
+    // Union the caller's facet seed (e.g. the sidebar's markdown shortcut) with
+    // the preset's default-tab facets.
+    const initialFacets: FacetSelection = { ...preset?.initialFacets };
+    for (const [key, ids] of Object.entries(params.initialFacets ?? {})) {
+      initialFacets[key] = [
+        ...new Set([...(initialFacets[key] ?? []), ...ids]),
+      ];
+    }
     return (
       <SoupView
         viewName="Files"
         initialFilters={initialFilters}
         initialClientFilters={initialClientFilters}
-        initialFacets={preset?.initialFacets}
+        initialFacets={initialFacets}
         initialGroupBy={preset?.groupBy}
       />
     );

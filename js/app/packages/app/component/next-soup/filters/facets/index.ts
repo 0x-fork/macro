@@ -7,6 +7,7 @@ import {
   MAIL_STATUS,
 } from './mail';
 import { OWNERSHIP, SCOPE } from './presets';
+import { PROJECT_SCOPE } from './project';
 import {
   CALL_FROM,
   CALL_IN,
@@ -31,6 +32,7 @@ export {
   MAIL_STATUS,
 } from './mail';
 export { OWNERSHIP, SCOPE } from './presets';
+export { PROJECT_SCOPE } from './project';
 export {
   CALL_FROM,
   CALL_IN,
@@ -69,6 +71,7 @@ export const ALL_FACETS = [
   CALL_STATUS,
   TASK_CREATED_BY,
   TAG,
+  PROJECT_SCOPE,
 ] as const;
 
 export type FacetId = (typeof ALL_FACETS)[number]['id'];

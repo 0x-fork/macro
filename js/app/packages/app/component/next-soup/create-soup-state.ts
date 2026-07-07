@@ -3,7 +3,10 @@ import {
   type FilterID,
   SOUP_FILTERS,
 } from '@app/component/next-soup/filters/configs/';
-import { createFacetStore } from '@app/component/next-soup/filters/facet-store';
+import {
+  createFacetStore,
+  type FacetSelection,
+} from '@app/component/next-soup/filters/facet-store';
 import { ALL_FACETS } from '@app/component/next-soup/filters/facets';
 import {
   createPredicatesStore,
@@ -58,6 +61,8 @@ interface SoupContextOptions<TId extends string = FilterID> {
     or?: TId[];
   };
   predicateConfigs?: PredicateConfig<SoupEntity, string>[];
+  /** Facet selection to seed the store with (e.g. a project-scoped block). */
+  initialFacets?: FacetSelection;
   wrapNavigation?: boolean;
   skipGroupHeaders?: boolean;
 }
@@ -70,6 +75,7 @@ export const createSoupState = <TId extends string = FilterID>(
     initialData,
     initialPredicates,
     predicateConfigs,
+    initialFacets,
     skipGroupHeaders,
   } = options;
 
@@ -82,7 +88,9 @@ export const createSoupState = <TId extends string = FilterID>(
     initial: initialPredicates,
   });
 
-  const facets = createFacetStore(ALL_FACETS);
+  const facets = createFacetStore(ALL_FACETS, {
+    initialSelection: initialFacets,
+  });
 
   const sort = createSortState(SORT_CONFIGS, ['updated_at']);
 

@@ -13,9 +13,12 @@ export const createFacetStore = <
   Ctx = unknown,
   const F extends readonly Facet<Ctx>[] = readonly Facet<Ctx>[],
 >(
-  facets: F
+  facets: F,
+  options: { initialSelection?: FacetSelection } = {}
 ) => {
-  const [selection, setSelection] = createStore<FacetSelection>({});
+  const [selection, setSelection] = createStore<FacetSelection>({
+    ...options.initialSelection,
+  });
 
   // Externally registered facets that are not provided in the `facets` arg
   const [extraFacets, setExtraFacets] = createSignal<readonly Facet<Ctx>[]>([]);
