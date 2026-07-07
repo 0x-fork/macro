@@ -3,6 +3,7 @@ import { useChannelTab } from '@channel/Channel/ChannelTabContext';
 import { isMobile } from '@core/mobile/isMobile';
 import PhoneIcon from '@icon/wide-call.svg';
 import { useActiveCallQuery } from '@queries/call/call';
+import { queryReadyGate } from '@queries/gate';
 import { Button, cn } from '@ui';
 import { Show } from 'solid-js';
 import { getCallJoinTab, getCallLeaveTab } from './call-tabs';
@@ -16,7 +17,10 @@ export function ChannelCallButton(props: { channelId: string }) {
   });
 
   const activeCallQuery = useActiveCallQuery(() => props.channelId);
-  const isCallInProgress = () => !!activeCallQuery.data;
+  // Gated read: rendered in the split header under a null-fallback Suspense;
+  // a bare `data` read while checkActiveCall is pending blanks the header.
+  const isCallInProgress = () =>
+    queryReadyGate(activeCallQuery) ? !!activeCallQuery.data : false;
 
   const tooltip = () => (isCallInProgress() ? 'Join Call' : 'Start Call');
   const label = () => (isCallInProgress() ? 'Join' : 'Call');

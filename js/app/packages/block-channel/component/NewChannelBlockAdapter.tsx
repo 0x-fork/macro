@@ -47,6 +47,7 @@ import { awaitCondition, createMethodRegistration } from '@core/orchestrator';
 import { blockHandleSignal } from '@core/signal/load';
 import { useActiveCallQuery } from '@queries/call/call';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
+import { queryReadyGate } from '@queries/gate';
 import { ChannelTypeEnum } from '@service-storage/client';
 import { useSearchParams } from '@solidjs/router';
 import { cn } from '@ui';
@@ -120,6 +121,11 @@ function NewTop(props: { channelId: string }) {
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const call = useCall(() => props.channelId);
   const activeCallQuery = useActiveCallQuery(() => props.channelId);
+  // Gated read: this runs under NewTop's null-fallback Suspense, so a bare
+  // `activeCallQuery.data` read while checkActiveCall is in flight suspends
+  // it and blanks the entire channel header on first open.
+  const hasActiveCall = () =>
+    queryReadyGate(activeCallQuery) ? !!activeCallQuery.data : false;
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
   // Show the Call tab whenever we're actually in the call, mid-join, or
@@ -131,7 +137,7 @@ function NewTop(props: { channelId: string }) {
     (call.isInThisChannel() ||
       call.isJoining() ||
       activeTab() === 'call' ||
-      !!activeCallQuery.data);
+      hasActiveCall());
   const tabs = () => {
     let filtered = [...CHANNEL_TABS];
     if (channelType() === ChannelTypeEnum.DirectMessage)
@@ -162,7 +168,7 @@ function NewTop(props: { channelId: string }) {
               'px-1',
               // Call in progress: tint the whole island, matching the call
               // button's `success` variant.
-              !!activeCallQuery.data &&
+              hasActiveCall() &&
                 'bg-success ring-success [&_button]:text-surface'
             )}
           >

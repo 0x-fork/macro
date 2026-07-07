@@ -1,6 +1,7 @@
 import { joinChannelCall, useCallContextOptional } from '@channel/Call';
 import PhoneIcon from '@icon/wide-call.svg';
 import { useActiveCallQuery } from '@queries/call/call';
+import { queryReadyGate } from '@queries/gate';
 import { Button } from '@ui';
 import { createMemo, createSignal, onCleanup, Show } from 'solid-js';
 
@@ -27,11 +28,17 @@ export function ActiveCallMessage(props: { channelId: string }) {
   );
   onCleanup(() => globalThis.clearInterval(durationTimer));
 
+  // Never read `data` off a pending query here: this renders directly under
+  // the channel's null-fallback Suspense (Channel.root), so an ungated read
+  // suspends it and blanks the whole channel body until (or unless)
+  // checkActiveCall resolves.
+  const activeCall = () =>
+    queryReadyGate(activeCallQuery) ? activeCallQuery.data : undefined;
   const shouldShow = () =>
-    !!activeCallQuery.data &&
+    !!activeCall() &&
     (!callCtx?.isInCall() || callCtx.activeChannelId() !== props.channelId);
   const duration = createMemo(() =>
-    formatDuration(activeCallQuery.data?.createdAt, nowMs())
+    formatDuration(activeCall()?.createdAt, nowMs())
   );
 
   return (
