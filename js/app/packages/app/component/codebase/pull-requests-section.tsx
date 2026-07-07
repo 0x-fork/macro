@@ -5,6 +5,7 @@ import {
   type GithubPullRequestEntity,
   ListEntity,
   ListLayoutProvider,
+  type TaskEntity,
 } from '@entity';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
@@ -12,7 +13,7 @@ import UsersIcon from '@phosphor/users.svg';
 import { Button, Dropdown, EmptyStatePanel } from '@ui';
 import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import { AuthorAvatar } from './author-avatar';
-import { useCodebasePullRequests } from './data';
+import { useCodebasePullRequests, useCodebaseTasks } from './data';
 import {
   groupPullRequestsByAuthor,
   matchesPrStatusFilter,
@@ -22,6 +23,7 @@ import {
   pullRequestAuthorKey,
   UNKNOWN_AUTHOR_KEY,
 } from './model';
+import { createTaskLinkIndex, PullRequestRowWithTasks } from './task-links';
 
 const STATUS_LABELS: Record<PrStatusFilter, string> = {
   all: 'All',
@@ -50,9 +52,26 @@ function AuthorGroupHeader(props: { group: PullRequestAuthorGroup }) {
   );
 }
 
+/** Linked-task pills shown per PR row. */
+const TASK_PILL_LIMIT = 2;
+
 export function PullRequestsSection() {
   const panel = useSplitPanelOrThrow();
   const { query, pullRequests } = useCodebasePullRequests();
+  const { tasks } = useCodebaseTasks();
+
+  const openTasks = createMemo(() =>
+    tasks().filter((task) => !task.subType.is_completed)
+  );
+  const taskLinks = createTaskLinkIndex(openTasks);
+
+  const openTaskInNewSplit = (task: TaskEntity, _event: MouseEvent) => {
+    void openEntityInSplitFromUnifiedList(task, {
+      splitHandle: panel.handle,
+      openInNewSplit: true,
+      referredFrom: 'codebase',
+    });
+  };
 
   const [statusFilter, setStatusFilter] = createSignal<PrStatusFilter>('open');
   const [authorFilter, setAuthorFilter] = createSignal<string[]>([]);
@@ -179,19 +198,26 @@ export function PullRequestsSection() {
               />
             </Match>
             <Match when={true}>
+              <taskLinks.Collectors />
               <For each={groups()}>
                 {(group) => (
                   <section>
                     <AuthorGroupHeader group={group} />
                     <For each={group.pullRequests}>
                       {(pullRequest) => (
-                        <ListEntity
-                          entity={pullRequest}
-                          hideCheckbox
-                          onClick={(event) =>
-                            openPullRequest(pullRequest, event)
-                          }
-                        />
+                        <PullRequestRowWithTasks
+                          linked={taskLinks.tasksFor(pullRequest)}
+                          pillLimit={TASK_PILL_LIMIT}
+                          onOpenTask={openTaskInNewSplit}
+                        >
+                          <ListEntity
+                            entity={pullRequest}
+                            hideCheckbox
+                            onClick={(event) =>
+                              openPullRequest(pullRequest, event)
+                            }
+                          />
+                        </PullRequestRowWithTasks>
                       )}
                     </For>
                   </section>

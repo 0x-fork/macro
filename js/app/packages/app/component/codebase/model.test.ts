@@ -25,6 +25,7 @@ import {
   matchesPrStatusFilter,
   medianTimeToMergeDays,
   pullRequestDisplayStatus,
+  pullRequestGithubKey,
   pullRequestSizeBucket,
 } from './model';
 
@@ -136,6 +137,18 @@ describe('matchesPrStatusFilter', () => {
     });
     expect(matchesPrStatusFilter(draft, 'open')).toBe(false);
     expect(matchesPrStatusFilter(draft, 'draft')).toBe(true);
+  });
+});
+
+describe('pullRequestGithubKey', () => {
+  it('builds the stored owner/repo/pull/number association key', () => {
+    expect(
+      pullRequestGithubKey(
+        makePullRequest({
+          metadata: { owner: 'macro-inc', repo: 'macro', number: 42 },
+        })
+      )
+    ).toBe('macro-inc/macro/pull/42');
   });
 });
 

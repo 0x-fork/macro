@@ -4,11 +4,9 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import {
   type EntityData,
   type GithubPullRequestEntity,
-  getTaskStatusOptionId,
   ListEntity,
   ListLayoutProvider,
   type TaskEntity,
-  type TaskEntityWithProperties,
 } from '@entity';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import ChatCircleIcon from '@phosphor/chat-circle.svg';
@@ -19,11 +17,9 @@ import UsersThreeIcon from '@phosphor/users-three.svg';
 import WarningCircleIcon from '@phosphor/warning-circle.svg';
 import { useGithubLinkStatusQuery } from '@queries/auth/github-link';
 import { useContacts } from '@queries/contacts/contacts';
-import { useDocumentGithubPullRequestRefsQuery } from '@queries/storage/github-pull-requests';
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import { cn, EmptyStatePanel } from '@ui';
 import {
-  createEffect,
   createMemo,
   createSignal,
   For,
@@ -60,6 +56,11 @@ import {
   useEngineerSummariesQuery,
   useTeamDailySummaryQuery,
 } from './summaries';
+import {
+  createTaskLinkIndex,
+  PullRequestRowWithTasks,
+  taskStatusColor,
+} from './task-links';
 import { formatDays, TASK_STATUS_SEGMENTS } from './widgets';
 
 /** Rows shown in the needs-attention card before expanding. */
@@ -68,18 +69,6 @@ const ATTENTION_LIMIT = 6;
 const TASK_PILL_LIMIT = 2;
 
 const NUMBER_FORMAT = new Intl.NumberFormat();
-
-const TASK_STATUS_COLORS = new Map<string, string>(
-  TASK_STATUS_SEGMENTS.map((segment) => [segment.key, segment.color])
-);
-
-function taskStatusColor(task: TaskEntity): string {
-  const statusId = getTaskStatusOptionId(task as TaskEntityWithProperties);
-  return (
-    (statusId && TASK_STATUS_COLORS.get(statusId)) ??
-    'var(--color-ink-placeholder)'
-  );
-}
 
 function PrStatusIcon(props: { pullRequest: GithubPullRequestEntity }) {
   const status = () => pullRequestDisplayStatus(props.pullRequest);
@@ -367,53 +356,6 @@ function NeedsAttentionCard(props: {
   );
 }
 
-/**
- * Invisible collector: fetches a task's stored PR associations and reports
- * them up so PR rows can render their linked-task pills.
- */
-function TaskLinkCollector(props: {
-  task: TaskEntity;
-  onLinks: (taskId: string, linkedIds: string[]) => void;
-}) {
-  const refs = useDocumentGithubPullRequestRefsQuery(() => props.task.id);
-
-  createEffect(() => {
-    if (!refs.isSuccess) return;
-    const ids: string[] = [];
-    for (const ref of refs.data.pullRequests) {
-      if (ref.foreignEntityId) ids.push(ref.foreignEntityId);
-      ids.push(ref.githubKey);
-    }
-    props.onLinks(props.task.id, ids);
-  });
-
-  return null;
-}
-
-/** Linked-task pill on a PR row; opens the task in a new split. */
-function TaskPill(props: {
-  task: TaskEntity;
-  onOpen: (task: TaskEntity, event: MouseEvent) => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={props.task.name}
-      class="inline-flex max-w-44 min-w-0 items-center gap-1.5 rounded-full bg-surface/50 px-2 py-1 text-xs text-ink ring ring-edge-muted ring-inset outline-none hover:bg-ink/5 focus-visible:ring-accent/40"
-      onClick={(event) => {
-        event.stopPropagation();
-        props.onOpen(props.task, event);
-      }}
-    >
-      <span
-        class="size-2 shrink-0 rounded-full"
-        style={{ 'background-color': taskStatusColor(props.task) }}
-      />
-      <span class="truncate">{props.task.name}</span>
-    </button>
-  );
-}
-
 function AuthorGroupHeader(props: {
   group: PullRequestAuthorGroup;
   summary?: string;
@@ -569,33 +511,7 @@ export function OverviewSection() {
   );
   const engineerSummaries = useEngineerSummariesQuery(bentos, pullRequests);
 
-  // task id -> linked PR record/external ids, reported by the collectors.
-  const [taskLinks, setTaskLinks] = createSignal<Record<string, string[]>>({});
-  const reportLinks = (taskId: string, linkedIds: string[]) => {
-    setTaskLinks((prev) => ({ ...prev, [taskId]: linkedIds }));
-  };
-
-  /** PR record id or external key -> open tasks linking to it. */
-  const tasksByPrId = createMemo(() => {
-    const tasksById = new Map(openTasks().map((task) => [task.id, task]));
-    const map = new Map<string, TaskEntity[]>();
-    for (const [taskId, linkedIds] of Object.entries(taskLinks())) {
-      const task = tasksById.get(taskId);
-      if (!task) continue;
-      for (const linkedId of linkedIds) {
-        const list = map.get(linkedId) ?? [];
-        if (!list.includes(task)) list.push(task);
-        map.set(linkedId, list);
-      }
-    }
-    return map;
-  });
-
-  const linkedTasksFor = (pullRequest: GithubPullRequestEntity) => {
-    const byRecord = tasksByPrId().get(pullRequest.id) ?? [];
-    const byExternal = tasksByPrId().get(pullRequest.foreignId) ?? [];
-    return [...new Set([...byRecord, ...byExternal])];
-  };
+  const taskLinks = createTaskLinkIndex(openTasks);
 
   const openInCurrentSplit = (entity: EntityData, event: MouseEvent) => {
     void openEntityInSplitFromUnifiedList(entity, {
@@ -620,9 +536,7 @@ export function OverviewSection() {
       <SidePanel.Layout>
         <div class="size-full min-h-0 overflow-y-auto @container">
           {/* Null-rendering collectors feed the PR→task pill mapping. */}
-          <For each={openTasks()}>
-            {(task) => <TaskLinkCollector task={task} onLinks={reportLinks} />}
-          </For>
+          <taskLinks.Collectors />
 
           <Switch>
             <Match when={githubDisconnected()}>
@@ -667,46 +581,21 @@ export function OverviewSection() {
                             }
                           />
                           <For each={group.pullRequests}>
-                            {(pullRequest) => {
-                              const linked = () => linkedTasksFor(pullRequest);
-                              return (
-                                <div class="flex items-center gap-2">
-                                  <div class="min-w-0 flex-1">
-                                    <ListEntity
-                                      entity={pullRequest}
-                                      hideCheckbox
-                                      onClick={(event) =>
-                                        openInCurrentSplit(pullRequest, event)
-                                      }
-                                    />
-                                  </div>
-                                  <Show when={linked().length > 0}>
-                                    <div class="flex shrink-0 items-center gap-1.5 pr-2">
-                                      <For
-                                        each={linked().slice(
-                                          0,
-                                          TASK_PILL_LIMIT
-                                        )}
-                                      >
-                                        {(task) => (
-                                          <TaskPill
-                                            task={task}
-                                            onOpen={openTaskInNewSplit}
-                                          />
-                                        )}
-                                      </For>
-                                      <Show
-                                        when={linked().length > TASK_PILL_LIMIT}
-                                      >
-                                        <span class="text-[11px] text-ink-extra-muted tabular-nums">
-                                          +{linked().length - TASK_PILL_LIMIT}
-                                        </span>
-                                      </Show>
-                                    </div>
-                                  </Show>
-                                </div>
-                              );
-                            }}
+                            {(pullRequest) => (
+                              <PullRequestRowWithTasks
+                                linked={taskLinks.tasksFor(pullRequest)}
+                                pillLimit={TASK_PILL_LIMIT}
+                                onOpenTask={openTaskInNewSplit}
+                              >
+                                <ListEntity
+                                  entity={pullRequest}
+                                  hideCheckbox
+                                  onClick={(event) =>
+                                    openInCurrentSplit(pullRequest, event)
+                                  }
+                                />
+                              </PullRequestRowWithTasks>
+                            )}
                           </For>
                         </section>
                       )}

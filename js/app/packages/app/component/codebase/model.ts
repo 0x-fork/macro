@@ -49,6 +49,18 @@ export function matchesPrStatusFilter(
   return pullRequestDisplayStatus(pullRequest) === filter;
 }
 
+/**
+ * The stored GitHub association key for a PR, in `owner/repo/pull/number`
+ * format — the one identifier shared verbatim by the soup PR metadata and
+ * the document→PR refs endpoint, so task↔PR joins go through it.
+ */
+export function pullRequestGithubKey(
+  pullRequest: GithubPullRequestEntity
+): string {
+  const meta = pullRequest.metadata;
+  return `${meta.owner}/${meta.repo}/pull/${meta.number}`;
+}
+
 export const UNKNOWN_AUTHOR_KEY = 'unknown';
 
 export function pullRequestAuthorKey(
