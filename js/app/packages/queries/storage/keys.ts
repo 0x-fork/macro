@@ -43,6 +43,12 @@ export const documentGithubPullRequestsKeys = createQueryKeys(
     list: (documentId: string) => ({
       queryKey: [documentId],
     }),
+    // Stored refs only (no live GitHub enrichment) — cheap enough to fan out
+    // across many task cards. Separate from `list` so the enriched cache
+    // never serves un-enriched data or vice versa.
+    refs: (documentId: string) => ({
+      queryKey: [documentId],
+    }),
   }
 );
 

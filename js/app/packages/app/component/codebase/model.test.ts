@@ -5,6 +5,7 @@ import {
   buildEngineerBentos,
   computeContributorLeaderboard,
   computeCycleTimeByAuthor,
+  computeNeedsAttention,
   computePrStats,
   computeRepoBreakdown,
   computeWeeklyChurn,
@@ -637,6 +638,7 @@ describe('buildEngineerBentos', () => {
       ],
       [assigned('t1', 'u1'), makeTask({ id: 't2' })],
       contacts,
+      {},
       now
     );
 
@@ -661,11 +663,85 @@ describe('buildEngineerBentos', () => {
         } as TaskEntity,
       ],
       contacts,
+      {},
       new Date('2026-07-06T12:00:00Z')
     );
 
     expect(bentos).toHaveLength(1);
     expect(bentos[0].displayName).toBe('Unknown teammate');
     expect(bentos[0].openTasks.map((t) => t.id)).toEqual(['t1']);
+  });
+});
+
+describe('buildEngineerBentos team scoping', () => {
+  const contacts = [
+    { id: 'u1', name: 'Jacob Beckerman', email: 'jacob@macro.com' },
+    { id: 'u2', name: 'Outside Collaborator', email: 'out@other.com' },
+  ];
+  const assigned = (id: string, userId: string) =>
+    ({
+      ...makeTask({ id }),
+      properties: [
+        {
+          definition: { id: SYSTEM_PROPERTY_IDS.ASSIGNEES },
+          value: {
+            type: 'EntityReference',
+            value: [{ entity_type: 'USER', entity_id: userId }],
+          },
+        },
+      ],
+    }) as TaskEntity;
+
+  it('drops assignee-only bentos outside the team and narrows matching', () => {
+    const bentos = buildEngineerBentos(
+      [makePullRequest({ id: 'p1', metadata: { authorLogin: 'jbecke' } })],
+      [assigned('t1', 'u1'), assigned('t2', 'u2')],
+      contacts,
+      { teamMemberIds: new Set(['u1']) },
+      new Date('2026-07-06T12:00:00Z')
+    );
+
+    expect(bentos.map((b) => b.displayName)).toEqual(['Jacob Beckerman']);
+    expect(bentos[0].openTasks.map((t) => t.id)).toEqual(['t1']);
+  });
+});
+
+describe('computeNeedsAttention', () => {
+  it('separates failing checks from stale PRs and finds in-review tasks', () => {
+    const now = new Date('2026-07-06T12:00:00Z');
+    const result = computeNeedsAttention(
+      [
+        makePullRequest({
+          id: 'failing',
+          updatedAt: '2026-06-01T00:00:00Z',
+          metadata: {
+            checks: [
+              { id: 1, name: 'ci', status: 'completed', conclusion: 'failure' },
+            ],
+          },
+        }),
+        makePullRequest({ id: 'stale', updatedAt: '2026-06-20T00:00:00Z' }),
+        makePullRequest({ id: 'fresh', updatedAt: '2026-07-06T00:00:00Z' }),
+        makePullRequest({
+          id: 'merged',
+          updatedAt: '2026-01-01T00:00:00Z',
+          metadata: { status: 'merged' },
+        }),
+      ],
+      [
+        makeTask({
+          id: 'reviewing',
+          statusOptionId: PROPERTY_OPTION_IDS.STATUS.IN_REVIEW,
+        }),
+        makeTask({ id: 'building' }),
+      ],
+      7,
+      now
+    );
+
+    expect(result.failingChecks.map((pr) => pr.id)).toEqual(['failing']);
+    expect(result.stale.map((s) => s.pullRequest.id)).toEqual(['stale']);
+    expect(result.stale[0].quietDays).toBe(16);
+    expect(result.inReviewTasks.map((t) => t.id)).toEqual(['reviewing']);
   });
 });

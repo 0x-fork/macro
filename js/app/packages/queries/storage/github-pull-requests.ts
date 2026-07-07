@@ -187,3 +187,39 @@ export function useDocumentGithubPullRequestsQuery(
     };
   });
 }
+
+const DOCUMENT_GITHUB_PULL_REQUEST_REFS_STALE_TIME = 5 * 60 * 1000;
+
+/**
+ * Stored pull request associations for a document, without the live GitHub
+ * enrichment round-trip. Cheap enough to fan out across many task cards
+ * (codebase bento grid); use `useDocumentGithubPullRequestsQuery` when live
+ * checks/comments are needed.
+ */
+export function useDocumentGithubPullRequestRefsQuery(
+  documentId: DocumentIdInput,
+  enabled?: EnabledInput
+) {
+  return useQuery(() => {
+    const currentDocumentId = readDocumentId(documentId);
+    return {
+      queryKey: currentDocumentId
+        ? documentGithubPullRequestsKeys.refs(currentDocumentId).queryKey
+        : documentGithubPullRequestsKeys.refs._def,
+      queryFn: () => {
+        if (!currentDocumentId) {
+          throw new Error(
+            'Document ID is required to fetch GitHub pull requests'
+          );
+        }
+        return throwOnErr(() =>
+          storageServiceClient.getDocumentGithubPullRequests({
+            documentId: currentDocumentId,
+          })
+        );
+      },
+      staleTime: DOCUMENT_GITHUB_PULL_REQUEST_REFS_STALE_TIME,
+      enabled: !!currentDocumentId && readEnabled(enabled),
+    };
+  });
+}

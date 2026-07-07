@@ -697,6 +697,61 @@ export function countTasksByStatus(
   return counts;
 }
 
+export type StalePullRequest = {
+  pullRequest: GithubPullRequestEntity;
+  quietDays: number;
+};
+
+export type NeedsAttention = {
+  /** Open PRs with at least one failing check run. */
+  failingChecks: GithubPullRequestEntity[];
+  /** Open PRs quiet for `staleDays`+ (excluding ones already failing). */
+  stale: StalePullRequest[];
+  /** Open tasks sitting in review. */
+  inReviewTasks: TaskEntity[];
+};
+
+/** The exceptions worth acting on, deduped across buckets. */
+export function computeNeedsAttention(
+  pullRequests: GithubPullRequestEntity[],
+  tasks: TaskEntity[],
+  staleDays = 7,
+  now = new Date()
+): NeedsAttention {
+  const cutoff = now.getTime() - staleDays * DAY_MS;
+  const failingChecks: GithubPullRequestEntity[] = [];
+  const stale: StalePullRequest[] = [];
+
+  for (const pullRequest of pullRequests) {
+    const status = pullRequestDisplayStatus(pullRequest);
+    if (status !== 'open' && status !== 'draft') continue;
+
+    if (hasFailingChecks(pullRequest)) {
+      failingChecks.push(pullRequest);
+      continue;
+    }
+
+    const updated = toTime(pullRequest.updatedAt);
+    if (updated !== undefined && updated < cutoff) {
+      stale.push({
+        pullRequest,
+        quietDays: Math.floor((now.getTime() - updated) / DAY_MS),
+      });
+    }
+  }
+
+  stale.sort((a, b) => b.quietDays - a.quietDays);
+
+  const inReviewTasks = tasks.filter(
+    (task) =>
+      !task.subType.is_completed &&
+      getTaskStatusOptionId(task as TaskEntityWithProperties) ===
+        PROPERTY_OPTION_IDS.STATUS.IN_REVIEW
+  );
+
+  return { failingChecks, stale, inReviewTasks };
+}
+
 export const UNASSIGNED_KEY = 'unassigned';
 
 /**
@@ -796,8 +851,20 @@ export function buildEngineerBentos(
   pullRequests: GithubPullRequestEntity[],
   tasks: TaskEntity[],
   contacts: EngineerContact[],
+  options: {
+    /**
+     * When set, only these workspace users get bentos: the login↔contact
+     * match pool narrows to them and assignee-only bentos outside the team
+     * are dropped. PR-author bentos always stay (the PRs are team-visible).
+     */
+    teamMemberIds?: Set<string>;
+  } = {},
   now = new Date()
 ): EngineerBento[] {
+  const { teamMemberIds } = options;
+  if (teamMemberIds) {
+    contacts = contacts.filter((contact) => teamMemberIds.has(contact.id));
+  }
   const mergedCutoff = now.getTime() - 30 * DAY_MS;
   const contactsById = new Map(contacts.map((c) => [c.id, c]));
 
@@ -852,6 +919,7 @@ export function buildEngineerBentos(
   // Assignees whose tasks weren't claimed by a PR author bento.
   for (const [userId, assignedTasks] of openTasksByAssignee) {
     if (userId === UNASSIGNED_KEY || claimedUserIds.has(userId)) continue;
+    if (teamMemberIds && !teamMemberIds.has(userId)) continue;
     const contact = contactsById.get(userId);
     bentos.push({
       key: userId,
