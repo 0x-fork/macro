@@ -375,6 +375,10 @@ if (LOCAL_ONLY) {
     lazy(() => import('@core/internal/ThemeDebug'))
   );
   registerComponent(
+    'token-debug',
+    lazy(() => import('@core/internal/ComponentTokenDebug'))
+  );
+  registerComponent(
     'core',
     lazy(() => import('@core/internal/App'))
   );
