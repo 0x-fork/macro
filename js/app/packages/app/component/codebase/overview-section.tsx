@@ -1,6 +1,7 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { SidePanel } from '@app/component/side-panel';
+import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { TabsInset } from '@core/component/TabsInset';
@@ -16,6 +17,7 @@ import { openNotification, useEntityTypeNotifications } from '@notifications';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
+import GitBranchIcon from '@phosphor/git-branch.svg';
 import GitMergeIcon from '@phosphor/git-merge.svg';
 import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
 import SortAscendingIcon from '@phosphor/sort-ascending.svg';
@@ -73,7 +75,13 @@ import {
   useTeamDailySummaryQuery,
 } from './summaries';
 import { createTaskLinkIndex, PullRequestRowWithTasks } from './task-links';
-import { formatDays, TASK_STATUS_SEGMENTS } from './widgets';
+import {
+  ContributorsList,
+  formatDays,
+  PrSizeChart,
+  TASK_STATUS_SEGMENTS,
+  WorkAreasChart,
+} from './widgets';
 
 /** Linked-task pills shown per PR row. */
 const TASK_PILL_LIMIT = 2;
@@ -403,10 +411,34 @@ function InsightsRail(props: {
         </div>
       </SidePanel.Section>
       <SidePanel.Section
+        id="codebase-pr-size"
+        title="PR size"
+        defaultOpen
+        order={3}
+      >
+        <PrSizeChart pullRequests={props.pullRequests} />
+      </SidePanel.Section>
+      <SidePanel.Section
+        id="codebase-work-areas"
+        title="Work areas"
+        defaultOpen
+        order={4}
+      >
+        <WorkAreasChart pullRequests={props.pullRequests} />
+      </SidePanel.Section>
+      <SidePanel.Section
+        id="codebase-contributors"
+        title="Contributors"
+        defaultOpen
+        order={5}
+      >
+        <ContributorsList pullRequests={props.pullRequests} />
+      </SidePanel.Section>
+      <SidePanel.Section
         id="codebase-task-statuses"
         title="Task statuses"
         defaultOpen
-        order={3}
+        order={6}
       >
         <div class="flex flex-col items-center gap-3 py-1">
           <DonutChart
@@ -423,10 +455,11 @@ function InsightsRail(props: {
 }
 
 /**
- * The Overview tab, top to bottom: my open pull requests, the PRs that
- * require my attention (driven by my mention / review-request notifications,
- * like the inbox), and everyone's pull requests as a filterable, groupable,
- * sortable unified list — with key insight charts docked in the right side
+ * The Codebase dashboard, top to bottom: the PRs that require my attention
+ * (driven by my mention / review-request notifications, like the inbox), the
+ * team's daily digest, and everyone's pull requests as a unified list. The
+ * filter toolbar (status, person, repository, group by, sort) renders into
+ * the split header via a portal; key insight charts dock in the right side
  * panel. Scoped to the current team's members when the user belongs to one.
  */
 export function OverviewSection() {
@@ -457,25 +490,15 @@ export function OverviewSection() {
   );
   const taskLinks = createTaskLinkIndex(openTasks);
 
-  // --- My pull requests ------------------------------------------------
-  const myPullRequests = createMemo(() => {
-    const login = githubLink.data?.username;
-    if (!login) return [];
-    return pullRequests().filter((pullRequest) => {
-      if (pullRequest.metadata.authorLogin !== login) return false;
-      const status = pullRequestDisplayStatus(pullRequest);
-      return status === 'open' || status === 'draft';
-    });
-  });
-
   // --- Requires my attention -------------------------------------------
   const attentionItems = createMemo(() =>
     computeReviewAttention(foreignEntityNotifications(), pullRequests())
   );
 
-  // --- Everyone ---------------------------------------------------------
+  // --- The unified list (state drives the header toolbar) ---------------
   const [statusFilter, setStatusFilter] = createSignal<PrStatusFilter>('open');
   const [authorFilter, setAuthorFilter] = createSignal<string[]>([]);
+  const [repoFilter, setRepoFilter] = createSignal<string[]>([]);
   const [groupBy, setGroupBy] = createSignal<PrGroupId>('author');
   const [sortId, setSortId] = createSignal<PrSortId>('updated');
 
@@ -487,19 +510,42 @@ export function OverviewSection() {
     return [...logins].sort((a, b) => a.localeCompare(b));
   });
 
+  const repos = createMemo(() => {
+    const keys = new Set<string>();
+    for (const pullRequest of pullRequests()) {
+      keys.add(`${pullRequest.metadata.owner}/${pullRequest.metadata.repo}`);
+    }
+    return [...keys].sort((a, b) => a.localeCompare(b));
+  });
+
   const toggleAuthor = (login: string, checked: boolean) => {
     setAuthorFilter((current) =>
       checked ? [...current, login] : current.filter((l) => l !== login)
     );
   };
 
+  const toggleRepo = (repo: string, checked: boolean) => {
+    setRepoFilter((current) =>
+      checked ? [...current, repo] : current.filter((r) => r !== repo)
+    );
+  };
+
   const filtered = createMemo(() => {
     const selectedAuthors = authorFilter();
+    const selectedRepos = repoFilter();
     return pullRequests().filter((pullRequest) => {
       if (!matchesPrStatusFilter(pullRequest, statusFilter())) return false;
       if (
         selectedAuthors.length > 0 &&
         !selectedAuthors.includes(pullRequestAuthorKey(pullRequest))
+      ) {
+        return false;
+      }
+      if (
+        selectedRepos.length > 0 &&
+        !selectedRepos.includes(
+          `${pullRequest.metadata.owner}/${pullRequest.metadata.repo}`
+        )
       ) {
         return false;
       }
@@ -569,6 +615,173 @@ export function OverviewSection() {
 
   return (
     <div class="min-h-0 flex-1">
+      <SplitHeaderLeft>
+        <div class="h-full flex min-w-0 items-center gap-3">
+          <span class="shrink-0 text-sm font-semibold">Codebase</span>
+          <Show when={!githubDisconnected()}>
+            <div class="flex min-w-0 items-center gap-2">
+              <TabsInset
+                list={STATUS_TAB_ITEMS}
+                value={statusFilter()}
+                onChange={(value) => setStatusFilter(value as PrStatusFilter)}
+              />
+              <Dropdown placement="bottom-start" gutter={4}>
+                <Dropdown.Trigger
+                  variant="ghost"
+                  size="sm"
+                  class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                >
+                  <UsersIcon class="size-3.5" />
+                  {authorFilter().length > 0
+                    ? `${authorFilter().length} selected`
+                    : 'Anyone'}
+                  <CaretDownIcon class="size-3 text-ink-extra-muted" />
+                </Dropdown.Trigger>
+                <Dropdown.Content class="min-w-56 max-h-80 overflow-y-auto shadow-menu">
+                  <Dropdown.Group class="p-1">
+                    <For each={authors()}>
+                      {(login) => (
+                        <Dropdown.CheckboxItem
+                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
+                          checked={authorFilter().includes(login)}
+                          onChange={(checked: boolean) =>
+                            toggleAuthor(login, checked)
+                          }
+                          closeOnSelect={false}
+                        >
+                          <AuthorAvatar
+                            login={
+                              login === UNKNOWN_AUTHOR_KEY ? undefined : login
+                            }
+                            class="size-4 shrink-0"
+                          />
+                          <span class="flex-1 truncate">
+                            {login === UNKNOWN_AUTHOR_KEY
+                              ? 'Unknown author'
+                              : login}
+                          </span>
+                          <Show when={authorFilter().includes(login)}>
+                            <span class="text-xs text-accent">✓</span>
+                          </Show>
+                        </Dropdown.CheckboxItem>
+                      )}
+                    </For>
+                    <Show when={authorFilter().length > 0}>
+                      <Dropdown.Item
+                        class="mt-1 rounded-md px-2 py-1.5 text-sm text-ink-muted outline-none data-highlighted:bg-ink/5"
+                        onSelect={() => setAuthorFilter([])}
+                      >
+                        Clear author filter
+                      </Dropdown.Item>
+                    </Show>
+                  </Dropdown.Group>
+                </Dropdown.Content>
+              </Dropdown>
+              <Dropdown placement="bottom-start" gutter={4}>
+                <Dropdown.Trigger
+                  variant="ghost"
+                  size="sm"
+                  class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                >
+                  <GitBranchIcon class="size-3.5" />
+                  {repoFilter().length > 0
+                    ? `${repoFilter().length} selected`
+                    : 'All repos'}
+                  <CaretDownIcon class="size-3 text-ink-extra-muted" />
+                </Dropdown.Trigger>
+                <Dropdown.Content class="min-w-56 max-h-80 overflow-y-auto shadow-menu">
+                  <Dropdown.Group class="p-1">
+                    <For each={repos()}>
+                      {(repo) => (
+                        <Dropdown.CheckboxItem
+                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
+                          checked={repoFilter().includes(repo)}
+                          onChange={(checked: boolean) =>
+                            toggleRepo(repo, checked)
+                          }
+                          closeOnSelect={false}
+                        >
+                          <GitBranchIcon class="size-3.5 shrink-0 text-ink-muted" />
+                          <span class="flex-1 truncate" title={repo}>
+                            {repo.split('/')[1] ?? repo}
+                          </span>
+                          <Show when={repoFilter().includes(repo)}>
+                            <span class="text-xs text-accent">✓</span>
+                          </Show>
+                        </Dropdown.CheckboxItem>
+                      )}
+                    </For>
+                    <Show when={repoFilter().length > 0}>
+                      <Dropdown.Item
+                        class="mt-1 rounded-md px-2 py-1.5 text-sm text-ink-muted outline-none data-highlighted:bg-ink/5"
+                        onSelect={() => setRepoFilter([])}
+                      >
+                        Clear repository filter
+                      </Dropdown.Item>
+                    </Show>
+                  </Dropdown.Group>
+                </Dropdown.Content>
+              </Dropdown>
+              <Dropdown placement="bottom-start" gutter={4}>
+                <Dropdown.Trigger
+                  variant="ghost"
+                  size="sm"
+                  class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                >
+                  <StackSimpleIcon class="size-3.5" />
+                  {groupLabel()}
+                  <CaretDownIcon class="size-3 text-ink-extra-muted" />
+                </Dropdown.Trigger>
+                <Dropdown.Content class="min-w-44 shadow-menu">
+                  <Dropdown.Group class="p-1">
+                    <For each={PR_GROUP_OPTIONS}>
+                      {(option) => (
+                        <Dropdown.Item
+                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
+                          onSelect={() => setGroupBy(option.id)}
+                        >
+                          <span class="flex-1">{option.label}</span>
+                          <Show when={groupBy() === option.id}>
+                            <CheckIcon class="size-3.5 text-accent" />
+                          </Show>
+                        </Dropdown.Item>
+                      )}
+                    </For>
+                  </Dropdown.Group>
+                </Dropdown.Content>
+              </Dropdown>
+              <Dropdown placement="bottom-start" gutter={4}>
+                <Dropdown.Trigger
+                  variant="ghost"
+                  size="sm"
+                  class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
+                >
+                  <SortAscendingIcon class="size-3.5" />
+                  {sortLabel()}
+                  <CaretDownIcon class="size-3 text-ink-extra-muted" />
+                </Dropdown.Trigger>
+                <Dropdown.Content class="min-w-44 shadow-menu">
+                  <Dropdown.Group class="p-1">
+                    <For each={PR_SORT_OPTIONS}>
+                      {(option) => (
+                        <Dropdown.Item
+                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
+                          onSelect={() => setSortId(option.id)}
+                        >
+                          <span class="flex-1">{option.label}</span>
+                          <Show when={sortId() === option.id}>
+                            <CheckIcon class="size-3.5 text-accent" />
+                          </Show>
+                        </Dropdown.Item>
+                      )}
+                    </For>
+                  </Dropdown.Group>
+                </Dropdown.Content>
+              </Dropdown>
+            </div>
+          </Show>
+        </div>
+      </SplitHeaderLeft>
       <SidePanel.Layout>
         <div class="size-full min-h-0 overflow-y-auto @container">
           {/* Null-rendering collectors feed the PR→task pill mapping. */}
@@ -600,43 +813,6 @@ export function OverviewSection() {
                 class="flex w-full flex-col gap-4 px-4 py-4 pb-8"
               >
                 <ListLayoutProvider ref={() => listRef}>
-                  <section>
-                    <SectionHeading
-                      title="My pull requests"
-                      meta={
-                        myPullRequests().length > 0
-                          ? `${myPullRequests().length} open`
-                          : undefined
-                      }
-                    />
-                    <Show
-                      when={myPullRequests().length > 0}
-                      fallback={
-                        <p class="px-3 py-1 text-xs text-ink-extra-muted">
-                          Nothing open right now.
-                        </p>
-                      }
-                    >
-                      <For each={myPullRequests()}>
-                        {(pullRequest) => (
-                          <PullRequestRowWithTasks
-                            linked={taskLinks.tasksFor(pullRequest)}
-                            pillLimit={TASK_PILL_LIMIT}
-                            onOpenTask={openTaskInNewSplit}
-                          >
-                            <ListEntity
-                              entity={pullRequest}
-                              hideCheckbox
-                              onClick={(event) =>
-                                openInCurrentSplit(pullRequest, event)
-                              }
-                            />
-                          </PullRequestRowWithTasks>
-                        )}
-                      </For>
-                    </Show>
-                  </section>
-
                   <RequiresAttentionCard
                     items={attentionItems()}
                     onOpen={openAttentionItem}
@@ -649,130 +825,10 @@ export function OverviewSection() {
                   />
 
                   <section>
-                    <SectionHeading title="Everyone" />
-                    <div class="flex flex-wrap items-center gap-2 px-3 py-1.5">
-                      <TabsInset
-                        list={STATUS_TAB_ITEMS}
-                        value={statusFilter()}
-                        onChange={(value) =>
-                          setStatusFilter(value as PrStatusFilter)
-                        }
-                      />
-                      <Dropdown placement="bottom-start" gutter={4}>
-                        <Dropdown.Trigger
-                          variant="ghost"
-                          size="sm"
-                          class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
-                        >
-                          <UsersIcon class="size-3.5" />
-                          {authorFilter().length > 0
-                            ? `${authorFilter().length} selected`
-                            : 'Anyone'}
-                          <CaretDownIcon class="size-3 text-ink-extra-muted" />
-                        </Dropdown.Trigger>
-                        <Dropdown.Content class="min-w-56 max-h-80 overflow-y-auto shadow-menu">
-                          <Dropdown.Group class="p-1">
-                            <For each={authors()}>
-                              {(login) => (
-                                <Dropdown.CheckboxItem
-                                  class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
-                                  checked={authorFilter().includes(login)}
-                                  onChange={(checked: boolean) =>
-                                    toggleAuthor(login, checked)
-                                  }
-                                  closeOnSelect={false}
-                                >
-                                  <AuthorAvatar
-                                    login={
-                                      login === UNKNOWN_AUTHOR_KEY
-                                        ? undefined
-                                        : login
-                                    }
-                                    class="size-4 shrink-0"
-                                  />
-                                  <span class="flex-1 truncate">
-                                    {login === UNKNOWN_AUTHOR_KEY
-                                      ? 'Unknown author'
-                                      : login}
-                                  </span>
-                                  <Show when={authorFilter().includes(login)}>
-                                    <span class="text-xs text-accent">✓</span>
-                                  </Show>
-                                </Dropdown.CheckboxItem>
-                              )}
-                            </For>
-                            <Show when={authorFilter().length > 0}>
-                              <Dropdown.Item
-                                class="mt-1 rounded-md px-2 py-1.5 text-sm text-ink-muted outline-none data-highlighted:bg-ink/5"
-                                onSelect={() => setAuthorFilter([])}
-                              >
-                                Clear author filter
-                              </Dropdown.Item>
-                            </Show>
-                          </Dropdown.Group>
-                        </Dropdown.Content>
-                      </Dropdown>
-                      <Dropdown placement="bottom-start" gutter={4}>
-                        <Dropdown.Trigger
-                          variant="ghost"
-                          size="sm"
-                          class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
-                        >
-                          <StackSimpleIcon class="size-3.5" />
-                          {groupLabel()}
-                          <CaretDownIcon class="size-3 text-ink-extra-muted" />
-                        </Dropdown.Trigger>
-                        <Dropdown.Content class="min-w-44 shadow-menu">
-                          <Dropdown.Group class="p-1">
-                            <For each={PR_GROUP_OPTIONS}>
-                              {(option) => (
-                                <Dropdown.Item
-                                  class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
-                                  onSelect={() => setGroupBy(option.id)}
-                                >
-                                  <span class="flex-1">{option.label}</span>
-                                  <Show when={groupBy() === option.id}>
-                                    <CheckIcon class="size-3.5 text-accent" />
-                                  </Show>
-                                </Dropdown.Item>
-                              )}
-                            </For>
-                          </Dropdown.Group>
-                        </Dropdown.Content>
-                      </Dropdown>
-                      <Dropdown placement="bottom-start" gutter={4}>
-                        <Dropdown.Trigger
-                          variant="ghost"
-                          size="sm"
-                          class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
-                        >
-                          <SortAscendingIcon class="size-3.5" />
-                          {sortLabel()}
-                          <CaretDownIcon class="size-3 text-ink-extra-muted" />
-                        </Dropdown.Trigger>
-                        <Dropdown.Content class="min-w-44 shadow-menu">
-                          <Dropdown.Group class="p-1">
-                            <For each={PR_SORT_OPTIONS}>
-                              {(option) => (
-                                <Dropdown.Item
-                                  class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
-                                  onSelect={() => setSortId(option.id)}
-                                >
-                                  <span class="flex-1">{option.label}</span>
-                                  <Show when={sortId() === option.id}>
-                                    <CheckIcon class="size-3.5 text-accent" />
-                                  </Show>
-                                </Dropdown.Item>
-                              )}
-                            </For>
-                          </Dropdown.Group>
-                        </Dropdown.Content>
-                      </Dropdown>
-                      <span class="ml-auto text-xs text-ink-extra-muted tabular-nums">
-                        {filtered().length} pull requests
-                      </span>
-                    </div>
-
+                    <SectionHeading
+                      title="Everyone"
+                      meta={`${filtered().length} pull request${filtered().length === 1 ? '' : 's'}`}
+                    />
                     <Show
                       when={groups().length > 0}
                       fallback={
