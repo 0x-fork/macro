@@ -17,6 +17,7 @@ import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
 import SparkleIcon from '@phosphor/sparkle.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import WarningCircleIcon from '@phosphor/warning-circle.svg';
+import { useGithubLinkStatusQuery } from '@queries/auth/github-link';
 import { useContacts } from '@queries/contacts/contacts';
 import { useDocumentGithubPullRequestRefsQuery } from '@queries/storage/github-pull-requests';
 import { useCurrentTeamQuery } from '@queries/team/teams';
@@ -33,6 +34,10 @@ import {
 } from 'solid-js';
 import { AuthorAvatar } from './author-avatar';
 import { DonutChart, DonutLegend, StatTile, ThroughputChart } from './charts';
+import {
+  ConnectGithubOverview,
+  ConnectGithubRailSections,
+} from './connect-github';
 import {
   useCodebasePullRequests,
   useCodebaseTasks,
@@ -523,11 +528,15 @@ function InsightsRail(props: {
  */
 export function OverviewSection() {
   const panel = useSplitPanelOrThrow();
+  const githubLink = useGithubLinkStatusQuery();
   const { query: prQuery, pullRequests } = useCodebasePullRequests();
   const { tasks } = useCodebaseTasks();
   const projectNames = useProjectNames();
   const contacts = useContacts();
   const team = useCurrentTeamQuery();
+
+  const githubDisconnected = () =>
+    githubLink.isSuccess && githubLink.data?.status !== 'linked';
 
   const teamMemberIds = createMemo(() => {
     const members = team.data?.members;
@@ -616,6 +625,9 @@ export function OverviewSection() {
           </For>
 
           <Switch>
+            <Match when={githubDisconnected()}>
+              <ConnectGithubOverview />
+            </Match>
             <Match when={prQuery.isLoading && groups().length === 0}>
               <div class="px-6 py-6 text-sm text-ink-muted">Loading team…</div>
             </Match>
@@ -706,7 +718,12 @@ export function OverviewSection() {
           </Switch>
         </div>
 
-        <InsightsRail pullRequests={pullRequests()} tasks={tasks()} />
+        <Show
+          when={!githubDisconnected()}
+          fallback={<ConnectGithubRailSections />}
+        >
+          <InsightsRail pullRequests={pullRequests()} tasks={tasks()} />
+        </Show>
       </SidePanel.Layout>
     </div>
   );
