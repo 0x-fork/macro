@@ -42,6 +42,8 @@ console = "0.15"
 # docker-compose `env_file` format we generate). EnumIter derives the port list.
 dotenvy = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
+# Content-address the init snapshots (`stack up` restore/save keys).
+sha2 = { workspace = true }
 # Signal the frontend dev server's whole process group on shutdown (kill bun +
 # the Vite child it spawns, not just bun).
 libc = "0.2"

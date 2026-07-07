@@ -33,6 +33,7 @@ pub mod mailpit;
 pub mod opensearch;
 pub mod proxy;
 pub mod resources;
+pub mod snapshot;
 pub mod stack;
 pub mod stage;
 pub mod summary;
@@ -135,6 +136,9 @@ impl Mode {
 /// the crate manifest dir rather than the invocation cwd so the orchestrator
 /// works from anywhere, exactly like `main::build_graph`.
 pub fn workspace_root() -> PathBuf {
+    if let Some(root) = repo_root_override() {
+        return root.join("rust/cloud-storage");
+    }
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(2)
@@ -146,11 +150,25 @@ pub fn workspace_root() -> PathBuf {
 /// `<repo>/rust/cloud-storage`). This is where `docker-compose.yml`,
 /// `infra/`, `js/`, and the root `justfile` live.
 pub fn repo_root() -> PathBuf {
+    if let Some(root) = repo_root_override() {
+        return root;
+    }
     workspace_root()
         .ancestors()
         .nth(2)
         .expect("cloud-storage workspace has no repo root two levels up")
         .to_owned()
+}
+
+/// `CARGO_MANIFEST_DIR` is baked in at compile time, which is wrong when the
+/// prebuilt xtask binary runs outside the checkout it was compiled in (a Fly
+/// preview VM, a CI-staged layout). `MACRO_REPO_ROOT` points it at the staged
+/// repo layout instead.
+// xtask is host tooling, not a service reading APP_SECRETS_JSON, so reading the
+// process environment directly is correct here.
+#[allow(clippy::disallowed_methods)]
+fn repo_root_override() -> Option<PathBuf> {
+    std::env::var_os("MACRO_REPO_ROOT").map(PathBuf::from)
 }
 
 use std::process::Command;
@@ -211,7 +229,7 @@ pub fn run_stack(mode: Mode, args: &cli::RunArgs) -> Result<()> {
     // start. The teardown means everything is freshly created each run, so
     // otherwise the services race their backends on startup (no `macrodb`,
     // DynamoDB/OpenSearch connection refused).
-    bring_up_infra(&stage, mode, &instance, &env)?;
+    bring_up_infra(&stage, mode, &instance, &env, InfraInit::Full)?;
     bring_up_app(&stage, mode, &instance, &env)?;
 
     // No restart-to-reload step: the teardown means `up` always creates fresh
@@ -507,6 +525,18 @@ fn recreate_aux_service_containers(
     stage.run("Recreating auxiliary service containers", &mut up)
 }
 
+/// How the local infra reaches its initialized state on bring-up.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum InfraInit {
+    /// Run the real init: migrate the DB, let FusionAuth apply its kickstart,
+    /// create the OpenSearch indices.
+    Full,
+    /// The volumes were restored from an init snapshot — the state already
+    /// exists, so the init steps are skipped (LocalStack is provisioned either
+    /// way; its state isn't volume-backed).
+    FromSnapshot,
+}
+
 /// Bring up the backend infra the app services connect to at startup, and get it
 /// fully ready before any of them start. The clean-slate teardown means
 /// everything is freshly created each run, so this ordering is what stops the
@@ -518,6 +548,7 @@ fn bring_up_infra(
     mode: Mode,
     instance: &Instance,
     env: &env_layer::ResolvedEnv,
+    init: InfraInit,
 ) -> Result<()> {
     if stage.is_dry_run() {
         return Ok(());
@@ -552,13 +583,15 @@ fn bring_up_infra(
         localstack::provision(instance)
     })?;
 
-    if spec.migrates_db {
+    if spec.migrates_db && init == InfraInit::Full {
         // Postgres is ready (`--wait`); create + migrate the freshly-wiped DB.
         db::migrate(stage, instance)?;
     }
     if spec.runs_local_infra {
         // Start FusionAuth on its own (impatient healthcheck → no `--wait`) and
-        // poll it patiently until the kickstart has applied.
+        // poll it patiently until it's up. On a full init that wait covers the
+        // ~minute kickstart; on a snapshot restore the kickstart is already in
+        // the restored volumes, so this is just JVM boot.
         let mut fa = compose_cmd(instance, env);
         fa.arg("up").arg("-d").arg("fusionauth");
         stage.run("Starting FusionAuth", &mut fa)?;
@@ -567,7 +600,10 @@ fn bring_up_infra(
         // OpenSearch is up (`--wait`) but empty. Create the search indices +
         // aliases (idempotent) so the unified search path works out of the box
         // instead of 404ing on the missing `documents`/`chats`/… indices.
-        opensearch::provision_indices(stage, instance, &env.merged)?;
+        // Restored volumes already contain them.
+        if init == InfraInit::Full {
+            opensearch::provision_indices(stage, instance, &env.merged)?;
+        }
     }
     Ok(())
 }
