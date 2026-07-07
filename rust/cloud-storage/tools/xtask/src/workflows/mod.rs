@@ -19,6 +19,7 @@ mod check_node_modules_nix;
 mod code_check_cloud_storage;
 mod code_check_infra;
 mod deploy_preview;
+mod preview_fly;
 mod runners;
 mod steps;
 mod vars;
@@ -88,6 +89,16 @@ const WORKFLOWS: &[WorkflowFile] = &[
         slug: "deploy_preview",
         file_name: "deploy_preview.yml",
         render_yaml: || render_gh_workflow(deploy_preview::deploy_preview)(),
+    },
+    WorkflowFile {
+        slug: "preview_fly",
+        file_name: "preview-fly.yml",
+        render_yaml: || render_gh_workflow(preview_fly::preview_fly)(),
+    },
+    WorkflowFile {
+        slug: "preview_fly",
+        file_name: "preview-fly-cleanup.yml",
+        render_yaml: || render_gh_workflow(preview_fly::preview_fly_cleanup)(),
     },
     WorkflowFile {
         slug: "check_node_modules_nix",
