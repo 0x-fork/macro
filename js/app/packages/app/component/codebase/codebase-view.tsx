@@ -76,10 +76,7 @@ export function CodebaseView() {
       >
         <Switch>
           <Match when={activeTab() === 'overview'}>
-            <OverviewSection
-              onShowPullRequests={() => setActiveTab('pull-requests')}
-              onShowTasks={() => setActiveTab('tasks')}
-            />
+            <OverviewSection />
           </Match>
           <Match when={activeTab() === 'pull-requests'}>
             <PullRequestsSection />

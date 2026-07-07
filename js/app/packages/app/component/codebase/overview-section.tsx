@@ -1,11 +1,12 @@
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { SidePanel } from '@app/component/side-panel';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
-import { UserIcon } from '@core/component/UserIcon';
 import {
   type EntityData,
   type GithubPullRequestEntity,
   getTaskStatusOptionId,
+  ListEntity,
+  ListLayoutProvider,
   type TaskEntity,
   type TaskEntityWithProperties,
 } from '@entity';
@@ -24,11 +25,9 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  createUniqueId,
   For,
   type JSX,
   Match,
-  onCleanup,
   Show,
   Switch,
 } from 'solid-js';
@@ -46,10 +45,11 @@ import {
   computeWeeklyPrActivity,
   countStalePullRequests,
   countTasksByStatus,
-  type EngineerBento,
+  groupPullRequestsByAuthor,
   medianTimeToMergeDays,
+  type PullRequestAuthorGroup,
   pullRequestDisplayStatus,
-  UNASSIGNED_KEY,
+  UNKNOWN_AUTHOR_KEY,
 } from './model';
 import {
   useEngineerSummariesQuery,
@@ -57,16 +57,24 @@ import {
 } from './summaries';
 import { formatDays, TASK_STATUS_SEGMENTS } from './widgets';
 
-/** Entities shown per bento column before the "+N more" line. */
-const BENTO_SECTION_LIMIT = 4;
 /** Rows shown in the needs-attention card before expanding. */
 const ATTENTION_LIMIT = 6;
+/** Linked-task pills shown per PR row. */
+const TASK_PILL_LIMIT = 2;
 
 const NUMBER_FORMAT = new Intl.NumberFormat();
 
 const TASK_STATUS_COLORS = new Map<string, string>(
   TASK_STATUS_SEGMENTS.map((segment) => [segment.key, segment.color])
 );
+
+function taskStatusColor(task: TaskEntity): string {
+  const statusId = getTaskStatusOptionId(task as TaskEntityWithProperties);
+  return (
+    (statusId && TASK_STATUS_COLORS.get(statusId)) ??
+    'var(--color-ink-placeholder)'
+  );
+}
 
 function PrStatusIcon(props: { pullRequest: GithubPullRequestEntity }) {
   const status = () => pullRequestDisplayStatus(props.pullRequest);
@@ -90,13 +98,11 @@ function PrStatusIcon(props: { pullRequest: GithubPullRequestEntity }) {
 
 function MiniCard(props: {
   onClick: (event: MouseEvent) => void;
-  ref?: (el: HTMLButtonElement) => void;
   children: JSX.Element;
 }) {
   return (
     <button
       type="button"
-      ref={props.ref}
       class="flex w-full flex-col gap-1 rounded-lg bg-ink/3 px-2.5 py-2 text-left outline-none hover:bg-ink/6 focus-visible:ring focus-visible:ring-accent/40"
       onClick={(event) => props.onClick(event)}
     >
@@ -123,14 +129,10 @@ function PullRequestMiniCard(props: {
   pullRequest: GithubPullRequestEntity;
   onOpen: (entity: EntityData, event: MouseEvent) => void;
   chip?: JSX.Element;
-  ref?: (el: HTMLButtonElement) => void;
 }) {
   const meta = () => props.pullRequest.metadata;
   return (
-    <MiniCard
-      ref={props.ref}
-      onClick={(event) => props.onOpen(props.pullRequest, event)}
-    >
+    <MiniCard onClick={(event) => props.onOpen(props.pullRequest, event)}>
       <div class="flex w-full items-center gap-1.5">
         <PrStatusIcon pullRequest={props.pullRequest} />
         <span class="min-w-0 flex-1 truncate text-xs font-medium text-ink">
@@ -164,53 +166,17 @@ function TaskMiniCard(props: {
   projectName?: string;
   onOpen: (entity: EntityData, event: MouseEvent) => void;
   chip?: JSX.Element;
-  ref?: (el: HTMLButtonElement) => void;
-  /** Reports the task's linked PR identifiers (record + external ids). */
-  onLinks?: (taskId: string, linkedIds: string[]) => void;
 }) {
-  const refs = useDocumentGithubPullRequestRefsQuery(() => props.task.id);
-  const linkedPullRequests = () => refs.data?.pullRequests ?? [];
-
-  createEffect(() => {
-    if (!props.onLinks || !refs.isSuccess) return;
-    const ids: string[] = [];
-    for (const ref of linkedPullRequests()) {
-      if (ref.foreignEntityId) ids.push(ref.foreignEntityId);
-      ids.push(ref.githubKey);
-    }
-    props.onLinks(props.task.id, ids);
-  });
-
-  const statusColor = () => {
-    const statusId = getTaskStatusOptionId(
-      props.task as TaskEntityWithProperties
-    );
-    return (
-      (statusId && TASK_STATUS_COLORS.get(statusId)) ??
-      'var(--color-ink-placeholder)'
-    );
-  };
-
   return (
-    <MiniCard
-      ref={props.ref}
-      onClick={(event) => props.onOpen(props.task, event)}
-    >
+    <MiniCard onClick={(event) => props.onOpen(props.task, event)}>
       <div class="flex w-full items-center gap-1.5">
         <span
           class="size-2 shrink-0 rounded-full"
-          style={{ 'background-color': statusColor() }}
+          style={{ 'background-color': taskStatusColor(props.task) }}
         />
         <span class="min-w-0 flex-1 truncate text-xs font-medium text-ink">
           {props.task.name}
         </span>
-        <Show when={linkedPullRequests().length > 0}>
-          <MetaChip class="bg-accent/10 text-accent">
-            <GitPullRequestIcon class="size-3" />
-            {linkedPullRequests().length}
-            <span class="sr-only">linked pull requests</span>
-          </MetaChip>
-        </Show>
         {props.chip}
       </div>
       <Show when={props.projectName}>
@@ -282,8 +248,8 @@ function TeamDailySummary(props: {
 
 /**
  * The exceptions worth acting on: open PRs with failing checks, stale open
- * PRs, and tasks sitting in review. Renders above the bento list; the
- * overflow line expands the card in place.
+ * PRs, and tasks sitting in review. Collapsible; the overflow line expands
+ * the row list in place.
  */
 function NeedsAttentionCard(props: {
   pullRequests: GithubPullRequestEntity[];
@@ -291,6 +257,7 @@ function NeedsAttentionCard(props: {
   projectNames: Map<string, string>;
   onOpen: (entity: EntityData, event: MouseEvent) => void;
 }) {
+  const [open, setOpen] = createSignal(true);
   const [showAll, setShowAll] = createSignal(false);
 
   const attention = createMemo(() =>
@@ -353,322 +320,117 @@ function NeedsAttentionCard(props: {
 
   return (
     <Show when={total() > 0}>
-      <section class="flex flex-col gap-2.5 rounded-xl bg-surface/50 p-4 ring ring-edge-muted ring-inset">
-        <header class="flex items-baseline gap-2">
-          <h3 class="text-[13px] font-semibold text-ink">Needs attention</h3>
+      <section class="flex flex-col rounded-xl bg-surface/50 px-4 py-3 ring ring-edge-muted ring-inset">
+        <button
+          type="button"
+          class="group flex w-full items-center gap-2 text-left outline-none"
+          onClick={() => setOpen((prev) => !prev)}
+        >
+          <CaretRightIcon
+            class={cn(
+              'size-3 shrink-0 text-ink-muted transition-transform duration-90',
+              open() && 'rotate-90'
+            )}
+          />
+          <span class="text-[13px] font-semibold text-ink group-hover:underline">
+            Needs attention
+          </span>
           <span class="text-[11px] text-ink-extra-muted tabular-nums">
             {attention().failingChecks.length} failing ·{' '}
             {attention().stale.length} stale ·{' '}
             {attention().inReviewTasks.length} in review
           </span>
-        </header>
-        <div class="grid grid-cols-1 gap-1.5 @3xl:grid-cols-2">
-          <For each={visibleRows()}>{(row) => row}</For>
-        </div>
-        <Show when={total() > ATTENTION_LIMIT}>
-          <button
-            type="button"
-            class="self-start text-[11px] text-ink-muted tabular-nums outline-none hover:text-ink"
-            onClick={() => setShowAll((prev) => !prev)}
-          >
-            {showAll() ? 'Show less' : `+${total() - ATTENTION_LIMIT} more`}
-          </button>
+        </button>
+        <Show when={open()}>
+          <div class="flex flex-col gap-2.5 pt-2.5">
+            <div class="grid grid-cols-1 gap-1.5 @3xl:grid-cols-2">
+              <For each={visibleRows()}>{(row) => row}</For>
+            </div>
+            <Show when={total() > ATTENTION_LIMIT}>
+              <button
+                type="button"
+                class="self-start text-[11px] text-ink-muted tabular-nums outline-none hover:text-ink"
+                onClick={() => setShowAll((prev) => !prev)}
+              >
+                {showAll() ? 'Show less' : `+${total() - ATTENTION_LIMIT} more`}
+              </button>
+            </Show>
+          </div>
         </Show>
       </section>
     </Show>
   );
 }
 
-function ColumnLabel(props: { label: string; count: number }) {
-  return (
-    <span class="text-[10px] font-medium uppercase tracking-wider text-ink-extra-muted">
-      {props.label}
-      <span class="ml-1.5 normal-case tracking-normal tabular-nums">
-        {props.count}
-      </span>
-    </span>
-  );
-}
-
-function MoreButton(props: {
-  hidden: number;
-  label: string;
-  onClick?: () => void;
-}) {
-  return (
-    <Show when={props.hidden > 0}>
-      <button
-        type="button"
-        class="self-start text-[11px] text-ink-extra-muted tabular-nums outline-none hover:text-ink-muted"
-        onClick={() => props.onClick?.()}
-      >
-        +{props.hidden} more {props.label}
-      </button>
-    </Show>
-  );
-}
-
-type ConnectorPath = { d: string; endX: number; endY: number };
-
 /**
- * One row per engineer: tasks on the left, PRs on the right, with curved
- * connectors drawn between a task card and the PR cards it links to
- * (measured from the DOM, redrawn on resize).
+ * Invisible collector: fetches a task's stored PR associations and reports
+ * them up so PR rows can render their linked-task pills.
  */
-function EngineerBentoCard(props: {
-  bento: EngineerBento;
-  projectNames: Map<string, string>;
-  summary?: string;
-  onOpen: (entity: EntityData, event: MouseEvent) => void;
-  onShowPullRequests: () => void;
-  onShowTasks: () => void;
+function TaskLinkCollector(props: {
+  task: TaskEntity;
+  onLinks: (taskId: string, linkedIds: string[]) => void;
 }) {
-  const uid = createUniqueId();
-  const isUnassigned = () => props.bento.key === UNASSIGNED_KEY;
+  const refs = useDocumentGithubPullRequestRefsQuery(() => props.task.id);
 
-  const visibleTasks = () =>
-    props.bento.openTasks.slice(0, BENTO_SECTION_LIMIT);
-  const visiblePullRequests = () =>
-    props.bento.openPullRequests.slice(0, BENTO_SECTION_LIMIT);
-  const hasBoth = () =>
-    visibleTasks().length > 0 && visiblePullRequests().length > 0;
-
-  // task id -> linked PR record/external ids, reported by each task card.
-  const [links, setLinks] = createSignal<Record<string, string[]>>({});
-  const reportLinks = (taskId: string, linkedIds: string[]) => {
-    setLinks((prev) => ({ ...prev, [taskId]: linkedIds }));
-  };
-
-  let containerEl: HTMLDivElement | undefined;
-  const taskEls = new Map<string, HTMLElement>();
-  const prEls = new Map<string, HTMLElement>();
-  const [layoutVersion, setLayoutVersion] = createSignal(0);
-  const bumpLayout = () => setLayoutVersion((v) => v + 1);
-
-  const registerContainer = (el: HTMLDivElement) => {
-    containerEl = el;
-    const observer = new ResizeObserver(bumpLayout);
-    observer.observe(el);
-    onCleanup(() => observer.disconnect());
-  };
-
-  const paths = createMemo((): ConnectorPath[] => {
-    layoutVersion();
-    const linkMap = links();
-    const container = containerEl;
-    if (!container) return [];
-    const containerRect = container.getBoundingClientRect();
-
-    // Match linked ids against visible PRs by record id or external key.
-    const prIdFor = new Map<string, string>();
-    for (const pullRequest of visiblePullRequests()) {
-      prIdFor.set(pullRequest.id, pullRequest.id);
-      prIdFor.set(pullRequest.foreignId, pullRequest.id);
+  createEffect(() => {
+    if (!refs.isSuccess) return;
+    const ids: string[] = [];
+    for (const ref of refs.data.pullRequests) {
+      if (ref.foreignEntityId) ids.push(ref.foreignEntityId);
+      ids.push(ref.githubKey);
     }
-
-    const result: ConnectorPath[] = [];
-    for (const task of visibleTasks()) {
-      const taskEl = taskEls.get(task.id);
-      const linkedIds = linkMap[task.id];
-      if (!taskEl || !linkedIds?.length) continue;
-
-      const targets = new Set<string>();
-      for (const linkedId of linkedIds) {
-        const prId = prIdFor.get(linkedId);
-        if (prId) targets.add(prId);
-      }
-
-      for (const prId of targets) {
-        const prEl = prEls.get(prId);
-        if (!prEl) continue;
-        const taskRect = taskEl.getBoundingClientRect();
-        const prRect = prEl.getBoundingClientRect();
-        const startX = taskRect.right - containerRect.left + 2;
-        const startY = taskRect.top + taskRect.height / 2 - containerRect.top;
-        const endX = prRect.left - containerRect.left - 7;
-        const endY = prRect.top + prRect.height / 2 - containerRect.top;
-        const bend = Math.max(16, (endX - startX) * 0.45);
-        result.push({
-          d: `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`,
-          endX,
-          endY,
-        });
-      }
-    }
-    return result;
+    props.onLinks(props.task.id, ids);
   });
 
-  return (
-    <section class="flex flex-col gap-3 rounded-xl bg-surface/50 p-4 ring ring-edge-muted ring-inset">
-      <header class="flex items-center gap-2.5">
-        <Switch
-          fallback={
-            <AuthorAvatar
-              login={props.bento.githubLogin}
-              class="size-6 shrink-0"
-            />
-          }
-        >
-          <Match when={isUnassigned()}>
-            <span class="flex size-6 shrink-0 items-center justify-center rounded-full bg-ink/10 text-ink-muted">
-              <UsersThreeIcon class="size-3.5" />
-            </span>
-          </Match>
-          <Match when={!props.bento.githubLogin && props.bento.userId}>
-            {(userId) => (
-              <div class="size-6 shrink-0">
-                <UserIcon
-                  id={userId()}
-                  size="fill"
-                  suppressClick
-                  showTooltip={false}
-                />
-              </div>
-            )}
-          </Match>
-        </Switch>
-        <div class="min-w-0 flex-1">
-          <div class="truncate text-sm font-semibold text-ink">
-            {props.bento.displayName}
-          </div>
-          <div class="truncate text-[11px] text-ink-extra-muted tabular-nums">
-            {props.bento.openPullRequests.length} open PRs ·{' '}
-            {props.bento.openTasks.length} tasks
-            <Show when={props.bento.mergedLast30Days > 0}>
-              {' '}
-              · {props.bento.mergedLast30Days} merged / 30d
-            </Show>
-          </div>
-        </div>
-      </header>
+  return null;
+}
 
+/** Linked-task pill on a PR row; opens the task in a new split. */
+function TaskPill(props: {
+  task: TaskEntity;
+  onOpen: (task: TaskEntity, event: MouseEvent) => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={props.task.name}
+      class="inline-flex max-w-44 min-w-0 items-center gap-1.5 rounded-full bg-surface/50 px-2 py-1 text-xs text-ink ring ring-edge-muted ring-inset outline-none hover:bg-ink/5 focus-visible:ring-accent/40"
+      onClick={(event) => {
+        event.stopPropagation();
+        props.onOpen(props.task, event);
+      }}
+    >
+      <span
+        class="size-2 shrink-0 rounded-full"
+        style={{ 'background-color': taskStatusColor(props.task) }}
+      />
+      <span class="truncate">{props.task.name}</span>
+    </button>
+  );
+}
+
+function AuthorGroupHeader(props: {
+  group: PullRequestAuthorGroup;
+  summary?: string;
+}) {
+  return (
+    <div class="flex flex-col gap-1 px-3 pt-4 pb-1.5">
+      <div class="flex items-center gap-2">
+        <AuthorAvatar login={props.group.authorLogin} class="size-5 shrink-0" />
+        <span class="text-sm font-semibold text-ink">
+          {props.group.authorLogin ?? 'Unknown author'}
+        </span>
+        <span class="text-xs text-ink-extra-muted tabular-nums">
+          {props.group.openCount} open
+        </span>
+      </div>
       <Show when={props.summary}>
-        <div class="-mt-1 flex items-start gap-1.5 text-xs text-ink-muted">
+        <div class="flex items-start gap-1.5 pl-7 text-xs text-ink-muted">
           <SparkleIcon class="mt-0.5 size-3 shrink-0 text-accent/70" />
           <span class="min-w-0">{props.summary}</span>
         </div>
       </Show>
-
-      <Show
-        when={
-          props.bento.openTasks.length > 0 ||
-          props.bento.openPullRequests.length > 0
-        }
-        fallback={
-          <div class="text-xs text-ink-muted">
-            Nothing open — {props.bento.mergedLast30Days} PRs merged in the last
-            30 days.
-          </div>
-        }
-      >
-        <div
-          ref={registerContainer}
-          class={cn(
-            'relative grid gap-x-14 gap-y-1.5',
-            hasBoth() ? 'grid-cols-2' : 'grid-cols-1'
-          )}
-        >
-          {/* Task → PR connectors, drawn across the gutter */}
-          <Show when={paths().length > 0}>
-            <svg
-              class="pointer-events-none absolute inset-0 z-[1] size-full overflow-visible"
-              aria-hidden="true"
-            >
-              <defs>
-                <marker
-                  id={`arrow-${uid}`}
-                  viewBox="0 0 8 8"
-                  refX="7"
-                  refY="4"
-                  markerWidth="7"
-                  markerHeight="7"
-                  orient="auto-start-reverse"
-                >
-                  <path
-                    d="M 1 1 L 7 4 L 1 7"
-                    fill="none"
-                    stroke="var(--color-ink-extra-muted)"
-                    stroke-width="1.25"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </marker>
-              </defs>
-              <For each={paths()}>
-                {(path) => (
-                  <path
-                    d={path.d}
-                    fill="none"
-                    stroke="var(--color-ink-extra-muted)"
-                    stroke-width={1.25}
-                    opacity={0.6}
-                    marker-end={`url(#arrow-${uid})`}
-                  />
-                )}
-              </For>
-            </svg>
-          </Show>
-
-          <Show when={props.bento.openTasks.length > 0}>
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <ColumnLabel label="Tasks" count={props.bento.openTasks.length} />
-              <For each={visibleTasks()}>
-                {(task) => (
-                  <TaskMiniCard
-                    task={task}
-                    projectName={
-                      task.projectId
-                        ? props.projectNames.get(task.projectId)
-                        : undefined
-                    }
-                    onOpen={props.onOpen}
-                    onLinks={reportLinks}
-                    ref={(el) => {
-                      taskEls.set(task.id, el);
-                      bumpLayout();
-                    }}
-                  />
-                )}
-              </For>
-              <MoreButton
-                hidden={props.bento.openTasks.length - visibleTasks().length}
-                label="tasks"
-                onClick={props.onShowTasks}
-              />
-            </div>
-          </Show>
-
-          <Show when={props.bento.openPullRequests.length > 0}>
-            <div class="flex min-w-0 flex-col gap-1.5">
-              <ColumnLabel
-                label="Pull requests"
-                count={props.bento.openPullRequests.length}
-              />
-              <For each={visiblePullRequests()}>
-                {(pullRequest) => (
-                  <PullRequestMiniCard
-                    pullRequest={pullRequest}
-                    onOpen={props.onOpen}
-                    ref={(el) => {
-                      prEls.set(pullRequest.id, el);
-                      bumpLayout();
-                    }}
-                  />
-                )}
-              </For>
-              <MoreButton
-                hidden={
-                  props.bento.openPullRequests.length -
-                  visiblePullRequests().length
-                }
-                label="pull requests"
-                onClick={props.onShowPullRequests}
-              />
-            </div>
-          </Show>
-        </div>
-      </Show>
-    </section>
+    </div>
   );
 }
 
@@ -753,15 +515,13 @@ function InsightsRail(props: {
 }
 
 /**
- * The Overview tab: one bento row per engineer with tasks and PRs side by
- * side (linked by connector arrows), an exceptions card up top, and key
- * insight charts docked in the entity-style right side panel. Scoped to the
- * current team's members when the user belongs to a team.
+ * The Overview tab: the team's open pull requests as a unified list grouped
+ * by author (with an AI summary per engineer), linked-task pills on the
+ * right of each row, a collapsible daily digest and needs-attention card up
+ * top, and key insight charts docked in the entity-style right side panel.
+ * Scoped to the current team's members when the user belongs to a team.
  */
-export function OverviewSection(props: {
-  onShowPullRequests: () => void;
-  onShowTasks: () => void;
-}) {
+export function OverviewSection() {
   const panel = useSplitPanelOrThrow();
   const { query: prQuery, pullRequests } = useCodebasePullRequests();
   const { tasks } = useCodebaseTasks();
@@ -776,15 +536,59 @@ export function OverviewSection(props: {
       : undefined;
   });
 
+  const openPullRequests = createMemo(() =>
+    pullRequests().filter((pullRequest) => {
+      const status = pullRequestDisplayStatus(pullRequest);
+      return status === 'open' || status === 'draft';
+    })
+  );
+
+  const groups = createMemo(() =>
+    groupPullRequestsByAuthor(openPullRequests())
+  );
+
+  const openTasks = createMemo(() =>
+    tasks().filter((task) => !task.subType.is_completed)
+  );
+
+  // Per-engineer AI summaries, keyed by author login (bentos exist purely to
+  // feed the digest builder and reuse its team scoping).
   const bentos = createMemo(() =>
     buildEngineerBentos(pullRequests(), tasks(), contacts(), {
       teamMemberIds: teamMemberIds(),
     })
   );
-
   const engineerSummaries = useEngineerSummariesQuery(bentos, pullRequests);
 
-  const openEntity = (entity: EntityData, event: MouseEvent) => {
+  // task id -> linked PR record/external ids, reported by the collectors.
+  const [taskLinks, setTaskLinks] = createSignal<Record<string, string[]>>({});
+  const reportLinks = (taskId: string, linkedIds: string[]) => {
+    setTaskLinks((prev) => ({ ...prev, [taskId]: linkedIds }));
+  };
+
+  /** PR record id or external key -> open tasks linking to it. */
+  const tasksByPrId = createMemo(() => {
+    const tasksById = new Map(openTasks().map((task) => [task.id, task]));
+    const map = new Map<string, TaskEntity[]>();
+    for (const [taskId, linkedIds] of Object.entries(taskLinks())) {
+      const task = tasksById.get(taskId);
+      if (!task) continue;
+      for (const linkedId of linkedIds) {
+        const list = map.get(linkedId) ?? [];
+        if (!list.includes(task)) list.push(task);
+        map.set(linkedId, list);
+      }
+    }
+    return map;
+  });
+
+  const linkedTasksFor = (pullRequest: GithubPullRequestEntity) => {
+    const byRecord = tasksByPrId().get(pullRequest.id) ?? [];
+    const byExternal = tasksByPrId().get(pullRequest.foreignId) ?? [];
+    return [...new Set([...byRecord, ...byExternal])];
+  };
+
+  const openInCurrentSplit = (entity: EntityData, event: MouseEvent) => {
     void openEntityInSplitFromUnifiedList(entity, {
       splitHandle: panel.handle,
       openInNewSplit: event.metaKey || event.ctrlKey,
@@ -792,25 +596,40 @@ export function OverviewSection(props: {
     });
   };
 
+  const openTaskInNewSplit = (task: TaskEntity, _event: MouseEvent) => {
+    void openEntityInSplitFromUnifiedList(task, {
+      splitHandle: panel.handle,
+      openInNewSplit: true,
+      referredFrom: 'codebase',
+    });
+  };
+
+  let listRef: HTMLDivElement | undefined;
+
   return (
     <div class="min-h-0 flex-1">
       <SidePanel.Layout>
         <div class="size-full min-h-0 overflow-y-auto @container">
+          {/* Null-rendering collectors feed the PR→task pill mapping. */}
+          <For each={openTasks()}>
+            {(task) => <TaskLinkCollector task={task} onLinks={reportLinks} />}
+          </For>
+
           <Switch>
-            <Match when={prQuery.isLoading && bentos().length === 0}>
+            <Match when={prQuery.isLoading && groups().length === 0}>
               <div class="px-6 py-6 text-sm text-ink-muted">Loading team…</div>
             </Match>
-            <Match when={bentos().length === 0}>
+            <Match when={groups().length === 0}>
               <EmptyStatePanel
                 centered
                 graphic={UsersThreeIcon}
                 graphicClass="h-24 w-24 text-ink-extra-muted"
-                title="No activity yet"
-                description="Open pull requests and tasks will show up here, one card per engineer."
+                title="No open pull requests"
+                description="Your team's open pull requests will show up here, grouped by engineer."
               />
             </Match>
             <Match when={true}>
-              <div class="mx-auto flex w-full max-w-4xl flex-col gap-3 px-4 py-4">
+              <div class="flex w-full flex-col gap-3 px-4 py-4">
                 <TeamDailySummary
                   pullRequests={pullRequests()}
                   tasks={tasks()}
@@ -819,20 +638,69 @@ export function OverviewSection(props: {
                   pullRequests={pullRequests()}
                   tasks={tasks()}
                   projectNames={projectNames()}
-                  onOpen={openEntity}
+                  onOpen={openInCurrentSplit}
                 />
-                <For each={bentos()}>
-                  {(bento) => (
-                    <EngineerBentoCard
-                      bento={bento}
-                      projectNames={projectNames()}
-                      summary={engineerSummaries.data?.get(bento.key)}
-                      onOpen={openEntity}
-                      onShowPullRequests={props.onShowPullRequests}
-                      onShowTasks={props.onShowTasks}
-                    />
-                  )}
-                </For>
+
+                <div ref={listRef} class="pb-4">
+                  <ListLayoutProvider ref={() => listRef}>
+                    <For each={groups()}>
+                      {(group) => (
+                        <section>
+                          <AuthorGroupHeader
+                            group={group}
+                            summary={
+                              group.key === UNKNOWN_AUTHOR_KEY
+                                ? undefined
+                                : engineerSummaries.data?.get(group.key)
+                            }
+                          />
+                          <For each={group.pullRequests}>
+                            {(pullRequest) => {
+                              const linked = () => linkedTasksFor(pullRequest);
+                              return (
+                                <div class="flex items-center gap-2">
+                                  <div class="min-w-0 flex-1">
+                                    <ListEntity
+                                      entity={pullRequest}
+                                      hideCheckbox
+                                      onClick={(event) =>
+                                        openInCurrentSplit(pullRequest, event)
+                                      }
+                                    />
+                                  </div>
+                                  <Show when={linked().length > 0}>
+                                    <div class="flex shrink-0 items-center gap-1.5 pr-2">
+                                      <For
+                                        each={linked().slice(
+                                          0,
+                                          TASK_PILL_LIMIT
+                                        )}
+                                      >
+                                        {(task) => (
+                                          <TaskPill
+                                            task={task}
+                                            onOpen={openTaskInNewSplit}
+                                          />
+                                        )}
+                                      </For>
+                                      <Show
+                                        when={linked().length > TASK_PILL_LIMIT}
+                                      >
+                                        <span class="text-[11px] text-ink-extra-muted tabular-nums">
+                                          +{linked().length - TASK_PILL_LIMIT}
+                                        </span>
+                                      </Show>
+                                    </div>
+                                  </Show>
+                                </div>
+                              );
+                            }}
+                          </For>
+                        </section>
+                      )}
+                    </For>
+                  </ListLayoutProvider>
+                </div>
               </div>
             </Match>
           </Switch>
