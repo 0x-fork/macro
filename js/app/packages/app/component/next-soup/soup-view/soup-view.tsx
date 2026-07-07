@@ -624,6 +624,10 @@ export const SoupView = (props: SoupViewProps) => {
     },
   });
 
+  const { paneVisible } = usePreviewPaneVisiblity();
+
+  const isNewInboxEnabled = useIsNewInboxEnabled();
+
   return (
     <SplitPanelContext.Provider
       value={{
@@ -640,7 +644,7 @@ export const SoupView = (props: SoupViewProps) => {
             // In preview the separating border sits below this region, so it
             // ends up under the active-filters bar when shown, otherwise right
             // under the toolbar (the wrapper collapses to zero height).
-            'border-b border-edge-muted': !isMobile() && !!soup.previewEntity(),
+            'border-b border-edge-muted': !isMobile() && paneVisible(),
           })}
         >
           <SplitHeaderLeft>
@@ -787,7 +791,11 @@ export const SoupView = (props: SoupViewProps) => {
         </div>
       </div>
       <Suspense>
-        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
+        <Show
+          when={
+            ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile() && !isNewInboxEnabled()
+          }
+        >
           <SoupChatInput />
         </Show>
       </Suspense>
@@ -795,7 +803,7 @@ export const SoupView = (props: SoupViewProps) => {
   );
 };
 
-export const useIsNewInboxEnabled = () => {
+export function useIsNewInboxEnabled() {
   const panel = useSplitPanelOrThrow();
 
   const currentView = () => {
@@ -812,7 +820,42 @@ export const useIsNewInboxEnabled = () => {
     currentView() === 'inbox' && newInboxFlag().enabled;
 
   return isNewInboxEnabled;
-};
+}
+
+export function usePreviewPaneVisiblity() {
+  const panel = useSplitPanelOrThrow();
+
+  const { soup, rows } = useSoupView();
+
+  const isNewInboxEnabled = useIsNewInboxEnabled();
+
+  const isWideSplitPanel = createMemo(() => {
+    return (panel.panelSize.width ?? 0) > WIDE_SPLIT_PANEL_BREAKPOINT;
+  });
+
+  const previewVisible = createMemo(
+    () =>
+      isWideSplitPanel() &&
+      (!!soup.previewEntity() || panel.previewState[0]()) &&
+      !!soup.focus.item()
+  );
+
+  // Placeholder display only for new inbox where the preview panel is open by default
+  // Only open while no items are focused
+  const previewPlaceholderVisible = createMemo(() => {
+    return isWideSplitPanel() && isNewInboxEnabled() && !soup.focus.item();
+  });
+
+  const previewPaneVisible = createMemo(
+    () => rows().length > 0 && (previewVisible() || previewPlaceholderVisible())
+  );
+
+  return {
+    paneVisible: previewPaneVisible,
+    placeholderVisible: previewPlaceholderVisible,
+    previewVisible,
+  };
+}
 
 interface SoupViewListProps {
   customScrollbarHidden?: boolean;
@@ -854,6 +897,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
     return isListViewID(id) ? id : undefined;
   });
 
+  const { paneVisible, placeholderVisible, previewVisible } =
+    usePreviewPaneVisiblity();
   // On desktop the calls view defaults to a gallery of call cards instead of
   // list rows (toggleable from the header). The gallery only renders while
   // the list column is wide enough for at least two card columns and while
@@ -961,7 +1006,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
 
     // The calls view has no preview button in its chrome, so never auto-open
     // the pane there — only keep an already-open pane (Space) in sync.
-    if (currentView() !== 'calls' || soup.previewEntity()) {
+    if (paneVisible() && (currentView() !== 'calls' || soup.previewEntity())) {
       soup.setPreviewEntity(result?.row.id);
     }
 
@@ -1127,7 +1172,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
     }
 
     if (
-      previewPlaceholderVisible() ||
+      placeholderVisible() ||
       (previewVisible() && soup.previewEntity() && type === 'entity')
     ) {
       if (args.rowIndex !== undefined) soup.focus.setIndex(args.rowIndex);
@@ -1337,25 +1382,6 @@ export const SoupViewList = (props: SoupViewListProps) => {
     return (panel.panelSize.width ?? 0) > WIDE_SPLIT_PANEL_BREAKPOINT;
   });
 
-  const previewVisible = createMemo(
-    () =>
-      isWideSplitPanel() &&
-      (!!soup.previewEntity() || panel.previewState[0]()) &&
-      !!soup.focus.item()
-  );
-
-  // On first load the new inbox doesn't auto-select a row, so reserve the
-  // preview pane with a placeholder until the user picks something. Only for
-  // that initial state — after the first selection, an empty selection
-  // collapses the pane as before.
-  const previewPlaceholderVisible = createMemo(() => {
-    return isWideSplitPanel() && isNewInboxEnabled() && !soup.focus.item();
-  });
-
-  const previewPaneVisible = createMemo(
-    () => previewVisible() || previewPlaceholderVisible()
-  );
-
   createEffect(() => {
     const hasPreviewEntity = !!soup.previewEntity();
     const [getPreview, setPreview] = panel.previewState;
@@ -1389,14 +1415,13 @@ export const SoupViewList = (props: SoupViewListProps) => {
           <Resize.Panel
             id="soup-list"
             minSize={200}
-            maxSize={previewPaneVisible() ? 840 : undefined}
+            maxSize={paneVisible() ? 840 : undefined}
           >
             <div
               ref={setListColumnRef}
               class={cn(
                 '@container/u-list size-full unified-list-root flex flex-col relative',
-                soup.previewEntity() !== undefined &&
-                  'border-r border-edge-muted'
+                paneVisible() && 'border-r border-edge-muted'
               )}
             >
               <Show when={isMobile() && source.isPlaceholderData()}>
@@ -1759,7 +1784,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
               </StaticMarkdownContext>
             </div>
           </Resize.Panel>
-          <Show when={previewPaneVisible()}>
+          <Show when={paneVisible()}>
             <Resize.Panel
               id="soup-preview"
               minSize={500}
@@ -1778,11 +1803,10 @@ export const SoupViewList = (props: SoupViewListProps) => {
                   when={soup.focus.item()}
                   fallback={
                     <EmptyStatePanel
-                      graphic={(iconProps) => (
-                        <EmptyStatePreviewIcon {...iconProps} />
-                      )}
+                      graphic={EmptyStatePreviewIcon}
                       title="Nothing selected"
                       description="Select an item from your inbox to preview it here."
+                      centered
                     />
                   }
                 >
@@ -1891,7 +1915,7 @@ const SoupList = (props: SoupListProps) => {
         <div
           ref={setTopSpacerRef}
           aria-hidden
-          class="h-0 mobile:h-(--mobile-content-inset-top)"
+          class="h-0 block sm:hidden mobile:h-(--mobile-content-inset-top)"
         />
         <Virtualizer
           cache={props.cache}
