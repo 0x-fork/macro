@@ -14,8 +14,7 @@ export type GithubLinkStatus =
 
 export type GithubLink = {
   status: GithubLinkStatus;
-  // Populated once auth-service includes the linked account handle on
-  // /link/github/status.
+  /** Login of the linked GitHub account, when auth-service knows it. */
   username?: string;
 };
 
@@ -33,9 +32,7 @@ export async function fetchGithubLinkStatus(): Promise<GithubLink> {
   const response = await authServiceClient.checkGithubLinkStatus();
 
   if (response.isOk()) {
-    const username =
-      (response.value as { github_username?: string | null }).github_username ??
-      undefined;
+    const username = response.value.github_username ?? undefined;
 
     return {
       status: response.value.reauthentication_required

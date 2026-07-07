@@ -44,6 +44,7 @@ export * from './getUserInfo';
 export * from './getUserInfoOrganizationId';
 export * from './getUserLinkExistsParams';
 export * from './githubLinkStatusResponse';
+export * from './githubLinkStatusResponseGithubUsername';
 export * from './githubPullRequestCheckRun';
 export * from './githubPullRequestCheckRunCompletedAt';
 export * from './githubPullRequestCheckRunConclusion';

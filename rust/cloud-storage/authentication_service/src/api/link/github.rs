@@ -20,6 +20,10 @@ pub const REAUTHENTICATION_REQUIRED_MESSAGE: &str = "ReauthenticationRequired";
 pub struct GithubLinkStatusResponse {
     /// Whether the user must reauthenticate their GitHub link.
     pub reauthentication_required: bool,
+    /// The login of the linked GitHub account, when available. Lets clients
+    /// identify "my" pull requests without a separate lookup.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub github_username: Option<String>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, utoipa::ToSchema)]
@@ -126,8 +130,19 @@ pub async fn check_github_link_status_handler(
         .check_user_link_token(&user_context.macro_user_id)
         .await?;
 
+    // The link row is already known to exist (the token check above found
+    // it); surface the account handle so clients can identify the user's own
+    // pull requests. A lookup failure only drops the optional field.
+    let github_username = ctx
+        .github_link_service
+        .get_user_link(&user_context.macro_user_id)
+        .await
+        .ok()
+        .map(|link| link.github_username);
+
     Ok(Json(GithubLinkStatusResponse {
         reauthentication_required: false,
+        github_username,
     }))
 }
 

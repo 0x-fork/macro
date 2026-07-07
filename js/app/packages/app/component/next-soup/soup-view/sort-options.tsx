@@ -3,29 +3,36 @@ import type {
   SoupEntity,
 } from '@app/component/next-soup/create-soup-state';
 import { compareDateDesc } from '@core/util/date';
-import type {
-  EntityData,
-  TaskEntityWithProperties,
-  WithNotification,
+import {
+  type EntityData,
+  isGithubPrEntity,
+  type TaskEntityWithProperties,
+  type WithNotification,
 } from '@entity';
 import {
   getTaskPriorityOptionId,
   getTaskStatusOptionId,
 } from '@entity/utils/task-properties';
 import ArrowClockwiseIcon from '@phosphor/arrow-clockwise.svg';
+import ChatCircleIcon from '@phosphor/chat-circle.svg';
 import ClockIcon from '@phosphor/clock.svg';
+import ClockCounterClockwiseIcon from '@phosphor/clock-counter-clockwise.svg';
 import EyeIcon from '@phosphor/eye.svg';
 import FlagIcon from '@phosphor/flag.svg';
 import ListChecksIcon from '@phosphor/list-checks.svg';
+import PlusMinusIcon from '@phosphor/plus-minus.svg';
 import { PROPERTY_OPTION_IDS } from '@property/constants';
 import type { JSX } from 'solid-js';
 
 export type SystemSortOption =
   | 'updated_at'
   | 'created_at'
+  | 'created_at_asc'
   | 'viewed_at'
   | 'priority'
-  | 'status';
+  | 'status'
+  | 'change_size'
+  | 'comment_count';
 
 export interface SortOption {
   value: SystemSortOption;
@@ -136,6 +143,34 @@ function sortByStatus<T extends EntityData>(a: T, b: T): number {
   return sortByUpdatedAt(a, b);
 }
 
+/** Total changed lines for a GitHub PR; non-PR entities sort as zero. */
+function changeSize(entity: EntityData): number {
+  return isGithubPrEntity(entity)
+    ? entity.metadata.additions + entity.metadata.deletions
+    : 0;
+}
+
+/** Comment count for a GitHub PR; non-PR entities sort as zero. */
+function commentCount(entity: EntityData): number {
+  return isGithubPrEntity(entity) ? entity.metadata.comments.length : 0;
+}
+
+function sortByCreatedAtAsc<T extends EntityData>(a: T, b: T): number {
+  return -sortByCreatedAt(a, b);
+}
+
+/** Biggest diffs first (GitHub PRs); ties fall back to updated_at. */
+function sortByChangeSize<T extends EntityData>(a: T, b: T): number {
+  const diff = changeSize(b) - changeSize(a);
+  return diff !== 0 ? diff : sortByUpdatedAt(a, b);
+}
+
+/** Most-discussed first (GitHub PRs); ties fall back to updated_at. */
+function sortByCommentCount<T extends EntityData>(a: T, b: T): number {
+  const diff = commentCount(b) - commentCount(a);
+  return diff !== 0 ? diff : sortByUpdatedAt(a, b);
+}
+
 export const SORT_CONFIGS = {
   updated_at: {
     id: 'updated_at',
@@ -144,6 +179,10 @@ export const SORT_CONFIGS = {
   created_at: {
     id: 'created_at',
     fn: sortByCreatedAt,
+  },
+  created_at_asc: {
+    id: 'created_at_asc',
+    fn: sortByCreatedAtAsc,
   },
   viewed_at: {
     id: 'viewed_at',
@@ -157,7 +196,15 @@ export const SORT_CONFIGS = {
     id: 'status',
     fn: sortByStatus,
   },
-} satisfies Record<string, SortConfig<SoupEntity>>;
+  change_size: {
+    id: 'change_size',
+    fn: sortByChangeSize,
+  },
+  comment_count: {
+    id: 'comment_count',
+    fn: sortByCommentCount,
+  },
+} satisfies Record<SystemSortOption, SortConfig<SoupEntity>>;
 
 const SORT_OPTIONS = [
   {
@@ -184,6 +231,21 @@ const SORT_OPTIONS = [
     value: 'status',
     label: 'Status',
     icon: () => <ListChecksIcon class="size-3.5" />,
+  },
+  {
+    value: 'created_at_asc',
+    label: 'Oldest first',
+    icon: () => <ClockCounterClockwiseIcon class="size-3.5" />,
+  },
+  {
+    value: 'change_size',
+    label: 'Most changed',
+    icon: () => <PlusMinusIcon class="size-3.5" />,
+  },
+  {
+    value: 'comment_count',
+    label: 'Most comments',
+    icon: () => <ChatCircleIcon class="size-3.5" />,
   },
 ] as const satisfies SortOption[];
 
@@ -223,4 +285,12 @@ export const CHANNEL_SORT_OPTIONS = buildSortOptions([
   'viewed_at',
   'updated_at',
   'created_at',
+]);
+
+export const GITHUB_PR_SORT_OPTIONS = buildSortOptions([
+  'updated_at',
+  'created_at',
+  'created_at_asc',
+  'change_size',
+  'comment_count',
 ]);

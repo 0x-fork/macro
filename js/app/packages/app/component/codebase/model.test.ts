@@ -29,7 +29,6 @@ import {
   pullRequestDisplayStatus,
   pullRequestGithubKey,
   pullRequestSizeBucket,
-  sortPullRequests,
 } from './model';
 
 type PullRequestOverrides = Omit<
@@ -725,45 +724,6 @@ describe('buildEngineerBentos team scoping', () => {
   });
 });
 
-describe('sortPullRequests', () => {
-  const prs = [
-    makePullRequest({
-      id: 'small-old',
-      createdAt: '2026-07-01T00:00:00Z',
-      updatedAt: '2026-07-02T00:00:00Z',
-      metadata: { additions: 1, deletions: 1, comments: [] },
-    }),
-    makePullRequest({
-      id: 'big-new',
-      createdAt: '2026-07-05T00:00:00Z',
-      updatedAt: '2026-07-06T00:00:00Z',
-      metadata: {
-        additions: 500,
-        deletions: 100,
-        comments: [{ id: 1 }, { id: 2 }] as never,
-      },
-    }),
-    makePullRequest({
-      id: 'mid',
-      createdAt: '2026-07-03T00:00:00Z',
-      updatedAt: '2026-07-04T00:00:00Z',
-      metadata: { additions: 10, deletions: 5, comments: [{ id: 3 }] as never },
-    }),
-  ];
-
-  it('sorts by each option without mutating the input', () => {
-    const ids = (sortId: Parameters<typeof sortPullRequests>[1]) =>
-      sortPullRequests(prs, sortId).map((pr) => pr.id);
-
-    expect(ids('updated')).toEqual(['big-new', 'mid', 'small-old']);
-    expect(ids('newest')).toEqual(['big-new', 'mid', 'small-old']);
-    expect(ids('oldest')).toEqual(['small-old', 'mid', 'big-new']);
-    expect(ids('largest')).toEqual(['big-new', 'mid', 'small-old']);
-    expect(ids('comments')).toEqual(['big-new', 'mid', 'small-old']);
-    expect(prs.map((pr) => pr.id)).toEqual(['small-old', 'big-new', 'mid']);
-  });
-});
-
 describe('groupPullRequests', () => {
   const prs = [
     makePullRequest({
@@ -781,21 +741,21 @@ describe('groupPullRequests', () => {
   ];
 
   it('groups by author with avatars-friendly metadata', () => {
-    const groups = groupPullRequests(prs, 'author');
+    const groups = groupPullRequests(prs, 'pr_author');
     expect(groups.map((g) => g.key)).toEqual(['alice', 'bob']);
     expect(groups[0].authorLogin).toBe('alice');
     expect(groups[0].openCount).toBe(2);
   });
 
   it('groups by status in display order', () => {
-    const groups = groupPullRequests(prs, 'status');
+    const groups = groupPullRequests(prs, 'pr_status');
     expect(groups.map((g) => g.key)).toEqual(['open', 'draft', 'merged']);
     expect(groups.map((g) => g.label)).toEqual(['Open', 'Draft', 'Merged']);
     expect(groups[2].openCount).toBe(0);
   });
 
   it('groups by repository, biggest first', () => {
-    const groups = groupPullRequests(prs, 'repo');
+    const groups = groupPullRequests(prs, 'pr_repository');
     expect(groups.map((g) => g.key)).toEqual([
       'macro-inc/macro',
       'macro-inc/other',
@@ -853,6 +813,26 @@ describe('computeReviewAttention', () => {
     expect(items).toHaveLength(1);
     expect(items[0].notificationIds).toEqual(['n1']);
     expect(items[0].reference).toBe('macro-inc/macro#1');
+  });
+
+  it('builds per-kind sections when given a tag subset', () => {
+    const input = [
+      notification({ id: 'review' }),
+      notification({
+        id: 'mention',
+        tag: 'github_pr_mention',
+        content: { githubKey: 'macro-inc/macro/pull/2', number: 2 },
+      }),
+    ];
+    const reviews = computeReviewAttention(
+      input,
+      [],
+      ['github_review_requested']
+    );
+    const mentions = computeReviewAttention(input, [], ['github_pr_mention']);
+
+    expect(reviews.map((i) => i.notificationIds)).toEqual([['review']]);
+    expect(mentions.map((i) => i.notificationIds)).toEqual([['mention']]);
   });
 
   it('joins to loaded PRs via the github key and dedupes reasons per actor', () => {

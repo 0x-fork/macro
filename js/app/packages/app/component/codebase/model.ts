@@ -726,63 +726,12 @@ export function countTasksByStatus(
   return counts;
 }
 
-export const PR_SORT_OPTIONS = [
-  { id: 'updated', label: 'Recently updated' },
-  { id: 'newest', label: 'Newest' },
-  { id: 'oldest', label: 'Oldest' },
-  { id: 'largest', label: 'Most changed' },
-  { id: 'comments', label: 'Most comments' },
-] as const;
-
-export type PrSortId = (typeof PR_SORT_OPTIONS)[number]['id'];
-
-/** Returns a new array; ties keep the incoming (updated-at) order. */
-export function sortPullRequests(
-  pullRequests: GithubPullRequestEntity[],
-  sortId: PrSortId
-): GithubPullRequestEntity[] {
-  const sorted = [...pullRequests];
-  switch (sortId) {
-    case 'updated':
-      sorted.sort(
-        (a, b) => (toTime(b.updatedAt) ?? 0) - (toTime(a.updatedAt) ?? 0)
-      );
-      break;
-    case 'newest':
-      sorted.sort(
-        (a, b) => (toTime(b.createdAt) ?? 0) - (toTime(a.createdAt) ?? 0)
-      );
-      break;
-    case 'oldest':
-      sorted.sort(
-        (a, b) => (toTime(a.createdAt) ?? 0) - (toTime(b.createdAt) ?? 0)
-      );
-      break;
-    case 'largest':
-      sorted.sort(
-        (a, b) =>
-          b.metadata.additions +
-          b.metadata.deletions -
-          (a.metadata.additions + a.metadata.deletions)
-      );
-      break;
-    case 'comments':
-      sorted.sort(
-        (a, b) => b.metadata.comments.length - a.metadata.comments.length
-      );
-      break;
-  }
-  return sorted;
-}
-
-export const PR_GROUP_OPTIONS = [
-  { id: 'author', label: 'Person' },
-  { id: 'status', label: 'Status' },
-  { id: 'repo', label: 'Repository' },
-  { id: 'none', label: 'No grouping' },
-] as const;
-
-export type PrGroupId = (typeof PR_GROUP_OPTIONS)[number]['id'];
+/**
+ * The soup group-option ids the codebase view supports (see
+ * `GITHUB_PR_GROUP_OPTIONS` in the soup-view group options). Sorting reuses
+ * soup's `SORT_CONFIGS` comparators directly, so no sort model lives here.
+ */
+export type PrGroupId = 'pr_author' | 'pr_status' | 'pr_repository' | 'none';
 
 export const PR_STATUS_LABELS: Record<PrStatusFilter, string> = {
   all: 'All',
@@ -835,7 +784,7 @@ export function groupPullRequests(
     ];
   }
 
-  if (groupBy === 'author') {
+  if (groupBy === 'pr_author') {
     return groupPullRequestsByAuthor(pullRequests).map((group) => ({
       key: group.key,
       label: group.authorLogin ?? 'Unknown author',
@@ -845,7 +794,7 @@ export function groupPullRequests(
     }));
   }
 
-  if (groupBy === 'status') {
+  if (groupBy === 'pr_status') {
     const buckets = new Map<PrDisplayStatus, GithubPullRequestEntity[]>();
     for (const pullRequest of pullRequests) {
       const status = pullRequestDisplayStatus(pullRequest);
@@ -946,21 +895,24 @@ export type ReviewAttentionItem = {
 };
 
 /**
- * Builds "Requires my attention" from the user's own notifications: PRs where
- * I was mentioned or my review was requested, joined to loaded PR rows via
- * the shared github key. Done notifications are excluded, so clearing them in
- * the inbox clears the section too.
+ * Builds attention items from the user's own notifications: PRs where I was
+ * mentioned or my review was requested, joined to loaded PR rows via the
+ * shared github key. Done notifications are excluded, so clearing them in
+ * the inbox clears the section too. Pass a subset of
+ * {@link ATTENTION_NOTIFICATION_TAGS} to build a per-kind section (e.g. only
+ * review requests).
  */
 export function computeReviewAttention(
   notifications: AttentionNotificationLike[],
-  pullRequests: GithubPullRequestEntity[]
+  pullRequests: GithubPullRequestEntity[],
+  includeTags: readonly AttentionTag[] = ATTENTION_NOTIFICATION_TAGS
 ): ReviewAttentionItem[] {
   const prByKey = new Map<string, GithubPullRequestEntity>();
   for (const pullRequest of pullRequests) {
     prByKey.set(pullRequestGithubKey(pullRequest), pullRequest);
   }
 
-  const tags = new Set<string>(ATTENTION_NOTIFICATION_TAGS);
+  const tags = new Set<string>(includeTags);
   const items = new Map<string, ReviewAttentionItem>();
 
   for (const notification of notifications) {

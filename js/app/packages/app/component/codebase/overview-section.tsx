@@ -1,4 +1,15 @@
 import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
+import { GroupDropdown } from '@app/component/next-soup/soup-view/filters-bar/group-dropdown';
+import { SortDropdown } from '@app/component/next-soup/soup-view/filters-bar/sort-dropdown';
+import {
+  GITHUB_PR_GROUP_OPTIONS,
+  type GroupOptionId,
+} from '@app/component/next-soup/soup-view/group-options';
+import {
+  GITHUB_PR_SORT_OPTIONS,
+  SORT_CONFIGS,
+  type SystemSortOption,
+} from '@app/component/next-soup/soup-view/sort-options';
 import { openEntityInSplitFromUnifiedList } from '@app/component/next-soup/utils';
 import { SidePanel } from '@app/component/side-panel';
 import { SplitHeaderLeft } from '@app/component/split-layout/components/SplitHeader';
@@ -20,9 +31,7 @@ import CheckIcon from '@phosphor/check.svg';
 import GitBranchIcon from '@phosphor/git-branch.svg';
 import GitMergeIcon from '@phosphor/git-merge.svg';
 import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
-import SortAscendingIcon from '@phosphor/sort-ascending.svg';
 import SparkleIcon from '@phosphor/sparkle.svg';
-import StackSimpleIcon from '@phosphor/stack-simple.svg';
 import UsersIcon from '@phosphor/users.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import { useGithubLinkStatusQuery } from '@queries/auth/github-link';
@@ -56,18 +65,14 @@ import {
   groupPullRequests,
   matchesPrStatusFilter,
   medianTimeToMergeDays,
-  PR_GROUP_OPTIONS,
-  PR_SORT_OPTIONS,
   PR_STATUS_FILTERS,
   PR_STATUS_LABELS,
   type PrGroupId,
-  type PrSortId,
   type PrStatusFilter,
   type PullRequestGroup,
   pullRequestAuthorKey,
   pullRequestDisplayStatus,
   type ReviewAttentionItem,
-  sortPullRequests,
   UNKNOWN_AUTHOR_KEY,
 } from './model';
 import {
@@ -255,10 +260,11 @@ function AttentionRow(props: {
 }
 
 /**
- * "Requires my attention": PRs where I was mentioned or my review was
- * requested, driven by the same notifications as the inbox. Collapsible.
+ * A collapsible notification-driven section ("Review requested from me" /
+ * "Comments mentioning me"), fed by the same notifications as the inbox.
  */
-function RequiresAttentionCard(props: {
+function AttentionSectionCard(props: {
+  title: string;
   items: ReviewAttentionItem[];
   onOpen: (item: ReviewAttentionItem, event: MouseEvent) => void;
   onDone: (item: ReviewAttentionItem) => void;
@@ -279,7 +285,7 @@ function RequiresAttentionCard(props: {
           )}
         />
         <span class="text-[13px] font-semibold text-ink group-hover:underline">
-          Requires my attention
+          {props.title}
         </span>
         <span class="text-[11px] text-ink-extra-muted tabular-nums">
           {props.items.length === 0
@@ -455,11 +461,12 @@ function InsightsRail(props: {
 }
 
 /**
- * The Codebase dashboard, top to bottom: the PRs that require my attention
- * (driven by my mention / review-request notifications, like the inbox), the
- * team's daily digest, and everyone's pull requests as a unified list. The
- * filter toolbar (status, person, repository, group by, sort) renders into
- * the split header via a portal; key insight charts dock in the right side
+ * The Codebase dashboard, top to bottom: my open pull requests, review
+ * requests and comment mentions aimed at me (driven by the same
+ * notifications as the inbox), the team's daily digest, and everyone's pull
+ * requests as a unified soup-backed list. The filter toolbar (status,
+ * person, repository, and the soup group/sort dropdowns) renders into the
+ * split header via a portal; key insight charts dock in the right side
  * panel. Scoped to the current team's members when the user belongs to one.
  */
 export function OverviewSection() {
@@ -490,17 +497,39 @@ export function OverviewSection() {
   );
   const taskLinks = createTaskLinkIndex(openTasks);
 
-  // --- Requires my attention -------------------------------------------
-  const attentionItems = createMemo(() =>
-    computeReviewAttention(foreignEntityNotifications(), pullRequests())
+  // --- My pull requests --------------------------------------------------
+  // authorLogin comes from the PR metadata; the current user's login comes
+  // from auth-service's /link/github/status.
+  const myLogin = () => githubLink.data?.username;
+  const myPullRequests = createMemo(() => {
+    const login = myLogin();
+    if (!login) return [];
+    return pullRequests().filter((pullRequest) => {
+      if (pullRequest.metadata.authorLogin !== login) return false;
+      const status = pullRequestDisplayStatus(pullRequest);
+      return status === 'open' || status === 'draft';
+    });
+  });
+
+  // --- Notification-driven sections ---------------------------------------
+  const reviewRequests = createMemo(() =>
+    computeReviewAttention(foreignEntityNotifications(), pullRequests(), [
+      'github_review_requested',
+    ])
+  );
+  const mentions = createMemo(() =>
+    computeReviewAttention(foreignEntityNotifications(), pullRequests(), [
+      'github_pr_mention',
+    ])
   );
 
   // --- The unified list (state drives the header toolbar) ---------------
   const [statusFilter, setStatusFilter] = createSignal<PrStatusFilter>('open');
   const [authorFilter, setAuthorFilter] = createSignal<string[]>([]);
   const [repoFilter, setRepoFilter] = createSignal<string[]>([]);
-  const [groupBy, setGroupBy] = createSignal<PrGroupId>('author');
-  const [sortId, setSortId] = createSignal<PrSortId>('updated');
+  // Group/sort reuse the soup-view option sets and comparators.
+  const [groupBy, setGroupBy] = createSignal<GroupOptionId>('pr_author');
+  const [sortId, setSortId] = createSignal<SystemSortOption>('updated_at');
 
   const authors = createMemo(() => {
     const logins = new Set<string>();
@@ -553,14 +582,13 @@ export function OverviewSection() {
     });
   });
 
-  const groups = createMemo(() =>
-    groupPullRequests(sortPullRequests(filtered(), sortId()), groupBy())
+  const sorted = createMemo(() =>
+    [...filtered()].sort(SORT_CONFIGS[sortId()].fn)
   );
 
-  const groupLabel = () =>
-    PR_GROUP_OPTIONS.find((option) => option.id === groupBy())?.label ?? '';
-  const sortLabel = () =>
-    PR_SORT_OPTIONS.find((option) => option.id === sortId())?.label ?? '';
+  const groups = createMemo(() =>
+    groupPullRequests(sorted(), groupBy() as PrGroupId)
+  );
 
   // Per-engineer AI summaries, keyed by author login (bentos exist purely to
   // feed the digest builder and reuse its team scoping).
@@ -722,62 +750,16 @@ export function OverviewSection() {
                   </Dropdown.Group>
                 </Dropdown.Content>
               </Dropdown>
-              <Dropdown placement="bottom-start" gutter={4}>
-                <Dropdown.Trigger
-                  variant="ghost"
-                  size="sm"
-                  class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
-                >
-                  <StackSimpleIcon class="size-3.5" />
-                  {groupLabel()}
-                  <CaretDownIcon class="size-3 text-ink-extra-muted" />
-                </Dropdown.Trigger>
-                <Dropdown.Content class="min-w-44 shadow-menu">
-                  <Dropdown.Group class="p-1">
-                    <For each={PR_GROUP_OPTIONS}>
-                      {(option) => (
-                        <Dropdown.Item
-                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
-                          onSelect={() => setGroupBy(option.id)}
-                        >
-                          <span class="flex-1">{option.label}</span>
-                          <Show when={groupBy() === option.id}>
-                            <CheckIcon class="size-3.5 text-accent" />
-                          </Show>
-                        </Dropdown.Item>
-                      )}
-                    </For>
-                  </Dropdown.Group>
-                </Dropdown.Content>
-              </Dropdown>
-              <Dropdown placement="bottom-start" gutter={4}>
-                <Dropdown.Trigger
-                  variant="ghost"
-                  size="sm"
-                  class="gap-1.5 text-ink-muted ring ring-edge-muted ring-inset rounded-lg"
-                >
-                  <SortAscendingIcon class="size-3.5" />
-                  {sortLabel()}
-                  <CaretDownIcon class="size-3 text-ink-extra-muted" />
-                </Dropdown.Trigger>
-                <Dropdown.Content class="min-w-44 shadow-menu">
-                  <Dropdown.Group class="p-1">
-                    <For each={PR_SORT_OPTIONS}>
-                      {(option) => (
-                        <Dropdown.Item
-                          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink outline-none data-highlighted:bg-ink/5"
-                          onSelect={() => setSortId(option.id)}
-                        >
-                          <span class="flex-1">{option.label}</span>
-                          <Show when={sortId() === option.id}>
-                            <CheckIcon class="size-3.5 text-accent" />
-                          </Show>
-                        </Dropdown.Item>
-                      )}
-                    </For>
-                  </Dropdown.Group>
-                </Dropdown.Content>
-              </Dropdown>
+              <GroupDropdown
+                value={groupBy}
+                onChange={setGroupBy}
+                options={GITHUB_PR_GROUP_OPTIONS}
+              />
+              <SortDropdown
+                value={sortId}
+                onChange={setSortId}
+                options={GITHUB_PR_SORT_OPTIONS}
+              />
             </div>
           </Show>
         </div>
@@ -796,7 +778,9 @@ export function OverviewSection() {
             </Match>
             <Match
               when={
-                pullRequests().length === 0 && attentionItems().length === 0
+                pullRequests().length === 0 &&
+                reviewRequests().length === 0 &&
+                mentions().length === 0
               }
             >
               <EmptyStatePanel
@@ -813,8 +797,55 @@ export function OverviewSection() {
                 class="flex w-full flex-col gap-4 px-4 py-4 pb-8"
               >
                 <ListLayoutProvider ref={() => listRef}>
-                  <RequiresAttentionCard
-                    items={attentionItems()}
+                  <Show when={myLogin()}>
+                    <section>
+                      <SectionHeading
+                        title="My pull requests"
+                        meta={
+                          myPullRequests().length > 0
+                            ? `${myPullRequests().length} open`
+                            : undefined
+                        }
+                      />
+                      <Show
+                        when={myPullRequests().length > 0}
+                        fallback={
+                          <p class="px-3 py-1 text-xs text-ink-extra-muted">
+                            Nothing open right now.
+                          </p>
+                        }
+                      >
+                        <For each={myPullRequests()}>
+                          {(pullRequest) => (
+                            <PullRequestRowWithTasks
+                              linked={taskLinks.tasksFor(pullRequest)}
+                              pillLimit={TASK_PILL_LIMIT}
+                              onOpenTask={openTaskInNewSplit}
+                            >
+                              <ListEntity
+                                entity={pullRequest}
+                                hideCheckbox
+                                onClick={(event) =>
+                                  openInCurrentSplit(pullRequest, event)
+                                }
+                              />
+                            </PullRequestRowWithTasks>
+                          )}
+                        </For>
+                      </Show>
+                    </section>
+                  </Show>
+
+                  <AttentionSectionCard
+                    title="Review requested from me"
+                    items={reviewRequests()}
+                    onOpen={openAttentionItem}
+                    onDone={markAttentionDone}
+                  />
+
+                  <AttentionSectionCard
+                    title="Comments mentioning me"
+                    items={mentions()}
                     onOpen={openAttentionItem}
                     onDone={markAttentionDone}
                   />
@@ -843,9 +874,9 @@ export function OverviewSection() {
                             <Show when={group.label !== ''}>
                               <GroupHeader
                                 group={group}
-                                showAvatar={groupBy() === 'author'}
+                                showAvatar={groupBy() === 'pr_author'}
                                 summary={
-                                  groupBy() === 'author' &&
+                                  groupBy() === 'pr_author' &&
                                   group.key !== UNKNOWN_AUTHOR_KEY
                                     ? engineerSummaries.data?.get(group.key)
                                     : undefined

@@ -5,12 +5,27 @@ export type GroupOptionId =
   | 'date'
   | 'entity_type'
   | 'project'
-  | `property:${string}`;
+  | `property:${string}`
+  | 'pr_author'
+  | 'pr_status'
+  | 'pr_repository';
 
 export interface GroupOption {
   value: GroupOptionId;
   label: string;
 }
+
+/**
+ * Groupings over GitHub pull request metadata (author login, display status,
+ * owner/repo). Applied client-side — the server's grouped endpoint has no
+ * group keys for foreign entities.
+ */
+export const GITHUB_PR_GROUP_OPTIONS: GroupOption[] = [
+  { value: 'pr_author', label: 'Person' },
+  { value: 'pr_status', label: 'Status' },
+  { value: 'pr_repository', label: 'Repository' },
+  { value: 'none', label: 'None' },
+];
 
 const GROUP_OPTIONS = [
   { value: 'none', label: 'None' },

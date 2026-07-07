@@ -3718,6 +3718,10 @@
         "type": "object",
         "required": ["reauthentication_required"],
         "properties": {
+          "github_username": {
+            "type": ["string", "null"],
+            "description": "The login of the linked GitHub account, when available. Lets clients identify \"my\" pull requests without a separate lookup."
+          },
           "reauthentication_required": {
             "type": "boolean",
             "description": "Whether the user must reauthenticate their GitHub link."
