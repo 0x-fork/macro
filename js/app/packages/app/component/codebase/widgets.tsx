@@ -4,11 +4,13 @@ import { createMemo, type JSX, Show } from 'solid-js';
 import { AuthorAvatar } from './author-avatar';
 import {
   BeeswarmChart,
+  ColumnHistogram,
   DivergingBarChart,
   DivergingLegend,
+  DonutChart,
+  DonutLegend,
   HorizontalBarList,
   LegendSwatch,
-  StackedStatusBar,
   StatTile,
   ThroughputChart,
   ThroughputLegend,
@@ -168,7 +170,15 @@ export function TaskStatusCard(props: {
       subtitle={`${openTaskCount()} open of ${props.tasks.length} recent tasks`}
       inset={props.inset}
     >
-      <StackedStatusBar segments={segments()} />
+      <div class="flex flex-wrap items-center gap-x-10 gap-y-4">
+        <DonutChart
+          segments={segments()}
+          centerValue={openTaskCount()}
+          centerCaption="open tasks"
+          ariaLabel="Tasks by status"
+        />
+        <DonutLegend segments={segments()} />
+      </div>
     </Card>
   );
 }
@@ -299,11 +309,12 @@ export function SizeDistributionCard(props: {
   pullRequests: GithubPullRequestEntity[];
   inset?: boolean;
 }) {
-  const segments = createMemo(() => {
+  const bins = createMemo(() => {
     const counts = countPrSizeBuckets(props.pullRequests);
     return PR_SIZE_BUCKETS.map((bucket) => ({
       key: bucket.key,
-      label: `${bucket.label} (${bucket.description})`,
+      label: bucket.label,
+      description: bucket.description,
       color: SIZE_BUCKET_COLORS[bucket.key],
       count: counts.get(bucket.key) ?? 0,
     }));
@@ -315,7 +326,10 @@ export function SizeDistributionCard(props: {
       subtitle="Changed lines per PR — small PRs merge faster"
       inset={props.inset}
     >
-      <StackedStatusBar segments={segments()} />
+      <ColumnHistogram
+        bins={bins()}
+        ariaLabel="Pull requests by changed-lines size bucket"
+      />
     </Card>
   );
 }
@@ -341,7 +355,15 @@ export function AreaBreakdownCard(props: {
       subtitle="Auto-detected from repo and PR titles"
       inset={props.inset}
     >
-      <StackedStatusBar segments={segments()} />
+      <div class="flex flex-wrap items-center gap-x-10 gap-y-4">
+        <DonutChart
+          segments={segments()}
+          centerValue={props.pullRequests.length}
+          centerCaption="pull requests"
+          ariaLabel="Pull requests by work area"
+        />
+        <DonutLegend segments={segments()} />
+      </div>
     </Card>
   );
 }

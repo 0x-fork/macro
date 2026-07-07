@@ -1,4 +1,3 @@
-import { cn } from '@ui';
 import {
   createMemo,
   createSignal,
@@ -1139,66 +1138,340 @@ export function BeeswarmChart(props: BeeswarmChartProps) {
   );
 }
 
-export type StackedBarSegment = {
+export type DonutSegment = {
   key: string;
   label: string;
   count: number;
   color: string;
 };
 
-type StackedStatusBarProps = {
-  segments: StackedBarSegment[];
-  class?: string;
+type DonutChartProps = {
+  segments: DonutSegment[];
+  /** Center stat when nothing is hovered. */
+  centerValue: string | number;
+  centerCaption: string;
+  ariaLabel: string;
 };
 
+const DONUT_SIZE = 200;
+const DONUT_RADIUS = 74;
+const DONUT_STROKE = 18;
+const DONUT_GAP_DEG = 2.5;
+
+function polar(angleDeg: number, radius: number): Point {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return {
+    x: DONUT_SIZE / 2 + radius * Math.cos(rad),
+    y: DONUT_SIZE / 2 + radius * Math.sin(rad),
+  };
+}
+
+function donutArcPath(startDeg: number, endDeg: number): string {
+  const start = polar(startDeg, DONUT_RADIUS);
+  const end = polar(endDeg, DONUT_RADIUS);
+  const largeArc = endDeg - startDeg > 180 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${DONUT_RADIUS} ${DONUT_RADIUS} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+}
+
 /**
- * Horizontal part-to-whole bar with 2px surface gaps between segments and a
- * legend carrying label + count (identity is never color alone).
+ * Interactive donut with a center stat: rounded-cap arc segments with angular
+ * gaps; hovering a segment swaps the center readout for that segment's label
+ * and count (identity also carries via the legend the caller renders).
  */
-export function StackedStatusBar(props: StackedStatusBarProps) {
-  const total = createMemo(() =>
-    props.segments.reduce((sum, segment) => sum + segment.count, 0)
-  );
-  const visible = createMemo(() =>
-    props.segments.filter((segment) => segment.count > 0)
+export function DonutChart(props: DonutChartProps) {
+  const [hovered, setHovered] = createSignal<string | undefined>();
+
+  const arcs = createMemo(() => {
+    const visible = props.segments.filter((segment) => segment.count > 0);
+    const total = visible.reduce((sum, segment) => sum + segment.count, 0);
+    if (total === 0) return [];
+
+    // Round linecaps extend half the stroke width past each arc end.
+    const capDeg = (DONUT_STROKE / 2 / DONUT_RADIUS) * (180 / Math.PI);
+    const gap = visible.length > 1 ? DONUT_GAP_DEG : 0;
+
+    let cursor = 0;
+    return visible.map((segment) => {
+      const sweep = (segment.count / total) * 360;
+      const start = cursor + gap / 2 + capDeg;
+      const end = cursor + sweep - gap / 2 - capDeg;
+      cursor += sweep;
+      return { segment, start, end, mid: cursor - sweep / 2 };
+    });
+  });
+
+  const hoveredSegment = createMemo(() =>
+    props.segments.find((segment) => segment.key === hovered())
   );
 
   return (
-    <div class={cn('flex flex-col gap-3', props.class)}>
-      <Show
-        when={total() > 0}
-        fallback={<div class="h-2.5 rounded-full bg-ink/6" />}
+    <div class="relative" style={{ width: `${DONUT_SIZE}px` }}>
+      <svg
+        role="img"
+        aria-label={props.ariaLabel}
+        width={DONUT_SIZE}
+        height={DONUT_SIZE}
+        onMouseLeave={() => setHovered(undefined)}
       >
-        <div class="flex h-2.5 w-full gap-[2px]">
-          <For each={visible()}>
-            {(segment) => (
-              <div
-                class="min-w-1.5 rounded-full"
-                style={{
-                  'background-image': `linear-gradient(90deg, color-mix(in oklab, ${segment.color} 78%, transparent), ${segment.color})`,
-                  'flex-grow': segment.count,
-                  'flex-basis': '0px',
-                }}
-                title={`${segment.label}: ${segment.count}`}
-              />
-            )}
-          </For>
-        </div>
-      </Show>
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <For each={props.segments}>
-          {(segment) => (
-            <span class="inline-flex items-center gap-1.5 text-[11px] text-ink-muted">
-              <span
-                class="size-2 rounded-full"
-                style={{ 'background-color': segment.color }}
-              />
-              {segment.label}
-              <span class="text-ink tabular-nums">{segment.count}</span>
-            </span>
-          )}
+        {/* Track ring behind the segments */}
+        <circle
+          cx={DONUT_SIZE / 2}
+          cy={DONUT_SIZE / 2}
+          r={DONUT_RADIUS}
+          fill="none"
+          stroke="var(--color-ink)"
+          stroke-opacity={0.05}
+          stroke-width={DONUT_STROKE}
+        />
+        <For each={arcs()}>
+          {(arc) => {
+            const active = () => hovered() === arc.segment.key;
+            const dimmed = () => hovered() !== undefined && !active();
+            return (
+              <Show
+                when={arc.end > arc.start}
+                fallback={
+                  <circle
+                    cx={polar(arc.mid, DONUT_RADIUS).x}
+                    cy={polar(arc.mid, DONUT_RADIUS).y}
+                    r={DONUT_STROKE / 2}
+                    fill={arc.segment.color}
+                    opacity={dimmed() ? 0.35 : 1}
+                    onMouseEnter={() => setHovered(arc.segment.key)}
+                  />
+                }
+              >
+                <path
+                  d={donutArcPath(arc.start, arc.end)}
+                  fill="none"
+                  stroke={arc.segment.color}
+                  stroke-width={active() ? DONUT_STROKE + 4 : DONUT_STROKE}
+                  stroke-linecap="round"
+                  opacity={dimmed() ? 0.35 : 1}
+                  onMouseEnter={() => setHovered(arc.segment.key)}
+                />
+              </Show>
+            );
+          }}
         </For>
+      </svg>
+      <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+        <Show
+          when={hoveredSegment()}
+          fallback={
+            <>
+              <span class="text-2xl font-semibold text-ink leading-tight">
+                {props.centerValue}
+              </span>
+              <span class="max-w-24 text-[11px] text-ink-extra-muted">
+                {props.centerCaption}
+              </span>
+            </>
+          }
+        >
+          {(segment) => (
+            <>
+              <span class="text-2xl font-semibold text-ink leading-tight tabular-nums">
+                {segment().count}
+              </span>
+              <span class="max-w-24 truncate text-[11px] text-ink-muted">
+                {segment().label}
+              </span>
+            </>
+          )}
+        </Show>
       </div>
+    </div>
+  );
+}
+
+export function DonutLegend(props: { segments: DonutSegment[] }) {
+  return (
+    <div class="flex min-w-0 flex-col gap-2">
+      <For each={props.segments}>
+        {(segment) => (
+          <span class="inline-flex items-center gap-2 text-xs text-ink-muted">
+            <span
+              class="size-2 shrink-0 rounded-full"
+              style={{ 'background-color': segment.color }}
+            />
+            <span class="min-w-0 flex-1 truncate">{segment.label}</span>
+            <span class="text-ink tabular-nums">{segment.count}</span>
+          </span>
+        )}
+      </For>
+    </div>
+  );
+}
+
+export type HistogramBin = {
+  key: string;
+  label: string;
+  /** Longer description for the tooltip (e.g. "< 100 lines"). */
+  description?: string;
+  count: number;
+  color: string;
+};
+
+type ColumnHistogramProps = {
+  bins: HistogramBin[];
+  ariaLabel: string;
+};
+
+const HISTOGRAM_HEIGHT = 176;
+
+/**
+ * Column histogram with gradient fills, dashed gridlines, and a direct count
+ * label on every cap (few bins, so labels stay sparse).
+ */
+export function ColumnHistogram(props: ColumnHistogramProps) {
+  const uid = createUniqueId();
+  const [containerRef, width] = useElementWidth();
+  const [hovered, setHovered] = createSignal<number | undefined>();
+
+  const layout = createMemo(() => {
+    const chartWidth = Math.max(width(), 0);
+    const innerWidth = Math.max(chartWidth - MARGIN.left - MARGIN.right, 0);
+    const innerHeight = HISTOGRAM_HEIGHT - MARGIN.top - MARGIN.bottom;
+    const bandWidth = props.bins.length
+      ? innerWidth / props.bins.length
+      : innerWidth;
+    const barWidth = Math.min(36, Math.max(8, bandWidth * 0.44));
+    const max = niceMax(Math.max(1, ...props.bins.map((bin) => bin.count)));
+    const yFor = (value: number) =>
+      MARGIN.top + innerHeight * (1 - value / max);
+    const centerFor = (index: number) =>
+      MARGIN.left + index * bandWidth + bandWidth / 2;
+    return {
+      chartWidth,
+      innerHeight,
+      bandWidth,
+      barWidth,
+      max,
+      yFor,
+      centerFor,
+      baseY: MARGIN.top + innerHeight,
+      ticks: [0, max / 2, max].filter((t) => Number.isInteger(t) || t === max),
+    };
+  });
+
+  return (
+    <div ref={containerRef} class="relative w-full">
+      <Show when={width() > 0}>
+        <svg
+          role="img"
+          aria-label={props.ariaLabel}
+          width={layout().chartWidth}
+          height={HISTOGRAM_HEIGHT}
+          onMouseLeave={() => setHovered(undefined)}
+        >
+          <defs>
+            <For each={props.bins}>
+              {(bin, index) => (
+                <linearGradient
+                  id={`hist-${uid}-${index()}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stop-color={bin.color}
+                    stop-opacity="0.95"
+                  />
+                  <stop
+                    offset="100%"
+                    stop-color={bin.color}
+                    stop-opacity="0.35"
+                  />
+                </linearGradient>
+              )}
+            </For>
+          </defs>
+
+          <DashedGrid
+            ticks={layout().ticks}
+            yFor={layout().yFor}
+            x1={MARGIN.left}
+            x2={layout().chartWidth - MARGIN.right}
+            format={(v) => COMPACT_FORMAT.format(v)}
+          />
+
+          <Index each={props.bins}>
+            {(bin, index) => {
+              const height = () =>
+                (bin().count / layout().max) * layout().innerHeight;
+              return (
+                <>
+                  <Show when={bin().count > 0}>
+                    <path
+                      d={columnPath(
+                        layout().centerFor(index) - layout().barWidth / 2,
+                        layout().baseY - height(),
+                        layout().barWidth,
+                        height()
+                      )}
+                      fill={`url(#hist-${uid}-${index})`}
+                      opacity={
+                        hovered() !== undefined && hovered() !== index
+                          ? 0.45
+                          : 1
+                      }
+                    />
+                    <text
+                      x={layout().centerFor(index)}
+                      y={layout().baseY - height() - 6}
+                      text-anchor="middle"
+                      class="fill-ink-muted text-[10px] font-medium tabular-nums"
+                    >
+                      {COMPACT_FORMAT.format(bin().count)}
+                    </text>
+                  </Show>
+                  <text
+                    x={layout().centerFor(index)}
+                    y={HISTOGRAM_HEIGHT - 8}
+                    text-anchor="middle"
+                    class="fill-ink-extra-muted/80 text-[10px]"
+                  >
+                    {bin().label}
+                  </text>
+                  <rect
+                    x={MARGIN.left + index * layout().bandWidth}
+                    y={MARGIN.top}
+                    width={layout().bandWidth}
+                    height={layout().innerHeight}
+                    fill="transparent"
+                    onMouseEnter={() => setHovered(index)}
+                  />
+                </>
+              );
+            }}
+          </Index>
+        </svg>
+
+        <Show when={hovered() !== undefined && props.bins[hovered() ?? 0]}>
+          {(bin) => (
+            <ChartTooltip
+              x={layout().centerFor(hovered() ?? 0)}
+              chartWidth={layout().chartWidth}
+            >
+              <div class="mb-0.5 font-medium text-ink">
+                {bin().label}
+                <Show when={bin().description}>
+                  <span class="text-ink-extra-muted">
+                    {' '}
+                    · {bin().description}
+                  </span>
+                </Show>
+              </div>
+              <div class="text-ink-muted tabular-nums">
+                {bin().count} pull requests
+              </div>
+            </ChartTooltip>
+          )}
+        </Show>
+      </Show>
     </div>
   );
 }
@@ -1233,27 +1506,28 @@ export function HorizontalBarList(props: HorizontalBarListProps) {
     (props.formatValue ?? ((v: number) => COMPACT_FORMAT.format(v)))(value);
 
   return (
-    <div class="flex flex-col gap-2.5">
+    <div class="flex flex-col">
       <For each={props.rows}>
         {(row) => {
           const total = () =>
             row.segments.reduce((sum, segment) => sum + segment.value, 0);
           return (
-            <div class="flex items-center gap-3">
+            <div class="group/bar-row -mx-2 flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-ink/3">
               <div class="w-36 min-w-0 shrink-0 truncate text-xs text-ink">
                 {row.label}
               </div>
-              <div class="flex h-2 flex-1 items-center">
+              {/* Full-width track keeps every row on one shared scale */}
+              <div class="relative h-2 flex-1 overflow-hidden rounded-full bg-ink/5">
                 <div
-                  class="flex h-2 gap-[2px]"
+                  class="absolute inset-y-0 left-0 flex gap-[2px]"
                   style={{ width: `${(total() / max()) * 100}%` }}
                 >
                   <For each={row.segments.filter((s) => s.value > 0)}>
                     {(segment) => (
                       <div
-                        class="h-2 min-w-1 rounded-full"
+                        class="h-full min-w-1 rounded-full"
                         style={{
-                          'background-image': `linear-gradient(90deg, color-mix(in oklab, ${segment.color} 72%, transparent), ${segment.color})`,
+                          'background-image': `linear-gradient(90deg, color-mix(in oklab, ${segment.color} 62%, transparent), ${segment.color})`,
                           'flex-grow': segment.value,
                           'flex-basis': '0px',
                         }}
@@ -1262,10 +1536,10 @@ export function HorizontalBarList(props: HorizontalBarListProps) {
                     )}
                   </For>
                 </div>
-                <span class="ml-2 shrink-0 text-[11px] text-ink-muted tabular-nums">
-                  {format(total())}
-                </span>
               </div>
+              <span class="w-9 shrink-0 text-right text-[11px] text-ink-muted tabular-nums group-hover/bar-row:text-ink">
+                {format(total())}
+              </span>
             </div>
           );
         }}
