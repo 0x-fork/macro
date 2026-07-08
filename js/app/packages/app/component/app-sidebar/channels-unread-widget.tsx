@@ -364,6 +364,7 @@ function PreviewThreadSkeleton() {
 
 function GroupHoverPreview(props: { group: ChannelGroup }) {
   const orchestrator = useGlobalBlockOrchestrator();
+  const previewManager = useUnreadPreviewManager();
   const roots = () => getPreviewThreadRoots(props.group);
   // Show the latest few threads oldest → newest, like the channel reads.
   const visible = () => roots().slice(0, HOVER_PREVIEW_COUNT).reverse();
@@ -453,6 +454,7 @@ function GroupHoverPreview(props: { group: ChannelGroup }) {
             errorFallback={(retry) => <PreviewThreadError retry={retry} />}
             onClickMessage={(clickedMessageId, e) => {
               e.stopPropagation();
+              previewManager.dismiss();
               const isReply = clickedMessageId !== rootMessageId;
               navigateToChannelMessage(
                 orchestrator,
@@ -530,6 +532,7 @@ function ChannelGroupItem(props: {
   channelLetters?: string;
 }) {
   const notificationSource = useGlobalNotificationSource();
+  const previewManager = useUnreadPreviewManager();
   const [isVisible, setIsVisible] = createSignal(!props.animate);
 
   onMount(() => {
@@ -563,6 +566,7 @@ function ChannelGroupItem(props: {
   const navigateToLatestNotification = (newSplit = false) => {
     const manager = globalSplitManager();
     if (!manager) return;
+    previewManager.dismiss();
     const notification = latestNotification();
     openNotification(notification, manager, newSplit);
   };
@@ -740,6 +744,14 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
 
   const groupById = (id: string) => channelGroupsMap().get(id);
 
+  // A row being removed still runs cleanups and event handlers after the map
+  // has dropped its group, so each row holds on to the last non-null group.
+  const createRowGroup = (entityId: string) =>
+    createMemo<ChannelGroup | undefined>(
+      (prev) => groupById(entityId) ?? prev,
+      groupById(entityId)
+    );
+
   const channelLettersMap = createMemo(() =>
     computeChannelLetters(channelGroups())
   );
@@ -829,16 +841,19 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
           fallback={
             <section class="w-full py-1.5 flex flex-col items-start gap-0.5">
               <For each={slimVisibleIds()}>
-                {(entityId) => (
-                  <Show when={groupById(entityId) != null}>
-                    <ChannelGroupItem
-                      group={groupById(entityId)!}
-                      animate={false}
-                      isSlim
-                      channelLetters={channelLettersMap().get(entityId)}
-                    />
-                  </Show>
-                )}
+                {(entityId) => {
+                  const group = createRowGroup(entityId);
+                  return (
+                    <Show when={group() != null}>
+                      <ChannelGroupItem
+                        group={group()!}
+                        animate={false}
+                        isSlim
+                        channelLetters={channelLettersMap().get(entityId)}
+                      />
+                    </Show>
+                  );
+                }}
               </For>
               <Show when={slimOverflow() > 0}>
                 <span class="w-full text-center text-xxs text-ink-muted mt-1">
@@ -863,15 +878,18 @@ export const ChannelsUnreadWidget = (props: { sidebarState: SidebarState }) => {
                 class="size-full overflow-y-auto overscroll-contain flex flex-col gap-0.5 pr-1 -mr-1"
               >
                 <For each={visibleGroupIds()}>
-                  {(entityId) => (
-                    <Show when={groupById(entityId) != null}>
-                      <ChannelGroupItem
-                        group={groupById(entityId)!}
-                        animate={false}
-                        channelLetters={channelLettersMap().get(entityId)}
-                      />
-                    </Show>
-                  )}
+                  {(entityId) => {
+                    const group = createRowGroup(entityId);
+                    return (
+                      <Show when={group() != null}>
+                        <ChannelGroupItem
+                          group={group()!}
+                          animate={false}
+                          channelLetters={channelLettersMap().get(entityId)}
+                        />
+                      </Show>
+                    );
+                  }}
                 </For>
               </div>
               <div
