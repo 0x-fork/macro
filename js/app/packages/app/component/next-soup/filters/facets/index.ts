@@ -1,3 +1,4 @@
+import { COMPANY_OWNER, COMPANY_STAGE } from './companies';
 import { DOCUMENT_TYPE } from './documents';
 import { ENTITY_TYPE, INBOX_FOCUS } from './inbox';
 import {
@@ -23,6 +24,7 @@ import {
 import { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
 
 export * from './base';
+export { COMPANY_OWNER, COMPANY_STAGE } from './companies';
 export { DOCUMENT_TYPE } from './documents';
 export { ENTITY_TYPE, INBOX_FOCUS } from './inbox';
 export {
@@ -72,6 +74,8 @@ export const ALL_FACETS = [
   TASK_CREATED_BY,
   TAG,
   PROJECT_SCOPE,
+  COMPANY_STAGE,
+  COMPANY_OWNER,
 ] as const;
 
 export type FacetId = (typeof ALL_FACETS)[number]['id'];

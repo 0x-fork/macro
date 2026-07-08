@@ -300,8 +300,49 @@ export const UnifiedFilterDropdown = (
 
   const handleAssigneeChange = (ids: string[]) => setAssigneeFilter(ids);
 
+  // Owner options for the Customers view (contacts, plus a "No owner" row).
+  const ownerOptions = createMemo((): SearchableOption[] => {
+    const currentUserId = userId();
+    const noOwnerOption: SearchableOption = {
+      id: NO_ASSIGNEE,
+      label: 'No owner',
+      icon: () => <CircleDashedIcon class="size-3.5 text-ink-muted" />,
+    };
+    let meOption: SearchableOption | undefined;
+    const otherContactOptions: SearchableOption[] = [];
+    for (const contact of contacts()) {
+      const opt: SearchableOption = {
+        id: contact.id,
+        label: buildContactLabel(contact, currentUserId),
+        icon: () => (
+          <UserIcon
+            id={contact.id}
+            size="sm"
+            suppressClick
+            showTooltip={false}
+          />
+        ),
+      };
+      if (contact.id === currentUserId) {
+        meOption = opt;
+      } else {
+        otherContactOptions.push(opt);
+      }
+    }
+    return [
+      ...(meOption ? [meOption] : []),
+      noOwnerOption,
+      ...otherContactOptions,
+    ];
+  });
+
+  const ownerFilter = () => soup.facets.getSelected('company-owner');
+  const handleOwnerChange = (ids: string[]) =>
+    soup.facets.set('company-owner', ids);
+
   const isTasksView = () => currentView() === 'tasks';
   const isDocumentsView = () => currentView() === 'documents';
+  const isCompaniesView = () => currentView() === 'companies';
 
   const tagFilter = useTagFilter();
   const showTagsFilter = () =>
@@ -383,7 +424,10 @@ export const UnifiedFilterDropdown = (
             </Show>
             <Show
               when={
-                categories().length === 1 && !isTasksView() && !isNewInbox()
+                categories().length === 1 &&
+                !isTasksView() &&
+                !isNewInbox() &&
+                !isCompaniesView()
               }
               fallback={
                 <>
@@ -444,6 +488,17 @@ export const UnifiedFilterDropdown = (
                       activeIds={assigneeFilter}
                       onChange={handleAssigneeChange}
                       placeholder="Search assignees..."
+                    />
+                  </Show>
+
+                  {/* Owner filter for the Customers view */}
+                  <Show when={isCompaniesView()}>
+                    <SearchableFilterSubmenu
+                      label="Owner"
+                      options={ownerOptions}
+                      activeIds={ownerFilter}
+                      onChange={handleOwnerChange}
+                      placeholder="Search owners..."
                     />
                   </Show>
                 </>

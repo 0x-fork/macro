@@ -295,13 +295,95 @@ const DOCUMENTS_FILTER_CATEGORIES: FilterCategory[] = [
   },
 ];
 
+const COMPANIES_FILTER_CATEGORIES: FilterCategory[] = [
+  {
+    id: 'company-stage',
+    label: 'Stage',
+    labelPlural: 'Stages',
+    options: [
+      {
+        id: 'company-stage-lead',
+        label: 'Lead',
+        icon: () => (
+          <PropertyValueIcon
+            optionId={PROPERTY_OPTION_IDS.STAGE.LEAD}
+            class="size-3.5"
+          />
+        ),
+      },
+      {
+        id: 'company-stage-qualified',
+        label: 'Qualified',
+        icon: () => (
+          <PropertyValueIcon
+            optionId={PROPERTY_OPTION_IDS.STAGE.QUALIFIED}
+            class="size-3.5"
+          />
+        ),
+      },
+      {
+        id: 'company-stage-demo',
+        label: 'Demo',
+        icon: () => (
+          <PropertyValueIcon
+            optionId={PROPERTY_OPTION_IDS.STAGE.DEMO}
+            class="size-3.5"
+          />
+        ),
+      },
+      {
+        id: 'company-stage-trial',
+        label: 'Trial',
+        icon: () => (
+          <PropertyValueIcon
+            optionId={PROPERTY_OPTION_IDS.STAGE.TRIAL}
+            class="size-3.5"
+          />
+        ),
+      },
+      {
+        id: 'company-stage-negotiation',
+        label: 'Negotiation',
+        icon: () => (
+          <PropertyValueIcon
+            optionId={PROPERTY_OPTION_IDS.STAGE.NEGOTIATION}
+            class="size-3.5"
+          />
+        ),
+      },
+      {
+        id: 'company-stage-customer',
+        label: 'Customer',
+        icon: () => (
+          <PropertyValueIcon
+            optionId={PROPERTY_OPTION_IDS.STAGE.CUSTOMER}
+            class="size-3.5"
+          />
+        ),
+      },
+      {
+        id: 'company-stage-churned',
+        label: 'Churned',
+        icon: () => (
+          <PropertyValueIcon
+            optionId={PROPERTY_OPTION_IDS.STAGE.CHURNED}
+            class="size-3.5"
+          />
+        ),
+      },
+      { id: 'company-no-stage', label: 'No Stage' },
+    ],
+    multiple: true,
+  },
+];
+
 export const VIEW_FACETS: Record<ListView, FilterCategory[]> = {
   inbox: INBOX_FILTER_CATEGORIES,
   agents: [],
   mail: MAIL_FILTER_CATEGORIES,
   documents: DOCUMENTS_FILTER_CATEGORIES,
   tasks: TASKS_FILTER_CATEGORIES,
-  companies: [],
+  companies: COMPANIES_FILTER_CATEGORIES,
   channels: [],
   calls: [],
   folders: [],
