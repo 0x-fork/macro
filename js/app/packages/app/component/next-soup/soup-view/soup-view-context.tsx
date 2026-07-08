@@ -20,13 +20,15 @@ import {
 } from '@app/component/next-soup/filters/filter-store/query-store';
 import { createGroupedSoupQueries } from '@app/component/next-soup/soup-view/create-grouped-soup-queries';
 import { createSearchState } from '@app/component/next-soup/soup-view/create-search-state';
-import { DateGroupHeader } from '@app/component/next-soup/soup-view/date-group-header';
 import { dateBucket } from '@app/component/next-soup/soup-view/group-by-date';
 import {
   INBOX_FILTER_ENTRY_KEY,
   registerInboxFilterSplit,
 } from '@app/component/next-soup/soup-view/inbox-filter-controllers';
-import { deduplicateEntities } from '@app/component/next-soup/utils';
+import {
+  deduplicateEntities,
+  scopeChannelNotificationsForEntity,
+} from '@app/component/next-soup/utils';
 import { useEntryState } from '@app/component/split-layout/entry-state';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import {
@@ -394,7 +396,13 @@ export const SoupViewContextProvider: FlowComponent<
   };
 
   const applyInboxThreadFilter = (state: QueryState): QueryState => {
-    if (!isNewInbox()) return state;
+    if (!isNewInbox()) {
+      return {
+        ...state,
+        include: { ...state.include, channelThreadId: [NIL_UUID] },
+      };
+    }
+
     const id = userId();
     if (!id) return state;
     return {
@@ -493,12 +501,16 @@ export const SoupViewContextProvider: FlowComponent<
   });
 
   const attachNotifications = (entity: EntityData) => {
+    const notifications = useNotificationsForEntity(
+      notificationSource,
+      toNotificationEntity(entity)
+    );
     return {
       ...entity,
-      notifications: useNotificationsForEntity(
-        notificationSource,
-        toNotificationEntity(entity)
-      ),
+      notifications: () =>
+        isNewInbox()
+          ? scopeChannelNotificationsForEntity(entity, notifications())
+          : notifications(),
     };
   };
 
@@ -819,7 +831,6 @@ export const SoupViewContextProvider: FlowComponent<
           count: group.entities.length,
           isExpanded: () => soup.grouping.isExpanded(key),
           toggle: () => soup.grouping.toggle(key),
-          renderHeader: DateGroupHeader,
         };
         dateRows.push(
           soup.buildRow({
