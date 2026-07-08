@@ -21,6 +21,7 @@ import { useSoup } from '@app/component/next-soup/soup-context';
 import { registerDocumentsFilterSplit } from '@app/component/next-soup/soup-view/documents-filter-controllers';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { InboxSelector } from '@app/component/next-soup/soup-view/filters-bar/inbox-selector';
+import { useSearchTagsFlag } from '@app/component/next-soup/soup-view/filters-bar/search/search-tags-flag';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
@@ -443,6 +444,22 @@ export const SoupView = (props: SoupViewProps) => {
   const entryState = panel.handle.currentEntryState();
   const contentId = panel.handle.content().id;
 
+  const searchTags = useSearchTagsFlag();
+
+  // The search view must not initialize with tag filters while the rollout
+  // flag is off. Raw readers (soup AST body, search request, WS insert guard)
+  // consume queryFilters directly, so restored or param-provided tag filters
+  // have to be stripped at the source, not scrubbed after the fact.
+  const stripGatedTagFilters = (
+    query: Query | undefined
+  ): Query | undefined => {
+    if (contentId !== 'search' || searchTags()) return query;
+    if (!query?.include?.tagFilters?.length) return query;
+    const include = { ...query.include };
+    delete include.tagFilters;
+    return { ...query, include };
+  };
+
   const persistedFilters = entryState?.['search.filters'] as Query | undefined;
 
   const persistedPredicates = entryState?.['search.predicates'] as
@@ -486,7 +503,9 @@ export const SoupView = (props: SoupViewProps) => {
     init = true;
     batch(() => {
       soupView.initialize({
-        initialQuery: persistedFilters ?? props.initialFilters,
+        initialQuery: stripGatedTagFilters(
+          persistedFilters ?? props.initialFilters
+        ),
         initialClientFilters: persistedPredicates ?? props.initialClientFilters,
         initialFacets: persistedFacets ?? props.initialFacets,
         initialSearchText: persistedSearchText ?? props.initialSearchText,
@@ -1531,12 +1550,15 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                 <Show
                                   when={
                                     i() === rows().length - 1 &&
-                                    isSearchServiceLoading()
+                                    (isSearchServiceLoading() ||
+                                      source.isFetchingNextPage())
                                   }
                                 >
                                   <div class="flex items-center gap-2 p-3 text-xs text-text-muted">
                                     <Spinner class="size-3 animate-spin" />
-                                    Searching...
+                                    {source.isFetchingNextPage()
+                                      ? 'Loading more...'
+                                      : 'Searching...'}
                                   </div>
                                 </Show>
                                 <Show when={i() === rows().length - 1}>
@@ -1646,10 +1668,15 @@ const SoupList = (props: SoupListProps) => {
 
     props.onScrollOffsetChange?.(offset);
 
-    if (
-      handle.scrollSize - handle.viewportSize - offset <=
-      (props.scrollBottomOffset ?? 100)
-    ) {
+    // Trigger within a viewport of the bottom so the next page is usually
+    // loaded before the user reaches the end. scrollBottomOffset is a floor
+    // for tiny viewports.
+    const threshold = Math.max(
+      props.scrollBottomOffset ?? 100,
+      handle.viewportSize
+    );
+
+    if (handle.scrollSize - handle.viewportSize - offset <= threshold) {
       props.onScrollBottom?.();
     }
   };
