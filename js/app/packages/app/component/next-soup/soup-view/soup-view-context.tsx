@@ -54,15 +54,13 @@ import {
 } from '@core/constant/featureFlags';
 import { useUserContext, useUserId } from '@core/context/user';
 import {
+  COMPANY_STAGE_OPTIONS,
   type EntityData,
   getPropertyOptionLabel,
   isWithNotification,
   toNotificationEntity,
 } from '@entity';
-import {
-  useEntityTypeNotifications,
-  useNotificationsForEntity,
-} from '@notifications';
+import { useNotificationsForEntity } from '@notifications';
 import { useQueryClient } from '@queries/client';
 import type {
   GroupMeta as ApiGroupMeta,
@@ -292,6 +290,19 @@ export const SoupViewContextProvider: FlowComponent<
     return undefined;
   });
 
+  // CRM companies come back from a dedicated soup request that can't group by a
+  // property server-side, so property grouping on the Customers view buckets
+  // client-side over the flat list (same idea as date grouping). `groupByField`
+  // stays populated so headers resolve the grouping property's labels/icons.
+  const isClientPropertyGroup = createMemo(
+    () =>
+      activeListView() === 'companies' && groupByField()?.type === 'property'
+  );
+  // The group-by actually sent to the backend (drives the grouped queries).
+  const serverGroupByField = createMemo(() =>
+    isClientPropertyGroup() ? undefined : groupByField()
+  );
+
   // Clear the assignee sub-filter when the task filter is off by either path:
   // the tasks-view preset (`scope` facet) or the inbox entity-type facet.
   createEffect(() => {
@@ -307,33 +318,16 @@ export const SoupViewContextProvider: FlowComponent<
     return isListViewID(content.id) ? content.id : undefined;
   });
 
-  // New-inbox: surface channel threads the user was mentioned in or replied to
-  // (soup otherwise only surfaces whole channels), scope to missed calls, and
-  // apply the read/unread toggle. These live outside the facet store, so they're
-  // applied to both the soup body and the search request below.
+  // New-inbox: surface the channel threads the current user participates in (as
+  // root sender, replier, or @-mention) via the backend `channelThreadParticipant`
+  // filter — soup otherwise only surfaces whole channels — scope to missed calls,
+  // and apply the read/unread toggle. These live outside the facet store, so
+  // they're applied to both the soup body and the search request below.
   const newInboxFlag = useFeatureFlag(ENABLE_NEW_INBOX_FLAG, {
     enabledOverride: ENABLE_NEW_INBOX_OVERRIDE,
   });
   const isNewInbox = () =>
     activeListView() === 'inbox' && newInboxFlag().enabled;
-  const channelNotifications = useEntityTypeNotifications(
-    notificationSource,
-    'channel'
-  );
-  const mentionedMessages = createMemo(() =>
-    channelNotifications()
-      .map((notification) => {
-        const metadata = notification.notification_metadata;
-        if (metadata.tag === 'channel_mention') {
-          return metadata.content.threadId ?? metadata.content.messageId;
-        }
-        if (metadata.tag === 'channel_message_reply') {
-          return metadata.content.threadId;
-        }
-        return undefined;
-      })
-      .filter((id): id is string => Boolean(id))
-  );
 
   // The dynamic new-inbox filters, shared by the soup body and the search
   // request. `undefined` when the new inbox isn't active. `seen`: `true` = read,
@@ -341,7 +335,7 @@ export const SoupViewContextProvider: FlowComponent<
   const newInboxParams = () =>
     isNewInbox()
       ? {
-          threadIds: mentionedMessages(),
+          participantId: userId(),
           seen: readFilter() === 'all' ? undefined : readFilter() === 'read',
         }
       : undefined;
@@ -368,22 +362,25 @@ export const SoupViewContextProvider: FlowComponent<
   };
 
   // New-inbox filters that the inbox preset can't express statically: the
-  // mentioned/replied channel threads, missed calls, and the read/unread scope.
-  // The preset confines channel threads and calls away, so `cthf`/`callf`
-  // replace those NILs while the per-type `seen` clauses AND onto the base.
+  // participant channel threads, missed calls, and the read/unread scope. The
+  // preset confines channel threads and calls away, so `cthf`/`callf` replace
+  // those NILs while the per-type `seen` clauses AND onto the base. No
+  // participant (no signed-in user) ⇒ leave the preset's channel-thread NIL in
+  // place (show none).
   const applyNewInboxFilters = (base: BackendAstMap): BackendAstMap => {
     const params = newInboxParams();
     if (!params) return base;
 
-    const { threadIds, seen } = params;
+    const { participantId, seen } = params;
 
-    // Empty threads ⇒ NIL the channel-thread target (show none), matching the
-    // soup list's default. `restrict: false` keeps this a plain refinement.
+    // `restrict: false` keeps this a plain refinement.
     const dynamic = compileClause(
       defineClause(
         {
           callStatus: 'MISSED',
-          channelThreadId: threadIds.length ? threadIds : NIL_UUID,
+          ...(participantId
+            ? { channelThreadParticipantId: [participantId] }
+            : {}),
           ...(seen !== undefined
             ? {
                 documentSeen: seen,
@@ -391,6 +388,7 @@ export const SoupViewContextProvider: FlowComponent<
                 channelSeen: seen,
                 chatSeen: seen,
                 folderSeen: seen,
+                foreignEntitySeen: seen,
               }
             : {}),
         },
@@ -399,7 +397,7 @@ export const SoupViewContextProvider: FlowComponent<
     );
 
     const seenAst: BackendAstMap = {};
-    for (const target of ['df', 'ef', 'chanf', 'cf', 'pf'] as const) {
+    for (const target of ['df', 'ef', 'chanf', 'cf', 'pf', 'fef'] as const) {
       const clause = dynamic[target];
       if (clause) seenAst[target] = clause;
     }
@@ -414,11 +412,11 @@ export const SoupViewContextProvider: FlowComponent<
     const params = newInboxParams();
     if (!params) return undefined;
 
-    const { threadIds, seen } = params;
+    const { participantId, seen } = params;
     const filters: EntityFilters = {
-      channel_thread_filters: {
-        thread_ids: threadIds.length ? threadIds : [NIL_UUID],
-      },
+      channel_thread_filters: participantId
+        ? { participant_ids: [participantId] }
+        : { thread_ids: [NIL_UUID] },
       call_filters: { status: 'MISSED' },
     };
 
@@ -429,6 +427,7 @@ export const SoupViewContextProvider: FlowComponent<
       filters.channel_filters = { notification_filters };
       filters.chat_filters = { notification_filters };
       filters.project_filters = { notification_filters };
+      filters.foreign_entity_filters = { notification_filters };
     }
 
     return filters;
@@ -457,7 +456,7 @@ export const SoupViewContextProvider: FlowComponent<
       soupBody,
       (_body, prevBody) => {
         if (!prevBody) return;
-        const groupBy = groupByField();
+        const groupBy = serverGroupByField();
         queryClient.setQueryData(
           soupKeys.astItems({
             params: soupParams(),
@@ -530,7 +529,7 @@ export const SoupViewContextProvider: FlowComponent<
 
   const itemsQuery = useSoupAstItemsQuery(
     () => {
-      const groupBy = groupByField();
+      const groupBy = serverGroupByField();
       return {
         params: soupParams(),
         body: soupBody(),
@@ -659,7 +658,7 @@ export const SoupViewContextProvider: FlowComponent<
       if (!groups || !items) return;
       return { groups, items };
     }),
-    groupByField,
+    groupByField: serverGroupByField,
     soupParams,
     soupBody,
     queryOptions: () => {
@@ -699,9 +698,103 @@ export const SoupViewContextProvider: FlowComponent<
     };
   };
 
+  // Group key an entity falls under for a property grouping: the first
+  // select-option id / entity-reference id, or '' for "Not set".
+  const clientPropertyGroupKey = (
+    entity: SoupEntity,
+    propertyDefinitionId: string
+  ): string => {
+    const properties = 'properties' in entity ? (entity.properties ?? []) : [];
+    const property = properties.find(
+      (p) => p.definition.id === propertyDefinitionId
+    );
+    const value = property?.value;
+    if (!value) return '';
+    if (value.type === 'SelectOption' || value.type === 'Link') {
+      const first = value.value[0];
+      return typeof first === 'string' ? first : '';
+    }
+    if (value.type === 'EntityReference') {
+      const first = value.value[0];
+      return first && typeof first === 'object' && 'entity_id' in first
+        ? String(first.entity_id)
+        : '';
+    }
+    return '';
+  };
+
   const rows = createMemo((): SoupRow[] => {
     const field = groupByField();
     const groups = itemsQuery.data?.groups;
+
+    // Client-side property grouping (Customers view): bucket the flat
+    // (paginated) list by property value; option order comes from the
+    // statically-known stage options, then label, with "Not set" last.
+    if (enabled() && isClientPropertyGroup() && !search.isSearching()) {
+      const definitionId =
+        field?.type === 'property' ? field.propertyDefinitionId : '';
+      const buckets = new Map<string, SoupEntity[]>();
+      for (const entity of entities()) {
+        const key = clientPropertyGroupKey(entity, definitionId);
+        const bucket = buckets.get(key);
+        if (bucket) {
+          bucket.push(entity);
+        } else {
+          buckets.set(key, [entity]);
+        }
+      }
+
+      const stageOrder = COMPANY_STAGE_OPTIONS.map((o) => o.value as string);
+      const order = [...buckets.keys()].sort((a, b) => {
+        if (a === '') return 1;
+        if (b === '') return -1;
+        const aStage = stageOrder.indexOf(a);
+        const bStage = stageOrder.indexOf(b);
+        if (aStage !== -1 || bStage !== -1) {
+          return (
+            (aStage === -1 ? stageOrder.length : aStage) -
+            (bStage === -1 ? stageOrder.length : bStage)
+          );
+        }
+        const aLabel = getPropertyOptionLabel(a) ?? a;
+        const bLabel = getPropertyOptionLabel(b) ?? b;
+        return aLabel.localeCompare(bLabel);
+      });
+
+      const groupedRows: SoupRow[] = [];
+      let index = 0;
+      for (const key of order) {
+        const groupEntities = buckets.get(key)!;
+        const groupMeta: GroupMeta = {
+          key,
+          value: key,
+          label: key === '' ? 'Not set' : (getPropertyOptionLabel(key) ?? key),
+          count: groupEntities.length,
+          isExpanded: () => soup.grouping.isExpanded(key),
+          toggle: () => soup.grouping.toggle(key),
+        };
+        groupedRows.push(
+          soup.buildRow({
+            id: `header:${key}`,
+            index: index++,
+            original: groupEntities[0],
+            group: groupMeta,
+            isGrouped: true,
+          })
+        );
+        for (const entity of groupEntities) {
+          groupedRows.push(
+            soup.buildRow({
+              id: entity.id,
+              index: index++,
+              original: entity,
+              group: groupMeta,
+            })
+          );
+        }
+      }
+      return groupedRows;
+    }
 
     if (!enabled() || !field || !groups || search.isSearching()) {
       return entities().map((entity, index) =>

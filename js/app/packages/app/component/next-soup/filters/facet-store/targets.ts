@@ -75,6 +75,7 @@ export const FILTER_TARGETS = {
     channelThreadChannelId: { backend: 'ChannelId' },
     channelThreadId: { backend: 'ThreadId' },
     channelThreadRootSenderId: { backend: 'Sender' },
+    channelThreadParticipantId: { backend: 'Participant' },
   },
 
   // cf — chats / agents
@@ -174,6 +175,7 @@ type FilterTargetsMeta = {
     channelThreadChannelId: string[];
     channelThreadId: string[];
     channelThreadRootSenderId: string[];
+    channelThreadParticipantId: string[];
   };
 
   // cf — chats / agents

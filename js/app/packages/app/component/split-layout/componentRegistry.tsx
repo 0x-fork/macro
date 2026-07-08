@@ -299,7 +299,7 @@ registerComponent(
     const preset = getViewPreset('companies');
     return (
       <SoupView
-        viewName="Companies"
+        viewName="Customers"
         initialFilters={preset?.filters}
         initialClientFilters={preset?.clientFilters}
         initialFacets={preset?.initialFacets}

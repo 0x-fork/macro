@@ -182,9 +182,21 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       ]);
     },
     tabs: {
-      signal: { emailView: 'inbox', initialFacets: { focus: ['inbox'] } },
-      noise: { emailView: 'inbox', initialFacets: { focus: ['noise'] } },
-      all: { emailView: 'all', initialFacets: { focus: ['explicit-noise'] } },
+      signal: {
+        emailView: 'inbox',
+        initialFacets: { focus: ['inbox'] },
+        groupBy: 'date',
+      },
+      noise: {
+        emailView: 'inbox',
+        initialFacets: { focus: ['noise'] },
+        groupBy: 'date',
+      },
+      all: {
+        emailView: 'all',
+        initialFacets: { focus: ['explicit-noise'] },
+        groupBy: 'date',
+      },
     },
   },
   agents: {
@@ -440,12 +452,16 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         { id: 'hidden', clause: defineClause({ crmCompanyHidden: true }) },
       ]),
     tabs: {
-      active: { initialFacets: { scope: ['crm-company-active'] } },
+      active: {
+        initialFacets: { scope: ['crm-company-active'] },
+        groupBy: `property:${SYSTEM_PROPERTY_IDS.STAGE}`,
+      },
       // Admin/owner only — the BE rejects `hidden: true` from non-admins
       // with 403, so the tab is hidden for them.
       hidden: {
         initialFacets: { scope: ['crm-company-hidden'] },
         requires: (c) => c.isTeamAdmin,
+        groupBy: `property:${SYSTEM_PROPERTY_IDS.STAGE}`,
       },
     },
   },
