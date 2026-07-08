@@ -15,6 +15,7 @@ use chat::domain::service::ChatServiceImpl;
 use chat::inbound::toolset::ChatToolContext;
 use chat::outbound::postgres::PgChatRepo;
 use connection::domain::ports::ConnectionService;
+use crm::inbound::toolset::CrmToolContext;
 use documents::{domain::ports::TaskPropertiesPort, inbound::toolset::DocumentToolContext};
 use email::{
     domain::service::EmailServiceImpl, inbound::toolset::EmailToolContext, outbound::EmailPgRepo,
@@ -123,6 +124,28 @@ pub fn build_channel_tool_context_with_dispatcher(
             entity_access::outbound::PgAccessRepository::new(pool),
         ),
     )
+}
+
+/// Type alias for the CRM AI tool context.
+pub type ToolCrmToolContext =
+    CrmToolContext<ToolCrmService, ToolEntityAccessService, ToolPropertiesService>;
+
+/// Build the CRM AI tool context from a Postgres pool.
+pub fn build_crm_tool_context(pool: sqlx::PgPool) -> ToolCrmToolContext {
+    let entity_access_service = Arc::new(
+        entity_access::domain::service::EntityAccessServiceImpl::new(
+            entity_access::outbound::PgAccessRepository::new(pool.clone()),
+        ),
+    );
+    let properties = build_properties_service(pool.clone(), entity_access_service.clone());
+    CrmToolContext {
+        service: Arc::new(crm::domain::service::CrmServiceImpl::new(
+            crm::outbound::companies_repo::CompaniesRepositoryImpl::new(pool.clone()),
+            crm::outbound::no_op_resolver::NoOpCompanyMetadataResolver,
+        )),
+        entity_access_service,
+        properties,
+    }
 }
 
 /// Type alias for the team member listing service used by AI tools.
@@ -628,6 +651,7 @@ pub struct ToolServiceContext {
     pub chat_tool_context: ToolChatToolContext,
     pub channel_tool_context: ToolChannelToolContext,
     pub team_tool_context: ToolTeamToolContext,
+    pub crm_tool_context: ToolCrmToolContext,
     pub schedule_tool_context: NoOpScheduleContext,
     pub anthropic_tool_context: AnthropicToolContext,
     /// Records token usage / cost for AI calls made with this context.

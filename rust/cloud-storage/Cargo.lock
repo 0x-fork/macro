@@ -3277,7 +3277,9 @@ checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 name = "crm"
 version = "0.1.0"
 dependencies = [
+ "ai_toolset",
  "anyhow",
+ "async-trait",
  "axum",
  "chrono",
  "entity_access",
@@ -3285,10 +3287,14 @@ dependencies = [
  "macro_uuid",
  "model-error-response",
  "model_user",
+ "models_properties",
+ "properties",
  "reqwest 0.13.4",
+ "schemars 1.2.1",
  "serde",
  "serde_json",
  "sqlx",
+ "system_properties",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
