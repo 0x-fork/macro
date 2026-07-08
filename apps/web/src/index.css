@@ -108,36 +108,66 @@
        elev(f) = oklch(calc(var(--b0l) + var(--depth)*f) var(--b0c) var(--b0h)) */
   --depth: 0.15; /* fallback; Root.tsx mirrors the live themeDepth signal here */
 
-  /* Surfaces — opaque, elevation-derived */
-  --surface-card:   var(--b0);
-  --surface-input:  transparent;
-  --surface-input-hover: transparent;
-  --surface-modal:  var(--b0);
-  --surface-menu:   var(--b0);
-  --surface-toast:  var(--b0);
+  /* Primitive aliases — keep a/b/c raw, but speak in UI intent below. */
+  --accent-0: var(--a0);
+  --accent-1: var(--a1);
+  --accent-2: var(--a2);
+  --accent-3: var(--a3);
+  --accent-4: var(--a4);
 
-  /* Content — text emphasis ramp + links */
-  --content-primary:    var(--c0);
-  --content-secondary:  var(--c1);
-  --content-tertiary:   var(--c2);
-  --content-link:       var(--a0);
-  --content-link-hover: oklch(from var(--a0) l c h / 0.8);
+  --base-0: var(--b0);
+  --base-1: var(--b1);
+  --base-2: var(--b2);
+  --base-3: var(--b3);
+  --base-4: var(--b4);
+
+  --ink-0: var(--c0);
+  --ink-1: var(--c1);
+  --ink-2: var(--c2);
+  --ink-3: var(--c3);
+  --ink-4: var(--c4);
+
+  /* Surfaces — opaque elevation layers. */
+  --surface-0:     var(--base-0);
+  --surface-panel: var(--surface-0);
+  --surface-card:  var(--surface-0);
+  --surface-input: transparent;
+  --surface-input-hover: transparent;
+  --surface-modal: var(--surface-0);
+  --surface-menu:  var(--surface-0);
+  --surface-toast: var(--surface-0);
+
+  /* Content — text emphasis ramp + links. */
+  --content-primary:    var(--ink-0);
+  --content-secondary:  var(--ink-1);
+  --content-tertiary:   var(--ink-2);
+  --content-link:       var(--accent-0);
+  --content-link-hover: oklch(from var(--accent-0) l c h / 0.8);
   --content-destructive: var(--color-failure-ink);
 
-  /* Borders — translucent, ink-tinted, adaptive */
-  --border-primary:   var(--b4);
-  --border-secondary: var(--b3);
-  --border-divider:   var(--b3);
+  /* Borders — compatibility aliases; v2 below derives these from ink alpha. */
+  --border-primary:   var(--base-4);
+  --border-secondary: var(--base-3);
+  --border-divider:   var(--base-3);
 
-  /* Buttons — neutral fill ramp (foregrounds reuse the content ramp; no on-* tokens) */
-  --button-primary:   var(--b4);
-  --button-secondary: oklch(from var(--c0) l c h / 0.08); /* translucent so it reads on any surface */
-  --button-tertiary:  transparent;
+  /* Shared fills — reusable by buttons, chips, rows, inputs, etc.
+     Defaults preserve legacy control appearances; semantic-v2 makes this an
+     ordered ink-alpha ramp. */
+  --fill-none:     transparent;
+  --fill-subtle:   var(--base-2);
+  --fill-muted:    oklch(from var(--ink-0) l c h / 0.08);
+  --fill-default:  var(--base-1);
+  --fill-strong:   var(--base-4);
+  --fill-selected: var(--color-accent-bg);
+  --fill-accent:   var(--accent-0);
 
-  /* Button interaction states — translucent overlays */
-  --button-hover:    var(--b2);
-  --button-active:   var(--b1);
-  --button-selected: var(--color-accent-bg);
+  /* Button tokens are intent aliases over shared fills, not a separate palette. */
+  --button-primary:   var(--fill-strong);
+  --button-secondary: var(--fill-muted);
+  --button-tertiary:  var(--fill-none);
+  --button-hover:     var(--fill-subtle);
+  --button-active:    var(--fill-default);
+  --button-selected:  var(--fill-selected);
 
   /* Destructive button — subtle failure tint (paired with content-destructive). */
   --button-destructive:        oklch(from var(--color-failure) l c h / 0.15);
@@ -162,23 +192,26 @@
   --default-ring-width: 0.5px;
 
   /* Semantic Color names, use these when writing tailwind */
-  --color-accent:          var(--a0);
-  --color-accent-bg:       oklch(var(--a0) / 0.08);
-  --color-accent-hover:    oklch(var(--a0) / 0.20);
+  --color-accent:          var(--accent-0);
+  --color-accent-bg:       oklch(from var(--accent-0) l c h / 0.08);
+  --color-accent-hover:    oklch(from var(--accent-0) l c h / 0.20);
 
-  --color-surface:         var(--b0);
+  --color-surface:         var(--surface-0);
   --color-drop-shadow:     oklch(0.15 0 0 / 0.04);
+  --color-message:         color-mix(in oklch, var(--base-1) 50%, var(--base-2));
+  --color-hover:           var(--fill-subtle);
+  --color-active:          var(--fill-default);
   --color-overlay:         oklch(var(--b1l) var(--b1c) var(--b1h) / 0.8);
-
-  --color-edge-muted:      var(--b3);
-  --color-edge:            var(--b4);
-  --color-rail:            color-mix(in oklch, var(--b4) 90%, var(--c0));
+  --color-edge-muted:      var(--base-3);
+  --color-edge:            var(--base-4);
+  --color-rail:            color-mix(in oklch, var(--surface-0) 75%, var(--ink-0));
 
   /* ── Semantic design tokens (v2) ─────────────────────────────────────────
      Thin mappings onto our own token namespace (defined in :root above). The
      :root.semantic-v2 block flips those vars on the ENABLE_SEMANTIC_V2 flag;
      these mappings stay static. Surfaces drop the `surface-` prefix, links map
      from `content-*`, borders map from `border-*` onto the `edge-*` color name. */
+  --color-panel:             var(--surface-panel);
   --color-card:              var(--surface-card);
   --color-input:             var(--surface-input);
   --color-input-hover:       var(--surface-input-hover);
@@ -197,6 +230,14 @@
   --color-edge-secondary:    var(--border-secondary);
   --color-edge-divider:      var(--border-divider);
 
+  --color-fill-none:         var(--fill-none);
+  --color-fill-subtle:       var(--fill-subtle);
+  --color-fill-muted:        var(--fill-muted);
+  --color-fill-default:      var(--fill-default);
+  --color-fill-strong:       var(--fill-strong);
+  --color-fill-selected:     var(--fill-selected);
+  --color-fill-accent:       var(--fill-accent);
+
   --color-button-primary:    var(--button-primary);
   --color-button-secondary:  var(--button-secondary);
   --color-button-tertiary:   var(--button-tertiary);
@@ -207,11 +248,11 @@
   --color-button-destructive-hover:  var(--button-destructive-hover);
   --color-button-destructive-active: var(--button-destructive-active);
 
-  --color-ink:             var(--c0);
-  --color-ink-muted:       var(--c1);
-  --color-ink-extra-muted: var(--c2);
-  --color-ink-disabled:    var(--c3);
-  --color-ink-placeholder: var(--c4);
+  --color-ink:             var(--ink-0);
+  --color-ink-muted:       var(--ink-1);
+  --color-ink-extra-muted: var(--ink-2);
+  --color-ink-disabled:    var(--ink-3);
+  --color-ink-placeholder: var(--ink-4);
 
   /* Below are our semantic surface tokens, which either pick up color overrides from the theme, or are set to --b0, which allows them to be controlled by our Layer system */
   /* NOTE: these are NOT all wired up. We erased a lot of our semantic design tokens when moving to Layer system, these are part of a migration back towards semantic tokens. */
@@ -319,26 +360,26 @@
    recolor for free. Higher specificity plus unlayered wins over :root. Only
    value-change tokens live here; pure renames do not. */
 :root.semantic-v2 {
-  /* Surfaces become elevation-derived (panel 0.2 / raised 0.4 / overlay 0.6 / top 1.0).
-     --color-panel is a v2-only token (no flag-off alias) — defined only here, so
-     off-flag consumers fall through to Surface's var(--b0) fallback. */
-  --color-panel:    oklch(calc(var(--b0l) + var(--depth) * 0.2) var(--b0c) var(--b0h));
-  --surface-card:   oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
-  --surface-input:  oklch(calc(var(--b0l) + var(--depth) * 0.8) var(--b0c) var(--b0h));
-  --surface-input-hover: oklch(calc(var(--b0l) + var(--depth) * 1.0) var(--b0c) var(--b0h));
-  --surface-modal:  oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
-  --surface-menu:   oklch(calc(var(--b0l) + var(--depth) * 0.6) var(--b0c) var(--b0h));
-  --surface-toast:  oklch(calc(var(--b0l) + var(--depth) * 1.0) var(--b0c) var(--b0h));
+  /* Surfaces become elevation-derived (panel 0.2 / raised 0.4 / overlay 0.6 / top 1.0). */
+  --surface-panel: oklch(calc(var(--b0l) + var(--depth) * 0.2) var(--b0c) var(--b0h));
+  --surface-card:  oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
+  --surface-input: var(--fill-subtle);
+  --surface-input-hover: var(--fill-muted);
+  --surface-modal: oklch(calc(var(--b0l) + var(--depth) * 0.4) var(--b0c) var(--b0h));
+  --surface-menu:  oklch(calc(var(--b0l) + var(--depth) * 0.6) var(--b0c) var(--b0h));
+  --surface-toast: oklch(calc(var(--b0l) + var(--depth) * 1.0) var(--b0c) var(--b0h));
 
   /* Borders become translucent ink tints (adapt to any surface). */
-  --border-primary:   oklch(from var(--c0) l c h / 0.20);
-  --border-secondary: oklch(from var(--c0) l c h / 0.12);
-  --border-divider:   oklch(from var(--c0) l c h / 0.07);
+  --border-primary:   oklch(from var(--ink-0) l c h / 0.20);
+  --border-secondary: oklch(from var(--ink-0) l c h / 0.12);
+  --border-divider:   oklch(from var(--ink-0) l c h / 0.07);
 
-  /* Button interaction states become translucent overlays. */
-  --button-hover:    oklch(from var(--c0) l c h / 0.05);
-  --button-active:   oklch(from var(--c0) l c h / 0.09);
-  --button-selected: oklch(from var(--a0) l c h / 0.12);
+  /* Fills are the shared control/selection ramp; button tokens alias these. */
+  --fill-subtle:   oklch(from var(--ink-0) l c h / 0.05);
+  --fill-muted:    oklch(from var(--ink-0) l c h / 0.08);
+  --fill-default:  oklch(from var(--ink-0) l c h / 0.12);
+  --fill-strong:   oklch(from var(--ink-0) l c h / 0.18);
+  --fill-selected: oklch(from var(--accent-0) l c h / 0.12);
 }
 
 /* scuffed: might wan to use signals for this */
