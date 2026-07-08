@@ -533,7 +533,7 @@ export const SoupViewContextProvider: FlowComponent<
     () => {
       const view = activeListView();
       return {
-        enabled: !search.isSearching(),
+        enabled: enabled() && !search.isSearching(),
         showSupportedForeignEntities: showSupportedForeignEntitiesFF().enabled,
         meta: {
           itemFilter: (item) =>
