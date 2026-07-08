@@ -188,14 +188,14 @@ pub(crate) async fn populate_properties(
 
     let property_ids = SystemPropertyKey::all_system_property_keys();
     let properties_map =
-        properties_db_client::entity_properties::get::get_bulk_entity_properties_values_filtered(
+        properties::outbound::entity_properties_get_query::get_bulk_entity_properties_values_filtered(
             db,
             &entity_refs,
             property_ids,
-            Some(user_id.as_ref()),
+            Some(&user_id),
         )
         .await
-        .map_err(|e| sqlx::Error::Decode(Box::new(e)))?;
+        .map_err(|e| sqlx::Error::Decode(e.into()))?;
 
     // `items` may repeat an id (one row per group it belongs to), so use
     // `.get()` not `.remove()` — every occurrence needs the props.
@@ -205,11 +205,11 @@ pub(crate) async fn populate_properties(
             SoupItem::Project(x) => properties_map.get(&x.id.to_string()),
             SoupItem::EmailThread(x) => properties_map.get(&x.thread.id.to_string()),
             SoupItem::Chat(x) => properties_map.get(&x.id.to_string()),
-            // Channels, calls, CRM companies, and foreign entities are not in entity_properties.
+            SoupItem::CrmCompany(x) => properties_map.get(&x.id.to_string()),
+            // Channels, calls, and foreign entities are not in entity_properties.
             SoupItem::Channel(_)
             | SoupItem::ChannelThread(_)
             | SoupItem::Call(_)
-            | SoupItem::CrmCompany(_)
             | SoupItem::ForeignEntity(_) => None,
         };
         if let Some(props) = props {
@@ -220,10 +220,10 @@ pub(crate) async fn populate_properties(
                 SoupItem::Project(x) => x.properties = soup_props,
                 SoupItem::EmailThread(x) => x.properties = soup_props,
                 SoupItem::Chat(x) => x.properties = soup_props,
+                SoupItem::CrmCompany(x) => x.properties = soup_props,
                 SoupItem::Channel(_)
                 | SoupItem::ChannelThread(_)
                 | SoupItem::Call(_)
-                | SoupItem::CrmCompany(_)
                 | SoupItem::ForeignEntity(_) => {}
             }
         }

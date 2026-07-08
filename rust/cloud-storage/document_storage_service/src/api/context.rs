@@ -111,6 +111,7 @@ type DssEmailService = EmailServiceImpl<
     FrecencyQueryServiceImpl<FrecencyPgStorage>,
     email::domain::ports::NoOpEnqueuer,
     DssCrmService,
+    EntityAccessManagementService,
 >;
 
 /// CRM router state.
@@ -173,9 +174,11 @@ impl TaskPropertiesPort for TaskPropertiesAdapter {
     ) -> anyhow::Result<()> {
         use properties::PropertiesService as _;
 
+        let user_id = macro_user_id::user_id::MacroUserIdStr::parse_from_str(user_id)?;
+
         self.properties
             .set_entity_property(
-                user_id,
+                &user_id,
                 entity_id,
                 models_properties::EntityType::Task,
                 property_definition_id,
@@ -234,6 +237,7 @@ pub(crate) type DssChannelService = ChannelServiceImpl<
             NotificationChannelSender<NotificationIngressType>,
             SqsChannelSearchIndexer,
             ContactsChannelDispatcher<SqsContactsIngress<SqsContactsQueue>>,
+            MacroEventBrokerService<KafkaEventPublisher>,
         >,
     >,
     PgChannelReferenceSharePermissions<EntityAccessService>,
@@ -341,6 +345,7 @@ pub(crate) struct ApiContext {
     #[cfg(feature = "graphql")]
     pub graphql_notification_reader: Arc<dyn graphql_soup::SoupNotificationEdgeReader>,
     pub favorites_state: DssFavoritesState,
+    pub favorites_service: Arc<FavoritesServiceType>,
     pub foreign_entity_state: DssForeignEntityState,
     pub sqs_client: Arc<sqs_client::SQS>,
     pub contacts_ingress: Arc<SqsContactsIngress<SqsContactsQueue>>,
@@ -378,11 +383,10 @@ env_var! {
 
 impl From<&ApiContext> for PropertiesHandlerState {
     fn from(ctx: &ApiContext) -> Self {
-        PropertiesHandlerState {
-            db: ctx.db.clone(),
-            properties_service: ctx.properties_service.clone(),
-            entity_access_service: ctx.entity_access_service.clone(),
-        }
+        PropertiesHandlerState::new(
+            ctx.properties_service.clone(),
+            ctx.entity_access_service.clone(),
+        )
     }
 }
 

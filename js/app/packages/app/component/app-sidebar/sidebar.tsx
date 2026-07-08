@@ -72,7 +72,7 @@ import { AnimatedSearchIcon } from '@icon/wide-search';
 import { AnimatedStarIcon } from '@icon/wide-star';
 import { AnimatedTaskIcon } from '@icon/wide-task';
 import { ContextMenu } from '@kobalte/core/context-menu';
-import CaretDownIcon from '@phosphor/caret-down.svg';
+import CaretRightIcon from '@phosphor/caret-right.svg';
 import CaretUpIcon from '@phosphor/caret-up.svg';
 import GearIcon from '@phosphor/gear.svg';
 import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
@@ -92,6 +92,7 @@ import {
   type JSX,
   onCleanup,
   Show,
+  Suspense,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
@@ -189,7 +190,7 @@ const SIDEBAR_LINKS = [
     ? ([
         {
           id: 'companies',
-          label: 'Companies',
+          label: 'Customers',
           href: LIST_VIEW_PATHS.companies,
           icon: AnimatedCompanyIcon,
           hotkey: 'o',
@@ -872,7 +873,9 @@ export const AppSidebar = (props: AppSidebarProps) => {
         <hr class="border-transparent my-2" />
       </div>
 
-      <FavoritesSection sidebarState={props.sidebarState ?? 'expanded'} />
+      <Suspense>
+        <FavoritesSection sidebarState={props.sidebarState ?? 'expanded'} />
+      </Suspense>
 
       <div class="min-h-0 flex-1 overflow-hidden">
         <ChannelsUnreadWidget sidebarState={props.sidebarState ?? 'expanded'} />
@@ -1284,10 +1287,10 @@ const SidebarMailLink = (props: SidebarLinkProps) => {
         }}
         trailingWhenActive={
           canShow() ? (
-            <CaretDownIcon
+            <CaretRightIcon
               class={cn(
                 'size-3 transition-transform duration-200',
-                expanded() && 'rotate-180'
+                expanded() && 'rotate-90'
               )}
             />
           ) : undefined
