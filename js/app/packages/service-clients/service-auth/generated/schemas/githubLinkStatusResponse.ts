@@ -7,7 +7,8 @@
 import type { GithubLinkStatusResponseGithubUsername } from './githubLinkStatusResponseGithubUsername';
 
 export interface GithubLinkStatusResponse {
-  /** The login of the linked GitHub account, when available. Lets clients identify "my" pull requests without a separate lookup. */
+  /** The login of the linked GitHub account, when available. Lets clients
+identify "my" pull requests without a separate lookup. */
   github_username?: GithubLinkStatusResponseGithubUsername;
   /** Whether the user must reauthenticate their GitHub link. */
   reauthentication_required: boolean;

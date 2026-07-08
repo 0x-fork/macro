@@ -6,6 +6,7 @@
  */
 
 /**
- * The login of the linked GitHub account, when available. Lets clients identify "my" pull requests without a separate lookup.
+ * The login of the linked GitHub account, when available. Lets clients
+identify "my" pull requests without a separate lookup.
  */
 export type GithubLinkStatusResponseGithubUsername = string | null;

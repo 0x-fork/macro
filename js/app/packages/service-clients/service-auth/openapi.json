@@ -3720,7 +3720,7 @@
         "properties": {
           "github_username": {
             "type": ["string", "null"],
-            "description": "The login of the linked GitHub account, when available. Lets clients identify \"my\" pull requests without a separate lookup."
+            "description": "The login of the linked GitHub account, when available. Lets clients\nidentify \"my\" pull requests without a separate lookup."
           },
           "reauthentication_required": {
             "type": "boolean",
