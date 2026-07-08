@@ -170,7 +170,7 @@ function LayoutInner(props: RouteSectionProps) {
       <Show when={paywallOpen()}>
         <Paywall />
       </Show>
-      <div class="max-h-full grow flex">
+      <div class="max-h-full min-h-0 grow flex">
         {/* The provider spans the sidebar too so its favorites can register
             sortables with the same drag-drop context as the entity drags. */}
         <ItemDndProvider>
