@@ -967,6 +967,7 @@ dependencies = [
  "http-body-util",
  "jsonwebtoken 10.3.0",
  "last_online_tracker",
+ "loops_client",
  "macro_auth",
  "macro_aws_config",
  "macro_cache_client",
@@ -7617,6 +7618,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fae87c125b03c1d2c0150c90365d7d6bcc53fb73a9acaef207d2d065860f062"
 dependencies = [
  "imgref",
+]
+
+[[package]]
+name = "loops_client"
+version = "0.1.0"
+dependencies = [
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "tracing",
+ "workspace-hack",
 ]
 
 [[package]]
