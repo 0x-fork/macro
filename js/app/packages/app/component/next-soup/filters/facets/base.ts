@@ -1,3 +1,4 @@
+import type { EntityData } from '@entity';
 import type { NotificationSource } from '@notifications';
 import { clause, type Facet, type OptionClause } from '../facet-store';
 
@@ -12,6 +13,10 @@ export type FacetCtx = {
   // its `propf` clause (option ids are unique but the backend literal needs the
   // definition). Absent/unloaded options compile to no clause.
   tagDefs?: ReadonlyMap<string, string>;
+  // Resolve a company's stage option id within the team's active deal-stage
+  // set (legacy system-stage values mapped onto custom stages), so the
+  // company-stage facet buckets companies exactly like the kanban.
+  resolveCompanyStage?: (entity: EntityData) => string | undefined;
 };
 
 // Define facet helper with typed context

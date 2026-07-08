@@ -47,6 +47,7 @@ import {
   soupItemMatchesTagFilter,
 } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { useDealStages } from '@companies/crm/deal-stages';
 import {
   ENABLE_FEATURED_SEARCH_RESULTS,
   ENABLE_GRAPHQL_SOUP_FLAG,
@@ -65,6 +66,7 @@ import {
   toNotificationEntity,
 } from '@entity';
 import { useNotificationsForEntity } from '@notifications';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useQueryClient } from '@queries/client';
 import type {
   GroupMeta as ApiGroupMeta,
@@ -323,6 +325,17 @@ export const SoupViewContextProvider: FlowComponent<
     if (!taskActive) setAssigneeFilter([]);
   });
 
+  // Active deal-stage set (team-customized when present). Drives the
+  // Customers view's stage grouping, stage filter and group labels.
+  const dealStages = useDealStages();
+
+  // `resolveStage` takes the minimal company shape; widen it to any soup
+  // entity (non-companies resolve to undefined since they carry no stage).
+  const resolveCompanyStage = (entity: EntityData): string | undefined =>
+    dealStages.resolveStage(
+      entity as Parameters<typeof dealStages.resolveStage>[0]
+    );
+
   const activeListView = createMemo<ListView | undefined>(() => {
     const content = panel.handle.content();
     if (content.type !== 'component') return;
@@ -447,7 +460,10 @@ export const SoupViewContextProvider: FlowComponent<
   // Tag definitions feed the `tag` facet's compile clause (option id → owning
   // property-definition id). Reactive, so the list re-filters once tags load.
   const tagOptions = useTagOptions();
-  const facetCtx = (): FacetCtx => ({ tagDefs: tagOptions.defByOption() });
+  const facetCtx = (): FacetCtx => ({
+    tagDefs: tagOptions.defByOption(),
+    resolveCompanyStage,
+  });
 
   const soupBody = createMemo(() => {
     const emailView = activePreset()?.filters?.emailView;
@@ -522,6 +538,7 @@ export const SoupViewContextProvider: FlowComponent<
     userId: userId(),
     notificationSource,
     assignees: assigneeFilter(),
+    resolveCompanyStage,
   });
 
   const attachNotifications = (entity: EntityData) => {
@@ -701,8 +718,28 @@ export const SoupViewContextProvider: FlowComponent<
   const hasNextGroupPage = (groupKey: string) =>
     groupQueryFor(groupKey)?.hasNextPage() ?? false;
 
+  // True when grouping by the canonical Stage id (the "group by Stage"
+  // presets always use the system definition id, even when the team's own
+  // stage set is active).
+  const isStageGrouping = () => {
+    const field = groupByField();
+    return (
+      field?.type === 'property' &&
+      field.propertyDefinitionId === SYSTEM_PROPERTY_IDS.STAGE
+    );
+  };
+
+  // Group-key → label, preferring the active deal-stage set for stage
+  // groupings (custom option ids are unknown to the static option table).
+  const resolveGroupLabel = (key: string): string | undefined => {
+    if (isStageGrouping()) {
+      return dealStages.stageLabel(key) ?? getPropertyOptionLabel(key);
+    }
+    return getPropertyOptionLabel(key);
+  };
+
   const buildGroupMeta = (group: ApiGroupMeta): GroupMeta => {
-    const resolvedLabel = getPropertyOptionLabel(group.key) ?? group.label;
+    const resolvedLabel = resolveGroupLabel(group.key) ?? group.label;
     return {
       key: group.key,
       value: group.key,
@@ -748,9 +785,14 @@ export const SoupViewContextProvider: FlowComponent<
     if (enabled() && isClientPropertyGroup() && !search.isSearching()) {
       const definitionId =
         field?.type === 'property' ? field.propertyDefinitionId : '';
+      // Stage grouping resolves through the active deal-stage set so legacy
+      // system-stage values land in the matching custom-stage bucket.
+      const isStage = definitionId === SYSTEM_PROPERTY_IDS.STAGE;
       const buckets = new Map<string, SoupEntity[]>();
       for (const entity of entities()) {
-        const key = clientPropertyGroupKey(entity, definitionId);
+        const key = isStage
+          ? (resolveCompanyStage(entity) ?? '')
+          : clientPropertyGroupKey(entity, definitionId);
         const bucket = buckets.get(key);
         if (bucket) {
           bucket.push(entity);
@@ -759,7 +801,9 @@ export const SoupViewContextProvider: FlowComponent<
         }
       }
 
-      const stageOrder = COMPANY_STAGE_OPTIONS.map((o) => o.value as string);
+      const stageOrder = isStage
+        ? dealStages.stages().map((stage) => stage.id)
+        : COMPANY_STAGE_OPTIONS.map((o) => o.value as string);
       const order = [...buckets.keys()].sort((a, b) => {
         if (a === '') return 1;
         if (b === '') return -1;
@@ -771,8 +815,8 @@ export const SoupViewContextProvider: FlowComponent<
             (bStage === -1 ? stageOrder.length : bStage)
           );
         }
-        const aLabel = getPropertyOptionLabel(a) ?? a;
-        const bLabel = getPropertyOptionLabel(b) ?? b;
+        const aLabel = resolveGroupLabel(a) ?? a;
+        const bLabel = resolveGroupLabel(b) ?? b;
         return aLabel.localeCompare(bLabel);
       });
 
@@ -783,7 +827,7 @@ export const SoupViewContextProvider: FlowComponent<
         const groupMeta: GroupMeta = {
           key,
           value: key,
-          label: key === '' ? 'Not set' : (getPropertyOptionLabel(key) ?? key),
+          label: key === '' ? 'Not set' : (resolveGroupLabel(key) ?? key),
           count: groupEntities.length,
           isExpanded: () => soup.grouping.isExpanded(key),
           toggle: () => soup.grouping.toggle(key),

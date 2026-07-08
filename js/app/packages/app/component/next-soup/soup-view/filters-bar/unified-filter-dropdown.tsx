@@ -1,4 +1,7 @@
-import { NO_ASSIGNEE } from '@app/component/next-soup/filters/configs/';
+import {
+  NO_ASSIGNEE,
+  NO_STAGE,
+} from '@app/component/next-soup/filters/configs/';
 import {
   type ReadFilter,
   useSoupView,
@@ -7,6 +10,8 @@ import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { useDealStages } from '@companies/crm/deal-stages';
+import { CrmStageIcon } from '@companies/crm/StageIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_NEW_INBOX_FLAG,
@@ -218,6 +223,7 @@ export const UnifiedFilterDropdown = (
     useSoupView();
   const contacts = useContacts();
   const userId = useUserId();
+  const dealStages = useDealStages();
 
   const currentView = createMemo((): ListView | undefined => {
     const content = panel.handle.content();
@@ -339,6 +345,27 @@ export const UnifiedFilterDropdown = (
   const ownerFilter = () => soup.facets.getSelected('company-owner');
   const handleOwnerChange = (ids: string[]) =>
     soup.facets.set('company-owner', ids);
+
+  // Stage options for the Customers view: the team's active deal-stage set
+  // (customizable) plus a trailing "No stage" row.
+  const stageOptions = createMemo((): SearchableOption[] => [
+    ...dealStages.stages().map((stage, index) => ({
+      id: stage.id,
+      label: stage.label,
+      icon: () => (
+        <CrmStageIcon optionId={stage.id} index={index} class="size-3.5" />
+      ),
+    })),
+    {
+      id: NO_STAGE,
+      label: 'No stage',
+      icon: () => <CircleDashedIcon class="size-3.5 text-ink-muted" />,
+    },
+  ]);
+
+  const stageFilter = () => soup.facets.getSelected('company-stage');
+  const handleStageChange = (ids: string[]) =>
+    soup.facets.set('company-stage', ids);
 
   const isTasksView = () => currentView() === 'tasks';
   const isDocumentsView = () => currentView() === 'documents';
@@ -491,8 +518,15 @@ export const UnifiedFilterDropdown = (
                     />
                   </Show>
 
-                  {/* Owner filter for the Customers view */}
+                  {/* Stage + Owner filters for the Customers view */}
                   <Show when={isCompaniesView()}>
+                    <SearchableFilterSubmenu
+                      label="Stage"
+                      options={stageOptions}
+                      activeIds={stageFilter}
+                      onChange={handleStageChange}
+                      placeholder="Filter stages..."
+                    />
                     <SearchableFilterSubmenu
                       label="Owner"
                       options={ownerOptions}

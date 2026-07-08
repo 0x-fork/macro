@@ -40,9 +40,14 @@ import {
   SoupViewTabs,
   useApplyPreset,
 } from '@app/component/next-soup/soup-view/soup-view-tabs';
+import { WIDE_SPLIT_PANEL_BREAKPOINT } from '@app/component/next-soup/soup-view/use-preview-pane-visibility';
 import { CompanyKanban } from '@app/component/next-soup/soup-view/views/companies/CompanyKanban';
 import { CompanyListEntity } from '@app/component/next-soup/soup-view/views/companies/CompanyListEntity';
 import { ResponsiveCompanyListHeader } from '@app/component/next-soup/soup-view/views/companies/CompanyListHeader';
+import {
+  CompanyDisplayMenu,
+  CompanyViewsMenu,
+} from '@app/component/next-soup/soup-view/views/companies/CompanyViewsMenu';
 import { DateGroupHeader } from '@app/component/next-soup/soup-view/views/inbox/date-group-header';
 import { InboxListEntity } from '@app/component/next-soup/soup-view/views/inbox/InboxListEntity';
 import { TaskListEntity } from '@app/component/next-soup/soup-view/views/tasks/TaskListEntity';
@@ -70,6 +75,9 @@ import { isListViewID, type ListView } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { DEBUG_SETTING_KEYS, useDebugSetting } from '@app/lib/debugSettings';
 import { usePreference } from '@app/preferences/use-preference';
+import { useDealStages } from '@companies/crm/deal-stages';
+import { CrmStageIcon } from '@companies/crm/StageIcon';
+import type { CrmViewConfig } from '@companies/crm/saved-views';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { LoadingBlock } from '@core/component/LoadingBlock';
@@ -144,8 +152,6 @@ import { useSearchTagsFlag } from './filters-bar/search/search-tags-flag';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
-
-const WIDE_SPLIT_PANEL_BREAKPOINT = 512;
 
 type SoupViewMode = 'list' | 'board';
 
@@ -228,6 +234,31 @@ export const DefaultGroupHeader = (
   props: GroupHeaderProps & { highlighted?: boolean }
 ) => {
   const { groupByField } = useSoupView();
+  const panel = useSplitPanelOrThrow();
+  const dealStages = useDealStages();
+
+  // The Customers view groups by option ids from the team's deal-stage set
+  // (or other custom select options) that the static PropertyValueIcon table
+  // doesn't know — render those through CrmStageIcon instead.
+  const isCompaniesView = () => {
+    const content = panel.handle.content();
+    return content.type === 'component' && content.id === 'companies';
+  };
+
+  // Index into the active stage set so header dots match kanban columns.
+  const stageIndex = (optionId: string): number | undefined => {
+    const index = dealStages
+      .stages()
+      .findIndex((stage) => stage.id === optionId);
+    return index === -1 ? undefined : index;
+  };
+
+  const stageOptionId = () => {
+    if (!isCompaniesView()) return undefined;
+    const value = props.group.value ?? props.group.key;
+    return typeof value === 'string' && value ? value : undefined;
+  };
+
   const assigneeId = createMemo(() => {
     const field = groupByField();
     if (
@@ -291,7 +322,20 @@ export const DefaultGroupHeader = (
         >
           {(value) => (
             <>
-              <PropertyValueIcon optionId={value()} class="size-3.5" />
+              <Show
+                when={stageOptionId()}
+                fallback={
+                  <PropertyValueIcon optionId={value()} class="size-3.5" />
+                }
+              >
+                {(stage) => (
+                  <CrmStageIcon
+                    optionId={stage()}
+                    index={stageIndex(stage())}
+                    class="size-3.5"
+                  />
+                )}
+              </Show>
               <span class="truncate">{props.group.label}</span>
             </>
           )}
@@ -410,6 +454,11 @@ interface SoupViewProps {
    * preset whose `clientFilters` include a predicate that matches them.
    */
   additionalEntities?: Accessor<EntityData[]>;
+  /**
+   * Shared CRM view opened via a `?crmView=` link (Customers view only).
+   * When set, its pieces win over persisted/preset state during init.
+   */
+  initialCrmView?: CrmViewConfig;
 }
 
 export const SoupView = (props: SoupViewProps) => {
@@ -464,6 +513,19 @@ export const SoupView = (props: SoupViewProps) => {
     { default: [] }
   );
 
+  // List/board display mode — currently only the Customers view offers a
+  // board (kanban grouped by Stage). Per-entry state so back/forward
+  // restores the mode the user left each entry with. Declared before the
+  // init effect below so a shared CRM view can set it during init.
+  const [viewMode, setViewMode] = useEntryState<SoupViewMode>('soup.viewMode', {
+    default: 'list',
+  });
+
+  // Shared CRM view opened via a `?crmView=` link — only honored on the
+  // Customers view; its pieces win over persisted/preset values in init.
+  const initialCrmView =
+    contentId === 'companies' ? props.initialCrmView : undefined;
+
   // We handle the restore of the persistence here instead of within the context
   // because the context is no longer recreated for each soup view because we
   // moved it within the `SplitPanel`.
@@ -480,23 +542,37 @@ export const SoupView = (props: SoupViewProps) => {
     batch(() => {
       soupView.initialize({
         initialQuery: stripGatedTagFilters(
-          persistedFilters ?? props.initialFilters
+          initialCrmView
+            ? (initialCrmView.filters as Query | undefined)
+            : (persistedFilters ?? props.initialFilters)
         ),
-        initialClientFilters: persistedPredicates ?? props.initialClientFilters,
-        initialFacets: persistedFacets ?? props.initialFacets,
-        initialSearchText: persistedSearchText ?? props.initialSearchText,
+        initialClientFilters: initialCrmView
+          ? (initialCrmView.clientFilters ?? {})
+          : (persistedPredicates ?? props.initialClientFilters),
+        // A shared/saved CRM view carries its full facet selection (Stage
+        // and Owner sub-filters included).
+        initialFacets: initialCrmView
+          ? (initialCrmView.facets ?? {})
+          : (persistedFacets ?? props.initialFacets),
+        initialSearchText: initialCrmView
+          ? (initialCrmView.searchText ?? '')
+          : (persistedSearchText ?? props.initialSearchText),
         disableLocalSearch: props.disableLocalSearch,
         additionalEntities: props.additionalEntities,
       });
 
-      const initialGroupBy = persistedGroupBy ?? props.initialGroupBy;
+      // `groupBy: null` in a shared view records an explicit "no grouping",
+      // which the grouping store expresses as `undefined`.
+      const initialGroupBy = initialCrmView
+        ? (initialCrmView.groupBy ?? undefined)
+        : (persistedGroupBy ?? props.initialGroupBy);
 
-      let initialSortIds = sortPref();
+      let initialSortIds = initialCrmView?.sort ?? sortPref();
       if (initialSortIds.length === 0) {
         initialSortIds = ['updated_at'];
       }
 
-      let initialActiveTab = persistedActiveTab;
+      let initialActiveTab = initialCrmView?.activeTab ?? persistedActiveTab;
 
       if (initialActiveTab === undefined && isListViewID(contentId)) {
         initialActiveTab = VIEW_TAB_PRESETS[contentId].default;
@@ -510,6 +586,11 @@ export const SoupView = (props: SoupViewProps) => {
       );
 
       soupView.setActiveTab(initialActiveTab);
+
+      if (initialCrmView) {
+        // Filters (incl. Stage/Owner) are seeded via initialFacets above.
+        setViewMode(initialCrmView.viewMode ?? 'list');
+      }
     });
   });
 
@@ -561,11 +642,6 @@ export const SoupView = (props: SoupViewProps) => {
     return view ? LIST_VIEW_DOCS_URL[view] : undefined;
   });
 
-  // List/board display mode — per-entry so back/forward restores each entry's
-  // mode. Only the Customers view offers a board (kanban grouped by Stage).
-  const [viewMode, setViewMode] = useEntryState<SoupViewMode>('soup.viewMode', {
-    default: 'list',
-  });
   const isBoardMode = createMemo(
     () => activeListView() === 'companies' && viewMode() === 'board'
   );
@@ -666,6 +742,11 @@ export const SoupView = (props: SoupViewProps) => {
                   !narrowSearchExpanded() && isComponentListView('companies')
                 }
               >
+                <CompanyViewsMenu
+                  viewMode={viewMode()}
+                  setViewMode={setViewMode}
+                />
+                <CompanyDisplayMenu />
                 <SoupViewModeToggle mode={viewMode()} onChange={setViewMode} />
               </Show>
               <Show

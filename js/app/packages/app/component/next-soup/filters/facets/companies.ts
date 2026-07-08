@@ -1,49 +1,46 @@
-import { getCompanyOwnerId, isCrmCompanyEntity } from '@entity';
-import { PROPERTY_OPTION_IDS } from '@property/constants';
-import { hasCompanyStage, hasNoCompanyStage } from '../predicates';
+import type { EntityData } from '@entity';
+import {
+  getCompanyOwnerId,
+  getCompanyStageOptionId,
+  isCrmCompanyEntity,
+} from '@entity';
+import { NO_STAGE } from '../configs/base';
+import type { FacetCtx } from './base';
 import { facet, NO_ASSIGNEE } from './base';
-
-const STAGE = PROPERTY_OPTION_IDS.STAGE;
 
 // CRM companies come from a capped, dedicated soup request with no property
 // support in the AST (`ccf` target), so stage/owner filtering is client-side:
 // predicate-only facets (no backend clause) applied by the facet store's
 // `test` in `baseEntities`.
+
+// A company's stage within the team's active deal-stage set. `resolveStage`
+// (from `ctx.resolveCompanyStage`, backed by `useDealStages`) maps legacy
+// system-stage values onto custom stages so the filter buckets companies
+// exactly like the kanban; falls back to the raw system value when absent.
+const stageOf = (entity: EntityData, ctx: FacetCtx): string | undefined =>
+  ctx.resolveCompanyStage
+    ? ctx.resolveCompanyStage(entity)
+    : getCompanyStageOptionId(
+        entity as Parameters<typeof getCompanyStageOptionId>[0]
+      );
+
+// Open id space: each picked id is a deal-stage option id (team-customizable,
+// so options resolve per-id); NO_STAGE matches companies with no Stage set.
 export const COMPANY_STAGE = facet({
   id: 'company-stage',
   mode: 'or',
   multiple: true,
-  options: [
-    {
-      id: 'company-stage-lead',
-      predicate: (e) => hasCompanyStage(e, STAGE.LEAD),
-    },
-    {
-      id: 'company-stage-qualified',
-      predicate: (e) => hasCompanyStage(e, STAGE.QUALIFIED),
-    },
-    {
-      id: 'company-stage-demo',
-      predicate: (e) => hasCompanyStage(e, STAGE.DEMO),
-    },
-    {
-      id: 'company-stage-trial',
-      predicate: (e) => hasCompanyStage(e, STAGE.TRIAL),
-    },
-    {
-      id: 'company-stage-negotiation',
-      predicate: (e) => hasCompanyStage(e, STAGE.NEGOTIATION),
-    },
-    {
-      id: 'company-stage-customer',
-      predicate: (e) => hasCompanyStage(e, STAGE.CUSTOMER),
-    },
-    {
-      id: 'company-stage-churned',
-      predicate: (e) => hasCompanyStage(e, STAGE.CHURNED),
-    },
-    { id: 'company-no-stage', predicate: hasNoCompanyStage },
-  ],
+  options: (stageId) =>
+    stageId === NO_STAGE
+      ? {
+          id: stageId,
+          predicate: (e, ctx) => isCrmCompanyEntity(e) && !stageOf(e, ctx),
+        }
+      : {
+          id: stageId,
+          predicate: (e, ctx) =>
+            isCrmCompanyEntity(e) && stageOf(e, ctx) === stageId,
+        },
 });
 
 // Open id space: each picked id is an owner (person) id; NO_ASSIGNEE matches

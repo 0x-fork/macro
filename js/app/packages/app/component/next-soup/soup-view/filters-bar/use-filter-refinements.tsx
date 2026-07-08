@@ -3,11 +3,17 @@ import {
   type PresetContext,
   VIEW_TAB_PRESETS,
 } from '@app/component/app-sidebar/soup-filter-presets';
-import { type FilterID, NO_ASSIGNEE } from '@app/component/next-soup/filters';
+import {
+  type FilterID,
+  NO_ASSIGNEE,
+  NO_STAGE,
+} from '@app/component/next-soup/filters';
 import { useSoupView } from '@app/component/next-soup/soup-view/soup-view-context';
 import { useSplitPanelOrThrow } from '@app/component/split-layout/layoutUtils';
 import type { ListView } from '@app/constants/list-views';
 import { isListViewID } from '@app/constants/list-views';
+import { useDealStages } from '@companies/crm/deal-stages';
+import { CrmStageIcon } from '@companies/crm/StageIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import { useUserContext, useUserId } from '@core/context/user';
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
@@ -56,6 +62,7 @@ export function useFilterRefinements() {
   const currentUserId = useUserId();
   const taskStatus = useTaskStatusFilter();
   const tagFilter = useTagFilter();
+  const dealStages = useDealStages();
 
   const isOptionActive = (facetId: string, optionId: string) =>
     soup.facets.has(facetId, optionId);
@@ -180,6 +187,93 @@ export function useFilterRefinements() {
    * Handler for assignee filter changes.
    */
   const handleAssigneeChange = (ids: string[]) => setAssigneeFilter(ids);
+
+  // Owner sub-filter (Customers view) — client-side facet (`company-owner`).
+  const ownerFilter = () => soup.facets.getSelected('company-owner');
+  const handleOwnerChange = (ids: string[]) =>
+    soup.facets.set('company-owner', ids);
+
+  const ownerSearchableOptions = createMemo((): SearchableOption[] => {
+    const uid = currentUserId();
+    const noOwnerOption: SearchableOption = {
+      id: NO_ASSIGNEE,
+      label: 'No owner',
+      icon: () => <CircleDashedIcon class="size-3.5 text-ink-muted" />,
+    };
+    let meOption: SearchableOption | undefined;
+    const otherContactOptions: SearchableOption[] = [];
+    for (const contact of contacts()) {
+      const opt: SearchableOption = {
+        id: contact.id,
+        label: buildContactLabel(contact, uid),
+        icon: () => (
+          <UserIcon
+            id={contact.id}
+            size="sm"
+            suppressClick
+            showTooltip={false}
+          />
+        ),
+      };
+      if (contact.id === uid) {
+        meOption = opt;
+      } else {
+        otherContactOptions.push(opt);
+      }
+    }
+    return [
+      ...(meOption ? [meOption] : []),
+      noOwnerOption,
+      ...otherContactOptions,
+    ];
+  });
+
+  const ownerOptionsMap = createMemo(
+    (): Map<string, { label: string; icon?: () => JSX.Element }> => {
+      const map = new Map<
+        string,
+        { label: string; icon?: () => JSX.Element }
+      >();
+      for (const option of ownerSearchableOptions()) {
+        map.set(option.id, { label: option.label, icon: option.icon });
+      }
+      return map;
+    }
+  );
+
+  // Stage sub-filter (Customers view) — client-side facet (`company-stage`).
+  // Options come from the team's active deal-stage set plus "No stage".
+  const stageFilter = () => soup.facets.getSelected('company-stage');
+  const handleStageChange = (ids: string[]) =>
+    soup.facets.set('company-stage', ids);
+
+  const stageSearchableOptions = createMemo((): SearchableOption[] => [
+    ...dealStages.stages().map((stage, index) => ({
+      id: stage.id,
+      label: stage.label,
+      icon: () => (
+        <CrmStageIcon optionId={stage.id} index={index} class="size-3.5" />
+      ),
+    })),
+    {
+      id: NO_STAGE,
+      label: 'No stage',
+      icon: () => <CircleDashedIcon class="size-3.5 text-ink-muted" />,
+    },
+  ]);
+
+  const stageOptionsMap = createMemo(
+    (): Map<string, { label: string; icon?: () => JSX.Element }> => {
+      const map = new Map<
+        string,
+        { label: string; icon?: () => JSX.Element }
+      >();
+      for (const option of stageSearchableOptions()) {
+        map.set(option.id, { label: option.label, icon: option.icon });
+      }
+      return map;
+    }
+  );
 
   /**
    * Get filter categories for the current view
@@ -413,6 +507,92 @@ export function useFilterRefinements() {
       );
     };
 
+    // Stage chip (consolidated, searchable) for the Customers view.
+    const pushStageConsolidatedChip = () => {
+      if (view !== 'companies') return;
+      const key = 'stage';
+      const popupOpen =
+        consolidatedChipCache.get(key)?.isPopupOpen?.() ?? false;
+      if (stageFilter().length === 0 && !popupOpen) return;
+
+      seenKeys.add(key);
+
+      const getValues = (): FilterValue[] =>
+        stageFilter().map((id) => {
+          const opt = stageOptionsMap().get(id);
+          return { id, label: opt?.label ?? id, icon: opt?.icon };
+        });
+
+      filters.push(
+        getOrCreateConsolidatedChip(key, () => {
+          const [isPopupOpen, _setPopupOpen] = createSignal(false);
+          const setPopupOpen = (v: boolean) => {
+            if (!v) {
+              queueMicrotask(() =>
+                panel.panelRef()?.focus({ preventScroll: true })
+              );
+            }
+            _setPopupOpen(v);
+          };
+          return {
+            key,
+            categoryLabel: 'Stage',
+            values: getValues,
+            searchableOptions: stageSearchableOptions,
+            activeSearchableIds: stageFilter,
+            onSearchableChange: handleStageChange,
+            searchPlaceholder: 'Filter stages...',
+            isPopupOpen,
+            setPopupOpen,
+            onRemoveAll: () => handleStageChange([]),
+          };
+        })
+      );
+    };
+
+    // Owner chip (consolidated, searchable) for the Customers view.
+    const pushOwnerConsolidatedChip = () => {
+      if (view !== 'companies') return;
+      const key = 'owner';
+      const popupOpen =
+        consolidatedChipCache.get(key)?.isPopupOpen?.() ?? false;
+      if (ownerFilter().length === 0 && !popupOpen) return;
+
+      seenKeys.add(key);
+
+      const getValues = (): FilterValue[] =>
+        ownerFilter().map((id) => {
+          const opt = ownerOptionsMap().get(id);
+          return { id, label: opt?.label ?? id, icon: opt?.icon };
+        });
+
+      filters.push(
+        getOrCreateConsolidatedChip(key, () => {
+          const [isPopupOpen, _setPopupOpen] = createSignal(false);
+          const setPopupOpen = (v: boolean) => {
+            if (!v) {
+              queueMicrotask(() =>
+                panel.panelRef()?.focus({ preventScroll: true })
+              );
+            }
+            _setPopupOpen(v);
+          };
+          return {
+            key,
+            categoryLabel: 'Owner',
+            values: getValues,
+            searchableOptions: ownerSearchableOptions,
+            activeSearchableIds: ownerFilter,
+            onSearchableChange: handleOwnerChange,
+            searchPlaceholder: 'Search owners...',
+            isPopupOpen,
+            setPopupOpen,
+            onRemoveAll: () => handleOwnerChange([]),
+          };
+        })
+      );
+    };
+
     // Tags chip (consolidated, searchable) for the documents/tasks views.
     const pushTagsConsolidatedChip = () => {
       if (view !== 'tasks' && view !== 'documents') return;
@@ -460,6 +640,8 @@ export function useFilterRefinements() {
 
     pushTaskStatusChip();
     pushAssigneeConsolidatedChip();
+    pushStageConsolidatedChip();
+    pushOwnerConsolidatedChip();
     pushTagsConsolidatedChip();
 
     // Evict stale chips
