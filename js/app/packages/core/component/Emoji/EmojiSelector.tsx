@@ -2,6 +2,7 @@ import { cn } from '@ui';
 import type { JSX } from 'solid-js';
 import {
   createEffect,
+  createMemo,
   createSignal,
   For,
   Match,
@@ -11,6 +12,7 @@ import {
   Switch,
 } from 'solid-js';
 import { type SimpleEmoji, useEmojiData } from './emojis';
+import { recordEmojiUsage } from './emojiUsage';
 
 function renderEmoji(emoji: string, size?: string): JSX.Element {
   return (
@@ -43,7 +45,21 @@ export function EmojiSelector(props: EmojiPickerProps): JSX.Element {
   const { groups, emojis: filteredEmojis, filter } = useEmojiData();
   let scrollEl!: HTMLDivElement;
 
+  const groupOffsets = createMemo(() => {
+    let offset = 0;
+    return groups().map((group) => {
+      const start = offset;
+      offset += group.emojis.length;
+      return start;
+    });
+  });
+
   const columns = () => props.columns ?? 6;
+
+  const selectEmoji = (emoji: SimpleEmoji) => {
+    recordEmojiUsage(emoji.emoji);
+    props.onEmojiClick(emoji);
+  };
 
   function EmojiOption(props: EmojiOptionProps): JSX.Element {
     return (
@@ -79,7 +95,7 @@ export function EmojiSelector(props: EmojiPickerProps): JSX.Element {
   const handleKeyDown = (e: KeyboardEvent) => {
     const emojisToUse = validFilter(props.nameFilter)
       ? filteredEmojis()
-      : groups.flatMap((g) => g.emojis);
+      : groups().flatMap((g) => g.emojis);
     if (!emojisToUse || emojisToUse.length === 0) return;
 
     const totalEmojis = emojisToUse.length;
@@ -118,7 +134,7 @@ export function EmojiSelector(props: EmojiPickerProps): JSX.Element {
       e.preventDefault();
       e.stopPropagation();
       if (selectedIndex() !== -1) {
-        props.onEmojiClick(emojisToUse[selectedIndex()]);
+        selectEmoji(emojisToUse[selectedIndex()]);
       }
     }
   };
@@ -148,8 +164,8 @@ export function EmojiSelector(props: EmojiPickerProps): JSX.Element {
             !validFilter(props.nameFilter) || filteredEmojis() === undefined
           }
         >
-          <For each={groups}>
-            {(group): JSX.Element => (
+          <For each={groups()}>
+            {(group, groupIndex): JSX.Element => (
               <Show when={group.emojis.length > 0}>
                 <div class="mt-2 w-full">
                   <p class="pl-1 text-ink-extra-muted text-xs">{group.name}</p>
@@ -158,8 +174,11 @@ export function EmojiSelector(props: EmojiPickerProps): JSX.Element {
                       {(emojiItem, index): JSX.Element => (
                         <EmojiOption
                           emoji={emojiItem}
-                          onEmojiClick={props.onEmojiClick}
-                          isSelected={selectedIndex() === index()}
+                          onEmojiClick={selectEmoji}
+                          isSelected={
+                            selectedIndex() ===
+                            groupOffsets()[groupIndex()] + index()
+                          }
                         />
                       )}
                     </For>
@@ -181,7 +200,7 @@ export function EmojiSelector(props: EmojiPickerProps): JSX.Element {
               {(emojiItem, index): JSX.Element => (
                 <EmojiOption
                   emoji={emojiItem}
-                  onEmojiClick={props.onEmojiClick}
+                  onEmojiClick={selectEmoji}
                   isSelected={selectedIndex() === index()}
                 />
               )}
