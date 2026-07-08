@@ -72,11 +72,23 @@ function parseSharedInboxConflict(message: string): {
  *
  * @returns ok if syncing was started, err if syncing failed
  */
+/**
+ * In-flight first-inbox init, shared so concurrent argless callers (a login
+ * route and the global no-inbox provisioner) collapse into one request. The
+ * backend is idempotent either way; this just avoids the duplicate call.
+ */
+let firstInboxInitInFlight: ResultAsync<void, EmailInitError> | null = null;
+
 function initEmailLink(args?: {
   linkId?: string;
   forceShare?: boolean;
 }): ResultAsync<void, EmailInitError> {
-  return ResultAsync.fromSafePromise(
+  const isFirstInboxInit = !args?.linkId && !args?.forceShare;
+  if (isFirstInboxInit && firstInboxInitInFlight) {
+    return firstInboxInitInFlight;
+  }
+
+  const result = ResultAsync.fromSafePromise(
     emailClient.init({ linkId: args?.linkId, forceShare: args?.forceShare })
   ).andThen((initResult) => {
     if (initResult.isErr()) {
@@ -101,6 +113,16 @@ function initEmailLink(args?: {
     }
     return okAsync<void, EmailInitError>(undefined);
   });
+
+  if (isFirstInboxInit) {
+    firstInboxInitInFlight = result;
+    const clear = () => {
+      firstInboxInitInFlight = null;
+    };
+    void result.then(clear, clear);
+  }
+
+  return result;
 }
 
 /**

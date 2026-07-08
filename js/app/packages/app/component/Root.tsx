@@ -503,19 +503,6 @@ function QuerySyncProviderWithUserId() {
   return <QuerySyncProvider userId={userId} />;
 }
 
-// Routes that own email-link provisioning themselves (or are pre-auth). The
-// auto-provision below must not race the init they already run.
-function isOnAuthProvisioningRoute() {
-  const path = window.location.pathname;
-  return (
-    path.includes('/login') ||
-    path.includes('/signup') ||
-    path.includes('/welcome') ||
-    path.includes('/email-signup-callback') ||
-    path.includes('/inbox-link-callback')
-  );
-}
-
 // Provisioning the first inbox (POST /email/init) is not a side effect of
 // authentication — it is hand-wired into individual login UIs. A signup that
 // arrives already authenticated on /app (e.g. marketing SSO returning to the app
@@ -524,11 +511,13 @@ function isOnAuthProvisioningRoute() {
 //
 // Do it from one always-mounted place, gated on the durable precondition —
 // authenticated with zero inboxes — not on a one-time onboarding flag. The email
-// service only provisions a user who actually holds a Google grant, and a
-// disconnect removes that grant, so this safely no-ops for anyone who never
-// connected or who deliberately disconnected. Keying on "no inbox" rather than a
-// flag also recovers users already stranded by this bug and re-attempts on the
-// next load after a transient failure.
+// service only provisions a user who actually holds a Google grant, so this
+// no-ops for anyone who declined the Gmail scope or disconnected (which removes
+// the grant). Keying on "no inbox" rather than a flag also recovers users already
+// stranded by this bug and re-attempts on the next load after a transient
+// failure. Login and signup routes fire the same first-inbox init on their own;
+// the shared in-flight guard in the email-link module collapses the overlap, so
+// no route awareness is needed here.
 function ProvisionFirstInbox() {
   const userInfoQuery = useUserInfoQuery();
   const { query: emailLinksQuery } = useEmailLinks();
@@ -545,9 +534,6 @@ function ProvisionFirstInbox() {
     // errored list, and stop once any inbox exists.
     if (!emailLinksQuery.isSuccess || emailLinksQuery.data.links.length > 0)
       return;
-
-    // The login/signup/add-inbox callbacks run their own init on these routes.
-    if (isOnAuthProvisioningRoute()) return;
 
     if (attemptedForUserId === user.id) return;
     attemptedForUserId = user.id;
