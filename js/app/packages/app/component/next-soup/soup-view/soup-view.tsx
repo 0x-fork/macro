@@ -21,11 +21,11 @@ import { useSoup } from '@app/component/next-soup/soup-context';
 import { registerDocumentsFilterSplit } from '@app/component/next-soup/soup-view/documents-filter-controllers';
 import { EmptyState } from '@app/component/next-soup/soup-view/empty-states';
 import { InboxSelector } from '@app/component/next-soup/soup-view/filters-bar/inbox-selector';
-import { useSearchTagsFlag } from '@app/component/next-soup/soup-view/filters-bar/search/search-tags-flag';
 import { SoupFiltersBar } from '@app/component/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { SoupSearchbar } from '@app/component/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/component/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { MaybeSoupEntityActionDrawerManager } from '@app/component/next-soup/soup-view/SoupEntityActionDrawerManager';
+import { SoupSectionHeader } from '@app/component/next-soup/soup-view/section-header';
 import { SoupEntityContextMenu } from '@app/component/next-soup/soup-view/soup-entity-context-menu';
 import {
   persistSoupNavigationTouchHighlight,
@@ -43,9 +43,11 @@ import {
 import { CompanyKanban } from '@app/component/next-soup/soup-view/views/companies/CompanyKanban';
 import { CompanyListEntity } from '@app/component/next-soup/soup-view/views/companies/CompanyListEntity';
 import { ResponsiveCompanyListHeader } from '@app/component/next-soup/soup-view/views/companies/CompanyListHeader';
+import { DateGroupHeader } from '@app/component/next-soup/soup-view/views/inbox/date-group-header';
 import { InboxListEntity } from '@app/component/next-soup/soup-view/views/inbox/InboxListEntity';
 import { TaskListEntity } from '@app/component/next-soup/soup-view/views/tasks/TaskListEntity';
 import { ResponsiveTaskListHeader } from '@app/component/next-soup/soup-view/views/tasks/TaskListHeader';
+import { TaskGroupHeader } from '@app/component/next-soup/soup-view/views/tasks/task-group-header';
 import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
@@ -138,6 +140,7 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
+import { useSearchTagsFlag } from './filters-bar/search/search-tags-flag';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
@@ -186,33 +189,6 @@ const SoupViewModeToggle = (props: {
   );
 };
 
-export const SoupSectionHeader = (props: {
-  children: JSX.Element;
-  onClick?: () => void;
-  highlighted?: boolean;
-  class?: string;
-}) => {
-  return (
-    <Layer depth={2}>
-      <Dynamic
-        component={props.onClick ? 'button' : 'div'}
-        type={props.onClick ? 'button' : undefined}
-        onClick={props.onClick}
-        data-highlighted={props.highlighted || undefined}
-        class={cn(
-          'group/header relative w-[calc(100%-0.5rem)] mx-1 my-0.5 rounded-lg px-2 py-2 flex items-center gap-2.5 text-xs font-semibold tracking-tight',
-          'text-text-muted bg-surface border border-edge-muted relative',
-          props.onClick && 'hover:bg-active',
-          props.class,
-          props.highlighted && 'bg-active'
-        )}
-      >
-        {props.children}
-      </Dynamic>
-    </Layer>
-  );
-};
-
 const AssigneeGroupContent = (props: {
   assigneeId: MacroId;
   fallbackLabel: string;
@@ -248,7 +224,7 @@ const STATUS_GROUP_HEADER_TINTS: Record<string, string> = {
     'bg-ink/5 border-ink/10 data-highlighted:bg-ink/10 hover:bg-ink/10',
 };
 
-const DefaultGroupHeader = (
+export const DefaultGroupHeader = (
   props: GroupHeaderProps & { highlighted?: boolean }
 ) => {
   const { groupByField } = useSoupView();
@@ -931,6 +907,12 @@ export const SoupViewList = (props: SoupViewListProps) => {
     return ListEntity;
   };
 
+  const groupHeaderComponent = () => {
+    if (currentView() === 'tasks') return TaskGroupHeader;
+    if (isNewInboxEnabled()) return DateGroupHeader;
+    return DefaultGroupHeader;
+  };
+
   useSoupViewHotkeys({
     splitId: panel.handle.id,
     scopeId: scopeId(),
@@ -1394,7 +1376,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                                       <Dynamic
                                         component={
                                           group().renderHeader ??
-                                          DefaultGroupHeader
+                                          groupHeaderComponent()
                                         }
                                         group={group()}
                                         highlighted={row.isFocused()}
