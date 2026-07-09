@@ -10,6 +10,7 @@ import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import { mountGlobalFocusListener } from '@app/signal/focus';
 import { AutomationComposer } from '@block-automation/component';
 import { useIsAuthenticated } from '@core/auth';
+import { LOCAL_ONLY } from '@core/constant/featureFlags';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isSettingsPath } from '@core/constant/SettingsState';
 import { isMobile } from '@core/mobile/isMobile';
@@ -46,6 +47,7 @@ import { MacroMcpSetupModal } from './macro-mcp-setup-modal/MacroMcpSetupModal';
 import { FloatRegion } from './mobile/float-regions/FloatRegion';
 import { FloatRegionHost } from './mobile/float-regions/FloatRegionHost';
 import { MobileDock } from './mobile/MobileDock';
+import { MobileDropdownDebugDrawer } from './mobile/MobileDropdownDebugDrawer';
 import { MobileBottomEdgeFade } from './mobile/MobileEdgeFade';
 import { MobileSearchOuter } from './mobile/MobileSearch';
 import { SwipeDownDismissKeyboard } from './mobile/SwipeDownDismissKeyboard';
@@ -212,6 +214,16 @@ function LayoutInner(props: RouteSectionProps) {
       </Show>
       <Show when={isMobile()}>
         <MobileSearchOuter />
+      </Show>
+      <Show
+        when={
+          LOCAL_ONLY &&
+          isMobile() &&
+          isAuthenticated() &&
+          !AUTH_URLS.includes(location.pathname)
+        }
+      >
+        <MobileDropdownDebugDrawer />
       </Show>
       <SwipeDownDismissKeyboard />
       <Suspense>
