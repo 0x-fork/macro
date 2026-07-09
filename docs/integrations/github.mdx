@@ -6,6 +6,10 @@ description: "Link pull requests to tasks and let task statuses update themselve
 
 Macro integrates with GitHub so your tasks stay in sync with the code that closes them. To connect, link your GitHub account in **Settings** under **Account**.
 
+### Connecting
+
+There are two pieces: linking your GitHub account, and installing the Macro GitHub App on the repositories you want to track. From **Settings** you can link your account and follow the connection link to install the app. The order doesn't matter — if you install the app first and link your account afterward, Macro associates the existing installation with you automatically.
+
 ### Tasks that track your PRs
 
 Create a branch for a task and Macro keeps the task's status up to date automatically: **In Progress** when you create the branch, **In Review** when you open the pull request, and **Done** when it merges.
@@ -33,3 +37,7 @@ Every linked PR is also listed in the **GitHub** section of the task's propertie
 </Frame>
 
 Pull requests are blocks like everything else in Macro: you can @mention them in channels and docs, and agents can read them for context. See [Tasks](/product/tasks) for more on how tasks work.
+
+### Notifications
+
+Notifications for GitHub activity — a pull request opened, reviewed, or merged — are attributed to the GitHub username and avatar of whoever took the action, whether or not that person's GitHub account is linked to Macro. You're never notified about your own PR actions.

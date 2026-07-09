@@ -52,6 +52,16 @@ Some blocks ship with their own system properties:
 - **CRM companies (Customers)**: Stage (Lead, Qualified, Demo, Trial, Negotiation, Customer, Churned), Owner (a person on your team), and Revenue, plus a Last Interaction timestamp that updates automatically from synced workspace emails.
 - **CRM contacts & companies**: Email, Name, Company, interaction timestamps, Domains, Email Sync, and more.
 
+## Tags
+
+Tags are labels you attach to entities to group and filter them. A tag is either **personal** (only you see it) or **team** (shared with your workspace), and the same tags work across documents, tasks, emails, AI chats, projects, and folders — one label set for your whole workspace.
+
+Applied tags show up as chips on the entity's row, sorted alphabetically. To add one, right-click a row and choose **Add label**, or open the entity's **Details** panel and use the properties section. Folder rows show their tag chips to the left of the folder breadcrumb.
+
+To filter a list or [search](/product/search) by tag, open the filter menu and pick the **Tags** facet — it matches any of the selected tags. The facet is available for documents, tasks, emails, chats, and folders.
+
 ## Agent access
 
 Agents read and write properties through the MCP entity tools: `GetEntityProperties` to read, `SetEntityProperty` to update (status, assignee, dates, custom fields), and `ListEntities` to browse. See the [tool reference](/AI/mcp/tools/index).
+
+`ListEntities`, `ContentSearch`, and `NameSearch` return each item's visible tags and accept a `tags` filter, and `ListTags` returns the personal and team tags an agent can see. When editing a multi-select or tag property, `SetEntityProperty` can add or remove individual options, so concurrent edits compose instead of overwriting the whole value.
