@@ -6,8 +6,7 @@
 //! `severity: error` findings; `warning`/`hint` rules surface through
 //! CodeRabbit's ast-grep integration on changed code instead. The rules encode
 //! conventions from `rust/cloud-storage/STYLE_GUIDE.md` and
-//! `js/app/STYLE_GUIDE.md`; see `.github/CODE_REVIEW_AUTOMATION.md` for the
-//! enforcement strategy.
+//! `js/app/STYLE_GUIDE.md`.
 
 use gh_workflow::{
     Concurrency, Event, Expression, Job, PullRequest, PullRequestType, Run, Step, Use, Workflow,

@@ -1,7 +1,6 @@
 {
   // oxlint runs ALONGSIDE Biome, scoped to rules Biome cannot express.
-  // See js/app/STYLE_GUIDE.md §3 (Async & error handling) and
-  // .github/CODE_REVIEW_AUTOMATION.md (Layer 2).
+  // See js/app/STYLE_GUIDE.md §3 (Async & error handling).
   //
   // Run: bun run lint:oxlint (from js/), or `bunx oxlint` from js/app.
   //

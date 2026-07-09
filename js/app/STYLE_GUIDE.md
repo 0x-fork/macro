@@ -104,5 +104,4 @@ this file works as a standalone review checklist.
 ---
 
 *Provenance: mined 2026-07-09 from human review comments on PRs #3650–#4653 (997 PRs, 315
-human inline comments). Regenerate with the review-mining workflow described in
-`.github/CODE_REVIEW_AUTOMATION.md`.*
+human inline comments).*
