@@ -246,7 +246,7 @@ export function ConnectGithubOverview() {
         <div class="mt-5 flex items-center gap-2.5">
           <Button
             variant="base"
-            class="gap-2 rounded-lg bg-accent px-4 py-2 font-medium text-white hover:bg-accent-hover [&_svg]:size-4"
+            class="gap-2 rounded-lg bg-accent px-4 py-2 font-medium text-surface hover:bg-accent-hover [&_svg]:size-4"
             onClick={() => void handleConnect()}
             disabled={initGithubLink.isPending}
           >

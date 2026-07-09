@@ -206,7 +206,7 @@ function AttentionRow(props: {
 
   return (
     <div
-      class="group/attention flex w-full cursor-pointer items-center gap-2 rounded-lg bg-ink/3 px-2.5 py-2 hover:bg-ink/6"
+      class="group/attention flex w-full items-center gap-2 rounded-lg bg-ink/3 px-2.5 py-2 hover:bg-ink/6"
       onClick={(event) => props.onOpen(props.item, event)}
     >
       <Show

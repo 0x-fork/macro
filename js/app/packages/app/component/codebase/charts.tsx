@@ -1167,6 +1167,17 @@ function polar(angleDeg: number, radius: number): Point {
 }
 
 function donutArcPath(startDeg: number, endDeg: number): string {
+  // A single visible segment sweeps the full 360°, where one arc command with
+  // identical endpoints is implementation-defined; draw two half circles.
+  if (endDeg - startDeg >= 360) {
+    const top = polar(0, DONUT_RADIUS);
+    const bottom = polar(180, DONUT_RADIUS);
+    return (
+      `M ${top.x} ${top.y} ` +
+      `A ${DONUT_RADIUS} ${DONUT_RADIUS} 0 1 1 ${bottom.x} ${bottom.y} ` +
+      `A ${DONUT_RADIUS} ${DONUT_RADIUS} 0 1 1 ${top.x} ${top.y}`
+    );
+  }
   const start = polar(startDeg, DONUT_RADIUS);
   const end = polar(endDeg, DONUT_RADIUS);
   const largeArc = endDeg - startDeg > 180 ? 1 : 0;

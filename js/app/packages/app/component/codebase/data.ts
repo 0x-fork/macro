@@ -34,8 +34,11 @@ const PULL_REQUEST_SOUP_ARGS: SoupAstItemsQueryArgs = {
   ),
 };
 
+// Tasks feed the digest, charts, and PR link pills rather than a paginated
+// list, so fetch a wider window than the PR query; anything beyond the 250
+// most recently updated tasks is out of scope for the dashboard.
 const TASK_SOUP_ARGS: SoupAstItemsQueryArgs = {
-  params: { limit: 100, sort_method: 'updated_at' },
+  params: { limit: 250, sort_method: 'updated_at' },
   body: compileToAst(
     queryStateFrom(
       defineQueryFilters({
