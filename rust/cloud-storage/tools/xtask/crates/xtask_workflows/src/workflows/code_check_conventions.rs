@@ -5,8 +5,7 @@
 //! (config: `sgconfig.yml` at the repo root). The scan fails only on
 //! `severity: error` findings; `warning`/`hint` rules surface through
 //! CodeRabbit's ast-grep integration on changed code instead. The rules encode
-//! conventions from `rust/cloud-storage/STYLE_GUIDE.md` and
-//! `js/app/STYLE_GUIDE.md`.
+//! conventions from `STYLE_GUIDE.md` at the repo root.
 
 use gh_workflow::{
     Concurrency, Event, Expression, Job, PullRequest, PullRequestType, Run, Step, Use, Workflow,

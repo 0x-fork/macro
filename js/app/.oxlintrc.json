@@ -1,6 +1,6 @@
 {
   // oxlint runs ALONGSIDE Biome, scoped to rules Biome cannot express.
-  // Enforces FE-12 (and eventually FE-13) from js/app/STYLE_GUIDE.md.
+  // Enforces FE-12 (and eventually FE-13) from STYLE_GUIDE.md.
   //
   // Run: bun run lint:oxlint (from js/), or `bunx oxlint` from js/app.
   //

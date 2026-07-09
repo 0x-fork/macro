@@ -3,7 +3,7 @@ language: rust
 severity: hint
 message: mod.rs should only declare submodules and re-exports; move logic into its own module file.
 note: |-
-  Rule CS-25 in rust/cloud-storage/STYLE_GUIDE.md, mined from PR #4175.
+  Rule CS-25 in STYLE_GUIDE.md, mined from PR #4175.
   Define functions, types, and impls in a named module file and re-export
   from mod.rs if needed.
   Aspirational: ~246 existing mod.rs files violate this; apply it to new

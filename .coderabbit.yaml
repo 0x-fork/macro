@@ -245,7 +245,7 @@ knowledge_base:
     filePatterns:
       - "**/CLAUDE.md"
       - "**/AGENTS.md"
-      - "**/STYLE_GUIDE.md"
+      - "STYLE_GUIDE.md"
       - "**/.cursor/rules/*.mdc"
       - "**/.cursor/commands/*.md"
 
