@@ -67,7 +67,8 @@ import type {
 import type { SoupParams } from '@queries/soup/items';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { soupKeys } from '@queries/soup/keys';
-import type { SoupPage } from '@service-storage/generated/schemas';
+import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
+import type { SoupApiItem, SoupPage } from '@service-storage/generated/schemas';
 import type { InfiniteData } from '@tanstack/solid-query';
 import {
   type Accessor,
@@ -527,6 +528,19 @@ export const SoupViewContextProvider: FlowComponent<
     (queryFilters.state.include.tagFilters ?? []).map((t) => t.value)
   );
 
+  const soupItemMatchesActiveFilters = (
+    item: SoupApiItem,
+    view: ListView | undefined
+  ): boolean => {
+    if (!soupItemMatchesListView(item, view)) return false;
+    if (!soupItemMatchesTagFilter(item, activeTagOptionIds())) return false;
+
+    return soup.predicates.test(
+      mapApiSoupItemToEntity(item) as SoupEntity,
+      getFilterContext()
+    );
+  };
+
   const itemsQuery = useSoupAstItemsQuery(
     () => {
       const groupBy = serverGroupByField();
@@ -543,9 +557,7 @@ export const SoupViewContextProvider: FlowComponent<
         enabled: enabled() && !search.isSearching(),
         showSupportedForeignEntities: showSupportedForeignEntitiesFF().enabled,
         meta: {
-          itemFilter: (item) =>
-            soupItemMatchesListView(item, view) &&
-            soupItemMatchesTagFilter(item, activeTagOptionIds()),
+          itemFilter: (item) => soupItemMatchesActiveFilters(item, view),
         },
       };
     }
@@ -672,9 +684,7 @@ export const SoupViewContextProvider: FlowComponent<
       return {
         enabled: enabled() && !search.isSearching(),
         meta: {
-          itemFilter: (item) =>
-            soupItemMatchesListView(item, view) &&
-            soupItemMatchesTagFilter(item, activeTagOptionIds()),
+          itemFilter: (item) => soupItemMatchesActiveFilters(item, view),
         },
       };
     },
