@@ -42,39 +42,65 @@ the bot says it so the human never has to again.
 
 ### Layer 2 — Push mechanizable rules into deterministic tooling
 
-An LLM (or human) should never enforce what a linter can. Candidates from the mined data,
-roughly in order of value:
+An LLM (or human) should never enforce what a linter can. Tool choices below were
+researched and version-verified against the July 2026 state of each ecosystem.
 
-| Mined rule | Deterministic enforcement |
-| --- | --- |
-| No `std::env::var` (use `macro_env_var`) | `clippy.toml` `disallowed-methods` |
-| `#[expect]` over `#[allow]` | `-W clippy::allow_attributes` (workspace lints) |
-| No `gen_random_uuid()` in new migrations | CI grep over `migrations/**` in changed files |
-| No `.sqlx/` directory inside individual crates | CI check on changed paths |
-| Source files under ~1000 lines | small CI script over changed `.rs`/`.ts(x)` files |
-| No service-client imports outside `queries` package | ast-grep rule (CodeRabbit already runs ast-grep: `tools.ast-grep.essential_rules: true`; add a repo `sgconfig.yml` with custom rules) |
-| No `.then()` chains in app code | ast-grep rule |
-| No raw Tailwind color classes | ast-grep/Biome plugin rule over class strings |
-| Pin third-party GitHub Actions to SHAs | `actionlint` / zizmor in CI |
+| Job | Tool (verified 2026-07) | Notes |
+| --- | --- | --- |
+| Ban `std::env::var`, non-macro `sqlx::query*` | clippy `disallowed-methods` | **Already live**: `rust/cloud-storage/clippy.toml` + `-Dclippy::disallowed_methods` in the `just clippy` CI recipe |
+| `#[expect]` over `#[allow]` | `[workspace.lints.clippy] allow_attributes = "deny"` + `allow_attributes_without_reason` | Each crate must opt in with `[lints] workspace = true`; add a CI assert that all crates carry the line |
+| `axum::Extension` in handler signatures | ast-grep rule scoped to handler fns | clippy `disallowed-types` is too blunt — it would also ban legitimate middleware/layer uses |
+| `mod.rs` contains only `mod`/`use`/attrs | ast-grep (first-class Rust grammar) | |
+| No `.then()`/`.catch()` chains | oxlint `promise/prefer-await-to-then` | Stable built-in, no type info needed; Biome has **no equivalent rule** |
+| No floating promises (explicit fire-and-forget) | oxlint type-aware via `oxlint-tsgolint` | 59/61 ts-eslint type-aware rules, 20–40× faster than ESLint; alpha-labeled but tracks typescript-go, which went GA 2026-07 |
+| `service-clients` importable only from `queries` | dependency-cruiser `forbidden` rules | bun symlinks *all* workspace packages regardless of declared deps, so `package.json` alone cannot enforce this; also enable its `no-non-package-json` rule |
+| Import cycles / importing own package barrel | Biome `noImportCycles` (stable since 2.4) + dependency-cruiser regex backstop | Biome `noRestrictedImports` is exact-match only (no globs) |
+| Raw Tailwind colors vs semantic tokens | Tailwind v4 `@theme`: reset the raw palette (`--color-*: initial`), define only semantic tokens | Make-it-impossible: `bg-red-500` stops compiling; no lint needed |
+| Postgres migration safety (locking DDL, NOT NULL adds, non-concurrent indexes…) | squawk via `sbdchd/squawk-action` | Rust binary, ~30 built-in rules, fixed rule set (no plugins) |
+| Team SQL rules: no `gen_random_uuid()` (UUIDv7 in app code), ON CONFLICT on backfills, redundant-vs-PK indexes | ~150-line checker on `pg_query.rs` in `tools/xtask` | Same libpg_query parser squawk uses; no off-the-shelf linter is pluggable enough to be worth it (Atlas lint analyzers were paywalled in 2025; sqlfluff plugins = Python overhead) |
+| Cross-file PR invariants: Lexical node changed → `version.ts` bumped; new migration → checklist; file crossed 1000 lines; `.sqlx/` inside a crate | Small script + `dorny/paths-filter`, wired as a required status check | The ecosystem's converged pattern; danger-js is in maintenance mode (last stable mid-2025) |
+| GitHub Actions pinning + workflow security | zizmor (`unpinned-uses`, injection, excessive permissions, pwn-requests) + actionlint for syntax; Renovate `helpers:pinGitHubActionDigests` for ongoing SHA updates (or one-time `pinact` + Dependabot, which bumps existing SHAs but can't convert tag→SHA) | |
+
+**Standardize custom structural rules on ast-grep.** One root `sgconfig.yml` with a
+`rules/` directory is consumed identically by CI (`ast-grep/action`), pre-commit, and
+CodeRabbit (`reviews.tools.ast-grep.rule_dirs`) — each rule is written once and enforced
+in all three places. Biome's GritQL plugins were evaluated and rejected for this job
+(JS/CSS/JSON-only, diagnostic-only); Semgrep CE has fine licensing for private rules but
+weaker Rust parsing.
+
+Explicitly rejected after research: **dylint** (each lint pins a nightly toolchain —
+maintenance burden unjustified when clippy.toml + ast-grep cover our rules), **Marker**
+(stalled since 2023), **Turborepo boundaries** (still experimental, open correctness
+bugs), **Atlas lint** (paywalled).
 
 Each rule moved into a linter can then be **deleted from the bot's judgment surface** —
 deterministic > probabilistic, and it runs pre-push locally too.
 
 ### Layer 3 — A style-guide-scoped AI review pass
 
-CodeRabbit reviews broadly (and produced 3× the comment volume humans did). For a
-high-precision pass scoped to *our* conventions, run Claude with the style guide as the
-only rubric:
+CodeRabbit reviews broadly (and produced 3× the comment volume humans did), and per its
+docs it **cannot run rules-only** — the general reviewer always runs; path instructions
+are a supplement. Two additions give a genuinely rubric-scoped pass:
 
-- **Trigger:** GitHub Action on `pull_request` (or on a `claude-review` label to control
-  cost), using `anthropics/claude-code-action`.
-- **Prompt shape:** "Here is the diff. Here is the STYLE_GUIDE.md for each touched
-  domain. Report only violations of these written rules, with the rule quoted. If nothing
-  violates the guide, say nothing." Restricting to written rules keeps precision high and
-  keeps the bot from re-litigating taste.
+- **CodeRabbit custom pre-merge checks** (`pre_merge_checks.custom_checks`): one check
+  per enumerable guide rule with explicit pass/fail criteria. This is CodeRabbit's only
+  truly rule-scoped surface (agentic, read-only, can use ast-grep/ripgrep; results land
+  in the summary table). Also: keep the learnings dashboard pruned, and don't list
+  guideline files in `path_instructions` (a documented anti-pattern).
+- **`anthropics/claude-code-action` v1** in automation mode, where the entire system
+  prompt is ours: *"Report ONLY violations of rules written in the STYLE_GUIDE.md files
+  for the touched domains; cite the violated rule verbatim; if nothing violates the
+  guide, post nothing."* Trigger it on a `style-review` label
+  (`pull_request: types: [labeled]` + label guard) so cost is opt-in per PR; cap with
+  `--max-turns`. Inline comments via its GitHub inline-comment tool.
 - The in-repo `/qc` skill (`.claude/skills/qc`) already runs 5 parallel review agents for
   local pre-push checks; point its "Consistency" agent at the STYLE_GUIDE files so local
   and CI review use the same rubric.
+
+If consolidating to a single AI reviewer ever becomes desirable, Greptile is currently
+the only major competitor that treats the rules file as a first-class enforced object
+(versioned `.greptile/` rules with per-rule scope/severity and per-rule "last applied"
+verification).
 
 ### Layer 4 — Re-mine so the guides never go stale
 
