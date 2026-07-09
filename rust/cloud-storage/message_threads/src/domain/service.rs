@@ -55,7 +55,7 @@ where
     ) -> Result<
         (
             HashMap<Uuid, Vec<CountedReaction>>,
-            HashMap<Uuid, Vec<super::models::ThreadAttachment>>,
+            HashMap<Uuid, Vec<super::models::MessageAttachment>>,
         ),
         ThreadErr,
     > {

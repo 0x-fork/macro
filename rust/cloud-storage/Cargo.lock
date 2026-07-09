@@ -2457,6 +2457,7 @@ dependencies = [
  "model-error-response",
  "model_notifications",
  "model_user",
+ "models_comms",
  "models_pagination",
  "models_permissions",
  "non_empty",
@@ -2681,6 +2682,7 @@ dependencies = [
  "macro_user_id",
  "macro_uuid",
  "model",
+ "models_comms",
  "serde",
  "serde_json",
  "sqlx",
@@ -8072,6 +8074,7 @@ dependencies = [
  "macro_uuid",
  "model-entity",
  "model_user",
+ "models_comms",
  "serde",
  "serde_json",
  "sqlx",
@@ -8315,6 +8318,17 @@ dependencies = [
  "serde",
  "strum",
  "utoipa",
+ "workspace-hack",
+]
+
+[[package]]
+name = "models_comms"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "utoipa",
+ "uuid",
  "workspace-hack",
 ]
 

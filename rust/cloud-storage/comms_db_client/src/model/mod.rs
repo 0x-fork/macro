@@ -1,7 +1,6 @@
 use channels::domain::models::ChannelType;
 use macro_user_id::user_id::MacroUserIdStr;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
@@ -54,17 +53,7 @@ pub struct NewAttachment {
     pub width: Option<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, PartialEq)]
-pub struct SimpleMention {
-    pub entity_type: String,
-    pub entity_id: String,
-}
-
-impl fmt::Display for SimpleMention {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.entity_type, self.entity_id)
-    }
-}
+pub use models_comms::SimpleMention;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct MessageMention {
@@ -93,11 +82,7 @@ pub struct Reaction {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct CountedReaction {
-    pub emoji: String,
-    pub users: Vec<String>,
-}
+pub use models_comms::CountedReaction;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "lowercase")]

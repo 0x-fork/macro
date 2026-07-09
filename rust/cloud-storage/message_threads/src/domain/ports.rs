@@ -9,9 +9,10 @@ use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
 use super::models::{
-    CountedReaction, LegacyThreadRef, PostThreadMessageRequest, PostThreadMessageResponse,
-    ResolvedThreadMessage, ThreadAttachment, ThreadMention, ThreadMessage, ThreadMessageRealtime,
-    ThreadMessageRow, ThreadParent, ThreadReactionRealtime, ThreadWithReplies, TopLevelThreadRow,
+    CountedReaction, LegacyThreadRef, MessageAttachment, PostThreadMessageRequest,
+    PostThreadMessageResponse, ResolvedThreadMessage, SimpleMention, ThreadMessage,
+    ThreadMessageRealtime, ThreadMessageRow, ThreadParent, ThreadReactionRealtime,
+    ThreadWithReplies, TopLevelThreadRow,
 };
 
 /// Errors surfaced by the thread service.
@@ -82,7 +83,7 @@ pub trait ThreadRepo: Send + Sync + 'static {
     fn get_attachments_batch(
         &self,
         message_ids: &[Uuid],
-    ) -> impl Future<Output = Result<HashMap<Uuid, Vec<ThreadAttachment>>, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<HashMap<Uuid, Vec<MessageAttachment>>, Self::Err>> + Send;
 
     /// Ensure a `comms_thread_details` row exists for a new top-level thread.
     fn upsert_thread_details(
@@ -113,7 +114,7 @@ pub trait ThreadRepo: Send + Sync + 'static {
     fn create_entity_mentions(
         &self,
         message_id: Uuid,
-        mentions: &[ThreadMention],
+        mentions: &[SimpleMention],
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
     /// Resolve a legacy comment thread id to its unified root message.

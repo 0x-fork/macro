@@ -238,31 +238,7 @@ pub struct ThreadReply {
     pub attachments: Vec<MessageAttachment>,
 }
 
-/// A reaction emoji with the list of users who reacted.
-#[derive(Debug, Clone, Serialize)]
-pub struct CountedReaction {
-    /// The emoji string.
-    pub emoji: String,
-    /// User ids who added this reaction.
-    pub users: Vec<String>,
-}
-
-/// An attachment on a message.
-#[derive(Debug, Clone)]
-pub struct MessageAttachment {
-    /// Attachment id.
-    pub id: Uuid,
-    /// Type of attached entity (e.g. "document").
-    pub entity_type: String,
-    /// Id of the attached entity.
-    pub entity_id: String,
-    /// Optional width (for images).
-    pub width: Option<i32>,
-    /// Optional height (for images).
-    pub height: Option<i32>,
-    /// When the attachment was created.
-    pub created_at: DateTime<Utc>,
-}
+pub use models_comms::{CountedReaction, MessageAttachment, SimpleMention};
 
 /// An attachment in a channel (for the channel-level attachments listing).
 #[derive(Debug, Clone)]
@@ -759,16 +735,6 @@ pub struct NewChannelAttachment {
     pub width: Option<i32>,
     /// Optional rendered height.
     pub height: Option<i32>,
-}
-
-/// Simple entity mention attached to a message.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
-pub struct SimpleMention {
-    /// Mentioned entity type.
-    pub entity_type: String,
-    /// Mentioned entity id.
-    pub entity_id: String,
 }
 
 /// Shareable entity type referenced by a channel message.

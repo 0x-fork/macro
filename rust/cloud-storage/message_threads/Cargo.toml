@@ -18,6 +18,7 @@ macro_user_id = { path = "../macro_user_id", features = ["sqlx"] }
 macro_uuid = { path = "../macro_uuid" }
 model-entity = { path = "../model-entity" }
 model_user = { path = "../model_user", features = ["axum"] }
+models_comms = { path = "../models_comms" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }

@@ -16,7 +16,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::domain::models::{
-    CountedReaction, LegacyThreadRef, ResolvedThreadMessage, ThreadAttachment, ThreadMention,
+    CountedReaction, LegacyThreadRef, MessageAttachment, ResolvedThreadMessage, SimpleMention,
     ThreadMessageRow, ThreadParent, TopLevelThreadRow,
 };
 use crate::domain::ports::ThreadRepo;
@@ -350,7 +350,7 @@ impl ThreadRepo for PgThreadsRepo {
     async fn get_attachments_batch(
         &self,
         message_ids: &[Uuid],
-    ) -> Result<HashMap<Uuid, Vec<ThreadAttachment>>, Self::Err> {
+    ) -> Result<HashMap<Uuid, Vec<MessageAttachment>>, Self::Err> {
         if message_ids.is_empty() {
             return Ok(HashMap::new());
         }
@@ -367,11 +367,11 @@ impl ThreadRepo for PgThreadsRepo {
         .await
         .context("unable to fetch attachments")?;
 
-        let mut out: HashMap<Uuid, Vec<ThreadAttachment>> = HashMap::new();
+        let mut out: HashMap<Uuid, Vec<MessageAttachment>> = HashMap::new();
         for row in rows {
             out.entry(row.message_id)
                 .or_default()
-                .push(ThreadAttachment {
+                .push(MessageAttachment {
                     id: row.id,
                     entity_type: row.entity_type,
                     entity_id: row.entity_id,
@@ -474,7 +474,7 @@ impl ThreadRepo for PgThreadsRepo {
     async fn create_entity_mentions(
         &self,
         message_id: Uuid,
-        mentions: &[ThreadMention],
+        mentions: &[SimpleMention],
     ) -> Result<(), Self::Err> {
         if mentions.is_empty() {
             return Ok(());

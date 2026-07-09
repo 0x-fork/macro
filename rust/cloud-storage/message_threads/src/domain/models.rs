@@ -78,42 +78,7 @@ impl ThreadParent {
     }
 }
 
-/// A reaction emoji with the list of users who reacted.
-#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
-pub struct CountedReaction {
-    /// The emoji string.
-    pub emoji: String,
-    /// User ids who added this reaction.
-    pub users: Vec<String>,
-}
-
-/// An attachment on a thread message. The attachment target is already
-/// polymorphic in `comms_attachments`.
-#[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
-pub struct ThreadAttachment {
-    /// Attachment id.
-    pub id: Uuid,
-    /// Type of attached entity (e.g. "document", "static").
-    pub entity_type: String,
-    /// Id of the attached entity.
-    pub entity_id: String,
-    /// Optional width (for images).
-    pub width: Option<i32>,
-    /// Optional height (for images).
-    pub height: Option<i32>,
-    /// When the attachment was created.
-    pub created_at: DateTime<Utc>,
-}
-
-/// A mentioned entity inside a thread message, mirrored into
-/// `comms_entity_mentions` (already source- and target-polymorphic).
-#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
-pub struct ThreadMention {
-    /// Mentioned entity type (e.g. "user", "document").
-    pub entity_type: String,
-    /// Mentioned entity id.
-    pub entity_id: String,
-}
+pub use models_comms::{CountedReaction, MessageAttachment, SimpleMention};
 
 /// Thread-level state channels never needed, from `comms_thread_details`.
 #[derive(Debug, Clone, Default, Serialize, utoipa::ToSchema)]
@@ -156,7 +121,7 @@ pub struct ThreadMessage {
     /// Aggregated reactions.
     pub reactions: Vec<CountedReaction>,
     /// Attachments.
-    pub attachments: Vec<ThreadAttachment>,
+    pub attachments: Vec<MessageAttachment>,
 }
 
 /// A reply inside a thread.
@@ -181,7 +146,7 @@ pub struct ThreadReplyMessage {
     /// Aggregated reactions.
     pub reactions: Vec<CountedReaction>,
     /// Attachments.
-    pub attachments: Vec<ThreadAttachment>,
+    pub attachments: Vec<MessageAttachment>,
 }
 
 /// A thread with all of its replies.
@@ -274,7 +239,7 @@ pub struct PostThreadMessageRequest {
     pub thread_id: Option<Uuid>,
     /// Mentioned entities.
     #[serde(default)]
-    pub mentions: Vec<ThreadMention>,
+    pub mentions: Vec<SimpleMention>,
     /// Lexical anchor mark id, only meaningful when creating a new top-level
     /// thread on a document. `None` = unanchored (discussion) thread.
     #[serde(default)]
@@ -348,7 +313,7 @@ impl ThreadMessageRow {
     pub fn into_reply(
         self,
         reactions: Vec<CountedReaction>,
-        attachments: Vec<ThreadAttachment>,
+        attachments: Vec<MessageAttachment>,
     ) -> Option<ThreadReplyMessage> {
         Some(ThreadReplyMessage {
             id: self.id,
@@ -370,7 +335,7 @@ impl TopLevelThreadRow {
     pub fn into_thread_message(
         self,
         reactions: Vec<CountedReaction>,
-        attachments: Vec<ThreadAttachment>,
+        attachments: Vec<MessageAttachment>,
     ) -> ThreadMessage {
         ThreadMessage {
             id: self.message.id,

@@ -8,6 +8,7 @@ version = "0.1.0"
 anyhow = { workspace = true }
 cached = { workspace = true }
 channels = { path = "../channels", default-features = false, features = ["inbound", "outbound"] }
+models_comms = { path = "../models_comms" }
 chrono = { workspace = true }
 doppleganger = { workspace = true }
 futures = { workspace = true }
