@@ -92,6 +92,17 @@ const ACTIVE_GROUP: Record<SearchTypeValue, EntityGroup | null> = {
   agent: 'chat_filters',
 };
 
+// Search result types that carry tags. Channels/calls are excluded — they
+// aren't taggable — so a tag selection never silently empties those searches.
+const TAG_SEARCH_TYPES = new Set<SearchTypeValue>([
+  'all',
+  'task',
+  'document-or-file',
+  'email',
+  'agent',
+  'folders',
+]);
+
 export function buildSearchEntityFilters(
   selection: Partial<FacetSelection>
 ): EntityFilters {
@@ -117,6 +128,7 @@ export function buildSearchEntityFilters(
     return {
       channel_thread_filters: { thread_ids: [NIL_UUID] },
       foreign_entity_filters: { ids: [NIL_UUID] },
+      ...(tag.length ? { tag_option_ids: tag } : {}),
     };
   }
 
@@ -205,9 +217,9 @@ export function buildSearchEntityFilters(
 
   // Tags: match on the option ids alone (globally unique), OR'd across all tag
   // definitions. No definition id is sent — the backend matches values only.
-  // Only the document/task types carry tags (matching the search UI), so a tag
-  // selection never silently empties an email/channel/call search.
-  if ((type === 'task' || type === 'document-or-file') && tag.length) {
+  // Gated to TAG_SEARCH_TYPES (taggable result types) so a tag selection never
+  // silently empties a channel/call search.
+  if (TAG_SEARCH_TYPES.has(type) && tag.length) {
     filters.tag_option_ids = tag;
   }
 

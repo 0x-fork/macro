@@ -135,6 +135,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             emailShared: 'exclude',
             emailUpdatedAt: { gte: cutoff },
             channelDone: false,
+            channelThreadDone: false,
             chatDone: false,
             chatUpdatedAt: { gte: cutoff },
             folderDone: false,
@@ -153,6 +154,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             emailImportance: false,
             emailShared: 'exclude',
             channelDone: false,
+            channelThreadDone: false,
             chatDone: false,
             folderDone: false,
           }),
@@ -490,6 +492,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             {
               foreignEntityRecordId: NIL_UUID,
               crmCompanyId: NIL_UUID,
+              channelThreadId: NIL_UUID,
               ...excludeSnippets(),
             },
             { restrict: false }
