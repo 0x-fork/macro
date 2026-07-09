@@ -55,7 +55,7 @@ researched and version-verified against the July 2026 state of each ecosystem.
 | No floating promises (explicit fire-and-forget) | oxlint type-aware via `oxlint-tsgolint` | 59/61 ts-eslint type-aware rules, 20–40× faster than ESLint; alpha-labeled but tracks typescript-go, which went GA 2026-07 |
 | `service-clients` importable only from `queries` | dependency-cruiser `forbidden` rules | bun symlinks *all* workspace packages regardless of declared deps, so `package.json` alone cannot enforce this; also enable its `no-non-package-json` rule |
 | Import cycles / importing own package barrel | Biome `noImportCycles` (stable since 2.4) + dependency-cruiser regex backstop | Biome `noRestrictedImports` is exact-match only (no globs) |
-| Raw Tailwind colors vs semantic tokens | Tailwind v4 `@theme`: reset the raw palette (`--color-*: initial`), define only semantic tokens | Make-it-impossible: `bg-red-500` stops compiling; no lint needed |
+| Raw Tailwind colors vs semantic tokens | Tailwind v4 `@theme` palette reset (`--color-*: initial`) | **Already done** in `packages/app/index.css` — raw classes silently render *nothing*; the 14 dead raw-color classes that had accumulated were fixed in this PR, and the ast-grep rule `tsx-no-raw-tailwind-palette` (error) keeps new ones out |
 | Postgres migration safety (locking DDL, NOT NULL adds, non-concurrent indexes…) | squawk via `sbdchd/squawk-action` | Rust binary, ~30 built-in rules, fixed rule set (no plugins) |
 | Team SQL rules: no `gen_random_uuid()` (UUIDv7 in app code), ON CONFLICT on backfills, redundant-vs-PK indexes | ~150-line checker on `pg_query.rs` in `tools/xtask` | Same libpg_query parser squawk uses; no off-the-shelf linter is pluggable enough to be worth it (Atlas lint analyzers were paywalled in 2025; sqlfluff plugins = Python overhead) |
 | Cross-file PR invariants: Lexical node changed → `version.ts` bumped; new migration → checklist; file crossed 1000 lines; `.sqlx/` inside a crate | Small script + `dorny/paths-filter`, wired as a required status check | The ecosystem's converged pattern; danger-js is in maintenance mode (last stable mid-2025) |
@@ -122,6 +122,36 @@ session (cron trigger) or a manual quarterly run of the same prompt reproduces i
 **Health metric:** human inline comments per PR that restate an existing guide rule.
 It should trend toward zero; if a rule keeps being typed by humans anyway, its automated
 enforcement (Layer 1–3) isn't working and needs to move down a layer.
+
+## Implementation status (2026-07-09)
+
+Shipped in this PR:
+
+- **Layer 1**: style guides + CodeRabbit `code_guidelines` ingestion.
+- **ast-grep**: root `sgconfig.yml` + `rules/ast-grep/` with 4 rules —
+  `tsx-no-raw-tailwind-palette` (error, 0 violations), `rust-no-axum-extension-param`
+  (warning, ~176 legacy uses), `tsx-no-cursor-pointer` (warning, 17 legacy uses),
+  `rust-mod-rs-declarations-only` (hint — aspirational: 968 items across 246 files).
+  Enforced in CI via the generated `code_check_conventions.yml` workflow (source:
+  `xtask_workflows/src/workflows/code_check_conventions.rs`, regenerate with
+  `cargo x workflows`) and by CodeRabbit via `tools.ast-grep.rule_dirs`.
+- **oxlint**: `js/app/.oxlintrc.json` with `promise/prefer-await-to-then` (warn;
+  148-warning baseline), run with `bun run lint:oxlint` from `js/` (~0.2s). Runs via a
+  pinned `bunx oxlint@1.73.0` rather than a devDependency for now.
+- Fixed the 14 dead raw-palette classes (invisible error/status styling in Checkbox,
+  auth ErrorMsg, sidebar logout, HttpStream debug).
+
+Deferred, with reasons:
+
+- **`clippy::allow_attributes`** — 350 existing `#[allow]`s; needs a burn-down plus
+  per-crate `[lints] workspace = true` opt-ins before it can land under `-Dwarnings`.
+- **oxlint type-aware (`no-floating-promises`)** — requires
+  `bun add -d oxlint oxlint-tsgolint`, which touches the lockfile and needs access to
+  the repo's private git dependencies to install.
+- **dependency-cruiser boundaries, squawk + `pg_query.rs` migration checker, PR-meta
+  paths-filter script (Lexical `version.ts` bump, etc.)** — next PRs; designs above.
+- 9 dead `bg-white`/`text-black`-style classes and 2 `var(--color-gray-100)` gradient
+  references remain — each needs a per-site judgment call on the replacement token.
 
 ## Known doc conflict found during mining
 

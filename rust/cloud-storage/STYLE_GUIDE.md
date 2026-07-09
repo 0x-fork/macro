@@ -58,7 +58,8 @@ this file works as a standalone review checklist.
 
 - **All env access goes through `macro_env_var` / `macro_config`.** Never `std::env::var`,
   never hand-rolled wrappers. Use `MaybeEnvVar` for optional vars. (#4306, #4334, #4380)
-  **(also in CLAUDE.md)**
+  **(also in CLAUDE.md)** *Enforced:* clippy `disallowed-methods` (`clippy.toml`), along
+  with the non-macro `sqlx::query*` ban.
 - **Fail fast: validate config at service instantiation**, not deep inside request
   handling. A missing env var should kill startup, not a request. (#4077, #4156)
 - **Don't add `.context()` to env-var macro errors.** The macro error already statically
@@ -105,6 +106,7 @@ this file works as a standalone review checklist.
 - **Axum handlers take shared services via `State`, not `Extension`.** (#4556)
   ⚠️ This supersedes the older case-study note in `CLAUDE.md` that said the opposite —
   recent reviews consistently enforce `State`.
+  *Enforced:* ast-grep `rust-no-axum-extension-param` (warning on changed code).
 - **Attach cross-cutting services to the owning domain service**, not ad hoc at the
   router/handler layer — e.g. `EntityAccessManagementService` hangs off the email/document
   service itself, the way the documents crate does. (#4572)

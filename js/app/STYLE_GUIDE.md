@@ -53,6 +53,7 @@ this file works as a standalone review checklist.
 ## 3. Async & error handling
 
 - **`async`/`await` with `try`/`catch`, not `.then()`/`.catch()` chains.** (#3716, #3781)
+  *Enforced:* oxlint `promise/prefer-await-to-then` (`bun run lint:oxlint` from `js/`).
 - **Extract multi-step async coordination into named helper functions**, and when a
   promise is intentionally not awaited, make the fire-and-forget explicit rather than
   leaving a bare floating promise. (#3781)
@@ -93,6 +94,10 @@ this file works as a standalone review checklist.
 - **Truncated/collapsed controls get a tooltip** (matching the app's tooltip pattern) so
   the lost label stays discoverable. (#4492)
 - **Semantic color tokens, not raw Tailwind color classes.** **(also in AGENTS.md)**
+  The default palette is disabled via `--color-*: initial` in `packages/app/index.css`,
+  so raw classes like `text-red-500` silently render *nothing*.
+  *Enforced:* ast-grep `tsx-no-raw-tailwind-palette` (CI error) — and `cursor-pointer`
+  is flagged by `tsx-no-cursor-pointer`.
 - **Prefer composition over configurability**; keep reusable components small and free of
   queries/complex state. **(also in AGENTS.md)**
 

@@ -1,0 +1,13 @@
+id: tsx-no-cursor-pointer
+language: tsx
+severity: warning
+message: Don't add cursor-pointer to clickable elements.
+note: |-
+  See js/app/STYLE_GUIDE.md §6 (UI / UX conventions) and js/app/AGENTS.md
+  (Styling). The app deliberately does not use pointer cursors on clickable
+  elements.
+files:
+  - js/app/**
+rule:
+  kind: string_fragment
+  regex: (^|[^-\w])cursor-pointer([^-\w]|$)
