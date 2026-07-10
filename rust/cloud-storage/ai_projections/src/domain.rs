@@ -6,3 +6,4 @@ pub mod ai_projection_service;
 pub mod model;
 pub mod projection_generator;
 pub mod projection_notifier;
+pub mod projection_read_service;

@@ -41,7 +41,7 @@
 pub mod domain;
 
 /// The inbound module contains the inbound adapters for ai projections
-#[cfg(feature = "inbound")]
+#[cfg(any(feature = "inbound", feature = "toolset"))]
 pub mod inbound;
 
 /// The outbound module contains the outbound adapters for ai projections

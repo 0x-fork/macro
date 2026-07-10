@@ -411,6 +411,7 @@ async fn main() -> anyhow::Result<()> {
         channel_tool_context: ai_tools::build_channel_tool_context(db.clone()),
         team_tool_context: ai_tools::build_team_tool_context(db.clone()),
         crm_tool_context: ai_tools::build_crm_tool_context(db.clone()),
+        ai_projection_tool_context: ai_tools::build_ai_projection_tool_context(db.clone()),
         schedule_tool_context: ai_tools::NoOpScheduleContext,
         anthropic_tool_context: ai_tools::build_anthropic_tool_context(),
         recorder: ai_usage::pg_recorder(db.clone()),
@@ -442,11 +443,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Generator that materializes projections by running their prompt through
     // the shared AI toolset, attributed to the requesting user.
-    let projection_generator =
-        ai_projections::outbound::agent_generator::AgentProjectionGenerator::new(
-            tool_service_context.clone(),
-            ai_tools::all_tools(),
-        );
+    let projection_generator = service::agent_projection_generator::AgentProjectionGenerator::new(
+        tool_service_context.clone(),
+        ai_tools::all_tools(),
+    );
     // Notifier that pushes finished materializations to the target's connected
     // clients through the connection gateway.
     let projection_notifier =

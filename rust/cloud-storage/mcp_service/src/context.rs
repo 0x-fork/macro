@@ -323,6 +323,7 @@ async fn build_tool_context(
         channel_tool_context: ai_tools::build_channel_tool_context(db.clone()),
         team_tool_context: ai_tools::build_team_tool_context(db.clone()),
         crm_tool_context: ai_tools::build_crm_tool_context(db.clone()),
+        ai_projection_tool_context: ai_tools::build_ai_projection_tool_context(db.clone()),
         schedule_tool_context: NoOpScheduleContext,
         anthropic_tool_context: ai_tools::build_anthropic_tool_context(),
         recorder: ai_usage::pg_recorder(db.clone()),

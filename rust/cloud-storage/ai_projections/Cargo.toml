@@ -20,15 +20,15 @@ outbound = [
   "dep:model-entity",
   "ports",
 ]
-# Agent-backed projection generator (the outbound adapter that runs the AI
-# toolset). Pulls in the heavy agent/toolset dependencies.
-agent = [
-  "outbound",
-  "dep:ai_tools",
+# AI toolset inbound adapter (the GetProjection tool). Deliberately does not
+# depend on `ai_tools`: `ai_tools` consumes this feature, so a dependency the
+# other way would be a crate cycle (the agent-loop generator lives in the
+# composition root, `document_cognition_service`, for the same reason).
+toolset = [
+  "ports",
   "dep:ai_toolset",
-  "dep:agent",
-  "dep:ai_usage",
-  "dep:futures",
+  "dep:async-trait",
+  "dep:schemars",
 ]
 ports = ["dep:tokio"]
 worker = [
@@ -72,12 +72,10 @@ model-entity = { path = "../model-entity", optional = true }
 sqs_worker = { path = "../sqs_worker", optional = true }
 aws-sdk-sqs = { workspace = true, optional = true }
 
-# Agent generator dependencies (the AI toolset adapter)
-ai_tools = { path = "../ai_tools", optional = true }
+# Toolset (inbound AI tool adapter) dependencies
 ai_toolset = { path = "../ai_toolset", optional = true }
-agent = { path = "../agent", optional = true }
-ai_usage = { path = "../ai_usage", optional = true }
-futures = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+schemars = { workspace = true, optional = true }
 
 [dev-dependencies]
 http-body-util = { workspace = true }

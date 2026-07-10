@@ -1,5 +1,8 @@
 //! In-process agent-loop adapter that materializes ai projection results using
-//! the shared AI toolset.
+//! the shared AI toolset. Implements the `ai_projections` domain's
+//! [`ProjectionGenerator`] port from the composition root: it cannot live in
+//! the `ai_projections` crate because it depends on `ai_tools`, which itself
+//! depends on `ai_projections` for the GetProjection tool.
 //!
 //! Mirrors `channel_bots::outbound::AgentLoopResponder`: it runs the projection
 //! prompt through the same agent loop and toolset used by channel bots and the
@@ -22,7 +25,7 @@ use ai_usage::{AiFeature, UsageContext};
 use futures::StreamExt;
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 
-use crate::domain::{
+use ai_projections::domain::{
     model::AiProjectionError,
     projection_generator::{GenerationRequest, ProjectionGenerator},
 };

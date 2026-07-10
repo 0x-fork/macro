@@ -9,6 +9,10 @@ test-support = []
 
 [dependencies]
 agent = { path = "../agent" }
+ai_projections = { path = "../ai_projections", default-features = false, features = [
+  "outbound",
+  "toolset",
+] }
 ai_usage = { path = "../ai_usage" }
 anthropic = { path = "../anthropic", features = ["toolset"] }
 attachment = { path = "../attachment" }

@@ -1,3 +1,4 @@
+pub mod agent_projection_generator;
 pub mod ai_stream_registry;
 pub mod chat_renamer;
 pub mod get_chat;

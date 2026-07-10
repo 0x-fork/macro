@@ -1,3 +1,6 @@
+use ai_projections::domain::projection_read_service::AiProjectionReadServiceImpl;
+use ai_projections::inbound::toolset::AiProjectionToolContext;
+use ai_projections::outbound::ai_projection_repo::AiProjectionRepositoryImpl;
 use anthropic::toolset::AnthropicToolContext;
 use axum::extract::FromRef;
 use call::domain::models::{CallError, CallWebhookEvent, EgressS3Config};
@@ -589,6 +592,19 @@ pub fn build_properties_tool_context(
 /// Type alias for the email tool context
 pub type ToolEmailToolContext = EmailToolContext<ToolUserEmailService>;
 
+/// Type alias for the read-only ai projection service used by AI tools.
+pub type ToolAiProjectionReadService = AiProjectionReadServiceImpl<AiProjectionRepositoryImpl>;
+
+/// Type alias for the ai projection tool context.
+pub type ToolAiProjectionToolContext = AiProjectionToolContext<ToolAiProjectionReadService>;
+
+/// Build the ai projection AI tool context from a Postgres pool.
+pub fn build_ai_projection_tool_context(pool: sqlx::PgPool) -> ToolAiProjectionToolContext {
+    AiProjectionToolContext::new(Arc::new(AiProjectionReadServiceImpl::new(
+        AiProjectionRepositoryImpl::new(pool),
+    )))
+}
+
 /// Type alias for the call service implementation used by AI tools.
 /// Wired with NoOp RTC/connection/notification clients and no recording
 /// storage — the AI tools are read-only, so those capabilities are never
@@ -651,6 +667,7 @@ pub struct ToolServiceContext {
     pub channel_tool_context: ToolChannelToolContext,
     pub team_tool_context: ToolTeamToolContext,
     pub crm_tool_context: ToolCrmToolContext,
+    pub ai_projection_tool_context: ToolAiProjectionToolContext,
     pub schedule_tool_context: NoOpScheduleContext,
     pub anthropic_tool_context: AnthropicToolContext,
     /// Records token usage / cost for AI calls made with this context.

@@ -16,6 +16,7 @@ pub mod serde_utils;
 mod subagent;
 mod tool_context;
 
+use ai_projections::inbound::toolset::ai_projection_toolset;
 pub use anthropic::toolset::AnthropicToolContext;
 use anthropic::toolset::anthropic_toolset;
 use call::inbound::toolset::call_toolset;
@@ -44,17 +45,19 @@ pub use tool_context::no_op_schedule_context;
 pub use tool_context::{
     NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpNotificationService,
     NoOpScheduleContext, NoOpSnsEndpointManager, NoOpTaskProperties, RequestContext,
-    TaskPropertiesAdapter, ToolCallRecordQueryService, ToolCallService, ToolCallToolContext,
-    ToolChannelEventDispatcher, ToolChannelMessagesService, ToolChannelToolContext,
-    ToolChatService, ToolChatToolContext, ToolCommsService, ToolCrmService, ToolCrmToolContext,
-    ToolDocumentService, ToolDocumentToolContext, ToolEmailService, ToolEmailToolContext,
+    TaskPropertiesAdapter, ToolAiProjectionReadService, ToolAiProjectionToolContext,
+    ToolCallRecordQueryService, ToolCallService, ToolCallToolContext, ToolChannelEventDispatcher,
+    ToolChannelMessagesService, ToolChannelToolContext, ToolChatService, ToolChatToolContext,
+    ToolCommsService, ToolCrmService, ToolCrmToolContext, ToolDocumentService,
+    ToolDocumentToolContext, ToolEmailService, ToolEmailToolContext,
     ToolEntityAccessManagementService, ToolEntityAccessService, ToolForeignEntityService,
     ToolFrecencyService, ToolNotificationQueue, ToolNotificationService,
     ToolNotificationToolContext, ToolPropertiesService, ToolPropertiesToolContext,
     ToolServiceContext, ToolSoupService, ToolSystemPropertiesService, ToolTeamService,
-    ToolTeamToolContext, ToolUserEmailService, build_channel_tool_context,
-    build_channel_tool_context_with_dispatcher, build_crm_tool_context, build_properties_service,
-    build_properties_tool_context, build_task_properties_adapter, build_team_tool_context,
+    ToolTeamToolContext, ToolUserEmailService, build_ai_projection_tool_context,
+    build_channel_tool_context, build_channel_tool_context_with_dispatcher, build_crm_tool_context,
+    build_properties_service, build_properties_tool_context, build_task_properties_adapter,
+    build_team_tool_context,
 };
 pub type AiToolSet = AsyncToolCollection<ToolServiceContext>;
 
@@ -86,6 +89,7 @@ pub(crate) fn subagent_toolset() -> AiToolSet {
         .add_subtoolset::<ToolChannelToolContext>(channel_toolset())
         .add_subtoolset::<ToolTeamToolContext>(team_toolset())
         .add_subtoolset::<ToolCrmToolContext>(crm_toolset())
+        .add_subtoolset::<ToolAiProjectionToolContext>(ai_projection_toolset())
         .add_subtoolset::<AnthropicToolContext>(anthropic_toolset())
 }
 
