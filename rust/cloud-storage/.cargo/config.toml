@@ -1,6 +1,7 @@
 # Cargo aliases for the cloud-storage workspace.
 #
 # `cargo x <subcommand>` runs xtask from anywhere inside rust/cloud-storage:
+#   cargo x check [full]             # local quality gate: format + lint + code rules on changed files
 #   cargo x workflows [--check]      # regenerate / verify .github/workflows
 #   cargo x deps [--check]           # regenerate / verify workspace-hack + dep closures
 #   cargo x nextest-filter <file>    # nextest rdeps filter for changed files

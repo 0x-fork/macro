@@ -15524,6 +15524,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xtask_check"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+ "workspace-hack",
+ "xtask_paths",
+]
+
+[[package]]
 name = "xtask_deps"
 version = "0.1.0"
 dependencies = [

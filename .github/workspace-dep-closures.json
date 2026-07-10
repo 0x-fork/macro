@@ -5199,6 +5199,11 @@
       "tools/xtask/crates/xtask_cache_wasm",
       "tools/xtask/crates/xtask_paths"
     ],
+    "xtask_check": [
+      "tools/xtask/crates/xtask_check",
+      "tools/xtask/crates/xtask_paths",
+      "workspace-hack"
+    ],
     "xtask_deps": [
       "tools/xtask/crates/xtask_deps",
       "tools/xtask/crates/xtask_graph",
