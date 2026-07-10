@@ -755,7 +755,7 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
             />
           </Dropdown.Item>
           <Dropdown.Item
-            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-red-500"
+            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-failure"
             onSelect={() => logout()}
           >
             <span class="size-5 flex items-center justify-center">
