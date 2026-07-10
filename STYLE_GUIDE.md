@@ -213,8 +213,3 @@ TypeScript · `[ui]` UI / UX conventions
   small and free of queries/complex state. (also: AGENTS.md)
 - **FE-27** `[ui]` Don't add `cursor-pointer` to clickable elements. (enforced: ast-grep
   `tsx-no-cursor-pointer`, warning · also: AGENTS.md)
-
----
-
-*Provenance: mined 2026-07-09 from human review comments on PRs #3650–#4653. Next free
-ids: CS-51, FE-28.*
