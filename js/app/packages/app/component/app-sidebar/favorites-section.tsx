@@ -12,7 +12,7 @@ import {
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import type { EntityIconSelector } from '@core/component/EntityIcon';
 import { ContextMenu } from '@kobalte/core/context-menu';
-import { useNotificationsForEntity } from '@notifications';
+import { notificationIsRead, useNotificationsForEntity } from '@notifications';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import {
   favoriteEntityKey,
@@ -176,6 +176,10 @@ const FavoriteRow = (props: { favorite: Favorite; disabled: boolean }) => {
   // Mirrors the "Unread" sidebar section's count badge (see
   // channels-unread-widget.tsx) so a favorited channel/DM shows the same
   // at-a-glance unread indicator instead of giving no signal at all.
+  // `notificationIsRead` (rather than a plain `!viewed_at && !done` check) is
+  // required here: some notifications attached to a channel entity aren't
+  // channel-message notifications at all, and that helper is what excludes
+  // them so the count matches what the Unread widget shows.
   const notificationSource = useGlobalNotificationSource();
   const channelNotifications = useNotificationsForEntity(notificationSource, {
     id: props.favorite.entityId,
@@ -183,7 +187,7 @@ const FavoriteRow = (props: { favorite: Favorite; disabled: boolean }) => {
   });
   const unreadCount = () =>
     props.favorite.entityType === 'channel'
-      ? channelNotifications().filter((n) => !n.viewed_at && !n.done).length
+      ? channelNotifications().filter((n) => !notificationIsRead(n)).length
       : 0;
 
   // `For` keys rows by favorite identity, so the favorite (and drag data
