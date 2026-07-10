@@ -6,6 +6,10 @@ whenever a reviewer types the same comment twice. CodeRabbit ingests this file
 (`knowledge_base.code_guidelines` in `.coderabbit.yaml`), so rules here become automated
 review comments.
 
+**Check locally.** `just check` is the single gate: format + lint + code rules, scoped
+to your changes vs `origin/main`, every finding printed as `file:line [rule-id]` with
+the command that fixes it. `just check full` adds tsc + clippy.
+
 **Format.** One rule per line: `<id> [scope] rule (evidence · enforcement · docs)`.
 The id prefix is the domain:
 
