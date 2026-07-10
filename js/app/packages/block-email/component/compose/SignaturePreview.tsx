@@ -1,8 +1,9 @@
+import { isMobile } from '@core/mobile/isMobile';
 import InfoIcon from '@phosphor/info.svg';
 import CaretDownIcon from '@phosphor-icons/core/regular/caret-down.svg?component-solid';
 import XIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 import { Tooltip } from '@ui';
-import { createEffect, createSignal } from 'solid-js';
+import { createEffect, createSignal, Show } from 'solid-js';
 
 // Rendered inside a shadow root so the signature's structural markup (lists,
 // headings, bold) keeps its default styling instead of being flattened by the
@@ -69,12 +70,16 @@ export function SignaturePreview(props: {
             />
             Signature
           </button>
-          <Tooltip
-            label="Edit your signature in Settings -> Connections."
-            as="span"
-          >
-            <InfoIcon class="size-3.5 text-ink-muted" />
-          </Tooltip>
+          {/* Hover-only guidance; hidden on mobile where tooltips never show
+              (Settings still points mobile users to desktop). */}
+          <Show when={!isMobile()}>
+            <Tooltip
+              label="Edit your signature in Settings -> Connections."
+              as="span"
+            >
+              <InfoIcon class="size-3.5 text-ink-muted" />
+            </Tooltip>
+          </Show>
         </div>
         <Tooltip label="Don't include signature" as="span">
           <button
