@@ -1,5 +1,6 @@
 import type { SidebarState } from '@app/component/app-sidebar/sidebar';
 import { FavoriteIcon } from '@app/component/FavoriteIcon';
+import { useGlobalNotificationSource } from '@app/component/GlobalAppState';
 import { useSplitLayout } from '@app/component/split-layout/layout';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
@@ -11,6 +12,7 @@ import {
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import type { EntityIconSelector } from '@core/component/EntityIcon';
 import { ContextMenu } from '@kobalte/core/context-menu';
+import { useNotificationsForEntity } from '@notifications';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import {
   favoriteEntityKey,
@@ -171,6 +173,19 @@ const FavoriteRow = (props: { favorite: Favorite; disabled: boolean }) => {
   const displayName = useFavoriteDisplayName(props.favorite);
   const dmRecipientId = useFavoriteDmRecipientId(props.favorite);
 
+  // Mirrors the "Unread" sidebar section's count badge (see
+  // channels-unread-widget.tsx) so a favorited channel/DM shows the same
+  // at-a-glance unread indicator instead of giving no signal at all.
+  const notificationSource = useGlobalNotificationSource();
+  const channelNotifications = useNotificationsForEntity(notificationSource, {
+    id: props.favorite.entityId,
+    type: 'channel',
+  });
+  const unreadCount = () =>
+    props.favorite.entityType === 'channel'
+      ? channelNotifications().filter((n) => !n.viewed_at && !n.done).length
+      : 0;
+
   // `For` keys rows by favorite identity, so the favorite (and drag data
   // derived from it) is stable for the row's lifetime.
   //
@@ -254,6 +269,11 @@ const FavoriteRow = (props: { favorite: Favorite; disabled: boolean }) => {
           >
             <FavoriteIcon favorite={props.favorite} />
             <span class="truncate">{displayName()}</span>
+            <Show when={unreadCount() > 0}>
+              <span class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-xs font-medium bg-ink/6 text-ink-muted rounded-md ml-auto">
+                {unreadCount()}
+              </span>
+            </Show>
           </NavRow>
         </ContextMenu.Trigger>
 
