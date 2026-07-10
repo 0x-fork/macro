@@ -33,6 +33,7 @@ rdkafka = { workspace = true, optional = true }
 # Docker Engine API client for the discrete container/image ops.
 bollard = "0.21"
 console = "0.15"
+indicatif = "0.18"
 docker-compose-types = { version = "0.24", features = ["indexmap"] }
 indexmap = { workspace = true }
 serde_yaml = { workspace = true }
@@ -43,7 +44,6 @@ strum = { workspace = true, features = ["derive"] }
 libc = "0.2"
 macro_env_var = { path = "../../../../macro_env_var" }
 xtask_paths = { path = "../xtask_paths" }
-xtask_stage = { path = "../xtask_stage" }
 
 [features]
 # Local Kafka topic provisioning (`run-local` / `kafka-provision`). Off by

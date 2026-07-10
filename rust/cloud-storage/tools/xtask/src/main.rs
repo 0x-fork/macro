@@ -34,7 +34,6 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     let package = match args.first().map(String::as_str) {
-        Some("check") => "xtask_check",
         Some("deps") => "xtask_deps",
         Some("nextest-filter") => "xtask_nextest_filter",
         Some("doppler-bins") => "xtask_doppler_bins",
