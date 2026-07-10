@@ -31,6 +31,7 @@ inbound = [
   "entity_access/inbound",
   "models_pagination/axum",
   "ports",
+  "schema",
 ]
 list = [
   "dep:filter_ast",
@@ -63,6 +64,7 @@ outbound = [
   "ports",
 ]
 ports = ["dep:tokio", "macro_event_broker/ports"]
+schema = ["channel_sender/schema", "dep:utoipa", "macro_user_id/schema"]
 
 [dependencies]
 anyhow = { workspace = true }

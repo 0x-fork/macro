@@ -39,6 +39,7 @@ axum = [
   "dep:task_dedup",
   "dep:utoipa",
   "entity_access/axum",
+  "schema",
 ]
 default = ["ai_tools", "axum", "inbound", "outbound", "ports", "service"]
 document_create = [
@@ -70,6 +71,7 @@ outbound = [
   "ports",
 ]
 ports = ["dep:tokio"]
+schema = ["dep:utoipa", "macro_user_id/schema"]
 service = [
   "dep:entity_access_management",
   "dep:foreign_entity",

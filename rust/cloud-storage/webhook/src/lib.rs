@@ -21,6 +21,9 @@
 //! - validation attempt rate limiting with the existing `rate_limit` crate using
 //!   the key shape `per-user-validate-webhook:{macro_user_id}:{webhook_id}` and
 //!   a limit of 10 attempts per 3600-second window;
+//! - a `domain::events::WebhookEvent` union over the document and channel
+//!   broker events — the source of truth for every entity event a webhook can
+//!   receive, exposed as an OpenAPI schema for TypeScript generation;
 //! - a Kafka consumer (`inbound::kafka_consumer`, feature `consumer`) that
 //!   subscribes to the `macro.documents` and `macro.channels` topics and hands
 //!   every event to the `domain::ingestion::WebhookEventIngestionService`

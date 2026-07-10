@@ -2529,6 +2529,7 @@ dependencies = [
  "macro_user_id",
  "serde",
  "serde_json",
+ "utoipa",
  "uuid",
  "workspace-hack",
 ]

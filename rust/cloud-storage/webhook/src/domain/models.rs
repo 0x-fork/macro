@@ -152,6 +152,19 @@ pub struct ValidateWebhookResponse {
     pub message: Option<String>,
 }
 
+/// Body of the `webhook.validation.test` delivery sent when validating an
+/// endpoint. Not part of the `WebhookEvent` entity-event union.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+pub struct WebhookValidationTestEvent {
+    /// Event id, with an `evt_` prefix.
+    pub id: String,
+    /// Event name; always `webhook.validation.test`.
+    pub event: String,
+    /// Webhook being validated.
+    pub webhook_id: WebhookId,
+}
+
 /// Sanitized result returned by the validation client port.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WebhookValidationResult {

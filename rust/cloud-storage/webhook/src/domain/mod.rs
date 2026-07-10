@@ -1,5 +1,8 @@
 //! Domain layer for webhooks.
 
+#[cfg(any(feature = "ingestion", feature = "inbound"))]
+/// Webhook event payloads.
+pub mod events;
 #[cfg(feature = "ingestion")]
 /// Webhook event ingestion service.
 pub mod ingestion;

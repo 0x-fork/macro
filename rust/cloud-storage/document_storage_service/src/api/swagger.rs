@@ -523,12 +523,14 @@ use utoipa::OpenApi;
             SoupCallRecordParticipant,
 
             // Webhooks
+            webhook::domain::events::WebhookEvent,
             webhook::domain::models::CreateWebhookRequest,
             webhook::domain::models::PatchWebhookRequest,
             webhook::domain::models::ValidateWebhookResponse,
             webhook::domain::models::Webhook,
             webhook::domain::models::WebhookFilter,
             webhook::domain::models::WebhookStatus,
+            webhook::domain::models::WebhookValidationTestEvent,
 
             DocumentSubType,
 
