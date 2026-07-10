@@ -3,9 +3,9 @@ import {
   useGlobalBlockOrchestrator,
   useGlobalNotificationSource,
 } from '@app/component/GlobalAppState';
-import { EntityRowProvider } from '@app/component/mobile/EntityRow';
 import { FloatRegion } from '@app/component/mobile/float-regions/FloatRegion';
 import { PullToRefresh } from '@app/component/mobile/PullToRefresh';
+import { SwipableRowProvider } from '@app/component/mobile/SwipableRow';
 import {
   makeMarkDoneAction,
   useEntityActionHotkeys,
@@ -1357,7 +1357,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                         >
                           <ResponsiveCompanyListHeader class="shrink-0" />
                         </Show>
-                        <EntityRowProvider
+                        <SwipableRowProvider
                           container={localEntityListRef}
                           canSwipeLeft={(entityId) => {
                             const entity = entityById().get(entityId);
@@ -1629,7 +1629,7 @@ export const SoupViewList = (props: SoupViewListProps) => {
                               );
                             }}
                           </SoupList>
-                        </EntityRowProvider>
+                        </SwipableRowProvider>
                       </ListLayoutProvider>
 
                       <Show when={!props.customScrollbarHidden}>
