@@ -1,0 +1,66 @@
+# DO NOT EDIT — regenerate with `cargo x workflows` (from rust/cloud-storage).
+# Source: rust/cloud-storage/tools/xtask/crates/xtask_workflows/src/workflows/sdk_check.rs
+name: SDK Check
+'on':
+  pull_request:
+    branches:
+    - main
+    paths:
+    - js/sdk/**
+    - rust/cloud-storage/**/*.rs
+    - rust/cloud-storage/Cargo.toml
+    - rust/cloud-storage/Cargo.lock
+    - js/app/scripts/generate-api-schema.ts
+    - js/app/scripts/services.ts
+    - '.github/workflows/sdk-check.yml'
+jobs:
+  check-sdk:
+    name: SDK Generated Code Check
+    runs-on: namespace-profile-linux-mid;overrides.cache-tag=web-ci
+    steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        clean: 'false'
+        persist-credentials: 'false'
+    - name: Mount Namespace cache volume
+      uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0
+      with:
+        cache: bun,rust
+        path: |-
+          /home/runner/.cache/sccache
+          /nix
+      continue-on-error: true
+    - name: Setup Nix
+      uses: './.github/actions/setup-nix'
+    - name: Setup Prereqs
+      uses: './.github/actions/setup-reqs-web'
+      with:
+        cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+    - name: Point sccache at the cache volume
+      run: |-
+        echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> "$GITHUB_ENV"
+        echo "SCCACHE_CACHE_SIZE=20G" >> "$GITHUB_ENV"
+    - name: Regenerate SDK code
+      run: just update-generated
+      working-directory: js/sdk
+    - name: show sccache stats
+      if: always()
+      run: sccache --show-stats || true
+    - name: Verify generated code is fresh
+      run: |
+        if [ -n "$(git status --porcelain -- js/sdk)" ]; then
+          echo "js/sdk generated code is stale. Run 'just update-generated' in js/sdk and commit the result."
+          git status --porcelain -- js/sdk
+          git diff -- js/sdk | head -200
+          exit 1
+        fi
+    - name: Typecheck SDK
+      run: bun run check
+      working-directory: js/sdk
+    - name: Check endpoint coverage
+      run: bun run coverage
+      working-directory: js/sdk
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-check
+  cancel-in-progress: true

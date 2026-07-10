@@ -20653,7 +20653,7 @@
             "description": "Channel and message events from the `macro.channels` topic."
           }
         ],
-        "description": "Any entity event deliverable to a webhook endpoint.\n\nSerialized bodies carry an `event_type` tag naming the event (for example\n`document.created` or `channel.message_posted`) and a `metadata` object\nwith the event payload. Endpoint validation additionally sends\n[`crate::domain::models::WebhookValidationTestEvent`], which is not part of\nthis union."
+        "description": "Any entity event deliverable to a webhook endpoint.\n\nSerialized bodies carry an `event_type` tag naming the event (for example\n`document.created` or `channel.message_posted`) and a `metadata` object\nwith the event payload. Endpoint validation additionally sends a\n`WebhookValidationTestEvent`, which is not part of this union."
       },
       "WebhookFilter": {
         "type": "object",
@@ -20689,7 +20689,7 @@
       },
       "WebhookValidationTestEvent": {
         "type": "object",
-        "description": "Body of the `webhook.validation.test` delivery sent when validating an\nendpoint. Not part of the entity-event union in `domain::events`.",
+        "description": "Body of the `webhook.validation.test` delivery sent when validating an\nendpoint. Not part of the `WebhookEvent` entity-event union.",
         "required": ["id", "event", "webhook_id"],
         "properties": {
           "event": {

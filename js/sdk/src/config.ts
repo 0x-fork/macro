@@ -1,0 +1,77 @@
+export type Env = 'dev' | 'prod' | 'local';
+
+/** The backend services the SDK talks to. Note `search` and `properties` are
+ * served on the storage host, so they point there. */
+export type ServiceName =
+  | 'storage'
+  | 'auth'
+  | 'email'
+  | 'cognition'
+  | 'notification'
+  | 'properties'
+  | 'search'
+  | 'scheduled-action'
+  | 'static-files'
+  | 'connection'
+  | 'contacts'
+  | 'unfurl';
+
+export const HOSTS: Record<Env, Record<ServiceName, string>> = {
+  dev: {
+    storage: 'https://cloud-storage-dev.macro.com',
+    auth: 'https://auth-service-dev.macro.com',
+    email: 'https://email-service-dev.macro.com',
+    cognition: 'https://document-cognition-dev.macro.com',
+    notification: 'https://notifications-dev.macro.com',
+    properties: 'https://cloud-storage-dev.macro.com',
+    search: 'https://cloud-storage-dev.macro.com',
+    'scheduled-action': 'https://agent-schedule-dev.macro.com',
+    'static-files': 'https://static-file-service-dev.macro.com',
+    connection: 'https://connection-gateway-dev.macro.com',
+    contacts: 'https://contacts-dev.macro.com',
+    unfurl: 'https://unfurl-service-dev.macro.com',
+  },
+  prod: {
+    storage: 'https://cloud-storage.macro.com',
+    auth: 'https://auth-service.macro.com',
+    email: 'https://email-service.macro.com',
+    cognition: 'https://document-cognition.macro.com',
+    notification: 'https://notifications.macro.com',
+    properties: 'https://cloud-storage.macro.com',
+    search: 'https://cloud-storage.macro.com',
+    'scheduled-action': 'https://agent-schedule.macro.com',
+    'static-files': 'https://static-file-service.macro.com',
+    connection: 'https://connection-gateway.macro.com',
+    contacts: 'https://contacts.macro.com',
+    unfurl: 'https://unfurl-service.macro.com',
+  },
+  local: {
+    storage: 'http://localhost:8086',
+    auth: 'http://localhost:8080',
+    email: 'http://localhost:8087',
+    cognition: 'http://localhost:8085',
+    notification: 'http://localhost:8089',
+    properties: 'http://localhost:8086',
+    search: 'http://localhost:8086',
+    'scheduled-action': 'http://localhost:8098',
+    'static-files': 'http://localhost:8100',
+    connection: 'http://localhost:8082',
+    contacts: 'http://localhost:8083',
+    unfurl: 'http://localhost:8095',
+  },
+};
+
+/** A bearer token, or a (possibly async) function that returns one — the
+ * function form lets you refresh tokens without reconfiguring. */
+export type TokenSource = string | (() => string | Promise<string>);
+
+/** Options passed to `new Macro(opts)` and stored on `MacroClient`. */
+export interface MacroOpts {
+  token: TokenSource;
+  env?: Env;
+  /** Override individual service hosts (e.g. point one at localhost). */
+  hosts?: Partial<Record<ServiceName, string>>;
+  /** Signing secret for verifying incoming webhooks. Required to receive webhooks. */
+  webhookSecret?: string;
+  wsVerify?: string;
+}
