@@ -58,6 +58,7 @@ import { TaskListEntity } from '@app/component/next-soup/soup-view/views/tasks/T
 import { ResponsiveTaskListHeader } from '@app/component/next-soup/soup-view/views/tasks/TaskListHeader';
 import { TaskGroupHeader } from '@app/component/next-soup/soup-view/views/tasks/task-group-header';
 import {
+  navigateChannelEntityToTarget,
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
 } from '@app/component/next-soup/utils';
@@ -1042,10 +1043,16 @@ export const SoupViewList = (props: SoupViewListProps) => {
     }
 
     if (paneVisible() && type === 'entity') {
+      const alreadyFocused = soup.focus.id() === entity.id;
+
       if (args.rowIndex !== undefined) soup.focus.setIndex(args.rowIndex);
       else soup.focus.set(entity.id);
 
       soup.setPreviewEntity(entity.id);
+
+      if (alreadyFocused) {
+        navigateChannelEntityToTarget(entity, orchestrator);
+      }
       return;
     }
 
