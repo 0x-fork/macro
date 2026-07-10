@@ -3,6 +3,7 @@ import {
   EntityType,
 } from '@service-cognition/generated/schemas/entityType';
 import { z } from 'zod';
+import { EMAIL_PREFERENCES_PROJECTION_ID } from './emailPreferences';
 
 /**
  * Pure core of the home "Recommended" section: which notifications are worth
@@ -105,6 +106,7 @@ const RECOMMENDATION_PROMPT = [
   'An email qualifies only when the content of that latest message asks the current user to do something or clearly requires their follow-up. Skip it when the latest message needs no action, including pure FYIs, automated receipts, acknowledgements, thanks, resolved/closed updates, or messages where the sender says no reply is needed. Do not surface an older ask that the latest message has resolved.',
   "Treat an incoming latest message as more likely important when its to list has exactly one recipient, that address matches one of the current user's non-delegated inboxes, and its cc list is empty. Rank that direct-to-user email above otherwise comparable group or copied emails, but only after it passes the latest-message action gate.",
   "Use your memory of the user's role, priorities, collaborators, and current work to decide what is important to them. Memory is ranking context only; every recommended entity must still come from the tool results.",
+  `Call GetProjection exactly once with projectionId "${EMAIL_PREFERENCES_PROJECTION_ID}". When it returns a stored result, that result is an AI-maintained profile of this user's email preferences — key people, active topics, what they act on versus ignore, and triage guidance — built on a slower cadence than this run. Apply it to importance ranking and skip decisions; a slightly stale profile is still useful. If it has no stored result or the call fails, continue without it. The profile is ranking context only: never recommend an item just because the profile mentions it — every recommended entity must still come from this run's tool results.`,
   `Pick AT MOST ${MAX_RECOMMENDATIONS} items genuinely worth acting on right now with an AI assistant's help, ranked most important first. Prefer qualifying important emails; include a non-email item only when it is more urgent or important, or when fewer emails qualify. When nothing qualifies, return an empty list — never pad it with weak items.`,
   'Pick at most one item per email thread, channel, or pull request: collapse related notifications into the single most actionable item.',
   'Skip email drafts, cold sales outreach, recruiting spam, and newsletters. Prefer items where the AI can do real work: draft a reply, review requested material, or follow up on a concrete request.',

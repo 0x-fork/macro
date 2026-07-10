@@ -1578,6 +1578,49 @@ export interface ToolPropertyOption {
   id: string;
 }
 /**
+ * Read the stored result of a named AI projection for the current user. AI projections are cached, periodically refreshed AI-generated views of the user's data (for example a profile of their email preferences). Use this to reuse another projection's output as context instead of re-deriving it with many tool calls. Returns the stored result plus its status and freshness timestamps. The result may be slightly stale — that is expected and it is still useful context. If the projection has no stored result yet, continue the task without it rather than waiting or retrying.
+ */
+export interface GetProjection {
+  /**
+   * The id of the projection to read (e.g. `user/email-preferences`). Only
+   * read a projection id you were explicitly given; this tool cannot list
+   * or discover projections.
+   */
+  projectionId: string;
+}
+/**
+ * Response from the GetProjection tool.
+ */
+export interface GetProjectionResponse {
+  /**
+   * When the stored result was generated (RFC 3339).
+   */
+  generatedAt?: string | null;
+  /**
+   * The projection definition id that was read.
+   */
+  projectionId: string;
+  /**
+   * The stored result. JSON-encoded when the projection defines an output
+   * schema, otherwise plain text. Absent when nothing has been materialized
+   * yet.
+   */
+  result?: string | null;
+  /**
+   * When the stored result is considered stale (RFC 3339).
+   */
+  staleAt?: string | null;
+  /**
+   * The materialization status of the caller's instance (`loading`, `cold`,
+   * `ready`, `refreshing`, or `error`).
+   */
+  status: string;
+  /**
+   * A human-readable summary of the read.
+   */
+  summary: string;
+}
+/**
  * Retrieve an email thread and its messages. Returns the thread metadata, the labels applied to the thread (e.g. INBOX, UNREAD, STARRED, and any custom labels), and message contents including sender, recipients, subject, body text, and the labels on each individual message. Use this to read the contents of a specific email conversation or to see which labels a thread or message has.
  */
 export interface GetThread {

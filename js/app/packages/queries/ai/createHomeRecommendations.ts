@@ -2,6 +2,10 @@ import { PERMISSION_IDS } from '@core/constant/permissions';
 import { useHasPermission } from '@core/context/user';
 import type { Accessor } from 'solid-js';
 import {
+  buildEmailPreferencesPrompt,
+  EMAIL_PREFERENCES_PROJECTION_ID,
+} from './emailPreferences';
+import {
   buildRecommendationPrompt,
   pickRecommendations,
   recommendationSchema,
@@ -23,6 +27,13 @@ const FAST_MODEL = 'anthropic/claude-haiku-4-5';
  * one (server default, premium-gated) replaces it when it lands, and is
  * skipped entirely for users without professional features.
  *
+ * Both are chained to a third, slower projection: `user/email-preferences`, a
+ * periodically refreshed profile of how the user treats their email. The
+ * recommendation prompt reads it through the GetProjection tool, so each fast
+ * run reuses that context instead of re-deriving it. The chain is best-effort:
+ * when the profile has no stored result yet, the recommendation agent
+ * continues without it, so recommendations never block on the slow projection.
+ *
  * Result selection is pure and lives in `homeRecommendations.ts`; this hook
  * only wires it to the projections.
  */
@@ -33,6 +44,19 @@ export function createHomeRecommendations(
 
   const isPremium = useHasPermission(PERMISSION_IDS.READ_PROFESSIONAL_FEATURES);
   const smartEnabled = () => enabled() && isPremium();
+
+  // Slow upstream projection consumed by the recommendation prompts via the
+  // GetProjection tool. Requesting it here keeps it alive and refreshed (low
+  // cadence, week expiry — the closest the cadence buckets get to weekly);
+  // nothing below waits on it or reads its data directly. Smart tier, so
+  // premium-gated like the smart projection.
+  createAIProjection(() => ({
+    id: EMAIL_PREFERENCES_PROJECTION_ID,
+    prompt: buildEmailPreferencesPrompt(),
+    refreshCadence: 'low',
+    expiry: 'week',
+    enabled: smartEnabled(),
+  }));
 
   const fast = createAIProjection(() => ({
     id: 'home/recommended-fast',

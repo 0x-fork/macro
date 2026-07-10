@@ -33,6 +33,10 @@ type ToolParserMap = {
     call: types.GetEntityProperties;
     response: types.GetEntityPropertiesResponse;
   };
+  GetProjection: {
+    call: types.GetProjection;
+    response: types.GetProjectionResponse;
+  };
   GetThread: { call: types.GetThread; response: types.GetThreadResponse };
   ListCallRecords: {
     call: types.ListCallRecords;
@@ -149,6 +153,10 @@ const toolParserMap = {
   GetEntityProperties: {
     call: schemas.GetEntityProperties,
     response: schemas.GetEntityPropertiesResponse,
+  },
+  GetProjection: {
+    call: schemas.GetProjection,
+    response: schemas.GetProjectionResponse,
   },
   GetThread: { call: schemas.GetThread, response: schemas.GetThreadResponse },
   ListCallRecords: {
@@ -286,6 +294,10 @@ type ToolDataMap = {
   GetEntityProperties: {
     call: types.GetEntityProperties;
     response: types.GetEntityPropertiesResponse;
+  };
+  GetProjection: {
+    call: types.GetProjection;
+    response: types.GetProjectionResponse;
   };
   GetThread: { call: types.GetThread; response: types.GetThreadResponse };
   ListCallRecords: {

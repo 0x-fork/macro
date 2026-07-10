@@ -709,6 +709,17 @@ export const GetEntityPropertiesResponse = z.object({
   summary: z.string(),
 });
 
+export const GetProjection = z.object({ projectionId: z.string() });
+
+export const GetProjectionResponse = z.object({
+  generatedAt: z.union([z.string(), z.null()]).optional(),
+  projectionId: z.string(),
+  result: z.union([z.string(), z.null()]).optional(),
+  staleAt: z.union([z.string(), z.null()]).optional(),
+  status: z.string(),
+  summary: z.string(),
+});
+
 export const GetThread = z.object({
   limit: z.union([z.number().int(), z.null()]).default(null),
   threadId: z.string().uuid(),

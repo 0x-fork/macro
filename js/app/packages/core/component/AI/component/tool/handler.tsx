@@ -9,6 +9,7 @@ import { createDocumentHandler } from './CreateDocument';
 import { getCompanyHandler, listCompaniesHandler } from './Crm';
 import { displayResultsHandler } from './DisplayResults';
 import { editDocumentHandler } from './EditDocument';
+import { getProjectionHandler } from './GetProjection';
 import { getThreadHandler } from './GetThread';
 import { listCallRecordsHandler } from './ListCallRecords';
 import { listEntitiesHandler } from './ListEntities';
@@ -58,6 +59,7 @@ import { webSearchHandler } from './WebSearch';
 const toolHandlers: ToolHandlerMap<RenderContext> = {
   GetCompany: getCompanyHandler,
   GetEntityProperties: getEntityPropertiesHandler,
+  GetProjection: getProjectionHandler,
   ListCompanies: listCompaniesHandler,
   ListCallRecords: listCallRecordsHandler,
   ListEntities: listEntitiesHandler,
