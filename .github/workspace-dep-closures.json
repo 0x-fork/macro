@@ -5202,6 +5202,7 @@
     "xtask_check": [
       "tools/xtask/crates/xtask_check",
       "tools/xtask/crates/xtask_paths",
+      "tools/xtask/crates/xtask_stage",
       "workspace-hack"
     ],
     "xtask_deps": [
@@ -5236,6 +5237,7 @@
       "macro_queues",
       "tools/xtask/crates/xtask_local",
       "tools/xtask/crates/xtask_paths",
+      "tools/xtask/crates/xtask_stage",
       "workspace-hack"
     ],
     "xtask_nextest_filter": [
@@ -5245,6 +5247,10 @@
     ],
     "xtask_paths": [
       "tools/xtask/crates/xtask_paths"
+    ],
+    "xtask_stage": [
+      "tools/xtask/crates/xtask_stage",
+      "workspace-hack"
     ],
     "xtask_workflows": [
       "tools/xtask/crates/xtask_paths",

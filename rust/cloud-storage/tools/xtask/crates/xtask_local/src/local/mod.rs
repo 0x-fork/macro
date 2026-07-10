@@ -34,7 +34,8 @@ pub mod mailpit;
 pub mod opensearch;
 pub mod proxy;
 pub mod resources;
-pub mod stage;
+/// Staged-progress UI, now shared across xtask crates as `xtask_stage`.
+pub use xtask_stage as stage;
 pub mod summary;
 pub mod validate;
 

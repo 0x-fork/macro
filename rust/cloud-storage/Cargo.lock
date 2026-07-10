@@ -15528,9 +15528,11 @@ name = "xtask_check"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "console 0.15.11",
  "serde_json",
  "workspace-hack",
  "xtask_paths",
+ "xtask_stage",
 ]
 
 [[package]]
@@ -15594,7 +15596,6 @@ dependencies = [
  "docker-compose-types",
  "dotenvy",
  "indexmap 2.14.0",
- "indicatif",
  "libc",
  "macro_aws_config",
  "macro_env_var",
@@ -15607,6 +15608,7 @@ dependencies = [
  "strum",
  "tokio",
  "xtask_paths",
+ "xtask_stage",
 ]
 
 [[package]]
@@ -15621,6 +15623,16 @@ dependencies = [
 [[package]]
 name = "xtask_paths"
 version = "0.1.0"
+
+[[package]]
+name = "xtask_stage"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "console 0.15.11",
+ "indicatif",
+ "workspace-hack",
+]
 
 [[package]]
 name = "xtask_workflows"

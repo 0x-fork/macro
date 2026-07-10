@@ -12,14 +12,22 @@
 //!   oxlint, ast-grep code rules — seconds.
 //! - `full`: also runs tsc + clippy — minutes.
 //!
+//! Rendering goes through the shared [`xtask_stage::Stage`] UI: on a TTY each
+//! check animates a spinner that resolves in place to `✓ Done` / `⚠ N
+//! warning(s)` / `✗ Failed`; on a non-TTY (CI, AI shells) the resolved lines
+//! print plainly and uncolored.
+//!
 //! Override the diff base with `CHECK_BASE=<ref>`. Exit code is nonzero iff a
 //! blocking check fails; warnings and hints are shown but don't block.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::process::Command;
+use std::time::Instant;
 
 use anyhow::{Context, Result, bail};
+use console::Style;
+use xtask_stage::{Stage, format_elapsed};
 
 /// Pinned tool versions: bunx fetches these, so local runs and any future CI
 /// use stay aligned without a lockfile entry.
@@ -34,8 +42,9 @@ fn main() -> Result<()> {
         _ => bail!("usage: cargo x check [full]   (env: CHECK_BASE=<ref> overrides the diff base)"),
     };
 
+    let stage = Stage::from_env();
     let repo = xtask_paths::repo_root();
-    let changed = changed_files(&repo)?;
+    let changed = changed_files(&repo, &stage)?;
     if changed.is_empty() {
         println!("no changed files — nothing to check");
         return Ok(());
@@ -64,43 +73,66 @@ fn main() -> Result<()> {
 
     let mut gate = Gate::default();
     if rs_cloud_storage {
-        check_cargo_fmt(&repo, "cloud-storage", &mut gate);
+        run_check(&stage, "cargo fmt (rust/cloud-storage)", &mut gate, || {
+            check_cargo_fmt(&repo, "cloud-storage")
+        });
     }
     if rs_sync_service {
-        check_cargo_fmt(&repo, "sync-service", &mut gate);
+        run_check(&stage, "cargo fmt (rust/sync-service)", &mut gate, || {
+            check_cargo_fmt(&repo, "sync-service")
+        });
     }
     if !js_app.is_empty() {
-        check_biome(&repo, &js_app, &mut gate);
-        check_oxlint(&repo, &js_app, &mut gate);
+        run_check(&stage, "biome (js/app format + lint)", &mut gate, || {
+            check_biome(&repo, &js_app)
+        });
+        run_check(&stage, "oxlint", &mut gate, || check_oxlint(&repo, &js_app));
     }
     if !sg.is_empty() {
-        check_ast_grep(&repo, &sg, &mut gate)?;
+        run_check(&stage, "ast-grep code rules", &mut gate, || {
+            check_ast_grep(&repo, &sg)
+        });
     }
     if full {
         if !js_app.is_empty() {
-            check_tsc(&repo, &mut gate);
+            run_check(&stage, "tsc (js/app)", &mut gate, || check_tsc(&repo));
         }
         if rs_cloud_storage {
-            check_clippy(&repo, &mut gate);
+            run_check(&stage, "clippy (rust/cloud-storage)", &mut gate, || {
+                check_clippy(&repo)
+            });
         }
     }
 
     println!();
     if !gate.blocking.is_empty() {
-        print!("FAIL: {}", gate.blocking.join(" "));
+        let mut line = format!(
+            "{} {}",
+            Style::new().red().bold().apply_to("FAIL:"),
+            gate.blocking.join(" ")
+        );
         if !gate.warnings.is_empty() {
-            print!("  ·  warnings: {}", gate.warnings.join(" "));
+            line.push_str(&format!("  ·  warnings: {}", gate.warnings.join(" ")));
         }
-        println!();
+        println!("{line}");
         std::process::exit(1);
     }
     if gate.warnings.is_empty() {
-        println!("OK");
+        println!("{}", Style::new().green().bold().apply_to("OK"));
     } else {
-        println!("OK (with warnings: {})", gate.warnings.join(" "));
+        println!(
+            "{} (with warnings: {})",
+            Style::new().green().bold().apply_to("OK"),
+            gate.warnings.join(" ")
+        );
     }
     if !full {
-        println!("(fast tier — 'just check full' adds tsc + clippy)");
+        println!(
+            "{}",
+            Style::new()
+                .dim()
+                .apply_to("(fast tier — 'just check full' adds tsc + clippy)")
+        );
     }
     Ok(())
 }
@@ -111,6 +143,70 @@ fn main() -> Result<()> {
 struct Gate {
     blocking: Vec<String>,
     warnings: Vec<String>,
+}
+
+/// How a check resolved; the string is the short status shown on its line.
+enum Verdict {
+    Pass,
+    Warn(String),
+    Fail(String),
+}
+
+/// One check's result: the verdict, per-finding detail lines printed beneath
+/// the stage line, an optional dim hint (fix command / guide pointer), and the
+/// token used in the final FAIL/OK summary.
+struct Outcome {
+    verdict: Verdict,
+    details: Vec<String>,
+    hint: Option<String>,
+    token: String,
+}
+
+impl Outcome {
+    fn pass(token: &str) -> Self {
+        Outcome {
+            verdict: Verdict::Pass,
+            details: Vec::new(),
+            hint: None,
+            token: token.to_string(),
+        }
+    }
+
+    fn tool_failure(name: &str, err: &anyhow::Error) -> Self {
+        Outcome {
+            verdict: Verdict::Fail("Tool failure".into()),
+            details: vec![format!("{err:#}")],
+            hint: None,
+            token: format!("{name}(tool-failure)"),
+        }
+    }
+}
+
+/// Drive one check through the shared stage UI: spinner while `f` runs, then
+/// resolve the line to ✓/⚠/✗ with elapsed time, print the hint and detail
+/// lines, and record the outcome in the gate.
+fn run_check(stage: &Stage, label: &str, gate: &mut Gate, f: impl FnOnce() -> Outcome) {
+    let start = Instant::now();
+    let spinner = stage.spinner(label);
+    let outcome = f();
+    let elapsed = format_elapsed(start.elapsed());
+    let (marker, status, style) = match &outcome.verdict {
+        Verdict::Pass => ("✓", format!("Done {elapsed}"), Style::new().green()),
+        Verdict::Warn(s) => ("⚠", format!("{s} {elapsed}"), Style::new().yellow()),
+        Verdict::Fail(s) => ("✗", format!("{s} {elapsed}"), Style::new().red()),
+    };
+    stage.resolve(spinner, stage.line(marker, label, &status, &style));
+    if let Some(hint) = &outcome.hint {
+        stage.note(&format!("    {hint}"));
+    }
+    for d in &outcome.details {
+        println!("    {d}");
+    }
+    match outcome.verdict {
+        Verdict::Pass => {}
+        Verdict::Warn(_) => gate.warnings.push(outcome.token),
+        Verdict::Fail(_) => gate.blocking.push(outcome.token),
+    }
 }
 
 fn is_ts(f: &str) -> bool {
@@ -159,7 +255,7 @@ fn git(repo: &Path, args: &[&str]) -> Result<Run> {
 /// The changed-file set this gate is scoped to: committed changes vs the diff
 /// base, plus staged, unstaged, and untracked files — deduped, and filtered to
 /// paths that still exist.
-fn changed_files(repo: &Path) -> Result<Vec<String>> {
+fn changed_files(repo: &Path, stage: &Stage) -> Result<Vec<String>> {
     #[expect(
         clippy::disallowed_methods,
         reason = "developer-machine tooling, not service runtime config"
@@ -176,8 +272,8 @@ fn changed_files(repo: &Path) -> Result<Vec<String>> {
         None
     });
     if base.is_none() {
-        println!("note: cannot find a merge-base with origin/main (shallow clone?);");
-        println!("      checking uncommitted changes only. Set CHECK_BASE=<ref> to widen.");
+        stage.note("note: cannot find a merge-base with origin/main (shallow clone?);");
+        stage.note("      checking uncommitted changes only. Set CHECK_BASE=<ref> to widen.");
     }
 
     let mut files = BTreeSet::new();
@@ -206,25 +302,12 @@ fn changed_files(repo: &Path) -> Result<Vec<String>> {
         .collect())
 }
 
-fn pass(name: &str) {
-    println!("✓ {name}");
-}
-
-fn indented(text: &str) {
-    for line in text.lines() {
-        println!("    {line}");
-    }
-}
-
-fn check_cargo_fmt(repo: &Path, workspace: &str, gate: &mut Gate) {
-    let name = format!("cargo fmt (rust/{workspace})");
+fn check_cargo_fmt(repo: &Path, workspace: &str) -> Outcome {
+    let token = format!("cargo fmt (rust/{workspace})");
     let dir = repo.join("rust").join(workspace);
     match run(&dir, "cargo", &["fmt", "--check"], &[]) {
-        Ok(r) if r.success => pass(&name),
+        Ok(r) if r.success => Outcome::pass(&token),
         Ok(r) => {
-            println!(
-                "✖ {name} — files need formatting        fix: cd rust/{workspace} && cargo fmt"
-            );
             let mut diffs: Vec<&str> = r
                 .stdout
                 .lines()
@@ -233,12 +316,14 @@ fn check_cargo_fmt(repo: &Path, workspace: &str, gate: &mut Gate) {
                 .collect();
             diffs.sort_unstable();
             diffs.dedup();
-            for d in diffs {
-                println!("    {d}");
+            Outcome {
+                verdict: Verdict::Fail("Failed".into()),
+                details: diffs.iter().map(|d| d.to_string()).collect(),
+                hint: Some(format!("fix: cd rust/{workspace} && cargo fmt")),
+                token,
             }
-            gate.blocking.push(name);
         }
-        Err(e) => tool_failure(&name, &e, gate),
+        Err(e) => Outcome::tool_failure(&token, &e),
     }
 }
 
@@ -250,8 +335,7 @@ fn rel_to_js_app<'a>(files: &[&'a str]) -> Vec<&'a str> {
         .collect()
 }
 
-fn check_biome(repo: &Path, js_app: &[&str], gate: &mut Gate) {
-    let name = "biome (js/app format + lint)";
+fn check_biome(repo: &Path, js_app: &[&str]) -> Outcome {
     // Same flags as the web CI check, minus --changed: the file scope is ours.
     let mut args = vec![
         "--bun",
@@ -263,47 +347,50 @@ fn check_biome(repo: &Path, js_app: &[&str], gate: &mut Gate) {
     ];
     args.extend(rel_to_js_app(js_app));
     match run(&repo.join("js/app"), "bunx", &args, &[]) {
-        Ok(r) if r.success => pass(name),
-        Ok(r) => {
-            println!("✖ {name}        fix: cd js && bun run fix, then re-check");
-            indented(&r.output());
-            gate.blocking.push("biome".into());
-        }
-        Err(e) => tool_failure(name, &e, gate),
+        Ok(r) if r.success => Outcome::pass("biome"),
+        Ok(r) => Outcome {
+            verdict: Verdict::Fail("Failed".into()),
+            details: r.output().lines().map(str::to_string).collect(),
+            hint: Some("fix: cd js && bun run fix, then re-check".into()),
+            token: "biome".into(),
+        },
+        Err(e) => Outcome::tool_failure("biome", &e),
     }
 }
 
-fn check_oxlint(repo: &Path, js_app: &[&str], gate: &mut Gate) {
-    let name = "oxlint";
+fn check_oxlint(repo: &Path, js_app: &[&str]) -> Outcome {
     let mut args = vec!["--yes", OXLINT];
     args.extend(rel_to_js_app(js_app));
     match run(&repo.join("js/app"), "bunx", &args, &[]) {
         Ok(r) => {
             // Finding lines look like `path:line:col: warning promise(...)`.
-            let findings: Vec<&str> = r
+            let findings: Vec<String> = r
                 .stdout
                 .lines()
                 .map(str::trim_start)
                 .filter(|l| is_oxlint_finding(l))
+                .map(|l| format!("js/app/{l}"))
                 .collect();
             if !r.success {
-                println!("✖ {name} — errors");
-                indented(&r.output());
-                gate.blocking.push(name.into());
-            } else if findings.is_empty() {
-                pass(name);
-            } else {
-                println!(
-                    "⚠ {name} — {} warning(s) in your changed files (non-blocking; see STYLE_GUIDE.md FE-12)",
-                    findings.len()
-                );
-                for f in &findings {
-                    println!("    js/app/{f}");
+                Outcome {
+                    verdict: Verdict::Fail("Failed".into()),
+                    details: r.output().lines().map(str::to_string).collect(),
+                    hint: None,
+                    token: "oxlint".into(),
                 }
-                gate.warnings.push(format!("oxlint({})", findings.len()));
+            } else if findings.is_empty() {
+                Outcome::pass("oxlint")
+            } else {
+                let n = findings.len();
+                Outcome {
+                    verdict: Verdict::Warn(format!("{n} warning(s)")),
+                    details: findings,
+                    hint: Some("non-blocking; see STYLE_GUIDE.md FE-12".into()),
+                    token: format!("oxlint({n})"),
+                }
             }
         }
-        Err(e) => tool_failure(name, &e, gate),
+        Err(e) => Outcome::tool_failure("oxlint", &e),
     }
 }
 
@@ -318,22 +405,18 @@ fn is_oxlint_finding(line: &str) -> bool {
     };
     !path.is_empty()
         && !path.contains(' ')
-        && l.chars().all(|c| c.is_ascii_digit())
         && !l.is_empty()
-        && c.chars().all(|c| c.is_ascii_digit())
+        && l.chars().all(|c| c.is_ascii_digit())
         && !c.is_empty()
+        && c.chars().all(|c| c.is_ascii_digit())
 }
 
-fn check_ast_grep(repo: &Path, sg: &[&str], gate: &mut Gate) -> Result<()> {
-    let name = "ast-grep code rules";
+fn check_ast_grep(repo: &Path, sg: &[&str]) -> Outcome {
     let mut args = vec!["--yes", ASTGREP, "scan", "--json=compact"];
     args.extend(sg);
     let r = match run(repo, "bunx", &args, &[]) {
         Ok(r) => r,
-        Err(e) => {
-            tool_failure(name, &e, gate);
-            return Ok(());
-        }
+        Err(e) => return Outcome::tool_failure("ast-grep", &e),
     };
     // bunx may prepend install noise; the JSON payload starts at the first '['.
     let json_start = r.stdout.find('[').unwrap_or(r.stdout.len());
@@ -341,9 +424,12 @@ fn check_ast_grep(repo: &Path, sg: &[&str], gate: &mut Gate) -> Result<()> {
     {
         Ok(f) => f,
         Err(e) => {
-            println!("✖ ast-grep — tool failure (output unreadable: {e})");
-            gate.blocking.push("ast-grep(tool-failure)".into());
-            return Ok(());
+            return Outcome {
+                verdict: Verdict::Fail("Tool failure".into()),
+                details: vec![format!("ast-grep output unreadable: {e}")],
+                hint: None,
+                token: "ast-grep(tool-failure)".into(),
+            };
         }
     };
 
@@ -359,14 +445,14 @@ fn check_ast_grep(repo: &Path, sg: &[&str], gate: &mut Gate) -> Result<()> {
         let message = f["message"].as_str().unwrap_or("");
         let formatted = format!("{file}:{line} [{rule}] {message}");
         match sev {
-            "error" => errors.push(formatted),
+            "error" => errors.push(format!("error: {formatted}")),
             "hint" => {
                 hint_count += 1;
                 let entry = hints.entry(rule.to_string()).or_default();
                 entry.0 += 1;
                 entry.1.insert(file.to_string());
             }
-            _ => warnings.push(formatted),
+            _ => warnings.push(format!("warning: {formatted}")),
         }
     }
 
@@ -379,55 +465,46 @@ fn check_ast_grep(repo: &Path, sg: &[&str], gate: &mut Gate) -> Result<()> {
         })
         .collect();
 
+    let mut details = errors.clone();
+    details.extend(warnings.iter().cloned());
+    details.extend(hint_lines);
+    let hint = Some("rule ids map to STYLE_GUIDE.md".to_string());
     if !errors.is_empty() {
-        println!(
-            "✖ {name} — {} error(s) (rule ids map to STYLE_GUIDE.md)",
-            errors.len()
-        );
-        for e in &errors {
-            println!("    error: {e}");
+        Outcome {
+            verdict: Verdict::Fail(format!("{} error(s)", errors.len())),
+            details,
+            hint,
+            token: "ast-grep".into(),
         }
-        for w in &warnings {
-            println!("    warning: {w}");
-        }
-        for h in &hint_lines {
-            println!("    {h}");
-        }
-        gate.blocking.push("ast-grep".into());
     } else if !warnings.is_empty() || hint_count > 0 {
-        println!(
-            "⚠ ast-grep — {} warning(s), {hint_count} hint(s) in your changed files (non-blocking; rule ids map to STYLE_GUIDE.md)",
-            warnings.len()
-        );
-        for w in &warnings {
-            println!("    warning: {w}");
+        Outcome {
+            verdict: Verdict::Warn(format!(
+                "{} warning(s), {hint_count} hint(s)",
+                warnings.len()
+            )),
+            details,
+            hint,
+            token: format!("ast-grep({}w/{hint_count}h)", warnings.len()),
         }
-        for h in &hint_lines {
-            println!("    {h}");
-        }
-        gate.warnings
-            .push(format!("ast-grep({}w/{hint_count}h)", warnings.len()));
     } else {
-        pass(name);
+        Outcome::pass("ast-grep")
     }
-    Ok(())
 }
 
-fn check_tsc(repo: &Path, gate: &mut Gate) {
-    let name = "tsc (js/app)";
+fn check_tsc(repo: &Path) -> Outcome {
     match run(&repo.join("js"), "bun", &["run", "check"], &[]) {
-        Ok(r) if r.success => pass(name),
-        Ok(r) => {
-            println!("✖ {name}");
-            indented(&r.output());
-            gate.blocking.push("tsc".into());
-        }
-        Err(e) => tool_failure(name, &e, gate),
+        Ok(r) if r.success => Outcome::pass("tsc"),
+        Ok(r) => Outcome {
+            verdict: Verdict::Fail("Failed".into()),
+            details: r.output().lines().map(str::to_string).collect(),
+            hint: None,
+            token: "tsc".into(),
+        },
+        Err(e) => Outcome::tool_failure("tsc", &e),
     }
 }
 
-fn check_clippy(repo: &Path, gate: &mut Gate) {
-    let name = "clippy (rust/cloud-storage)";
+fn check_clippy(repo: &Path) -> Outcome {
     // Mirrors the `just clippy` recipe in rust/cloud-storage/justfile.
     let r = run(
         &repo.join("rust/cloud-storage"),
@@ -440,9 +517,8 @@ fn check_clippy(repo: &Path, gate: &mut Gate) {
         ],
     );
     match r {
-        Ok(r) if r.success => pass(name),
+        Ok(r) if r.success => Outcome::pass("clippy"),
         Ok(r) => {
-            println!("✖ {name}");
             let combined = r.output();
             let interesting: Vec<&str> = combined
                 .lines()
@@ -454,16 +530,13 @@ fn check_clippy(repo: &Path, gate: &mut Gate) {
                 })
                 .collect();
             let tail = interesting.len().saturating_sub(100);
-            for line in &interesting[tail..] {
-                println!("    {line}");
+            Outcome {
+                verdict: Verdict::Fail("Failed".into()),
+                details: interesting[tail..].iter().map(|l| l.to_string()).collect(),
+                hint: None,
+                token: "clippy".into(),
             }
-            gate.blocking.push("clippy".into());
         }
-        Err(e) => tool_failure(name, &e, gate),
+        Err(e) => Outcome::tool_failure("clippy", &e),
     }
-}
-
-fn tool_failure(name: &str, err: &anyhow::Error, gate: &mut Gate) {
-    println!("✖ {name} — tool failure: {err:#}");
-    gate.blocking.push(format!("{name}(tool-failure)"));
 }

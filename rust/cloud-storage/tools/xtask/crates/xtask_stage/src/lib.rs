@@ -1,10 +1,17 @@
-//! Staged-progress UI, mirroring `scripts/lib/stage-ui.sh`.
+#![deny(missing_docs)]
+//! Staged-progress UI shared by the xtask command crates (extracted from
+//! `xtask_local`, mirroring `scripts/lib/stage-ui.sh`).
 //!
 //! A bold `[+]` section header, then per-stage lines: an `indicatif` spinner
 //! that *resolves in place* into `✓ Done <elapsed>` / `✗ Failed <elapsed>` via
 //! the bar's own finish state (no clear-and-reprint), a captured-output dump on
 //! failure, and respect for `MACRO_LOCAL_VERBOSE`, `MACRO_LOCAL_DRY_RUN`, and
 //! `NO_COLOR`.
+//!
+//! [`Stage::run`]/[`Stage::run_step`] cover the common case (a stage is a
+//! command or closure that succeeds or fails). Callers with custom outcomes —
+//! e.g. `cargo x check`'s pass/warn/fail verdicts — compose the lower-level
+//! [`Stage::spinner`], [`Stage::line`], and [`Stage::resolve`] directly.
 //!
 //! Only the subprocess capture is hand-rolled, on purpose: stdout and stderr
 //! are drained on dedicated threads so a chatty child (e.g. `cargo zigbuild`)
@@ -36,6 +43,8 @@ pub struct Stage {
 }
 
 impl Stage {
+    /// Build from the environment: TTY detection plus the `MACRO_LOCAL_VERBOSE`,
+    /// `MACRO_LOCAL_DRY_RUN`, and `NO_COLOR` flags.
     pub fn from_env() -> Self {
         let is_tty = console::Term::stdout().is_term();
         // Disable coloring globally when not a TTY or NO_COLOR is set; every
@@ -58,6 +67,7 @@ impl Stage {
         s
     }
 
+    /// Whether dry-run mode is on: commands are printed instead of executed.
     pub fn is_dry_run(&self) -> bool {
         self.dry_run
     }
@@ -118,7 +128,7 @@ impl Stage {
     }
 
     /// Format a `  <marker> <label> <status>` stage line with one color.
-    fn line(&self, marker: &str, label: &str, status: &str, style: &Style) -> String {
+    pub fn line(&self, marker: &str, label: &str, status: &str, style: &Style) -> String {
         format!(
             "  {} {label:<WIDTH$} {}",
             style.apply_to(marker),
@@ -128,7 +138,7 @@ impl Stage {
 
     /// A steady-ticking spinner for `label`, or `None` when not a TTY (then
     /// stages just print their resolved line, no animation).
-    fn spinner(&self, label: &str) -> Option<ProgressBar> {
+    pub fn spinner(&self, label: &str) -> Option<ProgressBar> {
         if !self.is_tty {
             return None;
         }
@@ -146,7 +156,7 @@ impl Stage {
 
     /// Settle a stage to its final line: resolved in place if a spinner is live
     /// (TTY), else printed plainly (non-TTY).
-    fn resolve(&self, spinner: Option<ProgressBar>, line: String) {
+    pub fn resolve(&self, spinner: Option<ProgressBar>, line: String) {
         match spinner {
             Some(pb) => {
                 pb.set_style(ProgressStyle::with_template("{msg}").expect("valid template"));
@@ -348,7 +358,8 @@ fn env_flag(name: &str) -> bool {
     std::env::var(name).map(|v| v == "1").unwrap_or(false)
 }
 
-fn format_elapsed(d: Duration) -> String {
+/// `"42s"` / `"2m14s"` — the elapsed format used on resolved stage lines.
+pub fn format_elapsed(d: Duration) -> String {
     let secs = d.as_secs();
     if secs >= 60 {
         format!("{}m{}s", secs / 60, secs % 60)

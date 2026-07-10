@@ -11,6 +11,8 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+console = "0.15"
 serde_json = { workspace = true }
 xtask_paths = { path = "../xtask_paths" }
+xtask_stage = { path = "../xtask_stage" }
 workspace-hack = { version = "0.1", path = "../../../../workspace-hack" }
