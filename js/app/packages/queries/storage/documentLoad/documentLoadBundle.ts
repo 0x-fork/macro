@@ -1,6 +1,9 @@
+import { type LoadErrors, loadResult } from '@core/block';
+import { catchToResult, type ResultError, throwOnErr } from '@core/util/result';
 import { storageServiceClient } from '@service-storage/client';
 import type { AccessLevel } from '@service-storage/generated/schemas/accessLevel';
 import type { DocumentMetadata } from '@service-storage/generated/schemas/documentMetadata';
+import type { Result } from 'neverthrow';
 import { queryClient } from '../../client';
 import { documentLoadKeys } from './keys';
 
@@ -10,37 +13,51 @@ export type DocumentLoadBundle = {
   token: string;
 };
 
+type LoadBundleResult = Result<
+  DocumentLoadBundle,
+  ResultError<keyof typeof LoadErrors>[]
+>;
+
 const STALE_TIME = 60 * 1000;
 const GC_TIME = 60 * 1000;
 
-async function fetchDocumentLoadBundle(
+async function resolveDocumentLoadBundle(
   documentId: string
 ): Promise<DocumentLoadBundle> {
   const [maybeDocument, maybeToken] = await Promise.all([
-    storageServiceClient.getDocumentMetadata({ documentId }),
-    storageServiceClient.permissionsTokens.createPermissionToken({
-      document_id: documentId,
-    }),
+    throwOnErr(() => storageServiceClient.getDocumentMetadata({ documentId })),
+    throwOnErr(() =>
+      storageServiceClient.permissionsTokens.createPermissionToken({
+        document_id: documentId,
+      })
+    ),
   ]);
 
-  if (maybeToken.isErr()) throw new Error('UNAUTHORIZED');
-  if (maybeDocument.isErr())
-    throw new Error('Failed to fetch document metadata');
-
   return {
-    documentMetadata: maybeDocument.value.documentMetadata,
-    userAccessLevel: maybeDocument.value.userAccessLevel,
-    token: maybeToken.value.token,
+    documentMetadata: maybeDocument.documentMetadata,
+    userAccessLevel: maybeDocument.userAccessLevel,
+    token: maybeToken.token,
   };
 }
 
 export function documentLoadQueryOptions(documentId: string) {
   return {
     queryKey: documentLoadKeys.bundle(documentId).queryKey,
-    queryFn: () => fetchDocumentLoadBundle(documentId),
+    queryFn: () => resolveDocumentLoadBundle(documentId),
     staleTime: STALE_TIME,
     gcTime: GC_TIME,
+    retry: false,
   };
+}
+
+export function fetchDocumentLoadBundle(
+  documentId: string
+): Promise<LoadBundleResult> {
+  return loadResult(
+    catchToResult(() =>
+      queryClient.fetchQuery(documentLoadQueryOptions(documentId))
+    )
+  );
 }
 
 export function seedDocumentLoadBundle(
