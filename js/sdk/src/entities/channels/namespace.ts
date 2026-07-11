@@ -1,5 +1,7 @@
 import type { ChannelType } from '../../../generated/storage/types.gen';
 import type { MacroClient } from '../../utils/client';
+import type { Team } from '../teams/team';
+import type { User } from '../users/user';
 import { Channel } from './channel';
 
 export class ChannelNamespace {
@@ -9,13 +11,13 @@ export class ChannelNamespace {
     return Channel.byId(this.client, id);
   }
 
-  async dm(recipientId: string): Promise<Channel> {
-    return Channel.dm(this.client, recipientId);
+  async dm(recipient: User): Promise<Channel> {
+    return Channel.dm(this.client, recipient);
   }
 
   /** Open (creating if needed) the private group channel with a set of users. */
-  async private(recipientIds: string[]): Promise<Channel> {
-    return Channel.private(this.client, recipientIds);
+  async private(recipients: User[]): Promise<Channel> {
+    return Channel.private(this.client, recipients);
   }
 
   /** Create a channel. The caller becomes the owner. */
@@ -23,9 +25,9 @@ export class ChannelNamespace {
     type: ChannelType;
     name?: string;
     /** Participants to add, excluding the owner. */
-    participants?: string[];
-    /** Team id, for team channels. */
-    teamId?: string;
+    participants?: User[];
+    /** Team, for team channels. */
+    team?: Team;
   }): Promise<Channel> {
     return Channel.create(this.client, opts);
   }

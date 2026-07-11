@@ -69,7 +69,7 @@ export class User extends PropertiedEntity<UserName> implements Mentionable {
    * @returns The DM `Channel`.
    */
   dm(): Promise<Channel> {
-    return Channel.dm(this.client, this.id);
+    return Channel.dm(this.client, this);
   }
 
   toMention(): MentionPart {

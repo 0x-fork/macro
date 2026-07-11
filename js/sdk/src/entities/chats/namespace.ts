@@ -1,4 +1,5 @@
 import type { MacroClient } from '../../utils/client';
+import type { Project } from '../projects/project';
 import { Chat } from './chat';
 
 export class ChatNamespace {
@@ -8,7 +9,7 @@ export class ChatNamespace {
     return Chat.byId(this.client, id);
   }
 
-  create(opts?: { name?: string; projectId?: string }): Promise<Chat> {
+  create(opts?: { name?: string; project?: Project }): Promise<Chat> {
     return Chat.create(this.client, opts);
   }
 

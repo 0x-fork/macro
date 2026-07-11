@@ -6,8 +6,10 @@ import type {
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { PropertiedEntity } from '../entity';
+import { Project } from '../projects/project';
 import { entitySearch } from '../search';
 import { EmailAttachment } from './attachment';
+import { Link } from './link';
 import { EmailMessage } from './message';
 
 type ThreadDetail = GetThreadResponses[200]['thread'];
@@ -24,8 +26,8 @@ export interface ReplyEmailOptions {
   bodyText: string;
   /** Subject line. Defaults to the subject of the thread's first message. */
   subject?: string;
-  /** The id of the message being replied to. */
-  replyingTo?: string;
+  /** The message being replied to. */
+  replyingTo?: EmailMessage;
 }
 
 /**
@@ -66,11 +68,30 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
   /** Whether the thread is visible in the inbox (i.e. not archived). */
   readonly inboxVisible = this.field('inbox_visible');
 
-  /** The id of the inbox (email link) that owns this thread. */
-  readonly linkId = this.field('link_id');
+  /** The viewer's access level to this thread. */
+  readonly accessLevel = this.field('access_level');
 
-  /** The id of the project this thread is attached to, if any. */
-  readonly projectId = this.field('project_id');
+  /** The provider-internal thread id (e.g. Gmail/Outlook), if any. */
+  readonly providerId = this.field('provider_id');
+
+  /** The inbox (email link) that owns this thread. */
+  readonly link = this.mappedField('link_id', (id) =>
+    Link.byId(this.client, id),
+  );
+
+  /** The project this thread is attached to, if any. */
+  readonly project = this.mappedField('project_id', (id) =>
+    id ? Project.byId(this.client, id) : undefined,
+  );
+
+  /** Timestamp of the latest inbound message, if any. */
+  readonly latestInboundAt = this.field('latest_inbound_message_ts');
+
+  /** Timestamp of the latest outbound message, if any. */
+  readonly latestOutboundAt = this.field('latest_outbound_message_ts');
+
+  /** Timestamp of the latest non-spam message, if any. */
+  readonly latestNonSpamAt = this.field('latest_non_spam_message_ts');
 
   /** The thread's subject, from its first message with one. */
   async subject(): Promise<string | undefined> {
@@ -127,7 +148,7 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
         body: {
           message: {
             thread_db_id: this.id,
-            replying_to_id: opts.replyingTo ?? null,
+            replying_to_id: opts.replyingTo?.id ?? null,
             to: opts.to,
             cc: opts.cc ?? null,
             bcc: opts.bcc ?? null,
@@ -178,11 +199,11 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
   }
 
   /** Attach the thread to a project, or clear the project with `null`. */
-  async moveToProject(projectId: string | null): Promise<void> {
+  async moveToProject(project: Project | null): Promise<void> {
     await this.mutate((c) =>
       c.email.updateThreadProject({
         path: { thread_id: this.id },
-        body: { projectId },
+        body: { projectId: project?.id ?? null },
       }),
     );
   }

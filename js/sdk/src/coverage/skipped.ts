@@ -83,8 +83,6 @@ export const authExcluded = [
 ] as const satisfies readonly (keyof AuthSdk)[];
 
 export const authBacklog = [
-  'getTeam',
-  'getUserTeams',
   'macroApiToken',
 ] as const satisfies readonly (keyof AuthSdk)[];
 
@@ -159,7 +157,6 @@ export const emailBacklog = [
   'getScheduledMessages',
   'listContacts',
   'listEmailFilters',
-  'listLinks',
   'removeDraftAttachment',
   'removeForwardedAttachment',
   'upsertEmailFilter',

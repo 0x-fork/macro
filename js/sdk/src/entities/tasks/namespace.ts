@@ -1,4 +1,6 @@
 import type { MacroClient } from '../../utils/client';
+import type { Project } from '../projects/project';
+import type { Team } from '../teams/team';
 import { Task } from './task';
 
 export class TaskNamespace {
@@ -13,8 +15,8 @@ export class TaskNamespace {
   create(opts: {
     name: string;
     markdown?: string;
-    projectId?: string;
-    teamId?: string;
+    project?: Project;
+    team?: Team;
     shareWithTeam?: boolean;
   }): Promise<Task> {
     return Task.create(this.client, opts);

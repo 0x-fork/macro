@@ -8,6 +8,7 @@ import { MacroNotFoundError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { FavoritableEntity } from '../entity';
 import { User } from '../users/user';
+import { Channel } from './channel';
 import { Thread } from './thread';
 
 type ChannelMessage = GetChannelMessagesResponses[200]['items'][number];
@@ -86,9 +87,23 @@ export class Message extends FavoritableEntity<MessageData> {
   /** The message body. */
   readonly content = this.field('content');
 
+  /** When the message was created. */
+  readonly createdAt = this.field('created_at');
+
+  /** When the message was last edited, if it has been. */
+  readonly editedAt = this.field('edited_at');
+
+  /** When the message was last updated. */
+  readonly updatedAt = this.field('updated_at');
+
   /** The user who sent this message. */
   async author(): Promise<User> {
     return User.byId(this.client, (await this.detail.get()).sender_id);
+  }
+
+  /** The channel this message is in. */
+  channel(): Channel {
+    return Channel.byId(this.client, this.channelId);
   }
 
   /** The thread rooted at this message. */

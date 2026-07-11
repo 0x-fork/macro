@@ -27,7 +27,10 @@ export default defineConfig(
     plugins: [
       '@hey-api/client-fetch',
       '@hey-api/typescript',
-      { name: '@hey-api/sdk', operations: { strategy: 'single', methods: 'instance' } },
+      {
+        name: '@hey-api/sdk',
+        operations: { strategy: 'single', methods: 'instance' },
+      },
     ],
   })),
 );

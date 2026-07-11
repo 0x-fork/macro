@@ -5,6 +5,7 @@ import type {
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
+import { Link } from './link';
 import { EmailThread } from './thread';
 
 /** The API's representation of an email message (`ParsedMessage`). */
@@ -89,6 +90,11 @@ export class EmailMessage extends MacroEntity<EmailMessageData> {
 
   /** Labels on this message. */
   readonly labels = this.field('labels');
+
+  /** The inbox (email link) this message belongs to. */
+  readonly link = this.mappedField('link_id', (id) =>
+    Link.byId(this.client, id),
+  );
 
   /** Add a label to this message. */
   async addLabel(labelId: string): Promise<void> {

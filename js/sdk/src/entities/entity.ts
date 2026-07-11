@@ -61,7 +61,7 @@ export abstract class MacroEntity<Detail> {
 
   protected constructor(
     protected readonly client: MacroClient,
-    readonly id: string,
+    public readonly id: string,
     seed?: Detail,
   ) {
     this.detail = new Lazy(() => this.fetch(), seed);
@@ -76,6 +76,21 @@ export abstract class MacroEntity<Detail> {
   ): () => Promise<Normalized<Detail[K]>> {
     return async () =>
       ((await this.detail.get())[key] ?? undefined) as Normalized<Detail[K]>;
+  }
+
+  /**
+   * Like {@link field}, but maps the raw value through `map` before returning.
+   * Used to expose an id field as a handle to the entity it references, e.g.
+   * `this.mappedField('owner', (id) => User.byId(this.client, id))`.
+   */
+  protected mappedField<K extends keyof Detail, T>(
+    key: K,
+    map: (value: Normalized<Detail[K]>) => T,
+  ): () => Promise<T> {
+    return async () =>
+      map(
+        ((await this.detail.get())[key] ?? undefined) as Normalized<Detail[K]>,
+      );
   }
 
   /** Run a write, unwrap it, and drop the cached detail so reads refetch. */

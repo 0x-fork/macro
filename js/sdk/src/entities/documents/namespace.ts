@@ -1,4 +1,5 @@
 import type { MacroClient } from '../../utils/client';
+import type { Project } from '../projects/project';
 import { Document } from './document';
 
 export class DocumentNamespace {
@@ -13,7 +14,7 @@ export class DocumentNamespace {
   create(opts: {
     name: string;
     markdown?: string;
-    projectId?: string;
+    project?: Project;
   }): Promise<Document> {
     return Document.create(this.client, opts);
   }
@@ -22,7 +23,7 @@ export class DocumentNamespace {
   createSnippet(opts: {
     name: string;
     markdown?: string;
-    projectId?: string;
+    project?: Project;
   }): Promise<Document> {
     return Document.createSnippet(this.client, opts);
   }

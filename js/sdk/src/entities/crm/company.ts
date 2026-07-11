@@ -9,6 +9,7 @@ import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { PropertiedEntity } from '../entity';
 import { entitySearch } from '../search';
+import { Team } from '../teams/team';
 import { Contact } from './contact';
 
 type CompanyDetail = GetCompanyResponses[200];
@@ -45,6 +46,17 @@ export class Company extends PropertiedEntity<CompanyDetail> {
 
   /** Whether email sync is enabled for this company. */
   readonly emailSync = this.field('emailSync');
+
+  /** The team that owns this company. */
+  readonly team = this.mappedField('teamId', (id) =>
+    Team.byId(this.client, id),
+  );
+
+  /** When the company was first created in the CRM. */
+  readonly createdAt = this.field('createdAt');
+
+  /** When the company was last updated. */
+  readonly updatedAt = this.field('updatedAt');
 
   /** The company's primary domain (e.g. `acme.com`), if any. */
   async domain(): Promise<string | undefined> {

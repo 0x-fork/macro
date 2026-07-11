@@ -52,8 +52,10 @@ export class Project extends PropertiedEntity<ProjectDetail> {
   /** The project's display name. */
   readonly name = this.field('name');
 
-  /** The id of the parent project, if this project is nested. */
-  readonly parentId = this.field('parentId');
+  /** The parent project, if this project is nested. */
+  readonly parent = this.mappedField('parentId', (id) =>
+    id ? Project.byId(this.client, id) : undefined,
+  );
 
   /** When the project was created (RFC 3339 timestamp). */
   readonly createdAt = this.field('createdAt');

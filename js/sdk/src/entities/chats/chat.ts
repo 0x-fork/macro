@@ -5,6 +5,7 @@ import type {
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { PropertiedEntity } from '../entity';
+import { Project } from '../projects/project';
 import { entitySearch } from '../search';
 
 type ChatDetail = GetChatResponses[200]['chat'];
@@ -33,13 +34,13 @@ export class Chat extends PropertiedEntity<ChatDetail> {
   /** Create a chat, optionally named and attached to a project. */
   static async create(
     client: MacroClient,
-    opts?: { name?: string; projectId?: string },
+    opts?: { name?: string; project?: Project },
   ): Promise<Chat> {
     const { id } = unwrap(
       await client.cognition.createChat({
         body: {
           name: opts?.name ?? null,
-          projectId: opts?.projectId ?? null,
+          projectId: opts?.project?.id ?? null,
         },
       }),
     );
@@ -52,8 +53,10 @@ export class Chat extends PropertiedEntity<ChatDetail> {
   /** The model used to generate the chat (`provider/model` id), if set. */
   readonly model = this.field('model');
 
-  /** The id of the project this chat belongs to, if any. */
-  readonly projectId = this.field('projectId');
+  /** The project this chat belongs to, if any. */
+  readonly project = this.mappedField('projectId', (id) =>
+    id ? Project.byId(this.client, id) : undefined,
+  );
 
   /** When the chat was created. */
   readonly createdAt = this.field('createdAt');

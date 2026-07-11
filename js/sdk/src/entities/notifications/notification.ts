@@ -2,6 +2,7 @@ import type { GetTypedNotificationByIdResponses } from '../../../generated/notif
 import { paginate, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
+import { User } from '../users/user';
 
 type NotificationDetail = GetTypedNotificationByIdResponses[200];
 
@@ -54,14 +55,30 @@ export class Notification extends MacroEntity<NotificationDetail> {
   /** When the notification was created. */
   readonly createdAt = this.field('created_at');
 
+  /** When the notification was last updated. */
+  readonly updatedAt = this.field('updated_at');
+
   /** Whether the notification is marked as done. */
   readonly done = this.field('done');
+
+  /** Whether the notification has been sent (delivered out of band). */
+  readonly sent = this.field('sent');
 
   /** When the notification was viewed, if it has been seen. */
   readonly viewedAt = this.field('viewed_at');
 
-  /** The id of the user who triggered the notification, if any. */
-  readonly senderId = this.field('sender_id');
+  /** When the notification was deleted, if it has been. */
+  readonly deletedAt = this.field('deleted_at');
+
+  /** The user who owns (receives) this notification. */
+  readonly owner = this.mappedField('owner_id', (id) =>
+    User.byId(this.client, id),
+  );
+
+  /** The user who triggered the notification, if any. */
+  readonly sender = this.mappedField('sender_id', (id) =>
+    id ? User.byId(this.client, id) : undefined,
+  );
 
   /** The typed notification payload (tagged by event type). */
   readonly metadata = this.field('notification_metadata');

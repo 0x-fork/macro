@@ -8,6 +8,7 @@ import type {
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { FavoritableEntity } from '../entity';
+import { Company } from './company';
 
 type ContactDetail = GetContactResponses[200];
 
@@ -40,11 +41,25 @@ export class Contact extends FavoritableEntity<ContactDetail> {
   /** The contact's email address. */
   readonly email = this.field('email');
 
-  /** The id of the CRM company this contact belongs to. */
-  readonly companyId = this.field('companyId');
+  /** The CRM company this contact belongs to. */
+  readonly company = this.mappedField('companyId', (id) =>
+    Company.byId(this.client, id),
+  );
 
   /** Whether the contact is hidden from CRM listings. */
   readonly hidden = this.field('hidden');
+
+  /** When the contact was first created in the CRM. */
+  readonly createdAt = this.field('createdAt');
+
+  /** When the contact was last updated. */
+  readonly updatedAt = this.field('updatedAt');
+
+  /** When the team first interacted with this contact. */
+  readonly firstInteraction = this.field('firstInteraction');
+
+  /** When the team last interacted with this contact. */
+  readonly lastInteraction = this.field('lastInteraction');
 
   /** Hide the contact from CRM listings. Display-only; reversible with {@link unhide}. */
   async hide(): Promise<void> {

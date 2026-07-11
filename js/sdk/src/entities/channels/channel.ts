@@ -10,7 +10,10 @@ import { paginate, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { PropertiedEntity } from '../entity';
 import { entitySearch } from '../search';
+import type { Team } from '../teams/team';
+import type { User } from '../users/user';
 import { Message } from './message';
+import type { Thread } from './thread';
 
 type ChannelDetail = GetChannelResponses[200];
 
@@ -43,10 +46,10 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
   }
 
   /** Open (creating if needed) the DM channel with a user. */
-  static async dm(client: MacroClient, recipientId: string): Promise<Channel> {
+  static async dm(client: MacroClient, recipient: User): Promise<Channel> {
     const { channel_id } = unwrap(
       await client.storage.getOrCreateDm({
-        body: { recipient_id: recipientId },
+        body: { recipient_id: recipient.id },
       }),
     );
     return new Channel(client, channel_id);
@@ -55,11 +58,11 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
   /** Open (creating if needed) the private group channel with a set of users. */
   static async private(
     client: MacroClient,
-    recipientIds: string[],
+    recipients: User[],
   ): Promise<Channel> {
     const { channel_id } = unwrap(
       await client.storage.getOrCreatePrivate({
-        body: { recipients: recipientIds },
+        body: { recipients: recipients.map((u) => u.id) },
       }),
     );
     return new Channel(client, channel_id);
@@ -72,9 +75,9 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
       type: ChannelType;
       name?: string;
       /** Participants to add, excluding the owner. */
-      participants?: string[];
-      /** Team id, for team channels. */
-      teamId?: string;
+      participants?: User[];
+      /** Team, for team channels. */
+      team?: Team;
     },
   ): Promise<Channel> {
     const { id } = unwrap(
@@ -82,8 +85,8 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
         body: {
           channel_type: opts.type,
           name: opts.name ?? null,
-          participants: opts.participants ?? [],
-          team_id: opts.teamId ?? null,
+          participants: (opts.participants ?? []).map((u) => u.id),
+          team_id: opts.team?.id ?? null,
         },
       }),
     );
@@ -93,10 +96,13 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
   /** The channel's display name, resolved from the viewer's perspective. */
   readonly name = this.field('channel_name');
 
+  /** The channel's type (e.g. `public`, `dm`, `private`). */
+  readonly type = this.field('channel_type');
+
   /** Post a message. Plain text, or a rich body composed with `msg`. */
   async send(
     body: string | RichMessage,
-    opts?: { threadId?: string },
+    opts?: { thread?: Thread },
   ): Promise<Message> {
     const { content, mentions } = toBody(body);
     const res = unwrap(
@@ -106,7 +112,7 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
           content,
           mentions,
           attachments: [],
-          thread_id: opts?.threadId ?? null,
+          thread_id: opts?.thread?.rootId ?? null,
           nonce: crypto.randomUUID(),
         },
       }),
@@ -179,21 +185,21 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
   }
 
   /** Add users to the channel. */
-  async addParticipants(userIds: string[]): Promise<void> {
+  async addParticipants(users: User[]): Promise<void> {
     await this.mutate((c) =>
       c.storage.addParticipants({
         path: { channel_id: this.id },
-        body: { participants: userIds },
+        body: { participants: users.map((u) => u.id) },
       }),
     );
   }
 
   /** Remove users from the channel. */
-  async removeParticipants(userIds: string[]): Promise<void> {
+  async removeParticipants(users: User[]): Promise<void> {
     await this.mutate((c) =>
       c.storage.removeParticipants({
         path: { channel_id: this.id },
-        body: { participants: userIds },
+        body: { participants: users.map((u) => u.id) },
       }),
     );
   }
@@ -201,12 +207,12 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
   /** Broadcast a typing indicator, optionally scoped to a thread. */
   async typing(
     action: TypingAction,
-    opts?: { threadId?: string },
+    opts?: { thread?: Thread },
   ): Promise<void> {
     unwrap(
       await this.client.storage.postTyping({
         path: { channel_id: this.id },
-        body: { action, thread_id: opts?.threadId ?? null },
+        body: { action, thread_id: opts?.thread?.rootId ?? null },
       }),
     );
   }

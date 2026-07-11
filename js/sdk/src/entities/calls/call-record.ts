@@ -1,8 +1,10 @@
 import type { GetCallRecordResponses } from '../../../generated/storage/types.gen';
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
+import { Channel } from '../channels/channel';
 import { FavoritableEntity } from '../entity';
 import { entitySearch } from '../search';
+import { User } from '../users/user';
 
 type CallRecordDetail = GetCallRecordResponses[200];
 
@@ -25,11 +27,27 @@ export class CallRecord extends FavoritableEntity<CallRecordDetail> {
   /** The call's display name (user-supplied or AI-generated; unset while active). */
   readonly name = this.field('customName');
 
-  /** The id of the channel the call belongs to. */
-  readonly channelId = this.field('channelId');
+  /** The channel the call belongs to. */
+  readonly channel = this.mappedField('channelId', (id) =>
+    Channel.byId(this.client, id),
+  );
 
   /** The display name of the channel the call belongs to. */
   readonly channelName = this.field('channelName');
+
+  /** The user who started the call. */
+  readonly creator = this.mappedField('createdBy', (id) =>
+    User.byId(this.client, id),
+  );
+
+  /** Whether the call is still in progress. */
+  readonly isActive = this.field('isActive');
+
+  /** The call's status (undefined until set). */
+  readonly status = this.field('status');
+
+  /** The realtime room the call runs in. */
+  readonly roomName = this.field('roomName');
 
   /** When the call started. */
   readonly startedAt = this.field('startedAt');
@@ -48,6 +66,18 @@ export class CallRecord extends FavoritableEntity<CallRecordDetail> {
 
   /** Participants, both active and historic. */
   readonly participants = this.field('participants');
+
+  /** Whether the recording is shared with the team. */
+  readonly shareWithTeam = this.field('shareWithTeam');
+
+  /** URL of the call recording, once available. */
+  readonly recordingUrl = this.field('recordingUrl');
+
+  /** URL of the recording preview (thumbnail), once available. */
+  readonly recordingPreviewUrl = this.field('recordingPreviewUrl');
+
+  /** When the recording started, if it was recorded. */
+  readonly recordingStartedAt = this.field('recordingStartedAt');
 
   /** Rename the call. An empty string clears the custom name. */
   async rename(name: string): Promise<void> {

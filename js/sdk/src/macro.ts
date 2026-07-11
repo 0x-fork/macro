@@ -12,6 +12,7 @@ import { PinsNamespace } from './entities/pins/namespace';
 import { ProjectNamespace } from './entities/projects/namespace';
 import { PropertiesNamespace } from './entities/properties/namespace';
 import { TaskNamespace } from './entities/tasks/namespace';
+import { TeamNamespace } from './entities/teams/namespace';
 import { UserNamespace } from './entities/users/namespace';
 import { WebhooksNamespace } from './entities/webhooks/namespace';
 import type { MacroEvents } from './events/receiver';
@@ -33,6 +34,7 @@ export class Macro {
   readonly projects: ProjectNamespace;
   readonly properties: PropertiesNamespace;
   readonly tasks: TaskNamespace;
+  readonly teams: TeamNamespace;
   readonly users: UserNamespace;
   readonly webhooks: WebhooksNamespace;
   readonly events?: MacroEvents;
@@ -52,6 +54,7 @@ export class Macro {
     this.projects = new ProjectNamespace(client);
     this.properties = new PropertiesNamespace(client);
     this.tasks = new TaskNamespace(client);
+    this.teams = new TeamNamespace(client);
     this.users = new UserNamespace(client);
     this.webhooks = new WebhooksNamespace(client);
     this.events = client.events;

@@ -6,6 +6,7 @@ import type {
 import { paginate, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { EmailAttachment } from './attachment';
+import { Link } from './link';
 import { EmailMessage, type SendEmailOptions } from './message';
 import { EmailThread } from './thread';
 
@@ -33,6 +34,16 @@ export class EmailNamespace {
   /** A handle to an email attachment by id. */
   attachment(id: string): EmailAttachment {
     return EmailAttachment.byId(this.client, id);
+  }
+
+  /** A handle to a connected inbox (email link) by id. */
+  link(id: string): Link {
+    return Link.byId(this.client, id);
+  }
+
+  /** The caller's connected inboxes (email links). */
+  links(): Promise<Link[]> {
+    return Link.list(this.client);
   }
 
   /** Send a new email message. */

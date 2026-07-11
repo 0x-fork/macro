@@ -2,7 +2,9 @@ import type { BasicDocumentSubType } from '../../../generated/storage/types.gen'
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { Document } from '../documents/document';
+import type { Project } from '../projects/project';
 import { entitySearch } from '../search';
+import type { Team } from '../teams/team';
 
 type TaskSubType = Extract<BasicDocumentSubType, { type: 'task' }>;
 
@@ -25,7 +27,7 @@ export class Task extends Document {
   }
 
   /**
-   * Create a task. `teamId` scopes the team task number and may be omitted
+   * Create a task. `team` scopes the team task number and may be omitted
    * when the creator belongs to exactly one team; `shareWithTeam` defaults
    * to true.
    */
@@ -34,8 +36,8 @@ export class Task extends Document {
     opts: {
       name: string;
       markdown?: string;
-      projectId?: string;
-      teamId?: string;
+      project?: Project;
+      team?: Team;
       shareWithTeam?: boolean;
     },
   ): Promise<Task> {
@@ -44,8 +46,8 @@ export class Task extends Document {
         body: {
           taskName: opts.name,
           markdown: opts.markdown ?? null,
-          projectId: opts.projectId ?? null,
-          teamId: opts.teamId ?? null,
+          projectId: opts.project?.id ?? null,
+          teamId: opts.team?.id ?? null,
           shareWithTeam: opts.shareWithTeam ?? true,
         },
       }),

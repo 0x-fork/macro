@@ -1,6 +1,7 @@
 import { type RichMessage, toBody } from '../../mentions';
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
+import { Channel } from './channel';
 import { Message } from './message';
 
 /**
@@ -14,6 +15,16 @@ export class Thread {
     /** The id of the message this thread hangs off. */
     readonly rootId: string,
   ) {}
+
+  /** The channel this thread is in. */
+  channel(): Channel {
+    return Channel.byId(this.client, this.channelId);
+  }
+
+  /** The message this thread hangs off. */
+  root(): Message {
+    return Message.byId(this.client, this.channelId, this.rootId);
+  }
 
   /** List the replies in this thread, oldest first. */
   async replies(): Promise<Message[]> {

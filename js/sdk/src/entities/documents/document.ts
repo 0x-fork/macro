@@ -16,7 +16,9 @@ import {
 } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { PropertiedEntity } from '../entity';
+import { Project } from '../projects/project';
 import { entitySearch } from '../search';
+import { User } from '../users/user';
 import { Comment } from './comment';
 
 type DocumentItem = GetDocumentResponses[200]['data']['items'][number];
@@ -59,14 +61,14 @@ export class Document
   /** Create a markdown document. */
   static async create(
     client: MacroClient,
-    opts: { name: string; markdown?: string; projectId?: string },
+    opts: { name: string; markdown?: string; project?: Project },
   ): Promise<Document> {
     const { documentId } = unwrap(
       await client.storage.createMarkdownHandler({
         body: {
           documentName: opts.name,
           markdown: opts.markdown ?? null,
-          projectId: opts.projectId ?? null,
+          projectId: opts.project?.id ?? null,
         },
       }),
     );
@@ -79,14 +81,14 @@ export class Document
    */
   static async createSnippet(
     client: MacroClient,
-    opts: { name: string; markdown?: string; projectId?: string },
+    opts: { name: string; markdown?: string; project?: Project },
   ): Promise<Document> {
     const { documentId } = unwrap(
       await client.storage.createSnippetHandler({
         body: {
           snippetName: opts.name,
           markdown: opts.markdown ?? null,
-          projectId: opts.projectId ?? null,
+          projectId: opts.project?.id ?? null,
         },
       }),
     );
@@ -144,8 +146,29 @@ export class Document
   /** The document's file type (e.g. `md`, `pdf`, `docx`). */
   readonly fileType = this.field('fileType');
 
-  /** The id of the project this document belongs to, if any. */
-  readonly projectId = this.field('projectId');
+  /** The project this document belongs to, if any. */
+  readonly project = this.mappedField('projectId', (id) =>
+    id ? Project.byId(this.client, id) : undefined,
+  );
+
+  /** The user who owns the document. */
+  readonly owner = this.mappedField('owner', (id) =>
+    User.byId(this.client, id),
+  );
+
+  /** The document this one was branched from, if any. */
+  readonly branchedFrom = this.mappedField('branchedFromId', (id) =>
+    id ? Document.byId(this.client, id) : undefined,
+  );
+
+  /** When the document was created. */
+  readonly createdAt = this.field('createdAt');
+
+  /** When the document was last updated. */
+  readonly updatedAt = this.field('updatedAt');
+
+  /** When the document was deleted, if it has been. */
+  readonly deletedAt = this.field('deletedAt');
 
   /**
    * The document's raw content (markdown source for markdown documents),
@@ -176,11 +199,11 @@ export class Document
   }
 
   /** Move the document into a project (or out of one, with `null`). */
-  async move(projectId: string | null): Promise<void> {
+  async move(project: Project | null): Promise<void> {
     await this.mutate((c) =>
       c.storage.editDocument({
         path: { document_id: this.id },
-        body: { projectId: projectId ?? '' },
+        body: { projectId: project?.id ?? '' },
       }),
     );
   }
