@@ -12,7 +12,8 @@ import {
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import { mountGlobalFocusListener } from '@app/signal/focus';
 import { AutomationComposer } from '@block-automation/component';
-import { InCallPanel, useCallContextOptional } from '@channel/Call';
+import { useCallContextOptional } from '@channel/Call/CallContext';
+import { InCallPanel } from '@channel/Call/InCallPanel';
 import { useIsAuthenticated } from '@core/auth';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isSoloSettings } from '@core/constant/SettingsState';
