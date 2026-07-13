@@ -1,24 +1,24 @@
-import { Sdk as AuthSdk } from '../generated/auth/sdk.gen';
-import { Sdk as CognitionSdk } from '../generated/cognition/sdk.gen';
-import { Sdk as ContactsSdk } from '../generated/contacts/sdk.gen';
-import { Sdk as EmailSdk } from '../generated/email/sdk.gen';
-import { Sdk as NotificationSdk } from '../generated/notification/sdk.gen';
-import { Sdk as PropertiesSdk } from '../generated/properties/sdk.gen';
-import { Sdk as SearchSdk } from '../generated/search/sdk.gen';
 import { createClient } from '../generated/storage/client';
-import { Sdk as StorageSdk } from '../generated/storage/sdk.gen';
-import { MacroEvents } from './events';
 import { HOSTS, type MacroOpts } from './config';
+import { MacroEvents } from './events';
+import { AuthClient } from './services/auth';
+import { CognitionClient } from './services/cognition';
+import { ContactsClient } from './services/contacts';
+import { EmailClient } from './services/email';
+import { NotificationClient } from './services/notification';
+import { PropertiesClient } from './services/properties';
+import { SearchClient } from './services/search';
+import { StorageClient } from './services/storage';
 
 export class MacroClient<T extends MacroOpts = MacroOpts> {
-  readonly auth: AuthSdk;
-  readonly cognition: CognitionSdk;
-  readonly contacts: ContactsSdk;
-  readonly email: EmailSdk;
-  readonly notification: NotificationSdk;
-  readonly properties: PropertiesSdk;
-  readonly search: SearchSdk;
-  readonly storage: StorageSdk;
+  readonly auth: AuthClient;
+  readonly cognition: CognitionClient;
+  readonly contacts: ContactsClient;
+  readonly email: EmailClient;
+  readonly notification: NotificationClient;
+  readonly properties: PropertiesClient;
+  readonly search: SearchClient;
+  readonly storage: StorageClient;
   declare readonly events: T extends { webhookSecret: string }
     ? MacroEvents
     : undefined;
@@ -39,24 +39,26 @@ export class MacroClient<T extends MacroOpts = MacroOpts> {
         );
       });
 
-    this.auth = new AuthSdk({ client: this.makeClient(hosts.auth, token) });
-    this.cognition = new CognitionSdk({
+    this.auth = new AuthClient({ client: this.makeClient(hosts.auth, token) });
+    this.cognition = new CognitionClient({
       client: this.makeClient(hosts.cognition, token),
     });
-    this.contacts = new ContactsSdk({
+    this.contacts = new ContactsClient({
       client: this.makeClient(hosts.contacts, token),
     });
-    this.email = new EmailSdk({ client: this.makeClient(hosts.email, token) });
-    this.notification = new NotificationSdk({
+    this.email = new EmailClient({
+      client: this.makeClient(hosts.email, token),
+    });
+    this.notification = new NotificationClient({
       client: this.makeClient(hosts.notification, token),
     });
-    this.properties = new PropertiesSdk({
+    this.properties = new PropertiesClient({
       client: this.makeClient(hosts.properties, token),
     });
-    this.search = new SearchSdk({
+    this.search = new SearchClient({
       client: this.makeClient(hosts.search, token),
     });
-    this.storage = new StorageSdk({
+    this.storage = new StorageClient({
       client: this.makeClient(hosts.storage, token),
     });
 
