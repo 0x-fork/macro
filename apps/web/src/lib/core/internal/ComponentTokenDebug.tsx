@@ -1,37 +1,48 @@
+import { MENU_CONTENT_CLASS } from '@core/component/ContextMenu';
+import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
+import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
+import type { CollectionNode } from '@kobalte/core';
+import { Combobox } from '@kobalte/core/combobox';
+import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
+import { SegmentedControl as KSegmentedControl } from '@kobalte/core/segmented-control';
+import { Select } from '@kobalte/core/select';
+import CaretDownIcon from '@phosphor/caret-down.svg';
+import CheckIcon from '@phosphor/check.svg';
 import {
   semanticV2,
   setSemanticV2,
   themeDepth,
 } from '@theme/signals/themeSignals';
 import {
+  Badge,
   Button,
   type ButtonProps,
   Checkbox,
   cn,
+  NumberField,
+  NumberInput,
   Panel,
+  TextArea,
+  TextField,
+  TextInput,
   ToggleSwitch,
   Tooltip,
+  Combobox as UiCombobox,
+  Select as UiSelect,
+  SimpleCheckbox as UiSimpleCheckbox,
+  SimpleCombobox as UiSimpleCombobox,
+  SimpleSelect as UiSimpleSelect,
 } from '@ui';
 import { addCtrlJKMenuNavigation } from '@ui/utils/menuKeyboardNavigation';
-import { MENU_CONTENT_CLASS } from '@core/component/ContextMenu';
-import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
-import { SegmentedControl as KSegmentedControl } from '@kobalte/core/segmented-control';
-import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
-import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
-import { Select } from '@kobalte/core/select';
-import { Combobox } from '@kobalte/core/combobox';
-import type { CollectionNode } from '@kobalte/core';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
 import {
   type ComponentProps,
   createEffect,
   createSignal,
   For,
+  type JSX,
   onCleanup,
   onMount,
   splitProps,
-  type JSX,
 } from 'solid-js';
 
 /**
@@ -49,10 +60,10 @@ const LOREM_SHORT = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
 const LOREM_MEDIUM =
   'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.';
 
-// Surfaces: label, utility class (empty if none), backing var (for contrast probe).
+// Surfaces: label, utility class (empty for semantic-v2-only tokens), backing var.
 const SURFACE_TOKENS = [
   { label: 'surface', cls: 'bg-surface', var: '--color-surface' },
-  { label: 'panel', cls: '', var: '--color-panel' }, // flag-only, no utility (consumed via --surface-fill)
+  { label: 'panel', cls: '', var: '--color-panel' },
   { label: 'card', cls: 'bg-card', var: '--color-card' },
   { label: 'menu', cls: 'bg-menu', var: '--color-menu' },
   { label: 'modal', cls: 'bg-modal', var: '--color-modal' },
@@ -71,6 +82,16 @@ const BORDER_TOKENS = [
   { name: 'border-edge-primary', cls: 'border-edge-primary' },
   { name: 'border-edge-secondary', cls: 'border-edge-secondary' },
   { name: 'border-edge-divider', cls: 'border-edge-divider' },
+] as const;
+
+const FILL_TOKENS = [
+  { label: 'fill-none', var: '--color-fill-none' },
+  { label: 'fill-subtle', var: '--color-fill-subtle' },
+  { label: 'fill-muted', var: '--color-fill-muted' },
+  { label: 'fill-default', var: '--color-fill-default' },
+  { label: 'fill-strong', var: '--color-fill-strong' },
+  { label: 'fill-selected', var: '--color-fill-selected' },
+  { label: 'fill-accent', var: '--color-fill-accent' },
 ] as const;
 
 const TOKEN_BUTTON_VARIANTS = [
@@ -98,6 +119,16 @@ const UI_BUTTON_VARIANTS = [
   'danger',
   'cta',
 ] as const;
+
+const UI_BADGE_TONES = [
+  'neutral',
+  'accent',
+  'success',
+  'alert',
+  'failure',
+  'note',
+] as const;
+const UI_BADGE_VARIANTS = ['soft', 'outline', 'solid', 'ghost'] as const;
 
 // ── WCAG contrast checker (ported) ──────────────────────────────────────────
 
@@ -271,9 +302,12 @@ const A11Y_FILL_TEXT = [
 ] as const;
 
 const A11Y_FILLS = [
+  ['fill-muted', '--color-fill-muted'],
+  ['fill-default', '--color-fill-default'],
+  ['fill-strong', '--color-fill-strong'],
   ['button-primary', '--color-button-primary'],
   ['button-secondary', '--color-button-secondary'],
-  ['accent', '--color-accent'],
+  ['fill-accent', '--color-fill-accent'],
 ] as const;
 
 function ContrastBadge(props: { cell: ContrastCell | undefined }) {
@@ -1107,7 +1141,11 @@ function ComponentTokenDebug() {
   });
 
   return (
-    <div ref={rootRef} class="size-full overflow-auto bg-panel p-6">
+    <div
+      ref={rootRef}
+      class="size-full overflow-auto p-6"
+      style={{ 'background-color': 'var(--color-panel, var(--b0))' }}
+    >
       <div class="flex flex-col gap-8 max-w-6xl mx-auto">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <h1 class="text-2xl font-bold text-ink">Component & Token Debug</h1>
@@ -1123,7 +1161,7 @@ function ComponentTokenDebug() {
         </div>
 
         <div class="rounded-lg p-3 text-sm text-alert bg-alert-bg ring-1 ring-edge-muted">
-          The new tokens' migrated values only apply with{' '}
+          The new fill/panel tokens are only defined with{' '}
           <code>semantic-v2</code> on. Toggling it also flips <code>Layer</code>{' '}
           to passthrough (elevation moves into the tokens), so{' '}
           <code>Surface</code>-based panels flatten unless they've adopted a
@@ -1133,7 +1171,7 @@ function ComponentTokenDebug() {
         {/* Surfaces */}
         <Section
           title="Surface tokens"
-          note="Opaque, elevation-derived (panel < card < menu < toast). panel is flag-only (no bg utility); consumed via --surface-fill / var(--color-panel)."
+          note="Opaque, elevation-derived (panel < card < menu < toast). Panel is semantic-v2-only and is also consumed via --surface-fill / var(--color-panel)."
         >
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             <For each={SURFACE_TOKENS}>
@@ -1143,7 +1181,9 @@ function ComponentTokenDebug() {
                   sub={s.var}
                   class={s.cls}
                   style={
-                    s.cls ? undefined : { 'background-color': `var(${s.var})` }
+                    s.cls
+                      ? undefined
+                      : { 'background-color': `var(${s.var}, var(--b0))` }
                   }
                 />
               )}
@@ -1221,10 +1261,28 @@ function ComponentTokenDebug() {
           </div>
         </Section>
 
+        {/* Shared fills */}
+        <Section
+          title="Shared fill tokens"
+          note="The reusable control/selection ramp. Buttons, rows, chips, and inputs should alias these instead of deriving their own neutral fills."
+        >
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 rounded-md bg-card p-3 ring-1 ring-edge-muted">
+            <For each={FILL_TOKENS}>
+              {(f) => (
+                <Swatch
+                  label={f.label}
+                  sub={f.var}
+                  style={{ 'background-color': `var(${f.var}, var(--b0))` }}
+                />
+              )}
+            </For>
+          </div>
+        </Section>
+
         {/* TokenButton — a button built on the new tokens */}
         <Section
           title="TokenButton (new tokens)"
-          note="primary/secondary/ghost/destructive/link/cta × sm/md/lg. Neutral fills reuse the content ramp for text (no on-* tokens); hover/active are translucent overlays. cta is the quarantined accent case."
+          note="primary/secondary/ghost/destructive/link/cta × sm/md/lg. Neutral button tokens are intent aliases over the shared fill ramp; cta is the quarantined accent case."
         >
           <div class="rounded-md p-4 bg-card ring-1 ring-edge-muted flex flex-col gap-5">
             <div class="grid grid-cols-2 gap-x-6 gap-y-4">
@@ -1440,6 +1498,39 @@ function ComponentTokenDebug() {
         >
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div class="portal-scope relative rounded-md p-4 bg-card ring-1 ring-edge-muted flex flex-col gap-4 min-h-64">
+              <h3 class="text-sm font-semibold text-ink">Badge variants</h3>
+              <div class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2">
+                <For each={UI_BADGE_TONES}>
+                  {(tone) => (
+                    <>
+                      <span class="text-xs font-mono text-ink-extra-muted">
+                        {tone}
+                      </span>
+                      <div class="flex flex-wrap gap-2">
+                        <For each={UI_BADGE_VARIANTS}>
+                          {(variant) => (
+                            <Badge tone={tone} variant={variant}>
+                              {variant}
+                            </Badge>
+                          )}
+                        </For>
+                      </div>
+                    </>
+                  )}
+                </For>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Badge size="md" shape="pill">
+                  medium pill
+                </Badge>
+                <Badge mono uppercase>
+                  mono
+                </Badge>
+                <Badge tone="accent" variant="outline" shape="pill" uppercase>
+                  beta
+                </Badge>
+              </div>
+
               <h3 class="text-sm font-semibold text-ink">Button variants</h3>
               <div class="flex flex-wrap gap-2 items-center">
                 <For each={UI_BUTTON_VARIANTS}>
@@ -1515,6 +1606,149 @@ function ComponentTokenDebug() {
                 </span>
               </Tooltip>
             </div>
+
+            <div class="lg:col-span-2 rounded-md p-4 bg-card ring-1 ring-edge-muted flex flex-col gap-4">
+              <h3 class="text-sm font-semibold text-ink">
+                New form primitives
+              </h3>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-4">
+                  <h4 class="text-xs font-mono text-ink-extra-muted">
+                    simple wrappers
+                  </h4>
+                  <UiSimpleCheckbox
+                    defaultChecked
+                    label="SimpleCheckbox"
+                    description="Root checkbox props still pass through."
+                  />
+                  <TextInput
+                    label="TextInput"
+                    defaultValue="Hello Macro"
+                    description="A convenience wrapper over TextField parts."
+                    placeholder="Type a value"
+                  />
+                  <TextArea
+                    label="TextArea"
+                    defaultValue="Multi-line content"
+                    description="Uses the same TextField root."
+                    textAreaClass="min-h-20"
+                  />
+                  <NumberInput
+                    label="NumberInput"
+                    defaultValue={4}
+                    minValue={0}
+                    maxValue={10}
+                    showSteppers
+                    description="Includes optional stepper controls."
+                  />
+                  <UiSimpleSelect
+                    label="SimpleSelect"
+                    defaultValue={SELECT_OPTIONS[1]}
+                    options={SELECT_OPTIONS}
+                    placeholder="Choose a folder"
+                  />
+                  <UiSimpleCombobox
+                    label="SimpleCombobox"
+                    defaultValue={COMBO_PEOPLE[0]}
+                    options={COMBO_PEOPLE}
+                    placeholder="Search people"
+                  />
+                </div>
+
+                <div class="flex flex-col gap-4">
+                  <h4 class="text-xs font-mono text-ink-extra-muted">
+                    composable parts
+                  </h4>
+                  <Checkbox defaultChecked class="items-start gap-2">
+                    <Checkbox.Control />
+                    <div class="flex min-w-0 flex-col gap-1">
+                      <Checkbox.Label>Checkbox parts</Checkbox.Label>
+                      <Checkbox.Description>
+                        Label and description are exported parts.
+                      </Checkbox.Description>
+                    </div>
+                  </Checkbox>
+
+                  <TextField defaultValue="Composed text">
+                    <TextField.Label>TextField parts</TextField.Label>
+                    <TextField.Input placeholder="TextField.Input" />
+                    <TextField.Description>
+                      Input, textarea, description, and error message compose.
+                    </TextField.Description>
+                  </TextField>
+
+                  <NumberField defaultValue={6} minValue={0} maxValue={10}>
+                    <NumberField.Label>NumberField parts</NumberField.Label>
+                    <div class="flex items-center gap-1">
+                      <NumberField.DecrementTrigger />
+                      <NumberField.Input class="flex-1" />
+                      <NumberField.IncrementTrigger />
+                    </div>
+                    <NumberField.HiddenInput />
+                    <NumberField.Description>
+                      Same styling, caller controls layout.
+                    </NumberField.Description>
+                  </NumberField>
+
+                  <UiSelect<SelectOption>
+                    defaultValue={SELECT_OPTIONS[2]}
+                    options={SELECT_OPTIONS}
+                    optionValue="value"
+                    optionTextValue="label"
+                    itemComponent={(itemProps: {
+                      item: CollectionNode<SelectOption>;
+                    }) => (
+                      <UiSelect.Item item={itemProps.item}>
+                        <UiSelect.ItemLabel class="min-w-0 flex-1 truncate">
+                          {itemProps.item.rawValue.label}
+                        </UiSelect.ItemLabel>
+                        <UiSelect.ItemIndicator />
+                      </UiSelect.Item>
+                    )}
+                  >
+                    <UiSelect.Label>Select parts</UiSelect.Label>
+                    <UiSelect.Trigger>
+                      <UiSelect.Value<SelectOption>>
+                        {(state) => state.selectedOption()?.label ?? 'Choose'}
+                      </UiSelect.Value>
+                      <UiSelect.Icon>
+                        <CaretDownIcon class="size-3.5 text-ink-muted" />
+                      </UiSelect.Icon>
+                    </UiSelect.Trigger>
+                    <UiSelect.Content>
+                      <UiSelect.Listbox />
+                    </UiSelect.Content>
+                  </UiSelect>
+
+                  <UiCombobox<SelectOption>
+                    defaultValue={COMBO_PEOPLE[2]}
+                    options={COMBO_PEOPLE}
+                    optionValue="value"
+                    optionTextValue="label"
+                    optionLabel="label"
+                    itemComponent={(itemProps: {
+                      item: CollectionNode<SelectOption>;
+                    }) => (
+                      <UiCombobox.Item item={itemProps.item}>
+                        <UiCombobox.ItemLabel class="min-w-0 flex-1 truncate">
+                          {itemProps.item.rawValue.label}
+                        </UiCombobox.ItemLabel>
+                        <UiCombobox.ItemIndicator />
+                      </UiCombobox.Item>
+                    )}
+                  >
+                    <UiCombobox.Label>Combobox parts</UiCombobox.Label>
+                    <UiCombobox.Control>
+                      <UiCombobox.Input />
+                      <UiCombobox.Trigger />
+                    </UiCombobox.Control>
+                    <UiCombobox.Content>
+                      <UiCombobox.Listbox />
+                    </UiCombobox.Content>
+                  </UiCombobox>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Panel adopts the flag-only `panel` token via --surface-fill */}
@@ -1547,7 +1781,7 @@ function ComponentTokenDebug() {
         {/* Accessibility */}
         <Section
           title="Accessibility — WCAG contrast"
-          note="Contrast ratios for each content token on each surface. Normal text needs 4.5:1 (AA) / 7:1 (AAA); large text 3:1. panel reads '—' until the flag is on."
+          note="Contrast ratios for each content token on each surface. Normal text needs 4.5:1 (AA) / 7:1 (AAA); large text 3:1."
         >
           <ContrastTable
             cells={textCells()}
@@ -1559,7 +1793,7 @@ function ComponentTokenDebug() {
 
         <Section
           title="Accessibility — fills"
-          note="The 'no on-* tokens' bet: content text stays legible on neutral button fills (button-* stays in the b* family). accent is the quarantined exception."
+          note="The 'no on-* tokens' bet: content text stays legible on neutral shared fills; accent/fill-accent is the quarantined exception."
         >
           <ContrastTable
             cells={fillCells()}

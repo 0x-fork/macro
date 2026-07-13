@@ -1,7 +1,23 @@
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
+import {
+  DropdownMenu as KobalteDropdownMenu,
+  type DropdownMenuCheckboxItemProps as KobalteDropdownMenuCheckboxItemProps,
+  type DropdownMenuContentProps as KobalteDropdownMenuContentProps,
+  type DropdownMenuGroupLabelProps as KobalteDropdownMenuGroupLabelProps,
+  type DropdownMenuGroupProps as KobalteDropdownMenuGroupProps,
+  type DropdownMenuItemIndicatorProps as KobalteDropdownMenuItemIndicatorProps,
+  type DropdownMenuItemProps as KobalteDropdownMenuItemProps,
+  type DropdownMenuPortalProps as KobalteDropdownMenuPortalProps,
+  type DropdownMenuRadioItemProps as KobalteDropdownMenuRadioItemProps,
+  type DropdownMenuRootProps as KobalteDropdownMenuRootProps,
+  type DropdownMenuSubContentProps as KobalteDropdownMenuSubContentProps,
+  type DropdownMenuSubProps as KobalteDropdownMenuSubProps,
+  type DropdownMenuSubTriggerProps as KobalteDropdownMenuSubTriggerProps,
+  type DropdownMenuTriggerProps as KobalteDropdownMenuTriggerProps,
+} from '@kobalte/core/dropdown-menu';
+import type { PolymorphicProps } from '@kobalte/core/polymorphic';
 import CheckIcon from '@phosphor/check.svg';
-import { type ComponentProps, onCleanup, splitProps } from 'solid-js';
+import { onCleanup, splitProps, type ValidComponent } from 'solid-js';
 import { cn } from '../utils/classname';
 import { addCtrlJKMenuNavigation } from '../utils/menuKeyboardNavigation';
 import { Button, type ButtonProps } from './Button';
@@ -30,47 +46,60 @@ import { Surface, type SurfaceProps } from './Surface';
 // const DROPDOWN_CONTENT_CLASS = 'z-action-menu bg-surface rounded-xl ring-1 ring-edge shadow-menu p-1.5';
 // const DROPDOWN_ITEM_CLASS = 'rounded-md hover:bg-ink/3 focus:bg-ink/3 data-[highlighted]:bg-ink/3';
 
-type PortalMount = ComponentProps<typeof KobalteDropdownMenu.Portal>['mount'];
+type PortalMount = KobalteDropdownMenuPortalProps['mount'];
 type DropdownPortalScope = 'local';
 
-export type DropdownSubContentProps = ComponentProps<
-  typeof KobalteDropdownMenu.SubContent
+export type DropdownProps = KobalteDropdownMenuRootProps;
+export type DropdownSubContentProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuSubContentProps<ValidComponent>
 > & {
   depth?: SurfaceProps['depth'];
   mount?: PortalMount;
   portalScope?: DropdownPortalScope;
 };
-export type DropdownContentProps = ComponentProps<
-  typeof KobalteDropdownMenu.Content
+export type DropdownContentProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuContentProps<ValidComponent>
 > & {
   depth?: SurfaceProps['depth'];
   mount?: PortalMount;
   portalScope?: DropdownPortalScope;
 };
-export type DropdownTriggerProps = ComponentProps<
-  typeof KobalteDropdownMenu.Trigger
+export type DropdownTriggerProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuTriggerProps<ValidComponent>
 > &
   ButtonProps;
-export type DropdownItemIndicatorProps = ComponentProps<
-  typeof KobalteDropdownMenu.ItemIndicator
+export type DropdownItemIndicatorProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuItemIndicatorProps<ValidComponent>
 >;
-export type DropdownCheckboxItemProps = ComponentProps<
-  typeof KobalteDropdownMenu.CheckboxItem
+export type DropdownCheckboxItemProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuCheckboxItemProps<ValidComponent>
 >;
-export type DropdownSubTriggerProps = ComponentProps<
-  typeof KobalteDropdownMenu.SubTrigger
+export type DropdownSubTriggerProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuSubTriggerProps<ValidComponent>
 >;
-export type DropdownRadioItemProps = ComponentProps<
-  typeof KobalteDropdownMenu.RadioItem
+export type DropdownRadioItemProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuRadioItemProps<ValidComponent>
 >;
-export type DropdownGroupLabelProps = ComponentProps<
-  typeof KobalteDropdownMenu.GroupLabel
+export type DropdownGroupLabelProps = PolymorphicProps<
+  'span',
+  KobalteDropdownMenuGroupLabelProps<'span'>
 >;
-export type DropdownGroupProps = ComponentProps<
-  typeof KobalteDropdownMenu.Group
+export type DropdownGroupProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuGroupProps<ValidComponent>
 >;
-export type DropdownItemProps = ComponentProps<typeof KobalteDropdownMenu.Item>;
-export type DropdownSubProps = ComponentProps<typeof KobalteDropdownMenu.Sub>;
+export type DropdownItemProps = PolymorphicProps<
+  ValidComponent,
+  KobalteDropdownMenuItemProps<ValidComponent>
+>;
+export type DropdownSubProps = KobalteDropdownMenuSubProps;
 
 const ROW_CLASS =
   'group rounded-lg w-full flex items-center gap-1.5 p-1.5 px-2 text-left font-normal text-sm cursor-default outline-none hover:bg-ink/5 data-highlighted:bg-ink/5 data-disabled:opacity-50 data-disabled:cursor-not-allowed';
@@ -347,9 +376,7 @@ function DropdownTrigger(props: DropdownTriggerProps) {
 }
 
 export const Dropdown = Object.assign(
-  (props: ComponentProps<typeof KobalteDropdownMenu>) => (
-    <KobalteDropdownMenu gutter={4} {...props} />
-  ),
+  (props: DropdownProps) => <KobalteDropdownMenu gutter={4} {...props} />,
   {
     RadioGroup:
       KobalteDropdownMenu.RadioGroup /* passthrough — pure logical wrapper */,
