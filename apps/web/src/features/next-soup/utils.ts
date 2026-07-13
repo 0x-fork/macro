@@ -42,6 +42,7 @@ import {
   getAllNotificationsFromGroup,
   getChannelNotificationParams,
   type NotificationSource,
+  notificationIsRead,
   setDoneOverride,
   stackNotifications,
   type UnifiedNotification,
@@ -343,10 +344,11 @@ interface OpenEntityOptions {
  * driving notification (the same data the card renders), so read the target
  * from there, exactly like the old inbox did via getChannelNotificationParams.
  * Notifications are scoped to the row first (top-level sends for a channel,
- * this thread's replies for a thread) and the most recent one wins. With no
- * notification either, fall back to the row's own ids — a `channel_thread`
- * row opens at its root and a `channel` row has no message to target (open
- * latest).
+ * this thread's replies for a thread) and the most recent unread one wins —
+ * read notifications never aim the click, so a row that looks read matches
+ * its unread indicator. With no unread notification, fall back to the row's
+ * own ids — a `channel_thread` row opens at its root and a `channel` row has
+ * no message to target (open latest).
  */
 export function getChannelEntityTarget(
   entity: EntityData
@@ -373,6 +375,7 @@ export function getChannelEntityTarget(
     entity.notifications?.() ?? []
   );
   for (const notification of scoped) {
+    if (notificationIsRead(notification)) continue;
     const { messageId, threadId } = getChannelNotificationParams(notification);
     if (messageId) return { messageId, threadId };
   }
