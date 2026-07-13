@@ -14,10 +14,10 @@ use entity_access::domain::ports::{EntityAccessService, NoOpEntityAccessService}
 use graphql_common::extract_part;
 use graphql_notification::{NoOpSoupNotificationEdgeReader, SoupNotificationEdgeReader};
 use graphql_properties::{
-    EntityPropertyWriter, NoOpEntityPropertyWriter, NoOpSoupPropertyEdgeReader,
-    PropertiesMutationRoot, SoupPropertyEdgeReader,
+    EntityPropertyReader, EntityPropertyWriter, NoOpEntityPropertyReader, NoOpEntityPropertyWriter,
+    PropertiesMutationRoot,
 };
-use graphql_soup::{SharedSoupService, SoupInput, SoupPage, resolve_soup};
+use graphql_soup::{SoupInput, SoupPage, resolve_soup};
 use model_user::axum_extractor::MacroUserExtractor;
 use soup::domain::ports::{NoOpSoupService, SoupService};
 
@@ -33,8 +33,7 @@ pub type SoupSchema<S, E, EAS, St, W, NR, PR> =
     Schema<SoupQueryRoot<S, E, EAS, St, NR, PR>, PropertiesMutationRoot<W>, EmptySubscription>;
 
 /// GraphQL Soup schema type backed by a shared soup service.
-pub type SharedSoupSchema<S, E, EAS, St, W, NR, PR> =
-    SoupSchema<SharedSoupService<S>, E, EAS, St, W, NR, PR>;
+pub type SharedSoupSchema<S, E, EAS, St, W, NR, PR> = SoupSchema<Arc<S>, E, EAS, St, W, NR, PR>;
 
 /// GraphQL Soup schema type backed by the no-op services, used only for
 /// SDL export or introspection.
@@ -45,7 +44,7 @@ pub type SchemaOnlySoupSchema = SoupSchema<
     SchemaOnlyState,
     NoOpEntityPropertyWriter,
     NoOpSoupNotificationEdgeReader,
-    NoOpSoupPropertyEdgeReader,
+    NoOpEntityPropertyReader,
 >;
 
 /// Axum-style state used only to construct the GraphQL schema for SDL export.
@@ -110,7 +109,7 @@ where
     Arc<EAS>: FromRef<St>,
     W: EntityPropertyWriter,
     NR: SoupNotificationEdgeReader,
-    PR: SoupPropertyEdgeReader,
+    PR: EntityPropertyReader,
 {
     Schema::build(
         SoupQueryRoot::new(service),
@@ -133,9 +132,9 @@ where
     Arc<EAS>: FromRef<St>,
     W: EntityPropertyWriter,
     NR: SoupNotificationEdgeReader,
-    PR: SoupPropertyEdgeReader,
+    PR: EntityPropertyReader,
 {
-    build_schema_with_service(SharedSoupService::new(service))
+    build_schema_with_service(service)
 }
 
 #[Object]
@@ -148,7 +147,7 @@ where
     EmailRouterState<E>: FromRef<St>,
     Arc<EAS>: FromRef<St>,
     NR: SoupNotificationEdgeReader,
-    PR: SoupPropertyEdgeReader,
+    PR: EntityPropertyReader,
 {
     /// The authenticated user.
     async fn user(&self) -> GraphqlUser<S, E, EAS, St, NR, PR> {
@@ -169,7 +168,7 @@ where
     EmailRouterState<E>: FromRef<St>,
     Arc<EAS>: FromRef<St>,
     NR: SoupNotificationEdgeReader,
-    PR: SoupPropertyEdgeReader,
+    PR: EntityPropertyReader,
 {
     /// Stable id of the authenticated user.
     async fn id(&self, ctx: &Context<'_>) -> async_graphql::Result<async_graphql::ID> {
