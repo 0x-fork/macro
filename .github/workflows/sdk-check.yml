@@ -41,7 +41,7 @@ jobs:
       run: |-
         echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> "$GITHUB_ENV"
         echo "SCCACHE_CACHE_SIZE=20G" >> "$GITHUB_ENV"
-    - name: Regenerate SDK code
+    - name: Regenerate SDK with hey-api
       run: just update-generated
       working-directory: packages/sdk
     - name: show sccache stats

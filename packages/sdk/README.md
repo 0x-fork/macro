@@ -1,24 +1,35 @@
-The Macro SDK, which is a library for interacting with Macro's backend services
+The Macro SDK — a thin, namespaced TypeScript client for Macro's backend services.
 
-- **`generated/`**: generated Typescript types and a HeyAPI client from Macro's
-  OpenAPI specs.
-- **`src/`**: a hand-written ergonomic SDK layer that provides an "orm"-y API.
+- **`generated/`**: TypeScript types and a `@hey-api/openapi-ts` fetch client per
+  service, generated from Macro's OpenAPI specs. Treat as build output — never
+  hand-edit; regenerate with `just update-generated` (or `bun run generate` from
+  synced specs).
+- **`src/`**: a small hand-written layer over `generated/`:
+  - `client.ts` — `MacroClient`, one authenticated hey-api `Sdk` per service.
+  - `config.ts` — hosts per environment and `MacroOpts`.
+  - `events.ts` — `MacroEvents` webhook receiver (verify + dispatch).
+  - `index.ts` — the package entrypoint.
 
-## Coverage checking
+## Usage
 
-We have a coverage checker. It reads every generated function and ensures that
-every client function that is generated is called by some hand-written function
-in `src/`. If a generated function is not called, the coverage checker will fail
-the build.
+```ts
+import { MacroClient } from '@macro/sdk';
 
-You can add exceptions for stuff openapi covers that we don't want the sdk to
-support by adding them to the `src/coverage/skipped.ts`. You can implement
-support by adding a wrapper to the appropriate model. There is CI to ensure that
-we don't forget to add coverage or explicitly skip coverage for new generated
-functions (endpoints).
+const sdk = new MacroClient({ token: '…', env: 'prod' });
+const task = await sdk.storage.createTaskHandler({ body: { taskName: 'Hi' } });
+sdk.events?.on('document.created', ({ metadata }) => console.log(metadata.document_id));
+```
+
+Each `sdk.<service>` is the raw hey-api `Sdk` — call the generated operations
+directly with `{ path, query, body }`.
 
 ## Webhook events
 
 Event names and payloads are **generated from the backend**: the Rust webhook
 crate exposes a `WebhookEvent` union in the storage OpenAPI spec, and
-`src/events/types.ts` derives `EventName` / `EventPayload` from it.
+`src/events.ts` derives `EventName` / `EventPayload` from it.
+
+## Demos
+
+`demos/` holds standalone example apps (`file:../..` on `@macro/sdk`). See each
+demo's README.

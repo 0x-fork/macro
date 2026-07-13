@@ -167,7 +167,7 @@ export default defineConfig({
       filters: {
         mode: 'exclude',
         // Webhook delivery-event schemas: in the spec for the SDK's event
-        // typegen (js/sdk derives its EventName/EventPayload types from
+        // typegen (packages/sdk derives its EventName/EventPayload types from
         // them); the app never consumes webhook deliveries.
         schemas: [
           /^WebhookEvent$/,

@@ -1,9 +1,11 @@
-//! `SDK Check` — fails a PR if the SDK's generated layer (`packages/sdk/generated`,
-//! `packages/sdk/specs`) has drifted from the Rust services' OpenAPI output, or if
-//! the SDK no longer typechecks. Generated into `sdk-check.yml`.
+//! `SDK Check` — fails a PR if the SDK's `@hey-api/openapi-ts` generated layer
+//! (`packages/sdk/generated`, `packages/sdk/specs`) has drifted from the Rust
+//! services' OpenAPI output, or if the SDK no longer typechecks. Generated into
+//! `sdk-check.yml`.
 //!
 //! The freshness check runs `just update-generated` in `packages/sdk` (the same
-//! command developers run) and fails on any resulting diff under `packages/sdk`.
+//! command developers run: rebuild specs from Rust → sync → regenerate with
+//! hey-api) and fails on any resulting diff under `packages/sdk`.
 
 use gh_workflow::{Concurrency, Event, Expression, Job, PullRequest, Run, Step, Workflow};
 
@@ -51,7 +53,7 @@ fn check_sdk() -> Job {
 }
 
 fn update_generated() -> Step<Run> {
-    Step::new("Regenerate SDK code")
+    Step::new("Regenerate SDK with hey-api")
         .run("just update-generated")
         .working_directory("packages/sdk")
 }
