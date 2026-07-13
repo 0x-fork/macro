@@ -6,12 +6,12 @@ name: SDK Check
     branches:
     - main
     paths:
-    - js/sdk/**
+    - packages/sdk/**
     - rust/cloud-storage/**/*.rs
     - rust/cloud-storage/Cargo.toml
     - rust/cloud-storage/Cargo.lock
-    - js/app/scripts/generate-api-schema.ts
-    - js/app/scripts/services.ts
+    - apps/web/scripts/generate-api-schema.ts
+    - apps/web/scripts/services.ts
     - '.github/workflows/sdk-check.yml'
 jobs:
   check-sdk:
@@ -43,24 +43,24 @@ jobs:
         echo "SCCACHE_CACHE_SIZE=20G" >> "$GITHUB_ENV"
     - name: Regenerate SDK code
       run: just update-generated
-      working-directory: js/sdk
+      working-directory: packages/sdk
     - name: show sccache stats
       if: always()
       run: sccache --show-stats || true
     - name: Verify generated code is fresh
       run: |
-        if [ -n "$(git status --porcelain -- js/sdk)" ]; then
-          echo "js/sdk generated code is stale. Run 'just update-generated' in js/sdk and commit the result."
-          git status --porcelain -- js/sdk
-          git diff -- js/sdk | head -200
+        if [ -n "$(git status --porcelain -- packages/sdk)" ]; then
+          echo "packages/sdk generated code is stale. Run 'just update-generated' in packages/sdk and commit the result."
+          git status --porcelain -- packages/sdk
+          git diff -- packages/sdk | head -200
           exit 1
         fi
     - name: Typecheck SDK
       run: bun run check
-      working-directory: js/sdk
+      working-directory: packages/sdk
     - name: Check endpoint coverage
       run: bun run coverage
-      working-directory: js/sdk
+      working-directory: packages/sdk
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-check
   cancel-in-progress: true

@@ -1,9 +1,9 @@
-//! `SDK Check` — fails a PR if the SDK's generated layer (`js/sdk/generated`,
-//! `js/sdk/specs`) has drifted from the Rust services' OpenAPI output, or if
+//! `SDK Check` — fails a PR if the SDK's generated layer (`packages/sdk/generated`,
+//! `packages/sdk/specs`) has drifted from the Rust services' OpenAPI output, or if
 //! the SDK no longer typechecks. Generated into `sdk-check.yml`.
 //!
-//! The freshness check runs `just update-generated` in `js/sdk` (the same
-//! command developers run) and fails on any resulting diff under `js/sdk`.
+//! The freshness check runs `just update-generated` in `packages/sdk` (the same
+//! command developers run) and fails on any resulting diff under `packages/sdk`.
 
 use gh_workflow::{Concurrency, Event, Expression, Job, PullRequest, Run, Step, Workflow};
 
@@ -15,12 +15,12 @@ pub fn sdk_check() -> Workflow {
         .on(Event::default().pull_request(
             PullRequest::default()
                 .add_branch("main")
-                .add_path("js/sdk/**")
+                .add_path("packages/sdk/**")
                 .add_path("rust/cloud-storage/**/*.rs")
                 .add_path("rust/cloud-storage/Cargo.toml")
                 .add_path("rust/cloud-storage/Cargo.lock")
-                .add_path("js/app/scripts/generate-api-schema.ts")
-                .add_path("js/app/scripts/services.ts")
+                .add_path("apps/web/scripts/generate-api-schema.ts")
+                .add_path("apps/web/scripts/services.ts")
                 .add_path(".github/workflows/sdk-check.yml"),
         ))
         .concurrency(
@@ -54,15 +54,15 @@ fn check_sdk() -> Job {
 fn update_generated() -> Step<Run> {
     Step::new("Regenerate SDK code")
         .run("just update-generated")
-        .working_directory("js/sdk")
+        .working_directory("packages/sdk")
 }
 
 fn verify_fresh() -> Step<Run> {
     Step::new("Verify generated code is fresh").run(indoc::indoc! {r#"
-        if [ -n "$(git status --porcelain -- js/sdk)" ]; then
-          echo "js/sdk generated code is stale. Run 'just update-generated' in js/sdk and commit the result."
-          git status --porcelain -- js/sdk
-          git diff -- js/sdk | head -200
+        if [ -n "$(git status --porcelain -- packages/sdk)" ]; then
+          echo "packages/sdk generated code is stale. Run 'just update-generated' in packages/sdk and commit the result."
+          git status --porcelain -- packages/sdk
+          git diff -- packages/sdk | head -200
           exit 1
         fi
     "#})
@@ -73,11 +73,11 @@ fn verify_fresh() -> Step<Run> {
 fn check_coverage() -> Step<Run> {
     Step::new("Check endpoint coverage")
         .run("bun run coverage")
-        .working_directory("js/sdk")
+        .working_directory("packages/sdk")
 }
 
 fn typecheck() -> Step<Run> {
     Step::new("Typecheck SDK")
         .run("bun run check")
-        .working_directory("js/sdk")
+        .working_directory("packages/sdk")
 }
