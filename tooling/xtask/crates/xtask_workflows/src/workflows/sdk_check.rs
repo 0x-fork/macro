@@ -1,11 +1,11 @@
 //! `SDK Check` — fails a PR if the SDK's `@hey-api/openapi-ts` generated layer
-//! (`packages/sdk/generated`) has drifted from the Rust services' OpenAPI
-//! output, or if the SDK no longer typechecks. Generated into `sdk-check.yml`.
+//! (`packages/sdk/generated`) has drifted from the app's committed OpenAPI
+//! specs, or if the SDK no longer typechecks. Generated into `sdk-check.yml`.
 //!
-//! The freshness check runs `just update-generated` in `packages/sdk` (the same
-//! command developers run: rebuild the app's OpenAPI specs from Rust, then
-//! regenerate with hey-api reading those specs directly) and fails on any
-//! resulting diff under `packages/sdk`.
+//! Scope is spec → SDK only: it runs `just generate` in `packages/sdk` (which
+//! regenerates from `apps/web`'s committed `service-clients/*/openapi.json`) and
+//! fails on any resulting diff under `packages/sdk`. The Rust → spec direction
+//! is covered separately by `web-app-check-main`'s `gen-api --check`.
 
 use gh_workflow::{Concurrency, Event, Expression, Job, PullRequest, Run, Step, Workflow};
 
@@ -18,12 +18,7 @@ pub fn sdk_check() -> Workflow {
             PullRequest::default()
                 .add_branch("main")
                 .add_path("packages/sdk/**")
-                .add_path("crates/**/*.rs")
-                .add_path("services/**/*.rs")
-                .add_path("Cargo.toml")
-                .add_path("Cargo.lock")
-                .add_path("apps/web/scripts/generate-api-schema.ts")
-                .add_path("apps/web/scripts/services.ts")
+                .add_path("apps/web/src/lib/service-clients/*/openapi.json")
                 .add_path(".github/workflows/sdk-check.yml"),
         ))
         .concurrency(
@@ -35,9 +30,9 @@ pub fn sdk_check() -> Workflow {
         .add_job("check-sdk", check_sdk())
 }
 
-/// Regenerate the SDK's generated layer end-to-end and fail on drift, then
-/// typecheck. Shares the web CI cache volume so the gen-api Rust build hits
-/// the same sccache as the web app checks.
+/// Regenerate the SDK's generated layer from the app's committed specs, fail on
+/// drift, then typecheck. Shares the web CI cache volume for the bun toolchain
+/// and cache used by the web app checks.
 fn check_sdk() -> Job {
     Job::default()
         .name("SDK Generated Code Check")
@@ -55,14 +50,14 @@ fn check_sdk() -> Job {
 
 fn update_generated() -> Step<Run> {
     Step::new("Regenerate SDK with hey-api")
-        .run("just update-generated")
+        .run("just generate")
         .working_directory("packages/sdk")
 }
 
 fn verify_fresh() -> Step<Run> {
     Step::new("Verify generated code is fresh").run(indoc::indoc! {r#"
         if [ -n "$(git status --porcelain -- packages/sdk)" ]; then
-          echo "packages/sdk generated code is stale. Run 'just update-generated' in packages/sdk and commit the result."
+          echo "packages/sdk generated code is stale. Run 'just generate' in packages/sdk and commit the result."
           git status --porcelain -- packages/sdk
           git diff -- packages/sdk | head -200
           exit 1

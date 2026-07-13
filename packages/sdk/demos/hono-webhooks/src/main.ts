@@ -15,7 +15,7 @@ sdk.events.on('document.created', ({ metadata }) => {
 });
 
 const app = new Hono();
-app.post('/webhook', (c) => sdk.events!.webhook()(c.req.raw));
+app.post('/webhook', (c) => sdk.events.webhook()(c.req.raw));
 
 export default { port: 3000, fetch: app.fetch };
 console.log('Listening on http://localhost:3000 — POST /webhook');

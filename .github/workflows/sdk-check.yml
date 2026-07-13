@@ -7,12 +7,7 @@ name: SDK Check
     - main
     paths:
     - packages/sdk/**
-    - crates/**/*.rs
-    - services/**/*.rs
-    - Cargo.toml
-    - Cargo.lock
-    - apps/web/scripts/generate-api-schema.ts
-    - apps/web/scripts/services.ts
+    - apps/web/src/lib/service-clients/*/openapi.json
     - '.github/workflows/sdk-check.yml'
 jobs:
   check-sdk:
@@ -43,7 +38,7 @@ jobs:
         echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> "$GITHUB_ENV"
         echo "SCCACHE_CACHE_SIZE=20G" >> "$GITHUB_ENV"
     - name: Regenerate SDK with hey-api
-      run: just update-generated
+      run: just generate
       working-directory: packages/sdk
     - name: show sccache stats
       if: always()
@@ -51,7 +46,7 @@ jobs:
     - name: Verify generated code is fresh
       run: |
         if [ -n "$(git status --porcelain -- packages/sdk)" ]; then
-          echo "packages/sdk generated code is stale. Run 'just update-generated' in packages/sdk and commit the result."
+          echo "packages/sdk generated code is stale. Run 'just generate' in packages/sdk and commit the result."
           git status --porcelain -- packages/sdk
           git diff -- packages/sdk | head -200
           exit 1
