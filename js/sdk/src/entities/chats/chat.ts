@@ -118,6 +118,11 @@ export class Chat extends PropertiedEntity<ChatDetail> {
     return conversation;
   }
 
+  /** The chat's URL in the Macro web app. */
+  webUrl(): string {
+    return `${this.client.webAppUrl}/app/chat/${this.id}`;
+  }
+
   /** Search chats by name and content, most relevant first, auto-paginated. */
   static search = entitySearch({
     filters: { chat_filters: {} },

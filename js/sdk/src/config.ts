@@ -16,6 +16,12 @@ export type ServiceName =
   | 'contacts'
   | 'unfurl';
 
+export const WEB_APP_URLS: Record<Env, string> = {
+  dev: 'https://dev.macro.com',
+  prod: 'https://macro.com',
+  local: 'http://localhost:3000',
+};
+
 export const HOSTS: Record<Env, Record<ServiceName, string>> = {
   dev: {
     storage: 'https://cloud-storage-dev.macro.com',
@@ -67,10 +73,13 @@ export type TokenSource = string | (() => string | Promise<string>);
 
 /** Options passed to `new Macro(opts)` and stored on `MacroClient`. */
 export interface MacroOpts {
-  token: TokenSource;
+  /** API token. Falls back to MACRO_API_KEY then MACRO_TOKEN env vars. */
+  token?: TokenSource;
   env?: Env;
   /** Override individual service hosts (e.g. point one at localhost). */
   hosts?: Partial<Record<ServiceName, string>>;
+  /** Override the web app base URL (e.g. for local frontend dev). Also reads MACRO_WEB_URL. */
+  webAppUrl?: string;
   /** Signing secret for verifying incoming webhooks. Required to receive webhooks. */
   webhookSecret?: string;
   wsVerify?: string;

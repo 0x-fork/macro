@@ -66,6 +66,11 @@ export class Task extends Document {
     return (await this.taskSubType())?.is_completed;
   }
 
+  /** The task's URL in the Macro web app. */
+  override webUrl(): string {
+    return `${this.client.webAppUrl}/app/task/${this.id}`;
+  }
+
   /** Search tasks by name and content, most relevant first, auto-paginated. */
   static search = entitySearch({
     filters: { document_filters: { sub_types: ['task'], task_filters: {} } },

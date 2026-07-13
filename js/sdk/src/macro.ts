@@ -38,6 +38,8 @@ export class Macro {
   readonly users: UserNamespace;
   readonly webhooks: WebhooksNamespace;
   readonly events?: MacroEvents;
+  /** Base URL of the Macro web app, used to build entity URLs. */
+  readonly webAppUrl: string;
 
   constructor(opts: MacroOpts) {
     const client = new MacroClient(opts);
@@ -58,5 +60,6 @@ export class Macro {
     this.users = new UserNamespace(client);
     this.webhooks = new WebhooksNamespace(client);
     this.events = client.events;
+    this.webAppUrl = client.webAppUrl;
   }
 }

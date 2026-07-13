@@ -333,6 +333,11 @@ export class Document
     return branchName;
   }
 
+  /** The document's URL in the Macro web app. */
+  webUrl(): string {
+    return `${this.client.webAppUrl}/app/md/${this.id}`;
+  }
+
   /** Search documents by name and content, most relevant first, auto-paginated. */
   static search = entitySearch({
     filters: { document_filters: {} },

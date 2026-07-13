@@ -7,7 +7,13 @@ import { Sdk as PropertiesSdk } from '../../generated/properties/sdk.gen';
 import { Sdk as SearchSdk } from '../../generated/search/sdk.gen';
 import { createClient } from '../../generated/storage/client';
 import { Sdk as StorageSdk } from '../../generated/storage/sdk.gen';
-import { type Env, HOSTS, type MacroOpts, type ServiceName } from '../config';
+import {
+  type Env,
+  HOSTS,
+  type MacroOpts,
+  type ServiceName,
+  WEB_APP_URLS,
+} from '../config';
 import { MacroEvents } from '../events/receiver';
 
 export class MacroClient {
@@ -19,6 +25,7 @@ export class MacroClient {
   readonly properties: PropertiesSdk;
   readonly search: SearchSdk;
   readonly storage: StorageSdk;
+  readonly webAppUrl: string;
   readonly wsVerify?: string;
   readonly events?: MacroEvents;
   private readonly token: string | (() => string | Promise<string>);
@@ -26,7 +33,14 @@ export class MacroClient {
   constructor(opts: MacroOpts) {
     const env: Env = opts.env ?? 'dev';
     const hosts = { ...HOSTS[env], ...opts.hosts };
-    this.token = opts.token;
+    const envWebUrl =
+      typeof process !== 'undefined' ? process.env.MACRO_WEB_URL : undefined;
+    this.webAppUrl = opts.webAppUrl ?? envWebUrl ?? WEB_APP_URLS[env];
+    const env_token =
+      typeof process !== 'undefined'
+        ? (process.env.MACRO_API_KEY ?? process.env.MACRO_TOKEN)
+        : undefined;
+    this.token = opts.token ?? env_token ?? (() => { throw new Error('no Macro API token — set MACRO_API_KEY or pass token to new Macro()'); });
     this.wsVerify = opts.wsVerify;
 
     this.auth = new AuthSdk({ client: this.makeClient(hosts.auth) });
