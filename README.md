@@ -29,7 +29,7 @@ Macro has raised $30m led by a16z. We are based in NYC.
 
 ## Features
 
-Full documentation lives at [docs.macro.com](https://docs.macro.com):
+Full documentation lives at [docs.macro.com](https://docs.macro.com), with the product areas summarized below:
  
 - **[Email](https://docs.macro.com/product/email):** the fastest, smartest email client. The best of Superhuman, Gmail, and Outlook in one keyboard-first inbox. Multi-account, unified, with shared inboxes.
 - **[Messages](https://docs.macro.com/product/channels):** team chat built for focused deep work. Channels and DMs for focused technical discussions.
