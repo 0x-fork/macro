@@ -18,6 +18,7 @@ import {
   discussionCommentToApiChannelMessage,
   discussionCommentToMessageData,
 } from './messageAdapter';
+import { makeDiscussionInputPersistenceKey } from './persistence';
 import type {
   DiscussionComment,
   DiscussionThread as ViewThread,
@@ -83,6 +84,13 @@ export function Discussion() {
                     newThreadInputHandle = handle;
                   }}
                   autofocus={false}
+                  persistenceKey={
+                    source.id?.()
+                      ? makeDiscussionInputPersistenceKey({
+                          discussionId: source.id()!,
+                        })
+                      : undefined
+                  }
                 />
               </div>
             </Show>
@@ -242,6 +250,14 @@ export function DiscussionThreadView(props: { thread: ViewThread }) {
                             onReady={(handle) => {
                               replyInputHandle = handle;
                             }}
+                            persistenceKey={
+                              source.id?.()
+                                ? makeDiscussionInputPersistenceKey({
+                                    discussionId: source.id()!,
+                                    threadId: threadId(),
+                                  })
+                                : undefined
+                            }
                           />
                         </div>
                       </div>

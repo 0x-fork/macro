@@ -40,6 +40,12 @@ export interface DiscussionThread {
  * discussion UI render document and CRM comments.
  */
 export interface DiscussionSource {
+  /**
+   * Stable id for the entity backing this discussion (document/task block id,
+   * CRM entity id, ...), used to scope persisted composer drafts. Omit to
+   * leave drafts unpersisted.
+   */
+  id?: Accessor<string | undefined>;
   /** Threads to render, oldest-first; each thread's comments pre-sorted. */
   threads: Accessor<DiscussionThread[]>;
   /** Whether the current user may create/edit/delete here. */

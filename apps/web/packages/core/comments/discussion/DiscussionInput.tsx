@@ -19,7 +19,9 @@ import { addMediaFromFile } from '@core/component/LexicalMarkdown/plugins/media'
 import { isMobile } from '@core/mobile/isMobile';
 import type { IUser } from '@core/user/types';
 import PaperclipIcon from '@phosphor-icons/core/regular/paperclip.svg?component-solid';
+import type { PersistenceKey } from '@queries/persistence';
 import { isIOS } from '@solid-primitives/platform';
+import { makePersisted } from '@solid-primitives/storage';
 import { Surface } from '@ui';
 import {
   type Accessor,
@@ -39,6 +41,8 @@ export type DiscussionInputProps = InputCallbacks & {
   children?: JSX.Element;
   /** Whether to auto-focus the input on mount. Defaults to `!isMobile()`. */
   autofocus?: boolean;
+  /** When set, the draft value is persisted (e.g. across reloads) under this key. */
+  persistenceKey?: PersistenceKey;
 };
 
 function AttachImagesAction() {
@@ -95,7 +99,10 @@ function DefaultActions(props: { input: InputData; isSending: boolean }) {
 
 export function DiscussionInput(props: DiscussionInputProps) {
   const [scrollContainer, setScrollContainer] = createSignal<HTMLElement>();
-  const [value, setValue] = createSignal(props.input.value ?? '');
+  const rawValueSignal = createSignal(props.input.value ?? '');
+  const [value, setValue] = props.persistenceKey
+    ? makePersisted(rawValueSignal, { name: props.persistenceKey })
+    : rawValueSignal;
   const [mentions, setMentions] = createSignal<ItemMention[]>([]);
   const [showFormatRibbon, setShowFormatRibbon] = createSignal(false);
   const [isSending, setIsSending] = createSignal(false);

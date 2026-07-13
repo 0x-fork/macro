@@ -106,6 +106,7 @@ export function useCrmDiscussionSource(
     );
 
   return {
+    id: entityId,
     threads,
     canEdit: () => !!userId(),
     currentUserId: userId,

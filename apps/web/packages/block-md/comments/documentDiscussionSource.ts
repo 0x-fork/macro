@@ -78,6 +78,7 @@ export function createDocumentDiscussionSource(): DiscussionSource {
   const targetCommentId = createMemo(() => urlParams.commentId() ?? null);
 
   return {
+    id: () => blockId,
     threads,
     canEdit: canComment,
     currentUserId: userId,
