@@ -238,9 +238,13 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
     });
   }
 
-  /** Search channels by name and content, most relevant first, auto-paginated. */
+  /** The channel's URL in the Macro web app. */
+  webUrl(): string {
+    return `${this.client.webAppUrl}/app/channel/${this.id}`;
+  }
+
+  /** Search channels by content, most relevant first, auto-paginated. */
   static search = entitySearch({
-    filters: { channel_filters: {} },
     type: 'channel',
     make: (client, hit) => new Channel(client, hit.channel_id),
   });

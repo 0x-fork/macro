@@ -1,4 +1,5 @@
 import type { ChannelType } from '../../../generated/storage/types.gen';
+import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
 import type { Team } from '../teams/team';
 import type { User } from '../users/user';
@@ -32,7 +33,7 @@ export class ChannelNamespace {
     return Channel.create(this.client, opts);
   }
 
-  search(query: string): AsyncGenerator<Channel> {
-    return Channel.search(this.client, query);
+  search(query: string, opts?: SearchOpts): AsyncGenerator<Channel> {
+    return Channel.search(this.client, query, opts);
   }
 }

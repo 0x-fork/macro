@@ -1,3 +1,4 @@
+import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
 import type { Project } from '../projects/project';
 import { Document } from './document';
@@ -29,8 +30,8 @@ export class DocumentNamespace {
   }
 
   /** Search documents by name and content, most relevant first, auto-paginated. */
-  search(query: string): AsyncGenerator<Document> {
-    return Document.search(this.client, query);
+  search(query: string, opts?: SearchOpts): AsyncGenerator<Document> {
+    return Document.search(this.client, query, opts);
   }
 
   /** The user's recent documents, most recent first, auto-paginated. */

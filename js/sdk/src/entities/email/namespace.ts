@@ -4,6 +4,7 @@ import type {
   Label,
 } from '../../../generated/email/types.gen';
 import { paginate, unwrap } from '../../utils';
+import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
 import { EmailAttachment } from './attachment';
 import { Link } from './link';
@@ -52,8 +53,8 @@ export class EmailNamespace {
   }
 
   /** Search email threads by subject and content. */
-  search(query: string): AsyncGenerator<EmailThread> {
-    return EmailThread.search(this.client, query);
+  search(query: string, opts?: SearchOpts): AsyncGenerator<EmailThread> {
+    return EmailThread.search(this.client, query, opts);
   }
 
   /** The threads in the inbox, most recent first, auto-paginated. */

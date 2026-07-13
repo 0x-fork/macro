@@ -1,3 +1,4 @@
+import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
 import type { Project } from '../projects/project';
 import type { Team } from '../teams/team';
@@ -23,7 +24,7 @@ export class TaskNamespace {
   }
 
   /** Search tasks by name and content, most relevant first, auto-paginated. */
-  search(query: string): AsyncGenerator<Task> {
-    return Task.search(this.client, query);
+  search(query: string, opts?: SearchOpts): AsyncGenerator<Task> {
+    return Task.search(this.client, query, opts);
   }
 }

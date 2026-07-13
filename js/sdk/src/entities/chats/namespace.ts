@@ -1,3 +1,4 @@
+import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
 import type { Project } from '../projects/project';
 import { Chat } from './chat';
@@ -13,7 +14,7 @@ export class ChatNamespace {
     return Chat.create(this.client, opts);
   }
 
-  search(query: string): AsyncGenerator<Chat> {
-    return Chat.search(this.client, query);
+  search(query: string, opts?: SearchOpts): AsyncGenerator<Chat> {
+    return Chat.search(this.client, query, opts);
   }
 }
