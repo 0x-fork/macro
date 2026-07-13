@@ -5,6 +5,7 @@ import { mergeQuery } from '@app/features/next-soup/filters/filter-store/query-s
 import type { Query } from '@app/features/next-soup/filters/filter-store/types';
 import { getViewPreset } from '@app/features/next-soup/sidebar/soup-filter-presets';
 import { SoupView } from '@app/features/next-soup/soup-view/soup-view';
+import { ChannelSummarySections } from '@app/features/next-soup/soup-view/views/channels/ChannelSummarySections';
 import { SettingsPanelComponentWrapper } from '@app/features/settings/Settings';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { ChannelCompose } from '@block-channel/component/Compose';
@@ -15,6 +16,7 @@ import {
   type CrmViewConfig,
   decodeCrmViewParam,
 } from '@companies/crm/saved-views';
+import { SidePanel } from '@components/app/side-panel';
 import { useIsAuthenticated } from '@core/auth';
 import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
@@ -248,13 +250,19 @@ registerComponent(
   withAuth(() => {
     usePageViewTracking('channels');
     const preset = getViewPreset('channels');
+    // The side-panel layout hosts the per-channel AI activity summary bentos
+    // on the right bar (suppressed automatically when no sections register,
+    // e.g. on mobile).
     return (
-      <SoupView
-        viewName="Channels"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
+      <SidePanel.Layout>
+        <ChannelSummarySections />
+        <SoupView
+          viewName="Channels"
+          initialFilters={preset?.filters}
+          initialClientFilters={preset?.clientFilters}
+          initialGroupBy={preset?.groupBy}
+        />
+      </SidePanel.Layout>
     );
   })
 );
