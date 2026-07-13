@@ -6,14 +6,12 @@ const sdk = new MacroClient({
   webhookSecret: process.env.MACRO_WEBHOOK_SECRET ?? '',
 });
 
-if (!sdk.events) throw new Error('Set MACRO_WEBHOOK_SECRET to enable events');
-
 sdk.events.on('channel.message_posted', ({ metadata }) => {
-  console.log(`[message_posted] channel=${metadata.channel_id} message=${metadata.message_id}`);
+  console.log(`A channel was sent! channel=${metadata.channel_id} message=${metadata.message_id}`);
 });
 
 sdk.events.on('document.created', ({ metadata }) => {
-  console.log(`[document.created] id=${metadata.document_id}`);
+  console.log(`A document was created! id=${metadata.document_id}`);
 });
 
 const app = new Hono();

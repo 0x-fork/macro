@@ -10,7 +10,7 @@ import { Sdk as StorageSdk } from '../generated/storage/sdk.gen';
 import { MacroEvents } from './events';
 import { HOSTS, type MacroOpts } from './config';
 
-export class MacroClient {
+export class MacroClient<T extends MacroOpts = MacroOpts> {
   readonly auth: AuthSdk;
   readonly cognition: CognitionSdk;
   readonly contacts: ContactsSdk;
@@ -19,9 +19,11 @@ export class MacroClient {
   readonly properties: PropertiesSdk;
   readonly search: SearchSdk;
   readonly storage: StorageSdk;
-  readonly events?: MacroEvents;
+  declare readonly events: T extends { webhookSecret: string }
+    ? MacroEvents
+    : undefined;
 
-  constructor(opts: MacroOpts) {
+  constructor(opts: T) {
     const env = opts.env ?? 'dev';
     const hosts = { ...HOSTS[env], ...opts.hosts };
     const envToken =
@@ -33,7 +35,7 @@ export class MacroClient {
       envToken ??
       (() => {
         throw new Error(
-          'no Macro API token — set MACRO_API_KEY or pass token to new MacroClient()',
+          'no Macro API token -- set MACRO_API_KEY or pass token to new MacroClient()',
         );
       });
 
@@ -59,7 +61,7 @@ export class MacroClient {
     });
 
     if (opts.webhookSecret) {
-      this.events = new MacroEvents(opts.webhookSecret);
+      (this as { events?: MacroEvents }).events = new MacroEvents(opts.webhookSecret);
     }
   }
 
