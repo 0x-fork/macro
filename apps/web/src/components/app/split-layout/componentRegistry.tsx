@@ -1,3 +1,4 @@
+import { AgentsHub } from '@app/features/agents-hub/agents-hub';
 import { Home } from '@app/features/home';
 import { queryStateFrom } from '@app/features/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/features/next-soup/filters/filter-store/predicates-store';
@@ -23,6 +24,7 @@ import {
   LOCAL_ONLY,
 } from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
+import { isMobile } from '@core/mobile/isMobile';
 import type { ViewId } from '@core/types/view';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
@@ -157,24 +159,33 @@ registerComponent(
   })
 );
 
+/** Mobile keeps the soup list; the bento hub needs desktop width. */
+const AgentsSoupView = () => {
+  const user = useUserContext();
+  const preset = getViewPreset('agents', undefined, {
+    userId: user.userId(),
+    isTeamAdmin: false,
+  });
+  const automationEntities = useAutomationEntities();
+  return (
+    <SoupView
+      viewName="Agents"
+      initialFilters={preset?.filters}
+      initialClientFilters={preset?.clientFilters}
+      initialGroupBy={preset?.groupBy}
+      additionalEntities={automationEntities}
+    />
+  );
+};
+
 registerComponent(
   'agents',
   withAuth(() => {
     usePageViewTracking('agents');
-    const user = useUserContext();
-    const preset = getViewPreset('agents', undefined, {
-      userId: user.userId(),
-      isTeamAdmin: false,
-    });
-    const automationEntities = useAutomationEntities();
     return (
-      <SoupView
-        viewName="Agents"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-        additionalEntities={automationEntities}
-      />
+      <Show when={!isMobile()} fallback={<AgentsSoupView />}>
+        <AgentsHub />
+      </Show>
     );
   })
 );
