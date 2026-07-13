@@ -275,28 +275,38 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       important: {
         emailView: 'inbox',
         initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
+        groupBy: 'date',
       },
       noise: {
         emailView: 'inbox',
         initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
+        groupBy: 'date',
       },
       calendar: {
         emailView: 'all',
         initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
+        groupBy: 'date',
       },
       drafts: {
         emailView: 'drafts',
         initialFacets: { drafts: ['email-drafts'] },
+        groupBy: 'date',
       },
       sent: {
         emailView: 'sent',
         initialFacets: { scope: ['email'], drafts: ['no-drafts'] },
+        groupBy: 'date',
       },
       shared: {
         emailView: 'all',
         initialFacets: { scope: ['email'], ownership: ['shared-entity'] },
+        groupBy: 'date',
       },
-      all: { emailView: 'all', initialFacets: { scope: ['email'] } },
+      all: {
+        emailView: 'all',
+        initialFacets: { scope: ['email'] },
+        groupBy: 'date',
+      },
     },
   },
   documents: {
