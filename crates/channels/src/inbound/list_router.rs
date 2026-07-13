@@ -109,7 +109,7 @@ pub async fn get_channels_handler<S: ChannelListService>(
 #[utoipa::path(get,
     tag = "activity",
     operation_id = "get_activity",
-    path = "/activity", responses(
+    path = "/comms/activity", responses(
     (status = 200, body=Vec<ApiActivity>),
     (status = 401, body=String),
     (status = 404, body=String),
