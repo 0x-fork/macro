@@ -14,9 +14,9 @@ import {
   openFolderPicker,
 } from '@core/util/upload';
 import ChevronDownIcon from '@phosphor/caret-down.svg';
-import PlusCircleIcon from '@phosphor/plus-circle.svg';
+import PlusIcon from '@phosphor/plus.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
-import { Button, cn, Dropdown } from '@ui';
+import { Button, Dropdown } from '@ui';
 import { createMemo, For, Show } from 'solid-js';
 import { NewCallButton } from './NewCallButton';
 
@@ -142,15 +142,11 @@ export const SoupViewCreateButton = () => {
 
   const SingleOptionButton = (props: { hideLabel?: boolean }) => (
     <Button
-      variant="active"
-      class={cn(
-        'border-0 rounded-full px-3 py-2 pl-1 font-semibold',
-        props.hideLabel && 'pr-1'
-      )}
+      variant="base"
       size="sm"
       onClick={() => handleSelect(options()[0])}
     >
-      <PlusCircleIcon class="size-3.5 text-accent" />
+      <PlusIcon class="size-3.5" />
       <Show when={!props.hideLabel}>
         <span>{createLabel()}</span>
       </Show>
@@ -159,14 +155,8 @@ export const SoupViewCreateButton = () => {
 
   const MultiOptionButton = (props: { hideLabel?: boolean }) => (
     <Dropdown placement="bottom-start">
-      <Dropdown.Trigger
-        variant="active"
-        class={cn(
-          'border-0 rounded-full px-3 py-2 pl-1 font-semibold',
-          props.hideLabel && 'pr-1'
-        )}
-      >
-        <PlusCircleIcon class="size-3.5" />
+      <Dropdown.Trigger>
+        <PlusIcon class="size-3.5" />
         <Show when={!props.hideLabel}>
           <span>{createLabel()}</span>
         </Show>
