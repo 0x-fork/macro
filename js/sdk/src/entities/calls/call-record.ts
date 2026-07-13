@@ -79,8 +79,12 @@ export class CallRecord extends FavoritableEntity<CallRecordDetail> {
   /** When the recording started, if it was recorded. */
   readonly recordingStartedAt = this.field('recordingStartedAt');
 
-  /** Rename the call. An empty string clears the custom name. */
-  async rename(name: string): Promise<void> {
+  /** Rename the call or clear the custom name. */
+  async rename(name: string | null): Promise<void> {
+    if (name === null) {
+      name = '';
+    }
+
     await this.mutate((c) =>
       c.storage.editCallRecord({
         path: { call_id: this.id },

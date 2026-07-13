@@ -3,10 +3,7 @@ import type {
   EntityType as PropertyEntityType,
   SetPropertyValue,
 } from '../../generated/properties/types.gen';
-import type {
-  Favorite,
-  FavoriteEntityRef,
-} from '../../generated/storage/types.gen';
+import type { FavoriteEntityRef } from '../../generated/storage/types.gen';
 import type {
   EventHandler,
   EventMap,
@@ -21,8 +18,8 @@ export type MacroEntityType = FavoriteEntityRef['entityType'];
 
 /** An entity that can be added to and removed from the user's favorites. */
 export interface Favoritable {
-  favorite(): Promise<Favorite>;
-  unfavorite(): Promise<void>;
+  favorite(): Promise<this>;
+  unfavorite(): Promise<this>;
 }
 
 /** A favoritable entity that also carries user-defined properties. */
@@ -143,20 +140,21 @@ export abstract class FavoritableEntity<Detail>
   abstract readonly entityType: MacroEntityType;
 
   /**
-   * Add this entity to the user's favorites. Returns the favorite record.
+   * Add this entity to the user's favorites. Returns this handle for chaining.
    * Plain unwrap: favoriting alters the user's favorites collection, not this
    * entity's own detail, so there's nothing cached to invalidate.
    */
-  async favorite(): Promise<Favorite> {
-    return unwrap(
+  async favorite(): Promise<this> {
+    unwrap(
       await this.client.storage.addFavorite({
         body: { entityId: this.id, entityType: this.entityType },
       }),
     );
+    return this;
   }
 
-  /** Remove this entity from the user's favorites. */
-  async unfavorite(): Promise<void> {
+  /** Remove this entity from the user's favorites. Returns this handle for chaining. */
+  async unfavorite(): Promise<this> {
     unwrap(
       await this.client.storage.removeFavoriteByEntity({
         path: {
@@ -165,6 +163,7 @@ export abstract class FavoritableEntity<Detail>
         },
       }),
     );
+    return this;
   }
 }
 
