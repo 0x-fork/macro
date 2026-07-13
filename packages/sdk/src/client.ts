@@ -1,12 +1,12 @@
-import { Sdk as AuthSdk } from '@macro/sdk/generated/auth/sdk.gen';
-import { Sdk as CognitionSdk } from '@macro/sdk/generated/cognition/sdk.gen';
-import { Sdk as ContactsSdk } from '@macro/sdk/generated/contacts/sdk.gen';
-import { Sdk as EmailSdk } from '@macro/sdk/generated/email/sdk.gen';
-import { Sdk as NotificationSdk } from '@macro/sdk/generated/notification/sdk.gen';
-import { Sdk as PropertiesSdk } from '@macro/sdk/generated/properties/sdk.gen';
-import { Sdk as SearchSdk } from '@macro/sdk/generated/search/sdk.gen';
-import { createClient } from '@macro/sdk/generated/storage/client';
-import { Sdk as StorageSdk } from '@macro/sdk/generated/storage/sdk.gen';
+import { Sdk as AuthSdk } from '../generated/auth/sdk.gen';
+import { Sdk as CognitionSdk } from '../generated/cognition/sdk.gen';
+import { Sdk as ContactsSdk } from '../generated/contacts/sdk.gen';
+import { Sdk as EmailSdk } from '../generated/email/sdk.gen';
+import { Sdk as NotificationSdk } from '../generated/notification/sdk.gen';
+import { Sdk as PropertiesSdk } from '../generated/properties/sdk.gen';
+import { Sdk as SearchSdk } from '../generated/search/sdk.gen';
+import { createClient } from '../generated/storage/client';
+import { Sdk as StorageSdk } from '../generated/storage/sdk.gen';
 import { MacroEvents } from './events';
 import { HOSTS, type MacroOpts } from './config';
 

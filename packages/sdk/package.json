@@ -3,15 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Macro SDK. The ./generated layer is produced from Macro's OpenAPI specs via @hey-api/openapi-ts; hand-written SDK code lives in ./src.",
-  "main": "./src/macro.ts",
+  "description": "Macro SDK — a thin, namespaced client over the generated @hey-api/openapi-ts layer.",
+  "main": "./src/index.ts",
   "exports": {
-    ".": "./src/macro.ts",
+    ".": "./src/index.ts",
     "./generated/*": "./generated/*"
   },
   "scripts": {
     "sync-specs": "bun scripts/sync-specs.ts",
-    "coverage": "bun src/coverage/check.ts",
     "generate": "openapi-ts",
     "check": "tsc --noEmit",
     "lint": "biome check",

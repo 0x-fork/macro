@@ -10,7 +10,12 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@macro/sdk": ["../../src/index.ts"],
+      "@macro/sdk/generated/*": ["../../generated/*"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

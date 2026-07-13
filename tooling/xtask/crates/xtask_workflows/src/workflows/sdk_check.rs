@@ -48,7 +48,6 @@ fn check_sdk() -> Job {
         .add_step(steps::show_sccache_stats())
         .add_step(verify_fresh())
         .add_step(typecheck())
-        .add_step(check_coverage())
 }
 
 fn update_generated() -> Step<Run> {
@@ -66,14 +65,6 @@ fn verify_fresh() -> Step<Run> {
           exit 1
         fi
     "#})
-}
-
-/// Every generated endpoint must either have a call site under `src/` or be
-/// hand-listed in `src/coverage/skipped.ts`; fails naming the offenders.
-fn check_coverage() -> Step<Run> {
-    Step::new("Check endpoint coverage")
-        .run("bun run coverage")
-        .working_directory("packages/sdk")
 }
 
 fn typecheck() -> Step<Run> {

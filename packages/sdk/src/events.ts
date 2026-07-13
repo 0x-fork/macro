@@ -1,4 +1,4 @@
-import type { WebhookEvent } from '@macro/sdk/generated/storage/types.gen';
+import type { WebhookEvent } from '../generated/storage/types.gen';
 
 export type MacroEvent = WebhookEvent;
 export type EventName = MacroEvent['event_type'];
