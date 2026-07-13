@@ -63,7 +63,8 @@ use crate::{
     },
 };
 use channels::inbound::list_router::{
-    ApiChannelWithLatest, get_channels_handler, get_activity_handler as get_channel_list_activity_handler,
+    ApiChannelListMessage, ApiChannelListParticipant, ApiChannelListType, ApiChannelWithLatest,
+    ApiParticipantListRole,
 };
 use channels::inbound::axum_router::{
     ApiActivity, ApiAttachmentChannelReference, ApiAttachmentEntityReference,
@@ -215,8 +216,7 @@ use utoipa::OpenApi;
         soup::inbound::axum_router::post_grouped_soup_ast_handler,
 
         // channel list (comms hex)
-        get_channels_handler,
-        get_channel_list_activity_handler,
+        channels::inbound::list_router::get_channels_handler,
 
         // channels
         channels::inbound::axum_router::create_channel_handler,
@@ -444,7 +444,11 @@ use utoipa::OpenApi;
             GroupedSoupPage,
 
             // Channel list (comms hex)
-            ApiChannelWithLatest,
+            channels::inbound::list_router::ApiChannelWithLatest,
+            channels::inbound::list_router::ApiChannelListMessage,
+            channels::inbound::list_router::ApiChannelListParticipant,
+            channels::inbound::list_router::ApiChannelListType,
+            channels::inbound::list_router::ApiParticipantListRole,
 
             // Channels
             ApiChannelMessagesPage,

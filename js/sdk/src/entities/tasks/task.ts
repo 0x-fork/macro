@@ -1,4 +1,3 @@
-import type { BasicDocumentSubType } from '../../../generated/storage/types.gen';
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { Document } from '../documents/document';
@@ -6,7 +5,13 @@ import type { Project } from '../projects/project';
 import { entitySearch } from '../search';
 import type { Team } from '../teams/team';
 
-type TaskSubType = Extract<BasicDocumentSubType, { type: 'task' }>;
+/**
+ * The system Status property definition and its "Completed" option. Values
+ * mirror `SystemPropertyKey::STATUS_UUID` and `StatusOption::COMPLETED_UUID`
+ * in the backend's `system_properties` crate.
+ */
+const STATUS_PROPERTY_ID = '00000001-0000-0000-0000-000000000002';
+const COMPLETED_STATUS_OPTION_ID = '00000001-0000-0000-0002-000000000004';
 
 /**
  * A Macro task: a document with sub-type `task`. Inherits the full document
@@ -55,15 +60,21 @@ export class Task extends Document {
     return new Task(client, documentId);
   }
 
-  /** The detail's task variant, or `undefined` if this document is not a task. */
-  private async taskSubType(): Promise<TaskSubType | undefined> {
-    const { subType } = await this.detail.get();
-    return subType?.type === 'task' ? subType : undefined;
-  }
-
-  /** Whether the task is completed; `undefined` if the document is not a task. */
+  /**
+   * Whether the task is completed (its Status property is "Completed");
+   * `undefined` if the document is not a task.
+   */
   async completed(): Promise<boolean | undefined> {
-    return (await this.taskSubType())?.is_completed;
+    const { subType } = await this.detail.get();
+    if (subType !== 'task') return undefined;
+    const properties = await this.properties();
+    const value = properties.find(
+      (p) => p.definition.id === STATUS_PROPERTY_ID,
+    )?.value;
+    return (
+      value?.type === 'SelectOption' &&
+      value.value.includes(COMPLETED_STATUS_OPTION_ID)
+    );
   }
 
   /** The task's URL in the Macro web app. */

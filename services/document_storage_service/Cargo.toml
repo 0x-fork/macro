@@ -50,7 +50,7 @@ analytics_client = { path = "../../crates/analytics_client" }
 cal = { path = "../../crates/cal", features = ["axum", "outbound"] }
 call = { path = "../../crates/call" }
 channel_bots = { path = "../../crates/channel_bots" }
-channels = { path = "../../crates/channels", features = ["inbound", "outbound"] }
+channels = { path = "../../crates/channels", features = ["inbound", "list", "outbound"] }
 chrono = { workspace = true }
 clap = { workspace = true }
 cloudfront_sign = { workspace = true }

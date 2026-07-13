@@ -40,9 +40,12 @@ export class Macro {
   readonly events?: MacroEvents;
   /** Base URL of the Macro web app, used to build entity URLs. */
   readonly webAppUrl: string;
+  /** Direct access to the underlying hey-api service clients. */
+  readonly _client: MacroClient;
 
   constructor(opts: MacroOpts) {
     const client = new MacroClient(opts);
+    this._client = client;
     this.calls = new CallRecordNamespace(client);
     this.channels = new ChannelNamespace(client);
     this.chats = new ChatNamespace(client);

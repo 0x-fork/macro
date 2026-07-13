@@ -6,7 +6,8 @@
   "description": "Macro SDK. The ./generated layer is produced from Macro's OpenAPI specs via @hey-api/openapi-ts; hand-written SDK code lives in ./src.",
   "main": "./src/macro.ts",
   "exports": {
-    ".": "./src/macro.ts"
+    ".": "./src/macro.ts",
+    "./generated/*": "./generated/*"
   },
   "scripts": {
     "sync-specs": "bun scripts/sync-specs.ts",

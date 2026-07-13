@@ -356,6 +356,75 @@ export type ApiChannelDetail = {
 };
 
 /**
+ * Channel message in API responses.
+ */
+export type ApiChannelListMessage = {
+    /**
+     * Message content.
+     */
+    content: string;
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Deletion timestamp, if deleted.
+     */
+    deleted_at?: string | null;
+    /**
+     * message mentions formatted as `{ENTITY_TYPE}:{ENTITY_ID}`
+     */
+    mentions: Array<string>;
+    /**
+     * Message id.
+     */
+    message_id: string;
+    /**
+     * Sender user id.
+     */
+    sender_id: string;
+    /**
+     * Thread id, if the message is a reply.
+     */
+    thread_id?: string | null;
+    /**
+     * Update timestamp.
+     */
+    updated_at: string;
+};
+
+/**
+ * Channel participant in API responses.
+ */
+export type ApiChannelListParticipant = {
+    /**
+     * id of the channel
+     */
+    channel_id: string;
+    /**
+     * timestamp of when the user joined the channel
+     */
+    joined_at: string;
+    /**
+     * timestamp of when the user left the channel
+     */
+    left_at?: string | null;
+    /**
+     * type of the participant
+     */
+    role: ApiParticipantListRole;
+    /**
+     * id of the user
+     */
+    user_id: string;
+};
+
+/**
+ * Channel type in API responses.
+ */
+export type ApiChannelListType = 'public' | 'private' | 'direct_message' | 'team';
+
+/**
  * A top-level channel message with thread info.
  */
 export type ApiChannelMessage = {
@@ -452,6 +521,62 @@ export type ApiChannelParticipant = {
      * User id.
      */
     user_id: string;
+};
+
+/**
+ * Channel list response item.
+ */
+export type ApiChannelWithLatest = {
+    /**
+     * Channel type.
+     */
+    channel_type: ApiChannelListType;
+    /**
+     * Channel creation timestamp.
+     */
+    created_at: string;
+    /**
+     * Aggregate frecency score.
+     */
+    frecency_score?: number | null;
+    /**
+     * Channel id.
+     */
+    id: string;
+    /**
+     * Last interaction timestamp for requesting user.
+     */
+    interacted_at?: string | null;
+    latest_message?: null | ApiChannelListMessage;
+    latest_non_thread_message?: null | ApiChannelListMessage;
+    /**
+     * Channel name.
+     */
+    name?: string | null;
+    /**
+     * Organization id.
+     */
+    org_id?: number | null;
+    /**
+     * Channel owner user id.
+     */
+    owner_id: string;
+    /**
+     * Active participants.
+     */
+    participants: Array<ApiChannelListParticipant>;
+    /**
+     * Team id.
+     */
+    team_id?: string | null;
+    /**
+     * Channel last-updated timestamp.
+     */
+    updated_at: string;
+    /**
+     * Last viewed timestamp for requesting user.
+     */
+    viewed_at?: string | null;
 };
 
 /**
@@ -642,6 +767,11 @@ export type ApiMessageSender = {
  * Public sender type.
  */
 export type ApiMessageSenderType = 'user' | 'bot';
+
+/**
+ * Participant role in API responses.
+ */
+export type ApiParticipantListRole = 'owner' | 'admin' | 'member';
 
 /**
  * Participant role in a channel.
@@ -2468,7 +2598,7 @@ export type CreateViewRequest = {
  */
 export type CreateWebhookRequest = {
     /**
-     * HTTPS endpoint URL.
+     * Endpoint URL. HTTPS is required outside local environments.
      */
     endpoint_url: string;
     /**
@@ -2484,6 +2614,64 @@ export type CreateWebhookRequest = {
      * Scope that owns the webhook.
      */
     scope: WebhookScope;
+};
+
+/**
+ * Webhook returned after creation, including its signing secret.
+ */
+export type CreateWebhookResponse = {
+    /**
+     * Creation timestamp.
+     */
+    created_at: string;
+    /**
+     * User that created the webhook.
+     */
+    created_by_user_id: string;
+    /**
+     * Soft-delete timestamp.
+     */
+    deleted_at?: string | null;
+    /**
+     * Endpoint URL. HTTPS is required outside local environments.
+     */
+    endpoint_url: string;
+    /**
+     * Typed filters used to match events and optional entity ids.
+     */
+    filters: Vec;
+    /**
+     * Custom delivery headers, after decryption by the repository.
+     */
+    headers: BTreeMap;
+    /**
+     * Webhook id.
+     */
+    id: String;
+    /**
+     * Whether the current endpoint configuration has passed validation.
+     */
+    is_valid: boolean;
+    /**
+     * Display name.
+     */
+    name: string;
+    /**
+     * Signing secret used to verify webhook delivery signatures.
+     */
+    signing_secret: string;
+    /**
+     * Webhook lifecycle status.
+     */
+    status: WebhookStatus;
+    /**
+     * Update timestamp.
+     */
+    updated_at: string;
+    /**
+     * Owning workspace id.
+     */
+    workspace_id: string;
 };
 
 /**
@@ -4712,7 +4900,7 @@ export type PatchThreadRequestV2 = {
  */
 export type PatchWebhookRequest = {
     /**
-     * HTTPS endpoint URL.
+     * Endpoint URL. HTTPS is required outside local environments.
      */
     endpoint_url?: string | null;
     filters?: null | Vec;
@@ -6332,6 +6520,10 @@ export type SoupProperty = {
      * The property definition
      */
     definition: PropertyDefinition;
+    /**
+     * Globally unique id of the assignment attaching this property to an entity.
+     */
+    id: string;
     value?: null | PropertyValue;
 };
 
@@ -6503,6 +6695,46 @@ export type TranscriptSegmentRequest = {
 };
 
 export type TypedSuccessResponse = {
+    /**
+     * Data to be returned
+     */
+    data: {
+        /**
+         * The items returned from the call
+         */
+        items: Array<Item>;
+    };
+    /**
+     * Indicates if an error occurred
+     */
+    error: boolean;
+};
+
+export type TypedSuccessResponseGetDocumentResponseData = {
+    /**
+     * Get document response data with content lifecycle metadata.
+     */
+    data: {
+        /**
+         * The metadata of the document.
+         */
+        documentMetadata: DocumentMetadataWithContent;
+        /**
+         * The user's level of access to the document.
+         */
+        userAccessLevel: AccessLevel;
+        /**
+         * The user's view location if there is one.
+         */
+        viewLocation?: string | null;
+    };
+    /**
+     * Indicates if an error occurred
+     */
+    error: boolean;
+};
+
+export type TypedSuccessResponseRecentlyDeletedResponseData = {
     /**
      * Data to be returned
      */
@@ -6726,7 +6958,7 @@ export type Webhook = {
      */
     deleted_at?: string | null;
     /**
-     * HTTPS endpoint URL.
+     * Endpoint URL. HTTPS is required outside local environments.
      */
     endpoint_url: string;
     /**
@@ -8325,6 +8557,27 @@ export type PostChannelBotWebhookResponses = {
 
 export type PostChannelBotWebhookResponse = PostChannelBotWebhookResponses[keyof PostChannelBotWebhookResponses];
 
+export type GetChannelsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/comms/channels';
+};
+
+export type GetChannelsErrors = {
+    401: string;
+    404: string;
+    500: string;
+};
+
+export type GetChannelsError = GetChannelsErrors[keyof GetChannelsErrors];
+
+export type GetChannelsResponses = {
+    200: Array<ApiChannelWithLatest>;
+};
+
+export type GetChannelsResponse = GetChannelsResponses[keyof GetChannelsResponses];
+
 export type DeleteCrmCommentData = {
     body?: never;
     path: {
@@ -8970,7 +9223,7 @@ export type GetDocumentErrors = {
 export type GetDocumentError = GetDocumentErrors[keyof GetDocumentErrors];
 
 export type GetDocumentResponses = {
-    200: TypedSuccessResponse;
+    200: TypedSuccessResponseGetDocumentResponseData;
 };
 
 export type GetDocumentResponse2 = GetDocumentResponses[keyof GetDocumentResponses];
@@ -10381,7 +10634,7 @@ export type RecentlyDeletedErrors = {
 export type RecentlyDeletedError = RecentlyDeletedErrors[keyof RecentlyDeletedErrors];
 
 export type RecentlyDeletedResponses = {
-    200: TypedSuccessResponse;
+    200: TypedSuccessResponseRecentlyDeletedResponseData;
 };
 
 export type RecentlyDeletedResponse = RecentlyDeletedResponses[keyof RecentlyDeletedResponses];
@@ -10696,10 +10949,10 @@ export type CreateWebhookResponses = {
     /**
      * Webhook created
      */
-    201: Webhook;
+    201: CreateWebhookResponse;
 };
 
-export type CreateWebhookResponse = CreateWebhookResponses[keyof CreateWebhookResponses];
+export type CreateWebhookResponse2 = CreateWebhookResponses[keyof CreateWebhookResponses];
 
 export type DeleteWebhookData = {
     body?: never;

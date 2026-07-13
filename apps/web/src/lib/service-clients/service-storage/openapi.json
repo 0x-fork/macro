@@ -3801,6 +3801,58 @@
         }
       }
     },
+    "/comms/channels": {
+      "get": {
+        "tags": ["channels"],
+        "summary": "Handle channel list requests for `GET /comms/channels`.",
+        "operationId": "get_channels",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApiChannelWithLatest"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/crm/comment/{comment_id}": {
       "delete": {
         "tags": ["crm::inbound::axum_router::comments"],
@@ -5268,7 +5320,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TypedSuccessResponse"
+                  "$ref": "#/components/schemas/TypedSuccessResponse_GetDocumentResponseData"
                 }
               }
             }
@@ -8613,7 +8665,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TypedSuccessResponse"
+                  "$ref": "#/components/schemas/TypedSuccessResponse_RecentlyDeletedResponseData"
                 }
               }
             }
@@ -10168,6 +10220,95 @@
           }
         }
       },
+      "ApiChannelListMessage": {
+        "type": "object",
+        "description": "Channel message in API responses.",
+        "required": [
+          "message_id",
+          "sender_id",
+          "content",
+          "created_at",
+          "updated_at",
+          "mentions"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "Message content."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp."
+          },
+          "deleted_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Deletion timestamp, if deleted."
+          },
+          "mentions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "message mentions formatted as `{ENTITY_TYPE}:{ENTITY_ID}`"
+          },
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Message id."
+          },
+          "sender_id": {
+            "type": "string",
+            "description": "Sender user id."
+          },
+          "thread_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Thread id, if the message is a reply."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Update timestamp."
+          }
+        }
+      },
+      "ApiChannelListParticipant": {
+        "type": "object",
+        "description": "Channel participant in API responses.",
+        "required": ["channel_id", "user_id", "role", "joined_at"],
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "id of the channel"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "timestamp of when the user joined the channel"
+          },
+          "left_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "timestamp of when the user left the channel"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ApiParticipantListRole",
+            "description": "type of the participant"
+          },
+          "user_id": {
+            "type": "string",
+            "description": "id of the user"
+          }
+        }
+      },
+      "ApiChannelListType": {
+        "type": "string",
+        "description": "Channel type in API responses.",
+        "enum": ["public", "private", "direct_message", "team"]
+      },
       "ApiChannelMessage": {
         "type": "object",
         "description": "A top-level channel message with thread info.",
@@ -10295,6 +10436,102 @@
           "user_id": {
             "type": "string",
             "description": "User id."
+          }
+        }
+      },
+      "ApiChannelWithLatest": {
+        "type": "object",
+        "description": "Channel list response item.",
+        "required": [
+          "id",
+          "channel_type",
+          "created_at",
+          "updated_at",
+          "owner_id",
+          "participants"
+        ],
+        "properties": {
+          "channel_type": {
+            "$ref": "#/components/schemas/ApiChannelListType",
+            "description": "Channel type."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Channel creation timestamp."
+          },
+          "frecency_score": {
+            "type": ["number", "null"],
+            "format": "double",
+            "description": "Aggregate frecency score."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Channel id."
+          },
+          "interacted_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Last interaction timestamp for requesting user."
+          },
+          "latest_message": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApiChannelListMessage",
+                "description": "Latest message including thread replies."
+              }
+            ]
+          },
+          "latest_non_thread_message": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApiChannelListMessage",
+                "description": "Latest top-level non-thread message."
+              }
+            ]
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "Channel name."
+          },
+          "org_id": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Organization id.",
+            "minimum": 0
+          },
+          "owner_id": {
+            "type": "string",
+            "description": "Channel owner user id."
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiChannelListParticipant"
+            },
+            "description": "Active participants."
+          },
+          "team_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Team id."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Channel last-updated timestamp."
+          },
+          "viewed_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "Last viewed timestamp for requesting user."
           }
         }
       },
@@ -10520,6 +10757,11 @@
         "type": "string",
         "description": "Public sender type.",
         "enum": ["user", "bot"]
+      },
+      "ApiParticipantListRole": {
+        "type": "string",
+        "description": "Participant role in API responses.",
+        "enum": ["owner", "admin", "member"]
       },
       "ApiParticipantRole": {
         "type": "string",
@@ -20280,6 +20522,68 @@
         }
       },
       "TypedSuccessResponse": {
+        "type": "object",
+        "required": ["error", "data"],
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["items"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Item"
+                    },
+                    "description": "The items returned from the call"
+                  }
+                }
+              }
+            ],
+            "description": "Data to be returned"
+          },
+          "error": {
+            "type": "boolean",
+            "description": "Indicates if an error occurred"
+          }
+        }
+      },
+      "TypedSuccessResponse_GetDocumentResponseData": {
+        "type": "object",
+        "required": ["error", "data"],
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "type": "object",
+                "description": "Get document response data with content lifecycle metadata.",
+                "required": ["documentMetadata", "userAccessLevel"],
+                "properties": {
+                  "documentMetadata": {
+                    "$ref": "#/components/schemas/DocumentMetadataWithContent",
+                    "description": "The metadata of the document."
+                  },
+                  "userAccessLevel": {
+                    "$ref": "#/components/schemas/AccessLevel",
+                    "description": "The user's level of access to the document."
+                  },
+                  "viewLocation": {
+                    "type": ["string", "null"],
+                    "description": "The user's view location if there is one."
+                  }
+                }
+              }
+            ],
+            "description": "Data to be returned"
+          },
+          "error": {
+            "type": "boolean",
+            "description": "Indicates if an error occurred"
+          }
+        }
+      },
+      "TypedSuccessResponse_RecentlyDeletedResponseData": {
         "type": "object",
         "required": ["error", "data"],
         "properties": {

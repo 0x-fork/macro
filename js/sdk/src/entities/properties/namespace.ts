@@ -1,5 +1,9 @@
 import type {
-  PropertyDefinitionResponse,
+  BulkEntityPropertiesRequest,
+  CreatePropertyScope,
+  EntityPropertiesResponse,
+  PropertyDataType,
+  PropertyDefinition as PropertyDefinitionRecord,
   EntityType as PropertyEntityType,
   PropertyOption,
   PropertyScope,
@@ -7,14 +11,21 @@ import type {
 } from '../../../generated/properties/types.gen';
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
+import { PropertyDefinition } from './property-definition';
 
 export type {
-  PropertyDefinitionResponse,
+  BulkEntityPropertiesRequest,
+  CreatePropertyScope,
+  EntityPropertiesResponse,
+  PropertyDataType,
+  PropertyDefinitionRecord,
   PropertyEntityType,
   PropertyOption,
   PropertyScope,
   TagSetResponse,
 };
+
+export { PropertyDefinition };
 
 /**
  * Property definitions and tag sets. Entity-level reads and writes live on
@@ -24,32 +35,87 @@ export type {
 export class PropertiesNamespace {
   constructor(private readonly client: MacroClient) {}
 
-  /** Property definitions visible to the user, filtered by scope (default all). */
-  async definitions(opts?: {
+  /** List property definitions visible to the user, pre-hydrated with their records. */
+  async list(opts?: {
     scope?: PropertyScope;
-    includeOptions?: boolean;
     forEntityType?: PropertyEntityType;
-  }): Promise<PropertyDefinitionResponse[]> {
-    return unwrap(
+  }): Promise<PropertyDefinition[]> {
+    const raw = unwrap(
       await this.client.properties.listProperties({
         query: {
           scope: opts?.scope ?? 'all',
-          ...(opts?.includeOptions !== undefined
-            ? { include_options: opts.includeOptions }
-            : {}),
           ...(opts?.forEntityType !== undefined
             ? { for_entity_type: opts.forEntityType }
             : {}),
         },
       }),
     );
+    return raw.map((item) => {
+      const record =
+        'definition' in item
+          ? item.definition
+          : (item as PropertyDefinitionRecord);
+      return PropertyDefinition.fromRecord(this.client, record);
+    });
   }
 
-  /** The selectable options of a property definition (for dropdowns). */
-  async options(definitionId: string): Promise<PropertyOption[]> {
+  /** Create a new custom property definition. */
+  create(opts: {
+    displayName: string;
+    scope: CreatePropertyScope;
+    dataType: PropertyDataType;
+  }): Promise<PropertyDefinition> {
+    return PropertyDefinition.create(this.client, opts);
+  }
+
+  /** A handle to an existing property definition by id. */
+  definition(id: string): PropertyDefinition {
+    return PropertyDefinition.byId(this.client, id);
+  }
+
+  /** Get properties for multiple entities in a single request. */
+  async bulkEntityProperties(
+    request: BulkEntityPropertiesRequest,
+  ): Promise<Record<string, EntityPropertiesResponse>> {
     return unwrap(
-      await this.client.properties.getPropertyOptions({
-        path: { definition_id: definitionId },
+      await this.client.properties.getBulkEntityProperties({ body: request }),
+    );
+  }
+
+  /** Add a select option to a multi-select property value on an entity. */
+  async addEntityPropertyOption(opts: {
+    entityType: PropertyEntityType;
+    entityId: string;
+    propertyId: string;
+    optionId: string;
+  }): Promise<void> {
+    return unwrap(
+      await this.client.properties.addEntityPropertyOption({
+        path: {
+          entity_type: opts.entityType,
+          entity_id: opts.entityId,
+          property_id: opts.propertyId,
+          option_id: opts.optionId,
+        },
+      }),
+    );
+  }
+
+  /** Remove a select option from a multi-select property value on an entity. */
+  async removeEntityPropertyOption(opts: {
+    entityType: PropertyEntityType;
+    entityId: string;
+    propertyId: string;
+    optionId: string;
+  }): Promise<void> {
+    return unwrap(
+      await this.client.properties.removeEntityPropertyOption({
+        path: {
+          entity_type: opts.entityType,
+          entity_id: opts.entityId,
+          property_id: opts.propertyId,
+          option_id: opts.optionId,
+        },
       }),
     );
   }

@@ -219,6 +219,63 @@ pub async fn create_property_definition<S: PropertiesService, A: EntityAccessSer
 }
 
 #[derive(Debug, Error)]
+pub enum GetPropertyDefinitionError {
+    #[error(transparent)]
+    Properties(#[from] PropertiesErr),
+}
+
+impl IntoResponse for GetPropertyDefinitionError {
+    fn into_response(self) -> Response {
+        let status_code = match &self {
+            GetPropertyDefinitionError::Properties(e) => properties_err_status(e),
+        };
+
+        if status_code.is_server_error() {
+            tracing::error!(
+                error = ?self,
+                error_type = "GetPropertyDefinitionError",
+                "Internal server error"
+            );
+        }
+
+        (status_code, self.to_string()).into_response()
+    }
+}
+
+/// Get a property definition by ID
+#[utoipa::path(
+    get,
+    path = "/properties/definitions/{definition_id}",
+    params(
+        ("definition_id" = Uuid, Path, description = "Property definition ID")
+    ),
+    responses(
+        (status = 200, description = "Property definition retrieved successfully", body = PropertyDefinition),
+        (status = 400, description = "Invalid property ID"),
+        (status = 404, description = "Property definition not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Properties"
+)]
+#[tracing::instrument(skip(state, user, team), err)]
+pub async fn get_property_definition<S: PropertiesService, A: EntityAccessService>(
+    Path(definition_id): Path<Uuid>,
+    State(state): State<PropertiesRouterState<S, A>>,
+    MacroUserExtractor {
+        macro_user_id: user,
+        ..
+    }: MacroUserExtractor,
+    team: PropertyTeamExtractor<A>,
+) -> Result<Json<PropertyDefinition>, GetPropertyDefinitionError> {
+    let definition = state
+        .properties_service
+        .get_property_definition(definition_id, &user, team.entity_access_receipt.as_ref())
+        .await?;
+
+    Ok(Json(definition))
+}
+
+#[derive(Debug, Error)]
 pub enum DeletePropertyDefinitionError {
     #[error(transparent)]
     Properties(#[from] PropertiesErr),

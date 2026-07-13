@@ -105,6 +105,16 @@ pub trait PropertiesService: Send + Sync + 'static {
         option_id: Uuid,
     ) -> impl Future<Output = Result<(), PropertiesErr>> + Send;
 
+    /// Get a single property definition by ID, readable by the caller (their own,
+    /// their team's, or a system property). Returns [`PropertiesErr::NotFound`] if
+    /// the definition doesn't exist or isn't visible to the caller.
+    fn get_property_definition(
+        &self,
+        property_definition_id: Uuid,
+        user_id: &MacroUserIdStr<'_>,
+        team: Option<&TeamReceipt>,
+    ) -> impl Future<Output = Result<PropertyDefinition, PropertiesErr>> + Send;
+
     /// List property definitions owned by the given team and/or user, sorted by
     /// display name. Set `include_system` to true to also include system properties.
     /// When `for_entity_type` is provided, definitions that cannot be attached to

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddEntityPropertyOptionData, AddEntityPropertyOptionErrors, AddEntityPropertyOptionResponses, AddPropertyOptionData, AddPropertyOptionErrors, AddPropertyOptionResponses, CreatePropertyDefinitionData, CreatePropertyDefinitionErrors, CreatePropertyDefinitionResponses, DeleteEntityPropertyData, DeleteEntityPropertyErrors, DeleteEntityPropertyResponses, DeletePropertyDefinitionData, DeletePropertyDefinitionErrors, DeletePropertyDefinitionResponses, DeletePropertyOptionData, DeletePropertyOptionErrors, DeletePropertyOptionResponses, EnsureTagSetData, EnsureTagSetErrors, EnsureTagSetResponses, GetBulkEntityPropertiesData, GetBulkEntityPropertiesErrors, GetBulkEntityPropertiesResponses, GetEntityPropertiesData, GetEntityPropertiesErrors, GetEntityPropertiesResponses, GetPropertyOptionsData, GetPropertyOptionsErrors, GetPropertyOptionsResponses, ListPropertiesData, ListPropertiesErrors, ListPropertiesResponses, ListTagsData, ListTagsErrors, ListTagsResponses, RemoveEntityPropertyOptionData, RemoveEntityPropertyOptionErrors, RemoveEntityPropertyOptionResponses, SetEntityPropertyData, SetEntityPropertyErrors, SetEntityPropertyResponses, UpdatePropertyOptionData, UpdatePropertyOptionErrors, UpdatePropertyOptionResponses } from './types.gen';
+import type { AddEntityPropertyOptionData, AddEntityPropertyOptionErrors, AddEntityPropertyOptionResponses, AddPropertyOptionData, AddPropertyOptionErrors, AddPropertyOptionResponses, CreatePropertyDefinitionData, CreatePropertyDefinitionErrors, CreatePropertyDefinitionResponses, DeleteEntityPropertyData, DeleteEntityPropertyErrors, DeleteEntityPropertyResponses, DeletePropertyDefinitionData, DeletePropertyDefinitionErrors, DeletePropertyDefinitionResponses, DeletePropertyOptionData, DeletePropertyOptionErrors, DeletePropertyOptionResponses, EnsureTagSetData, EnsureTagSetErrors, EnsureTagSetResponses, GetBulkEntityPropertiesData, GetBulkEntityPropertiesErrors, GetBulkEntityPropertiesResponses, GetEntityPropertiesData, GetEntityPropertiesErrors, GetEntityPropertiesResponses, GetPropertyDefinitionData, GetPropertyDefinitionErrors, GetPropertyDefinitionResponses, GetPropertyOptionsData, GetPropertyOptionsErrors, GetPropertyOptionsResponses, ListPropertiesData, ListPropertiesErrors, ListPropertiesResponses, ListTagsData, ListTagsErrors, ListTagsResponses, RemoveEntityPropertyOptionData, RemoveEntityPropertyOptionErrors, RemoveEntityPropertyOptionResponses, SetEntityPropertyData, SetEntityPropertyErrors, SetEntityPropertyResponses, UpdatePropertyOptionData, UpdatePropertyOptionErrors, UpdatePropertyOptionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -83,6 +83,13 @@ export class Sdk extends HeyApiClient {
      */
     public deletePropertyDefinition<ThrowOnError extends boolean = false>(options: Options<DeletePropertyDefinitionData, ThrowOnError>): RequestResult<DeletePropertyDefinitionResponses, DeletePropertyDefinitionErrors, ThrowOnError> {
         return (options.client ?? this.client).delete<DeletePropertyDefinitionResponses, DeletePropertyDefinitionErrors, ThrowOnError>({ url: '/properties/definitions/{definition_id}', ...options });
+    }
+    
+    /**
+     * Get a property definition by ID
+     */
+    public getPropertyDefinition<ThrowOnError extends boolean = false>(options: Options<GetPropertyDefinitionData, ThrowOnError>): RequestResult<GetPropertyDefinitionResponses, GetPropertyDefinitionErrors, ThrowOnError> {
+        return (options.client ?? this.client).get<GetPropertyDefinitionResponses, GetPropertyDefinitionErrors, ThrowOnError>({ url: '/properties/definitions/{definition_id}', ...options });
     }
     
     /**

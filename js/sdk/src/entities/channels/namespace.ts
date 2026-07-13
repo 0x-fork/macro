@@ -1,4 +1,5 @@
 import type { ChannelType } from '../../../generated/storage/types.gen';
+import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import type { SearchOpts } from '../search';
 import type { Team } from '../teams/team';
@@ -33,7 +34,27 @@ export class ChannelNamespace {
     return Channel.create(this.client, opts);
   }
 
-  search(query: string, opts?: SearchOpts): AsyncGenerator<Channel> {
-    return Channel.search(this.client, query, opts);
+  /** All channels the authenticated user is a member of. */
+  async list(): Promise<Channel[]> {
+    const items = unwrap(await this.client.storage.getChannels());
+    return items.map((ch) => Channel.byId(this.client, ch.id.toString()));
+  }
+
+  /**
+   * Search channels by name (client-side fuzzy filter on the full channel list)
+   * or by content (server-side unified search).
+   */
+  async *search(query: string, opts?: SearchOpts): AsyncGenerator<Channel> {
+    if (!opts?.searchOn || opts.searchOn === 'name') {
+      const items = unwrap(await this.client.storage.getChannels());
+      const lower = query.toLowerCase();
+      for (const ch of items) {
+        if (ch.name?.toLowerCase().includes(lower)) {
+          yield Channel.byId(this.client, ch.id.toString());
+        }
+      }
+    } else {
+      yield* Channel.search(this.client, query, opts);
+    }
   }
 }

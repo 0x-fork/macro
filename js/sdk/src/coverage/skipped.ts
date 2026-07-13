@@ -182,16 +182,8 @@ export const propertiesExcluded = [
   'ensureTagSet',
 ] as const satisfies readonly (keyof PropertiesSdk)[];
 
-export const propertiesBacklog = [
-  'addEntityPropertyOption',
-  'addPropertyOption',
-  'createPropertyDefinition',
-  'deletePropertyDefinition',
-  'deletePropertyOption',
-  'getBulkEntityProperties',
-  'removeEntityPropertyOption',
-  'updatePropertyOption',
-] as const satisfies readonly (keyof PropertiesSdk)[];
+export const propertiesBacklog =
+  [] as const satisfies readonly (keyof PropertiesSdk)[];
 
 export const scheduledActionExcluded = [
   'scheduledActionHealth',

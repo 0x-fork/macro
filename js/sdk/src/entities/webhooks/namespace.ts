@@ -32,8 +32,7 @@ export class WebhooksNamespace {
 
   /**
    * A write-only handle to an existing webhook by id: it can patch, delete,
-   * and validate, but its fields are unreadable (the API has no GET) until a
-   * patch returns the updated record.
+   * and validate.
    */
   byId(id: string): Webhook {
     return Webhook.byId(this.client, id);

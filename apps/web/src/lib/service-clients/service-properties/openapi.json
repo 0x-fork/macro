@@ -104,6 +104,44 @@
       }
     },
     "/properties/definitions/{definition_id}": {
+      "get": {
+        "tags": ["Properties"],
+        "summary": "Get a property definition by ID",
+        "operationId": "get_property_definition",
+        "parameters": [
+          {
+            "name": "definition_id",
+            "in": "path",
+            "description": "Property definition ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Property definition retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyDefinition"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid property ID"
+          },
+          "404": {
+            "description": "Property definition not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      },
       "delete": {
         "tags": ["Properties"],
         "summary": "Delete a property definition",

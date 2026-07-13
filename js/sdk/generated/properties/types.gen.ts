@@ -584,6 +584,42 @@ export type DeletePropertyDefinitionResponses = {
 
 export type DeletePropertyDefinitionResponse = DeletePropertyDefinitionResponses[keyof DeletePropertyDefinitionResponses];
 
+export type GetPropertyDefinitionData = {
+    body?: never;
+    path: {
+        /**
+         * Property definition ID
+         */
+        definition_id: string;
+    };
+    query?: never;
+    url: '/properties/definitions/{definition_id}';
+};
+
+export type GetPropertyDefinitionErrors = {
+    /**
+     * Invalid property ID
+     */
+    400: unknown;
+    /**
+     * Property definition not found
+     */
+    404: unknown;
+    /**
+     * Internal server error
+     */
+    500: unknown;
+};
+
+export type GetPropertyDefinitionResponses = {
+    /**
+     * Property definition retrieved successfully
+     */
+    200: PropertyDefinition;
+};
+
+export type GetPropertyDefinitionResponse = GetPropertyDefinitionResponses[keyof GetPropertyDefinitionResponses];
+
 export type GetPropertyOptionsData = {
     body?: never;
     path: {

@@ -34,7 +34,7 @@ export class Webhook {
     this.record = record;
   }
 
-  /** Register a webhook. The result is the only readable handle — webhooks cannot be fetched. */
+  /** Register a webhook. */
   static async create(
     client: MacroClient,
     opts: {
@@ -61,14 +61,13 @@ export class Webhook {
 
   /**
    * A write-only handle to an existing webhook by id: it can patch, delete,
-   * and validate, but its fields are unreadable (the API has no GET) until a
-   * patch returns the updated record.
+   * and validate.
    */
   static byId(client: MacroClient, id: string): Webhook {
     return new Webhook(client, id, null);
   }
 
-  /** The held record, or throws for unreadable {@link byId} handles. */
+  /** The held record, or throws for {@link byId} handles without a record. */
   private requireRecord(): WebhookRecord {
     if (!this.record)
       throw new MacroError(

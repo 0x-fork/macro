@@ -7,13 +7,7 @@ import type {
   GithubPullRequest,
 } from '../../../generated/storage/types.gen';
 import { type Mentionable, type MentionPart, wrapXml } from '../../mentions';
-import {
-  MacroApiError,
-  MacroError,
-  MacroNotFoundError,
-  paginate,
-  unwrap,
-} from '../../utils';
+import { MacroApiError, MacroError, paginate, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { PropertiedEntity } from '../entity';
 import { Project } from '../projects/project';
@@ -21,8 +15,7 @@ import { entitySearch } from '../search';
 import { User } from '../users/user';
 import { Comment } from './comment';
 
-type DocumentItem = GetDocumentResponses[200]['data']['items'][number];
-type DocumentDetail = Extract<DocumentItem, { type: 'document' }>;
+type DocumentDetail = GetDocumentResponses[200]['data']['documentMetadata'];
 
 /** One of a document's comment threads: the thread record and its comments. */
 export interface CommentThread {
@@ -46,11 +39,7 @@ export class Document
         path: { document_id: this.id },
       }),
     );
-    const doc = data.items.find(
-      (i): i is DocumentDetail => i.type === 'document' && i.id === this.id,
-    );
-    if (!doc) throw new MacroNotFoundError(`document ${this.id} not found`);
-    return doc;
+    return data.documentMetadata;
   }
 
   /** A handle to a document by id. Details load on first access. */
@@ -130,8 +119,8 @@ export class Document
   static async recentlyDeleted(client: MacroClient): Promise<Document[]> {
     const { data } = unwrap(await client.storage.recentlyDeleted({}));
     return data.items
-      .filter((i): i is DocumentDetail => i.type === 'document')
-      .map((d) => new Document(client, d.id, d));
+      .filter((i) => i.type === 'document')
+      .map((d) => new Document(client, d.id));
   }
 
   /** Favorites identify documents as `document`. */
@@ -141,7 +130,7 @@ export class Document
   protected readonly propertyEntityType: PropertyEntityType = 'DOCUMENT';
 
   /** The document's display name. */
-  readonly name = this.field('name');
+  readonly name = this.field('documentName');
 
   /** The document's file type (e.g. `md`, `pdf`, `docx`). */
   readonly fileType = this.field('fileType');
@@ -359,7 +348,7 @@ export class Document
     return {
       tag: wrapXml('m-document-mention', {
         documentId: this.id,
-        documentName: loaded?.name ?? '',
+        documentName: loaded?.documentName ?? '',
         blockName: loaded?.fileType ?? 'md',
       }),
       mention: { entity_type: 'document', entity_id: this.id },
