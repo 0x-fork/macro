@@ -148,6 +148,12 @@ interface SoupViewContextValues {
   readFilter: Accessor<ReadFilter>;
   setReadFilter: Setter<ReadFilter>;
   groupByField: Accessor<GroupByField | undefined>;
+  /**
+   * True while a kanban board renders instead of the list. Suppresses the
+   * server-side grouped query path so the flat `source` feeds the board.
+   */
+  boardMode: Accessor<boolean>;
+  setBoardMode: Setter<boolean>;
   fetchNextGroupPage: (groupKey: string) => Promise<void>;
   isFetchingGroupPage: (groupKey: string) => boolean;
   hasNextGroupPage: (groupKey: string) => boolean;
@@ -403,9 +409,15 @@ export const SoupViewContextProvider: FlowComponent<
       activeListView() === 'companies' && groupByField()?.type === 'property'
   );
 
+  // While a kanban board renders instead of the list (see SoupView), the
+  // board buckets the flat `source.data()` itself, so the server-side
+  // grouped query path is suppressed. The grouping state is left untouched —
+  // it applies again when the user switches back to the list.
+  const [boardMode, setBoardMode] = createSignal(false);
+
   // The group-by actually sent to the backend (drives the grouped queries).
   const serverGroupByField = createMemo(() =>
-    isClientPropertyGroup() ? undefined : groupByField()
+    isClientPropertyGroup() || boardMode() ? undefined : groupByField()
   );
 
   // The new inbox surfaces channel threads the current user participates in —
@@ -1116,6 +1128,8 @@ export const SoupViewContextProvider: FlowComponent<
     readFilter,
     setReadFilter,
     groupByField,
+    boardMode,
+    setBoardMode,
     fetchNextGroupPage,
     isFetchingGroupPage,
     hasNextGroupPage,

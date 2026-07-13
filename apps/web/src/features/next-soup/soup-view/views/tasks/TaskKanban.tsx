@@ -28,7 +28,7 @@ import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity'
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { cn, EmptyStatePanel, Layer } from '@ui';
 import { format, isSameYear } from 'date-fns';
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, Show } from 'solid-js';
 
 /** Column key for tasks without a Status value. */
 const NO_STATUS_KEY = '';
@@ -91,6 +91,14 @@ export function TaskKanban() {
   const orchestrator = useGlobalBlockOrchestrator();
 
   const { paneVisible, selectedEntity } = usePreviewPaneVisiblity();
+
+  // The board buckets the whole filtered set at once (no per-column
+  // pagination), so keep pulling flat pages while any remain.
+  createEffect(() => {
+    if (source.hasNextPage() && !source.isFetching()) {
+      source.fetchNextPage();
+    }
+  });
 
   const tasks = createMemo(() => source.data().filter(isTaskEntity));
 

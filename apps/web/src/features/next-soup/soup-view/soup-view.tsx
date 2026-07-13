@@ -623,6 +623,12 @@ export const SoupView = (props: SoupViewProps) => {
     () => boardView() !== undefined && viewMode() === 'board'
   );
 
+  // Tell the context while a board is displayed: it suppresses the
+  // server-side grouped query path so the flat `source.data()` the board
+  // buckets from stays populated (grouped responses never fill it).
+  createRenderEffect(() => soupView.setBoardMode(isBoardMode()));
+  onCleanup(() => soupView.setBoardMode(false));
+
   const [narrowSearchExpanded, setNarrowSearchExpanded] = createSignal(false);
   const [mobileSearchOpen, setMobileSearchOpen] = createSignal(false);
   const [searchIsCollapsed, setSearchIsCollapsed] = createSignal(false);
