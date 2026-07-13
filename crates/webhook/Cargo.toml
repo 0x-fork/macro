@@ -89,6 +89,12 @@ utoipa = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 
+[[example]]
+name = "sign_webhook"
+# Uses the crypto + serde_json deps that the `outbound` feature enables (on by
+# default). Run: `cargo run -p webhook --example sign_webhook`.
+required-features = ["outbound"]
+
 [dev-dependencies]
 channel_sender = { path = "../channel_sender" }
 tokio = { workspace = true, features = ["test-util"] }

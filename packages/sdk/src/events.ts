@@ -33,7 +33,15 @@ async function verifySignature(opts: {
     key,
     enc.encode(`${opts.timestamp}.${opts.rawBody}`),
   );
-  return `v1=${new Uint8Array(digest).toHex()}` === opts.signature;
+  return `v1=${toHex(digest)}` === opts.signature;
+}
+
+function toHex(buffer: ArrayBuffer): string {
+  let hex = '';
+  for (const byte of new Uint8Array(buffer)) {
+    hex += byte.toString(16).padStart(2, '0');
+  }
+  return hex;
 }
 
 /**

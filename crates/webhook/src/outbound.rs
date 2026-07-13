@@ -7,7 +7,7 @@ pub mod pg_repository;
 pub mod sqs_queue;
 
 pub use http_delivery::ReqwestWebhookDeliveryClient;
-pub use http_validator::ReqwestWebhookValidationClient;
+pub use http_validator::{ReqwestWebhookValidationClient, signature_header};
 pub use pg_delivery_repository::PgWebhookDeliveryRepository;
 pub use pg_repository::PgRepository;
 pub use sqs_queue::SqsWebhookQueue;

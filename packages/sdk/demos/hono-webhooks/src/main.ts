@@ -7,7 +7,9 @@ const sdk = new MacroClient({
 });
 
 sdk.events.on('channel.message_posted', ({ metadata }) => {
-  console.log(`A channel was sent! channel=${metadata.channel_id} message=${metadata.message_id}`);
+  console.log(
+    `A channel was sent! channel=${metadata.channel_id} message=${metadata.message_id}`,
+  );
 });
 
 sdk.events.on('document.created', ({ metadata }) => {

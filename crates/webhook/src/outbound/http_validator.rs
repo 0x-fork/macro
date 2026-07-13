@@ -125,7 +125,7 @@ fn validation_body(webhook_id: &str, event_id: &str) -> Result<Vec<u8>, serde_js
     })
 }
 
-pub(super) fn signature_header(
+pub fn signature_header(
     secret: &str,
     timestamp: &str,
     raw_body: &[u8],

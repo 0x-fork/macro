@@ -63,7 +63,9 @@ export class MacroClient<T extends MacroOpts = MacroOpts> {
     });
 
     if (opts.webhookSecret) {
-      (this as { events?: MacroEvents }).events = new MacroEvents(opts.webhookSecret);
+      (this as { events?: MacroEvents }).events = new MacroEvents(
+        opts.webhookSecret,
+      );
     }
   }
 
