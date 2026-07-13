@@ -179,6 +179,8 @@ export default defineConfig({
           /^ChannelParticipant(Added|Removed)Metadata$/,
           /^ChannelMessage(Posted|Patched|Deleted)Metadata$/,
           /^ChannelMessageAttachment(Created|Removed)Metadata$/,
+          /^ChannelEventAttachment$/,
+          /^ChannelSender$/,
         ],
       },
     },
