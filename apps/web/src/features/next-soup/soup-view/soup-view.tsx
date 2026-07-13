@@ -50,6 +50,7 @@ import {
 } from '@app/features/next-soup/soup-view/views/companies/CompanyViewsMenu';
 import { DateGroupHeader } from '@app/features/next-soup/soup-view/views/inbox/date-group-header';
 import { InboxListEntity } from '@app/features/next-soup/soup-view/views/inbox/InboxListEntity';
+import { TaskKanban } from '@app/features/next-soup/soup-view/views/tasks/TaskKanban';
 import { TaskListEntity } from '@app/features/next-soup/soup-view/views/tasks/TaskListEntity';
 import { ResponsiveTaskListHeader } from '@app/features/next-soup/soup-view/views/tasks/TaskListHeader';
 import { TaskGroupHeader } from '@app/features/next-soup/soup-view/views/tasks/task-group-header';
@@ -342,7 +343,7 @@ interface SoupViewProps {
 
 type SoupViewMode = 'list' | 'board';
 
-/** Segmented list/board toggle shown in the topbar of the Customers view. */
+/** Segmented list/board toggle shown in the topbar of board-capable views. */
 const SoupViewModeToggle = (props: {
   mode: SoupViewMode;
   onChange: (mode: SoupViewMode) => void;
@@ -438,10 +439,10 @@ export const SoupView = (props: SoupViewProps) => {
     { default: [] }
   );
 
-  // List/board display mode — currently only the Customers view offers a
-  // board (kanban grouped by Stage). Per-entry state so back/forward
-  // restores the mode the user left each entry with. Declared before the
-  // init effect below so a shared CRM view can set it during init.
+  // List/board display mode — the Customers view offers a board grouped by
+  // Stage, the Tasks view one grouped by Status. Per-entry state so
+  // back/forward restores the mode the user left each entry with. Declared
+  // before the init effect below so a shared CRM view can set it during init.
   const [viewMode, setViewMode] = useEntryState<SoupViewMode>('soup.viewMode', {
     default: 'list',
   });
@@ -612,8 +613,14 @@ export const SoupView = (props: SoupViewProps) => {
     return view ? LIST_VIEW_DOCS_URL[view] : undefined;
   });
 
+  // Views that can render as a kanban board instead of a list.
+  const boardView = createMemo(() => {
+    const view = activeListView();
+    return view === 'companies' || view === 'tasks' ? view : undefined;
+  });
+
   const isBoardMode = createMemo(
-    () => activeListView() === 'companies' && viewMode() === 'board'
+    () => boardView() !== undefined && viewMode() === 'board'
   );
 
   const [narrowSearchExpanded, setNarrowSearchExpanded] = createSignal(false);
@@ -724,6 +731,8 @@ export const SoupView = (props: SoupViewProps) => {
                   setViewMode={setViewMode}
                 />
                 <CompanyDisplayMenu />
+              </Show>
+              <Show when={!narrowSearchExpanded() && boardView()}>
                 <SoupViewModeToggle mode={viewMode()} onChange={setViewMode} />
               </Show>
               <Show
@@ -796,7 +805,12 @@ export const SoupView = (props: SoupViewProps) => {
         <SoupFiltersBar />
         <div class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full">
           <Suspense>
-            <Show when={!isBoardMode()} fallback={<CompanyKanban />}>
+            <Show
+              when={!isBoardMode()}
+              fallback={
+                boardView() === 'tasks' ? <TaskKanban /> : <CompanyKanban />
+              }
+            >
               <SoupViewList />
             </Show>
           </Suspense>

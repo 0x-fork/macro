@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { TaskEntityWithProperties } from '../types/entity';
 import {
   getTaskAssigneeIds,
+  getTaskDueDate,
   getTaskStatusOptionId,
   isCurrentUserAssigned,
   isTaskClosed,
@@ -84,6 +85,39 @@ describe('task property helpers', () => {
     it('returns undefined when status property is missing', () => {
       const entity = createTask();
       expect(getTaskStatusOptionId(entity)).toBeUndefined();
+    });
+  });
+
+  describe('getTaskDueDate', () => {
+    it('returns the stored date value', () => {
+      const entity = createTask({
+        properties: [
+          createSoupProperty(SYSTEM_PROPERTY_IDS.DUE_DATE, {
+            type: 'Date',
+            value: '2025-06-01T00:00:00Z',
+          }),
+        ],
+      });
+
+      expect(getTaskDueDate(entity)).toBe('2025-06-01T00:00:00Z');
+    });
+
+    it('returns undefined when due date property is missing', () => {
+      const entity = createTask();
+      expect(getTaskDueDate(entity)).toBeUndefined();
+    });
+
+    it('returns undefined for a non-date value', () => {
+      const entity = createTask({
+        properties: [
+          createSoupProperty(SYSTEM_PROPERTY_IDS.DUE_DATE, {
+            type: 'SelectOption',
+            value: ['not-a-date'],
+          }),
+        ],
+      });
+
+      expect(getTaskDueDate(entity)).toBeUndefined();
     });
   });
 

@@ -146,6 +146,25 @@ export const getTaskPriorityOptionId = (
 };
 
 /**
+ * Gets the due date (ISO timestamp) from task properties.
+ */
+export const getTaskDueDate = (
+  entity: TaskEntityWithProperties
+): string | undefined => {
+  const dueDateProperty = getTaskPropertyByDefinitionId(
+    entity,
+    SYSTEM_PROPERTY_IDS.DUE_DATE
+  );
+
+  const value = dueDateProperty?.value;
+  if (!value || value.type !== 'Date' || typeof value.value !== 'string') {
+    return undefined;
+  }
+
+  return value.value;
+};
+
+/**
  * Checks if a task is in a closed state.
  */
 export const isTaskClosed = (entity: TaskEntityWithProperties): boolean => {

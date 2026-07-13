@@ -60,7 +60,10 @@ export {
   COMPANY_STAGE_OPTIONS,
   getPropertyOptionLabel,
   getTaskAssigneeIds,
+  getTaskDueDate,
+  getTaskPriorityOptionId,
   getTaskStatusOptionId,
+  TASK_STATUS_OPTIONS,
 } from './utils/task-properties';
 export {
   formatDateAndTime,
