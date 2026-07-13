@@ -10,7 +10,6 @@
     "./generated/*": "./generated/*"
   },
   "scripts": {
-    "sync-specs": "bun scripts/sync-specs.ts",
     "generate": "openapi-ts",
     "check": "tsc --noEmit",
     "lint": "biome check",

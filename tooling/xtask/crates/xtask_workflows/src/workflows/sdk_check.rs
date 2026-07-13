@@ -1,11 +1,11 @@
 //! `SDK Check` — fails a PR if the SDK's `@hey-api/openapi-ts` generated layer
-//! (`packages/sdk/generated`, `packages/sdk/specs`) has drifted from the Rust
-//! services' OpenAPI output, or if the SDK no longer typechecks. Generated into
-//! `sdk-check.yml`.
+//! (`packages/sdk/generated`) has drifted from the Rust services' OpenAPI
+//! output, or if the SDK no longer typechecks. Generated into `sdk-check.yml`.
 //!
 //! The freshness check runs `just update-generated` in `packages/sdk` (the same
-//! command developers run: rebuild specs from Rust → sync → regenerate with
-//! hey-api) and fails on any resulting diff under `packages/sdk`.
+//! command developers run: rebuild the app's OpenAPI specs from Rust, then
+//! regenerate with hey-api reading those specs directly) and fails on any
+//! resulting diff under `packages/sdk`.
 
 use gh_workflow::{Concurrency, Event, Expression, Job, PullRequest, Run, Step, Workflow};
 
@@ -18,9 +18,10 @@ pub fn sdk_check() -> Workflow {
             PullRequest::default()
                 .add_branch("main")
                 .add_path("packages/sdk/**")
-                .add_path("rust/cloud-storage/**/*.rs")
-                .add_path("rust/cloud-storage/Cargo.toml")
-                .add_path("rust/cloud-storage/Cargo.lock")
+                .add_path("crates/**/*.rs")
+                .add_path("services/**/*.rs")
+                .add_path("Cargo.toml")
+                .add_path("Cargo.lock")
                 .add_path("apps/web/scripts/generate-api-schema.ts")
                 .add_path("apps/web/scripts/services.ts")
                 .add_path(".github/workflows/sdk-check.yml"),

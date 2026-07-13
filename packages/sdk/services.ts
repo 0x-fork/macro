@@ -1,8 +1,7 @@
 /**
- * The backend services the SDK is generated against. Shared by
- * orval.config.ts (which reads ./specs/<service>.json) and
- * scripts/sync-specs.ts (which refreshes those specs from the monorepo's
- * service-clients package).
+ * The backend services the SDK is generated against. Consumed by
+ * openapi-ts.config.ts, which reads each service's openapi.json directly from
+ * the app's service-clients package.
  */
 export const services = [
   'auth',
