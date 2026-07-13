@@ -6,6 +6,13 @@ vi.mock('@app/features/next-soup/filters/configs/', () => ({
   SOUP_FILTERS: [],
 }));
 
+// The full facet catalog transitively pulls heavy UI/theme + websocket client
+// modules (which instantiate at module load); this state unit test doesn't
+// exercise facets, so stub the catalog to keep its module graph lean.
+vi.mock('@app/features/next-soup/filters/facets', () => ({
+  ALL_FACETS: [],
+}));
+
 vi.mock('@app/features/next-soup/soup-view/sort-options', () => ({
   SORT_CONFIGS: {
     updated_at: {
