@@ -37,6 +37,6 @@ channel.on('message_deleted', async ({ message }) => {
 });
 
 const app = new Hono();
-app.post('/webhook', (c) => macro.events!.webhook()(c.req.raw));
+app.post('/webhook', (c) => macro.events?.webhook()(c.req.raw));
 
 export default app;

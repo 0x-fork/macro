@@ -1,5 +1,5 @@
-import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
+import type { SearchOpts } from '../search';
 import { Project } from './project';
 
 export class ProjectNamespace {

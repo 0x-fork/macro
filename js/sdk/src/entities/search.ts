@@ -27,7 +27,11 @@ export function entitySearch<T, K extends Hit['type']>(opts: {
   make: (client: MacroClient, hit: Extract<Hit, { type: K }>) => T;
   /** Opt in to CRM results (off by default server-side; required for company hits). */
   includeCrm?: boolean;
-}): (client: MacroClient, query: string, searchOpts?: SearchOpts) => AsyncGenerator<T> {
+}): (
+  client: MacroClient,
+  query: string,
+  searchOpts?: SearchOpts,
+) => AsyncGenerator<T> {
   const { filters, type, make, includeCrm } = opts;
   return (client, query, searchOpts) => {
     const searchOn = searchOpts?.searchOn ?? 'name_content';
@@ -48,7 +52,7 @@ export function entitySearch<T, K extends Hit['type']>(opts: {
           },
         }),
       );
-const hits = results.filter(
+      const hits = results.filter(
         (r): r is Extract<Hit, { type: K }> => r.type === type,
       );
       return {

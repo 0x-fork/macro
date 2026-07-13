@@ -4,8 +4,8 @@ import type {
   Label,
 } from '../../../generated/email/types.gen';
 import { paginate, unwrap } from '../../utils';
-import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
+import type { SearchOpts } from '../search';
 import { EmailAttachment } from './attachment';
 import { Link } from './link';
 import { EmailMessage, type SendEmailOptions } from './message';

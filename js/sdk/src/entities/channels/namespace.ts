@@ -1,6 +1,6 @@
 import type { ChannelType } from '../../../generated/storage/types.gen';
-import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
+import type { SearchOpts } from '../search';
 import type { Team } from '../teams/team';
 import type { User } from '../users/user';
 import { Channel } from './channel';

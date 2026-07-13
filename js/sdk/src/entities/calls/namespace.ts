@@ -1,5 +1,5 @@
-import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
+import type { SearchOpts } from '../search';
 import { CallRecord } from './call-record';
 
 export class CallRecordNamespace {

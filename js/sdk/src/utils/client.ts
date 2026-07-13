@@ -40,7 +40,14 @@ export class MacroClient {
       typeof process !== 'undefined'
         ? (process.env.MACRO_API_KEY ?? process.env.MACRO_TOKEN)
         : undefined;
-    this.token = opts.token ?? env_token ?? (() => { throw new Error('no Macro API token — set MACRO_API_KEY or pass token to new Macro()'); });
+    this.token =
+      opts.token ??
+      env_token ??
+      (() => {
+        throw new Error(
+          'no Macro API token — set MACRO_API_KEY or pass token to new Macro()',
+        );
+      });
     this.wsVerify = opts.wsVerify;
 
     this.auth = new AuthSdk({ client: this.makeClient(hosts.auth) });

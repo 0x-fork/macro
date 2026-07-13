@@ -1,6 +1,6 @@
-import type { SearchOpts } from '../search';
 import type { MacroClient } from '../../utils/client';
 import type { Project } from '../projects/project';
+import type { SearchOpts } from '../search';
 import { Document } from './document';
 
 export class DocumentNamespace {
