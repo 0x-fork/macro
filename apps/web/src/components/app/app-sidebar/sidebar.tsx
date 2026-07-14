@@ -93,6 +93,7 @@ import { debounce } from '@solid-primitives/scheduled';
 import { makePersisted } from '@solid-primitives/storage';
 import { useLocation } from '@solidjs/router';
 import { Button, cn, Dropdown, Hotkey, NavRow } from '@ui';
+import { startOfDay, subDays } from 'date-fns';
 import {
   type Component,
   type ComponentProps,
@@ -103,6 +104,7 @@ import {
   For,
   type JSX,
   onCleanup,
+  onMount,
   Show,
   Suspense,
 } from 'solid-js';
@@ -1700,21 +1702,46 @@ const SidebarLink = (props: SidebarLinkProps) => {
 };
 
 /**
+ * The Inbox badge only counts notifications from the last
+ * `INBOX_UNREAD_WINDOW_DAYS` calendar days — the inbox view's Today /
+ * Yesterday / "Last 7 days" date buckets (see `dateBucket`, which includes a
+ * date when `differenceInCalendarDays(now, date) < 7`).
+ */
+const INBOX_UNREAD_WINDOW_DAYS = 7;
+
+/** Timestamp of the oldest calendar day inside the unread-count window. */
+const inboxUnreadCutoff = () =>
+  subDays(startOfDay(new Date()), INBOX_UNREAD_WINDOW_DAYS - 1).getTime();
+
+/**
  * The Inbox sidebar link, showing a badge with the number of unread inbox
  * items at its right edge — the spot the "g i" hotkey hint takes over on
  * hover. Counts distinct entities rather than raw notifications, since an
- * entity with several unread notifications is still one inbox row.
+ * entity with several unread notifications is still one inbox row, and only
+ * those from the last `INBOX_UNREAD_WINDOW_DAYS` calendar days.
  */
 const SidebarInboxLink = (props: SidebarLinkProps) => {
   const notificationSource = useGlobalNotificationSource();
   const unreadNotifications = useUnreadNotifications(notificationSource);
 
-  const unreadCount = createMemo(
-    () =>
-      new Set(
-        unreadNotifications().map((n) => compositeEntity(notificationEntity(n)))
-      ).size
-  );
+  // The cutoff is a signal rather than an inline `new Date()` so the window
+  // slides while the app stays open. Signals don't propagate unchanged
+  // values, so the interval is inert except at midnight — the count memo
+  // otherwise re-runs only when the notification cache changes.
+  const [cutoff, setCutoff] = createSignal(inboxUnreadCutoff());
+  onMount(() => {
+    const interval = setInterval(() => setCutoff(inboxUnreadCutoff()), 60_000);
+    onCleanup(() => clearInterval(interval));
+  });
+
+  const unreadCount = createMemo(() => {
+    const entities = new Set<string>();
+    for (const n of unreadNotifications()) {
+      if (new Date(n.created_at).getTime() < cutoff()) continue;
+      entities.add(compositeEntity(notificationEntity(n)));
+    }
+    return entities.size;
+  });
 
   return (
     <SidebarLink
