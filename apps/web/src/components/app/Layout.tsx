@@ -26,13 +26,15 @@ import { mountGlobalFocusListener } from '@app/signal/focus';
 import { AutomationComposer } from '@block-automation/component';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { InCallPanel } from '@channel/Call/InCallPanel';
-import { AppSidebar, GoToHotkeys } from '@components/app/app-sidebar/sidebar';
+import {
+  AppSidebar,
+  GoToHotkeys,
+  type SidebarState,
+} from '@components/app/app-sidebar/sidebar';
 import {
   isSidebarVisible,
   SidebarCollapseContext,
   SidebarVisibilityContext,
-  setSidebarState,
-  sidebarState,
 } from '@components/app/sidebarVisibility';
 import { useIsAuthenticated } from '@core/auth';
 import { usePaywallState } from '@core/constant/PaywallState';
@@ -41,6 +43,7 @@ import { attachGlobalDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import { updateCookie } from '@core/util/cookies';
+import { makePersisted } from '@solid-primitives/storage';
 import { type RouteSectionProps, useLocation } from '@solidjs/router';
 import { cn } from '@ui';
 import { ScreencastHotkeys } from '@ui/components/ScreencastHotkeys';
@@ -74,6 +77,13 @@ const AUTH_URLS = [
   `${ROUTER_BASE_CONCAT}welcome`,
   `${ROUTER_BASE_CONCAT}team-invite`,
 ];
+
+const [sidebarState, setSidebarState] = makePersisted(
+  createSignal<SidebarState>(!isMobile() ? 'expanded' : 'hidden'),
+  {
+    name: 'sidebar-state',
+  }
+);
 
 export function Layout(props: RouteSectionProps) {
   const isAuthenticated = useIsAuthenticated();

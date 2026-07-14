@@ -1,5 +1,4 @@
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
-import { isFocusMode } from '@app/features/block-md/signal/focusMode';
 import { createSoupState } from '@app/features/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/features/next-soup/soup-context';
 import { SoupViewContextProvider } from '@app/features/next-soup/soup-view/soup-view-context';
@@ -149,14 +148,6 @@ export function SplitPanel(props: SplitPanelProps) {
       isSoloSettings()
   );
 
-  // Writer focus mode strips all split chrome (nav buttons, islands). It must
-  // COLLAPSE the header to zero height rather than reuse the `hidden` class
-  // above: flipping the header to display:none at runtime tears down the
-  // whole app tree (pre-existing bug — the static hidden cases above never
-  // toggle after mount, so they don't hit it). Height-collapse is visually
-  // identical and safe.
-  const collapseSplitHeader = () => isFocusMode();
-
   const splitFocusStyling = () =>
     !isMobile() &&
     props.active &&
@@ -215,9 +206,7 @@ export function SplitPanel(props: SplitPanelProps) {
             }}
             style={{
               '--split-header-height': `${
-                shouldHideSplitHeader() || collapseSplitHeader()
-                  ? 0
-                  : (headerSize.height ?? 0)
+                shouldHideSplitHeader() ? 0 : (headerSize.height ?? 0)
               }px`,
               // The hard spacer for top-anchored content on full-frame
               // mobile: status bar + floating header strip.
@@ -246,9 +235,6 @@ export function SplitPanel(props: SplitPanelProps) {
                   'shadow-sm shadow-drop-shadow/50 bg-panel/80 dark-mode:bg-panel/30':
                     splitUnfocusedStyling(),
                   'shadow-2xl shadow-drop-shadow': splitFocusStyling(),
-                  // Writer focus mode: flat, borderless, edge-to-edge panel.
-                  'rounded-none shadow-none border-0! after:hidden':
-                    isFocusMode(),
                 }
               )}
               depth={isMobile() ? 0 : 1}
@@ -260,9 +246,7 @@ export function SplitPanel(props: SplitPanelProps) {
                   // On mobile the header collapses to a zero-height grid row;
                   // SplitHeader overlays the body as floating islands.
                   'mobile:min-h-0 mobile:border-b-0',
-                  shouldHideSplitHeader() && 'hidden',
-                  collapseSplitHeader() &&
-                    'h-0 min-h-0 touch:min-h-0 overflow-hidden'
+                  shouldHideSplitHeader() && 'hidden'
                 )}
               >
                 <SplitHeader ref={setHeaderRef} />

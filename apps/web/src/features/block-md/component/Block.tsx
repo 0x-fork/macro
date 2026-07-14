@@ -173,7 +173,14 @@ function BlockMarkdownContent({ optimisticSnapshot }: BlockMarkdownProps) {
   return (
     <DocumentBlockContainer>
       <div
-        class="size-full select-none overscroll-none overflow-hidden flex flex-col relative"
+        class="select-none overscroll-none overflow-hidden flex flex-col"
+        classList={{
+          'size-full relative': !isFocusMode(),
+          // Writer focus mode: overlay this block over the whole window
+          // instead of mutating the chrome around it (sidebar, split header,
+          // layout padding). Sits below dialogs, menus, and toasts.
+          'fixed inset-0 z-full-page-modal-base bg-panel': isFocusMode(),
+        }}
         tabIndex={-1}
       >
         <ModalsProvider>
@@ -234,8 +241,8 @@ function BlockMarkdownContent({ optimisticSnapshot }: BlockMarkdownProps) {
                   {/* Writer mode vignette: fade the text out toward the top
                       and bottom edges of the screen, iA-Writer style. */}
                   <Show when={isFocusMode()}>
-                    <div class="pointer-events-none absolute inset-x-0 top-0 h-[18vh] bg-linear-to-b from-surface to-transparent" />
-                    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[18vh] bg-linear-to-t from-surface to-transparent" />
+                    <div class="pointer-events-none absolute inset-x-0 top-0 h-[18vh] bg-linear-to-b from-panel to-transparent" />
+                    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[18vh] bg-linear-to-t from-panel to-transparent" />
                   </Show>
                 </div>
               </div>
