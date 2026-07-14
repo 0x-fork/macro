@@ -10,11 +10,19 @@ type MakeNotificationToggleActionOptions = {
   notificationSource?: NotificationSource;
 };
 
+type ExecuteNotificationToggleOptions = {
+  silent?: boolean;
+};
+
 export type NotificationToggleAction = {
   isEnabled: (id: string) => boolean;
   isLoading: () => boolean;
   isPending: (id: string) => boolean;
-  execute: (id: string, enabled?: boolean) => Promise<boolean>;
+  execute: (
+    id: string,
+    enabled?: boolean,
+    options?: ExecuteNotificationToggleOptions
+  ) => Promise<boolean>;
 };
 
 export function makeNotificationToggleAction(
@@ -45,7 +53,11 @@ export function makeNotificationToggleAction(
     });
   };
 
-  const execute = async (id: string, enabled = !isEnabled(id)) => {
+  const execute = async (
+    id: string,
+    enabled = !isEnabled(id),
+    executeOptions: ExecuteNotificationToggleOptions = {}
+  ) => {
     if (!id || isLoading() || isPending(id)) return false;
     if (enabled === isEnabled(id)) return true;
 
@@ -56,14 +68,18 @@ export function makeNotificationToggleAction(
       if (enabled) await notificationSource.unmuteEntity(entity);
       else await notificationSource.muteEntity(entity);
 
-      toast.success(
-        `${options.targetLabel === 'channel' ? 'Channel' : 'Thread'} notifications ${enabled ? 'enabled' : 'disabled'}`
-      );
+      if (!executeOptions.silent) {
+        toast.success(
+          `${options.targetLabel === 'channel' ? 'Channel' : 'Thread'} notifications ${enabled ? 'enabled' : 'disabled'}`
+        );
+      }
       return true;
     } catch {
-      toast.failure(
-        `Failed to ${enabled ? 'enable' : 'disable'} ${options.targetLabel} notifications`
-      );
+      if (!executeOptions.silent) {
+        toast.failure(
+          `Failed to ${enabled ? 'enable' : 'disable'} ${options.targetLabel} notifications`
+        );
+      }
       return false;
     } finally {
       setPending(id, false);

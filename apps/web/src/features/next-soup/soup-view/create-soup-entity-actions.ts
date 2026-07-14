@@ -6,7 +6,12 @@ import {
   getChannelParams,
   goToChannelMessage,
 } from '@block-channel/utils/link';
+import {
+  makeChannelNotificationsAction,
+  makeChannelThreadNotificationsAction,
+} from '@channel/actions';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
+import { toast } from '@core/component/Toast/Toast';
 import { fileTypeToBlockName, itemToBlockName } from '@core/constant/allBlocks';
 import { useUserId } from '@core/context/user';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
@@ -93,6 +98,12 @@ export function createSoupEntityActions(): {
     userId: () => userId(),
     notificationSource: () => notificationSource,
   });
+  const channelNotificationsAction = makeChannelNotificationsAction({
+    notificationSource,
+  });
+  const channelThreadNotificationsAction = makeChannelThreadNotificationsAction(
+    { notificationSource }
+  );
 
   const deleteAction = makeDeleteAction({
     userId: () => userId(),
@@ -344,6 +355,71 @@ export function createSoupEntityActions(): {
       }
     }
 
+    // Notifications group: mute channels and channel threads when the whole
+    // selection supports notification toggling.
+    const notificationItems: SoupEntityActionItem[] = [];
+    const allAreChannelNotificationEntities =
+      entities.length > 0 &&
+      entities.every(
+        (entity) =>
+          entity.type === 'channel' || entity.type === 'channel_thread'
+      );
+    const hasPendingNotificationAction = entities.some((entity) => {
+      if (entity.type === 'channel') {
+        return channelNotificationsAction.isPending(entity.id);
+      }
+      if (entity.type === 'channel_thread') {
+        return channelThreadNotificationsAction.isPending(entity.id);
+      }
+      return false;
+    });
+
+    if (
+      allAreChannelNotificationEntities &&
+      !channelNotificationsAction.isLoading() &&
+      !hasPendingNotificationAction
+    ) {
+      const allMuted = entities.every((entity) =>
+        entity.type === 'channel'
+          ? !channelNotificationsAction.isEnabled(entity.id)
+          : !channelThreadNotificationsAction.isEnabled(entity.id)
+      );
+      const shouldEnable = allMuted;
+
+      notificationItems.push({
+        id: 'toggle-notifications',
+        label: shouldEnable ? 'Unmute notifications' : 'Mute notifications',
+        onClick: async () => {
+          const results = await Promise.all(
+            entities.map((entity) => {
+              const action =
+                entity.type === 'channel'
+                  ? channelNotificationsAction
+                  : channelThreadNotificationsAction;
+              return action.execute(entity.id, shouldEnable, { silent: true });
+            })
+          );
+          const succeeded = results.filter(Boolean).length;
+
+          if (succeeded === results.length) {
+            toast.success(
+              shouldEnable ? 'Notifications unmuted' : 'Notifications muted'
+            );
+          } else if (succeeded === 0) {
+            toast.failure(
+              shouldEnable
+                ? 'Failed to unmute notifications'
+                : 'Failed to mute notifications'
+            );
+          } else {
+            toast.failure(
+              `${shouldEnable ? 'Unmuted' : 'Muted'} notifications for ${succeeded} of ${results.length} items`
+            );
+          }
+        },
+      });
+    }
+
     // Sender group: Sender → Signal, Sender → Noise, Block Sender
     const senderItems: SoupEntityActionItem[] = [];
 
@@ -426,7 +502,14 @@ export function createSoupEntityActions(): {
       });
     }
 
-    return [topItems, middleItems, senderItems, crmItems, deleteItems]
+    return [
+      topItems,
+      middleItems,
+      notificationItems,
+      senderItems,
+      crmItems,
+      deleteItems,
+    ]
       .filter((items) => items.length > 0)
       .map((items) => ({ items }));
   };
