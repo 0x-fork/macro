@@ -23,14 +23,19 @@ import {
   ENABLE_SNIPPETS_OVERRIDE,
   LOCAL_ONLY,
 } from '@core/constant/featureFlags';
+import { IS_MAC } from '@core/constant/isMac';
 import {
   type SettingsTab,
   useSettingsState,
 } from '@core/constant/SettingsState';
 import { registerHotkey } from '@core/hotkey/hotkeys';
-import { setActiveScope } from '@core/hotkey/state';
+import { hotkeyScopeTree, setActiveScope } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
-import type { ValidHotkey } from '@core/hotkey/types';
+import type {
+  HotkeyCommand,
+  KeypressContext,
+  ValidHotkey,
+} from '@core/hotkey/types';
 import {
   handleFolderSelect,
   openFilePicker,
@@ -75,6 +80,62 @@ const COMMAND_MENU_CATEGORY_HOTKEYS: Array<{
   { category: 'dms', hotkey: 'p', label: 'People' },
 ];
 
+// Walks the live scope tree exactly like the hotkey dispatcher does.
+// getActiveCommandByToken is not used here because activeScopeBranch can be
+// stale when parent pointers were repaired after scope activation.
+function findSplitCloseCommand(
+  scopeId: string | null,
+  combo: ValidHotkey
+): HotkeyCommand | undefined {
+  let node = scopeId ? hotkeyScopeTree.get(scopeId) : undefined;
+  while (node) {
+    const command = node.hotkeyCommands
+      .get(combo)
+      ?.find((c) => c.hotkeyToken === TOKENS.split.close);
+    if (command) return command;
+    node = node.parentScopeId
+      ? hotkeyScopeTree.get(node.parentScopeId)
+      : undefined;
+  }
+  return undefined;
+}
+
+function trackSplitCloseAttempt(
+  analytics: ReturnType<typeof useAnalytics>,
+  context: KeypressContext
+): void {
+  const event = context.event;
+  if (context.eventType !== 'keydown' || event.repeat) return;
+  if (event.key !== 'Escape') return;
+
+  const cmd = IS_MAC ? event.metaKey : event.ctrlKey;
+  const opt = event.altKey;
+  const exactlyOneModifier = cmd !== opt;
+  const otherModifiers =
+    event.shiftKey || (IS_MAC ? event.ctrlKey : event.metaKey);
+  if (!exactlyOneModifier || otherModifiers) return;
+
+  const combo: ValidHotkey = cmd ? 'cmd+escape' : 'opt+escape';
+  const executed = context.commandCaptured?.hotkeyToken === TOKENS.split.close;
+  const command = executed
+    ? undefined
+    : findSplitCloseCommand(context.activeScopeId, combo);
+
+  analytics.track('split_close_hotkey_attempt', {
+    combo,
+    pressedKeys: context.pressedKeysString,
+    executed,
+    capturedToken: context.commandCaptured?.hotkeyToken ?? null,
+    commandInScope: executed || !!command,
+    blockedByCondition:
+      !executed && !!command?.condition && !command.condition(),
+    scope: context.activeScopeId,
+    isEditableFocused: context.isEditableFocused,
+    isMac: IS_MAC,
+    platform: navigator.platform,
+  });
+}
+
 function useHotkeyAnalytics(): void {
   const analytics = useAnalytics();
 
@@ -94,6 +155,8 @@ function useHotkeyAnalytics(): void {
 
   let lastFired: string | undefined;
   useSubscribeToKeypress((context) => {
+    trackSplitCloseAttempt(analytics, context);
+
     // Only track when a command was actually executed
     if (!context.commandCaptured) return;
 

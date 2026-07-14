@@ -76,6 +76,23 @@ export type AppEvents = {
   command_menu_use: { itemType: string };
   create_menu_open: { from: string };
   hotkey_use: Record<string, unknown>;
+  /**
+   * Fired on every observed cmd+escape / opt+escape keydown, whether or not
+   * the split-close command ran, so failure rates can be measured per user.
+   * Presses swallowed by the OS never reach the app and are not counted.
+   */
+  split_close_hotkey_attempt: {
+    combo: 'cmd+escape' | 'opt+escape';
+    pressedKeys: string;
+    executed: boolean;
+    capturedToken: string | null;
+    commandInScope: boolean;
+    blockedByCondition: boolean;
+    scope: string | null;
+    isEditableFocused: boolean;
+    isMac: boolean;
+    platform: string;
+  };
   preview_panel_use: Record<string, unknown>;
   mentions_menu_use: { itemType: string };
   snippets_menu_use: Record<string, unknown>;
