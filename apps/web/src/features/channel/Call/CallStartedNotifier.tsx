@@ -23,6 +23,12 @@ type CallEndedPayload = {
   call_id?: string;
 };
 
+type CallAnsweredPayload = {
+  channel_id?: string;
+  call_id?: string;
+  user_id?: string | null;
+};
+
 const RING_VOLUME = 0.11;
 const RING_NOTE_DURATION_S = 0.09;
 const RING_NOTE_GAP_S = 0.075;
@@ -44,9 +50,19 @@ type Ringer = { stop: () => void };
 
 const activeCallRingers = new Map<string, Ringer>();
 
+// Incoming-call notification handles by call id, so the toast can be closed
+// when the ring resolves remotely (answered on another device). Best-effort:
+// the Tauri notification handle's close() is currently a no-op.
+const activeCallNotifications = new Map<string, { close: () => void }>();
+
 export function stopCallRinger(callId: string) {
   activeCallRingers.get(callId)?.stop();
   activeCallRingers.delete(callId);
+}
+
+function closeCallNotification(callId: string) {
+  activeCallNotifications.get(callId)?.close();
+  activeCallNotifications.delete(callId);
 }
 
 function startCallRinger(
@@ -195,6 +211,11 @@ function parsePayload(raw: unknown): CallStartedPayload | null {
  * Listens for `call_started` websocket events broadcast to channel members
  * and surfaces a browser notification + ring tone for the recipients.
  *
+ * Also resolves the ring remotely: `call_answered` (sent to just this user
+ * when they join the call on any device, e.g. answering on iPhone) and
+ * `call_ended` both stop the ring; `call_answered` additionally closes the
+ * incoming-call notification since the user is already in the call.
+ *
  * Mount once near the app root, inside `<CallProvider>` and
  * `<ChannelsContextProvider>`. The backend already excludes the caller from
  * the broadcast (`call_service::send_call_event` filters on
@@ -221,6 +242,18 @@ export function CallStartedNotifier() {
       stopCallRinger(callId);
       setActiveCallEndedCache({ channelId, callId });
       void invalidateActiveCallQueries();
+      return;
+    }
+
+    if (data.type === 'call_answered') {
+      const { call_id: callId, user_id: answeredBy } =
+        payload as CallAnsweredPayload;
+      if (!callId) return;
+      // Sent only to the answering user's connections, but guard anyway.
+      if (answeredBy && answeredBy !== userId()) return;
+
+      stopCallRinger(callId);
+      closeCallNotification(callId);
       return;
     }
 
@@ -295,13 +328,22 @@ async function emitCallStartedNotification(args: {
 
   if (handle === 'not-granted' || handle === 'disabled-in-ui') return;
 
+  activeCallNotifications.set(callId, handle);
+
+  const untrack = () => {
+    if (activeCallNotifications.get(callId) === handle) {
+      activeCallNotifications.delete(callId);
+    }
+  };
   handle.onClick(() => {
     window.focus();
     void joinChannelCall(channelId);
     handle.close();
+    untrack();
     ringer.stop();
   });
   handle.onDismiss(() => {
+    untrack();
     ringer.stop();
   });
 }

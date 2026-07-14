@@ -294,6 +294,33 @@ impl<
             .await
             .inspect_err(|e| tracing::error!(error=?e, message_type, "failed to send call participant event"));
     }
+
+    /// Notify a user's own connections that they answered a call (best-effort).
+    ///
+    /// Unlike [`Self::send_call_event`], this targets only the answering
+    /// user, across all their connected clients, so devices still showing
+    /// the incoming-call UI can dismiss it when the call is answered
+    /// elsewhere (e.g. stop the desktop ring after an iPhone pickup).
+    async fn send_call_answered_event(
+        &self,
+        channel_id: &Uuid,
+        call_id: &Uuid,
+        user_id: MacroUserIdStr<'_>,
+    ) {
+        let _ = self
+            .connection_service
+            .send_channel_message(
+                &[user_id.copied()],
+                "call_answered",
+                serde_json::json!({
+                    "channel_id": channel_id,
+                    "call_id": call_id,
+                    "user_id": user_id,
+                }),
+            )
+            .await
+            .inspect_err(|e| tracing::error!(error=?e, "failed to send call answered event"));
+    }
 }
 
 /// Decide the per-user ring status from the room's active call (if any),
@@ -685,6 +712,11 @@ impl<
             }
         }
 
+        // Tell the user's other devices the call was answered here so they
+        // can stop showing the incoming-call UI (best-effort).
+        self.send_call_answered_event(channel_id, &call.id, user_id.copied())
+            .await;
+
         // Always generate a fresh token (supports reconnection from different devices).
         let token = self
             .rtc_client
@@ -863,6 +895,16 @@ impl<
                             participant = participant_identity.as_ref(),
                             "reconciled participant_joined via webhook"
                         );
+                        // Native answers (e.g. iPhone CallKit pickup) connect
+                        // straight to LiveKit without hitting the join API, so
+                        // this webhook is where the user's other devices learn
+                        // the ring was answered (best-effort).
+                        self.send_call_answered_event(
+                            &call.channel_id,
+                            &call.id,
+                            participant_identity.copied(),
+                        )
+                        .await;
                     }
                     Err(AddParticipantError::UserAlreadyActive) => {
                         tracing::warn!(

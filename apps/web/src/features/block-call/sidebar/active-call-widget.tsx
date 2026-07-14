@@ -44,6 +44,12 @@ type CallEndedPayload = {
   call_id?: string;
 };
 
+type CallAnsweredPayload = {
+  channel_id?: string;
+  call_id?: string;
+  user_id?: string | null;
+};
+
 function displayName(channel: ApiChannelWithLatest | undefined) {
   if (!channel) return 'Channel';
   if (channel.channel_type === ChannelTypeEnum.DirectMessage) {
@@ -250,6 +256,17 @@ export function SidebarActiveCallWidget(props: {
       const { channel_id: channelId, call_id: callId } =
         payload as CallEndedPayload;
       if (!channelId || !callId) return;
+
+      dismissIncomingCall(callId);
+      return;
+    }
+
+    if (data.type === 'call_answered') {
+      const { call_id: callId, user_id: answeredBy } =
+        payload as CallAnsweredPayload;
+      if (!callId) return;
+      // Sent only to the answering user's connections, but guard anyway.
+      if (answeredBy && answeredBy !== userId()) return;
 
       dismissIncomingCall(callId);
       return;
