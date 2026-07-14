@@ -24,10 +24,48 @@ let previousSidebarState: SidebarState | undefined;
 /** Whether the Tauri window was already native-fullscreen before entering. */
 let previousNativeFullscreen = false;
 
+/**
+ * Chromium can stop painting after an element-fullscreen transition: the
+ * screen goes solid white/black while the DOM stays fully interactive, and
+ * any compositor invalidation (e.g. opening devtools) instantly brings the
+ * page back. Force that invalidation ourselves — rebuild the root compositing
+ * layer and re-notify layout listeners — a few times while the fullscreen
+ * transition settles.
+ */
+let repaintKickTimeouts: number[] = [];
+
+function kickCompositor() {
+  const el = document.documentElement;
+  el.style.transform = 'translateZ(0)';
+  // Force a synchronous reflow so the transform takes effect this frame.
+  void el.offsetHeight;
+  requestAnimationFrame(() => {
+    el.style.transform = '';
+    window.dispatchEvent(new UIEvent('resize'));
+  });
+}
+
+function scheduleRepaintKicks() {
+  clearRepaintKicks();
+  repaintKickTimeouts = [0, 400, 1000, 2000].map((ms) =>
+    window.setTimeout(kickCompositor, ms)
+  );
+}
+
+function clearRepaintKicks() {
+  for (const id of repaintKickTimeouts) window.clearTimeout(id);
+  repaintKickTimeouts = [];
+}
+
 // Leaving fullscreen by any means (Esc, browser UI) also leaves focus mode so
 // the app chrome never stays hidden outside the fullscreen writing surface.
+// Entering fullscreen schedules the anti-white-screen repaint kicks.
 function handleFullscreenChange() {
-  if (!document.fullscreenElement) setFocusMode(false);
+  if (!document.fullscreenElement) {
+    setFocusMode(false);
+    return;
+  }
+  scheduleRepaintKicks();
 }
 
 // Focus mode strips every chrome control, so Esc must always be able to get
@@ -94,6 +132,7 @@ export function setFocusMode(enabled: boolean) {
     document.addEventListener('keydown', handleEscapeFallback);
     void enterFullscreen();
   } else {
+    clearRepaintKicks();
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
     document.removeEventListener('keydown', handleEscapeFallback);
     if (previousSidebarState !== undefined) {
