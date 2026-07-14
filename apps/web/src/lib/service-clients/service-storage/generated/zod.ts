@@ -1064,6 +1064,14 @@ export const getCallRecordResponse = zod
           .describe('A transcript segment as returned in a [`CallRecord`].')
       )
       .describe('Transcript segments ordered by `sequence_num`.'),
+    userAccessLevel: zod
+      .union([
+        zod.null(),
+        zod
+          .enum(['view', 'comment', 'edit', 'owner'])
+          .describe('Ordered from least to most access top -> bottom'),
+      ])
+      .optional(),
   })
   .describe(
     'Full record of a call, unifying rows from `calls` (active) and\n`call_records` (archived) into a single response shape.'
@@ -1536,6 +1544,13 @@ export const getOrCreatePrivateResponse = zod
   .describe('Response for get-or-create channel operations.');
 
 /**
+ * @summary Handler for `POST /channels/join/{join_code}`.
+ */
+export const joinChannelByCodeParams = zod.object({
+  join_code: zod.uuid().describe('Channel join code'),
+});
+
+/**
  * @summary Handler for `POST /channels/mentions`.
  */
 export const createEntityMentionBody = zod
@@ -1963,6 +1978,19 @@ export const createChannelScopedBotBody = zod
 export const joinChannelParams = zod.object({
   channel_id: zod.uuid().describe('Channel ID'),
 });
+
+/**
+ * @summary Handler for `GET /channels/{channel_id}/join-link`.
+ */
+export const getChannelJoinLinkParams = zod.object({
+  channel_id: zod.uuid().describe('Channel ID'),
+});
+
+export const getChannelJoinLinkResponse = zod
+  .object({
+    join_code: zod.uuid().describe('Reusable code for joining the channel.'),
+  })
+  .describe("Response containing a channel's reusable join code.");
 
 /**
  * @summary Handler for `POST /channels/{channel_id}/leave`.

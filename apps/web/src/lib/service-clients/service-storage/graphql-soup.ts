@@ -72,7 +72,7 @@ const graphqlSoupClient = createClient({
  * Browser: wasm engine in a worker. Tauri: native engine in the host
  * process (graphql_cache_plugin).
  */
-function graphqlCacheEnabled(): boolean {
+export function graphqlCacheEnabled(): boolean {
   return ENABLE_GRAPHQL_SOUP();
 }
 
@@ -135,6 +135,10 @@ type GraphqlSoupChannelMessage = NonNullable<
     { __typename: 'GraphqlSoupChannel' }
   >['latestMessage']
 >;
+type GraphqlSoupNotification = Extract<
+  GraphqlSoupEntity,
+  { __typename: 'GraphqlSoupDocument' }
+>['notifications'][number];
 
 function mapGraphqlPropertyValue(
   value: GraphqlPropertyValue | null | undefined
@@ -235,6 +239,29 @@ function normalizeChannelType(channelType: string) {
   return channelType.toLowerCase();
 }
 
+function mapGraphqlNotificationEntityType(
+  entityType: GraphqlSoupNotification['entityType']
+) {
+  return entityType.toLowerCase();
+}
+
+function mapGraphqlNotifications(notifications: GraphqlSoupNotification[]) {
+  return notifications.map((notification) => ({
+    id: notification.id,
+    notification_event_type: notification.eventType,
+    notification_metadata: notification.metadata,
+    entity_id: notification.entityId,
+    entity_type: mapGraphqlNotificationEntityType(notification.entityType),
+    sent: notification.sent,
+    done: notification.done,
+    seen: notification.seen,
+    created_at: notification.createdAt,
+    viewed_at: notification.viewedAt ?? undefined,
+    updated_at: notification.updatedAt,
+    sender_id: notification.senderId ?? undefined,
+  }));
+}
+
 function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
   const frecency = item.frecencyScore;
   // `is_favorited: false` below: the GraphQL soup surface has no favorites
@@ -262,6 +289,7 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
             documentVersionId: 0,
             properties: mapGraphqlProperties(entity.properties),
             subType: mapDocumentSubType(entity.subType),
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -283,6 +311,7 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
             viewedAt: entity.viewedAt ?? undefined,
             deletedAt: entity.deletedAt ?? undefined,
             properties: mapGraphqlProperties(entity.properties),
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -303,6 +332,7 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
             viewedAt: entity.viewedAt ?? undefined,
             deletedAt: entity.deletedAt ?? undefined,
             properties: mapGraphqlProperties(entity.properties),
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -360,6 +390,7 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
               type: label.type,
             })),
             properties: mapGraphqlProperties(entity.properties),
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -394,6 +425,7 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
             latest_non_thread_message: mapChannelMessage(
               entity.latestNonThreadMessage
             ),
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -422,6 +454,7 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
               reply_count: entity.replyCount,
             },
             updated_at: entity.updatedAt,
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -450,6 +483,8 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
               joinedAt: participant.joinedAt,
               leftAt: participant.leftAt ?? undefined,
             })),
+            properties: mapGraphqlProperties(entity.properties),
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -477,6 +512,7 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
               createdAt: entity.createdAt,
             })),
             properties: mapGraphqlProperties(entity.properties),
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
@@ -496,11 +532,18 @@ function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
             metadata: entity.metadata,
             createdAt: entity.createdAt,
             updatedAt: entity.updatedAt,
+            notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem
     )
     .exhaustive();
 }
+
+export type FetchGraphqlSoupOptions = {
+  signal?: AbortSignal;
+  /** Defaults to true for normal foreground Soup reads. */
+  allowOfflineFallback?: boolean;
+};
 
 /**
  * Maps a GraphQL soup response to the REST `SoupPage` shape consumed by
@@ -515,7 +558,8 @@ export function mapGraphqlSoupPage(data: SoupQuery): SoupPage {
 }
 
 export async function fetchGraphqlSoup(
-  input: GraphqlSoupInput
+  input: GraphqlSoupInput,
+  options: FetchGraphqlSoupOptions = {}
 ): Promise<SoupPage> {
   const client = getGraphqlSoupClient();
   const useCache = graphqlCacheEnabled();
@@ -528,13 +572,20 @@ export async function fetchGraphqlSoup(
     .query<SoupQuery, SoupQueryVariables>(
       SoupQueryDocument,
       { input },
-      useCache ? { requestPolicy: 'cache-and-network' } : {}
+      {
+        ...(useCache ? { requestPolicy: 'cache-and-network' as const } : {}),
+        ...(options.signal ? { fetchOptions: { signal: options.signal } } : {}),
+      }
     )
     .toPromise();
 
   if (result.error) {
     // Offline replay: a network failure falls back to the last cached page.
-    if (useCache && result.error.networkError) {
+    if (
+      options.allowOfflineFallback !== false &&
+      useCache &&
+      result.error.networkError
+    ) {
       const cached = await client
         .query<SoupQuery, SoupQueryVariables>(
           SoupQueryDocument,

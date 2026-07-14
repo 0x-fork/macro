@@ -138,7 +138,9 @@ fn pending_content_for_file_type(file_type: Option<FileType>) -> DocumentContent
 fn event_actor_user_id(auth: &EntityAccessAuth) -> Option<MacroUserIdStr<'static>> {
     match auth {
         EntityAccessAuth::Authenticated(user_id) => Some(user_id.clone()),
-        EntityAccessAuth::Unauthenticated | EntityAccessAuth::Internal => None,
+        EntityAccessAuth::Bot(_)
+        | EntityAccessAuth::Unauthenticated
+        | EntityAccessAuth::Internal => None,
     }
 }
 
@@ -519,14 +521,10 @@ impl<
     }
 
     /// Publish a document lifecycle event; failures are logged and dropped.
-    async fn publish_document_event(&self, event: &DocumentMacroEvent) {
-        let _ = self
-            .macro_event_broker
-            .send_event(event)
-            .await
-            .inspect_err(|e| {
-                tracing::error!(error=?e, "failed to publish document event");
-            });
+    fn publish_document_event(&self, event: &DocumentMacroEvent) {
+        let _ = self.macro_event_broker.send_event(event).inspect_err(|e| {
+            tracing::error!(error=?e, "failed to publish document event");
+        });
     }
 }
 
@@ -625,7 +623,9 @@ impl<
                 .get_user_view_location(user_id.as_ref(), &document_id)
                 .await
                 .map_err(|e| DocumentError::Internal(e.into()))?,
-            EntityAccessAuth::Unauthenticated | EntityAccessAuth::Internal => None,
+            EntityAccessAuth::Bot(_)
+            | EntityAccessAuth::Unauthenticated
+            | EntityAccessAuth::Internal => None,
         };
 
         let access_level = match entity_access_receipt.entity_permission() {
@@ -762,8 +762,7 @@ impl<
                 actor_user_id: event_actor_user_id(entity_access_receipt.auth()),
                 project_id,
             },
-        ))
-        .await;
+        ));
 
         Ok(())
     }
@@ -853,9 +852,9 @@ impl<
                     context.team_task_id,
                 )
             }
-            EntityAccessAuth::Unauthenticated | EntityAccessAuth::Internal => {
-                ("macro".to_string(), None, None)
-            }
+            EntityAccessAuth::Bot(_)
+            | EntityAccessAuth::Unauthenticated
+            | EntityAccessAuth::Internal => ("macro".to_string(), None, None),
         };
 
         let branch_name = build_task_branch_name(
@@ -910,6 +909,7 @@ impl<
                 source_ids.extend(team_ids.into_iter().map(SourceId::team));
                 Some(source_ids)
             }
+            EntityAccessAuth::Bot(_) => Some(Vec::new()),
             EntityAccessAuth::Unauthenticated => Some(Vec::new()),
             EntityAccessAuth::Internal => None,
         };
@@ -1080,8 +1080,7 @@ impl<
                 sub_type: document_metadata.sub_type,
                 created_at: document_metadata.created_at,
             },
-        ))
-        .await;
+        ));
 
         Ok(CreateDocumentResponseData {
             document_response: DocumentResponse {
@@ -1247,8 +1246,7 @@ impl<
                 file_type: args.file_type,
                 share_permission_updated,
             },
-        ))
-        .await;
+        ));
 
         Ok(())
     }
@@ -1504,8 +1502,7 @@ impl<
                 project_id: new_metadata.project_id.clone(),
                 sub_type: new_metadata.sub_type,
             },
-        ))
-        .await;
+        ));
 
         Ok(DocumentResponse {
             document_metadata: DocumentResponseMetadataWithContent::new(
