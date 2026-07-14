@@ -33,7 +33,8 @@ export function setFocusMode(enabled: boolean) {
 
   if (enabled) {
     previousSidebarState = sidebarState();
-    if (previousSidebarState === 'expanded') setSidebarState('slim');
+    // Fully hidden (not slim) — no hover-reveal rail while writing.
+    setSidebarState('hidden');
     setAllSidePanelsOpen(false);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     if (!document.fullscreenElement) {

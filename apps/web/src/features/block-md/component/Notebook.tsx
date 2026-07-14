@@ -31,8 +31,10 @@ import {
 import { tempRedirectLocation } from '@core/signal/location';
 import { useBlockDocumentName } from '@core/util/currentBlockDocumentName';
 import type { LoroManager } from '@macro-inc/collaboration/collab/manager';
+import CornersOutIcon from '@phosphor/corners-out.svg';
 import { makeResizeObserver } from '@solid-primitives/resize-observer';
 import { makePersisted } from '@solid-primitives/storage';
+import { Button } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -47,6 +49,7 @@ import { HistoryOverlay } from '../history/HistoryOverlay';
 import { isFocusMode, setFocusMode } from '../signal/focusMode';
 import { DispatchAgentButton } from './DispatchAgentMenu';
 import { DocumentDiscussion } from './DocumentDiscussion';
+import { FocusCaret } from './FocusCaret';
 import { InlineTaskGithubPullRequests } from './InlineTaskGithubPullRequests';
 import { InlineTaskProperties } from './InlineTaskProperties';
 import { InstructionsEditor } from './InstructionsEditor';
@@ -316,7 +319,14 @@ export function Notebook(props: {
   });
 
   return (
-    <div class={containerClasses()} ref={notebookRef}>
+    <div
+      class={containerClasses()}
+      ref={notebookRef}
+      classList={{ 'writer-focus': isFocusMode() }}
+    >
+      <Show when={isFocusMode()}>
+        <FocusCaret />
+      </Show>
       <div
         class={contentDivClasses()}
         ref={contentRef}
@@ -337,17 +347,24 @@ export function Notebook(props: {
                 fileType: 'md',
               }}
             />
+            <Show when={!isMobile()}>
+              <FocusModeButton />
+            </Show>
             <Show when={blockAliasedName === 'task' && !isMobile()}>
               <DispatchAgentButton showPrimaryLabel />
             </Show>
           </div>
         </SidePanel.Section>
-        <TitleEditor autoFocusOnMount={!navigatedFromJK()} />
-        <div class="spacer h-3" />
-        <div class="mb-6 flex flex-row flex-wrap items-center gap-2 text-sm empty:hidden">
-          <InlineTaskProperties />
-          <InlineTaskGithubPullRequests />
-          <TaskDuplicateMatchPill />
+        {/* Focus mode shows only the body text; keep the title mounted so its
+            editor registrations survive toggling in and out. */}
+        <div classList={{ hidden: isFocusMode() }}>
+          <TitleEditor autoFocusOnMount={!navigatedFromJK()} />
+          <div class="spacer h-3" />
+          <div class="mb-6 flex flex-row flex-wrap items-center gap-2 text-sm empty:hidden">
+            <InlineTaskProperties />
+            <InlineTaskGithubPullRequests />
+            <TaskDuplicateMatchPill />
+          </div>
         </div>
         <ParamsProvider>
           {/* Relative wrapper so the history overlay covers only the body region,
@@ -397,6 +414,23 @@ export function Notebook(props: {
         <CommentMargin />
       </div>
     </div>
+  );
+}
+
+/** Enters writer (focus) mode. Styled to sit beside the Ask Macro button. */
+function FocusModeButton() {
+  return (
+    <Button
+      onClick={() => setFocusMode(!isFocusMode())}
+      variant="ghost"
+      size="sm"
+      depth={2}
+      class="gap-1.5 rounded-full px-2 ring ring-edge-muted"
+      tooltip="Write fullscreen without distractions — hides the sidebars, discussion, and comments."
+    >
+      <CornersOutIcon class="size-4" />
+      <span class="text-xs font-medium">Focus mode</span>
+    </Button>
   );
 }
 

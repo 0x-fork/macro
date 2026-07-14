@@ -35,6 +35,7 @@ import {
 import type { MarkdownData } from '../definition';
 import { HistoryProvider } from '../history/HistoryContext';
 import { OldOverlay } from '../history/OldOverlay';
+import { isFocusMode } from '../signal/focusMode';
 import { blockDataSignal, mdStore } from '../signal/markdownBlockData';
 import { FindAndReplace } from './FindAndReplace';
 import { MarkdownNameProvider, useMarkdownName } from './MarkdownNameProvider';
@@ -186,23 +187,25 @@ function BlockMarkdownContent({ optimisticSnapshot }: BlockMarkdownProps) {
                 />
               </Show>
               <div class="flex flex-col size-full">
-                <div class="relative shrink-0">
-                  <Suspense>
-                    <Show
-                      when={!isInstructionsMd()}
-                      fallback={<InstructionsTopBar />}
-                    >
-                      <TopBar name={displayName} />
-                    </Show>
-                  </Suspense>
-                  <Suspense>
-                    <Show when={!isInstructionsMd()}>
-                      <div class="absolute right-4 top-1.5 z-action-menu flex justify-end">
-                        <FindAndReplace />
-                      </div>
-                    </Show>
-                  </Suspense>
-                </div>
+                <Show when={!isFocusMode()}>
+                  <div class="relative shrink-0">
+                    <Suspense>
+                      <Show
+                        when={!isInstructionsMd()}
+                        fallback={<InstructionsTopBar />}
+                      >
+                        <TopBar name={displayName} />
+                      </Show>
+                    </Suspense>
+                    <Suspense>
+                      <Show when={!isInstructionsMd()}>
+                        <div class="absolute right-4 top-1.5 z-action-menu flex justify-end">
+                          <FindAndReplace />
+                        </div>
+                      </Show>
+                    </Suspense>
+                  </div>
+                </Show>
                 <DocumentDebouncedNotificationReadMarker
                   notificationSource={notificationSource}
                   documentId={blockId}
@@ -228,6 +231,12 @@ function BlockMarkdownContent({ optimisticSnapshot }: BlockMarkdownProps) {
                       </Suspense>
                     </div>
                   </Scroll>
+                  {/* Writer mode vignette: fade the text out toward the top
+                      and bottom edges of the screen, iA-Writer style. */}
+                  <Show when={isFocusMode()}>
+                    <div class="pointer-events-none absolute inset-x-0 top-0 h-[18vh] bg-linear-to-b from-surface to-transparent" />
+                    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-[18vh] bg-linear-to-t from-surface to-transparent" />
+                  </Show>
                 </div>
               </div>
             </SidePanel.Layout>
