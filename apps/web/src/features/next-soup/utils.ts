@@ -371,6 +371,7 @@ export function getChannelEntityTarget(
         : undefined
       : undefined;
 
+  // For channels, we fallback to the latest channel message
   const fallback =
     entity.type === 'channel'
       ? latestChannelMessage
@@ -385,6 +386,10 @@ export function getChannelEntityTarget(
   for (const notification of scoped) {
     const { messageId, threadId } = getChannelNotificationParams(notification);
 
+    // If the latest channel message doesn't have any notifications, we'll skip
+    // going to the notification and fallback to the latest message directly
+    // after this loop. We do this because the inbox view shows the latest root
+    // message for the channel items
     if (
       entity.type === 'channel' &&
       latestChannelMessage?.messageId !== messageId
