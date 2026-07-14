@@ -182,6 +182,7 @@ import {
   Suspense,
   untrack,
 } from 'solid-js';
+import { isFocusMode } from '../signal/focusMode';
 import {
   completionSignal,
   generateContentCallback,
@@ -979,6 +980,7 @@ export function MarkdownEditor(props: {
             });
           }}
           contentEditable={isContentEditable()}
+          spellcheck={!isFocusMode()}
           class="ph-no-capture w-full max-w-full min-h-52"
           classList={{
             'select-auto': !canEdit(),

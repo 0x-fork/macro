@@ -48,7 +48,7 @@ import {
 import type { EntityType as PropertiesEntityType } from '@service-properties/generated/schemas/entityType';
 import { blockNameToItemType } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
-import { cn, InlineCheckbox } from '@ui';
+import { cn, InlineCheckbox, ToggleSwitch } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -60,6 +60,7 @@ import {
 import { useHistory } from '../../history/HistoryContext';
 import { HistoryScrubber } from '../../history/HistoryScrubber';
 import { HistorySessionList } from '../../history/HistorySessionList';
+import { isFocusMode, setFocusMode } from '../../signal/focusMode';
 import { mdStore } from '../../signal/markdownBlockData';
 import { TaskDuplicateMatchesSidePanelSection } from '../TaskDuplicateMatches';
 
@@ -88,6 +89,14 @@ export function MarkdownSidePanelSections(
 
   return (
     <>
+      <SidePanel.Section
+        id="writer-mode"
+        title="Writer Mode"
+        defaultOpen
+        order={5}
+      >
+        <WriterModeSectionContent />
+      </SidePanel.Section>
       <SidePanel.Section id="details" title="Details" defaultOpen order={10}>
         <DetailsSectionContent />
       </SidePanel.Section>
@@ -193,6 +202,27 @@ function HistorySectionContent() {
         </div>
       )}
     </Show>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Writer Mode Section
+// ─────────────────────────────────────────────────────────────────────────────
+
+function WriterModeSectionContent() {
+  return (
+    <div class="flex flex-col gap-2 text-xs">
+      <ToggleSwitch
+        checked={isFocusMode()}
+        onChange={setFocusMode}
+        label="Focus mode"
+        labelClass="text-xs select-none"
+      />
+      <p class="text-ink-muted leading-5">
+        Write fullscreen without distractions — hides the sidebars, discussion,
+        and comments.
+      </p>
+    </div>
   );
 }
 

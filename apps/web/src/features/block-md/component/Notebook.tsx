@@ -44,6 +44,7 @@ import {
 } from 'solid-js';
 import { useHistory } from '../history/HistoryContext';
 import { HistoryOverlay } from '../history/HistoryOverlay';
+import { isFocusMode, setFocusMode } from '../signal/focusMode';
 import { DispatchAgentButton } from './DispatchAgentMenu';
 import { DocumentDiscussion } from './DocumentDiscussion';
 import { InlineTaskGithubPullRequests } from './InlineTaskGithubPullRequests';
@@ -131,7 +132,8 @@ export function Notebook(props: {
     if (!ENABLE_MARKDOWN_COMMENTS) return false;
     return Object.keys(comments).length > 0;
   });
-  const showComments = () => hasComment() && !history.isOpen();
+  const showComments = () =>
+    hasComment() && !history.isOpen() && !isFocusMode();
 
   const currentEditorState = () => {
     const editor = md.editor;
@@ -147,6 +149,8 @@ export function Notebook(props: {
     });
     onCleanup(() => {
       setStore({ notebook: undefined, commentMargin: undefined });
+      // Restore the app chrome if the document unmounts mid focus session.
+      setFocusMode(false);
     });
 
     const observeCallback = () => {
@@ -267,7 +271,11 @@ export function Notebook(props: {
 
   const contentDivClasses = createMemo(() => {
     const mode = layoutMode();
-    const shared = 'grow max-w-3xl pt-12 mobile:pt-6 min-w-0';
+    // Focus (writer) mode bumps the body type like iA Writer; markdown node
+    // sizes are em-based so headings and lists scale with it.
+    const shared = `grow max-w-3xl pt-12 mobile:pt-6 min-w-0${
+      isFocusMode() ? ' text-xl leading-relaxed' : ''
+    }`;
     switch (mode) {
       case CommentLayoutMode.lg:
         return `${shared} mx-auto`;
@@ -364,7 +372,7 @@ export function Notebook(props: {
               />
             </Show>
           </div>
-          <Show when={!history.isOpen()}>
+          <Show when={!history.isOpen() && !isFocusMode()}>
             <DocumentDiscussion />
           </Show>
         </ParamsProvider>

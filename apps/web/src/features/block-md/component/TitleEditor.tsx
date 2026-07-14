@@ -42,6 +42,7 @@ import {
   Show,
   untrack,
 } from 'solid-js';
+import { isFocusMode } from '../signal/focusMode';
 import { blockDataSignal, mdStore } from '../signal/markdownBlockData';
 import { useRenameMarkdownDocument } from '../signal/save';
 import { useMarkdownName } from './MarkdownNameProvider';
@@ -322,6 +323,7 @@ export function TitleEditor(props: { autoFocusOnMount?: boolean } = {}) {
     <div class="relative">
       <div
         contentEditable={canEdit() ?? false}
+        spellcheck={!isFocusMode()}
         class="ph-no-capture text-2xl font-semibold"
         classList={{
           'select-auto': !canEdit(),
