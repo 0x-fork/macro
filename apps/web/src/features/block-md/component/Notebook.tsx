@@ -259,7 +259,11 @@ export function Notebook(props: {
 
   const containerClasses = createMemo(() => {
     const mode = layoutMode();
-    const shared = 'flex relative text-ink min-h-full min-w-0 isolate';
+    // writer-focus hides the native caret (see LexicalMarkdown/styles.css);
+    // FocusCaret draws the solid replacement.
+    const shared = `flex relative text-ink min-h-full min-w-0 isolate${
+      isFocusMode() ? ' writer-focus' : ''
+    }`;
     switch (mode) {
       case CommentLayoutMode.lg:
         return shared;
@@ -319,11 +323,7 @@ export function Notebook(props: {
   });
 
   return (
-    <div
-      class={containerClasses()}
-      ref={notebookRef}
-      classList={{ 'writer-focus': isFocusMode() }}
-    >
+    <div class={containerClasses()} ref={notebookRef}>
       <Show when={isFocusMode()}>
         <FocusCaret />
       </Show>

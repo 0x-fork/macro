@@ -22,11 +22,12 @@
   caret-color: currentcolor;
 }
 
-/* Writer (focus) mode hides the native blinking caret; a solid accent-colored
-   overlay caret replaces it (see block-md FocusCaret). */
-.writer-focus .md,
-.writer-focus .md * {
-  caret-color: transparent;
+/* Writer (focus) mode hides the native blinking caret entirely; a solid
+   accent-colored overlay caret replaces it (see block-md FocusCaret).
+   !important so no theme/utility caret-color rule can resurface it. */
+.writer-focus,
+.writer-focus * {
+  caret-color: transparent !important;
 }
 
 .md-p:empty {
