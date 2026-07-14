@@ -1,3 +1,4 @@
+import { ChannelsDashboard } from '@app/features/channel/dashboard/ChannelsDashboard';
 import { Home } from '@app/features/home';
 import { queryStateFrom } from '@app/features/next-soup/filters/filter-store';
 import type { SetPredicatesInput } from '@app/features/next-soup/filters/filter-store/predicates-store';
@@ -23,6 +24,7 @@ import {
   LOCAL_ONLY,
 } from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
+import { isMobile } from '@core/mobile/isMobile';
 import type { ViewId } from '@core/types/view';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
@@ -243,19 +245,39 @@ registerComponent(
   })
 );
 
+function ChannelsListView() {
+  const preset = getViewPreset('channels');
+  return (
+    <SoupView
+      viewName="Channels"
+      initialFilters={preset?.filters}
+      initialClientFilters={preset?.clientFilters}
+      initialGroupBy={preset?.groupBy}
+    />
+  );
+}
+
 registerComponent(
   'channels',
   withAuth(() => {
     usePageViewTracking('channels');
-    const preset = getViewPreset('channels');
+    // The dashboard mounts several live channels side by side, which doesn't
+    // fit a phone (and the floating mobile input regions would collide) —
+    // mobile keeps the classic list.
     return (
-      <SoupView
-        viewName="Channels"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
+      <Show when={!isMobile()} fallback={<ChannelsListView />}>
+        <ChannelsDashboard />
+      </Show>
     );
+  })
+);
+
+// The classic channels list, reachable from the dashboard's "All channels".
+registerComponent(
+  'channels-list',
+  withAuth(() => {
+    usePageViewTracking('channels-list');
+    return <ChannelsListView />;
   })
 );
 
