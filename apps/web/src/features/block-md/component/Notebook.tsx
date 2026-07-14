@@ -284,7 +284,7 @@ export function Notebook(props: {
     // the document clears the vignette.
     const shared = `grow max-w-3xl min-w-0${
       isFocusMode()
-        ? ' text-xl leading-relaxed pt-[30vh] pb-[45vh]'
+        ? ' text-xl leading-relaxed pt-[18vh] pb-[45vh]'
         : ' pt-12 mobile:pt-6'
     }`;
     switch (mode) {
