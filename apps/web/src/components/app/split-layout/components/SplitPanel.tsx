@@ -1,4 +1,5 @@
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
+import { isFocusMode } from '@app/features/block-md/signal/focusMode';
 import { createSoupState } from '@app/features/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/features/next-soup/soup-context';
 import { SoupViewContextProvider } from '@app/features/next-soup/soup-view/soup-view-context';
@@ -145,7 +146,9 @@ export function SplitPanel(props: SplitPanelProps) {
   const shouldHideSplitHeader = createMemo(
     () =>
       (isMobile() && isListViewID(props.handle.content().id)) ||
-      isSoloSettings()
+      isSoloSettings() ||
+      // Writer focus mode strips all split chrome — no nav, no islands.
+      isFocusMode()
   );
 
   const hasFocusedSplitBorder = createMemo(
@@ -233,6 +236,9 @@ export function SplitPanel(props: SplitPanelProps) {
                 {
                   'shadow-sm shadow-drop-shadow/50': !hasFocusedSplitBorder(),
                   'shadow-lg shadow-drop-shadow/70': hasFocusedSplitBorder(),
+                  // Writer focus mode: flat, borderless, edge-to-edge panel.
+                  'rounded-none shadow-none border-0! after:hidden':
+                    isFocusMode(),
                 }
               )}
               depth={isMobile() ? 0 : 1}

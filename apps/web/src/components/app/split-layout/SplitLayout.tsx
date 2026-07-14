@@ -1,3 +1,4 @@
+import { isFocusMode } from '@app/features/block-md/signal/focusMode';
 import { activeElement } from '@app/signal/focus';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
 import {
@@ -351,6 +352,8 @@ export function SplitLayoutContainer(props: SplitLayoutContainerProps) {
       <div
         class={cn('size-full p-2 mobile:p-0', {
           'pl-0': isSidebarVisible() && !sidebar.isCollapsed(),
+          // Writer focus mode: edge-to-edge, no gap around the split.
+          'p-0': isFocusMode(),
         })}
       >
         <Show

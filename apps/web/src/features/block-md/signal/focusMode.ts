@@ -26,6 +26,16 @@ function handleFullscreenChange() {
   if (!document.fullscreenElement) setFocusMode(false);
 }
 
+// Focus mode strips every chrome control, so Esc must always be able to get
+// out. When fullscreen is active the browser consumes Esc and
+// `handleFullscreenChange` exits; this fallback covers the case where the
+// fullscreen request was denied.
+function handleEscapeFallback(e: KeyboardEvent) {
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  if (document.fullscreenElement) return;
+  setFocusMode(false);
+}
+
 /** Enter or leave writer/focus mode, applying all its chrome side effects. */
 export function setFocusMode(enabled: boolean) {
   if (enabled === isFocusMode()) return;
@@ -37,6 +47,7 @@ export function setFocusMode(enabled: boolean) {
     setSidebarState('hidden');
     setAllSidePanelsOpen(false);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('keydown', handleEscapeFallback);
     if (!document.fullscreenElement) {
       // Fullscreen can be denied (no user gesture, unsupported webview) —
       // focus mode still applies its in-app changes without it.
@@ -44,6 +55,7 @@ export function setFocusMode(enabled: boolean) {
     }
   } else {
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('keydown', handleEscapeFallback);
     if (previousSidebarState !== undefined) {
       setSidebarState(previousSidebarState);
       previousSidebarState = undefined;

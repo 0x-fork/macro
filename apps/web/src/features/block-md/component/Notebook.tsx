@@ -278,10 +278,14 @@ export function Notebook(props: {
 
   const contentDivClasses = createMemo(() => {
     const mode = layoutMode();
-    // Focus (writer) mode bumps the body type like iA Writer; markdown node
-    // sizes are em-based so headings and lists scale with it.
-    const shared = `grow max-w-3xl pt-12 mobile:pt-6 min-w-0${
-      isFocusMode() ? ' text-xl leading-relaxed' : ''
+    // Focus (writer) mode bumps the body type like iA Writer (markdown node
+    // sizes are em-based so headings and lists scale with it) and adds large
+    // top/bottom overflow padding so writing never hugs the screen edges and
+    // the document clears the vignette.
+    const shared = `grow max-w-3xl min-w-0${
+      isFocusMode()
+        ? ' text-xl leading-relaxed pt-[30vh] pb-[45vh]'
+        : ' pt-12 mobile:pt-6'
     }`;
     switch (mode) {
       case CommentLayoutMode.lg:
@@ -355,16 +359,16 @@ export function Notebook(props: {
             </Show>
           </div>
         </SidePanel.Section>
-        {/* Focus mode shows only the body text; keep the title mounted so its
-            editor registrations survive toggling in and out. */}
-        <div classList={{ hidden: isFocusMode() }}>
-          <TitleEditor autoFocusOnMount={!navigatedFromJK()} />
-          <div class="spacer h-3" />
-          <div class="mb-6 flex flex-row flex-wrap items-center gap-2 text-sm empty:hidden">
-            <InlineTaskProperties />
-            <InlineTaskGithubPullRequests />
-            <TaskDuplicateMatchPill />
-          </div>
+        <TitleEditor autoFocusOnMount={!navigatedFromJK()} />
+        <div class="spacer h-3" />
+        {/* Focus mode shows just the title and text — no property pills. */}
+        <div
+          class="mb-6 flex flex-row flex-wrap items-center gap-2 text-sm empty:hidden"
+          classList={{ hidden: isFocusMode() }}
+        >
+          <InlineTaskProperties />
+          <InlineTaskGithubPullRequests />
+          <TaskDuplicateMatchPill />
         </div>
         <ParamsProvider>
           {/* Relative wrapper so the history overlay covers only the body region,
@@ -426,7 +430,7 @@ function FocusModeButton() {
       size="sm"
       depth={2}
       class="gap-1.5 rounded-full px-2 ring ring-edge-muted"
-      tooltip="Write fullscreen without distractions — hides the sidebars, discussion, and comments."
+      tooltip="Write fullscreen without distractions — hides all app chrome, discussion, and comments. Press Esc to exit."
     >
       <CornersOutIcon class="size-4" />
       <span class="text-xs font-medium">Focus mode</span>
