@@ -30,6 +30,7 @@ import {
   SidebarPromoCard,
   SidebarPromoHint,
 } from '@components/app/app-sidebar/sidebar-promo';
+import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import type {
   ReferredFrom,
@@ -71,6 +72,11 @@ import { AnimatedSearchIcon } from '@icon/wide-search';
 import { AnimatedStarIcon } from '@icon/wide-star';
 import { AnimatedTaskIcon } from '@icon/wide-task';
 import { ContextMenu } from '@kobalte/core/context-menu';
+import {
+  compositeEntity,
+  notificationEntity,
+  useUnreadNotifications,
+} from '@notifications';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CaretUpIcon from '@phosphor/caret-up.svg';
 import DotsThreeIcon from '@phosphor/dots-three.svg';
@@ -1111,7 +1117,13 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
   const renderSidebarLink = (link: SidebarItem) => (
     <Dynamic
-      component={link.id === 'mail' ? SidebarMailLink : SidebarLink}
+      component={
+        link.id === 'mail'
+          ? SidebarMailLink
+          : link.id === 'inbox'
+            ? SidebarInboxLink
+            : SidebarLink
+      }
       {...link}
       sidebarState={sidebarDisplayState()}
       hotkeyVisible={goToHotkeyVisible()}
@@ -1478,6 +1490,12 @@ interface SidebarLinkProps extends SidebarItem {
    * Email link's expand chevron.
    */
   trailingWhenActive?: JSX.Element;
+  /**
+   * Rendered at the link's right edge while the row is idle — not hovered and
+   * no "go to" leader key pending — where the hover hotkey hints appear, e.g.
+   * the Inbox link's unread count. Hidden in the slim sidebar.
+   */
+  trailingWhenIdle?: JSX.Element;
 }
 
 const SidebarLink = (props: SidebarLinkProps) => {
@@ -1616,6 +1634,19 @@ const SidebarLink = (props: SidebarLinkProps) => {
 
           <Show
             when={
+              props.trailingWhenIdle !== undefined &&
+              !isHovering() &&
+              !props.hotkeyVisible &&
+              !(isActive() && props.trailingWhenActive !== undefined)
+            }
+          >
+            <div class="group-data-[slim=true]/sidebar:hidden ml-auto flex items-center">
+              {props.trailingWhenIdle}
+            </div>
+          </Show>
+
+          <Show
+            when={
               isHovering() &&
               !props.hotkeyVisible &&
               !(isActive() && props.trailingWhenActive !== undefined)
@@ -1665,6 +1696,40 @@ const SidebarLink = (props: SidebarLinkProps) => {
         </ContextMenuContent>
       </ContextMenu.Portal>
     </ContextMenu>
+  );
+};
+
+/**
+ * The Inbox sidebar link, showing a badge with the number of unread inbox
+ * items at its right edge — the spot the "g i" hotkey hint takes over on
+ * hover. Counts distinct entities rather than raw notifications, since an
+ * entity with several unread notifications is still one inbox row.
+ */
+const SidebarInboxLink = (props: SidebarLinkProps) => {
+  const notificationSource = useGlobalNotificationSource();
+  const unreadNotifications = useUnreadNotifications(notificationSource);
+
+  const unreadCount = createMemo(
+    () =>
+      new Set(
+        unreadNotifications().map((n) => compositeEntity(notificationEntity(n)))
+      ).size
+  );
+
+  return (
+    <SidebarLink
+      {...props}
+      trailingWhenIdle={
+        unreadCount() > 0 ? (
+          <span
+            data-sidebar-inbox-unread-count
+            class="shrink-0 min-w-5 h-5 px-1.5 flex items-center justify-center text-xs font-medium bg-ink/6 text-ink-muted rounded-md"
+          >
+            {unreadCount() > 99 ? '99+' : unreadCount()}
+          </span>
+        ) : undefined
+      }
+    />
   );
 };
 
