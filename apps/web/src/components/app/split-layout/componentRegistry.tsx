@@ -10,6 +10,7 @@ import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { ChannelCompose } from '@block-channel/component/Compose';
 import { EmailCompose } from '@block-email/component/compose/Compose';
 import { ComposeTask } from '@block-md/component/ComposeTask';
+import { ChannelsTabView } from '@channel/gallery/channels-gallery';
 import {
   CRM_VIEW_URL_PARAM,
   type CrmViewConfig,
@@ -247,15 +248,7 @@ registerComponent(
   'channels',
   withAuth(() => {
     usePageViewTracking('channels');
-    const preset = getViewPreset('channels');
-    return (
-      <SoupView
-        viewName="Channels"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
+    return <ChannelsTabView />;
   })
 );
 
