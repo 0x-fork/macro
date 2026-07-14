@@ -361,9 +361,19 @@ export function getChannelEntityTarget(
 
   if (entity.target) return entity.target;
 
+  const latestChannelMessage =
+    entity.type === 'channel'
+      ? entity.latestRootMessage?.messageId
+        ? {
+            messageId: entity.latestRootMessage?.messageId,
+            threadId: entity.latestRootMessage?.threadId ?? undefined,
+          }
+        : undefined
+      : undefined;
+
   const fallback =
     entity.type === 'channel'
-      ? undefined
+      ? latestChannelMessage
       : { messageId: entity.messageId, threadId: entity.threadId };
 
   if (!isWithNotification(entity)) return fallback;
@@ -374,7 +384,17 @@ export function getChannelEntityTarget(
   );
   for (const notification of scoped) {
     const { messageId, threadId } = getChannelNotificationParams(notification);
-    if (messageId) return { messageId, threadId };
+
+    if (
+      entity.type === 'channel' &&
+      latestChannelMessage?.messageId !== messageId
+    ) {
+      continue;
+    }
+
+    if (!messageId) continue;
+
+    return { messageId, threadId };
   }
 
   return fallback;
