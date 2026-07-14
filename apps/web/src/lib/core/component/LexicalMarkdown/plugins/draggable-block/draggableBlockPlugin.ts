@@ -248,8 +248,9 @@ function registerDraggableBlock(
   let latestMouseEvent: MouseEvent | null = null;
 
   // Attached to `document` so movement in the left margin (where the drag
-  // handle sits) is still tracked.  We use the editor root rect to scope
-  // the horizontal range: from 60 px left of the content to its right edge.
+  // handle sits) is still tracked.  The handle only shows while the cursor is
+  // actually in that margin — from 60 px left of the content to its left
+  // edge — so it never overlays the text while reading or writing.
   const HORIZONTAL_BUFFER = 60;
 
   function processMouseMove(event: MouseEvent) {
@@ -277,7 +278,7 @@ function registerDraggableBlock(
 
     const inXRange =
       event.clientX >= rootRect.left - HORIZONTAL_BUFFER &&
-      event.clientX <= rootRect.right;
+      event.clientX < rootRect.left;
     if (!inXRange) {
       clearHover();
       return;
