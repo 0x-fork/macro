@@ -23,8 +23,14 @@ use soup::domain::models::EnrichedSoupItem;
 /// The concrete edge object is supplied by the schema composition crate and
 /// flattened into each Soup entity's GraphQL fields.
 pub trait SoupEntityEdges: ObjectType + Clone + Send + Sync + 'static {
+    /// Additional fields attached only to email-thread entities.
+    type EmailThreadEdges: ObjectType + Clone + Send + Sync + 'static;
+
     /// Construct the edge object for a Soup entity.
     fn from_entity(entity: model_entity::Entity<'static>) -> Self;
+
+    /// Construct the email-thread-specific edge object.
+    fn email_thread_edges(&self) -> Self::EmailThreadEdges;
 }
 
 /// Page returned by `Query.soup`.
@@ -714,6 +720,11 @@ where
     #[graphql(flatten)]
     async fn edges(&self) -> E {
         self.1.clone()
+    }
+
+    #[graphql(flatten)]
+    async fn email_thread_edges(&self) -> E::EmailThreadEdges {
+        self.1.email_thread_edges()
     }
 }
 

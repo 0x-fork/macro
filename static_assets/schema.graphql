@@ -715,6 +715,12 @@ type GraphqlSoupEmailAttachment {
 	createdAt: String!
 }
 
+type GraphqlSoupEmailContact {
+	email: String!
+	name: String
+	photoUrl: String
+}
+
 type GraphqlSoupEmailLabel {
 	id: ID!
 	linkId: ID!
@@ -724,6 +730,37 @@ type GraphqlSoupEmailLabel {
 	messageListVisibility: String!
 	labelListVisibility: String!
 	type: String!
+}
+
+type GraphqlSoupEmailMessage {
+	id: ID!
+	threadId: ID!
+	linkId: ID!
+	subject: String
+	snippet: String
+	internalDateTs: String
+	sentAt: String
+	isRead: Boolean!
+	isStarred: Boolean!
+	isSent: Boolean!
+	hasAttachments: Boolean!
+	from: GraphqlSoupEmailContact
+	to: [GraphqlSoupEmailContact!]!
+	cc: [GraphqlSoupEmailContact!]!
+	bcc: [GraphqlSoupEmailContact!]!
+	labels: [GraphqlSoupEmailMessageLabel!]!
+	bodyParsed: String
+	bodyText: String
+	bodyHtmlSanitized: String
+	bodyMacro: String
+	bodyReplyless: String
+	createdAt: String!
+	updatedAt: String!
+}
+
+type GraphqlSoupEmailMessageLabel {
+	providerLabelId: String!
+	name: String!
 }
 
 type GraphqlSoupEmailParticipant {
@@ -760,6 +797,7 @@ type GraphqlSoupEmailThread {
 	labels: [GraphqlSoupEmailLabel!]!
 	properties: [GraphqlProperty!]!
 	notifications: [GraphqlSoupNotification!]!
+	latestContentMessage: GraphqlSoupEmailMessage
 }
 
 """

@@ -2854,6 +2854,7 @@ dependencies = [
  "email",
  "entity_access",
  "graphql_common",
+ "graphql_email",
  "graphql_notification",
  "graphql_properties",
  "graphql_soup",
@@ -5075,6 +5076,7 @@ dependencies = [
  "bot_id",
  "cached",
  "cool_asserts",
+ "futures",
  "macro_db_migrator",
  "macro_user_id",
  "mockall",
@@ -5952,6 +5954,20 @@ dependencies = [
  "model-entity",
  "models_properties",
  "tokio",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "graphql_email"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "chrono",
+ "email",
+ "macro_user_id",
+ "tokio",
+ "tracing",
  "uuid",
  "workspace-hack",
 ]
