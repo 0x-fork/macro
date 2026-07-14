@@ -146,10 +146,16 @@ export function SplitPanel(props: SplitPanelProps) {
   const shouldHideSplitHeader = createMemo(
     () =>
       (isMobile() && isListViewID(props.handle.content().id)) ||
-      isSoloSettings() ||
-      // Writer focus mode strips all split chrome — no nav, no islands.
-      isFocusMode()
+      isSoloSettings()
   );
+
+  // Writer focus mode strips all split chrome (nav buttons, islands). It must
+  // COLLAPSE the header to zero height rather than reuse the `hidden` class
+  // above: flipping the header to display:none at runtime tears down the
+  // whole app tree (pre-existing bug — the static hidden cases above never
+  // toggle after mount, so they don't hit it). Height-collapse is visually
+  // identical and safe.
+  const collapseSplitHeader = () => isFocusMode();
 
   const splitFocusStyling = () =>
     !isMobile() &&
@@ -209,7 +215,9 @@ export function SplitPanel(props: SplitPanelProps) {
             }}
             style={{
               '--split-header-height': `${
-                shouldHideSplitHeader() ? 0 : (headerSize.height ?? 0)
+                shouldHideSplitHeader() || collapseSplitHeader()
+                  ? 0
+                  : (headerSize.height ?? 0)
               }px`,
               // The hard spacer for top-anchored content on full-frame
               // mobile: status bar + floating header strip.
@@ -252,7 +260,9 @@ export function SplitPanel(props: SplitPanelProps) {
                   // On mobile the header collapses to a zero-height grid row;
                   // SplitHeader overlays the body as floating islands.
                   'mobile:min-h-0 mobile:border-b-0',
-                  shouldHideSplitHeader() && 'hidden'
+                  shouldHideSplitHeader() && 'hidden',
+                  collapseSplitHeader() &&
+                    'h-0 min-h-0 touch:min-h-0 overflow-hidden'
                 )}
               >
                 <SplitHeader ref={setHeaderRef} />
