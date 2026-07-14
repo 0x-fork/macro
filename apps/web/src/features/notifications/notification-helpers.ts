@@ -208,10 +208,11 @@ export function useNotificationsMutedForEntity(
   entity: Entity
 ): Accessor<boolean> {
   return createMemo(() =>
-    notificationSource.mutedEntities().includes({
-      item_type: entity.type,
-      item_id: entity.id,
-    })
+    notificationSource
+      .mutedEntities()
+      .some(
+        (item) => item.item_type === entity.type && item.item_id === entity.id
+      )
   );
 }
 
