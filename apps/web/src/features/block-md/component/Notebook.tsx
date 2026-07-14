@@ -430,7 +430,7 @@ function FocusModeButton() {
       size="sm"
       depth={2}
       class="gap-1.5 rounded-full px-2 ring ring-edge-muted"
-      tooltip="Write fullscreen without distractions — hides all app chrome, discussion, and comments. Press Esc to exit."
+      tooltip="Write without distractions — hides all app chrome, discussion, and comments. Press Esc to exit."
     >
       <CornersOutIcon class="size-4" />
       <span class="text-xs font-medium">Focus mode</span>
