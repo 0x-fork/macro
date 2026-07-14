@@ -55,6 +55,7 @@ import {
   type EntityData,
   getPropertyOptionLabel,
   isWithNotification,
+  type Notification,
   toNotificationEntity,
 } from '@entity';
 import { useNotificationsForEntity } from '@notifications';
@@ -184,6 +185,17 @@ const VALID_API_SORT_METHODS: ApiSortMethod[] = [
   'updated_at',
   'viewed_updated',
 ];
+
+type EntityWithRawNotifications = EntityData & {
+  notifications?: Notification[];
+};
+
+function rawEntityNotifications(
+  entity: EntityData
+): Notification[] | undefined {
+  const notifications = (entity as EntityWithRawNotifications).notifications;
+  return Array.isArray(notifications) ? notifications : undefined;
+}
 
 export const SoupViewContextProvider: FlowComponent<
   SoupViewContextProviderProps
@@ -405,7 +417,9 @@ export const SoupViewContextProvider: FlowComponent<
 
   // The group-by actually sent to the backend (drives the grouped queries).
   const serverGroupByField = createMemo(() =>
-    isClientPropertyGroup() ? undefined : groupByField()
+    isClientPropertyGroup() || groupByField()?.type === 'date'
+      ? undefined
+      : groupByField()
   );
 
   // The new inbox surfaces channel threads the current user participates in —
@@ -522,7 +536,29 @@ export const SoupViewContextProvider: FlowComponent<
     resolveCompanyStage,
   });
 
+  // This is temporary while we are experimenting/handling
+  // the migration to graphql. We should not need this since
+  // the items themselves have the notifications on them. Remove
+  // when completely migrated
   const attachNotifications = (entity: EntityData) => {
+    const rawNotifications = rawEntityNotifications(entity);
+    if (rawNotifications) {
+      const {
+        notifications: _notifications,
+        ...entityWithoutRawNotifications
+      } = entity as EntityWithRawNotifications;
+      return {
+        ...entityWithoutRawNotifications,
+        notifications: () =>
+          isNewInbox()
+            ? scopeChannelNotificationsForEntity(
+                entityWithoutRawNotifications,
+                rawNotifications
+              )
+            : rawNotifications,
+      };
+    }
+
     const notifications = useNotificationsForEntity(
       notificationSource,
       toNotificationEntity(entity)
@@ -682,7 +718,7 @@ export const SoupViewContextProvider: FlowComponent<
 
       for (let i = 0; i < merged.length; i++) {
         const entity = merged[i];
-        if (entity.notifications) continue;
+        if (isWithNotification(entity)) continue;
         merged[i] = attachNotifications(entity);
       }
 
