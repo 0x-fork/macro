@@ -24,8 +24,10 @@
   /* Above editor chrome and dialogs; the caret belongs to the focused
      editor wherever it lives. */
   z-index: 2147483000;
-  background-color: oklch(var(--a0) / 0.55);
-  outline: 1px solid oklch(var(--a0) / 0.85);
+  /* --color-accent is a complete color (see index.css) — derive the
+     translucent block with relative color syntax, same as ::selection. */
+  background-color: oklch(from var(--color-accent, #6495ed) l c h / 0.55);
+  outline: 1px solid oklch(from var(--color-accent, #6495ed) l c h / 0.85);
   outline-offset: -1px;
   border-radius: 1px;
 }

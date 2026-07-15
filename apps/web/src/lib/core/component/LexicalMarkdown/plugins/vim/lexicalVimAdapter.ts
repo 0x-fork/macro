@@ -364,15 +364,44 @@ function $inclusiveOrderedPoints(selection: RangeSelection): {
 
 /** Create the vim adapter for a Lexical editor instance. */
 export function createLexicalVimAdapter(editor: LexicalEditor): VimAdapter {
+  /**
+   * Run an editing callback synchronously.
+   *
+   * Lexical runs command listeners *inside* an active editor update, and a
+   * nested `editor.update()` from there is queued until the dispatch
+   * unwinds — the callback would run after we've already returned, losing
+   * yanked text and read-backs. The engine only reaches this adapter from
+   * this editor's own command dispatch (or from outside any update), so when
+   * `_updating` is set we are already inside this editor's active update
+   * context and can run the callback inline, exactly like a command handler
+   * body. Outside of a dispatch (tests, async code) we begin our own
+   * discrete update so the commit is synchronous too.
+   */
   const update = (fn: () => void) => {
-    editor.update(fn, { discrete: true });
+    if (editor._updating) {
+      fn();
+    } else {
+      editor.update(fn, { discrete: true });
+    }
+  };
+
+  /**
+   * Read editor state synchronously. During a command dispatch the committed
+   * `getEditorState()` is stale w.r.t. edits made earlier in the same
+   * keystroke, so reads join the active update context to see pending state.
+   */
+  const read = <T>(fn: () => T): T => {
+    if (editor._updating) {
+      return fn();
+    }
+    return editor.getEditorState().read(fn);
   };
 
   const adapter: VimAdapter = {
     editor,
 
     readLine(): LineContext | null {
-      return editor.getEditorState().read(() => {
+      return read(() => {
         const ctx = $currentBlockFlat();
         if (!ctx) return null;
         const bounds = lineBoundsAt(ctx.flat.text, ctx.cursor);
@@ -491,7 +520,7 @@ export function createLexicalVimAdapter(editor: LexicalEditor): VimAdapter {
     },
 
     readFlatRange(start, end) {
-      return editor.getEditorState().read(() => {
+      return read(() => {
         const ctx = $currentBlockFlat();
         if (!ctx) return '';
         return ctx.flat.text.slice(start, end);
@@ -870,7 +899,7 @@ export function createLexicalVimAdapter(editor: LexicalEditor): VimAdapter {
     },
 
     hasNonCollapsedSelection() {
-      return editor.getEditorState().read(() => {
+      return read(() => {
         const selection = $getSelection();
         return $isRangeSelection(selection) && !selection.isCollapsed();
       });
