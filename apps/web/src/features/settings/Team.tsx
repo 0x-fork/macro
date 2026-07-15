@@ -65,6 +65,10 @@ import {
   SettingsRow,
   SettingsSection,
 } from './primitives';
+import {
+  canRemoveTeamMember,
+  isTeamAdminOrOwner,
+} from './teamMemberPermissions';
 import { getTeamSlugError, normalizeTeamSlugInput } from './teamSlug';
 
 function useRequiresPaidUpgrade() {
@@ -303,6 +307,8 @@ function MemberRow(props: {
   member: TeamMember;
   isOwner: boolean;
   isCurrentUser: boolean;
+  canManageRemovals: boolean;
+  canRemove: boolean;
   onRemove: () => void;
   onRoleChange: (role: TeamRole) => void;
 }) {
@@ -346,9 +352,9 @@ function MemberRow(props: {
         >
           <RoleSelect value={props.member.role} onChange={props.onRoleChange} />
         </Show>
-        <Show when={props.isOwner}>
+        <Show when={props.canManageRemovals}>
           <Show
-            when={!props.isCurrentUser && !isMemberOwner()}
+            when={props.canRemove}
             fallback={
               <Tooltip
                 label={
@@ -969,6 +975,15 @@ function TeamManagement(props: {
     );
   });
 
+  const currentUserRole = createMemo(() => {
+    const currentUserId = userId();
+    if (!currentUserId) return undefined;
+
+    return teamQuery.data?.members.find(
+      (member) => member.user_id === currentUserId
+    )?.role;
+  });
+  const canManageMemberRemovals = () => isTeamAdminOrOwner(currentUserRole());
   const isOwner = createMemo(() => {
     const currentUserId = userId();
     if (!currentUserId) return false;
@@ -1253,7 +1268,7 @@ function TeamManagement(props: {
         <SettingsSection
           title="Members"
           actions={
-            <Show when={isOwner()}>
+            <Show when={canManageMemberRemovals()}>
               <Button
                 variant="base"
                 size="sm"
@@ -1321,6 +1336,12 @@ function TeamManagement(props: {
                       member={member}
                       isOwner={isOwner()}
                       isCurrentUser={member.user_id === userId()}
+                      canManageRemovals={canManageMemberRemovals()}
+                      canRemove={canRemoveTeamMember(
+                        userId(),
+                        currentUserRole(),
+                        member
+                      )}
                       onRemove={() => setShowRemoveModal(member)}
                       onRoleChange={(newRole) => {
                         if (!props.teamId) return;
