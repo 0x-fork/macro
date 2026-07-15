@@ -686,6 +686,7 @@ fn build_query(
         );
         push_thread_candidate_select(
             &mut builder,
+            &mut binds,
             view,
             email_filter,
             &params,

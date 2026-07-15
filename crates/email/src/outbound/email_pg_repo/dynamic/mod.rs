@@ -109,6 +109,9 @@ impl SqlFragment {
         f
     }
 
+    // Unused while the debug printer routes everything through
+    // `push_into_tracked`; kept for easy revert.
+    #[allow(dead_code)]
     fn push_into(self, builder: &mut QueryBuilder<'_, Postgres>) {
         for segment in self.segments {
             match segment {
