@@ -470,7 +470,6 @@ impl CallRepository for PgCallRepo {
     async fn get_active_calls_visible_to_user<'a>(
         &self,
         user_id: MacroUserIdStr<'a>,
-        user_org_id: Option<i64>,
     ) -> Result<Vec<Call>, Self::Err> {
         sqlx::query_as::<_, ActiveCallRow>(
             r#"
@@ -483,12 +482,10 @@ impl CallRepository for PgCallRepo {
                 AND cp.left_at IS NULL
             WHERE
                 c.channel_type = 'public'
-                OR (c.channel_type = 'organization' AND c.org_id = $2)
                 OR cp.user_id IS NOT NULL
             "#,
         )
         .bind(user_id.as_ref())
-        .bind(user_org_id)
         .fetch_all(&self.pool)
         .await
         .map(|rows| {

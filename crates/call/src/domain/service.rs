@@ -425,11 +425,10 @@ impl<
     async fn get_active_calls<'a>(
         &self,
         user_id: MacroUserIdStr<'a>,
-        user_org_id: Option<i64>,
     ) -> Result<GetActiveCallsResponse, CallError> {
         let mut active_calls = self
             .repo
-            .get_active_calls_visible_to_user(user_id, user_org_id)
+            .get_active_calls_visible_to_user(user_id)
             .await
             .map_err(|e| CallError::Internal(e.into()))?
             .into_iter()

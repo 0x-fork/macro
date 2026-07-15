@@ -334,11 +334,7 @@ pub async fn get_active_calls_handler<S: CallService, Svc: EntityAccessService>(
     State(state): State<CallRouterState<S, Svc>>,
     user: MacroUserExtractor,
 ) -> Result<Json<GetActiveCallsResponse>, CallError> {
-    let user_org_id = user.user_context.organization_id.map(i64::from);
-    let response = state
-        .service
-        .get_active_calls(user.macro_user_id, user_org_id)
-        .await?;
+    let response = state.service.get_active_calls(user.macro_user_id).await?;
     Ok(Json(response))
 }
 
