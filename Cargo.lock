@@ -2848,6 +2848,7 @@ name = "complete_graph"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apollo-compiler",
  "async-graphql",
  "axum",
  "axum-extra",
@@ -16161,6 +16162,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-core",
+ "triomphe",
  "tungstenite 0.28.0",
  "typenum",
  "url",
