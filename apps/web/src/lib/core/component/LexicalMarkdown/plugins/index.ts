@@ -39,4 +39,5 @@ export * from './snippets';
 export * from './tab-indentation';
 export * from './tables';
 export * from './text-paste';
+export * from './vim';
 export * from './wordcount';

@@ -1,4 +1,9 @@
+import {
+  setVimModeEnabled,
+  vimModeEnabled,
+} from '@core/component/LexicalMarkdown/plugins/vim';
 import { toast } from '@core/component/Toast/Toast';
+import { isMobile } from '@core/mobile/isMobile';
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
 import CheckIcon from '@phosphor/check.svg';
 import ClipboardIcon from '@phosphor/clipboard.svg';
@@ -697,6 +702,18 @@ export function Appearance() {
                 checked={tooltipsEnabled()}
               />
             </SettingsRow>
+            <Show when={!isMobile()}>
+              <SettingsRow
+                label="Vim mode"
+                description="Modal vim editing on every markdown surface, with monospaced text."
+              >
+                <ToggleSwitch
+                  size="md"
+                  onChange={setVimModeEnabled}
+                  checked={vimModeEnabled()}
+                />
+              </SettingsRow>
+            </Show>
           </SettingsCard>
         </SettingsSection>
       </SettingsPage>

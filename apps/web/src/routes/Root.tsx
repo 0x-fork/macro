@@ -33,6 +33,7 @@ import { Layout } from '@components/app/Layout';
 import { ReactiveFavicon } from '@components/app/ReactiveFavicon';
 import { LAYOUT_ROUTE } from '@components/app/split-layout/SplitLayoutRoute';
 import { ChatAttachmentsInit } from '@core/component/AI/signal/globalAttachments';
+import { VimStatusBar } from '@core/component/LexicalMarkdown/plugins/vim';
 import { toast } from '@core/component/Toast/Toast';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
 import { ChannelsContextProvider } from '@core/context/channels';
@@ -613,6 +614,7 @@ export function Root() {
                               </Suspense>
                               <InitialInteractiveOnboardingModal />
                               <ToastRegion />
+                              <VimStatusBar />
                             </SearchProvider>
                           </QuickAccessProvider>
                         </CallProvider>

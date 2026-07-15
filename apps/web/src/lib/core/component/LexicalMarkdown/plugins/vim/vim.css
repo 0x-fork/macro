@@ -1,0 +1,31 @@
+/**
+ * Vim mode styles.
+ *
+ * `.vim-enabled` is toggled on every editable Lexical root while the global
+ * vim setting is on: editing surfaces switch to the monospace stack so
+ * column-oriented motions line up. `.vim-caret-hidden` suppresses the native
+ * caret while the block caret overlay (`.vim-block-caret`) is drawn in
+ * normal/visual mode.
+ */
+
+.vim-enabled {
+  font-family: var(--font-mono);
+}
+
+/* Override the `.md * { caret-color: currentcolor }` rule from styles.css. */
+.vim-caret-hidden,
+.vim-caret-hidden * {
+  caret-color: transparent !important;
+}
+
+.vim-block-caret {
+  position: fixed;
+  pointer-events: none;
+  /* Above editor chrome and dialogs; the caret belongs to the focused
+     editor wherever it lives. */
+  z-index: 2147483000;
+  background-color: oklch(var(--a0) / 0.55);
+  outline: 1px solid oklch(var(--a0) / 0.85);
+  outline-offset: -1px;
+  border-radius: 1px;
+}

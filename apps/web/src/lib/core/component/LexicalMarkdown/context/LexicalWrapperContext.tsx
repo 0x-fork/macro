@@ -1,6 +1,8 @@
 /**
  * @file Wrap the Lexical Editor in some helpful utilities.
  */
+
+import { isMobile } from '@core/mobile/isMobile';
 import {
   type EditorType,
   type NodeIdMappings,
@@ -23,6 +25,7 @@ import {
   nodeTransformPlugin,
   type PluginManager,
   type SelectionData,
+  vimPlugin,
 } from '../plugins';
 import { theme as baseTheme } from '../theme';
 
@@ -108,6 +111,12 @@ export function createLexicalWrapper({
   // Default plugins here.
   plugins.use(insertTextPlugin());
   plugins.use(nodeTransformPlugin());
+
+  // Vim emulation for every editable surface. The plugin is inert until the
+  // user enables vim mode; soft keyboards make it meaningless on mobile.
+  if (!isMobile()) {
+    plugins.use(vimPlugin());
+  }
 
   if (withIds) {
     mapping = createMapping();
