@@ -852,6 +852,31 @@ export const removeBotFromChannelByBotParams = zod.object({
 });
 
 /**
+ * Returns active call info for channels visible to the caller.
+ * @summary Handler for `GET /call/active`.
+ */
+export const getActiveCallsResponse = zod
+  .object({
+    activeCalls: zod
+      .array(
+        zod
+          .object({
+            callId: zod.uuid().describe('The call identifier.'),
+            channelId: zod.uuid().describe('The channel this call belongs to.'),
+            createdAt: zod.iso
+              .datetime({})
+              .describe('When the call was created.'),
+            createdBy: zod.string().describe('User who created the call.'),
+          })
+          .describe(
+            'Response indicating whether an active call exists for a channel.'
+          )
+      )
+      .describe('Active calls for visible channels.'),
+  })
+  .describe('Response body for `GET \/call\/active`.');
+
+/**
  * Batch-fetches lightweight previews for a list of call ids. Mirrors the
 `POST /documents/preview` endpoint: no per-id access checks, duplicate
 ids are deduplicated server-side, and missing ids come back as

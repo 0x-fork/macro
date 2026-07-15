@@ -140,7 +140,7 @@ pub struct CallActiveResponse {
 #[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct GetActiveCallsResponse {
-    /// Active calls for the requested channels.
+    /// Active calls for visible channels.
     pub active_calls: Vec<CallActiveResponse>,
 }
 

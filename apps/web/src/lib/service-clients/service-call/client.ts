@@ -4,15 +4,12 @@ import { fetchWithToken } from '@core/util/fetchWithToken';
 import type { CallActiveResponse } from '@service-storage/generated/schemas/callActiveResponse';
 import type { CallRecord } from '@service-storage/generated/schemas/callRecord';
 import type { CallTokenResponse } from '@service-storage/generated/schemas/callTokenResponse';
+import type { GetActiveCallsResponse } from '@service-storage/generated/schemas/getActiveCallsResponse';
 import type { LeaveCallResponse } from '@service-storage/generated/schemas/leaveCallResponse';
 
 export type { CallRecord, CallTokenResponse };
 
 const host: string = SERVER_HOSTS['document-storage-service'];
-
-type GetActiveCallsResponse = {
-  activeCalls: CallActiveResponse[];
-};
 
 export const callServiceClient = {
   async getOrCreateCall(channelId: string) {

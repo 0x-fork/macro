@@ -532,6 +532,7 @@ export * from './genericErrorResponse';
 export * from './genericResponse';
 export * from './genericResponseMessage';
 export * from './genericSuccessResponse';
+export * from './getActiveCallsResponse';
 export * from './getActivitiesResponse';
 export * from './getActivitiesResponseData';
 export * from './getAttachmentReferencesResponse';
