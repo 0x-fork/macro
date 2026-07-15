@@ -37,6 +37,7 @@ import { useRemoveUserFromTeamMutation } from '@queries/team/members';
 import {
   useCreateTeamWithInvitesMutation,
   useDeleteTeamMutation,
+  useIsTeamAdmin,
   usePatchTeamMutation,
   useTeamQuery,
   useUserTeamsQuery,
@@ -302,6 +303,8 @@ function InviteEmailsInput(props: {
 function MemberRow(props: {
   member: TeamMember;
   isOwner: boolean;
+  /** Owner or admin — allowed to remove members (but not the owner, and not themselves). */
+  canRemoveMembers: boolean;
   isCurrentUser: boolean;
   onRemove: () => void;
   onRoleChange: (role: TeamRole) => void;
@@ -346,7 +349,7 @@ function MemberRow(props: {
         >
           <RoleSelect value={props.member.role} onChange={props.onRoleChange} />
         </Show>
-        <Show when={props.isOwner}>
+        <Show when={props.canRemoveMembers}>
           <Show
             when={!props.isCurrentUser && !isMemberOwner()}
             fallback={
@@ -841,6 +844,7 @@ function TeamManagement(props: {
   ownerId: string;
 }) {
   const userId = useUserId();
+  const isTeamAdmin = useIsTeamAdmin();
 
   const teamQuery = useTeamQuery(() => props.teamId);
   const invitesQuery = useTeamInvitesQuery(() => props.teamId);
@@ -974,6 +978,11 @@ function TeamManagement(props: {
     if (!currentUserId) return false;
     return props.ownerId === currentUserId;
   });
+
+  // Owners and admins can remove members (the backend already allows
+  // `AdminTeamRole` for this action — only the frontend was gating it to
+  // owner-only). The owner themselves can never be removed.
+  const canRemoveMembers = createMemo(() => isOwner() || isTeamAdmin());
 
   const handleSaveTeamName = () => {
     const newName = editingTeamName()?.trim();
@@ -1320,6 +1329,7 @@ function TeamManagement(props: {
                     <MemberRow
                       member={member}
                       isOwner={isOwner()}
+                      canRemoveMembers={canRemoveMembers()}
                       isCurrentUser={member.user_id === userId()}
                       onRemove={() => setShowRemoveModal(member)}
                       onRoleChange={(newRole) => {
