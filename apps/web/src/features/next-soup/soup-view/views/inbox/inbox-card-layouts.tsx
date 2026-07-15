@@ -563,7 +563,9 @@ export function ChannelCardLayout(props: InboxCardLayoutProps) {
     // Match the previewed message's sender to the message it actually is
     // (see `itemContent`): the driving notification's sender when there is
     // one, falling back to the channel's latest message otherwise.
-    return props.item.notification?.sender_id ?? value.latestRootMessage?.senderId;
+    return (
+      props.item.notification?.sender_id ?? value.latestRootMessage?.senderId
+    );
   });
 
   const messageSenderName = createSenderDisplayName(messageSenderId);
