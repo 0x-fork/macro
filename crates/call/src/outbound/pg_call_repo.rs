@@ -471,7 +471,8 @@ impl CallRepository for PgCallRepo {
         &self,
         user_id: MacroUserIdStr<'a>,
     ) -> Result<Vec<Call>, Self::Err> {
-        sqlx::query_as::<_, ActiveCallRow>(
+        sqlx::query_as!(
+            ActiveCallRow,
             r#"
             SELECT calls.id, calls.channel_id, calls.room_name, calls.created_by, calls.created_at, calls.egress_id
             FROM calls
@@ -484,8 +485,8 @@ impl CallRepository for PgCallRepo {
                 c.channel_type = 'public'
                 OR cp.user_id IS NOT NULL
             "#,
+            user_id.as_ref(),
         )
-        .bind(user_id.as_ref())
         .fetch_all(&self.pool)
         .await
         .map(|rows| {

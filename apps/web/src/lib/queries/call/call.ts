@@ -22,11 +22,11 @@ export function useActiveCallsForChannelsQuery(channelIds: Accessor<string[]>) {
     const ids = [...new Set(channelIds())].sort();
 
     return {
-      queryKey: callKeys.activeChannels(ids).queryKey,
+      queryKey: callKeys.activeChannels._def,
       queryFn: async (): Promise<CallActiveResponse[]> => {
-        const activeCalls = await throwOnErr(() =>
-          callServiceClient.getActiveCalls()
-        );
+        return await throwOnErr(() => callServiceClient.getActiveCalls());
+      },
+      select: (activeCalls) => {
         const channelIdSet = new Set(ids);
         return activeCalls.filter((call) => channelIdSet.has(call.channelId));
       },
