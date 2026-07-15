@@ -1,0 +1,61 @@
+---
+title: "July 2026"
+description: "Macro releases from July 2026."
+---
+
+<Update label="July 2026">
+
+## Channels
+
+- **Create private channels from a new modal.** Start a private channel with any set of participants — or none at all — and add people later. Press <kbd>c</kbd> + <kbd>m</kbd> to open it. ([#4796](https://github.com/macro-inc/macro/pull/4796))
+- **Share a channel with an invite link.** Group channels now support reusable invite links. Copy a link to let people join by code instead of adding each participant by email; joining is idempotent, so following a link you've already used is a no-op. ([#4815](https://github.com/macro-inc/macro/pull/4815))
+- Call notifications no longer include the `#` prefix in the channel title. ([#4794](https://github.com/macro-inc/macro/pull/4794))
+
+## CRM
+
+- **Board-first Customers view.** The Customers view now opens on the board by default, with **List** and **Board** tabs in the top bar. Owner pickers are scoped to your team roster, and you can edit company properties from the right-click menu, command palette, and mobile drawer. ([#4808](https://github.com/macro-inc/macro/pull/4808))
+- **Show hidden companies** moved into the display-options menu as a checkbox for team admins and owners, replacing the old Active/Hidden tabs. Kanban cards now always show owner, domain, and last interaction. ([#4808](https://github.com/macro-inc/macro/pull/4808))
+- Board polish: a working horizontal scrollbar, whole-column snapping, and a trimmed set of default stages. ([#4822](https://github.com/macro-inc/macro/pull/4822))
+- Loading a company's email threads is significantly faster. ([#4839](https://github.com/macro-inc/macro/pull/4839))
+
+## Agents & AI
+
+- **Collapsible activity groups.** Consecutive agent thinking and tool calls now collapse into expandable groups with a live streaming preview, so long runs are easier to follow. ([#4800](https://github.com/macro-inc/macro/pull/4800))
+- **Agents can manage tags.** New create, edit, and delete tag tools let an agent set up and maintain tags for you, not just apply existing ones. Each is scoped to a personal or team owner. ([#4802](https://github.com/macro-inc/macro/pull/4802))
+- Agents no longer pull the chat you're currently in into their open context. ([#4801](https://github.com/macro-inc/macro/pull/4801))
+- The task-creation modal now shows only the top few similar-task suggestions. ([#4799](https://github.com/macro-inc/macro/pull/4799))
+
+## Themes & appearance
+
+- **Reorganized theme settings** that are clearer and more intuitive to navigate, with the theme picker reflected in the command palette. ([#4814](https://github.com/macro-inc/macro/pull/4814), [#4833](https://github.com/macro-inc/macro/pull/4833), [#4842](https://github.com/macro-inc/macro/pull/4842), [#4797](https://github.com/macro-inc/macro/pull/4797))
+- Restored the previous dark-mode palette. ([#4817](https://github.com/macro-inc/macro/pull/4817))
+- The active split is now more clearly emphasized. ([#4807](https://github.com/macro-inc/macro/pull/4807), [#4818](https://github.com/macro-inc/macro/pull/4818))
+- Tags now live in their own side-panel section with improved styling. ([#4835](https://github.com/macro-inc/macro/pull/4835))
+
+## Email & inbox
+
+- The inbox preview now opens by default reliably. ([#4838](https://github.com/macro-inc/macro/pull/4838))
+- Your latest channel message appears immediately after you send it. ([#4825](https://github.com/macro-inc/macro/pull/4825))
+- Fixed channel row click targets and highlighting in the inbox. ([#4816](https://github.com/macro-inc/macro/pull/4816))
+- Sending email from the preview panel no longer opens the entity in a new split. ([#4836](https://github.com/macro-inc/macro/pull/4836))
+
+## Calls
+
+- The permission badge on a call now reflects your real access level instead of always showing "Viewer". ([#4790](https://github.com/macro-inc/macro/pull/4790))
+- Fixed a call block rendering issue. ([#4810](https://github.com/macro-inc/macro/pull/4810))
+
+## Mobile
+
+- Restored the thread reply button. ([#4829](https://github.com/macro-inc/macro/pull/4829))
+- iOS now re-syncs your data when the connection reconnects. ([#4821](https://github.com/macro-inc/macro/pull/4821))
+
+## GitHub integration
+
+- You no longer receive notifications about your own pull request activity — opening, merging, commenting on, or reviewing a PR. ([#4832](https://github.com/macro-inc/macro/pull/4832))
+
+## Other fixes
+
+- The sidebar's **open full screen** action now behaves consistently. ([#4830](https://github.com/macro-inc/macro/pull/4830))
+- Focus now lands where you expect it in the create-channel modal and after marking an item done. ([#4841](https://github.com/macro-inc/macro/pull/4841), [#4845](https://github.com/macro-inc/macro/pull/4845), [#4805](https://github.com/macro-inc/macro/pull/4805))
+
+</Update>
