@@ -1,4 +1,3 @@
-import { createGroupedSoupQueries } from '@app/features/next-soup/soup-view/create-grouped-soup-queries';
 import { deduplicateEntities } from '@app/features/next-soup/utils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useDealStages } from '@companies/crm/deal-stages';
@@ -47,6 +46,7 @@ import {
   buildGroupedSoupItems,
   type SoupItemGroup,
 } from './build-soup-items';
+import { createGroupedSoupQueries } from './create-grouped-soup-queries';
 import type { SoupCollectionControls } from './create-soup-collection-state';
 import { createSearchState } from './create-soup-search-state';
 import type { FacetCtx } from './facets';

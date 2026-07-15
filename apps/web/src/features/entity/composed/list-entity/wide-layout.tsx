@@ -1,7 +1,6 @@
 import { useRowTagsVisible } from '@app/features/next-soup/soup-view/filters-bar/search/search-tags-flag';
 import { useRowTagFilter } from '@app/features/next-soup/soup-view/filters-bar/use-row-tag-filter';
 import { useMaybeSoupView } from '@app/features/next-soup/soup-view/soup-view-context';
-import { useMaybeSoupCollection } from '@app/features/soup-list';
 import { formatCallDuration } from '@block-call/utils';
 import { EntityRowTags } from '@property/tags';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
@@ -58,9 +57,7 @@ function RowTags(props: {
 }
 
 export function WideLayout(props: LayoutProps) {
-  const collection = useMaybeSoupCollection();
   const soupView = useMaybeSoupView();
-  const activeTab = () => collection?.activeTab() ?? soupView?.activeTab();
   const rowTagsVisible = useRowTagsVisible();
   // When a thread resolves to one of the user's inboxes the inbox chip already
   // conveys ownership, so the generic "shared" badge would be redundant.
@@ -245,7 +242,7 @@ export function WideLayout(props: LayoutProps) {
         <Show when={isCallEntity(props.entity) && props.entity}>
           {(entity) => (
             <>
-              <Show when={(activeTab() ?? 'all') === 'all'}>
+              <Show when={(soupView?.activeTab() ?? 'all') === 'all'}>
                 <CallStatusBadge status={entity().status} />
               </Show>
               <Show

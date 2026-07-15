@@ -19,7 +19,6 @@ import {
   type GroupOptionId,
   TASK_GROUP_OPTIONS,
 } from '@app/features/next-soup/soup-view/group-options';
-import { registerSearchSplit } from '@app/features/next-soup/soup-view/search-controllers';
 import {
   CHANNEL_SORT_OPTIONS,
   DEFAULT_SORT_OPTIONS,
@@ -145,6 +144,7 @@ import { Dynamic } from 'solid-js/web';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
 import { SoupFacetFilter } from './filters/soup-facet-filter';
+import { registerSoupSearchSplit } from './search-controllers';
 import {
   getViewPreset,
   type PresetContext,
@@ -168,6 +168,10 @@ const INBOX_READ_TABS = [
   { value: 'all', label: 'All' },
 ];
 
+type FacetCrmViewConfig = CrmViewConfig & {
+  facets?: FacetSelection;
+};
+
 export type SoupViewProps = {
   view: ListView;
   viewName: string;
@@ -178,7 +182,7 @@ export type SoupViewProps = {
   initialGroupBy?: string;
   disableLocalSearch?: boolean;
   additionalEntities?: Accessor<EntityData[]>;
-  initialCrmView?: CrmViewConfig;
+  initialCrmView?: FacetCrmViewConfig;
 
   loading?: JSX.Element;
   empty?: JSX.Element;
@@ -601,7 +605,7 @@ function SoupViewContent(props: SoupViewProps) {
     }
     if (props.view === 'search') {
       teardowns.push(
-        registerSearchSplit(panel.handle.id, {
+        registerSoupSearchSplit(panel.handle.id, {
           applyFacetOverrides: ({ query, facets }) => {
             const preset = getViewPreset('search');
             collection.facets.hydrate({

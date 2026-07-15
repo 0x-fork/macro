@@ -1,5 +1,4 @@
 import { useMaybeSoupView } from '@app/features/next-soup/soup-view/soup-view-context';
-import { useMaybeSoupCollection } from '@app/features/soup-list';
 import { tryMacroId, useDisplayNameParts } from '@core/user';
 import { cn } from '@ui';
 import { Match, Show, Switch } from 'solid-js';
@@ -29,9 +28,7 @@ import { InboxDivider, type LayoutProps } from './shared';
 import { TaskNarrowBody } from './task';
 
 export function NarrowInboxLayout(props: LayoutProps) {
-  const collection = useMaybeSoupCollection();
   const soupView = useMaybeSoupView();
-  const activeTab = () => collection?.activeTab() ?? soupView?.activeTab();
   const isDirectMessage = () =>
     isChannelEntity(props.entity) &&
     props.entity.channelType === 'direct_message';
@@ -172,7 +169,7 @@ export function NarrowInboxLayout(props: LayoutProps) {
           {(entity) => (
             <CallNarrowBody
               entity={entity()}
-              showAttendanceBadge={(activeTab() ?? 'all') === 'all'}
+              showAttendanceBadge={(soupView?.activeTab() ?? 'all') === 'all'}
               setContainerRef={props.setSnippetContainerRef}
               chars={props.chars}
             />
