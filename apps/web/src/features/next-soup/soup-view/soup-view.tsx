@@ -310,6 +310,9 @@ type SoupListEntryState = {
 
 interface SoupViewProps {
   viewName: string;
+  customTabs?: JSX.Element;
+  filterBarVariant?: 'default' | 'tag';
+  showCreateButton?: boolean;
   initialClientFilters?: SetPredicatesInput<string>;
   initialFilters?: Query;
   initialSearchText?: string;
@@ -654,8 +657,10 @@ export const SoupView = (props: SoupViewProps) => {
                   <CollapsibleHeaderItem
                     id="tabs"
                     priority={1}
-                    expanded={() => <SoupViewTabs />}
-                    collapsed={() => <CollapsedSoupViewTabs />}
+                    expanded={() => props.customTabs ?? <SoupViewTabs />}
+                    collapsed={() =>
+                      props.customTabs ?? <CollapsedSoupViewTabs />
+                    }
                     containerClass="h-full"
                   />
                 </Show>
@@ -681,7 +686,11 @@ export const SoupView = (props: SoupViewProps) => {
                 <CompanyDisplayMenu />
               </Show>
               <Show
-                when={!narrowSearchExpanded() && !isComponentListView('search')}
+                when={
+                  !narrowSearchExpanded() &&
+                  !isComponentListView('search') &&
+                  props.showCreateButton !== false
+                }
               >
                 <SoupViewCreateButton />
               </Show>
@@ -747,7 +756,7 @@ export const SoupView = (props: SoupViewProps) => {
             </SplitHeaderRight>
           </Show>
         </div>
-        <SoupFiltersBar />
+        <SoupFiltersBar variant={props.filterBarVariant} />
         <div class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full">
           <Suspense>
             <Show when={!isBoardMode()} fallback={<CompanyKanban />}>
