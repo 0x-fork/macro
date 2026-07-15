@@ -1,0 +1,210 @@
+import {
+  createDisclosureState,
+  type DisclosureState,
+} from '@app/components/list';
+import type { SortConfig } from '@app/features/next-soup/create-sort-state';
+import type { EntityData } from '@entity';
+import { type Accessor, batch } from 'solid-js';
+import { createStore } from 'solid-js/store';
+import type { Facet, FacetSelection } from './facet-store';
+import { createFacetStore } from './facet-store';
+import type { FacetCtx } from './facets/base';
+
+export type SoupFacetStore = ReturnType<typeof createFacetStore<FacetCtx>>;
+
+export type SoupCollectionSort = {
+  id: string;
+  reversed: boolean;
+};
+
+export type SoupEmailView = 'inbox' | 'drafts' | 'sent' | 'all';
+export type SoupViewMode = 'list' | 'board';
+
+type SoupCollectionStore = {
+  sort: SoupCollectionSort[];
+  groupBy: string | undefined;
+  search: string;
+  searchPaused: boolean;
+  activeTab: string | undefined;
+  emailView: SoupEmailView | undefined;
+  viewMode: SoupViewMode;
+};
+
+export type SoupCollectionSetter<T> = (value: T | ((current: T) => T)) => T;
+
+export type SoupCollectionControls = {
+  facets: SoupFacetStore;
+  resetFacets: () => void;
+
+  sort: Accessor<SoupCollectionSort[]>;
+  setSort: SoupCollectionSetter<SoupCollectionSort[]>;
+  resetSort: () => void;
+
+  groupBy: Accessor<string | undefined>;
+  setGroupBy: SoupCollectionSetter<string | undefined>;
+  disclosure: DisclosureState;
+  resetGrouping: () => void;
+
+  search: Accessor<string>;
+  setSearch: SoupCollectionSetter<string>;
+  searchPaused: Accessor<boolean>;
+  setSearchPaused: SoupCollectionSetter<boolean>;
+  resetSearch: () => void;
+
+  activeTab: Accessor<string | undefined>;
+  setActiveTab: SoupCollectionSetter<string | undefined>;
+  emailView: Accessor<SoupEmailView | undefined>;
+  setEmailView: SoupCollectionSetter<SoupEmailView | undefined>;
+  viewMode: Accessor<SoupViewMode>;
+  setViewMode: SoupCollectionSetter<SoupViewMode>;
+  resetViewState: () => void;
+};
+
+export type CreateSoupCollectionStateOptions = {
+  facets?: readonly Facet<FacetCtx>[];
+  initialFacets?: FacetSelection;
+  initialExtraFacets?: readonly Facet<FacetCtx>[];
+
+  sortConfigs?: Record<string, SortConfig<EntityData, string>>;
+  initialSortIds?: string[];
+
+  initialGroupBy?: string;
+  initialCollapsedGroups?: Iterable<string>;
+  initialSearch?: string;
+  initialActiveTab?: string;
+  initialEmailView?: SoupEmailView;
+  initialViewMode?: SoupViewMode;
+};
+
+export type SoupCollectionState = SoupCollectionControls & {
+  reset: () => void;
+};
+
+const storeSetter =
+  <T>(get: Accessor<T>, set: (value: T) => void): SoupCollectionSetter<T> =>
+  (value) => {
+    const next =
+      typeof value === 'function' ? (value as (current: T) => T)(get()) : value;
+    set(next);
+    return next;
+  };
+
+/** Creates local Soup controls independently from query transport wiring. */
+export function createSoupCollectionState(
+  options: CreateSoupCollectionStateOptions = {}
+): SoupCollectionState {
+  const initialFacets: FacetSelection = {
+    ...(options.initialFacets ?? {}),
+  };
+
+  const facets = createFacetStore(options.facets ?? [], {
+    initialSelection: initialFacets,
+    initialExtraFacets: options.initialExtraFacets,
+  });
+
+  const sortConfigs: Record<
+    string,
+    SortConfig<EntityData, string>
+  > = options.sortConfigs ?? {};
+  const initialSort: SoupCollectionSort[] = (options.initialSortIds ?? [])
+    .filter((id) => sortConfigs[id] !== undefined)
+    .map((id) => ({ id, reversed: false }));
+  const initialCollapsedGroups = [...(options.initialCollapsedGroups ?? [])];
+
+  const [state, setState] = createStore<SoupCollectionStore>({
+    sort: initialSort,
+    groupBy: options.initialGroupBy,
+    search: options.initialSearch ?? '',
+    searchPaused: false,
+    activeTab: options.initialActiveTab,
+    emailView: options.initialEmailView,
+    viewMode: options.initialViewMode ?? 'board',
+  });
+
+  const sort = () => state.sort;
+  const setSort = storeSetter<SoupCollectionSort[]>(sort, (value) => {
+    setState(
+      'sort',
+      value.filter((item) => sortConfigs[item.id] !== undefined)
+    );
+  });
+
+  const groupBy = () => state.groupBy;
+  const setGroupBy = storeSetter(groupBy, (value) => {
+    setState('groupBy', value);
+  });
+  const disclosure = createDisclosureState({
+    defaultExpanded: true,
+    initialToggled: initialCollapsedGroups,
+  });
+
+  const search = () => state.search;
+  const setSearch = storeSetter(search, (value) => setState('search', value));
+  const searchPaused = () => state.searchPaused;
+  const setSearchPaused = storeSetter(searchPaused, (value) =>
+    setState('searchPaused', value)
+  );
+
+  const activeTab = () => state.activeTab;
+  const setActiveTab = storeSetter(activeTab, (value) =>
+    setState('activeTab', value)
+  );
+  const emailView = () => state.emailView;
+  const setEmailView = storeSetter(emailView, (value) =>
+    setState('emailView', value)
+  );
+  const viewMode = () => state.viewMode;
+  const setViewMode = storeSetter(viewMode, (value) =>
+    setState('viewMode', value)
+  );
+
+  const resetFacets = () => facets.hydrate(initialFacets);
+  const resetSort = () => setSort(initialSort.map((item) => ({ ...item })));
+  const resetGrouping = () => {
+    setGroupBy(options.initialGroupBy);
+    disclosure.reset();
+    disclosure.collapseAll(initialCollapsedGroups);
+  };
+  const resetSearch = () => {
+    setSearch(options.initialSearch ?? '');
+    setSearchPaused(false);
+  };
+  const resetViewState = () => {
+    setActiveTab(options.initialActiveTab);
+    setEmailView(options.initialEmailView);
+    setViewMode(options.initialViewMode ?? 'board');
+  };
+
+  return {
+    facets,
+    resetFacets,
+    sort,
+    setSort,
+    resetSort,
+    groupBy,
+    setGroupBy,
+    disclosure,
+    resetGrouping,
+    search,
+    setSearch,
+    searchPaused,
+    setSearchPaused,
+    resetSearch,
+    activeTab,
+    setActiveTab,
+    emailView,
+    setEmailView,
+    viewMode,
+    setViewMode,
+    resetViewState,
+    reset: () => {
+      batch(() => {
+        resetFacets();
+        resetSort();
+        resetGrouping();
+        resetSearch();
+        resetViewState();
+      });
+    },
+  };
+}
