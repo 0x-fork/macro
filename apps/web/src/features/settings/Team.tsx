@@ -982,7 +982,7 @@ function TeamManagement(props: {
   // Owners and admins can remove members (the backend already allows
   // `AdminTeamRole` for this action — only the frontend was gating it to
   // owner-only). The owner themselves can never be removed.
-  const canRemoveMembers = createMemo(() => isOwner() || isTeamAdmin());
+  const canRemoveMembers = () => isOwner() || isTeamAdmin();
 
   const handleSaveTeamName = () => {
     const newName = editingTeamName()?.trim();
