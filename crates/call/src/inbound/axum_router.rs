@@ -33,8 +33,9 @@ use uuid::Uuid;
 
 use crate::domain::models::{
     CallActiveResponse, CallError, CallRecord, CallTokenResponse, EditCallRecordRequest,
-    EditCallTranscriptRequest, GetBatchCallRecordPreviewRequest, GetBatchCallRecordPreviewResponse,
-    LeaveCallResponse, MAX_BATCH_CALL_IDS, RingStatusResponse, TranscriptSegmentRequest,
+    EditCallTranscriptRequest, GetActiveCallsResponse, GetBatchCallRecordPreviewRequest,
+    GetBatchCallRecordPreviewResponse, LeaveCallResponse, MAX_BATCH_CALL_IDS, RingStatusResponse,
+    TranscriptSegmentRequest,
 };
 use crate::domain::ports::CallService;
 
@@ -78,6 +79,7 @@ impl<S, Svc> FromRef<CallRouterState<S, Svc>> for Arc<Svc> {
 /// Routes:
 /// - `GET /{channel_id}` — get or create a call (join existing or start new)
 /// - `GET /{channel_id}/active` — check if an active call exists
+/// - `GET /active` — get active calls visible to the authenticated user
 /// - `DELETE /{channel_id}` — leave or end a call
 /// - `GET /record/{call_id}` — get a full call record (transcript + participants)
 /// - `PATCH /record/{call_id}` — edit a call record (e.g. share permissions)
@@ -100,6 +102,7 @@ where
             "/{channel_id}/active",
             get(check_active_call_handler::<S, Svc>),
         )
+        .route("/active", get(get_active_calls_handler::<S, Svc>))
         .route(
             "/record/preview",
             post(get_batch_call_record_preview_handler::<S, Svc>),
@@ -311,6 +314,32 @@ pub async fn check_active_call_handler<S: CallService, Svc: EntityAccessService>
         Some(response) => Ok(Json(response).into_response()),
         None => Ok(StatusCode::NO_CONTENT.into_response()),
     }
+}
+
+/// Handler for `GET /call/active`.
+///
+/// Returns active call info for channels visible to the caller.
+#[utoipa::path(
+    get,
+    operation_id = "get_active_calls",
+    path = "/call/active",
+    responses(
+        (status = 200, body = GetActiveCallsResponse),
+        (status = 401, body = ErrorResponse),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+#[tracing::instrument(err, skip_all)]
+pub async fn get_active_calls_handler<S: CallService, Svc: EntityAccessService>(
+    State(state): State<CallRouterState<S, Svc>>,
+    user: MacroUserExtractor,
+) -> Result<Json<GetActiveCallsResponse>, CallError> {
+    let user_org_id = user.user_context.organization_id.map(i64::from);
+    let response = state
+        .service
+        .get_active_calls(user.macro_user_id, user_org_id)
+        .await?;
+    Ok(Json(response))
 }
 
 /// Handler for `GET /call/record/{call_id}`.

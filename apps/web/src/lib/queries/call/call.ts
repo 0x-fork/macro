@@ -24,18 +24,11 @@ export function useActiveCallsForChannelsQuery(channelIds: Accessor<string[]>) {
     return {
       queryKey: callKeys.activeChannels(ids).queryKey,
       queryFn: async (): Promise<CallActiveResponse[]> => {
-        const activeCalls = await Promise.all(
-          ids.map(async (channelId) =>
-            throwOnErr(() => callServiceClient.checkActiveCall(channelId))
-          )
+        const activeCalls = await throwOnErr(() =>
+          callServiceClient.getActiveCalls()
         );
-
-        return activeCalls
-          .filter((call): call is CallActiveResponse => call !== null)
-          .sort(
-            (a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
+        const channelIdSet = new Set(ids);
+        return activeCalls.filter((call) => channelIdSet.has(call.channelId));
       },
       refetchInterval: 15_000,
       enabled: ids.length > 0,

@@ -31,9 +31,9 @@ use crate::domain::models::{
 use super::models::{
     AddParticipantError, Call, CallActiveResponse, CallError, CallRecord,
     CallRecordTranscriptSegment, CallTokenResponse, CallTranscriptCustomSpeakerResult,
-    EgressS3Config, EnrichedCallTranscript, GetBatchCallRecordPreviewRequest,
-    GetBatchCallRecordPreviewResponse, GetCallRecordsRequest, LeaveCallResponse, RingStatus,
-    RingStatusResponse, TranscriptSegmentRequest,
+    EgressS3Config, EnrichedCallTranscript, GetActiveCallsResponse,
+    GetBatchCallRecordPreviewRequest, GetBatchCallRecordPreviewResponse, GetCallRecordsRequest,
+    LeaveCallResponse, RingStatus, RingStatusResponse, TranscriptSegmentRequest,
 };
 use super::ports::{
     CallRecordQueryService, CallRepository, CallRtcClient, CallSearchIndexer, CallService,
@@ -419,6 +419,31 @@ impl<
             created_by: c.created_by,
             created_at: c.created_at,
         }))
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn get_active_calls<'a>(
+        &self,
+        user_id: MacroUserIdStr<'a>,
+        user_org_id: Option<i64>,
+    ) -> Result<GetActiveCallsResponse, CallError> {
+        let mut active_calls = self
+            .repo
+            .get_active_calls_visible_to_user(user_id, user_org_id)
+            .await
+            .map_err(|e| CallError::Internal(e.into()))?
+            .into_iter()
+            .map(|c| CallActiveResponse {
+                call_id: c.id,
+                channel_id: c.channel_id,
+                created_by: c.created_by,
+                created_at: c.created_at,
+            })
+            .collect::<Vec<_>>();
+
+        active_calls.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+        Ok(GetActiveCallsResponse { active_calls })
     }
 
     #[tracing::instrument(err, skip(self))]

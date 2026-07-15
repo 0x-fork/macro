@@ -135,6 +135,15 @@ pub struct CallActiveResponse {
     pub created_at: DateTime<Utc>,
 }
 
+/// Response body for `GET /call/active`.
+#[derive(Debug, serde::Serialize)]
+#[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct GetActiveCallsResponse {
+    /// Active calls for the requested channels.
+    pub active_calls: Vec<CallActiveResponse>,
+}
+
 /// Configuration for S3 egress output.
 #[derive(Clone)]
 pub struct EgressS3Config {

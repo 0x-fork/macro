@@ -21,9 +21,9 @@ use super::models::{
     AddParticipantError, Call, CallActiveResponse, CallError, CallParticipant, CallRecord,
     CallRecordPreview, CallRecordTranscriptSegment, CallTokenResponse,
     CallTranscriptCustomSpeakerResult, CallWebhookEvent, EgressS3Config, EnrichedCallTranscript,
-    GetBatchCallRecordPreviewRequest, GetBatchCallRecordPreviewResponse, GetCallRecordsRequest,
-    LeaveCallResponse, RingStatusResponse, TranscriptSegmentRequest, VerifiedRingToken,
-    VoipPushPayloadRequest,
+    GetActiveCallsResponse, GetBatchCallRecordPreviewRequest, GetBatchCallRecordPreviewResponse,
+    GetCallRecordsRequest, LeaveCallResponse, RingStatusResponse, TranscriptSegmentRequest,
+    VerifiedRingToken, VoipPushPayloadRequest,
 };
 
 /// Repository port for persisting call state to the database.
@@ -53,6 +53,19 @@ pub trait CallRepository: Send + Sync + 'static {
         &self,
         channel_id: &Uuid,
     ) -> impl Future<Output = Result<Option<Call>, Self::Err>> + Send;
+
+    /// Get active calls visible to a user.
+    ///
+    /// Queries the active `calls` table and filters by the same channel
+    /// visibility rules as channel member access: public channels are visible
+    /// to authenticated users, organization channels are visible to users in
+    /// that organization, and all other channel types require active
+    /// participation.
+    fn get_active_calls_visible_to_user<'a>(
+        &self,
+        user_id: MacroUserIdStr<'a>,
+        user_org_id: Option<i64>,
+    ) -> impl Future<Output = Result<Vec<Call>, Self::Err>> + Send;
 
     /// Get an active call by its RTC room name.
     fn get_call_by_room_name(
@@ -527,6 +540,13 @@ pub trait CallService: Send + Sync + 'static {
         &self,
         channel_id: &Uuid,
     ) -> impl Future<Output = Result<Option<CallActiveResponse>, CallError>> + Send;
+
+    /// Get active calls visible to the authenticated user.
+    fn get_active_calls<'a>(
+        &self,
+        user_id: MacroUserIdStr<'a>,
+        user_org_id: Option<i64>,
+    ) -> impl Future<Output = Result<GetActiveCallsResponse, CallError>> + Send;
 
     /// Get or create a call in a channel. If a call already exists, joins it;
     /// otherwise creates a new one. Always returns a join token.

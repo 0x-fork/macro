@@ -10,6 +10,10 @@ export type { CallRecord, CallTokenResponse };
 
 const host: string = SERVER_HOSTS['document-storage-service'];
 
+type GetActiveCallsResponse = {
+  activeCalls: CallActiveResponse[];
+};
+
 export const callServiceClient = {
   async getOrCreateCall(channelId: string) {
     return (
@@ -37,6 +41,14 @@ export const callServiceClient = {
       // safeFetch returns {} for 204 (no Content-Type header)
       (data) => ('callId' in data ? (data as CallActiveResponse) : null)
     );
+  },
+
+  async getActiveCalls() {
+    return (
+      await fetchWithToken<GetActiveCallsResponse>(`${host}/call/active`, {
+        method: 'GET',
+      })
+    ).map((result) => result.activeCalls);
   },
 
   async getCallRecord(callId: string) {

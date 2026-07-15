@@ -32,6 +32,16 @@ use crate::domain::ports::CallRepository;
 /// Name of the partial unique index enforcing one active call per user.
 const ACTIVE_CALL_UNIQUE_INDEX: &str = "call_participants_one_active_per_user";
 
+#[derive(sqlx::FromRow)]
+struct ActiveCallRow {
+    id: Uuid,
+    channel_id: Uuid,
+    room_name: String,
+    created_by: String,
+    created_at: chrono::DateTime<Utc>,
+    egress_id: Option<String>,
+}
+
 /// Translate a sqlx error from an `add_participant` insert into the domain
 /// [`AddParticipantError`]. A unique-violation on the
 /// `call_participants_one_active_per_user` partial index becomes
@@ -453,6 +463,45 @@ impl CallRepository for PgCallRepo {
                 created_at: row.created_at,
                 egress_id: row.egress_id,
             })
+        })
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn get_active_calls_visible_to_user<'a>(
+        &self,
+        user_id: MacroUserIdStr<'a>,
+        user_org_id: Option<i64>,
+    ) -> Result<Vec<Call>, Self::Err> {
+        sqlx::query_as::<_, ActiveCallRow>(
+            r#"
+            SELECT calls.id, calls.channel_id, calls.room_name, calls.created_by, calls.created_at, calls.egress_id
+            FROM calls
+            JOIN comms_channels c ON c.id = calls.channel_id
+            LEFT JOIN comms_channel_participants cp
+                ON cp.channel_id = c.id
+                AND cp.user_id = $1
+                AND cp.left_at IS NULL
+            WHERE
+                c.channel_type = 'public'
+                OR (c.channel_type = 'organization' AND c.org_id = $2)
+                OR cp.user_id IS NOT NULL
+            "#,
+        )
+        .bind(user_id.as_ref())
+        .bind(user_org_id)
+        .fetch_all(&self.pool)
+        .await
+        .map(|rows| {
+            rows.into_iter()
+                .map(|row| Call {
+                    id: row.id,
+                    channel_id: row.channel_id,
+                    room_name: row.room_name,
+                    created_by: row.created_by,
+                    created_at: row.created_at,
+                    egress_id: row.egress_id,
+                })
+                .collect()
         })
     }
 
