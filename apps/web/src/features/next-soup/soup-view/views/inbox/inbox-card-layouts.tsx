@@ -1,4 +1,5 @@
 import { ListPropertyValue } from '@app/features/next-soup/soup-view/views/tasks/list-property-value';
+import { getChannelDrivingNotification } from '@app/features/next-soup/utils';
 import { formatCallDuration } from '@block-call/utils';
 import { BotIcon } from '@channel/Message/BotIcon';
 import { MACRO_AI_BOT_ID, MACRO_AI_NAME } from '@channel/macroAi';
@@ -65,9 +66,16 @@ export interface InboxCardLayoutProps {
 
 type NotificationTag = ReturnType<typeof getNotificationTag>;
 
-/** The notification driving the row's action/sender (most recent first). */
+/**
+ * The notification driving the row's action/sender/preview (most recent
+ * first). For a channel-family entity this is the same notification
+ * `getChannelEntityTarget` resolves the click/highlight target from — using
+ * the same selection here keeps the preview and the click target in sync
+ * (previously this just took `notifications()[0]` unscoped, which could be a
+ * different message than the one a click would highlight).
+ */
 const getFirstNotification = (item: WithNotification<EntityData>) =>
-  item.notifications?.()?.[0];
+  getChannelDrivingNotification(item) ?? item.notifications?.()?.[0];
 
 const getGithubSender = (entity: EntityData, notification?: Notification) => {
   const meta = notification?.notification_metadata;
@@ -127,7 +135,13 @@ const getNotificationSenderFallbackName = (
 const getTimestamp = (entity: EntityData, notification?: Notification) => {
   const messageTime =
     entity.type === 'channel'
-      ? entity.latestRootMessage?.createdAt
+      ? // Only fall back to the channel's latest message when there's no
+        // driving notification (see `itemContent`/`channelMessageContent`):
+        // otherwise this would show the latest message's time next to the
+        // driving notification's (different) message content.
+        notification
+        ? undefined
+        : entity.latestRootMessage?.createdAt
       : entity.type === 'channel_message' || entity.type === 'channel_thread'
         ? (entity.createdAt ?? entity.updatedAt)
         : undefined;
@@ -546,9 +560,10 @@ export function ChannelCardLayout(props: InboxCardLayoutProps) {
 
     if (value.type !== 'channel') return;
 
-    const latestSender = value.latestRootMessage?.senderId;
-
-    return latestSender;
+    // Match the previewed message's sender to the message it actually is
+    // (see `itemContent`): the driving notification's sender when there is
+    // one, falling back to the channel's latest message otherwise.
+    return props.item.notification?.sender_id ?? value.latestRootMessage?.senderId;
   });
 
   const messageSenderName = createSenderDisplayName(messageSenderId);

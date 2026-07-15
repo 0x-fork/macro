@@ -91,8 +91,22 @@ export function getNotificationTag(notification?: Notification) {
   return notification?.notification_metadata.tag;
 }
 
-const channelMessageContent = (entity: EntityData): string | undefined => {
-  if (entity.type === 'channel') return entity.latestRootMessage?.content;
+const channelMessageContent = (
+  entity: EntityData,
+  notification?: Notification
+): string | undefined => {
+  if (entity.type === 'channel') {
+    // A whole-channel row previews the message it will scroll to and
+    // highlight on click — its driving notification (see
+    // `getChannelDrivingNotification`/`getChannelEntityTarget`), when there is
+    // one. With no aiming notification (e.g. all notifications read), fall
+    // back to the channel's latest message, matching the `latest`
+    // click-target fallback.
+    const notificationMessage = notification
+      ? notificationContent(notification)
+      : undefined;
+    return notificationMessage ?? entity.latestRootMessage?.content;
+  }
   if (entity.type === 'channel_message' || entity.type === 'channel_thread') {
     return entity.content;
   }
@@ -113,7 +127,7 @@ export function itemContent(
     return;
   }
 
-  const channel = channelMessageContent(entity);
+  const channel = channelMessageContent(entity, notification);
   if (channel) return channel;
   return notification ? notificationContent(notification) : undefined;
 }

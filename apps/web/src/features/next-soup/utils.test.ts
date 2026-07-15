@@ -15,7 +15,7 @@ vi.mock('@service-connection/websocket', () => ({
 
 import type { ChannelEntityTarget, EntityData } from '@entity';
 import type { UnifiedNotification } from '@notifications';
-import { getChannelEntityTarget } from './utils';
+import { getChannelDrivingNotification, getChannelEntityTarget } from './utils';
 
 const sendNotification = (id: string, messageId: string): UnifiedNotification =>
   ({
@@ -208,5 +208,49 @@ describe('getChannelEntityTarget', () => {
   it('returns undefined for non-channel entities', () => {
     const entity = { type: 'email', id: 'e1' } as unknown as EntityData;
     expect(getChannelEntityTarget(entity)).toBeUndefined();
+  });
+});
+
+describe('getChannelDrivingNotification', () => {
+  // The inbox card preview (ChannelCardLayout) renders whichever notification
+  // this returns, so it must always be the exact notification
+  // getChannelEntityTarget's messageId came from — otherwise the row can
+  // preview one message while highlighting another (MACRO-2421).
+  it('returns the same notification getChannelEntityTarget targets for a channel row', () => {
+    const notification = sendNotification('n2', 'unread-older-msg');
+    const entity = channelRow({
+      notifications: [
+        asRead(sendNotification('n1', 'read-newer-msg')),
+        notification,
+      ],
+    });
+
+    expect(getChannelDrivingNotification(entity)).toBe(notification);
+    expect(getChannelEntityTarget(entity)).toEqual({
+      kind: 'message',
+      messageId: 'unread-older-msg',
+      threadId: undefined,
+    });
+  });
+
+  it('returns undefined for a channel row with no unread notifications, matching the latest fallback', () => {
+    const entity = channelRow({
+      notifications: [asRead(sendNotification('n1', 'read-msg'))],
+    });
+
+    expect(getChannelDrivingNotification(entity)).toBeUndefined();
+    expect(getChannelEntityTarget(entity)).toEqual({ kind: 'latest' });
+  });
+
+  it('returns the scoped reply notification for a channel_thread row', () => {
+    const notification = replyNotification('n2', 'reply-msg', 'root-msg');
+    const entity = channelThreadRow({
+      notifications: [
+        replyNotification('n1', 'reply-in-other-thread', 'other-thread'),
+        notification,
+      ],
+    });
+
+    expect(getChannelDrivingNotification(entity)).toBe(notification);
   });
 });

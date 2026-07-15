@@ -331,6 +331,65 @@ interface OpenEntityOptions {
 }
 
 /**
+ * The notification that determines which message a channel-family row is
+ * "about" — the same message `getChannelEntityTarget` jumps to and highlights
+ * on click. Shared with the inbox card preview (see `ChannelCardLayout` in
+ * `soup-view/views/inbox/inbox-card-layouts.tsx`) so a row never previews one
+ * message while highlighting another: previously the preview read the row's
+ * raw, unscoped `notifications()[0]` while the click target applied the
+ * scoping/read-skip rules below, so the two could disagree.
+ *
+ * Notifications are scoped to the row first (top-level sends for a channel,
+ * this thread's replies for a thread) and the most recent one wins.
+ *
+ * Read state only changes a whole-`channel` row: its notifications are skipped
+ * when read, because a channel aggregates many messages and the newest unread
+ * one (never your own send) can sit far above the latest — jumping there feels
+ * wrong once the row looks read. A `channel_thread`/`channel_message` row is
+ * scoped to one message, so it targets its driving notification read or not —
+ * that is the reply the row stands for and the message to highlight.
+ *
+ * Returns `undefined` when there's no aiming notification (e.g. a whole
+ * `channel` row whose notifications are all read) — callers fall back to the
+ * row's own semantics in that case (the channel's latest message).
+ */
+export function getChannelDrivingNotification(
+  entity: EntityData
+): UnifiedNotification | undefined {
+  if (
+    entity.type !== 'channel' &&
+    entity.type !== 'channel_message' &&
+    entity.type !== 'channel_thread'
+  ) {
+    return undefined;
+  }
+
+  if (!isWithNotification(entity)) return undefined;
+
+  const scoped = scopeChannelNotificationsForEntity(
+    entity,
+    entity.notifications?.() ?? []
+  );
+  for (const notification of scoped) {
+    // For a whole-`channel` row, ignore notifications you have already read:
+    // the row stands for the entire channel, so once read it should open at
+    // the latest message, not scroll up to an already-seen one. (Read ones
+    // are skipped here; if all are read the loop falls through to the
+    // `latest` fallback.) A read notification is also usually well above the
+    // latest message — you are never notified of your own sends, so the newest
+    // notification is someone else's and predates any message you sent after.
+    //
+    // A thread/message row stands for one specific message, so it always jumps
+    // to its notification's message, read or not — that is the message the row
+    // is about and the one to highlight.
+    if (entity.type === 'channel' && notificationIsRead(notification)) continue;
+    return notification;
+  }
+
+  return undefined;
+}
+
+/**
  * Resolve which channel message to activate when a channel row is opened.
  *
  * A row with an explicit `target` (stamped at construction, e.g. a search hit
@@ -342,17 +401,9 @@ interface OpenEntityOptions {
  * Rows without a target are containers — a `channel` row is the whole channel
  * and a `channel_thread` row is keyed by its root, so neither carries the id
  * of the message/reply that put it in the inbox. That id lives only on the
- * driving notification (the same data the card renders), so read the target
- * from there, exactly like the old inbox did via getChannelNotificationParams.
- * Notifications are scoped to the row first (top-level sends for a channel,
- * this thread's replies for a thread) and the most recent one wins.
- *
- * Read state only changes a whole-`channel` row: its notifications are skipped
- * when read, because a channel aggregates many messages and the newest unread
- * one (never your own send) can sit far above the latest — jumping there feels
- * wrong once the row looks read. A `channel_thread`/`channel_message` row is
- * scoped to one message, so it targets its driving notification read or not —
- * that is the reply the row stands for and the message to highlight.
+ * driving notification (the same data the card renders — see
+ * `getChannelDrivingNotification`), so read the target from there, exactly
+ * like the old inbox did via getChannelNotificationParams.
  *
  * With no aiming notification, fall back to the row's own semantics: a
  * `channel_thread`/`channel_message` row opens at its own root/message, and a
@@ -388,25 +439,8 @@ export function getChannelEntityTarget(
           threadId: entity.threadId,
         };
 
-  if (!isWithNotification(entity)) return fallback;
-
-  const scoped = scopeChannelNotificationsForEntity(
-    entity,
-    entity.notifications?.() ?? []
-  );
-  for (const notification of scoped) {
-    // For a whole-`channel` row, ignore notifications you have already read:
-    // the row stands for the entire channel, so once read it should open at
-    // the latest message, not scroll up to an already-seen one. (Read ones
-    // are skipped here; if all are read the loop falls through to the
-    // `latest` fallback.) A read notification is also usually well above the
-    // latest message — you are never notified of your own sends, so the newest
-    // notification is someone else's and predates any message you sent after.
-    //
-    // A thread/message row stands for one specific message, so it always jumps
-    // to its notification's message, read or not — that is the message the row
-    // is about and the one to highlight.
-    if (entity.type === 'channel' && notificationIsRead(notification)) continue;
+  const notification = getChannelDrivingNotification(entity);
+  if (notification) {
     const { messageId, threadId } = getChannelNotificationParams(notification);
     if (messageId) return { kind: 'message', messageId, threadId };
   }
