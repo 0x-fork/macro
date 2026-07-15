@@ -16,6 +16,7 @@ import { activeTabId } from '@core/signal/settingsTab';
 import { useFocusLock } from '@core/util/createControlledOpenSignal';
 import {
   type Accessor,
+  createComponent,
   createMemo,
   createSignal,
   type JSXElement,
@@ -26,6 +27,7 @@ import {
   type ComponentMetaMap,
   resolveComponent,
 } from './componentRegistry';
+import { StandardSplitPanelContent } from './components/SplitPanelContent';
 import { createHistory, type History } from './history';
 
 const ENABLE_DEFAULT_ALWAYS_IN_HISTORY = false;
@@ -499,7 +501,12 @@ function createPinnedMount(
     type: content.type,
     id: content.id,
     handle,
-    element: handle.element,
+    element: () =>
+      createComponent(StandardSplitPanelContent, {
+        get children() {
+          return handle.element();
+        },
+      }),
     aliasContext: content.aliasContext,
   };
 }

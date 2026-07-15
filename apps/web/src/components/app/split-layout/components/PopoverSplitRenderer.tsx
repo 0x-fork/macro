@@ -52,6 +52,8 @@ function PopoverSplitModal(props: {
 }) {
   const [panelRef, setPanelRef] = createSignal<HTMLElement | null>(null);
   const [contentOffsetTop, setContentOffsetTop] = createSignal(0);
+  const [, setHeaderRef] = createSignal<HTMLDivElement | null>(null);
+  const [, setToolbarRef] = createSignal<HTMLDivElement | null>(null);
   const [previewState, setPreviewState] = createSignal(false);
   const [titleFileMenuRef, setTitleFileMenuRef] =
     createSignal<HTMLDivElement>();
@@ -109,6 +111,10 @@ function PopoverSplitModal(props: {
     panelSize: { width: null, height: null },
     contentOffsetTop,
     setContentOffsetTop,
+    setHeaderRef,
+    setToolbarRef,
+    hasToolbarContent: () => false,
+    shouldHideSplitHeader: () => true,
     bottomPanel: () => undefined,
     registerBottomPanel: () => () => {},
     previewState: [previewState, setPreviewState] as [
@@ -116,6 +122,7 @@ function PopoverSplitModal(props: {
       typeof setPreviewState,
     ],
     layoutRefs: {},
+    setLayoutRef: () => {},
     titleFileMenuRef,
     setTitleFileMenuRef,
     titleFileMenuTrigger,
@@ -156,9 +163,7 @@ function PopoverSplitModal(props: {
         <SplitPanelContext.Provider value={stubPanelContext}>
           <SoupContextProvider>
             <Show when={props.popover.mount}>
-              <Panel.Body>
-                <Dynamic component={props.popover.mount.element} />
-              </Panel.Body>
+              <Dynamic component={props.popover.mount.element} />
             </Show>
           </SoupContextProvider>
         </SplitPanelContext.Provider>

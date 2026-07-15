@@ -34,6 +34,7 @@ export function createHeaderCollapser(
 ): HeaderCollapser {
   const [items, setItems] = createStore<CollapsibleRegistration[]>([]);
   let observer: ResizeObserver | null = null;
+  let observedContainer: HTMLElement | null = null;
   let rafId: number | null = null;
   let evaluateQueued = false;
   let lastFailedExpand: { contentWidth: number; panelWidth: number } | null =
@@ -58,7 +59,11 @@ export function createHeaderCollapser(
 
     if (!observer) {
       observer = new ResizeObserver(() => scheduleEvaluate());
+    }
+    if (observedContainer !== headerLeft) {
+      observer.disconnect();
       observer.observe(headerLeft);
+      observedContainer = headerLeft;
     }
 
     if (items.length === 0) return;
@@ -125,6 +130,7 @@ export function createHeaderCollapser(
 
   onCleanup(() => {
     observer?.disconnect();
+    observedContainer = null;
     if (rafId !== null) cancelAnimationFrame(rafId);
   });
 

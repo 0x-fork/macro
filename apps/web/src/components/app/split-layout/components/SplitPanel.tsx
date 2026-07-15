@@ -3,22 +3,19 @@ import { createSoupState } from '@app/features/next-soup/create-soup-state';
 import { SoupContextProvider } from '@app/features/next-soup/soup-context';
 import { SoupViewContextProvider } from '@app/features/next-soup/soup-view/soup-view-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { MobileTopEdgeFade } from '@components/app/mobile/MobileEdgeFade';
 import { isSoloSettings } from '@core/constant/SettingsState';
 import { splitContainerAttribute } from '@core/dom-selectors';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import { getSafeAreaInset } from '@core/mobile/safeAreaInsets';
-import CloseIcon from '@phosphor/x.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
-import { Button, cn, Panel } from '@ui';
+import { cn, Panel } from '@ui';
 import {
   createEffect,
   createMemo,
   createSignal,
   on,
   onCleanup,
-  onMount,
   Show,
   Suspense,
 } from 'solid-js';
@@ -26,17 +23,15 @@ import { Dynamic } from 'solid-js/web';
 import {
   type SplitBottomPanelRegistration,
   type SplitFileMenuActionGroups,
+  type SplitLayoutRefs,
   SplitPanelContext,
   type SplitPanelContextType,
 } from '../context';
-import { splitPanelLayer } from '../layers';
 import { useSplitLayout } from '../layout';
 import type { SplitHandle, SplitState } from '../layoutManager';
 import { registerSplitHotkeys } from '../registerSplitHotkeys';
 import { createHeaderCollapser } from '../utils/createHeaderCollapser';
 import { SplitDrawerGroup } from './SplitDrawerContext';
-import { SplitHeader } from './SplitHeader';
-import { SplitToolbar } from './SplitToolbar';
 
 type SplitPanelProps = {
   setPanelRef: (ref: HTMLDivElement) => void;
@@ -64,8 +59,22 @@ export function SplitPanel(props: SplitPanelProps) {
   const panelSize = createElementSize(panelRef);
 
   const layoutRefs: SplitPanelContextType['layoutRefs'] = {};
+  const [headerLeftTarget, setHeaderLeftTarget] =
+    createSignal<HTMLDivElement>();
+  const [toolbarLeftTarget, setToolbarLeftTarget] =
+    createSignal<HTMLDivElement>();
+  const [toolbarRightTarget, setToolbarRightTarget] =
+    createSignal<HTMLDivElement>();
+
+  const setLayoutRef = (slot: keyof SplitLayoutRefs, ref: HTMLDivElement) => {
+    layoutRefs[slot] = ref;
+    if (slot === 'headerLeft') setHeaderLeftTarget(ref);
+    if (slot === 'toolbarLeft') setToolbarLeftTarget(ref);
+    if (slot === 'toolbarRight') setToolbarRightTarget(ref);
+  };
+
   const headerCollapser = createHeaderCollapser(
-    () => layoutRefs.headerLeft,
+    headerLeftTarget,
     () => panelSize.width
   );
 
@@ -110,23 +119,19 @@ export function SplitPanel(props: SplitPanelProps) {
   const headerSize = createElementSize(headerRef);
 
   const [hasToolbarContent, setHasToolbarContent] = createSignal(false);
-  onMount(() => {
+  createEffect(() => {
+    const left = toolbarLeftTarget();
+    const right = toolbarRightTarget();
     const checkContent = () => {
       setHasToolbarContent(
-        Boolean(
-          layoutRefs.toolbarLeft?.hasChildNodes() ||
-            layoutRefs.toolbarRight?.hasChildNodes()
-        )
+        Boolean(left?.hasChildNodes() || right?.hasChildNodes())
       );
     };
+
     checkContent();
     const observer = new MutationObserver(checkContent);
-    if (layoutRefs.toolbarLeft) {
-      observer.observe(layoutRefs.toolbarLeft, { childList: true });
-    }
-    if (layoutRefs.toolbarRight) {
-      observer.observe(layoutRefs.toolbarRight, { childList: true });
-    }
+    if (left) observer.observe(left, { childList: true });
+    if (right) observer.observe(right, { childList: true });
     onCleanup(() => observer.disconnect());
   });
 
@@ -166,6 +171,10 @@ export function SplitPanel(props: SplitPanelProps) {
           handle: props.handle,
           setContentOffsetTop,
           contentOffsetTop,
+          setHeaderRef,
+          setToolbarRef,
+          hasToolbarContent,
+          shouldHideSplitHeader,
           splitHotkeyScope,
           bottomPanel,
           registerBottomPanel: (panel) => {
@@ -178,6 +187,7 @@ export function SplitPanel(props: SplitPanelProps) {
           },
           headerCollapser,
           layoutRefs,
+          setLayoutRef,
           titleFileMenuRef,
           setTitleFileMenuRef,
           titleFileMenuTrigger,
@@ -230,7 +240,7 @@ export function SplitPanel(props: SplitPanelProps) {
                   : undefined
               }
               class={cn(
-                'rounded-xl mobile:rounded-none mobile:after:hidden mobile:border-0! bg-panel',
+                'relative rounded-xl mobile:rounded-none mobile:after:hidden mobile:border-0! bg-panel',
                 {
                   'shadow-sm shadow-drop-shadow/50 bg-panel/80 dark-mode:bg-panel/30':
                     splitUnfocusedStyling(),
@@ -239,71 +249,11 @@ export function SplitPanel(props: SplitPanelProps) {
               )}
               depth={isMobile() ? 0 : 1}
             >
-              <Panel.Header
-                class={cn(
-                  'relative block min-h-10.25 touch:min-h-11.25 p-0 overflow-visible border-b-0!',
-                  splitPanelLayer.controls,
-                  // On mobile the header collapses to a zero-height grid row;
-                  // SplitHeader overlays the body as floating islands.
-                  'mobile:min-h-0 mobile:border-b-0',
-                  shouldHideSplitHeader() && 'hidden'
-                )}
-              >
-                <SplitHeader ref={setHeaderRef} />
-              </Panel.Header>
-
-              <Panel.Toolbar
-                class={cn(
-                  'items-start overflow-visible',
-                  !hasToolbarContent() && 'hidden',
-                  isMobile() && 'hidden',
-                  (!previewState() ||
-                    isListViewID(props.handle.content().id)) &&
-                    'border-b-0' /* List views draw the preview border below their filter bar instead (see SoupView). */
-                )}
-              >
-                <SplitToolbar ref={setToolbarRef} />
-              </Panel.Toolbar>
-
-              <Panel.Body>
-                <div class="@container/split size-full min-h-0 overflow-hidden relative flex flex-col">
-                  <div
-                    class={cn(
-                      'min-h-0 min-w-0 overflow-hidden relative',
-                      bottomPanel() ? 'h-1/2' : 'h-full'
-                    )}
-                  >
-                    <Suspense>
-                      <SoupViewContextProvider soup={nextSoup}>
-                        <Dynamic component={props.split.mount.element} />
-                      </SoupViewContextProvider>
-                    </Suspense>
-                  </div>
-                  <Show when={bottomPanel()}>
-                    {(panel) => (
-                      <div class="h-1/2 min-h-0 min-w-0 border-t border-edge-muted bg-surface flex flex-col">
-                        <div class="flex h-10 shrink-0 items-center gap-2 border-b border-edge-muted px-2">
-                          <h3 class="min-w-0 flex-1 truncate text-sm font-medium text-content-secondary">
-                            {panel().title}
-                          </h3>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            label="Close"
-                            onClick={() => panel().onClose?.()}
-                          >
-                            <CloseIcon />
-                          </Button>
-                        </div>
-                        <div class="min-h-0 flex-1 overflow-hidden">
-                          {panel().content()}
-                        </div>
-                      </div>
-                    )}
-                  </Show>
-                </div>
-                <MobileTopEdgeFade />
-              </Panel.Body>
+              <Suspense>
+                <SoupViewContextProvider soup={nextSoup}>
+                  <Dynamic component={props.split.mount.element} />
+                </SoupViewContextProvider>
+              </Suspense>
             </Panel>
           </div>
         </SplitDrawerGroup>

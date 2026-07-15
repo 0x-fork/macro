@@ -32,6 +32,7 @@ import { Button, cn } from '@ui';
 import {
   createMemo,
   createSignal,
+  type JSX,
   type ParentProps,
   type Setter,
   Show,
@@ -193,7 +194,7 @@ function SplitCloseButton() {
   );
 }
 
-function SoupNavigationButtons() {
+export function SoupNavigationButtons() {
   const context = useContext(SplitPanelContext);
   const soup = useSoup();
   if (!context) return null;
@@ -404,7 +405,53 @@ function SplitHeaderContextMenu(props: ParentProps) {
   );
 }
 
-export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
+export function SplitHeaderNavigation() {
+  const panel = useContext(SplitPanelContext);
+  if (!panel) {
+    throw new Error(
+      '<SplitHeaderNavigation> must be used within a <SplitLayout>'
+    );
+  }
+
+  return (
+    <Show
+      when={isMobile()}
+      fallback={
+        <div class="relative flex items-center pl-2 h-full">
+          <SidebarExpandButton />
+          <SplitCloseButton />
+          <SplitBackButton />
+          <SplitForwardButton />
+        </div>
+      }
+    >
+      <HeaderIsland
+        class={cn('relative gap-0 px-1', !panel.handle.canGoBack() && 'hidden')}
+      >
+        <Show when={!isListViewID(panel.handle.content().id)}>
+          <SplitBackButton />
+        </Show>
+      </HeaderIsland>
+    </Show>
+  );
+}
+
+export type SplitHeaderProps = {
+  ref: Setter<HTMLDivElement | null>;
+} & (
+  | {
+      /** Preserve portal targets for consumers that have not migrated yet. */
+      legacySlots?: true;
+      children?: never;
+    }
+  | {
+      /** Render the complete header layout through ordinary children. */
+      legacySlots: false;
+      children: JSX.Element;
+    }
+);
+
+export function SplitHeader(props: SplitHeaderProps) {
   const panel = useContext(SplitPanelContext);
   if (!panel) {
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
@@ -479,48 +526,22 @@ export function SplitHeader(props: { ref: Setter<HTMLDivElement | null> }) {
             </Portal>
           )}
         </Show>
-        <div class="absolute inset-0 flex justify-start items-center mobile:px-(--mobile-chrome-gutter) mobile:gap-2">
-          <Show
-            when={isMobile()}
-            fallback={
-              <div class="relative flex items-center pl-2 h-full">
-                <SidebarExpandButton />
-                <SplitCloseButton />
-                <SplitBackButton />
-                <SplitForwardButton />
-              </div>
-            }
-          >
-            {/* Back/forward island. */}
-            <HeaderIsland
-              class={cn(
-                'relative gap-0 px-1',
-                !panel.handle.canGoBack() && 'hidden'
-              )}
-            >
-              <Show when={!isListViewID(panel.handle.content().id)}>
-                <SplitBackButton />
-              </Show>
-            </HeaderIsland>
-          </Show>
-
-          <div
-            class="relative min-w-0 h-full shrink pl-2 flex items-center gap-0.5 mobile:pl-0 mobile:gap-2"
-            ref={(ref) => {
-              panel.layoutRefs.headerLeft = ref;
-            }}
-          />
-
-          <div class="h-full grow shrink flex items-center justify-end gap-0.5 px-2 mobile:px-0 mobile:gap-2">
+        <Show when={props.legacySlots !== false} fallback={props.children}>
+          <div class="absolute inset-0 flex justify-start items-center mobile:px-(--mobile-chrome-gutter) mobile:gap-2">
+            <SplitHeaderNavigation />
             <div
-              class="contents"
-              ref={(ref) => {
-                panel.layoutRefs.headerRight = ref;
-              }}
+              class="relative min-w-0 h-full shrink pl-2 flex items-center gap-0.5 mobile:pl-0 mobile:gap-2"
+              ref={(ref) => panel.setLayoutRef('headerLeft', ref)}
             />
-            <SoupNavigationButtons />
+            <div class="h-full grow shrink flex items-center justify-end gap-0.5 px-2 mobile:px-0 mobile:gap-2">
+              <div
+                class="contents"
+                ref={(ref) => panel.setLayoutRef('headerRight', ref)}
+              />
+              <SoupNavigationButtons />
+            </div>
           </div>
-        </div>
+        </Show>
       </div>
     </SplitHeaderContextMenu>
   );

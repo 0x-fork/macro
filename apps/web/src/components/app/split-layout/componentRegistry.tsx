@@ -26,6 +26,7 @@ import { useUserContext } from '@core/context/user';
 import type { ViewId } from '@core/types/view';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
+import { StandardSplitPanelContent } from './components/SplitPanelContent';
 import type { SplitContent } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 
@@ -90,13 +91,28 @@ type ComponentRegistration = {
 
 const REGISTRY = new Map<string, ComponentRegistration>();
 
-function registerComponent<T extends Omit<ComponentMeta, 'kind'>>(
+function registerPanelComponent<T extends Omit<ComponentMeta, 'kind'>>(
   name: string,
   factory: ComponentFactory,
   initialMeta?: T
 ) {
   const metaWithKind = initialMeta ? { kind: name, ...initialMeta } : undefined;
   REGISTRY.set(name, { factory, initialMeta: metaWithKind as ComponentMeta });
+}
+
+/** Registers body content using the standard composed panel structure. */
+function registerComponent<T extends Omit<ComponentMeta, 'kind'>>(
+  name: string,
+  factory: ComponentFactory,
+  initialMeta?: T
+) {
+  registerPanelComponent(
+    name,
+    (params) => (
+      <StandardSplitPanelContent>{factory(params)}</StandardSplitPanelContent>
+    ),
+    initialMeta
+  );
 }
 
 type ResolvedComponent = {
@@ -127,7 +143,7 @@ export function resolveComponent(
   };
 }
 
-registerComponent('unified-list', () => (
+registerPanelComponent('unified-list', () => (
   <RedirectSplit to={{ type: 'component', id: 'inbox' }} />
 ));
 
@@ -140,7 +156,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'inbox',
   withAuth(() => {
     usePageViewTracking('inbox');
@@ -157,7 +173,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'agents',
   withAuth(() => {
     usePageViewTracking('agents');
@@ -179,7 +195,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'mail',
   withAuth(() => {
     usePageViewTracking('mail');
@@ -195,7 +211,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'documents',
   withAuth((params: DocumentsComponentParams = {}) => {
     usePageViewTracking('documents');
@@ -223,7 +239,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'tasks',
   withAuth(() => {
     usePageViewTracking('tasks');
@@ -243,7 +259,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'channels',
   withAuth(() => {
     usePageViewTracking('channels');
@@ -259,7 +275,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'calls',
   withAuth(() => {
     usePageViewTracking('calls');
@@ -275,7 +291,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'companies',
   withAuth(() => {
     // Registered even when the CRM feature is off so direct navigation /
@@ -305,7 +321,7 @@ registerComponent(
   })
 );
 
-registerComponent(
+registerPanelComponent(
   'folders',
   withAuth(() => {
     usePageViewTracking('folders');
@@ -331,7 +347,7 @@ type SearchComponentParams = {
   initialClientFilters?: SetPredicatesInput<string>;
 };
 
-registerComponent(
+registerPanelComponent(
   'search',
   withAuth((params: SearchComponentParams = {}) => {
     usePageViewTracking('search');

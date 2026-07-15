@@ -23,15 +23,11 @@ export function SplitToolbar(props: { ref: Setter<HTMLDivElement | null> }) {
     >
       <div
         class="flex-1 flex items-center gap-1"
-        ref={(ref) => {
-          panel.layoutRefs.toolbarLeft = ref;
-        }}
+        ref={(ref) => panel.setLayoutRef('toolbarLeft', ref)}
       />
       <div
         class="flex items-center gap-1"
-        ref={(ref) => {
-          panel.layoutRefs.toolbarRight = ref;
-        }}
+        ref={(ref) => panel.setLayoutRef('toolbarRight', ref)}
       />
     </div>
   );

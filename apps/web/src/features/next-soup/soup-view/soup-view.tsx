@@ -58,6 +58,7 @@ import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
+import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { DEBUG_SETTING_KEYS, useDebugSetting } from '@app/lib/debugSettings';
 import { usePreference } from '@app/preferences/use-preference';
 import { useDealStages } from '@companies/crm/deal-stages';
@@ -76,9 +77,16 @@ import {
 } from '@components/app/PreviewPanel';
 import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleHeaderItem';
 import {
+  SoupNavigationButtons,
   SplitHeaderLeft,
+  SplitHeaderNavigation,
   SplitHeaderRight,
 } from '@components/app/split-layout/components/SplitHeader';
+import {
+  SplitPanelBody,
+  SplitPanelHeader,
+  SplitPanelToolbar,
+} from '@components/app/split-layout/components/SplitPanelContent';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
@@ -111,6 +119,8 @@ import ChevronRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import InfoIcon from '@phosphor/info.svg';
 import Spinner from '@phosphor/spinner.svg';
+import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
+import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-solid';
 import { useQueryClient } from '@queries/client';
 import { emailKeys } from '@queries/email/keys';
 import { invalidateEntityNotifications } from '@queries/notification/user-notifications';
@@ -335,6 +345,57 @@ interface SoupViewProps {
    * When set, its pieces win over persisted/preset state during init.
    */
   initialCrmView?: CrmViewConfig;
+}
+
+function InlineInboxPreviewToggle() {
+  const panel = useSplitPanelOrThrow();
+  const analytics = useAnalytics();
+  const soup = useSoup();
+  const { setPreviewOpen } = useSoupView();
+  const { isWideSplitPanel, previewOpen, selectedEntity } =
+    usePreviewPaneVisiblity();
+
+  const togglePreview = () => {
+    if (previewOpen()) {
+      setPreviewOpen(false);
+      soup.setPreviewEntity(undefined);
+      return;
+    }
+
+    analytics.track('preview_panel_use');
+    soup.setPreviewEntity(selectedEntity()?.id);
+    setPreviewOpen(true);
+  };
+
+  registerHotkey({
+    hotkeyToken: TOKENS.unifiedList.togglePreview,
+    scopeId: panel.splitHotkeyScope,
+    description: 'Toggle preview',
+    keyDownHandler: () => {
+      togglePreview();
+      return true;
+    },
+    hotkey: 'space',
+  });
+
+  return (
+    <Tooltip
+      hotkey={isWideSplitPanel() ? TOKENS.unifiedList.togglePreview : undefined}
+      label={isWideSplitPanel() ? 'Preview' : 'No space for preview'}
+    >
+      <Button
+        onClick={togglePreview}
+        variant="base"
+        size="sm"
+        depth={2}
+        class="bg-surface"
+        disabled={!isWideSplitPanel()}
+      >
+        {previewOpen() ? <EyeSlashIcon /> : <EyeIcon />}
+        <span>Preview</span>
+      </Button>
+    </Tooltip>
+  );
 }
 
 export const SoupView = (props: SoupViewProps) => {
@@ -575,6 +636,7 @@ export const SoupView = (props: SoupViewProps) => {
     registrationType: 'add',
     description: 'Search',
     keyDownHandler: () => {
+      if (isNewInboxEnabled()) return false;
       if (isMobile()) {
         if (mobileSearchOpen()) return false;
         setMobileSearchOpen(true);
@@ -603,163 +665,185 @@ export const SoupView = (props: SoupViewProps) => {
           previewVisible() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
-      <div class="size-full flex flex-col" data-list-view={activeListView()}>
-        <div
-          class={cn('flex flex-col w-full', {
-            // In preview the separating border sits below this region, so it
-            // ends up under the active-filters bar when shown, otherwise right
-            // under the toolbar (the wrapper collapses to zero height).
-            'border-b border-edge-muted': !isMobile() && paneVisible(),
-          })}
-        >
-          <SplitHeaderLeft>
+      <Show when={!isNewInboxEnabled()}>
+        <SplitPanelHeader />
+        <SplitPanelToolbar />
+      </Show>
+      <SplitPanelBody>
+        <div class="size-full flex flex-col" data-list-view={activeListView()}>
+          <Show when={!isNewInboxEnabled()}>
             <div
-              class={cn('h-full flex gap-3 items-center', {
-                'shrink-0': !narrowSearchExpanded(),
-                'flex-1 min-w-0': narrowSearchExpanded(),
+              class={cn('flex flex-col w-full', {
+                // In preview the separating border sits below this region, so it
+                // ends up under the active-filters bar when shown, otherwise right
+                // under the toolbar (the wrapper collapses to zero height).
+                'border-b border-edge-muted': !isMobile() && paneVisible(),
               })}
             >
-              <Show when={!isMobile() && !narrowSearchExpanded()}>
-                <div class="flex items-center gap-1">
-                  <span class="text-sm font-semibold">{props.viewName}</span>
-                  <Show when={docsUrl()}>
-                    {(url) => (
-                      <Button
-                        variant="ghost"
-                        class="p-0.5 rounded-sm text-ink-extra-muted hover:text-ink-muted"
-                        label="View documentation"
-                        onClick={() => openExternalUrl(url())}
-                      >
-                        <InfoIcon class="size-3.5" />
-                      </Button>
-                    )}
+              <SplitHeaderLeft>
+                <div
+                  class={cn('h-full flex gap-3 items-center', {
+                    'shrink-0': !narrowSearchExpanded(),
+                    'flex-1 min-w-0': narrowSearchExpanded(),
+                  })}
+                >
+                  <Show when={!isMobile() && !narrowSearchExpanded()}>
+                    <div class="flex items-center gap-1">
+                      <span class="text-sm font-semibold">
+                        {props.viewName}
+                      </span>
+                      <Show when={docsUrl()}>
+                        {(url) => (
+                          <Button
+                            variant="ghost"
+                            class="p-0.5 rounded-sm text-ink-extra-muted hover:text-ink-muted"
+                            label="View documentation"
+                            onClick={() => openExternalUrl(url())}
+                          >
+                            <InfoIcon class="size-3.5" />
+                          </Button>
+                        )}
+                      </Show>
+                    </div>
+                  </Show>
+                  <Show
+                    when={
+                      !narrowSearchExpanded() && !isComponentListView('search')
+                    }
+                  >
+                    <Show when={!isMobile()}>
+                      <CollapsibleHeaderItem
+                        id="tabs"
+                        priority={1}
+                        expanded={() => <SoupViewTabs />}
+                        collapsed={() => <CollapsedSoupViewTabs />}
+                        containerClass="h-full"
+                      />
+                    </Show>
+                  </Show>
+                  <Show
+                    when={
+                      !isMobile() &&
+                      !narrowSearchExpanded() &&
+                      isComponentListView('mail')
+                    }
+                  >
+                    <InboxSelector />
                   </Show>
                 </div>
-              </Show>
-              <Show
-                when={!narrowSearchExpanded() && !isComponentListView('search')}
-              >
-                <Show when={!isMobile()}>
-                  <CollapsibleHeaderItem
-                    id="tabs"
-                    priority={1}
-                    expanded={() => <SoupViewTabs />}
-                    collapsed={() => <CollapsedSoupViewTabs />}
-                    containerClass="h-full"
-                  />
-                </Show>
-              </Show>
-              <Show
-                when={
-                  !isMobile() &&
-                  !narrowSearchExpanded() &&
-                  isComponentListView('mail')
-                }
-              >
-                <InboxSelector />
-              </Show>
-            </div>
-          </SplitHeaderLeft>
-          <Show when={!isMobile()}>
-            <SplitHeaderRight>
-              <Show
-                when={
-                  !narrowSearchExpanded() && isComponentListView('companies')
-                }
-              >
-                <CompanyViewsMenu />
-                <CompanyDisplayMenu />
-              </Show>
-              <Show
-                when={!narrowSearchExpanded() && !isComponentListView('search')}
-              >
-                <SoupViewCreateButton />
-              </Show>
-              <Show when={narrowSearchExpanded()}>
-                <Layer depth={2}>
-                  <div class="flex-1 min-w-0">
-                    <SoupSearchbar
-                      variant="secondary"
-                      autoFocus
-                      initialValue={props.initialSearchText}
-                      onDismiss={() => setNarrowSearchExpanded(false)}
-                    />
-                  </div>
-                </Layer>
-              </Show>
-              <Show
-                when={!isComponentListView('search')}
-                fallback={
-                  <Layer depth={2}>
-                    <div class="grow ml-2 min-w-0 [contain:inline-size]">
-                      <SoupSearchbar
-                        variant="secondary"
-                        placeholder="Search, @mention contacts"
-                        initialValue={props.initialSearchText}
-                      />
-                    </div>
-                  </Layer>
-                }
-              >
-                <Show when={!narrowSearchExpanded()}>
-                  <CollapsibleHeaderItem
-                    id="search"
-                    priority={0}
-                    onCollapsedChange={(isCollapsed) => {
-                      setSearchIsCollapsed(isCollapsed);
-                      if (!isCollapsed) setNarrowSearchExpanded(false);
-                    }}
-                    expanded={() => (
+              </SplitHeaderLeft>
+              <Show when={!isMobile()}>
+                <SplitHeaderRight>
+                  <Show
+                    when={
+                      !narrowSearchExpanded() &&
+                      isComponentListView('companies')
+                    }
+                  >
+                    <CompanyViewsMenu />
+                    <CompanyDisplayMenu />
+                  </Show>
+                  <Show
+                    when={
+                      !narrowSearchExpanded() && !isComponentListView('search')
+                    }
+                  >
+                    <SoupViewCreateButton />
+                  </Show>
+                  <Show when={narrowSearchExpanded()}>
+                    <Layer depth={2}>
+                      <div class="flex-1 min-w-0">
+                        <SoupSearchbar
+                          variant="secondary"
+                          autoFocus
+                          initialValue={props.initialSearchText}
+                          onDismiss={() => setNarrowSearchExpanded(false)}
+                        />
+                      </div>
+                    </Layer>
+                  </Show>
+                  <Show
+                    when={!isComponentListView('search')}
+                    fallback={
                       <Layer depth={2}>
-                        <div class="w-60 ml-2">
+                        <div class="grow ml-2 min-w-0 [contain:inline-size]">
                           <SoupSearchbar
                             variant="secondary"
+                            placeholder="Search, @mention contacts"
                             initialValue={props.initialSearchText}
                           />
                         </div>
                       </Layer>
-                    )}
-                    collapsed={() => (
-                      <Tooltip label="Search" hotkey={TOKENS.soup.openSearch}>
-                        <Button
-                          variant="base"
-                          class="p-1 size-7 rounded-lg ml-2 bg-surface"
-                          onClick={() => setNarrowSearchExpanded(true)}
-                          depth={2}
-                        >
-                          <SearchIcon class="size-4 touch:size-6" />
-                        </Button>
-                      </Tooltip>
-                    )}
-                  />
-                </Show>
+                    }
+                  >
+                    <Show when={!narrowSearchExpanded()}>
+                      <CollapsibleHeaderItem
+                        id="search"
+                        priority={0}
+                        onCollapsedChange={(isCollapsed) => {
+                          setSearchIsCollapsed(isCollapsed);
+                          if (!isCollapsed) setNarrowSearchExpanded(false);
+                        }}
+                        expanded={() => (
+                          <Layer depth={2}>
+                            <div class="w-60 ml-2">
+                              <SoupSearchbar
+                                variant="secondary"
+                                initialValue={props.initialSearchText}
+                              />
+                            </div>
+                          </Layer>
+                        )}
+                        collapsed={() => (
+                          <Tooltip
+                            label="Search"
+                            hotkey={TOKENS.soup.openSearch}
+                          >
+                            <Button
+                              variant="base"
+                              class="p-1 size-7 rounded-lg ml-2 bg-surface"
+                              onClick={() => setNarrowSearchExpanded(true)}
+                              depth={2}
+                            >
+                              <SearchIcon class="size-4 touch:size-6" />
+                            </Button>
+                          </Tooltip>
+                        )}
+                      />
+                    </Show>
+                  </Show>
+                </SplitHeaderRight>
               </Show>
-            </SplitHeaderRight>
+            </div>
           </Show>
-        </div>
-        <SoupFiltersBar />
-        <div class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full">
-          <Suspense>
-            <Show when={!isBoardMode()} fallback={<CompanyKanban />}>
-              <SoupViewList />
+          <Show when={!isNewInboxEnabled()}>
+            <SoupFiltersBar />
+          </Show>
+          <div class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full">
+            <Suspense>
+              <Show when={!isBoardMode()} fallback={<CompanyKanban />}>
+                <SoupViewList />
+              </Show>
+            </Suspense>
+            <Show when={isMobile()}>
+              <FloatRegion region="accessory">
+                <MobileSoupViewTabs />
+              </FloatRegion>
             </Show>
-          </Suspense>
-          <Show when={isMobile()}>
-            <FloatRegion region="accessory">
-              <MobileSoupViewTabs />
-            </FloatRegion>
-          </Show>
+          </div>
         </div>
-      </div>
-      <Suspense>
-        <Show
-          when={
-            ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile() && !isNewInboxEnabled()
-          }
-        >
-          <SoupChatInput />
-        </Show>
-      </Suspense>
+        <Suspense>
+          <Show
+            when={
+              ENABLE_UNIFIED_LIST_AI_INPUT &&
+              !isMobile() &&
+              !isNewInboxEnabled()
+            }
+          >
+            <SoupChatInput />
+          </Show>
+        </Suspense>
+      </SplitPanelBody>
     </SplitPanelContext.Provider>
   );
 };
@@ -1235,9 +1319,39 @@ export const SoupViewList = (props: SoupViewListProps) => {
               <div
                 class={cn(
                   '@container/u-list size-full unified-list-root flex flex-col relative',
-                  paneVisible() && 'border-r border-edge-muted'
+                  paneVisible() && 'border-r border-edge-muted',
+                  isNewInboxEnabled() && 'pt-(--split-header-height)'
                 )}
               >
+                <Show when={isNewInboxEnabled()}>
+                  <SplitPanelHeader overlay legacySlots={false}>
+                    <div class="absolute inset-0 flex items-center mobile:px-(--mobile-chrome-gutter) mobile:gap-2">
+                      <SplitHeaderNavigation />
+                      <div class="relative min-w-0 h-full shrink pl-2 flex items-center gap-0.5 mobile:pl-0 mobile:gap-2">
+                        <span class="text-sm font-semibold">Inbox</span>
+                      </div>
+                      <div class="h-full grow shrink flex items-center justify-end gap-0.5 px-2 mobile:px-0 mobile:gap-2">
+                        <Show when={!isMobile()}>
+                          <SoupViewCreateButton />
+                        </Show>
+                        <SoupNavigationButtons />
+                      </div>
+                    </div>
+                  </SplitPanelHeader>
+                </Show>
+                <Show when={isNewInboxEnabled() && !isMobile()}>
+                  <section class="shrink-0 border-b border-edge-muted bg-surface px-3 py-2">
+                    <nav
+                      class="flex items-center justify-between gap-3"
+                      aria-label="Inbox sections"
+                    >
+                      <SoupViewTabs />
+                      <div class="ml-auto shrink-0">
+                        <InlineInboxPreviewToggle />
+                      </div>
+                    </nav>
+                  </section>
+                </Show>
                 <Show when={isMobile() && source.isPlaceholderData()}>
                   <MobileTabLoadingBar />
                 </Show>

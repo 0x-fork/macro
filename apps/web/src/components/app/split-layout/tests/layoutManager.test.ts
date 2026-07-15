@@ -15,6 +15,10 @@ vi.mock('../componentRegistry', () => ({
   })),
 }));
 
+vi.mock('../components/SplitPanelContent', () => ({
+  StandardSplitPanelContent: (props: { children: unknown }) => props.children,
+}));
+
 vi.mock('@core/constant/allBlocks', () => ({
   isBlockAlias: vi.fn(() => false),
   resolveBlockAlias: vi.fn((type: string) => type),

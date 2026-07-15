@@ -77,6 +77,13 @@ export function getSplitFileMenuActionSections(
   return sections.filter((section) => section.actions.length > 0);
 }
 
+export type SplitLayoutRefs = {
+  headerLeft?: HTMLDivElement;
+  headerRight?: HTMLDivElement;
+  toolbarLeft?: HTMLDivElement;
+  toolbarRight?: HTMLDivElement;
+};
+
 export type SplitPanelContextType = {
   handle: SplitHandle;
   splitHotkeyScope: string;
@@ -85,16 +92,16 @@ export type SplitPanelContextType = {
   panelSize: NullableSize;
   contentOffsetTop: Accessor<number>;
   setContentOffsetTop: Setter<number>;
+  setHeaderRef: Setter<HTMLDivElement | null>;
+  setToolbarRef: Setter<HTMLDivElement | null>;
+  hasToolbarContent: Accessor<boolean>;
+  shouldHideSplitHeader: Accessor<boolean>;
   halfSplitState?: Accessor<HalfSplitState | undefined>;
   bottomPanel: Accessor<SplitBottomPanelRegistration | undefined>;
   registerBottomPanel: (panel: SplitBottomPanelRegistration) => () => void;
   previewState: Signal<boolean>;
-  layoutRefs: {
-    headerLeft?: HTMLDivElement;
-    headerRight?: HTMLDivElement;
-    toolbarLeft?: HTMLDivElement;
-    toolbarRight?: HTMLDivElement;
-  };
+  layoutRefs: SplitLayoutRefs;
+  setLayoutRef: (slot: keyof SplitLayoutRefs, ref: HTMLDivElement) => void;
   titleFileMenuRef: Accessor<HTMLDivElement | undefined>;
   setTitleFileMenuRef: Setter<HTMLDivElement | undefined>;
   titleFileMenuTrigger: Accessor<(() => void) | undefined>;
