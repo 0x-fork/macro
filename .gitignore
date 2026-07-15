@@ -8,6 +8,7 @@
 **/.DS_Store
 .run/
 .claude/.local
+.claude/worktrees/
 temp/
 run-local.fish
 **/node_modules
