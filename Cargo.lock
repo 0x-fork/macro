@@ -8691,7 +8691,6 @@ dependencies = [
  "macro_auth",
  "macro_aws_config",
  "macro_config",
- "macro_db_client",
  "macro_entrypoint",
  "macro_env",
  "macro_env_var",
