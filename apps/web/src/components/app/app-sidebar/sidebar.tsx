@@ -63,6 +63,7 @@ import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
 import LogoIcon from '@icon/macro-logo.svg';
+import { AnimatedActivityIcon } from '@icon/wide-activity';
 import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { AnimatedCompanyIcon } from '@icon/wide-company';
@@ -170,6 +171,14 @@ const SIDEBAR_LINKS = [
     icon: AnimatedInboxIcon,
     hotkey: 'i',
     hotkeyToken: TOKENS.sidebar.goTo.inbox,
+  },
+  {
+    id: 'activity',
+    label: 'Activity',
+    href: '/activity',
+    icon: AnimatedActivityIcon,
+    hotkey: 'y',
+    hotkeyToken: TOKENS.sidebar.goTo.activity,
   },
   {
     id: 'search',
@@ -1168,7 +1177,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   });
 
   const topLinks = createMemo(() =>
-    ['home', 'inbox']
+    ['home', 'inbox', 'activity']
       .map((id) => findLink(id))
       .filter((link): link is SidebarItem => link !== undefined)
   );
