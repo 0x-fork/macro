@@ -1157,11 +1157,18 @@ export const SoupViewList = (props: SoupViewListProps) => {
     return source.refresh().finally(() => setIsPullRefreshing(false));
   };
 
+  // Mirrors CompanyKanban's crmUnavailable short-circuit: the companies list
+  // shouldn't attempt to render (or fetch) company rows at all when CRM is
+  // disabled/unavailable — it should always fall through to the same
+  // "CRM is disabled" empty state the board already shows.
+  const crmUnavailable = useCrmUnavailable();
+
   // Shared by the empty-state <Match> and the pull-to-refresh target so the
   // gesture always attaches to whichever element is actually mounted.
   const showEmptyState = () =>
     ((!source.isFetching() || isPullRefreshing()) && !rows().length) ||
-    forceEmptyState();
+    forceEmptyState() ||
+    (currentView() === 'companies' && crmUnavailable());
 
   const entityById = createMemo(
     () => {
