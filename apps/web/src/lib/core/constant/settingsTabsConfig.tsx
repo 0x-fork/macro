@@ -1,5 +1,6 @@
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import BotIcon from '@icon/wide-bot.svg';
+import BookOpenIcon from '@phosphor/book-open.svg';
 import BugIcon from '@phosphor/bug.svg';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import CpuIcon from '@phosphor/cpu.svg';
@@ -21,6 +22,8 @@ import {
   ENABLE_APP_STORE_QR_CODE,
   ENABLE_CRM_FLAG,
   ENABLE_CRM_OVERRIDE,
+  ENABLE_DOCUMENTATION_FLAG,
+  ENABLE_DOCUMENTATION_OVERRIDE,
   ENABLE_TEAMS_OVERRIDE,
 } from './featureFlags';
 import { PERMISSION_IDS } from './permissions';
@@ -61,6 +64,7 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
     items: [
       { tab: 'Team', label: 'Team', icon: UsersThreeIcon },
       { tab: 'CRM', label: 'CRM', icon: BuildingsIcon },
+      { tab: 'Documentation', label: 'Documentation', icon: BookOpenIcon },
       {
         tab: 'Connected',
         label: 'Connections',
@@ -100,6 +104,7 @@ const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
   Bots: 'bots',
   Team: 'team',
   CRM: 'crm',
+  Documentation: 'documentation',
   Connected: 'connections',
   Email: 'email',
   GitHub: 'github',
@@ -148,6 +153,9 @@ export const useSettingsTabAvailable = () => {
   const crmFlag = useFeatureFlag(ENABLE_CRM_FLAG, {
     enabledOverride: ENABLE_CRM_OVERRIDE,
   });
+  const documentationFlag = useFeatureFlag(ENABLE_DOCUMENTATION_FLAG, {
+    enabledOverride: ENABLE_DOCUMENTATION_OVERRIDE,
+  });
   const hasAdminPanel = useHasPermission(PERMISSION_IDS.WRITE_ADMIN_PANEL);
 
   return (tab: SettingsTab): boolean => {
@@ -163,6 +171,9 @@ export const useSettingsTabAvailable = () => {
       // leaks into teams that can't actually use the CRM.
       case 'CRM':
         return teamsFlag().enabled && crmFlag().enabled;
+      // Documentation is rolling out the same way (Macro-internal first).
+      case 'Documentation':
+        return teamsFlag().enabled && documentationFlag().enabled;
       case 'Connected':
         return true;
       case 'Shortcuts':

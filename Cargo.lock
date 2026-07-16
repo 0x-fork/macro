@@ -4215,6 +4215,7 @@ dependencies = [
  "cowlike",
  "crm",
  "document_sub_type",
+ "documentation",
  "documents",
  "doppler-config",
  "dynamodb_client",
@@ -4277,6 +4278,7 @@ dependencies = [
  "redis",
  "regex",
  "reqwest 0.13.4",
+ "s3_client",
  "s3_key",
  "saved_views",
  "schemars 1.2.1",
@@ -4292,6 +4294,7 @@ dependencies = [
  "sync_service_hex",
  "system_properties",
  "task_dedup",
+ "teams",
  "thiserror 2.0.18",
  "tokio",
  "tower 0.5.3",
@@ -4388,6 +4391,36 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
+ "workspace-hack",
+]
+
+[[package]]
+name = "documentation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "askama",
+ "axum",
+ "chrono",
+ "entity_access",
+ "lexical_client",
+ "macro_db_migrator",
+ "macro_user_id",
+ "macro_uuid",
+ "model-error-response",
+ "model_user",
+ "pulldown-cmark",
+ "rootcause",
+ "s3_client",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "teams",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "utoipa",
+ "uuid",
  "workspace-hack",
 ]
 
@@ -11134,6 +11167,24 @@ checksum = "9091c90b0a32608e984ff2fa4091273cbdd755d54935c51d520887f4a1dbd5b0"
 dependencies = [
  "prost 0.12.6",
 ]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+dependencies = [
+ "bitflags 2.11.1",
+ "memchr",
+ "pulldown-cmark-escape",
+ "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark-escape"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "007d8adb5ddab6f8e3f491ac63566a7d5002cc7ed73901f72057943fa71ae1ae"
 
 [[package]]
 name = "pxfm"

@@ -1,0 +1,9 @@
+config:
+  aws:region: us-east-1
+  # Custom domains served by this distribution, mapped to the site slug
+  # they serve. Every domain must also be covered by an ACM cert on the
+  # distribution (the *.macro.com wildcard covers first-party subdomains).
+  # Example (docs.macro.com migration):
+  #   documentation-sites:customDomainMappings:
+  #     docs.macro.com: macro
+  documentation-sites:customDomainMappings: {}

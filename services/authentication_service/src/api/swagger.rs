@@ -5,8 +5,10 @@ use github::domain::models::{
 };
 use model::authentication::login::request::{AppleLoginRequest, PasswordRequest};
 use teams::domain::model::{
-    PatchTeamCrmSettingsRequest, PatchTeamCrmSettingsResponse, PatchTeamRequest, PatchTeamUserRole,
-    Team, TeamInviteDetails, TeamMember, TeamPlan, TeamRole, TeamWithMembers,
+    PatchTeamCrmSettingsRequest, PatchTeamCrmSettingsResponse,
+    PatchTeamDocumentationSettingsRequest, PatchTeamDocumentationSettingsResponse,
+    PatchTeamRequest, PatchTeamUserRole, Team, TeamInviteDetails, TeamMember, TeamPlan, TeamRole,
+    TeamWithMembers,
 };
 use teams::inbound::axum_router::get_team_invites::TeamInvitesResponse as TeamTeamInvitesResponse;
 use teams::inbound::axum_router::get_user_invites::TeamInvitesResponse as UserTeamInvitesResponse;
@@ -132,6 +134,7 @@ use model::user::{
                 teams::inbound::axum_router::get_team_invites::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::patch_team::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::patch_team_crm_settings::handler::<crate::api::context::TeamsServiceType>,
+                teams::inbound::axum_router::patch_team_documentation_settings::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::toggle_auto_join_domain::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::reject_invitation::handler::<crate::api::context::TeamsServiceType>,
                 teams::inbound::axum_router::get_user_invites::handler::<crate::api::context::TeamsServiceType>,
@@ -216,6 +219,8 @@ use model::user::{
                         PatchTeamUserRole,
                         PatchTeamCrmSettingsRequest,
                         PatchTeamCrmSettingsResponse,
+                        PatchTeamDocumentationSettingsRequest,
+                        PatchTeamDocumentationSettingsResponse,
                         ToggleAutoJoinDomainResponse,
                         TeamTeamInvitesResponse,
                         UserTeamInvitesResponse,

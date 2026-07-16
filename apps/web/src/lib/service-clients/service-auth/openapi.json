@@ -2031,6 +2031,87 @@
         }
       }
     },
+    "/team/documentation": {
+      "patch": {
+        "tags": [
+          "teams::inbound::axum_router::patch_team_documentation_settings"
+        ],
+        "summary": "Enables or disables the Documentation feature for the team.\nEnabling requires the team to be on a team plan (a plan is set, the\nteam is paying, or the team is enterprise); disabling is always\nallowed and leaves existing documentation sites and their published\noutput untouched. Requires the caller to be an Admin or Owner of\nthe team.",
+        "operationId": "patch_team_documentation_settings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTeamDocumentationSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchTeamDocumentationSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/team/invite": {
       "post": {
         "tags": ["teams::inbound::axum_router::invite_to_team"],
@@ -4078,6 +4159,28 @@
           }
         }
       },
+      "PatchTeamDocumentationSettingsRequest": {
+        "type": "object",
+        "description": "Request body for `PATCH /team/documentation`.",
+        "required": ["enabled"],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "The desired Documentation feature state for the team."
+          }
+        }
+      },
+      "PatchTeamDocumentationSettingsResponse": {
+        "type": "object",
+        "description": "Response for `PATCH /team/documentation`.",
+        "required": ["enabled"],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "The resulting `documentation_enabled` value after the call."
+          }
+        }
+      },
       "PatchTeamRequest": {
         "type": "object",
         "description": "Request to update a team",
@@ -4287,6 +4390,7 @@
           "slug",
           "owner_id",
           "crm_enabled",
+          "documentation_enabled",
           "enterprise"
         ],
         "properties": {
@@ -4297,6 +4401,10 @@
           "crm_enabled": {
             "type": "boolean",
             "description": "Whether the CRM is enabled for this team (from `team_crm_settings`;\n`false` when no row exists)."
+          },
+          "documentation_enabled": {
+            "type": "boolean",
+            "description": "Whether the Documentation feature is enabled for this team (from\n`team_documentation_settings`; `false` when no row exists)."
           },
           "enterprise": {
             "type": "boolean",

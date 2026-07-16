@@ -4625,6 +4625,1065 @@
         }
       }
     },
+    "/documentation/availability": {
+      "get": {
+        "tags": ["documentation::inbound::axum_router::availability"],
+        "summary": "Reports whether the Documentation feature is available to the caller's\nteam: the team-plan requirement and the team-level toggle. The frontend\nuses this to choose between the enabled experience, the \"ask an admin to\nenable it\" empty state, and the plan upsell.",
+        "operationId": "get_documentation_availability",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentationAvailability"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites": {
+      "get": {
+        "tags": ["documentation::inbound::axum_router::list_sites"],
+        "summary": "Lists the caller team's documentation sites.",
+        "operationId": "list_documentation_sites",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListSitesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["documentation::inbound::axum_router::create_site"],
+        "summary": "Creates a documentation site for the caller's team.",
+        "operationId": "create_documentation_site",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSiteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites/{site_id}": {
+      "get": {
+        "tags": ["documentation::inbound::axum_router::get_site"],
+        "summary": "Fetches a site with its nav tree and latest build.",
+        "operationId": "get_documentation_site",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site to fetch",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["documentation::inbound::axum_router::delete_site"],
+        "summary": "Deletes a site and takes down its published output. Requires the caller\nto be an Admin or Owner of the team.",
+        "operationId": "delete_documentation_site",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site to delete",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteSiteResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["documentation::inbound::axum_router::patch_site"],
+        "summary": "Updates a site's name and/or slug.",
+        "operationId": "patch_documentation_site",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchSiteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites/{site_id}/builds/latest": {
+      "get": {
+        "tags": ["documentation::inbound::axum_router::publish"],
+        "summary": "Fetches the site's most recent build (the UI polls this after publish).",
+        "operationId": "get_documentation_site_latest_build",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site whose latest build to fetch",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatestBuildResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites/{site_id}/custom-domain": {
+      "put": {
+        "tags": ["documentation::inbound::axum_router::custom_domain"],
+        "summary": "Sets or clears a site's custom domain. Requires the caller to be an\nAdmin or Owner of the team.",
+        "operationId": "set_documentation_site_custom_domain",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCustomDomainRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites/{site_id}/nav": {
+      "post": {
+        "tags": ["documentation::inbound::axum_router::nav"],
+        "summary": "Adds a nav node (group or page) to a site. New nodes are appended to\nthe end of their sibling list; use the move endpoint to reorder.",
+        "operationId": "create_documentation_nav_node",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site to add the node to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNavNodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NavNode"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites/{site_id}/nav/{node_id}": {
+      "delete": {
+        "tags": ["documentation::inbound::axum_router::nav"],
+        "summary": "Deletes a nav node. Deleting a group deletes its children; backing\ndocuments are never touched.",
+        "operationId": "delete_documentation_nav_node",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site the node belongs to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "description": "The node to delete",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteNavNodeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["documentation::inbound::axum_router::nav"],
+        "summary": "Updates a nav node's title and/or path.",
+        "operationId": "patch_documentation_nav_node",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site the node belongs to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "description": "The node to update",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchNavNodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NavNode"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites/{site_id}/nav/{node_id}/move": {
+      "put": {
+        "tags": ["documentation::inbound::axum_router::nav"],
+        "summary": "Moves a nav node to a new parent and/or position.",
+        "operationId": "move_documentation_nav_node",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site the node belongs to",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "node_id",
+            "in": "path",
+            "description": "The node to move",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveNavNodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoveNavNodeResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documentation/sites/{site_id}/publish": {
+      "post": {
+        "tags": ["documentation::inbound::axum_router::publish"],
+        "summary": "Starts a publish of the site. Rendering and upload run in the\nbackground; poll the latest-build endpoint for progress. Returns `409`\nwhen a build is already running.",
+        "operationId": "publish_documentation_site",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "description": "The site to publish",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteBuild"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/documents": {
       "get": {
         "tags": ["document"],
@@ -11152,6 +12211,11 @@
           }
         }
       },
+      "BuildStatus": {
+        "type": "string",
+        "description": "The status of a site publish.",
+        "enum": ["pending", "in_progress", "succeeded", "failed"]
+      },
       "BulkWakeupRequest": {
         "type": "object",
         "required": ["document_ids"],
@@ -12605,6 +13669,34 @@
           }
         }
       },
+      "CreateNavNodeRequest": {
+        "type": "object",
+        "description": "Request body for `POST /documentation/sites/{site_id}/nav`.",
+        "required": ["kind", "title"],
+        "properties": {
+          "document_id": {
+            "type": ["string", "null"],
+            "description": "The backing markdown document (pages only). The caller must be able\nto view the document."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/NavNodeKind",
+            "description": "Whether to create a group or a page."
+          },
+          "parent_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Parent group id, or omitted for top level."
+          },
+          "path": {
+            "type": ["string", "null"],
+            "description": "The page's URL path; derived from `title` when omitted (pages only)."
+          },
+          "title": {
+            "type": "string",
+            "description": "The display title."
+          }
+        }
+      },
       "CreateProjectRequest": {
         "type": "object",
         "required": ["name"],
@@ -12631,6 +13723,21 @@
           "error": {
             "type": "boolean",
             "description": "Indicates if an error occurred"
+          }
+        }
+      },
+      "CreateSiteRequest": {
+        "type": "object",
+        "description": "Request body for `POST /documentation/sites`.",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The site's display name."
+          },
+          "slug": {
+            "type": ["string", "null"],
+            "description": "Explicit slug (lowercase alphanumerics and hyphens); derived from\n`name` when omitted."
           }
         }
       },
@@ -13211,6 +14318,10 @@
           }
         }
       },
+      "CustomDomain": {
+        "type": "string",
+        "description": "A validated custom domain for a site (e.g. `docs.macro.com`):\na lowercase hostname with at least two labels."
+      },
       "CustomSpeakerAssignment": {
         "type": "object",
         "description": "One per-diarized-speaker override, used in [`EditCallTranscriptRequest`].\n\n`custom_speaker = None` clears any existing override for this\n`diarized_speaker_id`; `Some(macro_user_id)` sets it. The string is\nexpected to parse as a `MacroUserId` (e.g. `macro|alice@example.com`);\nthe service layer rejects malformed values with `400 Bad Request`.",
@@ -13331,6 +14442,30 @@
           "nonce": {
             "type": ["string", "null"],
             "description": "Optional optimistic-update nonce."
+          }
+        }
+      },
+      "DeleteNavNodeResponse": {
+        "type": "object",
+        "description": "Response for the delete endpoint.",
+        "required": ["node_id"],
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The deleted node id."
+          }
+        }
+      },
+      "DeleteSiteResponse": {
+        "type": "object",
+        "description": "Response for `DELETE /documentation/sites/{site_id}`.",
+        "required": ["site_id"],
+        "properties": {
+          "site_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The deleted site id."
           }
         }
       },
@@ -13996,6 +15131,84 @@
             "type": ["string", "null"],
             "format": "uuid",
             "description": "The owner's team the document is (or would be) shared with. `None` when\nthe owner does not belong to a team."
+          }
+        }
+      },
+      "DocumentationAvailability": {
+        "type": "object",
+        "description": "Availability of the Documentation feature for a team.",
+        "required": ["plan_ok", "enabled"],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether the team-level Documentation toggle is on."
+          },
+          "plan_ok": {
+            "type": "boolean",
+            "description": "Whether the team satisfies the team-plan requirement."
+          }
+        }
+      },
+      "DocumentationSite": {
+        "type": "object",
+        "description": "A documentation site: a team-owned, published collection of markdown\ndocuments.",
+        "required": [
+          "id",
+          "team_id",
+          "user_id",
+          "name",
+          "slug",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the site was created."
+          },
+          "custom_domain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CustomDomain",
+                "description": "Optional custom domain the site is additionally served from."
+              }
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The site id."
+          },
+          "name": {
+            "type": "string",
+            "description": "The site's display name."
+          },
+          "published_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When the site was last successfully published, if ever."
+          },
+          "slug": {
+            "$ref": "#/components/schemas/SiteSlug",
+            "description": "The site's globally-unique public URL segment."
+          },
+          "team_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The owning team."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the site was last updated."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user who created the site."
           }
         }
       },
@@ -16270,6 +17483,23 @@
           }
         }
       },
+      "LatestBuildResponse": {
+        "type": "object",
+        "description": "Response for the latest-build endpoint.",
+        "properties": {
+          "build": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SiteBuild",
+                "description": "The most recent build, or `null` when the site was never published."
+              }
+            ]
+          }
+        }
+      },
       "LatestMessage": {
         "type": "object",
         "description": "Latest-message bundle for soup payloads.",
@@ -16306,6 +17536,20 @@
           "callEnded": {
             "type": "boolean",
             "description": "Whether the entire call was ended (room deleted)."
+          }
+        }
+      },
+      "ListSitesResponse": {
+        "type": "object",
+        "description": "Response for `GET /documentation/sites`.",
+        "required": ["sites"],
+        "properties": {
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteResponse"
+            },
+            "description": "The team's sites, newest first."
           }
         }
       },
@@ -16429,6 +17673,112 @@
           }
         }
       },
+      "MoveNavNodeRequest": {
+        "type": "object",
+        "description": "Request body for `PUT /documentation/sites/{site_id}/nav/{node_id}/move`.",
+        "required": ["position"],
+        "properties": {
+          "parent_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "The new parent group, or `null` for top level."
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "description": "0-based position among the new siblings (clamped to the list)."
+          }
+        }
+      },
+      "MoveNavNodeResponse": {
+        "type": "object",
+        "description": "Response for the move endpoint.",
+        "required": ["node_id"],
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The moved node id."
+          }
+        }
+      },
+      "NavNode": {
+        "type": "object",
+        "description": "One node of a site's nav tree.",
+        "required": ["id", "site_id", "kind", "title", "position"],
+        "properties": {
+          "document_id": {
+            "type": ["string", "null"],
+            "description": "The backing markdown document (pages only)."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The node id."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/NavNodeKind",
+            "description": "Whether this node is a group or a page."
+          },
+          "parent_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "The parent group, or `None` for a top-level node."
+          },
+          "path": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PagePath",
+                "description": "The page's URL path under the site root (pages only)."
+              }
+            ]
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32",
+            "description": "0-based position among siblings."
+          },
+          "site_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The owning site."
+          },
+          "title": {
+            "type": "string",
+            "description": "The display title shown in the site's sidebar."
+          }
+        }
+      },
+      "NavNodeKind": {
+        "type": "string",
+        "description": "The kind of a nav tree node.",
+        "enum": ["group", "page"]
+      },
+      "NavTreeNode": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/NavNode",
+            "description": "The node itself."
+          },
+          {
+            "type": "object",
+            "required": ["children"],
+            "properties": {
+              "children": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/NavTreeNode"
+                },
+                "description": "The node's ordered children (groups only; empty for pages)."
+              }
+            }
+          }
+        ],
+        "description": "A nav node with its resolved children, forming the site's nav tree."
+      },
       "NewChannelAttachment": {
         "type": "object",
         "description": "New attachment to add to a channel message.",
@@ -16467,6 +17817,10 @@
             "description": "Filter by notification seen state. `Some(true)` selects seen\nnotifications; `Some(false)` selects not-seen notifications."
           }
         }
+      },
+      "PagePath": {
+        "type": "string",
+        "description": "A validated page path within a site: one to eight slug segments joined\nby `/` (e.g. `getting-started` or `product/email`). Forms the page's\npublic URL under the site root."
       },
       "Params": {
         "type": "object",
@@ -16545,6 +17899,20 @@
           }
         }
       },
+      "PatchNavNodeRequest": {
+        "type": "object",
+        "description": "Request body for `PATCH /documentation/sites/{site_id}/nav/{node_id}`.",
+        "properties": {
+          "path": {
+            "type": ["string", "null"],
+            "description": "New URL path, if changing (pages only)."
+          },
+          "title": {
+            "type": ["string", "null"],
+            "description": "New title, if changing."
+          }
+        }
+      },
       "PatchProjectRequestV2": {
         "type": "object",
         "properties": {
@@ -16566,6 +17934,20 @@
                 "description": "The share permissions for the project."
               }
             ]
+          }
+        }
+      },
+      "PatchSiteRequest": {
+        "type": "object",
+        "description": "Request body for `PATCH /documentation/sites/{site_id}`.",
+        "properties": {
+          "name": {
+            "type": ["string", "null"],
+            "description": "New display name, if changing."
+          },
+          "slug": {
+            "type": ["string", "null"],
+            "description": "New slug, if changing. Changing the slug moves the site's public\nURL and takes the old location down."
           }
         }
       },
@@ -18029,6 +19411,16 @@
           }
         }
       },
+      "SetCustomDomainRequest": {
+        "type": "object",
+        "description": "Request body for `PUT /documentation/sites/{site_id}/custom-domain`.",
+        "properties": {
+          "custom_domain": {
+            "type": ["string", "null"],
+            "description": "The custom domain to serve the site from (e.g. `docs.example.com`),\nor `null` to clear it. Serving on the domain additionally requires\npointing the domain's DNS at the docs-sites CDN."
+          }
+        }
+      },
       "SetDocumentTeamShareRequest": {
         "type": "object",
         "description": "Request body for setting a document's team-share state.",
@@ -18275,6 +19667,106 @@
             "description": "Mentioned entity type."
           }
         }
+      },
+      "SiteBuild": {
+        "type": "object",
+        "description": "One publish of a site.",
+        "required": ["id", "site_id", "user_id", "status", "created_at"],
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the build was created."
+          },
+          "error": {
+            "type": ["string", "null"],
+            "description": "The failure message, when `status` is `failed`."
+          },
+          "finished_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "description": "When the build reached a terminal status."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The build id."
+          },
+          "page_count": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Number of pages rendered, when the build got that far."
+          },
+          "site_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The site this build publishes."
+          },
+          "status": {
+            "$ref": "#/components/schemas/BuildStatus",
+            "description": "The build's current status."
+          },
+          "user_id": {
+            "type": "string",
+            "description": "The user who triggered the publish."
+          }
+        }
+      },
+      "SiteDetailResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SiteResponse",
+            "description": "The site plus its public URL."
+          },
+          {
+            "type": "object",
+            "required": ["nav"],
+            "properties": {
+              "latest_build": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SiteBuild",
+                    "description": "The most recent build, if any."
+                  }
+                ]
+              },
+              "nav": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/NavTreeNode"
+                },
+                "description": "The site's nav tree, ordered."
+              }
+            }
+          }
+        ],
+        "description": "A site with its nav tree and latest build, as returned by the API."
+      },
+      "SiteResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DocumentationSite",
+            "description": "The site."
+          },
+          {
+            "type": "object",
+            "required": ["public_url"],
+            "properties": {
+              "public_url": {
+                "type": "string",
+                "description": "The public URL the site is (or will be) served from."
+              }
+            }
+          }
+        ],
+        "description": "A documentation site as returned by the API: the site plus its public\nURL."
+      },
+      "SiteSlug": {
+        "type": "string",
+        "description": "A validated documentation site slug: the site's globally-unique public\nURL segment (`https://<docs host>/<slug>/...`). Lowercase alphanumerics\nand hyphens, no leading/trailing hyphen."
       },
       "SoupApiItem": {
         "allOf": [

@@ -42,6 +42,7 @@ import { Agent } from './Agent';
 import { Appearance } from './Appearance';
 import { ConnectedAccounts } from './ConnectedAccounts';
 import { Crm } from './Crm';
+import { Documentation } from './Documentation';
 import { MobileApp } from './MobileApp';
 import { Shortcuts } from './Shortcuts';
 import { Team } from './Team';
@@ -400,6 +401,11 @@ export function SettingsPanel(props: SettingsPanelProps) {
                 <Show when={isCurrentTab('CRM')}>
                   <Suspense>
                     <Crm />
+                  </Suspense>
+                </Show>
+                <Show when={isCurrentTab('Documentation')}>
+                  <Suspense>
+                    <Documentation />
                   </Suspense>
                 </Show>
                 <Show when={isCurrentTab('Connected')}>

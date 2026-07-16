@@ -1,0 +1,4 @@
+name: documentation-sites
+description: Static hosting for published team documentation sites (S3 + CloudFront)
+runtime:
+  name: nodejs

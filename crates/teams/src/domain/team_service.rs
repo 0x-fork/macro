@@ -26,8 +26,8 @@ use crate::domain::{
     customer_repo::CustomerRepository,
     model::{
         CreateTeamError, CustomerError, DeleteTeamError, InviteUsersToTeamError, JoinTeamError,
-        PatchTeamCrmSettingsResponse, PatchTeamRequest, RemoveTeamInviteError,
-        RemoveUserFromTeamError, RestorePermissionsForTeamMembersError,
+        PatchTeamCrmSettingsResponse, PatchTeamDocumentationSettingsResponse, PatchTeamRequest,
+        RemoveTeamInviteError, RemoveUserFromTeamError, RestorePermissionsForTeamMembersError,
         RevokePermissionsForTeamMembersError, Team, TeamError, TeamInvite, TeamInviteDetails,
         TeamMember, TeamMembers, TeamRole, TeamWithMembers, ToggleAutoJoinDomainError,
         TryJoinTeamByDomainError,
@@ -180,6 +180,25 @@ where
                 );
             })
             .ok();
+    }
+
+    /// Whether the team is on a team plan for plan-gated features: it
+    /// has a plan set, is paying, or is enterprise (billed out-of-band).
+    #[tracing::instrument(skip(self), err)]
+    async fn team_has_team_plan(&self, team_id: &uuid::Uuid) -> Result<bool, TeamError> {
+        if self.team_repository.get_team_plan(team_id).await?.is_some() {
+            return Ok(true);
+        }
+        if self
+            .team_repository
+            .get_team_payment_status(team_id)
+            .await?
+        {
+            return Ok(true);
+        }
+        self.team_repository
+            .get_team_enterprise_status(team_id)
+            .await
     }
 
     /// Gets the teams subscription id
@@ -1344,6 +1363,29 @@ where
                 backfill_failed: 0,
             })
         }
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn set_team_documentation_enabled(
+        &self,
+        entity_access_receipt: EntityAccessReceipt<AdminTeamRole>,
+        enabled: bool,
+    ) -> Result<PatchTeamDocumentationSettingsResponse, TeamError> {
+        let team_id =
+            macro_uuid::string_to_uuid(&entity_access_receipt.entity().entity_id).unwrap();
+
+        // Documentation is a team-plan feature: enabling requires the
+        // team to be on a plan, paying, or enterprise. Disabling is
+        // always allowed so a downgraded team can still turn it off.
+        if enabled && !self.team_has_team_plan(&team_id).await? {
+            return Err(TeamError::DocumentationRequiresTeamPlan);
+        }
+
+        self.team_repository
+            .set_team_documentation_enabled(&team_id, enabled)
+            .await?;
+
+        Ok(PatchTeamDocumentationSettingsResponse { enabled })
     }
 
     #[tracing::instrument(skip(self), err)]

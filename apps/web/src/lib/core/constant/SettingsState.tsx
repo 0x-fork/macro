@@ -38,6 +38,7 @@ export type SettingsTab =
   | 'Bots'
   | 'Team'
   | 'CRM'
+  | 'Documentation'
   | 'Connected'
   | 'Email'
   | 'GitHub'

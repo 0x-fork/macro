@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE documentation_site_build\n            SET status = 'succeeded', page_count = $2, finished_at = now()\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c13212cd325b4d19658bd1bbba9d6c0d6be8b0a76b64b5268a2ab4d790d67702"
+}

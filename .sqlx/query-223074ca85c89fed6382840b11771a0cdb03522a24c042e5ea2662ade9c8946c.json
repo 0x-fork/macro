@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE documentation_site_build\n            SET status = 'failed', error = $2, finished_at = now()\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "223074ca85c89fed6382840b11771a0cdb03522a24c042e5ea2662ade9c8946c"
+}

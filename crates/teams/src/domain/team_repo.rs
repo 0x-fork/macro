@@ -9,10 +9,11 @@ use macro_user_id::{email::Email, lowercased::Lowercase, user_id::MacroUserIdStr
 
 use crate::domain::model::{
     AcceptedTeamInvite, CreateTeamError, DeleteTeamError, InviteUsersToTeamError, JoinTeamError,
-    PatchTeamCrmSettingsResponse, PatchTeamRequest, RemoveTeamInviteError, RemoveUserFromTeamError,
-    RestorePermissionsForTeamMembersError, RevokePermissionsForTeamMembersError, Team, TeamError,
-    TeamInvite, TeamInviteDetails, TeamMember, TeamMembers, TeamPlan, TeamRole, TeamWithMembers,
-    ToggleAutoJoinDomainError, TryJoinTeamByDomainError,
+    PatchTeamCrmSettingsResponse, PatchTeamDocumentationSettingsResponse, PatchTeamRequest,
+    RemoveTeamInviteError, RemoveUserFromTeamError, RestorePermissionsForTeamMembersError,
+    RevokePermissionsForTeamMembersError, Team, TeamError, TeamInvite, TeamInviteDetails,
+    TeamMember, TeamMembers, TeamPlan, TeamRole, TeamWithMembers, ToggleAutoJoinDomainError,
+    TryJoinTeamByDomainError,
 };
 
 /// The TeamChannelsRepository defines a set of actions related to team channels
@@ -63,6 +64,20 @@ pub trait TeamRepository: Clone + Send + Sync + 'static {
         &self,
         team_id: &uuid::Uuid,
     ) -> impl Future<Output = Result<bool, TeamError>> + Send;
+
+    /// Returns the current `documentation_enabled` state for the team, or
+    /// `false` if no `team_documentation_settings` row exists yet.
+    fn get_team_documentation_enabled(
+        &self,
+        team_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<bool, TeamError>> + Send;
+
+    /// Upserts the `documentation_enabled` state for the team.
+    fn set_team_documentation_enabled(
+        &self,
+        team_id: &uuid::Uuid,
+        enabled: bool,
+    ) -> impl Future<Output = Result<(), TeamError>> + Send;
 
     /// Creates a new team
     fn create_team(
@@ -460,6 +475,18 @@ pub trait TeamService: Clone + Send + Sync + 'static {
         enabled: bool,
         backfill: bool,
     ) -> impl Future<Output = Result<PatchTeamCrmSettingsResponse, TeamError>> + Send;
+
+    /// Enables or disables the Documentation feature for a team.
+    /// Enabling requires the team to be on a team plan (a plan is set,
+    /// the team is paying, or the team is enterprise); disabling never
+    /// does. Disabling does not delete documentation sites or unpublish
+    /// anything — it only hides the feature. Idempotent in both
+    /// directions.
+    fn set_team_documentation_enabled(
+        &self,
+        entity_access_receipt: EntityAccessReceipt<AdminTeamRole>,
+        enabled: bool,
+    ) -> impl Future<Output = Result<PatchTeamDocumentationSettingsResponse, TeamError>> + Send;
 
     /// Toggles the team's automatic domain joining: sets the auto-join
     /// domain from the team owner's email domain when unset, removes it

@@ -243,6 +243,12 @@ fn api_router(state: ApiContext) -> Router {
             "/crm",
             crm::inbound::axum_router::crm_router(state.crm_state.clone()),
         )
+        .nest(
+            "/documentation",
+            documentation::inbound::axum_router::documentation_router(
+                state.documentation_state.clone(),
+            ),
+        )
         .layer(
             // NOTE: this will still be needed until we add in `MacroAuthorizationExtractor` support for all crates
             ServiceBuilder::new()

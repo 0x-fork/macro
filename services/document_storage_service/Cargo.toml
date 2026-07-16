@@ -72,6 +72,7 @@ contacts = { path = "../../crates/contacts" }
 cowlike = { path = "../../crates/cowlike" }
 crm = { path = "../../crates/crm" }
 document_sub_type = { path = "../../crates/document_sub_type" }
+documentation = { path = "../../crates/documentation" }
 documents_hex = { path = "../../crates/documents", package = "documents" }
 doppler-config = { workspace = true }
 dynamodb_client = { path = "../../crates/dynamodb_client" }
@@ -180,8 +181,13 @@ sync_service_client = { path = "../../crates/sync_service_client" }
 sync_service_hex = { path = "../../crates/sync_service", package = "sync_service_hex", features = [
   "inbound",
 ] }
+s3_client = { path = "../../crates/s3_client" }
 system_properties = { path = "../../crates/system_properties" }
 task_dedup = { path = "../../crates/task_dedup" }
+teams = { path = "../../crates/teams", default-features = false, features = [
+  "outbound",
+  "ports",
+] }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }

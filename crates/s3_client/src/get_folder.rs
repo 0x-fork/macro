@@ -1,6 +1,38 @@
 use anyhow::Result;
 use aws_sdk_s3 as s3;
 
+/// Lists every object key under the given prefix, following pagination.
+#[tracing::instrument(skip(client))]
+pub async fn list_keys(client: &s3::Client, bucket: &str, prefix: &str) -> Result<Vec<String>> {
+    let mut keys = Vec::new();
+    let mut continuation_token: Option<String> = None;
+
+    loop {
+        let response = client
+            .list_objects_v2()
+            .bucket(bucket)
+            .prefix(prefix)
+            .set_continuation_token(continuation_token.take())
+            .send()
+            .await?;
+
+        keys.extend(
+            response
+                .contents()
+                .iter()
+                .filter_map(|obj| obj.key())
+                .map(String::from),
+        );
+
+        match response.next_continuation_token() {
+            Some(token) => continuation_token = Some(token.to_string()),
+            None => break,
+        }
+    }
+
+    Ok(keys)
+}
+
 /// Gets all the keys in a folder
 /// Returns a list of the (file_name, file_type) for each file in the folder
 #[tracing::instrument(skip(client))]

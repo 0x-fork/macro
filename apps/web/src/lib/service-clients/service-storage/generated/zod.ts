@@ -3425,6 +3425,661 @@ export const setContactHiddenBody = zod
   .describe('Request body for `PUT \/contacts\/{contact_id}\/hidden`.');
 
 /**
+ * @summary Reports whether the Documentation feature is available to the caller's
+team: the team-plan requirement and the team-level toggle. The frontend
+uses this to choose between the enabled experience, the "ask an admin to
+enable it" empty state, and the plan upsell.
+ */
+export const getDocumentationAvailabilityResponse = zod
+  .object({
+    enabled: zod
+      .boolean()
+      .describe('Whether the team-level Documentation toggle is on.'),
+    plan_ok: zod
+      .boolean()
+      .describe('Whether the team satisfies the team-plan requirement.'),
+  })
+  .describe('Availability of the Documentation feature for a team.');
+
+/**
+ * @summary Lists the caller team's documentation sites.
+ */
+export const listDocumentationSitesResponse = zod
+  .object({
+    sites: zod
+      .array(
+        zod
+          .object({
+            created_at: zod.iso
+              .datetime({})
+              .describe('When the site was created.'),
+            custom_domain: zod
+              .union([
+                zod.null(),
+                zod
+                  .string()
+                  .describe(
+                    'A validated custom domain for a site (e.g. `docs.macro.com`):\na lowercase hostname with at least two labels.'
+                  ),
+              ])
+              .optional(),
+            id: zod.uuid().describe('The site id.'),
+            name: zod.string().describe("The site's display name."),
+            published_at: zod.iso
+              .datetime({})
+              .nullish()
+              .describe(
+                'When the site was last successfully published, if ever.'
+              ),
+            slug: zod
+              .string()
+              .describe(
+                "A validated documentation site slug: the site's globally-unique public\nURL segment (`https:\/\/<docs host>\/<slug>\/...`). Lowercase alphanumerics\nand hyphens, no leading\/trailing hyphen."
+              ),
+            team_id: zod.uuid().describe('The owning team.'),
+            updated_at: zod.iso
+              .datetime({})
+              .describe('When the site was last updated.'),
+            user_id: zod.string().describe('The user who created the site.'),
+          })
+          .describe(
+            'A documentation site: a team-owned, published collection of markdown\ndocuments.'
+          )
+          .and(
+            zod.object({
+              public_url: zod
+                .string()
+                .describe(
+                  'The public URL the site is (or will be) served from.'
+                ),
+            })
+          )
+          .describe(
+            'A documentation site as returned by the API: the site plus its public\nURL.'
+          )
+      )
+      .describe("The team's sites, newest first."),
+  })
+  .describe('Response for `GET \/documentation\/sites`.');
+
+/**
+ * @summary Creates a documentation site for the caller's team.
+ */
+export const createDocumentationSiteBody = zod
+  .object({
+    name: zod.string().describe("The site's display name."),
+    slug: zod
+      .string()
+      .nullish()
+      .describe(
+        'Explicit slug (lowercase alphanumerics and hyphens); derived from\n`name` when omitted.'
+      ),
+  })
+  .describe('Request body for `POST \/documentation\/sites`.');
+
+export const createDocumentationSiteResponse = zod
+  .object({
+    created_at: zod.iso.datetime({}).describe('When the site was created.'),
+    custom_domain: zod
+      .union([
+        zod.null(),
+        zod
+          .string()
+          .describe(
+            'A validated custom domain for a site (e.g. `docs.macro.com`):\na lowercase hostname with at least two labels.'
+          ),
+      ])
+      .optional(),
+    id: zod.uuid().describe('The site id.'),
+    name: zod.string().describe("The site's display name."),
+    published_at: zod.iso
+      .datetime({})
+      .nullish()
+      .describe('When the site was last successfully published, if ever.'),
+    slug: zod
+      .string()
+      .describe(
+        "A validated documentation site slug: the site's globally-unique public\nURL segment (`https:\/\/<docs host>\/<slug>\/...`). Lowercase alphanumerics\nand hyphens, no leading\/trailing hyphen."
+      ),
+    team_id: zod.uuid().describe('The owning team.'),
+    updated_at: zod.iso
+      .datetime({})
+      .describe('When the site was last updated.'),
+    user_id: zod.string().describe('The user who created the site.'),
+  })
+  .describe(
+    'A documentation site: a team-owned, published collection of markdown\ndocuments.'
+  )
+  .and(
+    zod.object({
+      public_url: zod
+        .string()
+        .describe('The public URL the site is (or will be) served from.'),
+    })
+  )
+  .describe(
+    'A documentation site as returned by the API: the site plus its public\nURL.'
+  );
+
+/**
+ * @summary Fetches a site with its nav tree and latest build.
+ */
+export const getDocumentationSiteParams = zod.object({
+  site_id: zod.uuid().describe('The site to fetch'),
+});
+
+export const getDocumentationSiteResponse = zod
+  .object({
+    created_at: zod.iso.datetime({}).describe('When the site was created.'),
+    custom_domain: zod
+      .union([
+        zod.null(),
+        zod
+          .string()
+          .describe(
+            'A validated custom domain for a site (e.g. `docs.macro.com`):\na lowercase hostname with at least two labels.'
+          ),
+      ])
+      .optional(),
+    id: zod.uuid().describe('The site id.'),
+    name: zod.string().describe("The site's display name."),
+    published_at: zod.iso
+      .datetime({})
+      .nullish()
+      .describe('When the site was last successfully published, if ever.'),
+    slug: zod
+      .string()
+      .describe(
+        "A validated documentation site slug: the site's globally-unique public\nURL segment (`https:\/\/<docs host>\/<slug>\/...`). Lowercase alphanumerics\nand hyphens, no leading\/trailing hyphen."
+      ),
+    team_id: zod.uuid().describe('The owning team.'),
+    updated_at: zod.iso
+      .datetime({})
+      .describe('When the site was last updated.'),
+    user_id: zod.string().describe('The user who created the site.'),
+  })
+  .describe(
+    'A documentation site: a team-owned, published collection of markdown\ndocuments.'
+  )
+  .and(
+    zod.object({
+      public_url: zod
+        .string()
+        .describe('The public URL the site is (or will be) served from.'),
+    })
+  )
+  .describe(
+    'A documentation site as returned by the API: the site plus its public\nURL.'
+  )
+  .and(
+    zod.object({
+      latest_build: zod
+        .union([
+          zod.null(),
+          zod
+            .object({
+              created_at: zod.iso
+                .datetime({})
+                .describe('When the build was created.'),
+              error: zod
+                .string()
+                .nullish()
+                .describe('The failure message, when `status` is `failed`.'),
+              finished_at: zod.iso
+                .datetime({})
+                .nullish()
+                .describe('When the build reached a terminal status.'),
+              id: zod.uuid().describe('The build id.'),
+              page_count: zod
+                .number()
+                .nullish()
+                .describe(
+                  'Number of pages rendered, when the build got that far.'
+                ),
+              site_id: zod.uuid().describe('The site this build publishes.'),
+              status: zod
+                .enum(['pending', 'in_progress', 'succeeded', 'failed'])
+                .describe('The status of a site publish.'),
+              user_id: zod
+                .string()
+                .describe('The user who triggered the publish.'),
+            })
+            .describe('One publish of a site.'),
+        ])
+        .optional(),
+      nav: zod
+        .array(
+          zod
+            .object({
+              document_id: zod
+                .string()
+                .nullish()
+                .describe('The backing markdown document (pages only).'),
+              id: zod.uuid().describe('The node id.'),
+              kind: zod
+                .enum(['group', 'page'])
+                .describe('The kind of a nav tree node.'),
+              parent_id: zod
+                .uuid()
+                .nullish()
+                .describe('The parent group, or `None` for a top-level node.'),
+              path: zod
+                .union([
+                  zod.null(),
+                  zod
+                    .string()
+                    .describe(
+                      "A validated page path within a site: one to eight slug segments joined\nby `\/` (e.g. `getting-started` or `product\/email`). Forms the page's\npublic URL under the site root."
+                    ),
+                ])
+                .optional(),
+              position: zod
+                .number()
+                .describe('0-based position among siblings.'),
+              site_id: zod.uuid().describe('The owning site.'),
+              title: zod
+                .string()
+                .describe("The display title shown in the site's sidebar."),
+            })
+            .describe("One node of a site's nav tree.")
+            .and(
+              zod.object({
+                children: zod
+                  .array(zod.unknown())
+                  .describe(
+                    "The node's ordered children (groups only; empty for pages)."
+                  ),
+              })
+            )
+            .describe(
+              "A nav node with its resolved children, forming the site's nav tree."
+            )
+        )
+        .describe("The site's nav tree, ordered."),
+    })
+  )
+  .describe(
+    'A site with its nav tree and latest build, as returned by the API.'
+  );
+
+/**
+ * @summary Deletes a site and takes down its published output. Requires the caller
+to be an Admin or Owner of the team.
+ */
+export const deleteDocumentationSiteParams = zod.object({
+  site_id: zod.uuid().describe('The site to delete'),
+});
+
+export const deleteDocumentationSiteResponse = zod
+  .object({
+    site_id: zod.uuid().describe('The deleted site id.'),
+  })
+  .describe('Response for `DELETE \/documentation\/sites\/{site_id}`.');
+
+/**
+ * @summary Updates a site's name and/or slug.
+ */
+export const patchDocumentationSiteParams = zod.object({
+  site_id: zod.uuid().describe('The site to update'),
+});
+
+export const patchDocumentationSiteBody = zod
+  .object({
+    name: zod.string().nullish().describe('New display name, if changing.'),
+    slug: zod
+      .string()
+      .nullish()
+      .describe(
+        "New slug, if changing. Changing the slug moves the site's public\nURL and takes the old location down."
+      ),
+  })
+  .describe('Request body for `PATCH \/documentation\/sites\/{site_id}`.');
+
+export const patchDocumentationSiteResponse = zod
+  .object({
+    created_at: zod.iso.datetime({}).describe('When the site was created.'),
+    custom_domain: zod
+      .union([
+        zod.null(),
+        zod
+          .string()
+          .describe(
+            'A validated custom domain for a site (e.g. `docs.macro.com`):\na lowercase hostname with at least two labels.'
+          ),
+      ])
+      .optional(),
+    id: zod.uuid().describe('The site id.'),
+    name: zod.string().describe("The site's display name."),
+    published_at: zod.iso
+      .datetime({})
+      .nullish()
+      .describe('When the site was last successfully published, if ever.'),
+    slug: zod
+      .string()
+      .describe(
+        "A validated documentation site slug: the site's globally-unique public\nURL segment (`https:\/\/<docs host>\/<slug>\/...`). Lowercase alphanumerics\nand hyphens, no leading\/trailing hyphen."
+      ),
+    team_id: zod.uuid().describe('The owning team.'),
+    updated_at: zod.iso
+      .datetime({})
+      .describe('When the site was last updated.'),
+    user_id: zod.string().describe('The user who created the site.'),
+  })
+  .describe(
+    'A documentation site: a team-owned, published collection of markdown\ndocuments.'
+  )
+  .and(
+    zod.object({
+      public_url: zod
+        .string()
+        .describe('The public URL the site is (or will be) served from.'),
+    })
+  )
+  .describe(
+    'A documentation site as returned by the API: the site plus its public\nURL.'
+  );
+
+/**
+ * @summary Fetches the site's most recent build (the UI polls this after publish).
+ */
+export const getDocumentationSiteLatestBuildParams = zod.object({
+  site_id: zod.uuid().describe('The site whose latest build to fetch'),
+});
+
+export const getDocumentationSiteLatestBuildResponse = zod
+  .object({
+    build: zod
+      .union([
+        zod.null(),
+        zod
+          .object({
+            created_at: zod.iso
+              .datetime({})
+              .describe('When the build was created.'),
+            error: zod
+              .string()
+              .nullish()
+              .describe('The failure message, when `status` is `failed`.'),
+            finished_at: zod.iso
+              .datetime({})
+              .nullish()
+              .describe('When the build reached a terminal status.'),
+            id: zod.uuid().describe('The build id.'),
+            page_count: zod
+              .number()
+              .nullish()
+              .describe(
+                'Number of pages rendered, when the build got that far.'
+              ),
+            site_id: zod.uuid().describe('The site this build publishes.'),
+            status: zod
+              .enum(['pending', 'in_progress', 'succeeded', 'failed'])
+              .describe('The status of a site publish.'),
+            user_id: zod
+              .string()
+              .describe('The user who triggered the publish.'),
+          })
+          .describe('One publish of a site.'),
+      ])
+      .optional(),
+  })
+  .describe('Response for the latest-build endpoint.');
+
+/**
+ * @summary Sets or clears a site's custom domain. Requires the caller to be an
+Admin or Owner of the team.
+ */
+export const setDocumentationSiteCustomDomainParams = zod.object({
+  site_id: zod.uuid().describe('The site to update'),
+});
+
+export const setDocumentationSiteCustomDomainBody = zod
+  .object({
+    custom_domain: zod
+      .string()
+      .nullish()
+      .describe(
+        "The custom domain to serve the site from (e.g. `docs.example.com`),\nor `null` to clear it. Serving on the domain additionally requires\npointing the domain's DNS at the docs-sites CDN."
+      ),
+  })
+  .describe(
+    'Request body for `PUT \/documentation\/sites\/{site_id}\/custom-domain`.'
+  );
+
+export const setDocumentationSiteCustomDomainResponse = zod
+  .object({
+    created_at: zod.iso.datetime({}).describe('When the site was created.'),
+    custom_domain: zod
+      .union([
+        zod.null(),
+        zod
+          .string()
+          .describe(
+            'A validated custom domain for a site (e.g. `docs.macro.com`):\na lowercase hostname with at least two labels.'
+          ),
+      ])
+      .optional(),
+    id: zod.uuid().describe('The site id.'),
+    name: zod.string().describe("The site's display name."),
+    published_at: zod.iso
+      .datetime({})
+      .nullish()
+      .describe('When the site was last successfully published, if ever.'),
+    slug: zod
+      .string()
+      .describe(
+        "A validated documentation site slug: the site's globally-unique public\nURL segment (`https:\/\/<docs host>\/<slug>\/...`). Lowercase alphanumerics\nand hyphens, no leading\/trailing hyphen."
+      ),
+    team_id: zod.uuid().describe('The owning team.'),
+    updated_at: zod.iso
+      .datetime({})
+      .describe('When the site was last updated.'),
+    user_id: zod.string().describe('The user who created the site.'),
+  })
+  .describe(
+    'A documentation site: a team-owned, published collection of markdown\ndocuments.'
+  )
+  .and(
+    zod.object({
+      public_url: zod
+        .string()
+        .describe('The public URL the site is (or will be) served from.'),
+    })
+  )
+  .describe(
+    'A documentation site as returned by the API: the site plus its public\nURL.'
+  );
+
+/**
+ * @summary Adds a nav node (group or page) to a site. New nodes are appended to
+the end of their sibling list; use the move endpoint to reorder.
+ */
+export const createDocumentationNavNodeParams = zod.object({
+  site_id: zod.uuid().describe('The site to add the node to'),
+});
+
+export const createDocumentationNavNodeBody = zod
+  .object({
+    document_id: zod
+      .string()
+      .nullish()
+      .describe(
+        'The backing markdown document (pages only). The caller must be able\nto view the document.'
+      ),
+    kind: zod.enum(['group', 'page']).describe('The kind of a nav tree node.'),
+    parent_id: zod
+      .uuid()
+      .nullish()
+      .describe('Parent group id, or omitted for top level.'),
+    path: zod
+      .string()
+      .nullish()
+      .describe(
+        "The page's URL path; derived from `title` when omitted (pages only)."
+      ),
+    title: zod.string().describe('The display title.'),
+  })
+  .describe('Request body for `POST \/documentation\/sites\/{site_id}\/nav`.');
+
+export const createDocumentationNavNodeResponse = zod
+  .object({
+    document_id: zod
+      .string()
+      .nullish()
+      .describe('The backing markdown document (pages only).'),
+    id: zod.uuid().describe('The node id.'),
+    kind: zod.enum(['group', 'page']).describe('The kind of a nav tree node.'),
+    parent_id: zod
+      .uuid()
+      .nullish()
+      .describe('The parent group, or `None` for a top-level node.'),
+    path: zod
+      .union([
+        zod.null(),
+        zod
+          .string()
+          .describe(
+            "A validated page path within a site: one to eight slug segments joined\nby `\/` (e.g. `getting-started` or `product\/email`). Forms the page's\npublic URL under the site root."
+          ),
+      ])
+      .optional(),
+    position: zod.number().describe('0-based position among siblings.'),
+    site_id: zod.uuid().describe('The owning site.'),
+    title: zod
+      .string()
+      .describe("The display title shown in the site's sidebar."),
+  })
+  .describe("One node of a site's nav tree.");
+
+/**
+ * @summary Deletes a nav node. Deleting a group deletes its children; backing
+documents are never touched.
+ */
+export const deleteDocumentationNavNodeParams = zod.object({
+  site_id: zod.uuid().describe('The site the node belongs to'),
+  node_id: zod.uuid().describe('The node to delete'),
+});
+
+export const deleteDocumentationNavNodeResponse = zod
+  .object({
+    node_id: zod.uuid().describe('The deleted node id.'),
+  })
+  .describe('Response for the delete endpoint.');
+
+/**
+ * @summary Updates a nav node's title and/or path.
+ */
+export const patchDocumentationNavNodeParams = zod.object({
+  site_id: zod.uuid().describe('The site the node belongs to'),
+  node_id: zod.uuid().describe('The node to update'),
+});
+
+export const patchDocumentationNavNodeBody = zod
+  .object({
+    path: zod
+      .string()
+      .nullish()
+      .describe('New URL path, if changing (pages only).'),
+    title: zod.string().nullish().describe('New title, if changing.'),
+  })
+  .describe(
+    'Request body for `PATCH \/documentation\/sites\/{site_id}\/nav\/{node_id}`.'
+  );
+
+export const patchDocumentationNavNodeResponse = zod
+  .object({
+    document_id: zod
+      .string()
+      .nullish()
+      .describe('The backing markdown document (pages only).'),
+    id: zod.uuid().describe('The node id.'),
+    kind: zod.enum(['group', 'page']).describe('The kind of a nav tree node.'),
+    parent_id: zod
+      .uuid()
+      .nullish()
+      .describe('The parent group, or `None` for a top-level node.'),
+    path: zod
+      .union([
+        zod.null(),
+        zod
+          .string()
+          .describe(
+            "A validated page path within a site: one to eight slug segments joined\nby `\/` (e.g. `getting-started` or `product\/email`). Forms the page's\npublic URL under the site root."
+          ),
+      ])
+      .optional(),
+    position: zod.number().describe('0-based position among siblings.'),
+    site_id: zod.uuid().describe('The owning site.'),
+    title: zod
+      .string()
+      .describe("The display title shown in the site's sidebar."),
+  })
+  .describe("One node of a site's nav tree.");
+
+/**
+ * @summary Moves a nav node to a new parent and/or position.
+ */
+export const moveDocumentationNavNodeParams = zod.object({
+  site_id: zod.uuid().describe('The site the node belongs to'),
+  node_id: zod.uuid().describe('The node to move'),
+});
+
+export const moveDocumentationNavNodeBody = zod
+  .object({
+    parent_id: zod
+      .uuid()
+      .nullish()
+      .describe('The new parent group, or `null` for top level.'),
+    position: zod
+      .number()
+      .describe(
+        '0-based position among the new siblings (clamped to the list).'
+      ),
+  })
+  .describe(
+    'Request body for `PUT \/documentation\/sites\/{site_id}\/nav\/{node_id}\/move`.'
+  );
+
+export const moveDocumentationNavNodeResponse = zod
+  .object({
+    node_id: zod.uuid().describe('The moved node id.'),
+  })
+  .describe('Response for the move endpoint.');
+
+/**
+ * @summary Starts a publish of the site. Rendering and upload run in the
+background; poll the latest-build endpoint for progress. Returns `409`
+when a build is already running.
+ */
+export const publishDocumentationSiteParams = zod.object({
+  site_id: zod.uuid().describe('The site to publish'),
+});
+
+export const publishDocumentationSiteResponse = zod
+  .object({
+    created_at: zod.iso.datetime({}).describe('When the build was created.'),
+    error: zod
+      .string()
+      .nullish()
+      .describe('The failure message, when `status` is `failed`.'),
+    finished_at: zod.iso
+      .datetime({})
+      .nullish()
+      .describe('When the build reached a terminal status.'),
+    id: zod.uuid().describe('The build id.'),
+    page_count: zod
+      .number()
+      .nullish()
+      .describe('Number of pages rendered, when the build got that far.'),
+    site_id: zod.uuid().describe('The site this build publishes.'),
+    status: zod
+      .enum(['pending', 'in_progress', 'succeeded', 'failed'])
+      .describe('The status of a site publish.'),
+    user_id: zod.string().describe('The user who triggered the publish.'),
+  })
+  .describe('One publish of a site.');
+
+/**
  * @summary Gets the users documents to populate their recent document list
  */
 export const getUserDocumentsHandlerQueryParams = zod.object({

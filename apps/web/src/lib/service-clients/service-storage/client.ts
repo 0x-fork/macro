@@ -82,7 +82,9 @@ import type { CreateEntityMentionResponse } from './generated/schemas/createEnti
 import type { CreateInstructionsDocumentResponse } from './generated/schemas/createInstructionsDocumentResponse';
 import type { CreateMarkdownDocumentRequest } from './generated/schemas/createMarkdownDocumentRequest';
 import type { CreateMarkdownHandler200 } from './generated/schemas/createMarkdownHandler200';
+import type { CreateNavNodeRequest as CreateDocumentationNavNodeRequest } from './generated/schemas/createNavNodeRequest';
 import type { CreateProjectResponse } from './generated/schemas/createProjectResponse';
+import type { CreateSiteRequest as CreateDocumentationSiteRequest } from './generated/schemas/createSiteRequest';
 import type { CreateSnippetHandler200 } from './generated/schemas/createSnippetHandler200';
 import type { CreateSnippetRequest } from './generated/schemas/createSnippetRequest';
 import type { CreateTaskHandler200 } from './generated/schemas/createTaskHandler200';
@@ -97,6 +99,7 @@ import type { DeleteCommentResponse } from './generated/schemas/deleteCommentRes
 import type { DeleteCrmCommentResult } from './generated/schemas/deleteCrmCommentResult';
 import type { DeleteEntityMentionResponse } from './generated/schemas/deleteEntityMentionResponse';
 import type { DeleteUnthreadedAnchorResponse } from './generated/schemas/deleteUnthreadedAnchorResponse';
+import type { DocumentationAvailability } from './generated/schemas/documentationAvailability';
 import type { DocumentMetadata } from './generated/schemas/documentMetadata';
 import type { DocumentPreview } from './generated/schemas/documentPreview';
 import type { DocumentResponseMetadataWithContent } from './generated/schemas/documentResponseMetadataWithContent';
@@ -123,9 +126,14 @@ import type { GetPendingProjectsHandler200 } from './generated/schemas/getPendin
 import type { GetProjectContentResponse } from './generated/schemas/getProjectContentResponse';
 import type { GetProjectResponse } from './generated/schemas/getProjectResponse';
 import type { Item } from './generated/schemas/item';
+import type { LatestBuildResponse as DocumentationLatestBuildResponse } from './generated/schemas/latestBuildResponse';
+import type { ListSitesResponse } from './generated/schemas/listSitesResponse';
 import type { LocationResponseV3 } from './generated/schemas/locationResponseV3';
+import type { NavNode as DocumentationNavNode } from './generated/schemas/navNode';
 import type { PatchChannelRequest } from './generated/schemas/patchChannelRequest';
 import type { PatchMessageRequest } from './generated/schemas/patchMessageRequest';
+import type { PatchNavNodeRequest as PatchDocumentationNavNodeRequest } from './generated/schemas/patchNavNodeRequest';
+import type { PatchSiteRequest as PatchDocumentationSiteRequest } from './generated/schemas/patchSiteRequest';
 import type { PinRequest } from './generated/schemas/pinRequest';
 import type { PostActivityRequest } from './generated/schemas/postActivityRequest';
 import type { PostMessageRequest } from './generated/schemas/postMessageRequest';
@@ -137,6 +145,9 @@ import type { RemoveParticipantsRequest } from './generated/schemas/removePartic
 import type { ReorderPinRequest } from './generated/schemas/reorderPinRequest';
 import type { SaveDocumentResponseData } from './generated/schemas/saveDocumentResponseData';
 import type { SharePermissionV2 } from './generated/schemas/sharePermissionV2';
+import type { SiteBuild as DocumentationSiteBuild } from './generated/schemas/siteBuild';
+import type { SiteDetailResponse as DocumentationSiteDetailResponse } from './generated/schemas/siteDetailResponse';
+import type { SiteResponse as DocumentationSiteResponse } from './generated/schemas/siteResponse';
 import type { SyncServiceVersionID } from './generated/schemas/syncServiceVersionID';
 import type { ThreadResponse } from './generated/schemas/threadResponse';
 import type { TypedSuccessResponse } from './generated/schemas/typedSuccessResponse';
@@ -2370,6 +2381,128 @@ export const storageServiceClient = {
       return await dssFetch<DeleteCrmCommentResult>(
         `/crm/comment/${commentId}`,
         { method: 'DELETE' }
+      );
+    },
+  },
+  documentation: {
+    async getAvailability() {
+      return await dssFetch<DocumentationAvailability>(
+        '/documentation/availability',
+        { method: 'GET' }
+      );
+    },
+    async listSites() {
+      return await dssFetch<ListSitesResponse>('/documentation/sites', {
+        method: 'GET',
+      });
+    },
+    async createSite({ body }: { body: CreateDocumentationSiteRequest }) {
+      return await dssFetch<DocumentationSiteResponse>('/documentation/sites', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+    },
+    async getSite({ siteId }: { siteId: string }) {
+      return await dssFetch<DocumentationSiteDetailResponse>(
+        `/documentation/sites/${siteId}`,
+        { method: 'GET' }
+      );
+    },
+    async patchSite({
+      siteId,
+      body,
+    }: {
+      siteId: string;
+      body: PatchDocumentationSiteRequest;
+    }) {
+      return await dssFetch<DocumentationSiteResponse>(
+        `/documentation/sites/${siteId}`,
+        { method: 'PATCH', body: JSON.stringify(body) }
+      );
+    },
+    async deleteSite({ siteId }: { siteId: string }) {
+      return await dssFetch(`/documentation/sites/${siteId}`, {
+        method: 'DELETE',
+      });
+    },
+    async setCustomDomain({
+      siteId,
+      customDomain,
+    }: {
+      siteId: string;
+      customDomain: string | null;
+    }) {
+      return await dssFetch<DocumentationSiteResponse>(
+        `/documentation/sites/${siteId}/custom-domain`,
+        { method: 'PUT', body: JSON.stringify({ custom_domain: customDomain }) }
+      );
+    },
+    async createNavNode({
+      siteId,
+      body,
+    }: {
+      siteId: string;
+      body: CreateDocumentationNavNodeRequest;
+    }) {
+      return await dssFetch<DocumentationNavNode>(
+        `/documentation/sites/${siteId}/nav`,
+        { method: 'POST', body: JSON.stringify(body) }
+      );
+    },
+    async patchNavNode({
+      siteId,
+      nodeId,
+      body,
+    }: {
+      siteId: string;
+      nodeId: string;
+      body: PatchDocumentationNavNodeRequest;
+    }) {
+      return await dssFetch<DocumentationNavNode>(
+        `/documentation/sites/${siteId}/nav/${nodeId}`,
+        { method: 'PATCH', body: JSON.stringify(body) }
+      );
+    },
+    async moveNavNode({
+      siteId,
+      nodeId,
+      parentId,
+      position,
+    }: {
+      siteId: string;
+      nodeId: string;
+      parentId: string | null;
+      position: number;
+    }) {
+      return await dssFetch(
+        `/documentation/sites/${siteId}/nav/${nodeId}/move`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ parent_id: parentId, position }),
+        }
+      );
+    },
+    async deleteNavNode({
+      siteId,
+      nodeId,
+    }: {
+      siteId: string;
+      nodeId: string;
+    }) {
+      return await dssFetch(`/documentation/sites/${siteId}/nav/${nodeId}`, {
+        method: 'DELETE',
+      });
+    },
+    async publishSite({ siteId }: { siteId: string }) {
+      return await dssFetch<DocumentationSiteBuild>(
+        `/documentation/sites/${siteId}/publish`,
+        { method: 'POST' }
+      );
+    },
+    async getLatestBuild({ siteId }: { siteId: string }) {
+      return await dssFetch<DocumentationLatestBuildResponse>(
+        `/documentation/sites/${siteId}/builds/latest`,
+        { method: 'GET' }
       );
     },
   },

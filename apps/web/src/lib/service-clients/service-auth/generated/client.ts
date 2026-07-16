@@ -37,6 +37,8 @@ import type {
   PasswordRequest,
   PatchTeamCrmSettingsRequest,
   PatchTeamCrmSettingsResponse,
+  PatchTeamDocumentationSettingsRequest,
+  PatchTeamDocumentationSettingsResponse,
   PatchTeamRequest,
   PatchUserGroupRequest,
   PatchUserOnboardingRequest,
@@ -2410,6 +2412,89 @@ export const patchTeamCrmSettings = async (
     status: res.status,
     headers: res.headers,
   } as patchTeamCrmSettingsResponse;
+};
+
+/**
+ * @summary Enables or disables the Documentation feature for the team.
+Enabling requires the team to be on a team plan (a plan is set, the
+team is paying, or the team is enterprise); disabling is always
+allowed and leaves existing documentation sites and their published
+output untouched. Requires the caller to be an Admin or Owner of
+the team.
+ */
+export type patchTeamDocumentationSettingsResponse200 = {
+  data: PatchTeamDocumentationSettingsResponse;
+  status: 200;
+};
+
+export type patchTeamDocumentationSettingsResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type patchTeamDocumentationSettingsResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type patchTeamDocumentationSettingsResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
+export type patchTeamDocumentationSettingsResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type patchTeamDocumentationSettingsResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type patchTeamDocumentationSettingsResponseSuccess =
+  patchTeamDocumentationSettingsResponse200 & {
+    headers: Headers;
+  };
+export type patchTeamDocumentationSettingsResponseError = (
+  | patchTeamDocumentationSettingsResponse400
+  | patchTeamDocumentationSettingsResponse401
+  | patchTeamDocumentationSettingsResponse403
+  | patchTeamDocumentationSettingsResponse404
+  | patchTeamDocumentationSettingsResponse500
+) & {
+  headers: Headers;
+};
+
+export type patchTeamDocumentationSettingsResponse =
+  | patchTeamDocumentationSettingsResponseSuccess
+  | patchTeamDocumentationSettingsResponseError;
+
+export const getPatchTeamDocumentationSettingsUrl = () => {
+  return `/team/documentation`;
+};
+
+export const patchTeamDocumentationSettings = async (
+  patchTeamDocumentationSettingsRequest: PatchTeamDocumentationSettingsRequest,
+  options?: RequestInit
+): Promise<patchTeamDocumentationSettingsResponse> => {
+  const res = await fetch(getPatchTeamDocumentationSettingsUrl(), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(patchTeamDocumentationSettingsRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: patchTeamDocumentationSettingsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as patchTeamDocumentationSettingsResponse;
 };
 
 /**

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) AS \"count!\"\n            FROM documentation_nav_node\n            WHERE site_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND id <> $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d090ea1518b3f25001bf382b4ac2556d1695c1ea488e2b30e6ceb6abc7876050"
+}

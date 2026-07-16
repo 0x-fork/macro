@@ -319,6 +319,7 @@ export function useCreateTeamWithInvitesMutation(
               slug: 'MACRO', // optimisitc slug
               owner_id: userInfo.userId,
               crm_enabled: false,
+              documentation_enabled: false,
               auto_join_domain: null,
               enterprise: false,
             };

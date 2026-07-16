@@ -20,6 +20,7 @@ import { LoadingBlock } from '@core/component/LoadingBlock';
 import {
   DEV_MODE_ENV,
   ENABLE_CRM,
+  ENABLE_DOCUMENTATION,
   LOCAL_ONLY,
 } from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
@@ -302,6 +303,24 @@ registerComponent(
         initialCrmView={initialCrmView}
       />
     );
+  })
+);
+
+const DocumentationView = lazy(
+  () => import('@app/features/documentation/DocumentationView')
+);
+
+registerComponent(
+  'documentation',
+  withAuth(() => {
+    // Registered even when the Documentation feature is off so direct
+    // navigation / restored splits redirect instead of throwing in
+    // resolveComponent.
+    if (!ENABLE_DOCUMENTATION()) {
+      return <RedirectSplit to={{ type: 'component', id: 'inbox' }} />;
+    }
+    usePageViewTracking('documentation');
+    return <DocumentationView />;
   })
 );
 

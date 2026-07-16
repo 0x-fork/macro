@@ -126,6 +126,24 @@ pub(crate) type DssEmailService = EmailServiceImpl<
 pub(crate) type DssCrmState =
     crm::inbound::axum_router::CrmRouterState<DssCrmService, EntityAccessService>;
 
+/// Documentation service backed by macrodb, the lexical service (markdown
+/// export), S3 (published sites), and the teams repo (plan gate + toggle).
+pub(crate) type DssDocumentationService = documentation::domain::service::DocumentationServiceImpl<
+    documentation::outbound::pg_repo::DocumentationRepositoryImpl,
+    documentation::outbound::lexical_content_source::LexicalPageContentSource,
+    documentation::outbound::s3_site_store::S3SiteStore,
+    documentation::outbound::teams_gate::TeamsDocumentationGate<
+        teams::outbound::team_repo::TeamRepositoryImpl,
+    >,
+>;
+
+/// Documentation router state.
+pub(crate) type DssDocumentationState =
+    documentation::inbound::axum_router::DocumentationRouterState<
+        DssDocumentationService,
+        EntityAccessService,
+    >;
+
 pub(crate) type DssSoupService = SoupImpl<
     PgSoupRepo,
     FrecencyQueryServiceImpl<FrecencyPgStorage>,
@@ -414,6 +432,7 @@ pub(crate) struct ApiContext {
     pub cal_webhook_state: DssCalWebhookState,
     pub entity_access_management_service: EntityAccessManagementService,
     pub crm_state: DssCrmState,
+    pub documentation_state: DssDocumentationState,
 }
 
 env_var! {

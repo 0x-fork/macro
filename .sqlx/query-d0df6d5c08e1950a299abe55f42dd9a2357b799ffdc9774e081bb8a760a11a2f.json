@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT EXISTS (\n                SELECT 1\n                FROM \"Document\"\n                WHERE id = $1 AND \"deletedAt\" IS NULL AND \"fileType\" = 'md'\n            ) AS \"usable!\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "usable!",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d0df6d5c08e1950a299abe55f42dd9a2357b799ffdc9774e081bb8a760a11a2f"
+}

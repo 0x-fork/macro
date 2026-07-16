@@ -75,6 +75,15 @@ maybe_env_vars! {
     /// Optional Meta test event code — routes events to Meta's test events
     /// view instead of production tracking.
     pub struct MetaTestEventCode;
+    /// S3 bucket published documentation sites are uploaded to. When unset,
+    /// documentation publishing fails at publish time with a clear error
+    /// while site management keeps working (the feature is flagged off by
+    /// default, so most environments never set this).
+    pub struct DocumentationSitesBucket;
+    /// Public base URL of the docs-sites CDN (no trailing slash), e.g.
+    /// `https://docs-sites.macro.com`. Sites are served under
+    /// `{base}/{slug}/`. Defaults to the production URL when unset.
+    pub struct DocumentationSitesBaseUrl;
 }
 
 /// The configuration parameters for the application.

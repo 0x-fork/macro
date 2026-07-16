@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO team_documentation_settings (team_id, documentation_enabled)\n            VALUES ($1, $2)\n            ON CONFLICT (team_id) DO UPDATE\n            SET documentation_enabled = EXCLUDED.documentation_enabled,\n                updated_at            = now()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4fc210269b595f2a211f51eb04052a428997c968d0cb1c48fc311fae24a342ee"
+}

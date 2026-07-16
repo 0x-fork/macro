@@ -45,6 +45,7 @@ import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_CALLS,
   ENABLE_CRM,
+  ENABLE_DOCUMENTATION,
   ENABLE_NEW_PRICING_OVERRIDE,
 } from '@core/constant/featureFlags';
 import {
@@ -124,7 +125,8 @@ type SidebarSectionLinkId =
   | 'documents'
   | 'tasks'
   | 'agents'
-  | 'companies';
+  | 'companies'
+  | 'documentation';
 
 type SidebarSectionVisibility = Record<SidebarSectionLinkId, boolean>;
 
@@ -138,6 +140,7 @@ const WORKSPACE_LINK_IDS = [
   'tasks',
   'agents',
   'companies',
+  'documentation',
 ] as const;
 
 const DEFAULT_SECTION_VISIBILITY: SidebarSectionVisibility = {
@@ -148,6 +151,7 @@ const DEFAULT_SECTION_VISIBILITY: SidebarSectionVisibility = {
   tasks: true,
   agents: true,
   companies: true,
+  documentation: true,
 };
 
 const DEFAULT_TRY_VISIBILITY: TryItemVisibility = {
@@ -934,6 +938,15 @@ const COMPANIES_LINK: SidebarItem = {
   hotkeyToken: TOKENS.sidebar.goTo.companies,
 };
 
+const DOCUMENTATION_LINK: SidebarItem = {
+  id: 'documentation',
+  label: 'Documentation',
+  href: '/documentation',
+  icon: AnimatedFileMdIcon,
+  hotkey: 'w',
+  hotkeyToken: TOKENS.sidebar.goTo.documentation,
+};
+
 const DASHBOARD_LINK: SidebarItem = {
   id: 'home',
   label: 'Home',
@@ -967,6 +980,18 @@ const buildSidebarLinks = (): SidebarItem[] => {
     links = [
       ...links.slice(0, idx + 1),
       COMPANIES_LINK,
+      ...links.slice(idx + 1),
+    ];
+  }
+
+  if (ENABLE_DOCUMENTATION()) {
+    // Documentation closes out the Workspace section, after Customers
+    // (or Agents when CRM is off).
+    const anchorId = ENABLE_CRM() ? 'companies' : 'agents';
+    const idx = links.findIndex((l) => l.id === anchorId);
+    links = [
+      ...links.slice(0, idx + 1),
+      DOCUMENTATION_LINK,
       ...links.slice(idx + 1),
     ];
   }

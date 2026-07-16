@@ -814,6 +814,37 @@ async fn main() -> anyhow::Result<()> {
 
     let favorites_service = Arc::new(FavoritesServiceImpl::new(PgFavoritesRepo::new(db.clone())));
 
+    // Documentation sites: repo on macrodb, markdown export via the lexical
+    // service, published output on the docs-sites bucket, availability from
+    // the teams repo (plan + team toggle). The bucket/base-url env vars are
+    // optional — unset (e.g. local dev without the docs-sites stack) leaves
+    // site management working while publishing fails with a clear S3 error.
+    let documentation_sites_bucket = config::DocumentationSitesBucket::new()
+        .map(|bucket| bucket.as_ref().to_string())
+        .unwrap_or_else(|| {
+            tracing::warn!(
+                "DOCUMENTATION_SITES_BUCKET is not set; documentation publishing is unavailable"
+            );
+            "documentation-sites-unconfigured".to_string()
+        });
+    let documentation_sites_base_url = config::DocumentationSitesBaseUrl::new()
+        .map(|url| url.as_ref().to_string())
+        .unwrap_or_else(|| "https://docs-sites.macro.com".to_string());
+    let documentation_service = documentation::domain::service::DocumentationServiceImpl::new(
+        documentation::outbound::pg_repo::DocumentationRepositoryImpl::new(db.clone()),
+        documentation::outbound::lexical_content_source::LexicalPageContentSource::new(
+            lexical_client.clone(),
+        ),
+        documentation::outbound::s3_site_store::S3SiteStore::new(
+            s3_client::S3::new(macro_aws_config::s3_client().await),
+            documentation_sites_bucket,
+        ),
+        documentation::outbound::teams_gate::TeamsDocumentationGate::new(
+            teams::outbound::team_repo::TeamRepositoryImpl::new(db.clone()),
+        ),
+        documentation_sites_base_url,
+    );
+
     let api_context = ApiContext {
         contacts_ingress: contacts_ingress.clone(),
         soup_router_state: SoupRouterState::from_arc(
@@ -887,6 +918,10 @@ async fn main() -> anyhow::Result<()> {
         entity_access_management_service,
         crm_state: crm::inbound::axum_router::CrmRouterState {
             service: Arc::new(crm_service),
+            entity_access_service: entity_access_service.clone(),
+        },
+        documentation_state: documentation::inbound::axum_router::DocumentationRouterState {
+            service: Arc::new(documentation_service),
             entity_access_service: entity_access_service.clone(),
         },
     };

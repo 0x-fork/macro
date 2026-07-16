@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE documentation_nav_node\n            SET parent_id = $3, position = $4, updated_at = now()\n            WHERE site_id = $1 AND id = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "104c2909a76ef0fc2d2d792a4752d1688132673fdd3c9b267ae2bb37e7442163"
+}

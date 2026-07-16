@@ -55,6 +55,7 @@ use crate::domain::{
 struct MockTeamRepository {
     invites_to_return: Vec<TeamInvite<'static>>,
     team_name: String,
+    documentation_enabled: Arc<Mutex<bool>>,
     mark_sent_calls: Arc<Mutex<Vec<Vec<uuid::Uuid>>>>,
     team_for_get_by_id: Option<Team>,
     team_subscription_id: Option<stripe::SubscriptionId>,
@@ -103,6 +104,7 @@ impl MockTeamRepository {
         Self {
             invites_to_return: invites,
             team_name: team_name.to_string(),
+            documentation_enabled: Arc::new(Mutex::new(false)),
             mark_sent_calls,
             team_for_get_by_id: None,
             team_subscription_id: None,
@@ -133,6 +135,7 @@ impl MockTeamRepository {
                 MacroUserIdStr::parse_from_str("macro|owner@example.com")
                     .unwrap()
                     .into_owned(),
+                false,
                 false,
                 false,
             ),
@@ -242,6 +245,23 @@ impl TeamRepository for MockTeamRepository {
         _: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<bool, TeamError>> + Send {
         async { Ok(false) }
+    }
+
+    fn get_team_documentation_enabled(
+        &self,
+        _: &uuid::Uuid,
+    ) -> impl Future<Output = Result<bool, TeamError>> + Send {
+        let enabled = *self.documentation_enabled.lock().unwrap();
+        async move { Ok(enabled) }
+    }
+
+    fn set_team_documentation_enabled(
+        &self,
+        _: &uuid::Uuid,
+        enabled: bool,
+    ) -> impl Future<Output = Result<(), TeamError>> + Send {
+        *self.documentation_enabled.lock().unwrap() = enabled;
+        async { Ok(()) }
     }
 
     fn create_team(
@@ -1017,6 +1037,7 @@ fn make_enterprise_remove_user_repository(
         "ENTERPRISE_TEAM".to_string(),
         owner_id.into_owned(),
         false,
+        false,
         true,
     );
     let mut team_repository =
@@ -1265,6 +1286,7 @@ async fn test_create_team_moves_github_installation_to_created_team() {
         user_id.clone().into_owned(),
         false,
         false,
+        false,
     );
     let mark_sent_calls: Arc<Mutex<Vec<Vec<uuid::Uuid>>>> = Arc::new(Mutex::new(Vec::new()));
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
@@ -1301,6 +1323,7 @@ async fn test_create_team_propagates_github_installation_move_failure() {
         "New Team".to_string(),
         "NEW_TEAM".to_string(),
         user_id.clone().into_owned(),
+        false,
         false,
         false,
     );
@@ -1342,6 +1365,7 @@ async fn team_analytics_create_team_emits_created_event_with_team_id() {
         "Analytics Team".to_string(),
         "ANALYTICS_TEAM".to_string(),
         user_id.clone().into_owned(),
+        false,
         false,
         false,
     );
@@ -1390,6 +1414,7 @@ async fn team_analytics_failure_is_swallowed_by_create_team() {
         user_id.clone().into_owned(),
         false,
         false,
+        false,
     );
     let mark_sent_calls: Arc<Mutex<Vec<Vec<uuid::Uuid>>>> = Arc::new(Mutex::new(Vec::new()));
     let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
@@ -1420,6 +1445,7 @@ async fn team_analytics_create_team_does_not_emit_when_side_effect_fails() {
         "Analytics Team".to_string(),
         "ANALYTICS_TEAM".to_string(),
         user_id.clone().into_owned(),
+        false,
         false,
         false,
     );
@@ -1932,6 +1958,7 @@ async fn test_get_team_reports_crm_enabled() {
         owner_id.clone(),
         true,
         false,
+        false,
     );
 
     let mark_sent_calls: Arc<Mutex<Vec<Vec<uuid::Uuid>>>> = Arc::new(Mutex::new(Vec::new()));
@@ -2070,6 +2097,108 @@ async fn test_enable_crm_without_backfill_skips_enqueue() {
     assert!(populated.lock().unwrap().is_empty());
 }
 
+fn build_documentation_service(
+    team_repo: MockTeamRepository,
+) -> (impl TeamService, Arc<Mutex<bool>>) {
+    let documentation_enabled = team_repo.documentation_enabled.clone();
+    let notification_ingress = Arc::new(MockNotificationIngress::new(HashSet::new()));
+    let service = TeamServiceImpl::new(
+        team_repo,
+        MockCustomerRepository::default(),
+        MockTeamChannelsRepository::default(),
+        MockUserRolesAndPermissionsService::default(),
+        notification_ingress,
+        NoOpCrmEnqueuer,
+        NoOpTeamCrmSettingsRepository,
+    );
+    (service, documentation_enabled)
+}
+
+/// Enabling documentation succeeds for a paying team.
+#[tokio::test]
+async fn test_enable_documentation_for_paying_team() {
+    let team_id = uuid::Uuid::from_u128(7);
+    let owner_id = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
+    let mark_sent_calls = Arc::new(Mutex::new(Vec::new()));
+    // MockTeamRepository defaults to team_payment_status = true.
+    let team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
+    let (service, documentation_enabled) = build_documentation_service(team_repo);
+
+    let receipt = test_team_receipt::<AdminTeamRole>(team_id, &owner_id);
+    let response = service
+        .set_team_documentation_enabled(receipt, true)
+        .await
+        .unwrap();
+
+    assert!(response.enabled);
+    assert!(*documentation_enabled.lock().unwrap());
+}
+
+/// Enabling documentation is rejected for a team with no plan, no
+/// payment, and no enterprise license.
+#[tokio::test]
+async fn test_enable_documentation_requires_team_plan() {
+    let team_id = uuid::Uuid::from_u128(7);
+    let owner_id = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
+    let mark_sent_calls = Arc::new(Mutex::new(Vec::new()));
+    let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
+    team_repo.team_payment_status = false;
+    let (service, documentation_enabled) = build_documentation_service(team_repo);
+
+    let receipt = test_team_receipt::<AdminTeamRole>(team_id, &owner_id);
+    let error = service
+        .set_team_documentation_enabled(receipt, true)
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, TeamError::DocumentationRequiresTeamPlan));
+    assert!(!*documentation_enabled.lock().unwrap());
+}
+
+/// Enabling documentation succeeds for an enterprise team even when
+/// it has no plan and is not paying.
+#[tokio::test]
+async fn test_enable_documentation_for_enterprise_team() {
+    let team_id = uuid::Uuid::from_u128(7);
+    let owner_id = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
+    let mark_sent_calls = Arc::new(Mutex::new(Vec::new()));
+    let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
+    team_repo.team_payment_status = false;
+    let team_repo = team_repo.with_enterprise(true);
+    let (service, documentation_enabled) = build_documentation_service(team_repo);
+
+    let receipt = test_team_receipt::<AdminTeamRole>(team_id, &owner_id);
+    let response = service
+        .set_team_documentation_enabled(receipt, true)
+        .await
+        .unwrap();
+
+    assert!(response.enabled);
+    assert!(*documentation_enabled.lock().unwrap());
+}
+
+/// Disabling documentation never requires a plan — a downgraded team
+/// can still turn the feature off.
+#[tokio::test]
+async fn test_disable_documentation_without_team_plan() {
+    let team_id = uuid::Uuid::from_u128(7);
+    let owner_id = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
+    let mark_sent_calls = Arc::new(Mutex::new(Vec::new()));
+    let mut team_repo = MockTeamRepository::new(Vec::new(), "Test Team", mark_sent_calls);
+    team_repo.team_payment_status = false;
+    *team_repo.documentation_enabled.lock().unwrap() = true;
+    let (service, documentation_enabled) = build_documentation_service(team_repo);
+
+    let receipt = test_team_receipt::<AdminTeamRole>(team_id, &owner_id);
+    let response = service
+        .set_team_documentation_enabled(receipt, false)
+        .await
+        .unwrap();
+
+    assert!(!response.enabled);
+    assert!(!*documentation_enabled.lock().unwrap());
+}
+
 fn build_service_with_team(
     team: Team,
 ) -> (
@@ -2107,6 +2236,7 @@ async fn test_patch_team_rejects_owner_role_assignment() {
         "Test Team".to_string(),
         "TEST_TEAM".to_string(),
         owner_id,
+        false,
         false,
         false,
     );
@@ -2148,6 +2278,7 @@ async fn test_patch_team_rejects_owner_downgrade() {
         owner_id.clone(),
         false,
         false,
+        false,
     );
 
     let (service, role_calls, name_calls) = build_service_with_team(team);
@@ -2186,6 +2317,7 @@ async fn test_patch_team_applies_role_updates_and_name() {
         "Old Name".to_string(),
         "OLD_NAME".to_string(),
         owner_id.clone(),
+        false,
         false,
         false,
     );
@@ -2247,6 +2379,7 @@ async fn test_patch_team_empty_role_updates() {
         owner_id.clone(),
         false,
         false,
+        false,
     );
 
     let (service, role_calls, name_calls) = build_service_with_team(team);
@@ -2284,6 +2417,7 @@ async fn test_invite_users_to_team_backfills_legacy_team_subscription() {
         "Legacy Team".to_string(),
         "legacy-team".to_string(),
         owner_id.clone().into_owned(),
+        false,
         false,
         false,
     ));
@@ -2604,6 +2738,7 @@ async fn test_join_team_backfills_legacy_team_subscription() {
             owner_id.clone().into_owned(),
             false,
             false,
+            false,
         ));
     team_repo.team_payment_status = false;
     team_repo.team_subscription_id = None;
@@ -2661,6 +2796,7 @@ async fn test_join_team_rolls_back_accept_when_backfill_fails() {
             "Legacy Team".to_string(),
             "legacy-team".to_string(),
             owner_id.into_owned(),
+            false,
             false,
             false,
         ));

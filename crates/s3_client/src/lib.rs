@@ -40,6 +40,29 @@ impl S3 {
         put::put(&self.inner, bucket, key, content).await
     }
 
+    /// Puts the provided content into the bucket at the provided key with
+    /// an explicit content type and optional cache-control header — for
+    /// objects served directly to browsers (e.g. published static sites).
+    #[tracing::instrument(skip(self, content))]
+    pub async fn put_with_content_type(
+        &self,
+        bucket: &str,
+        key: &str,
+        content: &[u8],
+        content_type: &str,
+        cache_control: Option<&str>,
+    ) -> anyhow::Result<()> {
+        put::put_with_content_type(
+            &self.inner,
+            bucket,
+            key,
+            content,
+            content_type,
+            cache_control,
+        )
+        .await
+    }
+
     /// Generates a presigned URL for uploading a file to a bucket.
     #[tracing::instrument(skip(self))]
     pub async fn put_presigned_url(
@@ -68,6 +91,12 @@ impl S3 {
     #[tracing::instrument(skip(self))]
     pub async fn delete_folder(&self, bucket: &str, folder: &str) -> anyhow::Result<()> {
         delete::delete_folder(&self.inner, bucket, folder).await
+    }
+
+    /// Lists every object key under the given prefix, following pagination.
+    #[tracing::instrument(skip(self))]
+    pub async fn list_keys(&self, bucket: &str, prefix: &str) -> anyhow::Result<Vec<String>> {
+        get_folder::list_keys(&self.inner, bucket, prefix).await
     }
 
     /// Gets all the keys in a folder

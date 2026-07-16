@@ -165,6 +165,8 @@ impl TeamRepositoryImpl {
                     .into_owned(),
                 // New teams have no team_crm_settings row yet.
                 crm_enabled: false,
+                // New teams have no team_documentation_settings row yet.
+                documentation_enabled: false,
                 // New teams start without an auto-join domain.
                 auto_join_domain: None,
                 enterprise: row.enterprise,
@@ -191,6 +193,19 @@ impl TeamRepositoryImpl {
         sqlx::query!(
             r#"
             INSERT INTO team_crm_settings (team_id)
+            VALUES ($1)
+            "#,
+            &team.id,
+        )
+        .execute(&mut *transaction)
+        .await?;
+
+        // Seed the team's Documentation settings row, same deal:
+        // `documentation_enabled` defaults to FALSE — toggled on later
+        // via `PATCH /team/documentation`.
+        sqlx::query!(
+            r#"
+            INSERT INTO team_documentation_settings (team_id)
             VALUES ($1)
             "#,
             &team.id,
@@ -369,6 +384,48 @@ impl TeamRepository for TeamRepositoryImpl {
         .await?;
 
         Ok(enterprise)
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_team_documentation_enabled(
+        &self,
+        team_id: &uuid::Uuid,
+    ) -> Result<bool, TeamError> {
+        let enabled = sqlx::query_scalar!(
+            r#"
+            SELECT documentation_enabled
+            FROM team_documentation_settings
+            WHERE team_id = $1
+            "#,
+            team_id,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(enabled.unwrap_or(false))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn set_team_documentation_enabled(
+        &self,
+        team_id: &uuid::Uuid,
+        enabled: bool,
+    ) -> Result<(), TeamError> {
+        sqlx::query!(
+            r#"
+            INSERT INTO team_documentation_settings (team_id, documentation_enabled)
+            VALUES ($1, $2)
+            ON CONFLICT (team_id) DO UPDATE
+            SET documentation_enabled = EXCLUDED.documentation_enabled,
+                updated_at            = now()
+            "#,
+            team_id,
+            enabled,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -1080,9 +1137,11 @@ impl TeamRepository for TeamRepositoryImpl {
         let team = sqlx::query!(
             r#"
             SELECT t.id, t.name, t.slug, t.owner_id, t.auto_join_domain, t.enterprise,
-                COALESCE(tcs.crm_enabled, FALSE) AS "crm_enabled!"
+                COALESCE(tcs.crm_enabled, FALSE) AS "crm_enabled!",
+                COALESCE(tds.documentation_enabled, FALSE) AS "documentation_enabled!"
             FROM team t
             LEFT JOIN team_crm_settings tcs ON tcs.team_id = t.id
+            LEFT JOIN team_documentation_settings tds ON tds.team_id = t.id
             WHERE t.id = $1
             "#,
             team_id,
@@ -1096,6 +1155,7 @@ impl TeamRepository for TeamRepositoryImpl {
                     .map_err(type_err)?
                     .into_owned(),
                 crm_enabled: row.crm_enabled,
+                documentation_enabled: row.documentation_enabled,
                 auto_join_domain: row.auto_join_domain,
                 enterprise: row.enterprise,
             })
@@ -1136,10 +1196,12 @@ impl TeamRepository for TeamRepositoryImpl {
         let teams = sqlx::query!(
             r#"
             SELECT t.id, t.name, t.slug, t.owner_id, t.auto_join_domain, t.enterprise,
-                COALESCE(tcs.crm_enabled, FALSE) AS "crm_enabled!"
+                COALESCE(tcs.crm_enabled, FALSE) AS "crm_enabled!",
+                COALESCE(tds.documentation_enabled, FALSE) AS "documentation_enabled!"
             FROM team t
             JOIN team_user tu ON t.id = tu.team_id
             LEFT JOIN team_crm_settings tcs ON tcs.team_id = t.id
+            LEFT JOIN team_documentation_settings tds ON tds.team_id = t.id
             WHERE tu.user_id = $1
             "#,
             user_id.as_ref(),
@@ -1153,6 +1215,7 @@ impl TeamRepository for TeamRepositoryImpl {
                     .map_err(type_err)?
                     .into_owned(),
                 crm_enabled: row.crm_enabled,
+                documentation_enabled: row.documentation_enabled,
                 auto_join_domain: row.auto_join_domain,
                 enterprise: row.enterprise,
             })

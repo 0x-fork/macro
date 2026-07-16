@@ -22,6 +22,29 @@ pub async fn put(
     Ok(())
 }
 
+#[tracing::instrument(skip(client, content))]
+pub async fn put_with_content_type(
+    client: &aws_sdk_s3::Client,
+    bucket: &str,
+    key: &str,
+    content: &[u8],
+    content_type: &str,
+    cache_control: Option<&str>,
+) -> anyhow::Result<()> {
+    let body = aws_sdk_s3::primitives::ByteStream::from(content.to_vec());
+    let mut request = client
+        .put_object()
+        .bucket(bucket)
+        .key(key)
+        .body(body)
+        .content_type(content_type);
+    if let Some(cache_control) = cache_control {
+        request = request.cache_control(cache_control);
+    }
+    request.send().await?;
+    Ok(())
+}
+
 /// generates a presigned URL for uploading a file to a bucket
 #[instrument(skip(client))]
 pub async fn put_presigned_url(

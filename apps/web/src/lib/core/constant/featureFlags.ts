@@ -147,6 +147,24 @@ export function ENABLE_CRM(): boolean {
   return analytics.posthog.isFeatureEnabled(ENABLE_CRM_FLAG) ?? false;
 }
 
+// Documentation sites: the Documentation sidebar tab, site builder, publish
+// flow, and the team-level settings toggle. PostHog-gated (target the Macro
+// team in prod for internal use) with a dev-mode default; override with
+// VITE_ENABLE_DOCUMENTATION.
+export const ENABLE_DOCUMENTATION_FLAG = 'enable-documentation';
+export const ENABLE_DOCUMENTATION_OVERRIDE =
+  resolveFeatureFlag('ENABLE_DOCUMENTATION', DEV_MODE_ENV) || undefined;
+
+/**
+ * Non-reactive check for imperative call sites. For reactive UI, prefer
+ * `useFeatureFlag(ENABLE_DOCUMENTATION_FLAG, { enabledOverride: ENABLE_DOCUMENTATION_OVERRIDE })`.
+ */
+export function ENABLE_DOCUMENTATION(): boolean {
+  if (ENABLE_DOCUMENTATION_OVERRIDE !== undefined)
+    return ENABLE_DOCUMENTATION_OVERRIDE;
+  return analytics.posthog.isFeatureEnabled(ENABLE_DOCUMENTATION_FLAG) ?? false;
+}
+
 export const ENABLE_BLOCK_IN_BLOCK = resolveFeatureFlag(
   'ENABLE_BLOCK_IN_BLOCK',
   true

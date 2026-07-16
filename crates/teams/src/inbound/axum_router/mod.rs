@@ -22,6 +22,8 @@ pub mod join_team;
 pub mod patch_team;
 /// Enable / disable CRM for a team.
 pub mod patch_team_crm_settings;
+/// Enable / disable the Documentation feature for a team.
+pub mod patch_team_documentation_settings;
 /// Extractor ensuring the authenticated user is premium.
 pub mod premium_user;
 /// Reject a team invitation.
@@ -95,6 +97,10 @@ where
         .route("/", delete(delete_team::handler::<T, Eas>))
         .route("/crm", patch(patch_team_crm_settings::handler::<T, Eas>))
         .route(
+            "/documentation",
+            patch(patch_team_documentation_settings::handler::<T, Eas>),
+        )
+        .route(
             "/auto-join-domain/toggle",
             post(toggle_auto_join_domain::handler::<T, Eas>),
         )
@@ -141,6 +147,12 @@ impl IntoResponse for TeamError {
             ),
             TeamError::BadRequest(_) => (
                 StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    message: self.to_string().into(),
+                }),
+            ),
+            TeamError::DocumentationRequiresTeamPlan => (
+                StatusCode::FORBIDDEN,
                 Json(ErrorResponse {
                     message: self.to_string().into(),
                 }),

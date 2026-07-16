@@ -73,6 +73,8 @@ export * from './passwordlessRequestReferralCode';
 export * from './passwordRequest';
 export * from './patchTeamCrmSettingsRequest';
 export * from './patchTeamCrmSettingsResponse';
+export * from './patchTeamDocumentationSettingsRequest';
+export * from './patchTeamDocumentationSettingsResponse';
 export * from './patchTeamRequest';
 export * from './patchTeamRequestName';
 export * from './patchTeamRequestSlug';

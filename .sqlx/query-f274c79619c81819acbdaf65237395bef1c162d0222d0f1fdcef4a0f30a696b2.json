@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE documentation_nav_node\n            SET position = position - 1\n            WHERE site_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND position > $3\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f274c79619c81819acbdaf65237395bef1c162d0222d0f1fdcef4a0f30a696b2"
+}

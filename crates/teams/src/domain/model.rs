@@ -138,6 +138,22 @@ fn default_crm_backfill() -> bool {
     true
 }
 
+/// Request body for `PATCH /team/documentation`.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+pub struct PatchTeamDocumentationSettingsRequest {
+    /// The desired Documentation feature state for the team.
+    pub enabled: bool,
+}
+
+/// Response for `PATCH /team/documentation`.
+#[derive(Debug, Clone, serde::Serialize)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+pub struct PatchTeamDocumentationSettingsResponse {
+    /// The resulting `documentation_enabled` value after the call.
+    pub enabled: bool,
+}
+
 /// Response for `PATCH /team/crm`. Reports both the resulting state
 /// and whether this call changed it; for the enable-flip case it also
 /// reports the backfill fan-out tallies.
@@ -327,6 +343,9 @@ pub struct Team {
     /// Whether the CRM is enabled for this team (from `team_crm_settings`;
     /// `false` when no row exists).
     pub(crate) crm_enabled: bool,
+    /// Whether the Documentation feature is enabled for this team (from
+    /// `team_documentation_settings`; `false` when no row exists).
+    pub(crate) documentation_enabled: bool,
     /// The email domain new users are automatically joined to this team
     /// with, when automatic domain joining is enabled (None otherwise).
     pub(crate) auto_join_domain: Option<String>,
@@ -345,6 +364,7 @@ impl Team {
         slug: String,
         owner_id: MacroUserIdStr<'static>,
         crm_enabled: bool,
+        documentation_enabled: bool,
         enterprise: bool,
     ) -> Self {
         Self {
@@ -353,6 +373,7 @@ impl Team {
             slug,
             owner_id,
             crm_enabled,
+            documentation_enabled,
             auto_join_domain: None,
             enterprise,
         }
@@ -383,6 +404,11 @@ impl Team {
     /// Whether the CRM is enabled for this team
     pub fn crm_enabled(&self) -> bool {
         self.crm_enabled
+    }
+
+    /// Whether the Documentation feature is enabled for this team
+    pub fn documentation_enabled(&self) -> bool {
+        self.documentation_enabled
     }
 
     /// The team's auto-join domain, when automatic domain joining is enabled
@@ -484,6 +510,9 @@ pub enum TeamError {
     /// The team is not paying
     #[error("The team is not paying")]
     TeamNotPaying,
+    /// The Documentation feature requires the team to be on a team plan
+    #[error("Documentation requires a team plan")]
+    DocumentationRequiresTeamPlan,
     /// Underlying entity access error
     #[error("Access error")]
     AccessError(#[from] entity_access::domain::models::AccessError),

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page_title }} - {{ site_name }}</title>
+{% if !description.is_empty() %}<meta name="description" content="{{ description }}">{% endif %}
+<link rel="stylesheet" href="{{ root_prefix }}assets/theme.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="{{ root_prefix }}{% if root_prefix.is_empty() %}./{% endif %}">{{ site_name }}</a>
+  <div class="search">
+    <input id="search-input" type="search" placeholder="Search..." autocomplete="off"
+           data-search-index="{{ root_prefix }}search-index.json" data-root-prefix="{{ root_prefix }}">
+    <div id="search-results" hidden></div>
+  </div>
+</header>
+<div class="layout">
+  <nav class="sidebar" aria-label="Site navigation">
+    <ul>
+      {% for entry in sidebar %}
+      {% if let Some(href) = entry.href %}
+      <li class="nav-page depth-{{ entry.depth }}{% if entry.current %} current{% endif %}">
+        <a href="{{ href }}"{% if entry.current %} aria-current="page"{% endif %}>{{ entry.title }}</a>
+      </li>
+      {% else %}
+      <li class="nav-group depth-{{ entry.depth }}">{{ entry.title }}</li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </nav>
+  <main class="content">
+    <article>
+      {% if !has_leading_heading %}<h1>{{ page_title }}</h1>{% endif %}
+      {{ content_html|safe }}
+    </article>
+    <footer class="pager">
+      {% if let Some(p) = prev %}
+      <a class="pager-prev" href="{{ p.href }}"><span>Previous</span>{{ p.title }}</a>
+      {% else %}
+      <span></span>
+      {% endif %}
+      {% if let Some(n) = next %}
+      <a class="pager-next" href="{{ n.href }}"><span>Next</span>{{ n.title }}</a>
+      {% endif %}
+    </footer>
+    <footer class="colophon">
+      <a href="https://macro.com" rel="noopener">Built with Macro</a>
+    </footer>
+  </main>
+  {% if !toc.is_empty() %}
+  <aside class="toc" aria-label="On this page">
+    <div class="toc-title">On this page</div>
+    <ul>
+      {% for entry in toc %}
+      <li class="{% if entry.nested %}toc-nested{% endif %}"><a href="#{{ entry.anchor }}">{{ entry.title }}</a></li>
+      {% endfor %}
+    </ul>
+  </aside>
+  {% endif %}
+</div>
+<script src="{{ root_prefix }}assets/search.js" defer></script>
+</body>
+</html>

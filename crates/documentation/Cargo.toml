@@ -1,0 +1,62 @@
+[package]
+edition = "2024"
+name = "documentation"
+publish = false
+version = "0.1.0"
+
+[features]
+axum = [
+  "dep:axum",
+  "dep:model-error-response",
+  "dep:model_user",
+  "dep:utoipa",
+  "entity_access/axum",
+  "entity_access/inbound",
+  "entity_access/ports",
+]
+default = ["inbound", "outbound", "ports"]
+inbound = ["axum", "ports"]
+outbound = [
+  "dep:lexical_client",
+  "dep:s3_client",
+  "dep:sqlx",
+  "dep:teams",
+  "ports",
+]
+ports = []
+
+[dependencies]
+anyhow = { workspace = true }
+askama = { workspace = true }
+chrono = { workspace = true }
+macro_user_id = { path = "../macro_user_id" }
+macro_uuid = { path = "../macro_uuid" }
+pulldown-cmark = { workspace = true }
+rootcause = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+entity_access = { path = "../entity_access", default-features = false }
+
+# Axum / inbound dependencies
+axum = { workspace = true, optional = true }
+model-error-response = { path = "../model-error-response", optional = true }
+model_user = { path = "../model_user", optional = true, features = ["axum"] }
+utoipa = { workspace = true, optional = true }
+
+# Outbound dependencies
+lexical_client = { path = "../lexical_client", optional = true }
+s3_client = { path = "../s3_client", optional = true }
+sqlx = { workspace = true, optional = true }
+teams = { path = "../teams", default-features = false, features = [
+  "ports",
+], optional = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+macro_db_migrator = { path = "../macro_db_migrator" }
+tokio = { workspace = true, features = ["macros"] }
