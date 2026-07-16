@@ -1160,15 +1160,19 @@ export const SoupViewList = (props: SoupViewListProps) => {
   // Mirrors CompanyKanban's crmUnavailable short-circuit: the companies list
   // shouldn't attempt to render (or fetch) company rows at all when CRM is
   // disabled/unavailable — it should always fall through to the same
-  // "CRM is disabled" empty state the board already shows.
+  // "CRM is disabled" empty state the board already shows, taking precedence
+  // over the loading/searching states below (which would otherwise render
+  // first and never let the companies query settle into "empty").
   const crmUnavailable = useCrmUnavailable();
+  const crmListUnavailable = () =>
+    currentView() === 'companies' && crmUnavailable();
 
   // Shared by the empty-state <Match> and the pull-to-refresh target so the
   // gesture always attaches to whichever element is actually mounted.
   const showEmptyState = () =>
     ((!source.isFetching() || isPullRefreshing()) && !rows().length) ||
     forceEmptyState() ||
-    (currentView() === 'companies' && crmUnavailable());
+    crmListUnavailable();
 
   const entityById = createMemo(
     () => {
@@ -1310,7 +1314,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
                       when={
                         source.isFetching() &&
                         !rows().length &&
-                        !isPullRefreshing()
+                        !isPullRefreshing() &&
+                        !crmListUnavailable()
                       }
                     >
                       {/* Non-list states pad the chrome top themselves — the
@@ -1324,7 +1329,8 @@ export const SoupViewList = (props: SoupViewListProps) => {
                       when={
                         (isSearchServiceLoading() || isLocalSearchSettling()) &&
                         !rows().length &&
-                        !isPullRefreshing()
+                        !isPullRefreshing() &&
+                        !crmListUnavailable()
                       }
                     >
                       <div class="flex items-center gap-2 p-3 text-xs text-text-muted mobile:mt-(--mobile-content-inset-top) mobile:mb-(--mobile-content-inset-bottom)">
