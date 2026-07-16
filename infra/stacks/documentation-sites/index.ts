@@ -19,7 +19,11 @@
 
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
-import { BASE_DOMAIN, MACRO_SUBDOMAIN_CERT, stack } from '../../packages/shared';
+import {
+  BASE_DOMAIN,
+  MACRO_SUBDOMAIN_CERT,
+  stack,
+} from '../../packages/shared';
 
 const tags = {
   environment: stack,
@@ -42,13 +46,16 @@ const bucket = new aws.s3.Bucket(`${BASE_NAME}-${stack}`, {
   tags,
 });
 
-new aws.s3.BucketPublicAccessBlock(`${BASE_NAME}-public-access-block-${stack}`, {
-  bucket: bucket.id,
-  blockPublicAcls: true,
-  blockPublicPolicy: true,
-  ignorePublicAcls: true,
-  restrictPublicBuckets: true,
-});
+new aws.s3.BucketPublicAccessBlock(
+  `${BASE_NAME}-public-access-block-${stack}`,
+  {
+    bucket: bucket.id,
+    blockPublicAcls: true,
+    blockPublicPolicy: true,
+    ignorePublicAcls: true,
+    restrictPublicBuckets: true,
+  }
+);
 
 // Default 404 page served for missing paths on every site.
 new aws.s3.BucketObject(`${BASE_NAME}-404-${stack}`, {

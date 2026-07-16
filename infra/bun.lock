@@ -108,6 +108,10 @@
       "name": "document-text-extractor-stack",
       "version": "0.0.0",
     },
+    "stacks/documentation-sites": {
+      "name": "documentation-sites-stack",
+      "version": "0.0.0",
+    },
     "stacks/doppler-projects": {
       "name": "doppler-projects-stack",
       "version": "0.0.0",
@@ -540,6 +544,8 @@
     "document-storage-stack": ["document-storage-stack@workspace:stacks/document-storage"],
 
     "document-text-extractor-stack": ["document-text-extractor-stack@workspace:stacks/document-text-extractor"],
+
+    "documentation-sites-stack": ["documentation-sites-stack@workspace:stacks/documentation-sites"],
 
     "doppler-projects-stack": ["doppler-projects-stack@workspace:stacks/doppler-projects"],
 
