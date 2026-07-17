@@ -449,6 +449,7 @@ impl From<&ApiContext> for PropertiesHandlerState {
         PropertiesHandlerState::new(
             ctx.properties_service.clone(),
             ctx.entity_access_service.clone(),
+            ctx.authorization_state.clone(),
         )
     }
 }
