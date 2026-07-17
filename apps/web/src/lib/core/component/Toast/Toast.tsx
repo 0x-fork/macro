@@ -27,83 +27,31 @@ export enum ToastType {
 }
 
 interface ToastStyle {
-  background: string;
-  /** Accent color for icon and icon background */
-  accent: string;
-  /** Border color class for animated border (Tailwind class, e.g. 'border-success') */
-  borderColor: string;
-  /** Text color for title */
-  titleText: string;
-  /** Text color for subtext/description */
-  subtitleText: string;
   /** Icon component */
   icon: Component<{ class?: string }>;
-  /** Action button styles */
-  button: {
-    background: string;
-    hover: string;
-    text: string;
-  };
-  /** Close button hover text color */
-  closeButtonHover: string;
+  /** Text color class for the icon */
+  iconColor: string;
+  /** Spin the icon (loading spinner) */
+  spin?: boolean;
 }
 
 const TOAST_STYLES: Record<ToastType, ToastStyle> = {
   [ToastType.SUCCESS]: {
-    background: 'bg-success/10',
-    accent: 'bg-success',
-    borderColor: 'var(--color-success)',
-    titleText: 'text-success-ink',
-    subtitleText: 'text-success-ink/70',
     icon: CheckIcon,
-    button: {
-      background: 'bg-success',
-      hover: 'hover:bg-success/80',
-      text: 'text-success-ink',
-    },
-    closeButtonHover: 'hover:text-success-ink hover:bg-success/10',
+    iconColor: 'text-success',
   },
   [ToastType.FAILURE]: {
-    background: 'bg-failure/10',
-    accent: 'bg-failure',
-    titleText: 'text-failure-ink',
-    borderColor: 'var(--color-failure)',
-    subtitleText: 'text-failure-ink/70',
     icon: ExclamationIcon,
-    button: {
-      background: 'bg-failure',
-      hover: 'hover:bg-failure/80',
-      text: 'text-failure-ink',
-    },
-    closeButtonHover: 'hover:text-failure-ink hover:bg-failure/10',
+    iconColor: 'text-failure',
   },
   [ToastType.ALERT]: {
-    background: 'bg-alert/10',
-    accent: 'bg-alert',
-    borderColor: 'var(--color-alert)',
-    titleText: 'text-alert-ink',
-    subtitleText: 'text-alert-ink/70',
     icon: ExclamationIcon,
-    button: {
-      background: 'bg-alert',
-      hover: 'hover:bg-alert/80',
-      text: 'text-alert-ink',
-    },
-    closeButtonHover: 'hover:text-alert-ink hover:bg-alert/10',
+    iconColor: 'text-alert',
   },
   [ToastType.LOADING]: {
-    background: 'bg-accent/10',
-    accent: 'bg-accent',
-    borderColor: 'var(--color-edge)',
-    titleText: 'text-ink',
-    subtitleText: 'text-ink-muted',
     icon: Spinner,
-    button: {
-      background: 'bg-accent',
-      hover: 'hover:bg-accent/80',
-      text: 'text-surface',
-    },
-    closeButtonHover: 'hover:text-accent hover:bg-accent/10',
+    iconColor: 'text-ink-muted',
+    spin: true,
   },
 };
 
@@ -134,7 +82,7 @@ interface ToastSuccessOptions extends ToastOptions {
 /**
  * Config for a fully custom toast.
  * Replaces the icon, title, and accent color of the standard layout while
- * still using the shared Surface chrome and progress/dismiss machinery.
+ * still using the shared card chrome and dismiss machinery.
  */
 interface CustomToastConfig {
   title: string;
@@ -159,42 +107,31 @@ const recentToasts: Map<string, ToastMessage> = new Map();
 const THROTTLE_DURATION = 3000;
 
 /**
- * The currently-visible toast in the main region. Each new toast dismisses the
- * previous one immediately so transient notifications never stack.
- */
-let activeToastId: number | undefined;
-/**
  * The currently-visible mobile toast. The mobile region only shows one toast
  * at a time — each new mobile toast dismisses the previous one immediately.
+ * Desktop toasts stack instead, so no tracking is needed there.
  */
 let activeMobileToastId: number | undefined;
 
-function getActiveToastId(region: string): number | undefined {
-  if (region === 'mobile-toast-region') return activeMobileToastId;
-  if (region === 'toast-region') return activeToastId;
-  return undefined;
-}
+function dismissActiveMobileToast(region: string): boolean {
+  if (region !== 'mobile-toast-region') return false;
+  if (activeMobileToastId === undefined) return false;
 
-function setActiveToastId(region: string, toastId: number | undefined): void {
-  if (region === 'mobile-toast-region') {
-    activeMobileToastId = toastId;
-  } else if (region === 'toast-region') {
-    activeToastId = toastId;
-  }
-}
-
-function dismissActiveToast(region: string): boolean {
-  const activeId = getActiveToastId(region);
-  if (activeId === undefined) return false;
-
-  setActiveToastId(region, undefined);
-  toaster.dismiss(activeId);
+  const toastId = activeMobileToastId;
+  activeMobileToastId = undefined;
+  toaster.dismiss(toastId);
   return true;
 }
 
+function trackMobileToast(region: string, toastId: number): void {
+  if (region === 'mobile-toast-region') {
+    activeMobileToastId = toastId;
+  }
+}
+
 function clearTrackedToast(region: string, toastId: number): void {
-  if (getActiveToastId(region) === toastId) {
-    setActiveToastId(region, undefined);
+  if (region === 'mobile-toast-region' && activeMobileToastId === toastId) {
+    activeMobileToastId = undefined;
   }
 }
 
@@ -249,11 +186,10 @@ function ActionButtons(props: { actions: ToastAction[]; mobile?: boolean }) {
     <For each={props.actions}>
       {(action) => (
         <Button
-          size={props.mobile ? 'sm' : 'md'}
+          size="sm"
           onClick={action.onClick}
-          variant={props.mobile ? 'ghost' : 'base'}
-          class={cn('px-2 py-1', props.mobile && 'text-panel text-xs')}
-          depth={3}
+          variant={props.mobile ? 'ghost' : 'contrast'}
+          class={cn('shrink-0', props.mobile && 'text-panel text-xs')}
         >
           <Show when={action.icon}>
             {(icon) => (
@@ -270,18 +206,13 @@ function ActionButtons(props: { actions: ToastAction[]; mobile?: boolean }) {
   );
 }
 
-function ToastBodyWrapper(props: {
-  mobile?: boolean;
-  accentColor: string;
-  children: JSX.Element;
-}) {
+function ToastBodyWrapper(props: { mobile?: boolean; children: JSX.Element }) {
   return (
     <Show
       when={props.mobile}
       fallback={
         <Surface
-          highlightColor={props.accentColor}
-          class="relative w-[90vw] sm:w-md p-2 sm:p-3 rounded-xl shadow-lg shadow-drop-shadow"
+          class="group/toast relative w-full p-3 rounded-lg shadow-menu overflow-visible"
           depth={2}
         >
           {props.children}
@@ -297,6 +228,23 @@ function ToastBodyWrapper(props: {
   );
 }
 
+/**
+ * Sonner-style hover-reveal close button: a small circle overlapping the
+ * top-left corner of the card.
+ */
+function CornerCloseButton() {
+  return (
+    <Toast.CloseButton
+      class="absolute -top-1.5 -left-1.5 z-10 flex size-5 items-center justify-center
+      rounded-full border border-edge-muted bg-(--b0) text-ink-muted shadow-menu
+      opacity-0 transition-opacity group-hover/toast:opacity-100 focus-visible:opacity-100
+      hover:text-ink"
+    >
+      <XIcon class="size-3" />
+    </Toast.CloseButton>
+  );
+}
+
 function ToastContent(props: {
   toastId: number;
   toastType?: ToastType;
@@ -304,11 +252,11 @@ function ToastContent(props: {
   subtext?: string;
   actions?: ToastAction[];
   persistent?: boolean;
-  /** When provided, drives the auto-dismiss timer AND shows the progress bar. */
+  /** When provided, drives the auto-dismiss timer. */
   duration?: number;
   embed?: Component;
   custom?: CustomToastConfig;
-  /** Render the mobile variant (no highlight border, text-xs, simplified). */
+  /** Render the mobile variant (island chrome, text-xs, simplified). */
   mobile?: boolean;
   /** Avoid entrance motion when this toast is replacing another toast. */
   skipOpenAnimation?: boolean;
@@ -316,17 +264,6 @@ function ToastContent(props: {
   onDismiss?: () => void;
 }) {
   const styles = () => (props.toastType ? TOAST_STYLES[props.toastType] : null);
-
-  const accentColor = () => {
-    if (props.custom?.color) return props.custom.color;
-    return styles()?.borderColor ?? 'var(--color-edge)';
-  };
-
-  // progress: 1 = full time remaining, 0 = expired.
-  // Only meaningful (and only rendered) when props.duration is explicitly set.
-  const [progress, setProgress] = createSignal(1);
-
-  const showProgress = () => false;
 
   const [isHovered, setIsHovered] = createSignal(false);
 
@@ -355,10 +292,7 @@ function ToastContent(props: {
       }
       lastTime = currentTime;
 
-      const remaining = Math.max(0, 1 - elapsed / duration);
-      setProgress(remaining);
-
-      if (remaining > 0) {
+      if (elapsed < duration) {
         rafId = requestAnimationFrame(update);
       } else {
         toaster.dismiss(props.toastId);
@@ -374,7 +308,6 @@ function ToastContent(props: {
     on(isHovered, (hovered) => {
       if (hovered && !props.persistent) {
         elapsed = 0;
-        setProgress(1);
       }
     })
   );
@@ -383,28 +316,28 @@ function ToastContent(props: {
     <Toast
       toastId={props.toastId}
       class={cn(
-        `relative overflow-visible pointer-events-auto
+        `relative w-full overflow-visible pointer-events-auto
         transition-[transform,opacity] duration-100 ease-in data-closed:opacity-0 data-[swipe=move]:translate-x-(--kb-toast-swipe-move-x)
-        data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:ease-out data-[swipe=cancel]:duration-200 data-[swipe=end]:animate-swipe-out`,
-        !props.skipOpenAnimation && 'data-opened:animate-slide-in',
-        props.mobile && 'w-full'
+        data-[swipe=cancel]:translate-x-0 data-[swipe=cancel]:ease-out data-[swipe=cancel]:duration-200`,
+        props.mobile
+          ? 'data-[swipe=end]:animate-swipe-out'
+          : 'data-[swipe=end]:animate-swipe-out-left',
+        !props.skipOpenAnimation && 'data-opened:animate-slide-in'
       )}
       persistent={true}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <ToastBodyWrapper mobile={props.mobile} accentColor={accentColor()}>
+      <ToastBodyWrapper mobile={props.mobile}>
         <Switch>
           {/* ── Embed layout ── */}
           <Match when={props.embed}>
             {(embed) => (
               <>
                 <Dynamic component={embed()} />
-                <Toast.CloseButton class="absolute top-2 right-2 z-user-highlight">
-                  <Button variant="ghost" size="icon-sm">
-                    <XIcon />
-                  </Button>
-                </Toast.CloseButton>
+                <Show when={!props.mobile}>
+                  <CornerCloseButton />
+                </Show>
               </>
             )}
           </Match>
@@ -413,21 +346,24 @@ function ToastContent(props: {
           <Match when={props.custom}>
             {(customConfig) => (
               <>
-                <div class="flex items-center gap-2 justify-between">
+                <div class="flex items-center gap-2">
                   <Show when={customConfig().icon && !props.mobile}>
                     {(_) => {
                       const icon = customConfig().icon!;
                       return (
-                        <div class="size-5 flex shrink-0 justify-center items-center rounded-full p-0.75">
-                          <Dynamic component={icon} />
-                        </div>
+                        <span
+                          class="flex size-4 shrink-0 items-center justify-center"
+                          style={{ color: customConfig().color }}
+                        >
+                          <Dynamic component={icon} class="size-4" />
+                        </span>
                       );
                     }}
                   </Show>
                   <Toast.Title
                     class={cn(
-                      'font-semibold grow shrink truncate text-left',
-                      props.mobile ? 'text-xs' : 'text-ink'
+                      'grow shrink truncate text-left font-medium',
+                      props.mobile ? 'text-xs' : 'text-[13px] text-ink'
                     )}
                   >
                     {customConfig().title}
@@ -438,16 +374,12 @@ function ToastContent(props: {
                       mobile={props.mobile}
                     />
                   </Show>
-                  <Show when={!props.mobile}>
-                    <Toast.CloseButton>
-                      <Button variant="ghost" size="icon-sm">
-                        <XIcon />
-                      </Button>
-                    </Toast.CloseButton>
-                  </Show>
                 </div>
                 <Show when={customConfig().content && !props.mobile}>
-                  <div class="my-2 ml-7">{customConfig().content?.()}</div>
+                  <div class="mt-1.5 ml-6">{customConfig().content?.()}</div>
+                </Show>
+                <Show when={!props.mobile}>
+                  <CornerCloseButton />
                 </Show>
               </>
             )}
@@ -457,63 +389,44 @@ function ToastContent(props: {
           <Match when={styles()}>
             {(s) => (
               <>
-                <div class="flex items-center gap-2 justify-between">
-                  <div
-                    class="size-5 flex shrink-0 justify-center items-center rounded-full p-0.75"
-                    style={{ 'background-color': s().borderColor }}
-                  >
-                    <Dynamic
-                      component={s().icon}
-                      class={cn(
-                        'size-3.5 text-surface',
-                        props.toastType === ToastType.LOADING
-                          ? 'animate-spin'
-                          : ''
-                      )}
-                    />
-                  </div>
-                  <Toast.Title
+                <div class="flex items-center gap-2">
+                  <Dynamic
+                    component={s().icon}
                     class={cn(
-                      'font-semibold grow shrink truncate text-left',
-                      props.mobile ? 'text-xs' : 'text-ink'
+                      'size-4 shrink-0',
+                      s().iconColor,
+                      s().spin && 'animate-spin'
                     )}
-                  >
-                    {props.message}
-                  </Toast.Title>
+                  />
+                  <div class="min-w-0 grow">
+                    <Toast.Title
+                      class={cn(
+                        'truncate text-left font-medium',
+                        props.mobile ? 'text-xs' : 'text-[13px] text-ink'
+                      )}
+                    >
+                      {props.message}
+                    </Toast.Title>
+                    <Show when={props.subtext && !props.mobile}>
+                      <Toast.Description class="mt-0.5 text-left text-xs text-ink-muted">
+                        {props.subtext}
+                      </Toast.Description>
+                    </Show>
+                  </div>
                   <Show when={props.actions?.length}>
                     <ActionButtons
                       actions={props.actions!}
                       mobile={props.mobile}
                     />
                   </Show>
-                  <Show when={!props.mobile}>
-                    <Toast.CloseButton>
-                      <Button variant="ghost" size="icon-sm">
-                        <XIcon />
-                      </Button>
-                    </Toast.CloseButton>
-                  </Show>
                 </div>
-                <Show when={props.subtext && !props.mobile}>
-                  <Toast.Description class="text-sm text-ink-extra-muted ml-7">
-                    {props.subtext}
-                  </Toast.Description>
+                <Show when={!props.mobile}>
+                  <CornerCloseButton />
                 </Show>
               </>
             )}
           </Match>
         </Switch>
-
-        {/* Progress bar — only rendered when an explicit duration was passed */}
-        <Show when={showProgress()}>
-          <div
-            class="absolute bottom-0 h-1 left-0"
-            style={{
-              'background-color': accentColor(),
-              width: `${(1 - progress()) * 100}%`,
-            }}
-          />
-        </Show>
       </ToastBodyWrapper>
     </Toast>
   );
@@ -537,7 +450,7 @@ async function promise<T>(
 
   const useMobile = isMobile();
   const region = useMobile ? 'mobile-toast-region' : 'toast-region';
-  const skipOpenAnimation = dismissActiveToast(region);
+  const skipOpenAnimation = dismissActiveMobileToast(region);
 
   const toastId = toaster.show(
     (props) => (
@@ -554,7 +467,7 @@ async function promise<T>(
     ),
     { region }
   );
-  setActiveToastId(region, toastId);
+  trackMobileToast(region, toastId);
 
   return promiseArg
     .then((result) => {
@@ -610,7 +523,7 @@ function createToast(
 
   const useMobile = isMobile();
   const region = useMobile ? 'mobile-toast-region' : 'toast-region';
-  const skipOpenAnimation = dismissActiveToast(region);
+  const skipOpenAnimation = dismissActiveMobileToast(region);
 
   const toastId = toaster.show(
     (props) => (
@@ -620,8 +533,6 @@ function createToast(
         message={message}
         subtext={subtext}
         actions={actions}
-        // Pass duration only when explicitly provided — this is what gates the progress bar.
-        // When undefined, ToastContent falls back to its own default dismiss timing internally.
         duration={duration}
         mobile={useMobile}
         skipOpenAnimation={skipOpenAnimation}
@@ -633,7 +544,7 @@ function createToast(
     { region }
   );
 
-  setActiveToastId(region, toastId);
+  trackMobileToast(region, toastId);
 
   if (!stack) {
     const key = createToastKey(message, toastType);
@@ -667,7 +578,7 @@ function embed(
   const useMobile = isMobile();
   const region =
     options?.region ?? (useMobile ? 'mobile-toast-region' : 'toast-region');
-  const skipOpenAnimation = dismissActiveToast(region);
+  const skipOpenAnimation = dismissActiveMobileToast(region);
   const toastId = toaster.show(
     (props) => (
       <ToastContent
@@ -682,7 +593,7 @@ function embed(
     ),
     { region }
   );
-  setActiveToastId(region, toastId);
+  trackMobileToast(region, toastId);
   return toastId;
 }
 
@@ -690,8 +601,8 @@ function embed(
 
 /**
  * Show a toast with a fully custom title, icon, accent color, body content,
- * and actions row — while still using the shared Surface chrome and
- * progress/dismiss machinery.
+ * and actions row — while still using the shared card chrome and
+ * dismiss machinery.
  */
 function custom(
   config: CustomToastConfig,
@@ -705,7 +616,7 @@ function custom(
   const useMobile = isMobile();
   const region =
     options?.region ?? (useMobile ? 'mobile-toast-region' : 'toast-region');
-  const skipOpenAnimation = dismissActiveToast(region);
+  const skipOpenAnimation = dismissActiveMobileToast(region);
   const toastId = toaster.show(
     (props) => (
       <ToastContent
@@ -723,7 +634,7 @@ function custom(
     ),
     { region }
   );
-  setActiveToastId(region, toastId);
+  trackMobileToast(region, toastId);
   return toastId;
 }
 

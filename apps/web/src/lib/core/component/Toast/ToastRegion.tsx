@@ -4,16 +4,27 @@ import { Portal } from 'solid-js/web';
 export function ToastRegion() {
   return (
     <Portal>
-      <div class="fixed bottom-2 right-2 m-0 list-none outline-none pointer-events-none z-toast-region">
+      {/*
+        Desktop toast region: bottom-left, matching the app sidebar width
+        (w-60) so toasts never obscure the working canvas. Toasts stack
+        vertically — newest closest to the bottom edge, sonner-style.
+      */}
+      <div class="fixed bottom-2 left-2 w-60 m-0 flex flex-col gap-2 list-none outline-none pointer-events-none z-toast-region">
+        <Toast.Region
+          regionId="stable-toast"
+          duration={Infinity}
+          swipeDirection="left"
+        >
+          <Toast.List class="flex flex-col gap-2 w-full empty:hidden" />
+        </Toast.Region>
         <Toast.Region
           regionId="toast-region"
           duration={Infinity}
           pauseOnInteraction={false}
+          limit={5}
+          swipeDirection="left"
         >
-          <Toast.List class="absolute bottom-0 right-0 flex flex-col p-2 sm:p-4 gap-2" />
-        </Toast.Region>
-        <Toast.Region regionId="stable-toast" duration={Infinity}>
-          <Toast.List class="absolute bottom-0 right-0 flex flex-col p-2 sm:p-4 gap-2" />
+          <Toast.List class="flex flex-col gap-2 w-full empty:hidden" />
         </Toast.Region>
       </div>
 
