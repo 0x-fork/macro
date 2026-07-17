@@ -21,6 +21,7 @@ import {
 import { soupKeys } from '@queries/soup/keys';
 import { callServiceClient } from '@service-call/client';
 import { scheduledActionClient } from '@service-scheduled-action/client';
+import type { ScheduledAction } from '@service-scheduled-action/generated/schemas';
 import type { ItemType } from '@service-storage/client';
 import { useMutation } from '@tanstack/solid-query';
 import { type EntityData, getEntityProjectId } from '../types/entity';
@@ -271,10 +272,11 @@ function getSoupEntityProjectId(entityId: string): string | undefined {
 }
 
 export function createBulkCopyDssEntityMutation() {
-  // Only support chat + document, same as single-copy version
+  // Supports chat, document, and automation (schedules copied via the
+  // scheduled-action client, mirroring how bulk-delete special-cases them)
   const isUnsupportedEntity = (entity: EntityData) => {
     const type = entity.type;
-    return type !== 'chat' && type !== 'document';
+    return type !== 'chat' && type !== 'document' && type !== 'automation';
   };
 
   return useMutation(() => ({
@@ -289,17 +291,52 @@ export function createBulkCopyDssEntityMutation() {
         throw new Error(`Unsupported entity type provided`);
       }
 
-      const results = await Promise.all(
-        entities.map((e) =>
-          copyItem({
-            itemType: e.type as 'document' | 'chat',
-            id: e.id,
-            name: typeof name === 'function' ? name(e.name) : name,
-          })
-        )
+      const copyableItems = entities.filter(
+        (e): e is EntityData & { name: string; type: 'document' | 'chat' } =>
+          e.type === 'document' || e.type === 'chat'
       );
+      const automations = entities.filter((e) => e.type === 'automation');
 
-      if (results.some((r) => !r)) {
+      // Automations aren't backed by the generic DSS copy endpoint, so
+      // duplicate them by re-creating a schedule from the cached
+      // ScheduledAction (same source the list view renders from).
+      const scheduleList = automations.length
+        ? queryClient.getQueryData<ScheduledAction[]>(
+            scheduledActionKeys.list.queryKey
+          )
+        : undefined;
+
+      const [itemResults] = await Promise.all([
+        Promise.all(
+          copyableItems.map((e) =>
+            copyItem({
+              itemType: e.type,
+              id: e.id,
+              name: typeof name === 'function' ? name(e.name) : name,
+            })
+          )
+        ),
+        Promise.all(
+          automations.map((e) => {
+            const schedule = scheduleList?.find((s) => s.id === e.id);
+            if (!schedule) {
+              throw new Error(`Automation ${e.id} not found for copy`);
+            }
+            return throwOnErr(() =>
+              scheduledActionClient.createSchedule({
+                enabled: schedule.enabled,
+                kind: schedule.kind,
+                name: typeof name === 'function' ? name(e.name) : name,
+                schedule: schedule.schedule,
+                task: schedule.task,
+                timezone: schedule.timezone,
+              })
+            );
+          })
+        ),
+      ]);
+
+      if (itemResults.some((r) => !r)) {
         throw new Error(`One or more DSS items failed to copy`);
       }
 
@@ -330,6 +367,11 @@ export function createBulkCopyDssEntityMutation() {
         queryKey: soupKeys.astItems._def,
       });
       queryClient.invalidateQueries({ queryKey: ['entity'] });
+      if (entities.some((e) => e.type === 'automation')) {
+        queryClient.invalidateQueries({
+          queryKey: scheduledActionKeys.list.queryKey,
+        });
+      }
     },
   }));
 }
