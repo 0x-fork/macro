@@ -423,6 +423,11 @@ export type SplitHandle<TMeta extends ComponentMeta = ComponentMeta> = {
   isLast: () => boolean;
   activate: () => void;
   goBack: () => void;
+  /**
+   * Jump directly back to a prior history entry, as indexed by `history()`.
+   * No-ops unless `0 <= index < history().length - 1` (i.e. a true back jump).
+   */
+  goBackToHistoryEntry: (index: number) => void;
   close: () => void;
   reset: () => void;
   /** Returns the content item one step back in this split's history, without mutating. */
@@ -780,6 +785,33 @@ export function createSplitLayout(
     });
   }
 
+  /**
+   * Step the split's history back to `targetIndex` in one navigation:
+   * intermediate entries are skipped (no reattach per step), so only the
+   * landing entry mounts.
+   */
+  function backTo(id: SplitId, targetIndex: number) {
+    const i = splitIndexById(id);
+    if (i < 0) return console.error(`Split with id ${id} not found`);
+
+    const split = state.splits[i];
+    if (targetIndex < 0 || targetIndex >= split.history.index) return;
+
+    batch(() => {
+      captureCurrentEntryState(split);
+
+      let prev: SplitContent | null = null;
+      while (split.history.index > targetIndex) {
+        const stepped = split.history.back();
+        if (!stepped) break;
+        prev = stepped;
+      }
+      if (!prev) return;
+
+      reattach(split, prev, undefined, 'history-back');
+    });
+  }
+
   function forward(id: SplitId) {
     const i = splitIndexById(id);
     if (i < 0) return console.error(`Split with id ${id} not found`);
@@ -952,6 +984,7 @@ export function createSplitLayout(
       canGoForward: () =>
         (findSplitById(currentSplit.id) ?? currentSplit).history.canGoForward(),
       goBack: () => back(currentSplit.id),
+      goBackToHistoryEntry: (index: number) => backTo(currentSplit.id, index),
       reset: () => reset(currentSplit.id),
       goForward: () => forward(currentSplit.id),
       replace: ({ next, mergeHistory = false, referredFrom }) =>
