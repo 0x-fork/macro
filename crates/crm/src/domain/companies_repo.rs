@@ -4,7 +4,7 @@ use crate::domain::comment::{
     CrmComment, CrmCommentEntityType, CrmCommentThread, DeleteCrmCommentResult,
 };
 use crate::domain::model::{
-    CrmCompanyForSoup, CrmCompanyWithContacts, CrmContact, CrmError, CrmScopePrecheck,
+    CrmCompany, CrmCompanyForSoup, CrmCompanyWithContacts, CrmContact, CrmError, CrmScopePrecheck,
     DomainMetadata,
 };
 use chrono::{DateTime, Utc};
@@ -49,6 +49,18 @@ pub struct CrmCompanySoupCursor {
 /// The CompaniesRepository defines persistence operations for CRM
 /// companies and their associated domains.
 pub trait CompaniesRepository: Clone + Send + Sync + 'static {
+    /// Creates a company and its primary domain for `team_id` in one
+    /// transaction. The domain must already be normalized and validated by
+    /// the service. Returns [`CrmError::CrmDisabledForTeam`] when the team's
+    /// CRM setting is absent or disabled, and
+    /// [`CrmError::CompanyDomainAlreadyExists`] when that team already tracks
+    /// the domain.
+    fn create_company(
+        &self,
+        team_id: &uuid::Uuid,
+        domain: &str,
+    ) -> impl Future<Output = Result<CrmCompany, CrmError>> + Send;
+
     /// Idempotently records that `email` (which lives on `domain`) was seen
     /// from the mailbox identified by `link_id`, for the team `team_id`.
     /// Performs the company/domain/contact/contact_source upserts in a single

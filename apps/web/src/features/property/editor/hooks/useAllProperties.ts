@@ -1,3 +1,4 @@
+import { isReservedPropertyDefinitionName } from '@property/constants';
 import type { PropertyDefinitionDomain } from '@property/types';
 import { toPropertyDefinitionDomain } from '@property/utils';
 import { useListPropertiesQuery } from '@queries/properties/definitions';
@@ -17,14 +18,20 @@ export function useAllProperties() {
     const data = query.data;
 
     const properties = Array.isArray(data) ? data : [];
-    return properties.map((item) => {
-      if ('definition' in item) {
-        return toPropertyDefinitionDomain(
-          item.definition,
-          item.property_options || []
-        );
-      }
-      return toPropertyDefinitionDomain(item);
-    });
+    return properties
+      .map((item) => {
+        if ('definition' in item) {
+          return toPropertyDefinitionDomain(
+            item.definition,
+            item.property_options || []
+          );
+        }
+        return toPropertyDefinitionDomain(item);
+      })
+      // Reserved internal definitions (`__macro:*`) must not surface in the
+      // property editor's picker.
+      .filter(
+        (property) => !isReservedPropertyDefinitionName(property.displayName)
+      );
   });
 }

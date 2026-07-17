@@ -112,6 +112,108 @@ impl CompaniesRepositoryImpl {
 
 impl CompaniesRepository for CompaniesRepositoryImpl {
     #[tracing::instrument(skip(self), err)]
+    async fn create_company(
+        &self,
+        team_id: &uuid::Uuid,
+        domain: &str,
+    ) -> Result<CrmCompany, CrmError> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        sqlx::query!(
+            r#"SELECT pg_advisory_xact_lock(hashtextextended($1, 0))"#,
+            format!("{team_id}:{domain}"),
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        let crm_enabled = sqlx::query_scalar!(
+            r#"
+            SELECT COALESCE(
+                (SELECT crm_enabled FROM team_crm_settings WHERE team_id = $1),
+                FALSE
+            ) AS "crm_enabled!"
+            "#,
+            team_id,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        if !crm_enabled {
+            return Err(CrmError::CrmDisabledForTeam);
+        }
+
+        let domain_exists = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM crm_domains
+                WHERE team_id = $1 AND LOWER(domain) = $2
+            ) AS "exists!"
+            "#,
+            team_id,
+            domain,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        if domain_exists {
+            return Err(CrmError::CompanyDomainAlreadyExists);
+        }
+
+        let company = sqlx::query!(
+            r#"
+            INSERT INTO crm_companies (team_id, first_interaction, last_interaction)
+            VALUES ($1, now(), now())
+            RETURNING id, team_id, email_sync, hidden,
+                      first_interaction, last_interaction
+            "#,
+            team_id,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        let crm_domain = sqlx::query!(
+            r#"
+            INSERT INTO crm_domains (company_id, team_id, domain)
+            VALUES ($1, $2, $3)
+            RETURNING id, company_id, domain, created_at
+            "#,
+            company.id,
+            team_id,
+            domain,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| CrmError::StorageLayerError(e.into()))?;
+
+        Ok(CrmCompany {
+            id: company.id,
+            team_id: company.team_id,
+            email_sync: company.email_sync,
+            hidden: company.hidden,
+            created_at: company.first_interaction,
+            updated_at: company.last_interaction,
+            domains: vec![CrmDomain {
+                id: crm_domain.id,
+                company_id: crm_domain.company_id,
+                domain: crm_domain.domain,
+                created_at: crm_domain.created_at,
+            }],
+        })
+    }
+
+    #[tracing::instrument(skip(self), err)]
     #[allow(clippy::too_many_arguments)]
     async fn populate_contact(
         &self,

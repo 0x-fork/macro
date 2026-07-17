@@ -249,6 +249,12 @@ pub enum CrmError {
     /// Company id is not owned by the requesting team.
     #[error("crm company not found for team")]
     CompanyNotFoundForTeam,
+    /// A company with the requested domain already exists for the team.
+    #[error("crm company already exists for domain")]
+    CompanyDomainAlreadyExists,
+    /// Manual creation was requested while CRM is disabled for the team.
+    #[error("crm is disabled for team")]
+    CrmDisabledForTeam,
     /// Contact id is not owned by the requesting team.
     #[error("crm contact not found for team")]
     ContactNotFoundForTeam,

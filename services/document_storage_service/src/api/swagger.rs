@@ -318,6 +318,7 @@ use utoipa::OpenApi;
         sync_service_hex::inbound::axum_router::bulk_wakeup_handler,
 
         // /crm
+        crm::inbound::axum_router::create_company::handler,
         crm::inbound::axum_router::set_email_sync::handler,
         crm::inbound::axum_router::set_company_hidden::handler,
         crm::inbound::axum_router::set_contact_hidden::handler,
@@ -597,6 +598,7 @@ use utoipa::OpenApi;
             sync_service_hex::domain::models::BulkWakeupResponse,
 
             // CRM
+            crm::inbound::axum_router::create_company::CreateCrmCompanyRequest,
             crm::inbound::axum_router::set_email_sync::SetEmailSyncRequest,
             crm::inbound::axum_router::set_company_hidden::SetCompanyHiddenRequest,
             crm::inbound::axum_router::set_contact_hidden::SetContactHiddenRequest,

@@ -15,6 +15,16 @@ use serde_json::Value;
 /// The CrmService exposes operations over CRM records (companies, their
 /// domains and contacts).
 pub trait CrmService: Clone + Send + Sync + 'static {
+    /// Manually creates a company for the team represented by `access`, using
+    /// `domain` as its primary domain. The service validates and normalizes
+    /// the domain, resolves its display metadata, and delegates the atomic
+    /// company/domain insert to the repository.
+    fn create_company(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        domain: &str,
+    ) -> impl Future<Output = Result<CrmCompanyWithContacts, CrmError>> + Send;
+
     /// Idempotently records that `email` was seen from the mailbox
     /// identified by `link_id`, for the team `team_id`. Upserts
     /// `crm_companies` (+ `crm_domains`), `crm_contacts`, and
@@ -324,6 +334,52 @@ where
     CR: CompaniesRepository,
     R: CompanyMetadataResolver,
 {
+    #[tracing::instrument(skip(self, access), err)]
+    async fn create_company(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        domain: &str,
+    ) -> Result<CrmCompanyWithContacts, CrmError> {
+        let domain = normalize_company_domain(domain)?;
+        if is_generic_email_domain(&domain) {
+            return Err(CrmError::InvalidRequest(
+                "company domain cannot be a generic email provider".into(),
+            ));
+        }
+
+        let metadata = match self
+            .companies_repository
+            .lookup_domain_metadata(&domain)
+            .await?
+        {
+            Some(metadata) => metadata,
+            None => {
+                let metadata = self.metadata_resolver.resolve(&domain).await;
+                self.companies_repository
+                    .upsert_domain_metadata(&domain, &metadata)
+                    .await?;
+                // A concurrent first-write may have won with different
+                // metadata, so return the canonical cached row.
+                self.companies_repository
+                    .lookup_domain_metadata(&domain)
+                    .await?
+                    .unwrap_or(metadata)
+            }
+        };
+
+        let company = self
+            .companies_repository
+            .create_company(&access.team_id(), &domain)
+            .await?;
+
+        Ok(CrmCompanyWithContacts {
+            company,
+            name: metadata.name,
+            description: metadata.description,
+            contacts: Vec::new(),
+        })
+    }
+
     #[tracing::instrument(skip(self), err)]
     #[allow(clippy::too_many_arguments)]
     async fn populate_contact(
@@ -667,6 +723,32 @@ where
     }
 }
 
+fn normalize_company_domain(domain: &str) -> Result<String, CrmError> {
+    let domain = domain.trim().to_ascii_lowercase();
+    if domain.is_empty()
+        || domain.len() > 253
+        || domain.contains('@')
+        || domain.contains("//")
+        || domain.starts_with('.')
+        || domain.ends_with('.')
+        || !domain.contains('.')
+        || domain.split('.').any(|label| {
+            label.is_empty()
+                || label.len() > 63
+                || label.starts_with('-')
+                || label.ends_with('-')
+                || !label
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        })
+    {
+        return Err(CrmError::InvalidRequest(
+            "domain must be a bare domain like acme.com".into(),
+        ));
+    }
+    Ok(domain)
+}
+
 /// No-op [`CrmService`] for binaries that need to satisfy the bound
 /// but never call CRM. `list_companies_for_soup` returns empty; every
 /// other method panics — swap for [`CrmServiceImpl`] if you actually
@@ -675,6 +757,14 @@ where
 pub struct NoOpCrmService;
 
 impl CrmService for NoOpCrmService {
+    async fn create_company(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _domain: &str,
+    ) -> Result<CrmCompanyWithContacts, CrmError> {
+        unimplemented!("NoOpCrmService.create_company")
+    }
+
     async fn populate_contact(
         &self,
         _team_id: &uuid::Uuid,

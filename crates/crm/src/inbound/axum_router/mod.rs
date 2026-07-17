@@ -1,5 +1,8 @@
 //! Axum router for CRM endpoints.
 
+/// Manually create a CRM company.
+pub mod create_company;
+
 /// Toggle the `email_sync` flag on a `crm_companies` row.
 pub mod set_email_sync;
 
@@ -30,7 +33,7 @@ use axum::{
     extract::FromRef,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::{get, patch, put},
+    routing::{get, patch, post, put},
 };
 use entity_access::domain::ports::EntityAccessService;
 use model_error_response::ErrorResponse;
@@ -90,6 +93,7 @@ where
     S: Send + Sync + 'static,
 {
     Router::new()
+        .route("/companies", post(create_company::handler::<C, Eas>))
         .route(
             "/companies/{company_id}/email-sync",
             put(set_email_sync::handler::<C, Eas>),
@@ -128,6 +132,18 @@ where
 impl IntoResponse for CrmError {
     fn into_response(self) -> Response {
         match self {
+            CrmError::CompanyDomainAlreadyExists => (
+                StatusCode::CONFLICT,
+                Json(ErrorResponse {
+                    message: "a crm company with this domain already exists".into(),
+                }),
+            ),
+            CrmError::CrmDisabledForTeam => (
+                StatusCode::CONFLICT,
+                Json(ErrorResponse {
+                    message: "crm is disabled for this team".into(),
+                }),
+            ),
             CrmError::CompanyNotFoundForTeam => (
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
