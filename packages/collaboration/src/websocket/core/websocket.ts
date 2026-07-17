@@ -500,16 +500,28 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
   ) {
     // Snapshot who's registered before invoking anyone, so this dispatch's
     // once-cleanup only ever removes listeners that were actually notified.
-    const eventListeners: WebsocketEventListeners<Send, Receive>[K] =
-      this._options.listeners[type];
+    // Track by entry identity (not the listener function) so two
+    // registrations of the same function - e.g. once + non-once - aren't
+    // conflated.
+    const eventListeners: WebsocketEventListenerWithOptions<K, Send, Receive>[] =
+      [
+        ...(this._options.listeners[type] as WebsocketEventListenerWithOptions<
+          K,
+          Send,
+          Receive
+        >[]),
+      ];
     const onceListeners = new Set(
-      eventListeners
-        .filter(({ options }) => options?.once)
-        .map(({ listener }) => listener)
+      eventListeners.filter(({ options }) => options?.once)
     );
 
-    eventListeners.forEach(({ listener }) => {
-      listener(this, event); // invoke listener with event; it may call
+    eventListeners.forEach((entry) => {
+      // Skip entries a prior listener already removed during this dispatch,
+      // matching standard EventTarget semantics.
+      if (!this._options.listeners[type].includes(entry)) {
+        return;
+      }
+      entry.listener(this, event); // invoke listener with event; it may call
       // removeEventListener on itself or another listener, mutating
       // this._options.listeners[type] directly
     });
@@ -524,7 +536,7 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
         Send,
         Receive
       >[]) = this._options.listeners[type].filter(
-        ({ listener }) => !onceListeners.has(listener)
+        (entry) => !onceListeners.has(entry)
       );
     }
   }
