@@ -512,6 +512,40 @@ describe('layoutManager', () => {
       });
     });
 
+    it('leaves history untouched when the target is open in another split', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: { type: 'md', id: 'doc-1' } });
+        split.replace({ next: { type: 'md', id: 'doc-2' } });
+
+        // Duplicate detection only inspects current contents, so a past
+        // history entry's content can be opened in a second split.
+        manager.createNewSplit({
+          content: { type: 'md', id: 'doc-1' },
+          referredFrom: null,
+        });
+
+        split.goBackToHistoryEntry(1);
+
+        // reattach would refuse the duplicate target, so the jump must not
+        // move the history index away from the mounted content.
+        expect(split.content()).toMatchObject({ type: 'md', id: 'doc-2' });
+        expect(split.history().map((c) => c.id)).toEqual([
+          'inbox',
+          'doc-1',
+          'doc-2',
+        ]);
+        expect(split.canGoBack()).toBe(true);
+        expect(split.canGoForward()).toBe(false);
+
+        dispose();
+      });
+    });
+
     describe('mobile swipeBackToEntry', () => {
       function setupMobileHistory() {
         const manager = createSplitLayout(createMockOrchestrator(), [

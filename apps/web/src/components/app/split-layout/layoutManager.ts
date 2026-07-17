@@ -797,6 +797,13 @@ export function createSplitLayout(
     const split = state.splits[i];
     if (targetIndex < 0 || targetIndex >= split.history.index) return;
 
+    // reattach refuses targets already open in another split (same check as
+    // below); preflight it so a refused jump doesn't strand the history index
+    // away from the mounted content.
+    const target = split.history.items[targetIndex];
+    const otherSplits = state.splits.filter((s) => s.id !== split.id);
+    if (isDuplicateSplit(otherSplits, target)) return;
+
     batch(() => {
       captureCurrentEntryState(split);
 
