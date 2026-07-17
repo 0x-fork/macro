@@ -57,10 +57,6 @@ type CompleteMutationRoot {
 	Add or remove an entity from the actor's favorites.
 	"""
 	setEntityFavorite(entity: EntityRefInput!, favorite: Boolean!): GraphqlEntityMutationResult!
-	"""
-	Persist the complete ordering of the actor's favorites.
-	"""
-	reorderEntityFavorites(entities: [EntityRefInput!]!): EntityMutationPayload!
 }
 
 """

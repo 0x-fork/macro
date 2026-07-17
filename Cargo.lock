@@ -6053,7 +6053,6 @@ version = "0.1.0"
 dependencies = [
  "async-graphql",
  "entity_mutation",
- "favorites",
  "graphql_common",
  "macro_user_id",
  "model-entity",

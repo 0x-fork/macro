@@ -1419,39 +1419,4 @@ where
             Err(error) => fail(entity, error),
         }
     }
-
-    #[tracing::instrument(skip_all, fields(count = entities.len()))]
-    async fn reorder_favorites(
-        &self,
-        actor: EntityMutationActor,
-        entities: Vec<EntityRef>,
-    ) -> Vec<EntityMutationOutcome> {
-        let domain_entities = entities
-            .iter()
-            .map(|entity| {
-                entity
-                    .entity_type
-                    .with_entity_string(entity.entity_id.clone())
-            })
-            .collect::<Vec<_>>();
-        match self
-            .favorites
-            .reorder_favorites(&actor.user_id, &domain_entities)
-            .await
-        {
-            Ok(()) => entities
-                .into_iter()
-                .map(EntityMutationOutcome::success)
-                .collect(),
-            Err(error) => {
-                // The reorder is a single domain call, so one public error
-                // applies to every requested entity.
-                let error = public_error(MutationError::Favorites(error));
-                entities
-                    .into_iter()
-                    .map(|entity| EntityMutationOutcome::failure(entity, error.clone()))
-                    .collect()
-            }
-        }
-    }
 }

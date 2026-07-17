@@ -69,13 +69,6 @@ pub trait EntityMutationService: Send + Sync + 'static {
         entity: EntityRef,
         favorite: bool,
     ) -> EntityMutationOutcome;
-
-    /// Persist the actor's complete favorite order.
-    async fn reorder_favorites(
-        &self,
-        actor: EntityMutationActor,
-        entities: Vec<EntityRef>,
-    ) -> Vec<EntityMutationOutcome>;
 }
 
 /// Schema-only implementation used when no mutation services are wired.
@@ -163,13 +156,5 @@ impl EntityMutationService for UnavailableEntityMutationService {
         _favorite: bool,
     ) -> EntityMutationOutcome {
         EntityMutationOutcome::unsupported(entity, "favorites")
-    }
-
-    async fn reorder_favorites(
-        &self,
-        _actor: EntityMutationActor,
-        entities: Vec<EntityRef>,
-    ) -> Vec<EntityMutationOutcome> {
-        unsupported_many("favorite reordering", entities)
     }
 }

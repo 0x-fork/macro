@@ -6,7 +6,6 @@ use entity_mutation::{
     EntityMutationService, EntityRef, MoveEntityRequest, RenameEntityRequest,
     UpdateEntitySharePolicyRequest,
 };
-use favorites::domain::service::MAX_FAVORITES_PER_COLLECTION;
 use graphql_common::{GraphqlEntityAccessLevel, GraphqlEntityType};
 use model_entity::EntityType;
 use models_permissions::share_permission::{
@@ -509,26 +508,6 @@ impl EntityMutationRoot {
     ) -> async_graphql::Result<GraphqlEntityMutationResult> {
         Ok(mutation_service(ctx)?
             .set_favorite(mutation_actor(ctx)?, entity.into(), favorite)
-            .await
-            .into())
-    }
-
-    /// Persist the complete ordering of the actor's favorites.
-    async fn reorder_entity_favorites(
-        &self,
-        ctx: &Context<'_>,
-        entities: Vec<EntityRefInput>,
-    ) -> async_graphql::Result<EntityMutationPayload> {
-        validate_batch_with_limit(
-            "reorderEntityFavorites",
-            entities.iter().map(entity_input_key),
-            MAX_FAVORITES_PER_COLLECTION,
-        )?;
-        Ok(mutation_service(ctx)?
-            .reorder_favorites(
-                mutation_actor(ctx)?,
-                entities.into_iter().map(Into::into).collect(),
-            )
             .await
             .into())
     }

@@ -101,22 +101,6 @@ fn batch_validation_rejects_oversized_and_duplicate_requests() {
 }
 
 #[test]
-fn favorite_reorder_accepts_the_domain_collection_limit() {
-    let favorites = (0..favorites::domain::service::MAX_FAVORITES_PER_COLLECTION).map(|index| {
-        (
-            graphql_common::GraphqlEntityType::Document,
-            format!("document-{index}"),
-        )
-    });
-    super::validate_batch_with_limit(
-        "reorderEntityFavorites",
-        favorites,
-        favorites::domain::service::MAX_FAVORITES_PER_COLLECTION,
-    )
-    .unwrap();
-}
-
-#[test]
 fn share_policy_validation_requires_access_levels_for_grants() {
     let inputs = [super::UpdateEntitySharePolicyInput {
         entity: super::EntityRefInput {

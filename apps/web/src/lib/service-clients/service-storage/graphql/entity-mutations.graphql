@@ -74,9 +74,3 @@ mutation SetEntityFavorite($entity: EntityRefInput!, $favorite: Boolean!) {
     ...EntityMutationResultFields
   }
 }
-
-mutation ReorderEntityFavorites($entities: [EntityRefInput!]!) {
-  reorderEntityFavorites(entities: $entities) {
-    ...EntityMutationPayloadFields
-  }
-}
