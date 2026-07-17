@@ -502,14 +502,17 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
     // Track by entry identity (not the listener function) so two
     // registrations of the same function - e.g. once + non-once - aren't
     // conflated.
-    const eventListeners: WebsocketEventListenerWithOptions<K, Send, Receive>[] =
-      [
-        ...(this._options.listeners[type] as WebsocketEventListenerWithOptions<
-          K,
-          Send,
-          Receive
-        >[]),
-      ];
+    const eventListeners: WebsocketEventListenerWithOptions<
+      K,
+      Send,
+      Receive
+    >[] = [
+      ...(this._options.listeners[type] as WebsocketEventListenerWithOptions<
+        K,
+        Send,
+        Receive
+      >[]),
+    ];
     const onceListeners = new Set(
       eventListeners.filter(({ options }) => options?.once)
     );
