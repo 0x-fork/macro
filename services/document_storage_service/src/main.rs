@@ -926,6 +926,7 @@ async fn main() -> anyhow::Result<()> {
         crm_state: crm::inbound::axum_router::CrmRouterState {
             service: Arc::new(crm_service),
             entity_access_service: entity_access_service.clone(),
+            authorization_state: authorization_state.clone(),
         },
     };
 
