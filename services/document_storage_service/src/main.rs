@@ -830,6 +830,7 @@ async fn main() -> anyhow::Result<()> {
             bots_service.clone(),
             channels_service.clone(),
             (*entity_access_service).clone(),
+            authorization_state.clone(),
         );
 
     let soup_service = Arc::new(SoupImpl::new(
@@ -913,6 +914,7 @@ async fn main() -> anyhow::Result<()> {
         bots_state: bots::inbound::axum_router::BotsRouterState::new(
             bots_service.clone(),
             (*entity_access_service).clone(),
+            authorization_state.clone(),
         ),
         channel_bot_webhook_state,
         call_state,
