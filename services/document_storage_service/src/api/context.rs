@@ -77,6 +77,14 @@ use macro_sha_count_client::Redis;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
 use opensearch_client::OpensearchClient;
+use projects_hex::{
+    domain::service::ProjectServiceImpl,
+    inbound::axum_router::ProjectRouterState,
+    outbound::{
+        DynamoBulkUploadAdapter, PgProjectRepo, S3ProjectUploadAdapter, ShaCountAdapter,
+        SqsProjectSearchIndexer,
+    },
+};
 use properties::{
     NotificationServiceImpl, PermissionServiceImpl, PropertiesPgRepo, PropertiesServiceImpl,
 };
@@ -102,11 +110,6 @@ use webhook::{
         pg_repository::PgRepository as PgWebhookRepo,
     },
 };
-
-#[derive(Debug, Clone)]
-pub struct InternalFlag {
-    pub internal: bool,
-}
 
 /// CRM service for DSS — no-op resolver since DSS doesn't populate.
 pub(crate) type DssCrmService = crm::domain::service::CrmServiceImpl<
@@ -251,6 +254,20 @@ pub(crate) type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJw
 /// Type alias for the documents router state.
 pub(crate) type DocumentsState =
     DocumentRouterState<DocumentService, EntityAccessService, AuthorizationService>;
+
+/// Concrete project service wired into DSS.
+pub(crate) type ProjectService = ProjectServiceImpl<
+    PgProjectRepo,
+    S3ProjectUploadAdapter,
+    DynamoBulkUploadAdapter,
+    ShaCountAdapter,
+    EntityAccessManagementService,
+    SqsProjectSearchIndexer,
+>;
+
+/// Type alias for the projects router state.
+pub(crate) type ProjectsState =
+    ProjectRouterState<ProjectService, EntityAccessService, AuthorizationService>;
 
 /// Type alias for the legacy channel list service.
 pub(crate) type DssChannelListService =
@@ -399,6 +416,7 @@ pub(crate) struct ApiContext {
     pub channel_list_state: DssChannelListState,
     pub entity_access_service: Arc<EntityAccessService>,
     pub documents_state: DocumentsState,
+    pub projects_state: ProjectsState,
     pub channels_state: DssChannelsState,
     pub bots_state: DssBotsState,
     pub channel_bot_webhook_state: DssChannelBotWebhookState,
