@@ -13,7 +13,7 @@ query Soup($input: SoupInput!) {
     id
     soup(input: $input) {
       items {
-        id
+        entityId
         entity {
           __typename
           ... on GraphqlSoupDocument {
@@ -136,7 +136,7 @@ fn restart_hydration_preserves_legacy_json_with_envelope_keys() {
             unreachable!()
         };
         let base = json!({"user": {"id": "user-1", "soup": {
-            "items": [{"id": "item-1", "entity": {
+            "items": [{"entityId": "item-1", "entity": {
                 "__typename": "GraphqlSoupDocument",
                 "id": "doc-1",
                 "properties": [{"id": "prop-1", "displayName": "Status"}]

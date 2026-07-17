@@ -6,7 +6,6 @@ use cache_core::link_patch::{
 };
 use cache_core::queue::{MutationClaimRequest, MutationClaimToken};
 use cache_core::store::InMemoryStorage;
-use cache_core::value::EntityKey;
 use pollster::block_on;
 use serde_json::{Value as Json, json};
 
@@ -20,7 +19,7 @@ query GroupSoup($input: GroupedSoupInput!) {
         totalCount
         nextCursor
         items {
-          id
+          entityId
           entity {
             __typename
             ... on GraphqlSoupDocument {
@@ -104,7 +103,7 @@ fn group_page() -> Json {
                         "totalCount": 1,
                         "nextCursor": "source-cursor",
                         "items": [{
-                            "id": "task-1",
+                            "entityId": "task-1",
                             "entity": {
                                 "__typename": "GraphqlSoupDocument",
                                 "id": "task-1",
@@ -208,14 +207,20 @@ fn cache_only_read_observes_move_and_rollback_restores_it() {
         let patches = [
             patch(
                 "in-progress",
-                LinkOperation::Remove {
-                    entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
+                LinkOperation::RemoveEmbedded {
+                    selector: ListItemByScalar {
+                        where_field: "entityId".into(),
+                        equals: json!("task-1"),
+                    },
                 },
             ),
             patch(
                 "completed",
-                LinkOperation::PrependUnique {
-                    entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
+                LinkOperation::PrependUniqueEmbedded {
+                    selector: ListItemByScalar {
+                        where_field: "entityId".into(),
+                        equals: json!("task-1"),
+                    },
                 },
             ),
         ];
@@ -238,7 +243,7 @@ fn cache_only_read_observes_move_and_rollback_restores_it() {
         let optimistic = read_group(&mut engine).await;
         let bins = optimistic["user"]["groupSoup"]["bins"].as_array().unwrap();
         assert!(bins[0]["items"].as_array().unwrap().is_empty());
-        assert_eq!(bins[1]["items"][0]["id"], json!("task-1"));
+        assert_eq!(bins[1]["items"][0]["entityId"], json!("task-1"));
         // Server-owned pagination metadata is deliberately untouched.
         assert_eq!(bins[0]["totalCount"], json!(1));
         assert_eq!(bins[1]["totalCount"], json!(0));
@@ -255,7 +260,7 @@ fn cache_only_read_observes_move_and_rollback_restores_it() {
                 .is_empty()
         );
         assert_eq!(
-            hydrated["user"]["groupSoup"]["bins"][1]["items"][0]["id"],
+            hydrated["user"]["groupSoup"]["bins"][1]["items"][0]["entityId"],
             json!("task-1")
         );
 
@@ -266,7 +271,7 @@ fn cache_only_read_observes_move_and_rollback_restores_it() {
             .unwrap();
         let restored = read_group(&mut engine).await;
         assert_eq!(
-            restored["user"]["groupSoup"]["bins"][0]["items"][0]["id"],
+            restored["user"]["groupSoup"]["bins"][0]["items"][0]["entityId"],
             json!("task-1")
         );
         assert!(
@@ -285,14 +290,20 @@ fn success_reapplies_recipe_and_returns_deduplicated_revalidation() {
         let patches = [
             patch(
                 "in-progress",
-                LinkOperation::Remove {
-                    entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
+                LinkOperation::RemoveEmbedded {
+                    selector: ListItemByScalar {
+                        where_field: "entityId".into(),
+                        equals: json!("task-1"),
+                    },
                 },
             ),
             patch(
                 "completed",
-                LinkOperation::PrependUnique {
-                    entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
+                LinkOperation::PrependUniqueEmbedded {
+                    selector: ListItemByScalar {
+                        where_field: "entityId".into(),
+                        equals: json!("task-1"),
+                    },
                 },
             ),
         ];
@@ -317,7 +328,7 @@ fn success_reapplies_recipe_and_returns_deduplicated_revalidation() {
         // earlier optimistic field snapshot over it.
         let mut concurrent = group_page();
         concurrent["user"]["groupSoup"]["bins"][1]["items"] = json!([{
-            "id": "task-2",
+            "entityId": "task-2",
             "entity": {
                 "__typename": "GraphqlSoupDocument",
                 "id": "task-2",
@@ -351,11 +362,11 @@ fn success_reapplies_recipe_and_returns_deduplicated_revalidation() {
         assert_eq!(result.revalidations.len(), 1);
         let committed = read_group(&mut engine).await;
         assert_eq!(
-            committed["user"]["groupSoup"]["bins"][1]["items"][0]["id"],
+            committed["user"]["groupSoup"]["bins"][1]["items"][0]["entityId"],
             json!("task-1")
         );
         assert_eq!(
-            committed["user"]["groupSoup"]["bins"][1]["items"][1]["id"],
+            committed["user"]["groupSoup"]["bins"][1]["items"][1]["entityId"],
             json!("task-2")
         );
     });
@@ -368,14 +379,20 @@ fn missing_destination_rejects_the_whole_patch_set_without_enqueueing() {
         let patches = [
             patch(
                 "in-progress",
-                LinkOperation::Remove {
-                    entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
+                LinkOperation::RemoveEmbedded {
+                    selector: ListItemByScalar {
+                        where_field: "entityId".into(),
+                        equals: json!("task-1"),
+                    },
                 },
             ),
             patch(
                 "missing",
-                LinkOperation::PrependUnique {
-                    entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
+                LinkOperation::PrependUniqueEmbedded {
+                    selector: ListItemByScalar {
+                        where_field: "entityId".into(),
+                        equals: json!("task-1"),
+                    },
                 },
             ),
         ];
@@ -398,7 +415,7 @@ fn missing_destination_rejects_the_whole_patch_set_without_enqueueing() {
         );
         let original = read_group(&mut engine).await;
         assert_eq!(
-            original["user"]["groupSoup"]["bins"][0]["items"][0]["id"],
+            original["user"]["groupSoup"]["bins"][0]["items"][0]["entityId"],
             json!("task-1")
         );
     });

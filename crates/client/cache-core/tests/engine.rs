@@ -3,6 +3,7 @@
 
 use cache_core::engine::{Engine, ReadResult};
 use cache_core::store::InMemoryStorage;
+use cache_core::value::EntityKey;
 use pollster::block_on;
 use serde_json::{Value as Json, json};
 
@@ -12,7 +13,7 @@ query Soup($input: SoupInput!) {
     id
     soup(input: $input) {
       items {
-        id
+        entityId
         entity {
           __typename
           ... on GraphqlSoupDocument { id documentName: name ownerId }
@@ -42,7 +43,7 @@ fn page_for_user(user: &str, names: &[(&str, &str)]) -> Json {
             "id": user,
             "soup": {
                 "items": names.iter().map(|(id, name)| json!({
-                    "id": id,
+                    "entityId": id,
                     "entity": {
                         "__typename": "GraphqlSoupDocument",
                         "id": id,
@@ -196,6 +197,54 @@ fn hot_tier_eviction_falls_back_to_storage() {
 }
 
 #[test]
+fn delete_keys_removes_persistent_record_before_cache_first_replay() {
+    block_on(async {
+        let mut engine = Engine::new(InMemoryStorage::new());
+        engine
+            .write_query(
+                None,
+                QUERY,
+                Some("Soup"),
+                &vars(10),
+                &page(&[("doc-1", "Before")]),
+                None,
+            )
+            .await
+            .unwrap();
+        engine
+            .read_query(Some(1), QUERY, Some("Soup"), &vars(10))
+            .await
+            .unwrap();
+        engine
+            .write_query(
+                None,
+                QUERY,
+                Some("Soup"),
+                &vars(20),
+                &page(&[("doc-2", "Other view")]),
+                None,
+            )
+            .await
+            .unwrap();
+        engine
+            .read_query(Some(2), QUERY, Some("Soup"), &vars(20))
+            .await
+            .unwrap();
+
+        let key = EntityKey("GraphqlSoupDocument:doc-1".to_owned());
+        let affected = engine.delete_keys(&[key]).await.unwrap();
+        assert!(affected.contains(&1));
+        assert!(!affected.contains(&2), "unrelated views must stay cached");
+
+        let replay = engine
+            .read_query(Some(1), QUERY, Some("Soup"), &vars(10))
+            .await
+            .unwrap();
+        assert!(matches!(replay, ReadResult::Miss));
+    });
+}
+
+#[test]
 fn clear_wipes_everything() {
     block_on(async {
         let mut engine = Engine::new(InMemoryStorage::new());
@@ -223,6 +272,7 @@ fn clear_wipes_everything() {
 fn identity_witness_wipes_on_user_change() {
     block_on(async {
         let mut engine = Engine::new(InMemoryStorage::new());
+        assert_eq!(engine.current_identity().await.unwrap(), None);
 
         // User A populates the cache; op 1 is active.
         engine
@@ -254,6 +304,10 @@ fn identity_witness_wipes_on_user_change() {
             .await
             .unwrap();
         assert!(!write.reset);
+        assert_eq!(
+            engine.current_identity().await.unwrap().as_deref(),
+            Some("user-1")
+        );
         let write = engine
             .write_query(
                 Some(2),
@@ -280,6 +334,10 @@ fn identity_witness_wipes_on_user_change() {
             .await
             .unwrap();
         assert!(write.reset);
+        assert_eq!(
+            engine.current_identity().await.unwrap().as_deref(),
+            Some("user-2")
+        );
         // Every active op except the origin re-executes.
         assert!(write.affected_ops.contains(&1));
         assert!(!write.affected_ops.contains(&2));
@@ -314,7 +372,7 @@ fn capacity_constrained_rewrite_preserves_fields() {
         let mut engine = Engine::with_capacity(InMemoryStorage::new(), 2);
 
         // Full write: documentName + ownerId (well over 2 records: root,
-        // user, 3 items, 3 documents).
+        // user, embedded item edges, 3 documents).
         let full = page(&[("doc-1", "A"), ("doc-2", "B"), ("doc-3", "C")]);
         engine
             .write_query(None, QUERY, Some("Soup"), &vars(10), &full, None)
@@ -329,7 +387,7 @@ fn capacity_constrained_rewrite_preserves_fields() {
             id
             soup(input: $input) {
               items {
-                id
+                entityId
                 entity {
                   __typename
                   ... on GraphqlSoupDocument { id documentName: name }
@@ -346,9 +404,9 @@ fn capacity_constrained_rewrite_preserves_fields() {
                 "id": "user-1",
                 "soup": {
                     "items": [
-                        { "id": "doc-1", "entity": { "__typename": "GraphqlSoupDocument", "id": "doc-1", "documentName": "A2" } },
-                        { "id": "doc-2", "entity": { "__typename": "GraphqlSoupDocument", "id": "doc-2", "documentName": "B2" } },
-                        { "id": "doc-3", "entity": { "__typename": "GraphqlSoupDocument", "id": "doc-3", "documentName": "C2" } }
+                        { "entityId": "doc-1", "entity": { "__typename": "GraphqlSoupDocument", "id": "doc-1", "documentName": "A2" } },
+                        { "entityId": "doc-2", "entity": { "__typename": "GraphqlSoupDocument", "id": "doc-2", "documentName": "B2" } },
+                        { "entityId": "doc-3", "entity": { "__typename": "GraphqlSoupDocument", "id": "doc-3", "documentName": "C2" } }
                     ],
                     "nextCursor": null,
                     "hasMore": false

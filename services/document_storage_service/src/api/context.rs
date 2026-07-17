@@ -423,6 +423,10 @@ pub(crate) struct ApiContext {
     pub graphql_soup_schema: DssGraphqlSoupSchema,
     #[cfg(feature = "graphql")]
     pub graphql_notification_reader: Arc<ai_tools::ToolNotificationService>,
+    #[cfg(feature = "graphql")]
+    pub graphql_entity_content_reader: Arc<dyn complete_graph::EntityContentEdgeReader>,
+    #[cfg(feature = "graphql")]
+    pub graphql_entity_mutation_service: Arc<dyn ::entity_mutation::EntityMutationService>,
     pub favorites_state: DssFavoritesState,
     pub favorites_service: Arc<FavoritesServiceType>,
     pub foreign_entity_state: DssForeignEntityState,

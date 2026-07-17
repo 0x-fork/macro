@@ -14,7 +14,7 @@ query Soup($input: SoupInput!) {
     id
     soup(input: $input) {
       items {
-        id
+        entityId
         entity {
           __typename
           ... on GraphqlSoupDocument {
@@ -78,7 +78,7 @@ fn soup_page(display_name: &str, value: &str) -> Json {
             "id": "user-1",
             "soup": {
                 "items": [{
-                    "id": "item-1",
+                    "entityId": "doc-1",
                     "entity": {
                         "__typename": "GraphqlSoupDocument",
                         "id": "doc-1",

@@ -39,7 +39,7 @@ function host(args?: {
         key: args?.sourceKey ?? 'in-progress',
         totalCount: 1,
         nextCursor: null,
-        items: containsItem ? [{ id: 'task-1' }] : [],
+        items: containsItem ? [{ entityId: 'task-1' }] : [],
       },
       ...(args?.destination === false
         ? []
@@ -108,8 +108,14 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
 
     expect(result.updates).toHaveLength(2);
     expect(result.updates.map((patch) => patch.operation)).toEqual([
-      { kind: 'remove', entityKey: 'GraphqlSoupItem:task-1' },
-      { kind: 'prependUnique', entityKey: 'GraphqlSoupItem:task-1' },
+      {
+        kind: 'removeEmbedded',
+        selector: { whereField: 'entityId', equals: 'task-1' },
+      },
+      {
+        kind: 'prependUniqueEmbedded',
+        selector: { whereField: 'entityId', equals: 'task-1' },
+      },
     ]);
     expect(result.updates.map((update) => update.path)).toEqual([
       [
@@ -160,8 +166,8 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
       )
     ).toEqual([continuationInput, input]);
     expect(result.updates.map((patch) => patch.operation.kind)).toEqual([
-      'remove',
-      'prependUnique',
+      'removeEmbedded',
+      'prependUniqueEmbedded',
     ]);
   });
 
@@ -175,8 +181,8 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     });
 
     expect(result.updates.map((patch) => patch.operation.kind)).toEqual([
-      'remove',
-      'prependUnique',
+      'removeEmbedded',
+      'prependUniqueEmbedded',
     ]);
   });
 
@@ -190,7 +196,14 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     });
 
     expect(result.updates.map((patch) => patch.operation)).toEqual([
-      { kind: 'prependUnique', entityKey: 'GraphqlSoupItem:task-1' },
+      {
+        kind: 'captureEmbedded',
+        selector: { whereField: 'entityId', equals: 'task-1' },
+      },
+      {
+        kind: 'prependUniqueEmbedded',
+        selector: { whereField: 'entityId', equals: 'task-1' },
+      },
     ]);
   });
 

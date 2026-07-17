@@ -2882,6 +2882,8 @@ dependencies = [
  "axum",
  "email",
  "entity_access",
+ "entity_mutation",
+ "favorites",
  "graphql_common",
  "graphql_email",
  "graphql_notification",
@@ -2892,6 +2894,7 @@ dependencies = [
  "model-entity",
  "model_user",
  "models_pagination",
+ "models_permissions",
  "models_properties",
  "models_soup",
  "rootcause",
@@ -4221,6 +4224,7 @@ dependencies = [
  "anyhow",
  "async-graphql",
  "async-graphql-axum",
+ "async-trait",
  "aws-sdk-dynamodb",
  "aws-sdk-s3",
  "aws-sdk-secretsmanager",
@@ -4236,6 +4240,7 @@ dependencies = [
  "call",
  "channel_bots",
  "channels",
+ "chat",
  "chrono",
  "clap",
  "cloudfront_sign",
@@ -4255,6 +4260,7 @@ dependencies = [
  "embedding",
  "entity_access",
  "entity_access_management",
+ "entity_mutation",
  "favorites",
  "foreign_entity",
  "frecency",
@@ -4310,6 +4316,7 @@ dependencies = [
  "redis",
  "regex",
  "reqwest 0.13.4",
+ "rootcause",
  "s3_key",
  "saved_views",
  "schemars 1.2.1",
@@ -5185,6 +5192,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "entity_mutation"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "macro_user_id",
+ "model-entity",
+ "models_permissions",
+ "workspace-hack",
+]
+
+[[package]]
 name = "enum-as-inner"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5996,9 +6014,13 @@ name = "graphql_common"
 version = "0.1.0"
 dependencies = [
  "async-graphql",
+ "async-trait",
  "axum",
  "axum-extra",
+ "entity_access",
+ "favorites",
  "filter_ast",
+ "futures",
  "item_filters",
  "macro_authorization",
  "macro_user_id",
@@ -6007,6 +6029,7 @@ dependencies = [
  "models_properties",
  "rootcause",
  "tokio",
+ "tracing",
  "uuid",
  "workspace-hack",
 ]

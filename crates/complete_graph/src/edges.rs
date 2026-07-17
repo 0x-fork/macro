@@ -1,6 +1,10 @@
 use std::marker::PhantomData;
 
 use async_graphql::{Context, Object};
+use graphql_common::{
+    EntityContentKey, EntityFavoriteKey, EntityPermissionKey, GraphqlEntityPermission,
+    load_entity_content, load_entity_favorite, load_entity_permission,
+};
 use graphql_email::{
     EmailContentKey, GraphqlSoupEmailMessage, SoupEmailContentEdgeReader, load_latest_email_message,
 };
@@ -21,6 +25,8 @@ type EdgeReaders<NR, PR, ER> = PhantomData<fn() -> (NR, PR, ER)>;
 pub struct SoupEdges<NR, PR, ER> {
     /// Entity whose cross-domain fields are being resolved.
     entity: model_entity::Entity<'static>,
+    /// Entity whose access determines the viewer permission for this object.
+    permission_entity: model_entity::Entity<'static>,
     /// Associates the edge with its configured reader types.
     _readers: EdgeReaders<NR, PR, ER>,
 }
@@ -29,6 +35,7 @@ impl<NR, PR, ER> Clone for SoupEdges<NR, PR, ER> {
     fn clone(&self) -> Self {
         Self {
             entity: self.entity.clone(),
+            permission_entity: self.permission_entity.clone(),
             _readers: PhantomData,
         }
     }
@@ -41,10 +48,22 @@ where
     ER: SoupEmailContentEdgeReader,
 {
     type EmailThreadEdges = SoupEmailThreadEdges<ER>;
+    type DocumentEdges = SoupDocumentEdges;
 
     fn from_entity(entity: model_entity::Entity<'static>) -> Self {
         Self {
+            permission_entity: entity.clone(),
             entity,
+            _readers: PhantomData,
+        }
+    }
+
+    fn from_channel_message(message_id: Uuid, channel_id: Uuid) -> Self {
+        Self {
+            entity: model_entity::EntityType::ChannelMessage
+                .with_entity_string(message_id.to_string()),
+            permission_entity: model_entity::EntityType::Channel
+                .with_entity_string(channel_id.to_string()),
             _readers: PhantomData,
         }
     }
@@ -54,6 +73,10 @@ where
             thread_id,
             _reader: PhantomData,
         }
+    }
+
+    fn document_edges(document_id: String) -> Self::DocumentEdges {
+        SoupDocumentEdges { document_id }
     }
 }
 
@@ -76,6 +99,56 @@ where
         ctx: &Context<'_>,
     ) -> async_graphql::Result<Vec<GraphqlSoupNotification>> {
         load_entity_notifications::<NR>(ctx, self.entity.clone()).await
+    }
+
+    /// Whether the authenticated viewer has favorited this entity.
+    async fn is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        load_entity_favorite(
+            ctx,
+            EntityFavoriteKey {
+                entity_type: self.entity.entity_type,
+                entity_id: self.entity.entity_id.to_string(),
+            },
+        )
+        .await
+    }
+
+    /// The authenticated viewer's effective permission for this entity.
+    async fn viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        load_entity_permission(
+            ctx,
+            EntityPermissionKey {
+                entity_type: self.permission_entity.entity_type,
+                entity_id: self.permission_entity.entity_id.to_string(),
+            },
+        )
+        .await
+    }
+}
+
+/// Content fields attached only to Soup document entities.
+#[derive(Clone)]
+pub struct SoupDocumentEdges {
+    /// Canonical document identifier.
+    document_id: String,
+}
+
+/// Lazily loaded fields attached to a Soup document.
+#[Object]
+impl SoupDocumentEdges {
+    /// The document's primary textual content.
+    async fn content(&self, ctx: &Context<'_>) -> async_graphql::Result<Option<String>> {
+        load_entity_content(
+            ctx,
+            EntityContentKey {
+                entity_type: model_entity::EntityType::Document,
+                entity_id: self.document_id.clone(),
+            },
+        )
+        .await
     }
 }
 

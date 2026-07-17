@@ -7,7 +7,7 @@ query GroupSoupMembership($input: GroupedSoupInput!) {
 				totalCount
 				nextCursor
 				items {
-					id
+					entityId
 				}
 			}
 		}

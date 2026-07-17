@@ -61,6 +61,13 @@ impl ChatService for MockService {
         })
     }
 
+    async fn get_metadata(
+        &self,
+        _entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<model::chat::Chat> {
+        Err(ChatErr::NotFound)
+    }
+
     async fn copy_chat(
         &self,
         _entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
@@ -165,6 +172,13 @@ impl ChatService for ErrorService {
         Err(ChatErr::Unknown(anyhow::anyhow!("db error")))
     }
 
+    async fn get_metadata(
+        &self,
+        _entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<model::chat::Chat> {
+        Err(ChatErr::Unknown(anyhow::anyhow!("db error")))
+    }
+
     async fn copy_chat(
         &self,
         _entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
@@ -263,6 +277,13 @@ impl ChatService for NotFoundService {
         &self,
         _entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
     ) -> Result<GetChatResponse> {
+        Err(ChatErr::NotFound)
+    }
+
+    async fn get_metadata(
+        &self,
+        _entity_access_receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> Result<model::chat::Chat> {
         Err(ChatErr::NotFound)
     }
 

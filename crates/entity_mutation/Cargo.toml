@@ -1,0 +1,13 @@
+[package]
+name = "entity_mutation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+async-trait = { workspace = true }
+macro_user_id = { path = "../macro_user_id" }
+model-entity = { path = "../model-entity" }
+models_permissions = { path = "../models_permissions" }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+

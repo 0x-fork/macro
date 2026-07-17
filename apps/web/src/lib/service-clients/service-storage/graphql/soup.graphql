@@ -12,13 +12,15 @@ query Soup($input: SoupInput!) {
 }
 
 fragment SoupItemFields on GraphqlSoupItem {
-				id
-				entityType
-				frecencyScore
-				entity {
-					__typename
+	entityId
+	entityType
+	frecencyScore
+	entity {
+		__typename
+		...SoupEntityCoreFields
 					... on GraphqlSoupDocument {
 						id
+						isFavorited
 						documentName: name
 						ownerId
 						fileType
@@ -40,6 +42,7 @@ fragment SoupItemFields on GraphqlSoupItem {
 					}
 					... on GraphqlSoupChat {
 						id
+						isFavorited
 						chatName: name
 						ownerId
 						projectId
@@ -57,6 +60,7 @@ fragment SoupItemFields on GraphqlSoupItem {
 					}
 					... on GraphqlSoupProject {
 						id
+						isFavorited
 						projectName: name
 						ownerId
 						parentId
@@ -73,6 +77,7 @@ fragment SoupItemFields on GraphqlSoupItem {
 					}
 					... on GraphqlSoupEmailThread {
 						id
+						isFavorited
 						providerId
 						ownerId
 						inboxVisible
@@ -171,6 +176,7 @@ fragment SoupItemFields on GraphqlSoupItem {
 					}
 					... on GraphqlSoupChannel {
 						id
+						isFavorited
 						channelName: name
 						channelType
 						ownerId
@@ -198,8 +204,9 @@ fragment SoupItemFields on GraphqlSoupItem {
 							...SoupNotificationFields
 						}
 					}
-					... on GraphqlSoupChannelThread {
+					... on GraphqlSoupChannelMessage {
 						id
+						isFavorited
 						channelId
 						senderId
 						content
@@ -213,6 +220,7 @@ fragment SoupItemFields on GraphqlSoupItem {
 					}
 					... on GraphqlSoupCall {
 						id
+						isFavorited
 						channelId
 						channelName
 						createdBy
@@ -238,6 +246,7 @@ fragment SoupItemFields on GraphqlSoupItem {
 					}
 					... on GraphqlSoupCrmCompany {
 						id
+						isFavorited
 						crmTeamId: teamId
 						crmCompanyName: name
 						description
@@ -256,18 +265,25 @@ fragment SoupItemFields on GraphqlSoupItem {
 					}
 					... on GraphqlSoupForeignEntity {
 						id
+						isFavorited
 						foreignEntityId
 						foreignEntitySource
 						storedForId
 						storedForAuthEntity
-						metadata
+						sourceMetadata
 						createdAt
 						updatedAt
 						notifications {
 							...SoupNotificationFields
 						}
 					}
-				}
+	}
+}
+
+fragment SoupEntityCoreFields on GraphqlSoupEntity {
+	id
+	entityType
+	displayName
 }
 
 fragment SoupPropertyFields on GraphqlProperty {
@@ -309,8 +325,9 @@ fragment SoupPropertyFields on GraphqlProperty {
 	}
 }
 
-fragment SoupChannelMessageFields on GraphqlSoupChannelMessage {
-	id
+fragment SoupChannelMessageFields on GraphqlSoupChannelMessagePreview {
+	messageId
+	channelId
 	threadId
 	senderId
 	content

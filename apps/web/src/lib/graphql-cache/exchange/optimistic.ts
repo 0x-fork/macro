@@ -210,10 +210,9 @@ export function prependUnique(entityKey: string): LinkDiff {
   return { kind: 'prependUnique', entityKey };
 }
 
-/** Compiles a generated graph selection and list diff into a durable update. */
-export function update<TItem extends object>(
+function compileUpdate<TItem extends object>(
   selection: ListSelection<TItem>,
-  operation: LinkDiff
+  operation: OptimisticLinkPatchWire['operation']
 ): OptimisticUpdate {
   return {
     query: stringifyDocument(selection.document),
@@ -222,6 +221,70 @@ export function update<TItem extends object>(
     path: [...selection.path],
     operation,
   } as OptimisticUpdate;
+}
+
+function embeddedSelectorUpdate<
+  TItem extends object,
+  K extends ScalarKey<TItem>,
+>(
+  selection: ListSelection<TItem>,
+  field: K,
+  equals: Present<TItem[K]>,
+  kind: 'captureEmbedded' | 'removeEmbedded' | 'prependUniqueEmbedded'
+): OptimisticUpdate {
+  return compileUpdate(selection, {
+    kind,
+    selector: { whereField: field, equals: equals as JsonScalar },
+  });
+}
+
+/** Captures an embedded item for a later prepend without removing it. */
+export function captureEmbedded<
+  TItem extends object,
+  K extends ScalarKey<TItem>,
+>(
+  selection: ListSelection<TItem>,
+  field: K,
+  equals: Present<TItem[K]>
+): OptimisticUpdate {
+  return embeddedSelectorUpdate(selection, field, equals, 'captureEmbedded');
+}
+
+/** Removes and captures embedded list items matching one scalar field. */
+export function removeEmbedded<
+  TItem extends object,
+  K extends ScalarKey<TItem>,
+>(
+  selection: ListSelection<TItem>,
+  field: K,
+  equals: Present<TItem[K]>
+): OptimisticUpdate {
+  return embeddedSelectorUpdate(selection, field, equals, 'removeEmbedded');
+}
+
+/** Prepends the embedded item captured earlier in the same patch set. */
+export function prependUniqueEmbedded<
+  TItem extends object,
+  K extends ScalarKey<TItem>,
+>(
+  selection: ListSelection<TItem>,
+  field: K,
+  equals: Present<TItem[K]>
+): OptimisticUpdate {
+  return embeddedSelectorUpdate(
+    selection,
+    field,
+    equals,
+    'prependUniqueEmbedded'
+  );
+}
+
+/** Compiles a generated graph selection and list diff into a durable update. */
+export function update<TItem extends object>(
+  selection: ListSelection<TItem>,
+  operation: LinkDiff
+): OptimisticUpdate {
+  return compileUpdate(selection, operation);
 }
 
 /**

@@ -15,7 +15,7 @@ query Soup($input: SoupInput!) {
     id
     soup(input: $input) {
     items {
-      id
+      entityId
       entityType
       frecencyScore
       entity {
@@ -66,8 +66,9 @@ fragment SoupPropertyFields on GraphqlProperty {
   }
 }
 
-fragment SoupChannelMessageFields on GraphqlSoupChannelMessage {
-  id
+fragment SoupChannelMessageFields on GraphqlSoupChannelMessagePreview {
+  messageId
+  channelId
   threadId
   senderId
   content
@@ -91,7 +92,7 @@ fn response_data() -> Json {
             "soup": {
             "items": [
                 {
-                    "id": "doc-1",
+                    "entityId": "doc-1",
                     "entityType": "DOCUMENT",
                     "frecencyScore": 0.5,
                     "entity": {
@@ -118,7 +119,7 @@ fn response_data() -> Json {
                     }
                 },
                 {
-                    "id": "ch-1",
+                    "entityId": "ch-1",
                     "entityType": "CHANNEL",
                     "frecencyScore": 0.25,
                     "entity": {
@@ -127,7 +128,8 @@ fn response_data() -> Json {
                         "channelName": "general",
                         "channelType": "PUBLIC",
                         "latestMessage": {
-                            "id": "msg-1",
+                            "messageId": "msg-1",
+                            "channelId": "ch-1",
                             "threadId": null,
                             "senderId": "user-2",
                             "content": "hello",
@@ -166,10 +168,7 @@ fn normalizes_expected_records() {
         vec![
             "GraphqlProperty:entity-prop-1",
             "GraphqlSoupChannel:ch-1",
-            "GraphqlSoupChannelMessage:msg-1",
             "GraphqlSoupDocument:doc-1",
-            "GraphqlSoupItem:ch-1",
-            "GraphqlSoupItem:doc-1",
             "GraphqlUser:user-1",
             "ROOT_QUERY",
         ]
@@ -183,7 +182,8 @@ fn normalizes_expected_records() {
     ));
     assert!(!doc_record.fields.contains_key("documentName"));
 
-    // Property assignments and messages are normalized by their ids.
+    // Property assignments are normalized by their ids; message previews
+    // remain embedded so partial previews cannot overwrite canonical rows.
     assert!(matches!(
         doc_record.fields.get("properties"),
         Some(CacheValue::List(items))
@@ -192,7 +192,8 @@ fn normalizes_expected_records() {
     let channel = &records[&EntityKey("GraphqlSoupChannel:ch-1".into())];
     assert!(matches!(
         channel.fields.get("latestMessage"),
-        Some(CacheValue::Ref(k)) if k.0 == "GraphqlSoupChannelMessage:msg-1"
+        Some(CacheValue::Object(message))
+            if matches!(message.get("messageId"), Some(CacheValue::String(id)) if id == "msg-1")
     ));
 
     // The root links to the viewer; the args-keyed soup page lives on it.
@@ -230,10 +231,7 @@ fn round_trip_reproduces_response() {
         vec![
             "GraphqlProperty:entity-prop-1",
             "GraphqlSoupChannel:ch-1",
-            "GraphqlSoupChannelMessage:msg-1",
             "GraphqlSoupDocument:doc-1",
-            "GraphqlSoupItem:ch-1",
-            "GraphqlSoupItem:doc-1",
             "GraphqlUser:user-1",
             "ROOT_QUERY",
         ]
@@ -248,13 +246,12 @@ fn entity_update_visible_through_other_query() {
 
     // A different document writes just the entity with a new name.
     let rename_doc = Document::parse(
-        r#"query Doc($input: SoupInput!) {
+        r#"query Doc($entityType: GraphqlSoupEntityType!, $id: ID!) {
              user {
                id
-               soup(input: $input) {
-                 items { id entity { __typename ... on GraphqlSoupDocument { id documentName: name } } }
-                 nextCursor
-                 hasMore
+               entity(entityType: $entityType, id: $id) {
+                 __typename
+                 ... on GraphqlSoupDocument { id documentName: name }
                }
              }
            }"#,
@@ -263,22 +260,21 @@ fn entity_update_visible_through_other_query() {
     let rename_data = json!({
         "user": {
             "id": "user-1",
-            "soup": {
-            "items": [{
+            "entity": {
+                "__typename": "GraphqlSoupDocument",
                 "id": "doc-1",
-                "entity": {
-                    "__typename": "GraphqlSoupDocument",
-                    "id": "doc-1",
-                    "documentName": "Renamed"
-                }
-            }],
-            "nextCursor": null,
-            "hasMore": false
+                "documentName": "Renamed"
             }
         }
     });
     let op = rename_doc.operation(Some("Doc")).unwrap();
-    let updates = normalize(op, &variables(), &rename_data).unwrap();
+    let Json::Object(rename_variables) = json!({
+        "entityType": "DOCUMENT",
+        "id": "doc-1"
+    }) else {
+        unreachable!()
+    };
+    let updates = normalize(op, &rename_variables, &rename_data).unwrap();
     let mut changed = Vec::new();
     for (key, record) in updates {
         let entry = records.entry(key.clone()).or_default();
@@ -286,7 +282,7 @@ fn entity_update_visible_through_other_query() {
             changed.push(key.0);
         }
     }
-    // The document record changed; the soup page (same args) also rewritten.
+    // The canonical document record changed without rewriting the Soup view.
     assert!(changed.contains(&"GraphqlSoupDocument:doc-1".to_string()));
 
     // Original query now sees the new name everywhere.

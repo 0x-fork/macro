@@ -30,7 +30,11 @@ delete_document_worker = []
 graphql = [
   "dep:async-graphql",
   "dep:async-graphql-axum",
+  "dep:async-trait",
+  "dep:chat",
   "dep:complete_graph",
+  "dep:entity_mutation",
+  "dep:rootcause",
   "dep:soup_realtime",
 ]
 local = ["local_auth"]
@@ -44,6 +48,7 @@ analytics_client = { path = "../../crates/analytics_client" }
 anyhow = { workspace = true }
 async-graphql = { workspace = true, optional = true }
 async-graphql-axum = { version = "7.0.17", optional = true }
+async-trait = { workspace = true, optional = true }
 aws-sdk-dynamodb = { workspace = true }
 aws-sdk-s3 = { workspace = true }
 aws-sdk-secretsmanager = { workspace = true }
@@ -69,6 +74,7 @@ channels = { path = "../../crates/channels", features = [
   "inbound",
   "outbound",
 ] }
+chat = { path = "../../crates/chat", default-features = false, features = ["outbound"], optional = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 cloudfront_sign = { workspace = true }
@@ -92,6 +98,7 @@ entity_access = { path = "../../crates/entity_access", features = [
   "schema",
 ] }
 entity_access_management = { path = "../../crates/entity_access_management" }
+entity_mutation = { path = "../../crates/entity_mutation", optional = true }
 favorites = { path = "../../crates/favorites", features = [
   "inbound",
   "postgres",
@@ -159,6 +166,7 @@ rate_limit = { path = "../../crates/rate_limit", default-features = false, featu
 ] }
 rayon = "1.10.0"
 readonly_pool = { path = "../../crates/readonly_pool" }
+rootcause = { workspace = true, optional = true }
 redis = { workspace = true, features = [
   "aio",
   "cluster-async",

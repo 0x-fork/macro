@@ -3,15 +3,15 @@ fn soup_response_schema_exposes_frontend_fields() {
     let sdl = crate::build_schema().sdl();
 
     for expected in [
-        "type GraphqlSoupChannel {",
+        "type GraphqlSoupChannel implements GraphqlSoupEntity {",
         "organizationId: ID",
         "interactedAt: String",
         "isParticipant: Boolean!",
         "participantIds: [String!]!",
         "participants: [GraphqlSoupChannelParticipant!]!",
-        "latestMessage: GraphqlSoupChannelMessage",
-        "latestNonThreadMessage: GraphqlSoupChannelMessage",
-        "type GraphqlSoupEmailThread {",
+        "latestMessage: GraphqlSoupChannelMessagePreview",
+        "latestNonThreadMessage: GraphqlSoupChannelMessagePreview",
+        "type GraphqlSoupEmailThread implements GraphqlSoupEntity {",
         "providerId: String",
         "inboxVisible: Boolean!",
         "linkId: ID",
@@ -25,19 +25,68 @@ fn soup_response_schema_exposes_frontend_fields() {
         "bodyParsed: String",
         "bodyHtmlSanitized: String",
         "bodyReplyless: String",
-        "type GraphqlSoupCall {",
+        "type GraphqlSoupCall implements GraphqlSoupEntity {",
         "channelName: String",
         "customName: String",
         "status: String!",
         "participantIds: [String!]!",
         "participants: [GraphqlSoupCallParticipant!]!",
-        "type GraphqlSoupChat {",
+        "type GraphqlSoupChat implements GraphqlSoupEntity {",
         "deletedAt: String",
-        "type GraphqlSoupProject {",
+        "type GraphqlSoupProject implements GraphqlSoupEntity {",
         "type SoupSubscriptionRoot {",
         "soupUpdates: GraphqlSoupItem!",
     ] {
         assert_sdl_line(&sdl, expected);
+    }
+}
+
+#[test]
+fn soup_interface_is_intrinsic_while_composed_edges_stay_on_concrete_entities() {
+    use apollo_compiler::schema::ExtendedType;
+
+    let schema =
+        apollo_compiler::Schema::parse_and_validate(crate::build_schema().sdl(), "schema.graphql")
+            .expect("generated SDL is valid");
+    let ExtendedType::Interface(entity) = schema
+        .types
+        .get("GraphqlSoupEntity")
+        .expect("Soup entity interface exists")
+    else {
+        panic!("GraphqlSoupEntity must be an interface");
+    };
+
+    for intrinsic_field in ["id", "entityType", "displayName", "metadata"] {
+        assert!(
+            entity.fields.contains_key(intrinsic_field),
+            "Soup interface missing intrinsic field {intrinsic_field}"
+        );
+    }
+    for composed_field in ["content", "isFavorited", "viewerPermission"] {
+        assert!(
+            !entity.fields.contains_key(composed_field),
+            "Soup interface must not own composed field {composed_field}"
+        );
+    }
+
+    let ExtendedType::Object(document) = schema
+        .types
+        .get("GraphqlSoupDocument")
+        .expect("Soup document type exists")
+    else {
+        panic!("GraphqlSoupDocument must be an object");
+    };
+    for composed_field in [
+        "content",
+        "isFavorited",
+        "viewerPermission",
+        "properties",
+        "notifications",
+    ] {
+        assert!(
+            document.fields.contains_key(composed_field),
+            "Soup document missing composed field {composed_field}"
+        );
     }
 }
 

@@ -40,7 +40,13 @@ async fn graphql_handler(
     request_parts: Parts,
     request: GraphQLRequest,
 ) -> GraphQLResponse {
-    let request = graphql_query_context_data(request.into_inner(), &state, auth.macro_user_id);
+    let organization_id = auth.user_context.organization_id.map(i64::from);
+    let request = graphql_query_context_data(
+        request.into_inner(),
+        &state,
+        auth.macro_user_id,
+        organization_id,
+    );
     state
         .graphql_soup_schema
         .execute(request.data(GraphqlRequestParts::new(request_parts)))
@@ -86,6 +92,7 @@ fn graphql_query_context_data(
     req: async_graphql::Request,
     state: &ApiContext,
     macro_user_id: Option<MacroUserIdStr<'static>>,
+    organization_id: Option<i64>,
 ) -> async_graphql::Request {
     let req = req.data(state.clone());
 
@@ -106,8 +113,18 @@ fn graphql_query_context_data(
         state.soup_router_state.email_service(),
         state.entity_access_service.clone(),
     );
+    let content_reader = state.graphql_entity_content_reader.clone();
+    let favorite_reader: std::sync::Arc<dyn complete_graph::EntityFavoriteEdgeReader> =
+        state.favorites_service.clone();
+    let permission_reader: std::sync::Arc<dyn complete_graph::EntityPermissionEdgeReader> =
+        state.entity_access_service.clone();
+    let mutation_actor = entity_mutation::EntityMutationActor {
+        user_id: macro_user_id.clone(),
+        organization_id,
+    };
 
-    req.data(macro_user_id.clone())
+    req.data(mutation_actor)
+        .data(state.graphql_entity_mutation_service.clone())
         .data(complete_graph::entity_properties_loader(
             macro_user_id.clone(),
             property_reader,
@@ -115,6 +132,20 @@ fn graphql_query_context_data(
         .data(complete_graph::email_content_loader(
             macro_user_id.clone(),
             email_content_reader,
+        ))
+        .data(complete_graph::entity_content_loader(
+            macro_user_id.clone(),
+            organization_id,
+            content_reader,
+        ))
+        .data(complete_graph::entity_favorite_loader(
+            macro_user_id.clone(),
+            favorite_reader,
+        ))
+        .data(complete_graph::entity_permission_loader(
+            macro_user_id.clone(),
+            organization_id,
+            permission_reader,
         ))
         .data(property_writer)
         .data(complete_graph::entity_notifications_loader(

@@ -3,7 +3,7 @@ mod test;
 
 use std::{marker::PhantomData, sync::Arc};
 
-use async_graphql::{Context, Object, Schema, Subscription};
+use async_graphql::{Context, MergedObject, Object, Schema, Subscription};
 use axum::extract::FromRef;
 use email::{
     domain::ports::{EmailService, NoOpEmailService},
@@ -32,6 +32,22 @@ use soup_realtime::domain::ports::{
 };
 
 use crate::SoupEdges;
+use crate::mutations::EntityMutationRoot;
+
+/// Mutation root combining property-specific and capability-oriented entity
+/// mutations without coupling either domain adapter to the other.
+#[derive(MergedObject)]
+pub struct CompleteMutationRoot<W: EntityPropertyWriter>(
+    PropertiesMutationRoot<W>,
+    EntityMutationRoot,
+);
+
+impl<W: EntityPropertyWriter> CompleteMutationRoot<W> {
+    /// Construct the composed mutation root.
+    fn new() -> Self {
+        Self(PropertiesMutationRoot::<W>::new(), EntityMutationRoot)
+    }
+}
 
 /// GraphQL Soup schema type.
 ///
@@ -42,7 +58,7 @@ use crate::SoupEdges;
 /// and `ER` the email-content edge reader.
 pub type SoupSchema<S, R, E, EAS, Auth, St, W, NR, PR, ER> = Schema<
     SoupQueryRoot<S, E, EAS, Auth, St, NR, PR, ER>,
-    PropertiesMutationRoot<W>,
+    CompleteMutationRoot<W>,
     SoupSubscriptionRoot<R, Auth, St, NR, PR, ER>,
 >;
 
@@ -199,7 +215,7 @@ where
 {
     Schema::build(
         SoupQueryRoot::new(service),
-        PropertiesMutationRoot::<W>::new(),
+        CompleteMutationRoot::<W>::new(),
         SoupSubscriptionRoot::new(realtime_service),
     )
     .finish()
@@ -340,5 +356,21 @@ where
         input: SoupInput,
     ) -> async_graphql::Result<SoupPage<SoupEdges<NR, PR, ER>>> {
         resolve_soup::<S, E, EAS, Auth, St, SoupEdges<NR, PR, ER>>(&self.service, ctx, input).await
+    }
+
+    /// Fetch one canonical expanded entity independently of a Soup view.
+    async fn entity(
+        &self,
+        ctx: &Context<'_>,
+        entity_type: graphql_common::GraphqlSoupEntityType,
+        id: async_graphql::ID,
+    ) -> async_graphql::Result<Option<graphql_soup::GraphqlSoupEntity<SoupEdges<NR, PR, ER>>>> {
+        graphql_soup::resolve_entity::<S, E, EAS, Auth, St, SoupEdges<NR, PR, ER>>(
+            &self.service,
+            ctx,
+            entity_type,
+            id,
+        )
+        .await
     }
 }

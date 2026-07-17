@@ -1,11 +1,11 @@
 import { inspect, selectAll } from '@graphql-cache/exchange/inspection';
 import {
+  captureEmbedded,
   type OptimisticUpdate,
-  prependUnique,
+  prependUniqueEmbedded,
   type QueryRevalidation,
-  remove,
+  removeEmbedded,
   select,
-  update,
 } from '@graphql-cache/exchange/optimistic';
 import type { CacheHost } from '@graphql-cache/host/types';
 import {
@@ -125,14 +125,13 @@ export async function buildOptimisticGroupedPropertyUpdates(
   );
   const { removed, added } = changes;
   const updates: OptimisticUpdate[] = [];
-  const itemEntityKey = `GraphqlSoupItem:${args.entityId}`;
   for (const pages of views.values()) {
     const sourceGroupKeys = removed.length > 0 ? removed : args.oldGroupKeys;
     const sourcePages = pages.filter((page) =>
       sourceGroupKeys.some((key) =>
         page.bins
           .find((bin) => bin.key === key)
-          ?.items.some((item) => item.id === args.entityId)
+          ?.items.some((item) => item.entityId === args.entityId)
       )
     );
     if (sourcePages.length === 0) continue;
@@ -147,9 +146,21 @@ export async function buildOptimisticGroupedPropertyUpdates(
     if (added.length > 0 && destinationPages.length === 0) continue;
 
     for (const page of sourcePages) {
+      if (removed.length === 0) {
+        const items = select(GroupSoupMembershipDocument, {
+          input: page.input,
+        })
+          .field('user')
+          .field('groupSoup')
+          .field('bins')
+          .item('key', sourceGroupKeys[0]!)
+          .field('items');
+        updates.push(captureEmbedded(items, 'entityId', args.entityId));
+      }
       for (const key of removed) {
         const source = page.bins.find((bin) => bin.key === key);
-        if (!source?.items.some((item) => item.id === args.entityId)) continue;
+        if (!source?.items.some((item) => item.entityId === args.entityId))
+          continue;
         const items = select(GroupSoupMembershipDocument, {
           input: page.input,
         })
@@ -158,7 +169,7 @@ export async function buildOptimisticGroupedPropertyUpdates(
           .field('bins')
           .item('key', key)
           .field('items');
-        updates.push(update(items, remove(itemEntityKey)));
+        updates.push(removeEmbedded(items, 'entityId', args.entityId));
       }
     }
     for (const page of destinationPages) {
@@ -171,7 +182,7 @@ export async function buildOptimisticGroupedPropertyUpdates(
           .field('bins')
           .item('key', key)
           .field('items');
-        updates.push(update(items, prependUnique(itemEntityKey)));
+        updates.push(prependUniqueEmbedded(items, 'entityId', args.entityId));
       }
     }
   }
