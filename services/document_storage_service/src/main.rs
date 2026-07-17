@@ -895,13 +895,13 @@ async fn main() -> anyhow::Result<()> {
             channels_service.clone(),
             call_service.clone(),
             Arc::new(email_service.clone()),
+            project_service.clone(),
             entity_access_service.clone(),
             favorites_service.clone(),
             Arc::new(outbound::entity_mutation::DssEntityLifecycleAdapter::new(
                 db.clone(),
                 redis_sha_client.clone(),
                 sqs_client.clone(),
-                entity_access_management_service.clone(),
             )),
         ));
 
