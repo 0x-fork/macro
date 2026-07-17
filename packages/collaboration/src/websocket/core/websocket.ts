@@ -13,7 +13,6 @@ import {
   WebsocketEvent,
   type WebsocketEventListener,
   type WebsocketEventListenerOptions,
-  type WebsocketEventListeners,
   type WebsocketEventListenerWithOptions,
   type WebsocketEventMap,
   type WebsocketEventUnion,
