@@ -498,23 +498,35 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
     type: K,
     event: WebsocketEventMap<Receive>[K]
   ) {
+    // Snapshot who's registered before invoking anyone, so this dispatch's
+    // once-cleanup only ever removes listeners that were actually notified.
     const eventListeners: WebsocketEventListeners<Send, Receive>[K] =
       this._options.listeners[type];
-    const newEventListeners: WebsocketEventListeners<Send, Receive>[K] = [];
+    const onceListeners = new Set(
+      eventListeners
+        .filter(({ options }) => options?.once)
+        .map(({ listener }) => listener)
+    );
 
-    eventListeners.forEach(({ listener, options }) => {
-      listener(this, event); // invoke listener with event
-
-      if (
-        options === undefined ||
-        options.once === undefined ||
-        !options.once
-      ) {
-        newEventListeners.push({ listener, options }); // only keep listener if it isn't a once-listener
-      }
+    eventListeners.forEach(({ listener }) => {
+      listener(this, event); // invoke listener with event; it may call
+      // removeEventListener on itself or another listener, mutating
+      // this._options.listeners[type] directly
     });
 
-    this._options.listeners[type] = newEventListeners; // replace old listeners with new listeners that don't include once-listeners
+    if (onceListeners.size > 0) {
+      // Apply once-removal on top of the *current* listener list rather than
+      // rebuilding it from the pre-dispatch snapshot — otherwise any
+      // removeEventListener call made by a listener during this dispatch
+      // (e.g. a self-removing non-once listener) would be silently undone.
+      (this._options.listeners[type] as WebsocketEventListenerWithOptions<
+        K,
+        Send,
+        Receive
+      >[]) = this._options.listeners[type].filter(
+        ({ listener }) => !onceListeners.has(listener)
+      );
+    }
   }
 
   /**

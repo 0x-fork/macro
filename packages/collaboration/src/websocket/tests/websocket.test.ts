@@ -410,11 +410,12 @@ describe('Testsuite for Websocket', () => {
         expect(
           getListenersWithOptions(client, WebsocketEvent.Open)
         ).toHaveLength(1); // since the initial listener was a 'once'-listener, this should be empty
+        const reopened = untilEvent(client!, WebsocketEvent.Open);
         server?.clients.forEach((c: WsWebSocket) => c.close());
 
-        // wait for the client to reconnect after 100ms
+        // wait for the client to reconnect, then for its 'open' handler to fire
         await waitForClientToConnectToServer(server, clientTimeout);
-        await new Promise((resolve) => setTimeout(resolve, 100)); // wait some extra time for client-side event to be fired
+        await reopened;
         expect(timesOpenFired).toBe(2);
         expect(
           getListenersWithOptions(client, WebsocketEvent.Open)
