@@ -8,6 +8,7 @@ use entity_access::domain::models::{
 };
 use entity_access_management::domain::ports::EntityAccessManagementService;
 use futures::stream::{FuturesUnordered, StreamExt};
+use macro_event_broker::MacroEventBroker;
 use macro_user_id::user_id::MacroUserIdStr;
 use model::folder::{UploadFolderRequest, UploadFolderResponseData};
 use model::item::{Item, ItemWithUserAccessLevel};
@@ -24,6 +25,11 @@ use s3_key::BulkUploadStagingKey;
 use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
+use super::events::{
+    ProjectCreatedMetadata, ProjectDeletedMetadata, ProjectMacroEvent,
+    ProjectPermanentlyDeletedMetadata, ProjectRestoredMetadata, ProjectUpdatedMetadata,
+    ProjectUploadedMetadata,
+};
 use super::models::{
     CreateProjectArgs, EditProjectArgs, ProjectError, SoftDeleteResult, UploadFolderRepoArgs,
 };
@@ -38,8 +44,19 @@ mod tests;
 
 const MAX_PROJECT_NAME_GRAPHEMES: usize = 100;
 
+/// The user id to attribute a project lifecycle event to, when the caller is an
+/// authenticated user.
+fn event_actor_user_id(auth: &EntityAccessAuth) -> Option<MacroUserIdStr<'static>> {
+    match auth {
+        EntityAccessAuth::Authenticated(user_id) => Some(user_id.clone()),
+        EntityAccessAuth::Bot(_)
+        | EntityAccessAuth::Unauthenticated
+        | EntityAccessAuth::Internal => None,
+    }
+}
+
 /// Concrete project service backed by repository and external-system ports.
-pub struct ProjectServiceImpl<R, U, D, Sha, Eam, Idx>
+pub struct ProjectServiceImpl<R, U, D, Sha, Eam, Idx, B>
 where
     R: ProjectRepo,
     U: ProjectUploadUrlPort,
@@ -47,6 +64,7 @@ where
     Sha: ShaCounterPort,
     Eam: EntityAccessManagementService,
     Idx: ProjectSearchIndexer,
+    B: MacroEventBroker,
 {
     /// Project repository.
     pub repo: R,
@@ -60,11 +78,13 @@ where
     pub entity_access_management_service: Eam,
     /// Search and deletion queue publisher.
     pub search_indexer: Idx,
+    /// Project lifecycle event broker.
+    pub macro_event_broker: B,
     /// Optional deterministic upload request ID used by local development.
     pub fixed_upload_request_id: Option<Uuid>,
 }
 
-impl<R, U, D, Sha, Eam, Idx> ProjectServiceImpl<R, U, D, Sha, Eam, Idx>
+impl<R, U, D, Sha, Eam, Idx, B> ProjectServiceImpl<R, U, D, Sha, Eam, Idx, B>
 where
     R: ProjectRepo,
     U: ProjectUploadUrlPort,
@@ -72,6 +92,7 @@ where
     Sha: ShaCounterPort,
     Eam: EntityAccessManagementService,
     Idx: ProjectSearchIndexer,
+    B: MacroEventBroker,
 {
     /// Create a project service from its repository and external-system ports.
     #[allow(clippy::too_many_arguments)]
@@ -83,6 +104,7 @@ where
         entity_access_management_service: Eam,
         search_indexer: Idx,
         fixed_upload_request_id: Option<Uuid>,
+        macro_event_broker: B,
     ) -> Self {
         Self {
             repo,
@@ -91,8 +113,19 @@ where
             sha_counter,
             entity_access_management_service,
             search_indexer,
+            macro_event_broker,
             fixed_upload_request_id,
         }
+    }
+
+    /// Publish a project lifecycle event; failures are logged and dropped.
+    fn publish_project_event(&self, event: &ProjectMacroEvent) {
+        let _ = self
+            .macro_event_broker
+            .send_event(event)
+            .inspect_err(|error| {
+                tracing::error!(error=?error, "failed to publish project event");
+            });
     }
 
     async fn bump_project_modified(&self, project_id: &str) {
@@ -121,7 +154,7 @@ where
     }
 }
 
-impl<R, U, D, Sha, Eam, Idx> ProjectService for ProjectServiceImpl<R, U, D, Sha, Eam, Idx>
+impl<R, U, D, Sha, Eam, Idx, B> ProjectService for ProjectServiceImpl<R, U, D, Sha, Eam, Idx, B>
 where
     R: ProjectRepo,
     U: ProjectUploadUrlPort,
@@ -129,6 +162,7 @@ where
     Sha: ShaCounterPort,
     Eam: EntityAccessManagementService,
     Idx: ProjectSearchIndexer,
+    B: MacroEventBroker,
 {
     async fn list_projects(
         &self,
@@ -334,6 +368,17 @@ where
             self.bump_project_modified(&parent_id.to_string()).await;
         }
 
+        self.publish_project_event(&ProjectMacroEvent::created(
+            project.id.clone(),
+            ProjectCreatedMetadata {
+                project_id: project.id.clone(),
+                owner: actor,
+                name: project.name.clone(),
+                parent_project_id: project.parent_id.clone(),
+                created_at: project.created_at,
+            },
+        ));
+
         Ok(project)
     }
 
@@ -349,6 +394,10 @@ where
         if let Some(name) = args.name.as_deref() {
             validate_project_name(name)?;
         }
+
+        let requested_name = args.name.clone();
+        let requested_parent_id = args.project_parent_id.clone();
+        let share_permission_updated = args.share_permission.is_some();
 
         let is_owner = receipt_is_owner(&receipt);
         if args.project_parent_id.is_some() && !is_owner {
@@ -429,6 +478,20 @@ where
             self.bump_project_modified(parent_id).await;
         }
 
+        let project_id = receipt.entity().entity_id.clone();
+        self.publish_project_event(&ProjectMacroEvent::updated(
+            project_id.clone(),
+            ProjectUpdatedMetadata {
+                project_id,
+                owner: project.user_id,
+                actor_user_id: event_actor_user_id(receipt.auth()),
+                name: requested_name,
+                previous_parent_id: project.parent_id,
+                parent_id: requested_parent_id,
+                share_permission_updated,
+            },
+        ));
+
         Ok(())
     }
 
@@ -457,12 +520,27 @@ where
             self.bump_project_modified(parent_id).await;
         }
 
+        let project_id = receipt.entity().entity_id.clone();
+        self.publish_project_event(&ProjectMacroEvent::deleted(
+            project_id.clone(),
+            ProjectDeletedMetadata {
+                project_id,
+                owner: project.user_id,
+                actor_user_id: event_actor_user_id(receipt.auth()),
+                parent_project_id: project.parent_id,
+                deleted_project_ids: deleted.project_ids.clone(),
+                deleted_document_ids: deleted.document_ids.clone(),
+                deleted_chat_ids: deleted.chat_ids.clone(),
+            },
+        ));
+
         Ok(deleted)
     }
 
     async fn permanently_delete_project(
         &self,
         receipt: EntityAccessReceipt<OwnerAccessLevel>,
+        project: BasicProject,
     ) -> Result<(), ProjectError> {
         let purged = self
             .repo
@@ -476,6 +554,14 @@ where
                 .await
                 .map_err(|error| internal_error(error, "unable to update document references"))?;
         }
+
+        let purged_project_ids = purged.project_ids.clone();
+        let purged_chat_ids = purged.chat_ids.clone();
+        let purged_document_ids = purged
+            .documents
+            .iter()
+            .map(|(document_id, _)| document_id.clone())
+            .collect::<Vec<_>>();
 
         if !purged.project_ids.is_empty() {
             let _ = self
@@ -492,14 +578,9 @@ where
                 .inspect_err(|error| tracing::error!(error = ?error, "unable to enqueue purged chats for search"));
         }
         if !purged.documents.is_empty() {
-            let document_ids = purged
-                .documents
-                .iter()
-                .map(|(document_id, _)| document_id.clone())
-                .collect();
             let _ = self
                 .search_indexer
-                .remove_documents(document_ids)
+                .remove_documents(purged_document_ids.clone())
                 .await
                 .inspect_err(|error| tracing::error!(error = ?error, "unable to enqueue purged documents for search"));
             let _ = self
@@ -511,6 +592,20 @@ where
                 );
         }
 
+        let project_id = receipt.entity().entity_id.clone();
+        self.publish_project_event(&ProjectMacroEvent::permanently_deleted(
+            project_id.clone(),
+            ProjectPermanentlyDeletedMetadata {
+                project_id,
+                owner: project.user_id,
+                actor_user_id: event_actor_user_id(receipt.auth()),
+                parent_project_id: project.parent_id,
+                purged_project_ids,
+                purged_document_ids,
+                purged_chat_ids,
+            },
+        ));
+
         Ok(())
     }
 
@@ -519,21 +614,35 @@ where
         receipt: EntityAccessReceipt<OwnerAccessLevel>,
         project: BasicProject,
     ) -> Result<(), ProjectError> {
+        let parent_project_id = project.parent_id.clone();
         let restored = self
             .repo
-            .revert_delete_project(&receipt.entity().entity_id, project.parent_id)
+            .revert_delete_project(&receipt.entity().entity_id, parent_project_id.clone())
             .await
             .map_err(|error| internal_error(error, "unable to revert project"))?;
 
         if !restored.project_ids.is_empty() {
             let _ = self
                 .search_indexer
-                .upsert_projects(restored.project_ids)
+                .upsert_projects(restored.project_ids.clone())
                 .await
                 .inspect_err(|error| {
                     tracing::error!(error = ?error, "unable to enqueue restored projects for search");
                 });
         }
+
+        let project_id = receipt.entity().entity_id.clone();
+        self.publish_project_event(&ProjectMacroEvent::restored(
+            project_id.clone(),
+            ProjectRestoredMetadata {
+                project_id,
+                owner: project.user_id,
+                actor_user_id: event_actor_user_id(receipt.auth()),
+                parent_project_id,
+                restored_project_ids: restored.project_ids,
+            },
+        ));
+
         Ok(())
     }
 
@@ -636,10 +745,26 @@ where
         &self,
         root_project_id: &str,
     ) -> Result<Vec<String>, ProjectError> {
-        self.repo
+        let uploaded_tree = self
+            .repo
             .mark_projects_uploaded(root_project_id)
             .await
-            .map_err(|error| internal_error(error, "unable to mark projects uploaded"))
+            .map_err(|error| internal_error(error, "unable to mark projects uploaded"))?;
+
+        if uploaded_tree.upload_pending_transitioned {
+            self.publish_project_event(&ProjectMacroEvent::uploaded(
+                uploaded_tree.id.clone(),
+                ProjectUploadedMetadata {
+                    root_project_id: uploaded_tree.id,
+                    owner: uploaded_tree.user_id,
+                    name: uploaded_tree.name,
+                    parent_project_id: uploaded_tree.parent_id,
+                    project_ids: uploaded_tree.project_ids.clone(),
+                },
+            ));
+        }
+
+        Ok(uploaded_tree.project_ids)
     }
 
     async fn get_batch_preview(
