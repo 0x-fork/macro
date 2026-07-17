@@ -17,6 +17,11 @@ type SeedManifest = {
       id: string;
       name: string;
       message: string;
+      deepThread: {
+        parentMessageId: string;
+        targetReplyId: string;
+        targetReplyText: string;
+      };
     };
   };
 };
@@ -167,5 +172,6 @@ export const localE2ESeed = {
       ),
       `message ${manifest.channels.general.message}`
     ),
+    generalDeepThread: manifest.channels.general.deepThread,
   },
 } as const;

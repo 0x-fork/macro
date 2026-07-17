@@ -24,3 +24,65 @@ SELECT
     now() + (message_number || ' milliseconds')::interval
 FROM local_e2e_channels AS channel
 CROSS JOIN generate_series(1, 5000) AS message_number;
+
+INSERT INTO comms_messages (
+    id,
+    channel_id,
+    sender_id,
+    content,
+    created_at,
+    updated_at
+)
+VALUES (
+    '00000000-0000-0000-0003-000000000001'::uuid,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'macro|bob@example.com',
+    'Deep thread navigation fixture parent',
+    now() - interval '1 day',
+    now() - interval '1 day'
+);
+
+WITH deep_thread_replies AS (
+    SELECT
+        reply_number,
+        (
+            '00000000-0000-0000-0003-'
+            || lpad((reply_number + 1)::text, 12, '0')
+        )::uuid AS id,
+        CASE
+            WHEN reply_number = 5 THEN 'Deep thread target reply'
+            ELSE (
+                SELECT string_agg(
+                    format(
+                        'Tall thread reply %s, paragraph %s. This fixture deliberately occupies enough vertical space to expose reply navigation that races the outer virtualizer measurement.',
+                        reply_number,
+                        paragraph_number
+                    ),
+                    E'\n\n' ORDER BY paragraph_number
+                )
+                FROM generate_series(1, 24) AS paragraph(paragraph_number)
+            )
+        END AS content
+    FROM generate_series(1, 5) AS reply(reply_number)
+)
+INSERT INTO comms_messages (
+    id,
+    channel_id,
+    sender_id,
+    content,
+    thread_id,
+    created_at,
+    updated_at
+)
+SELECT
+    id,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    CASE
+        WHEN reply_number % 2 = 0 THEN 'macro|charlie@example.com'
+        ELSE 'macro|bob@example.com'
+    END,
+    content,
+    '00000000-0000-0000-0003-000000000001'::uuid,
+    now() - interval '1 day' + (reply_number || ' seconds')::interval,
+    now() - interval '1 day' + (reply_number || ' seconds')::interval
+FROM deep_thread_replies;

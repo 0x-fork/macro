@@ -48,6 +48,11 @@ export type ThreadProps = {
   /** One-shot scroll target. Caller must clear via `onTargetReplyScrolled`. */
   targetReplyId?: string;
   onTargetReplyScrolled?: (replyId: string) => void;
+  /** Positions a nested reply through the outer virtualizer. */
+  positionTargetReply?: (
+    threadRow: HTMLElement,
+    targetReply: HTMLElement
+  ) => boolean;
   /** Navigation target reply */
   activeTargetReplyId?: string;
   /** The unified input's reply binding */

@@ -219,17 +219,6 @@ export function ChannelThread(props: ThreadProps) {
     )
   );
 
-  createEffect(
-    on(
-      [() => props.targetReplyId, displayReplies, props.isExpanded],
-      ([targetReplyId, rendered, isExpanded]) => {
-        if (!targetReplyId || isExpanded) return;
-        if (rendered.some((r) => r.id === targetReplyId)) return;
-        props.setIsExpanded(true);
-      }
-    )
-  );
-
   // this stops re-scrolling to the same target
   let lastScrolledReplyId: string | undefined;
   createEffect(
@@ -242,6 +231,7 @@ export function ChannelThread(props: ThreadProps) {
       ],
       ([targetReplyId, handle, canScroll, isExpanded]) => {
         if (!targetReplyId) {
+          handle?.cancelScroll();
           lastScrolledReplyId = undefined;
           return;
         }
@@ -255,9 +245,15 @@ export function ChannelThread(props: ThreadProps) {
         const index = replies.findIndex((r) => r.id === targetReplyId);
         if (index === -1) return;
 
-        if (!handle.scrollToIndex(index)) return;
-        lastScrolledReplyId = targetReplyId;
-        props.onTargetReplyScrolled?.(targetReplyId);
+        if (
+          !handle.scrollToIndex(index, () => {
+            if (props.targetReplyId !== targetReplyId) return;
+            lastScrolledReplyId = targetReplyId;
+            props.onTargetReplyScrolled?.(targetReplyId);
+          })
+        ) {
+          return;
+        }
       }
     )
   );
@@ -315,6 +311,10 @@ export function ChannelThread(props: ThreadProps) {
                       participants={props.participants}
                       isNewMessage={props.isNewMessage}
                       onReady={setReplyListHandle}
+                      positionTarget={(threadRow, targetReply) =>
+                        props.positionTargetReply?.(threadRow, targetReply) ??
+                        false
+                      }
                       selectedReplyId={replySelection.selectedId}
                       targetedReplyId={() =>
                         props.activeTargetReplyId ??

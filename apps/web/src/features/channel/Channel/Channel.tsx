@@ -53,6 +53,7 @@ import {
   useAddReactionMutation,
   useRemoveReactionMutation,
 } from '@queries/channel/reaction';
+import { threadRepliesQueryOptions } from '@queries/channel/thread-replies';
 import { usePostTypingUpdateMutation } from '@queries/channel/typing';
 import { queryClient } from '@queries/client';
 import { useBeforeLeave } from '@solidjs/router';
@@ -220,6 +221,13 @@ export function Channel(props: ChannelProps) {
 
   const messages = createMemo(() => [...messageIndex.items]);
   const messageById = () => messageIndex.byId;
+  const keepMountedTargetThreadIndexes = createMemo(() => {
+    const threadId = targetMessageController.activeTargetMessageId();
+    if (!threadId || !targetMessageController.pendingTargetReplyId()) return [];
+
+    const index = messageIndex.keys.indexOf(threadId);
+    return index === -1 ? [] : [index];
+  });
 
   const participants = useChannelParticipants(() => props.channelId);
 
@@ -259,6 +267,22 @@ export function Channel(props: ChannelProps) {
   const threadManager = createThreadManager(
     props.initialMessagesStateSnapshot?.threads
   );
+
+  const prepareTargetReply = (threadId: string) => {
+    // Expand before the virtualized row mounts so navigation never presents a
+    // collapsed parent and then grows it in the viewport.
+    threadManager.getOrCreateThreadState(threadId).setIsExpanded(true);
+    // Reply data and the load-around message window can load in parallel. The
+    // mounted query reuses this request and remains the owner of render state.
+    void queryClient.prefetchQuery(
+      threadRepliesQueryOptions(props.channelId, threadId)
+    );
+  };
+
+  if (props.targetMessageId && props.targetMessageReplyId) {
+    prepareTargetReply(props.targetMessageId);
+  }
+
   const threadPaginator = createThreadPaginator(messagesQuery);
   const messageEditor = createMessageEditor({
     channelId: () => props.channelId,
@@ -422,6 +446,7 @@ export function Channel(props: ChannelProps) {
   const goToMessage: ChannelHandle['goToMessage'] = (messageId, replyId) => {
     if (replyId) {
       clearSelection();
+      prepareTargetReply(messageId);
     } else {
       selectMessage(messageId);
     }
@@ -615,6 +640,7 @@ export function Channel(props: ChannelProps) {
                       <ThreadList
                         keys={() => messageIndex.keys}
                         initialScrollTarget={threadListInitialScrollTarget()}
+                        keepMounted={keepMountedTargetThreadIndexes}
                         fullFrameScrollInsets={threadListScrollInsets}
                         shift={shift}
                         prepend={threadPaginator.isPrepending}
@@ -646,7 +672,11 @@ export function Channel(props: ChannelProps) {
                                   isNewestThread={isNewestThread()}
                                   getMessageActions={getMessageActions}
                                   targetThreadId={targetMessageController.activeTargetMessageId()}
-                                  targetReplyId={targetMessageController.pendingTargetReplyId()}
+                                  targetReplyId={
+                                    targetMessageController.pendingScrollTargetId()
+                                      ? undefined
+                                      : targetMessageController.pendingTargetReplyId()
+                                  }
                                   activeTargetReplyId={targetMessageController.activeTargetMessageReplyId()}
                                   unifiedReplyTarget={unifiedInput.replyTarget()}
                                   onTargetReplyScrolled={(replyId) => {
@@ -655,6 +685,16 @@ export function Channel(props: ChannelProps) {
                                       replyId
                                     );
                                   }}
+                                  positionTargetReply={(
+                                    threadRow,
+                                    targetReply
+                                  ) =>
+                                    threadListNavigation()?.scrollToElementInItem(
+                                      m().id,
+                                      threadRow,
+                                      targetReply
+                                    ) ?? false
+                                  }
                                   isExpanded={state.isExpanded}
                                   setIsExpanded={state.setIsExpanded}
                                   isReplying={state.isReplying}

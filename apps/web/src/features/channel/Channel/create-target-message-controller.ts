@@ -106,7 +106,11 @@ export function createTargetMessageController(
         // true the effect re-fires and executes the scroll.
         if (!didInitialScroll) return;
 
-        if (!navigation.scrollToId(pendingTargetId)) return;
+        // A nested target's parent is kept mounted by Channel. Scrolling the
+        // collapsed-sized parent first creates a visible intermediate landing;
+        // let the measured reply perform the only viewport movement instead.
+        const nestedTarget = !!targetMessageData['pendingTargetReplyId'];
+        if (!nestedTarget && !navigation.scrollToId(pendingTargetId)) return;
 
         const restoredDefaultPagination =
           restoreDefaultChannelPaginationAfterTargetLoad(

@@ -12,7 +12,12 @@
     "general": {
       "id": "00000000-0000-0000-0000-000000000001",
       "name": "general",
-      "message": "Welcome to the general channel everyone!"
+      "message": "Welcome to the general channel everyone!",
+      "deepThread": {
+        "parentMessageId": "00000000-0000-0000-0003-000000000001",
+        "targetReplyId": "00000000-0000-0000-0003-000000000006",
+        "targetReplyText": "Deep thread target reply"
+      }
     }
   }
 }

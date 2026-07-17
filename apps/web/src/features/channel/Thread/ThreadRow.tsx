@@ -23,7 +23,7 @@ export function ThreadRow(props: ThreadRowProps) {
       : undefined;
 
   return (
-    <div class="w-full flex justify-center">
+    <div data-channel-thread-row class="w-full flex justify-center">
       <div class="macro-message-width w-full relative">
         <Show when={channelCreatedId()}>
           {(id) => <ChannelCreatedIndicator channelId={id()} />}
