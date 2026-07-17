@@ -4,6 +4,7 @@ use async_graphql::{Context, dataloader::DataLoader};
 use favorites::domain::ports::FavoritesService;
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::EntityType;
+use rootcause::markers::{Cloneable, Dynamic};
 
 #[cfg(test)]
 mod test;
@@ -17,19 +18,17 @@ pub struct EntityFavoriteKey {
     pub entity_id: String,
 }
 
-/// Object-safe favorites reader used by GraphQL entity edges.
-#[async_trait::async_trait]
+/// Favorites reader used by GraphQL entity edges.
 pub trait EntityFavoriteEdgeReader: Send + Sync + 'static {
     /// Resolve favorite state for the requested entities.
-    async fn get_entity_favorites(
-        &self,
-        user_id: &MacroUserIdStr<'static>,
+    fn get_entity_favorites<'a>(
+        &'a self,
+        user_id: &'a MacroUserIdStr<'static>,
         keys: Vec<EntityFavoriteKey>,
-    ) -> Result<HashMap<EntityFavoriteKey, bool>, rootcause::Report>;
+    ) -> impl Future<Output = Result<HashMap<EntityFavoriteKey, bool>, rootcause::Report>> + Send + 'a;
 }
 
-#[async_trait::async_trait]
-impl<T> EntityFavoriteEdgeReader for T
+impl<T> EntityFavoriteEdgeReader for Arc<T>
 where
     T: FavoritesService,
 {
@@ -58,27 +57,41 @@ where
     }
 }
 
+/// Favorites reader used by schema-only GraphQL construction.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NoOpEntityFavoriteEdgeReader;
+
+impl EntityFavoriteEdgeReader for NoOpEntityFavoriteEdgeReader {
+    async fn get_entity_favorites(
+        &self,
+        _user_id: &MacroUserIdStr<'static>,
+        keys: Vec<EntityFavoriteKey>,
+    ) -> Result<HashMap<EntityFavoriteKey, bool>, rootcause::Report> {
+        Ok(keys.into_iter().map(|key| (key, false)).collect())
+    }
+}
+
 /// Request-scoped DataLoader for current-viewer favorite state.
-pub struct EntityFavoriteLoader {
+pub struct EntityFavoriteLoader<R> {
     /// Authenticated viewer whose favorite state is requested.
     user_id: MacroUserIdStr<'static>,
     /// Domain-facing reader that resolves favorite state.
-    reader: Arc<dyn EntityFavoriteEdgeReader>,
+    reader: R,
 }
 
-impl EntityFavoriteLoader {
+impl<R> EntityFavoriteLoader<R> {
     /// Construct a favorite loader for one authenticated viewer.
-    pub fn new(
-        user_id: MacroUserIdStr<'static>,
-        reader: Arc<dyn EntityFavoriteEdgeReader>,
-    ) -> Self {
+    pub fn new(user_id: MacroUserIdStr<'static>, reader: R) -> Self {
         Self { user_id, reader }
     }
 }
 
-impl async_graphql::dataloader::Loader<EntityFavoriteKey> for EntityFavoriteLoader {
+impl<R> async_graphql::dataloader::Loader<EntityFavoriteKey> for EntityFavoriteLoader<R>
+where
+    R: EntityFavoriteEdgeReader,
+{
     type Value = bool;
-    type Error = Arc<rootcause::Report>;
+    type Error = rootcause::Report<Dynamic, Cloneable>;
 
     async fn load(
         &self,
@@ -102,18 +115,24 @@ impl async_graphql::dataloader::Loader<EntityFavoriteKey> for EntityFavoriteLoad
 }
 
 /// Build a favorite DataLoader scoped to the authenticated viewer.
-pub fn entity_favorite_loader(
+pub fn entity_favorite_loader<R>(
     user_id: MacroUserIdStr<'static>,
-    reader: Arc<dyn EntityFavoriteEdgeReader>,
-) -> DataLoader<EntityFavoriteLoader> {
+    reader: R,
+) -> DataLoader<EntityFavoriteLoader<R>>
+where
+    R: EntityFavoriteEdgeReader,
+{
     DataLoader::new(EntityFavoriteLoader::new(user_id, reader), tokio::spawn)
 }
 
 /// Resolve favorite state from GraphQL request data.
-pub async fn load_entity_favorite(
+pub async fn load_entity_favorite<R>(
     ctx: &Context<'_>,
     key: EntityFavoriteKey,
-) -> async_graphql::Result<bool> {
-    let loader = ctx.data::<DataLoader<EntityFavoriteLoader>>()?;
+) -> async_graphql::Result<bool>
+where
+    R: EntityFavoriteEdgeReader,
+{
+    let loader = ctx.data::<DataLoader<EntityFavoriteLoader<R>>>()?;
     Ok(loader.load_one(key).await?.unwrap_or(false))
 }

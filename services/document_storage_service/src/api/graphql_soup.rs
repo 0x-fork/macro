@@ -113,10 +113,8 @@ fn graphql_query_context_data(
         state.soup_router_state.email_service(),
         state.entity_access_service.clone(),
     );
-    let favorite_reader: std::sync::Arc<dyn complete_graph::EntityFavoriteEdgeReader> =
-        state.favorites_service.clone();
-    let permission_reader: std::sync::Arc<dyn complete_graph::EntityPermissionEdgeReader> =
-        state.entity_access_service.clone();
+    let favorite_reader = state.favorites_service.clone();
+    let permission_reader = state.entity_access_service.clone();
     let mutation_actor = entity_mutation::EntityMutationActor {
         user_id: macro_user_id.clone(),
         organization_id,

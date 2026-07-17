@@ -8,6 +8,7 @@ use entity_access::domain::{
 use futures::{StreamExt, stream};
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::EntityType;
+use rootcause::markers::{Cloneable, Dynamic};
 
 /// Identity used to resolve the requesting user's permission for an entity.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -155,21 +156,22 @@ impl From<EntityPermission> for GraphqlEntityPermission {
     }
 }
 
-/// Object-safe permission reader used by GraphQL entity edges.
-#[async_trait::async_trait]
+/// Permission reader used by GraphQL entity edges.
 pub trait EntityPermissionEdgeReader: Send + Sync + 'static {
     /// Resolve permissions for the requested entities. Missing or inaccessible
     /// entities map to `None` instead of leaking their existence.
-    async fn get_entity_permissions(
-        &self,
-        user_id: &MacroUserIdStr<'static>,
+    fn get_entity_permissions<'a>(
+        &'a self,
+        user_id: &'a MacroUserIdStr<'static>,
         organization_id: Option<i64>,
         keys: Vec<EntityPermissionKey>,
-    ) -> Result<HashMap<EntityPermissionKey, Option<EntityPermission>>, rootcause::Report>;
+    ) -> impl Future<
+        Output = Result<HashMap<EntityPermissionKey, Option<EntityPermission>>, rootcause::Report>,
+    > + Send
+    + 'a;
 }
 
-#[async_trait::async_trait]
-impl<T> EntityPermissionEdgeReader for T
+impl<T> EntityPermissionEdgeReader for Arc<T>
 where
     T: EntityAccessService,
 {
@@ -217,23 +219,34 @@ where
     }
 }
 
+/// Permission reader used by schema-only GraphQL construction.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NoOpEntityPermissionEdgeReader;
+
+impl EntityPermissionEdgeReader for NoOpEntityPermissionEdgeReader {
+    async fn get_entity_permissions(
+        &self,
+        _user_id: &MacroUserIdStr<'static>,
+        _organization_id: Option<i64>,
+        keys: Vec<EntityPermissionKey>,
+    ) -> Result<HashMap<EntityPermissionKey, Option<EntityPermission>>, rootcause::Report> {
+        Ok(keys.into_iter().map(|key| (key, None)).collect())
+    }
+}
+
 /// Request-scoped DataLoader for current-viewer entity permissions.
-pub struct EntityPermissionLoader {
+pub struct EntityPermissionLoader<R> {
     /// Authenticated viewer whose permissions are requested.
     user_id: MacroUserIdStr<'static>,
     /// Organization context used when resolving permissions.
     organization_id: Option<i64>,
     /// Domain-facing reader that resolves effective access.
-    reader: Arc<dyn EntityPermissionEdgeReader>,
+    reader: R,
 }
 
-impl EntityPermissionLoader {
+impl<R> EntityPermissionLoader<R> {
     /// Construct a permission loader for one authenticated viewer.
-    pub fn new(
-        user_id: MacroUserIdStr<'static>,
-        organization_id: Option<i64>,
-        reader: Arc<dyn EntityPermissionEdgeReader>,
-    ) -> Self {
+    pub fn new(user_id: MacroUserIdStr<'static>, organization_id: Option<i64>, reader: R) -> Self {
         Self {
             user_id,
             organization_id,
@@ -242,9 +255,12 @@ impl EntityPermissionLoader {
     }
 }
 
-impl async_graphql::dataloader::Loader<EntityPermissionKey> for EntityPermissionLoader {
+impl<R> async_graphql::dataloader::Loader<EntityPermissionKey> for EntityPermissionLoader<R>
+where
+    R: EntityPermissionEdgeReader,
+{
     type Value = Option<EntityPermission>;
-    type Error = Arc<rootcause::Report>;
+    type Error = rootcause::Report<Dynamic, Cloneable>;
 
     async fn load(
         &self,
@@ -253,16 +269,19 @@ impl async_graphql::dataloader::Loader<EntityPermissionKey> for EntityPermission
         self.reader
             .get_entity_permissions(&self.user_id, self.organization_id, keys.to_vec())
             .await
-            .map_err(Arc::new)
+            .map_err(|error| error.into_cloneable())
     }
 }
 
 /// Build a permission DataLoader scoped to the authenticated viewer.
-pub fn entity_permission_loader(
+pub fn entity_permission_loader<R>(
     user_id: MacroUserIdStr<'static>,
     organization_id: Option<i64>,
-    reader: Arc<dyn EntityPermissionEdgeReader>,
-) -> DataLoader<EntityPermissionLoader> {
+    reader: R,
+) -> DataLoader<EntityPermissionLoader<R>>
+where
+    R: EntityPermissionEdgeReader,
+{
     DataLoader::new(
         EntityPermissionLoader::new(user_id, organization_id, reader),
         tokio::spawn,
@@ -270,10 +289,13 @@ pub fn entity_permission_loader(
 }
 
 /// Resolve a typed current-viewer permission from GraphQL request data.
-pub async fn load_entity_permission(
+pub async fn load_entity_permission<R>(
     ctx: &Context<'_>,
     key: EntityPermissionKey,
-) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-    let loader = ctx.data::<DataLoader<EntityPermissionLoader>>()?;
+) -> async_graphql::Result<Option<GraphqlEntityPermission>>
+where
+    R: EntityPermissionEdgeReader,
+{
+    let loader = ctx.data::<DataLoader<EntityPermissionLoader<R>>>()?;
     Ok(loader.load_one(key).await?.flatten().map(Into::into))
 }

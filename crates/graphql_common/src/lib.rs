@@ -28,14 +28,15 @@ pub use authorization::require_authorized_user;
 pub use entity_type::{GraphqlEntityType, GraphqlSoupEntityType};
 pub use extract::extract_part;
 pub use favorite::{
-    EntityFavoriteEdgeReader, EntityFavoriteKey, EntityFavoriteLoader, entity_favorite_loader,
-    load_entity_favorite,
+    EntityFavoriteEdgeReader, EntityFavoriteKey, EntityFavoriteLoader,
+    NoOpEntityFavoriteEdgeReader, entity_favorite_loader, load_entity_favorite,
 };
 pub use filter_input::{IntoFilterExpr, optional_tree, parse_id, parse_macro_user_id, parse_uuid};
 pub use permission::{
     EntityPermissionEdgeReader, EntityPermissionKey, EntityPermissionLoader,
     GraphqlChannelParticipantRole, GraphqlEntityAccessLevel, GraphqlEntityPermission,
-    GraphqlEntityPermissionKind, GraphqlTeamRole, entity_permission_loader, load_entity_permission,
+    GraphqlEntityPermissionKind, GraphqlTeamRole, NoOpEntityPermissionEdgeReader,
+    entity_permission_loader, load_entity_permission,
 };
 pub use property_filter::{
     GraphqlPropertiesBinaryExpr, GraphqlPropertiesExpr, GraphqlPropertiesLiteral,

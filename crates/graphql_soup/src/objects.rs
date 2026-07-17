@@ -1639,56 +1639,281 @@ where
     }
 }
 
-/// Implement interface-only dispatch methods for fields whose concrete
-/// GraphQL definitions are supplied by the flattened edge object.
-macro_rules! impl_common_interface_edges {
-    ($($entity:ident),+ $(,)?) => {
-        $(
-            impl<E: SoupEntityEdges> $entity<E> {
-                /// Resolve shared properties through the composed edge adapter.
-                async fn interface_properties(
-                    &self,
-                    ctx: &Context<'_>,
-                ) -> async_graphql::Result<Vec<E::Property>> {
-                    self.1.resolve_properties(ctx).await
-                }
+impl<E: SoupEntityEdges> GraphqlSoupDocument<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
 
-                /// Resolve shared notifications through the composed edge adapter.
-                async fn interface_notifications(
-                    &self,
-                    ctx: &Context<'_>,
-                ) -> async_graphql::Result<Vec<E::Notification>> {
-                    self.1.resolve_notifications(ctx).await
-                }
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
 
-                /// Resolve shared favorite state through the composed edge adapter.
-                async fn interface_is_favorited(
-                    &self,
-                    ctx: &Context<'_>,
-                ) -> async_graphql::Result<bool> {
-                    self.1.resolve_is_favorited(ctx).await
-                }
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
 
-                /// Resolve shared viewer permission through the composed edge adapter.
-                async fn interface_viewer_permission(
-                    &self,
-                    ctx: &Context<'_>,
-                ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-                    self.1.resolve_viewer_permission(ctx).await
-                }
-            }
-        )+
-    };
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
 }
 
-impl_common_interface_edges!(
-    GraphqlSoupDocument,
-    GraphqlSoupChat,
-    GraphqlSoupProject,
-    GraphqlSoupEmailThread,
-    GraphqlSoupChannel,
-    GraphqlSoupChannelMessage,
-    GraphqlSoupCall,
-    GraphqlSoupCrmCompany,
-    GraphqlSoupForeignEntity,
-);
+impl<E: SoupEntityEdges> GraphqlSoupChat<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}
+
+impl<E: SoupEntityEdges> GraphqlSoupProject<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}
+
+impl<E: SoupEntityEdges> GraphqlSoupEmailThread<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}
+
+impl<E: SoupEntityEdges> GraphqlSoupChannel<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}
+
+impl<E: SoupEntityEdges> GraphqlSoupChannelMessage<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}
+
+impl<E: SoupEntityEdges> GraphqlSoupCall<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}
+
+impl<E: SoupEntityEdges> GraphqlSoupCrmCompany<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}
+
+impl<E: SoupEntityEdges> GraphqlSoupForeignEntity<E> {
+    /// Resolve shared properties through the composed edge adapter.
+    async fn interface_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Property>> {
+        self.1.resolve_properties(ctx).await
+    }
+
+    /// Resolve shared notifications through the composed edge adapter.
+    async fn interface_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<E::Notification>> {
+        self.1.resolve_notifications(ctx).await
+    }
+
+    /// Resolve shared favorite state through the composed edge adapter.
+    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.1.resolve_is_favorited(ctx).await
+    }
+
+    /// Resolve shared viewer permission through the composed edge adapter.
+    async fn interface_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.1.resolve_viewer_permission(ctx).await
+    }
+}

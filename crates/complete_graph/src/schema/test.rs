@@ -503,6 +503,8 @@ struct TestHarness {
         NoOpSoupNotificationEdgeReader,
         NoOpEntityPropertyReader,
         NoOpSoupEmailContentEdgeReader,
+        graphql_common::NoOpEntityFavoriteEdgeReader,
+        graphql_common::NoOpEntityPermissionEdgeReader,
     >,
     state: TestState,
     authorization_calls: Arc<AtomicUsize>,

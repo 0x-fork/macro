@@ -3,7 +3,6 @@ use async_graphql::dataloader::Loader;
 
 struct FailingFavoriteReader;
 
-#[async_trait::async_trait]
 impl EntityFavoriteEdgeReader for FailingFavoriteReader {
     async fn get_entity_favorites(
         &self,
@@ -22,7 +21,7 @@ async fn favorite_loader_fails_soft_when_reader_is_unavailable() {
     };
     let loader = EntityFavoriteLoader::new(
         MacroUserIdStr::parse_from_str("macro|viewer@example.com").unwrap(),
-        Arc::new(FailingFavoriteReader),
+        FailingFavoriteReader,
     );
 
     let result = loader.load(std::slice::from_ref(&key)).await.unwrap();
