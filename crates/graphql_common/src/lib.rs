@@ -9,8 +9,6 @@ pub use filter_ast;
 
 /// GraphQL authorization helpers.
 mod authorization;
-/// Lazy entity-content edge loading.
-mod content;
 /// Shared GraphQL entity-type mappings.
 mod entity_type;
 /// Axum request-parts extraction helpers for GraphQL resolvers.
@@ -27,10 +25,6 @@ mod property_filter;
 mod request_context;
 
 pub use authorization::require_authorized_user;
-pub use content::{
-    EntityContentEdgeReader, EntityContentKey, EntityContentLoader, entity_content_loader,
-    load_entity_content,
-};
 pub use entity_type::{GraphqlEntityType, GraphqlSoupEntityType};
 pub use extract::extract_part;
 pub use favorite::{

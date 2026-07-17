@@ -13,13 +13,12 @@ email = { path = "../email", default-features = false, features = [
   "inbound",
   "ports",
 ] }
-entity_mutation = { path = "../entity_mutation" }
 entity_access = { path = "../entity_access", default-features = false, features = [
   "inbound",
 ] }
-favorites = { path = "../favorites", features = ["ports"] }
 graphql_common = { path = "../graphql_common" }
 graphql_email = { path = "../graphql_email" }
+graphql_entity_mutation = { path = "../graphql_entity_mutation" }
 graphql_notification = { path = "../graphql_notification" }
 graphql_properties = { path = "../graphql_properties" }
 graphql_soup = { path = "../graphql_soup" }
@@ -29,7 +28,6 @@ macro_authorization = { path = "../macro_authorization", features = [
 ] }
 macro_user_id = { path = "../macro_user_id" }
 model-entity = { path = "../model-entity" }
-models_permissions = { path = "../models_permissions" }
 soup = { path = "../soup", default-features = false, features = ["ports"] }
 soup_realtime = { path = "../soup_realtime", default-features = false, features = [
   "ports",

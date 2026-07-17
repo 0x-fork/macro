@@ -17,14 +17,17 @@ use models_permissions::share_permission::{
 #[cfg(test)]
 mod test;
 
+/// Maximum number of independent entities accepted by a standard batch mutation.
 const MAX_ENTITY_MUTATION_BATCH: usize = 100;
 
+/// Build a GraphQL input error with the stable client-visible error code.
 fn invalid_request(message: impl Into<String>) -> async_graphql::Error {
     async_graphql::Error::new(message.into()).extend_with(|_, extensions| {
         extensions.set("code", "INVALID_INPUT");
     })
 }
 
+/// Validate a standard mutation batch for size and duplicate entity references.
 fn validate_batch(
     operation: &str,
     refs: impl IntoIterator<Item = (GraphqlEntityType, String)>,
@@ -32,6 +35,7 @@ fn validate_batch(
     validate_batch_with_limit(operation, refs, MAX_ENTITY_MUTATION_BATCH)
 }
 
+/// Validate a mutation batch using a capability-specific size limit.
 fn validate_batch_with_limit(
     operation: &str,
     refs: impl IntoIterator<Item = (GraphqlEntityType, String)>,
@@ -54,6 +58,7 @@ fn validate_batch_with_limit(
     Ok(())
 }
 
+/// Convert a GraphQL entity reference into its duplicate-detection key.
 fn entity_input_key(entity: &EntityRefInput) -> (GraphqlEntityType, String) {
     (entity.entity_type, entity.id.0.clone())
 }
@@ -215,6 +220,7 @@ impl From<UpdateEntitySharePolicyInput> for UpdateEntitySharePolicyRequest {
     }
 }
 
+/// Validate conditional fields required by public and channel share updates.
 fn validate_share_policy_inputs(
     inputs: &[UpdateEntitySharePolicyInput],
 ) -> async_graphql::Result<()> {
@@ -354,10 +360,12 @@ impl From<Vec<EntityMutationOutcome>> for EntityMutationPayload {
     }
 }
 
+/// Extract the domain mutation port installed in the request context.
 fn mutation_service(ctx: &Context<'_>) -> async_graphql::Result<Arc<dyn EntityMutationService>> {
     Ok(Arc::clone(ctx.data::<Arc<dyn EntityMutationService>>()?))
 }
 
+/// Extract the authenticated actor installed in the request context.
 fn mutation_actor(ctx: &Context<'_>) -> async_graphql::Result<EntityMutationActor> {
     Ok(ctx.data::<EntityMutationActor>()?.clone())
 }

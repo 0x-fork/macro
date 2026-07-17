@@ -19,8 +19,6 @@ fragment SoupItemFields on GraphqlSoupItem {
 		__typename
 		...SoupEntityCoreFields
 					... on GraphqlSoupDocument {
-						id
-						isFavorited
 						documentName: name
 						ownerId
 						fileType
@@ -36,13 +34,8 @@ fragment SoupItemFields on GraphqlSoupItem {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupChat {
-						id
-						isFavorited
 						chatName: name
 						ownerId
 						projectId
@@ -54,13 +47,8 @@ fragment SoupItemFields on GraphqlSoupItem {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupProject {
-						id
-						isFavorited
 						projectName: name
 						ownerId
 						parentId
@@ -71,13 +59,8 @@ fragment SoupItemFields on GraphqlSoupItem {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupEmailThread {
-						id
-						isFavorited
 						providerId
 						ownerId
 						inboxVisible
@@ -124,9 +107,6 @@ fragment SoupItemFields on GraphqlSoupItem {
 						}
 						properties {
 							...SoupPropertyFields
-						}
-						notifications {
-							...SoupNotificationFields
 						}
 						latestContentMessage {
 							__typename
@@ -175,8 +155,6 @@ fragment SoupItemFields on GraphqlSoupItem {
 						}
 					}
 					... on GraphqlSoupChannel {
-						id
-						isFavorited
 						channelName: name
 						channelType
 						ownerId
@@ -200,13 +178,8 @@ fragment SoupItemFields on GraphqlSoupItem {
 						latestNonThreadMessage {
 							...SoupChannelMessageFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupChannelMessage {
-						id
-						isFavorited
 						channelId
 						senderId
 						content
@@ -214,13 +187,8 @@ fragment SoupItemFields on GraphqlSoupItem {
 						updatedAt
 						effectiveUpdatedAt
 						replyCount
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupCall {
-						id
-						isFavorited
 						channelId
 						channelName
 						createdBy
@@ -240,13 +208,8 @@ fragment SoupItemFields on GraphqlSoupItem {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupCrmCompany {
-						id
-						isFavorited
 						crmTeamId: teamId
 						crmCompanyName: name
 						description
@@ -259,13 +222,8 @@ fragment SoupItemFields on GraphqlSoupItem {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupForeignEntity {
-						id
-						isFavorited
 						foreignEntityId
 						foreignEntitySource
 						storedForId
@@ -273,9 +231,6 @@ fragment SoupItemFields on GraphqlSoupItem {
 						sourceMetadata
 						createdAt
 						updatedAt
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 	}
 }
@@ -284,6 +239,10 @@ fragment SoupEntityCoreFields on GraphqlSoupEntity {
 	id
 	entityType
 	displayName
+	isFavorited
+	notifications {
+		...SoupNotificationFields
+	}
 }
 
 fragment SoupPropertyFields on GraphqlProperty {

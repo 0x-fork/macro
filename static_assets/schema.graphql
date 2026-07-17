@@ -1809,10 +1809,6 @@ type GraphqlSoupCall implements GraphqlSoupEntity {
 	"""
 	displayName: String
 	"""
-	Call summary content.
-	"""
-	content: String
-	"""
 	Common call metadata.
 	"""
 	metadata: GraphqlEntityMetadata!
@@ -1929,10 +1925,6 @@ type GraphqlSoupChannel implements GraphqlSoupEntity {
 	"""
 	displayName: String
 	"""
-	Channels do not expose body content through Soup.
-	"""
-	content: String
-	"""
 	Common channel metadata.
 	"""
 	metadata: GraphqlEntityMetadata!
@@ -2031,9 +2023,9 @@ type GraphqlSoupChannelMessage implements GraphqlSoupEntity {
 	"""
 	displayName: String
 	"""
-	Message body content.
+	The message content.
 	"""
-	content: String
+	content: String!
 	"""
 	Common channel-message metadata.
 	"""
@@ -2165,10 +2157,6 @@ type GraphqlSoupChat implements GraphqlSoupEntity {
 	"""
 	displayName: String
 	"""
-	Chats do not expose body content through Soup.
-	"""
-	content: String
-	"""
 	Common chat metadata.
 	"""
 	metadata: GraphqlEntityMetadata!
@@ -2238,10 +2226,6 @@ type GraphqlSoupCrmCompany implements GraphqlSoupEntity {
 	User-visible company name.
 	"""
 	displayName: String
-	"""
-	Company description content.
-	"""
-	content: String
 	"""
 	Common CRM-company metadata.
 	"""
@@ -2372,10 +2356,6 @@ type GraphqlSoupDocument implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
-	"""
-	The document's primary textual content.
-	"""
-	content: String
 }
 
 """
@@ -2641,10 +2621,6 @@ type GraphqlSoupEmailThread implements GraphqlSoupEntity {
 	"""
 	displayName: String
 	"""
-	Lightweight content preview.
-	"""
-	content: String
-	"""
 	Common email-thread metadata.
 	"""
 	metadata: GraphqlEntityMetadata!
@@ -2778,6 +2754,22 @@ interface GraphqlSoupEntity {
 	Metadata shared across entity variants.
 	"""
 	metadata: GraphqlEntityMetadata!
+	"""
+	Properties assigned to this entity that the viewer may access.
+	"""
+	properties: [GraphqlProperty!]!
+	"""
+	Notifications associated with this entity for the current viewer.
+	"""
+	notifications: [GraphqlSoupNotification!]!
+	"""
+	Whether the current viewer has favorited this entity.
+	"""
+	isFavorited: Boolean!
+	"""
+	The current viewer's effective permission for this entity.
+	"""
+	viewerPermission: GraphqlEntityPermission
 }
 
 """
@@ -2838,10 +2830,6 @@ type GraphqlSoupForeignEntity implements GraphqlSoupEntity {
 	Foreign entities do not expose a common display name.
 	"""
 	displayName: String
-	"""
-	Foreign entities do not expose body content through Soup.
-	"""
-	content: String
 	"""
 	Common foreign-entity metadata.
 	"""
@@ -2984,10 +2972,6 @@ type GraphqlSoupProject implements GraphqlSoupEntity {
 	User-visible display name.
 	"""
 	displayName: String
-	"""
-	Projects do not expose body content through Soup.
-	"""
-	content: String
 	"""
 	Common project metadata.
 	"""

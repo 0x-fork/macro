@@ -113,7 +113,6 @@ fn graphql_query_context_data(
         state.soup_router_state.email_service(),
         state.entity_access_service.clone(),
     );
-    let content_reader = state.graphql_entity_content_reader.clone();
     let favorite_reader: std::sync::Arc<dyn complete_graph::EntityFavoriteEdgeReader> =
         state.favorites_service.clone();
     let permission_reader: std::sync::Arc<dyn complete_graph::EntityPermissionEdgeReader> =
@@ -132,11 +131,6 @@ fn graphql_query_context_data(
         .data(complete_graph::email_content_loader(
             macro_user_id.clone(),
             email_content_reader,
-        ))
-        .data(complete_graph::entity_content_loader(
-            macro_user_id.clone(),
-            organization_id,
-            content_reader,
         ))
         .data(complete_graph::entity_favorite_loader(
             macro_user_id.clone(),

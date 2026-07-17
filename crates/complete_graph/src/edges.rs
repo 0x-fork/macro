@@ -2,8 +2,8 @@ use std::marker::PhantomData;
 
 use async_graphql::{Context, Object};
 use graphql_common::{
-    EntityContentKey, EntityFavoriteKey, EntityPermissionKey, GraphqlEntityPermission,
-    load_entity_content, load_entity_favorite, load_entity_permission,
+    EntityFavoriteKey, EntityPermissionKey, GraphqlEntityPermission, load_entity_favorite,
+    load_entity_permission,
 };
 use graphql_email::{
     EmailContentKey, GraphqlSoupEmailMessage, SoupEmailContentEdgeReader, load_latest_email_message,
@@ -41,14 +41,16 @@ impl<NR, PR, ER> Clone for SoupEdges<NR, PR, ER> {
     }
 }
 
+#[async_graphql::async_trait::async_trait]
 impl<NR, PR, ER> SoupEntityEdges for SoupEdges<NR, PR, ER>
 where
     NR: SoupNotificationEdgeReader,
     PR: EntityPropertyReader,
     ER: SoupEmailContentEdgeReader,
 {
+    type Property = GraphqlProperty;
+    type Notification = GraphqlSoupNotification;
     type EmailThreadEdges = SoupEmailThreadEdges<ER>;
-    type DocumentEdges = SoupDocumentEdges;
 
     fn from_entity(entity: model_entity::Entity<'static>) -> Self {
         Self {
@@ -75,34 +77,21 @@ where
         }
     }
 
-    fn document_edges(document_id: String) -> Self::DocumentEdges {
-        SoupDocumentEdges { document_id }
-    }
-}
-
-/// Cross-domain fields attached to a property-bearing Soup entity.
-#[Object(name = "SoupEdges")]
-impl<NR, PR, ER> SoupEdges<NR, PR, ER>
-where
-    NR: SoupNotificationEdgeReader,
-    PR: EntityPropertyReader,
-    ER: SoupEmailContentEdgeReader,
-{
-    /// Properties assigned to this entity that the authenticated user may view.
-    async fn properties(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GraphqlProperty>> {
+    async fn resolve_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<Self::Property>> {
         load_entity_properties::<PR>(ctx, self.entity.clone()).await
     }
 
-    /// Notifications associated with this entity for the authenticated user.
-    async fn notifications(
+    async fn resolve_notifications(
         &self,
         ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<GraphqlSoupNotification>> {
+    ) -> async_graphql::Result<Vec<Self::Notification>> {
         load_entity_notifications::<NR>(ctx, self.entity.clone()).await
     }
 
-    /// Whether the authenticated viewer has favorited this entity.
-    async fn is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+    async fn resolve_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
         load_entity_favorite(
             ctx,
             EntityFavoriteKey {
@@ -113,8 +102,7 @@ where
         .await
     }
 
-    /// The authenticated viewer's effective permission for this entity.
-    async fn viewer_permission(
+    async fn resolve_viewer_permission(
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
@@ -129,26 +117,38 @@ where
     }
 }
 
-/// Content fields attached only to Soup document entities.
-#[derive(Clone)]
-pub struct SoupDocumentEdges {
-    /// Canonical document identifier.
-    document_id: String,
-}
+/// Cross-domain fields attached to a property-bearing Soup entity.
+#[Object(name = "SoupEdges")]
+impl<NR, PR, ER> SoupEdges<NR, PR, ER>
+where
+    NR: SoupNotificationEdgeReader,
+    PR: EntityPropertyReader,
+    ER: SoupEmailContentEdgeReader,
+{
+    /// Properties assigned to this entity that the authenticated user may view.
+    async fn properties(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GraphqlProperty>> {
+        self.resolve_properties(ctx).await
+    }
 
-/// Lazily loaded fields attached to a Soup document.
-#[Object]
-impl SoupDocumentEdges {
-    /// The document's primary textual content.
-    async fn content(&self, ctx: &Context<'_>) -> async_graphql::Result<Option<String>> {
-        load_entity_content(
-            ctx,
-            EntityContentKey {
-                entity_type: model_entity::EntityType::Document,
-                entity_id: self.document_id.clone(),
-            },
-        )
-        .await
+    /// Notifications associated with this entity for the authenticated user.
+    async fn notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<GraphqlSoupNotification>> {
+        self.resolve_notifications(ctx).await
+    }
+
+    /// Whether the authenticated viewer has favorited this entity.
+    async fn is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
+        self.resolve_is_favorited(ctx).await
+    }
+
+    /// The authenticated viewer's effective permission for this entity.
+    async fn viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+        self.resolve_viewer_permission(ctx).await
     }
 }
 

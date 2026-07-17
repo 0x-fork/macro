@@ -78,6 +78,19 @@ entire cache in browser memory. With 10s of thousands of cached objects
     name a field `id` when it is a global identity — hence
     `GraphqlProperty.propertyDefinitionId` and
     `GraphqlSoupChannelMessage.id`); the build fails on malformed shapes.
+    `GraphqlSoupItem` deliberately exposes `entityId`, not `id`: it is a
+    query-scoped edge whose frecency and ordering vary by Soup view. Its
+    nested concrete `entity` carries the normalized `__typename:id` identity.
+    Optimistic membership moves therefore patch embedded list items by
+    `entityId` while ordinary entity-field mutations update the shared nested
+    record.
+
+    The normalized entity contract lives on `GraphqlSoupEntity`, not only on
+    its concrete implementations: `id`, `entityType`, `displayName`,
+    `metadata`, `properties`, `notifications`, `isFavorited`, and
+    `viewerPermission`. Queries can select shared relationships once at the
+    interface level. Content remains concrete/domain-specific because its
+    GraphQL shape and loading policy differ by entity type.
 12. **Native-testable core** — the Rust engine is a pure crate (`cargo test`,
     no wasm) with storage/clock behind traits.
 13. **Durable optimistic mutations** — optimistic GraphQL mutations are

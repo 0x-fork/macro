@@ -1,10 +1,21 @@
 use std::sync::Arc;
 
-use async_graphql::{Request, value};
+use async_graphql::{EmptySubscription, Object, Request, Schema, value};
 use entity_mutation::{
     EntityMutationActor, EntityMutationService, UnavailableEntityMutationService,
 };
 use macro_user_id::user_id::MacroUserIdStr;
+
+/// Minimal query root used to exercise the mutation module in isolation.
+struct QueryRoot;
+
+#[Object]
+impl QueryRoot {
+    /// Return a trivial value so the test schema has a valid query root.
+    async fn health(&self) -> bool {
+        true
+    }
+}
 
 #[tokio::test]
 async fn mutation_results_return_stable_entity_refs() {
@@ -36,7 +47,10 @@ async fn mutation_results_return_stable_entity_refs() {
     .data(service)
     .data(actor);
 
-    let response = crate::build_schema().execute(request).await;
+    let response = Schema::build(QueryRoot, crate::EntityMutationRoot, EmptySubscription)
+        .finish()
+        .execute(request)
+        .await;
 
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     assert_eq!(

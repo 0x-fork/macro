@@ -42,7 +42,7 @@ fn soup_response_schema_exposes_frontend_fields() {
 }
 
 #[test]
-fn soup_interface_is_intrinsic_while_composed_edges_stay_on_concrete_entities() {
+fn soup_interface_exposes_the_complete_shared_entity_contract() {
     use apollo_compiler::schema::ExtendedType;
 
     let schema =
@@ -56,18 +56,25 @@ fn soup_interface_is_intrinsic_while_composed_edges_stay_on_concrete_entities() 
         panic!("GraphqlSoupEntity must be an interface");
     };
 
-    for intrinsic_field in ["id", "entityType", "displayName", "metadata"] {
+    for shared_field in [
+        "id",
+        "entityType",
+        "displayName",
+        "metadata",
+        "properties",
+        "notifications",
+        "isFavorited",
+        "viewerPermission",
+    ] {
         assert!(
-            entity.fields.contains_key(intrinsic_field),
-            "Soup interface missing intrinsic field {intrinsic_field}"
+            entity.fields.contains_key(shared_field),
+            "Soup interface missing shared field {shared_field}"
         );
     }
-    for composed_field in ["content", "isFavorited", "viewerPermission"] {
-        assert!(
-            !entity.fields.contains_key(composed_field),
-            "Soup interface must not own composed field {composed_field}"
-        );
-    }
+    assert!(
+        !entity.fields.contains_key("content"),
+        "entity-specific content must not be flattened into the shared Soup interface"
+    );
 
     let ExtendedType::Object(document) = schema
         .types
@@ -76,16 +83,15 @@ fn soup_interface_is_intrinsic_while_composed_edges_stay_on_concrete_entities() 
     else {
         panic!("GraphqlSoupDocument must be an object");
     };
-    for composed_field in [
-        "content",
+    for shared_field in [
         "isFavorited",
         "viewerPermission",
         "properties",
         "notifications",
     ] {
         assert!(
-            document.fields.contains_key(composed_field),
-            "Soup document missing composed field {composed_field}"
+            document.fields.contains_key(shared_field),
+            "Soup document missing shared field {shared_field}"
         );
     }
 }

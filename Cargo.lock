@@ -2882,10 +2882,9 @@ dependencies = [
  "axum",
  "email",
  "entity_access",
- "entity_mutation",
- "favorites",
  "graphql_common",
  "graphql_email",
+ "graphql_entity_mutation",
  "graphql_notification",
  "graphql_properties",
  "graphql_soup",
@@ -2894,7 +2893,6 @@ dependencies = [
  "model-entity",
  "model_user",
  "models_pagination",
- "models_permissions",
  "models_properties",
  "models_soup",
  "rootcause",
@@ -6046,6 +6044,21 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "graphql_entity_mutation"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "entity_mutation",
+ "favorites",
+ "graphql_common",
+ "macro_user_id",
+ "model-entity",
+ "models_permissions",
+ "tokio",
  "workspace-hack",
 ]
 
@@ -16270,7 +16283,6 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "aho-corasick",
- "async-graphql",
  "aws-config",
  "aws-credential-types",
  "aws-runtime",

@@ -219,8 +219,11 @@ where
 
 /// Request-scoped DataLoader for current-viewer entity permissions.
 pub struct EntityPermissionLoader {
+    /// Authenticated viewer whose permissions are requested.
     user_id: MacroUserIdStr<'static>,
+    /// Organization context used when resolving permissions.
     organization_id: Option<i64>,
+    /// Domain-facing reader that resolves effective access.
     reader: Arc<dyn EntityPermissionEdgeReader>,
 }
 

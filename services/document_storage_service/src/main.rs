@@ -888,14 +888,6 @@ async fn main() -> anyhow::Result<()> {
     let redis_sha_client = Arc::new(Redis::new(redis_client));
 
     #[cfg(feature = "graphql")]
-    let graphql_entity_content_reader: Arc<dyn complete_graph::EntityContentEdgeReader> = Arc::new(
-        service::graphql_entity_content::DssEntityContentReader::new(
-            document_service.clone(),
-            entity_access_service.clone(),
-        ),
-    );
-
-    #[cfg(feature = "graphql")]
     let graphql_entity_mutation_service: Arc<dyn entity_mutation::EntityMutationService> =
         Arc::new(service::entity_mutation::DssEntityMutationService::new(
             document_service.clone(),
@@ -905,14 +897,12 @@ async fn main() -> anyhow::Result<()> {
             Arc::new(email_service.clone()),
             entity_access_service.clone(),
             favorites_service.clone(),
-            Arc::new(
-                outbound::entity_mutation::DssLegacyEntityMutationAdapter::new(
-                    db.clone(),
-                    redis_sha_client.clone(),
-                    sqs_client.clone(),
-                    entity_access_management_service.clone(),
-                ),
-            ),
+            Arc::new(outbound::entity_mutation::DssEntityLifecycleAdapter::new(
+                db.clone(),
+                redis_sha_client.clone(),
+                sqs_client.clone(),
+                entity_access_management_service.clone(),
+            )),
         ));
 
     let api_context = ApiContext {
@@ -939,8 +929,6 @@ async fn main() -> anyhow::Result<()> {
         ),
         #[cfg(feature = "graphql")]
         graphql_notification_reader,
-        #[cfg(feature = "graphql")]
-        graphql_entity_content_reader,
         #[cfg(feature = "graphql")]
         graphql_entity_mutation_service,
         github_sync_service: Arc::new(github_sync_service_impl),

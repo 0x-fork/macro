@@ -1,5 +1,5 @@
-use async_graphql::{ID, Interface, Json, Object, ObjectType, SimpleObject};
-use graphql_common::{GraphqlEntityType, GraphqlSoupEntityType};
+use async_graphql::{Context, ID, Interface, Json, Object, ObjectType, OutputType, SimpleObject};
+use graphql_common::{GraphqlEntityPermission, GraphqlEntityType, GraphqlSoupEntityType};
 use models_pagination::PaginatedOpaqueCursor;
 use models_soup::{
     call_record::{SoupCallRecord, SoupCallRecordParticipant},
@@ -23,7 +23,14 @@ use uuid::Uuid;
 ///
 /// The concrete edge object is supplied by the schema composition crate and
 /// flattened into each Soup entity's GraphQL fields.
+#[async_graphql::async_trait::async_trait]
 pub trait SoupEntityEdges: ObjectType + Clone + Send + Sync + 'static {
+    /// GraphQL property object supplied by the property adapter.
+    type Property: OutputType;
+
+    /// GraphQL notification object supplied by the notification adapter.
+    type Notification: OutputType;
+
     /// Construct the common/global edge object for a Soup entity.
     /// This is for edges that apply to all soup entities, e.g. notifications
     fn from_entity(entity: model_entity::Entity<'static>) -> Self;
@@ -40,14 +47,29 @@ pub trait SoupEntityEdges: ObjectType + Clone + Send + Sync + 'static {
     /// Additional fields attached only to email-thread entities.
     type EmailThreadEdges: ObjectType + Clone + Send + Sync + 'static;
 
-    /// Additional fields attached only to document entities.
-    type DocumentEdges: ObjectType + Clone + Send + Sync + 'static;
-
     /// Construct the email-thread-specific edge object.
     fn email_thread_edges(email_thread_id: Uuid) -> Self::EmailThreadEdges;
 
-    /// Construct the document-specific edge object.
-    fn document_edges(document_id: String) -> Self::DocumentEdges;
+    /// Resolve properties assigned to this entity.
+    async fn resolve_properties(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<Self::Property>>;
+
+    /// Resolve notifications associated with this entity.
+    async fn resolve_notifications(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Vec<Self::Notification>>;
+
+    /// Resolve whether the authenticated viewer has favorited this entity.
+    async fn resolve_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool>;
+
+    /// Resolve the authenticated viewer's effective permission.
+    async fn resolve_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> async_graphql::Result<Option<GraphqlEntityPermission>>;
 }
 
 /// Page returned by `Query.soup`.
@@ -248,6 +270,30 @@ pub struct GraphqlEntityMetadata {
         name = "metadata",
         ty = "GraphqlEntityMetadata",
         desc = "Metadata shared across entity variants."
+    ),
+    field(
+        name = "properties",
+        method = "interface_properties",
+        ty = "Vec<E::Property>",
+        desc = "Properties assigned to this entity that the viewer may access."
+    ),
+    field(
+        name = "notifications",
+        method = "interface_notifications",
+        ty = "Vec<E::Notification>",
+        desc = "Notifications associated with this entity for the current viewer."
+    ),
+    field(
+        name = "isFavorited",
+        method = "interface_is_favorited",
+        ty = "bool",
+        desc = "Whether the current viewer has favorited this entity."
+    ),
+    field(
+        name = "viewerPermission",
+        method = "interface_viewer_permission",
+        ty = "Option<GraphqlEntityPermission>",
+        desc = "The current viewer's effective permission for this entity."
     )
 )]
 pub enum GraphqlSoupEntity<E: SoupEntityEdges> {
@@ -427,12 +473,6 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
-
-    #[graphql(flatten)]
-    /// Document-specific edges.
-    async fn document_edges(&self) -> E::DocumentEdges {
-        E::document_edges(self.0.id.to_string())
-    }
 }
 
 /// GraphQL representation of the soup document sub type.
@@ -481,11 +521,6 @@ where
     /// User-visible display name.
     async fn display_name(&self) -> Option<String> {
         Some(self.0.name.clone())
-    }
-
-    /// Chats do not expose body content through Soup.
-    async fn content(&self) -> Option<String> {
-        None
     }
 
     /// Common chat metadata.
@@ -572,11 +607,6 @@ where
     /// User-visible display name.
     async fn display_name(&self) -> Option<String> {
         Some(self.0.name.clone())
-    }
-
-    /// Projects do not expose body content through Soup.
-    async fn content(&self) -> Option<String> {
-        None
     }
 
     /// Common project metadata.
@@ -768,11 +798,6 @@ where
     /// User-visible display name.
     async fn display_name(&self) -> Option<String> {
         self.0.thread.name.clone()
-    }
-
-    /// Lightweight content preview.
-    async fn content(&self) -> Option<String> {
-        self.0.thread.snippet.clone()
     }
 
     /// Common email-thread metadata.
@@ -1074,11 +1099,6 @@ where
         self.0.channel.channel.name.clone()
     }
 
-    /// Channels do not expose body content through Soup.
-    async fn content(&self) -> Option<String> {
-        None
-    }
-
     /// Common channel metadata.
     async fn metadata(&self) -> GraphqlEntityMetadata {
         GraphqlEntityMetadata {
@@ -1229,9 +1249,9 @@ where
         None
     }
 
-    /// Message body content.
-    async fn content(&self) -> Option<String> {
-        Some(self.0.content.clone())
+    /// The message content.
+    async fn content(&self) -> &str {
+        &self.0.content
     }
 
     /// Common channel-message metadata.
@@ -1332,11 +1352,6 @@ where
             .custom_name
             .clone()
             .or_else(|| self.0.channel_name.clone())
-    }
-
-    /// Call summary content.
-    async fn content(&self) -> Option<String> {
-        self.0.summary.clone()
     }
 
     /// Common call metadata.
@@ -1475,11 +1490,6 @@ where
         self.0.name.clone()
     }
 
-    /// Company description content.
-    async fn content(&self) -> Option<String> {
-        self.0.description.clone()
-    }
-
     /// Common CRM-company metadata.
     async fn metadata(&self) -> GraphqlEntityMetadata {
         GraphqlEntityMetadata {
@@ -1575,11 +1585,6 @@ where
         None
     }
 
-    /// Foreign entities do not expose body content through Soup.
-    async fn content(&self) -> Option<String> {
-        None
-    }
-
     /// Common foreign-entity metadata.
     async fn metadata(&self) -> GraphqlEntityMetadata {
         GraphqlEntityMetadata {
@@ -1633,3 +1638,57 @@ where
         self.1.clone()
     }
 }
+
+/// Implement interface-only dispatch methods for fields whose concrete
+/// GraphQL definitions are supplied by the flattened edge object.
+macro_rules! impl_common_interface_edges {
+    ($($entity:ident),+ $(,)?) => {
+        $(
+            impl<E: SoupEntityEdges> $entity<E> {
+                /// Resolve shared properties through the composed edge adapter.
+                async fn interface_properties(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<Vec<E::Property>> {
+                    self.1.resolve_properties(ctx).await
+                }
+
+                /// Resolve shared notifications through the composed edge adapter.
+                async fn interface_notifications(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<Vec<E::Notification>> {
+                    self.1.resolve_notifications(ctx).await
+                }
+
+                /// Resolve shared favorite state through the composed edge adapter.
+                async fn interface_is_favorited(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<bool> {
+                    self.1.resolve_is_favorited(ctx).await
+                }
+
+                /// Resolve shared viewer permission through the composed edge adapter.
+                async fn interface_viewer_permission(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+                    self.1.resolve_viewer_permission(ctx).await
+                }
+            }
+        )+
+    };
+}
+
+impl_common_interface_edges!(
+    GraphqlSoupDocument,
+    GraphqlSoupChat,
+    GraphqlSoupProject,
+    GraphqlSoupEmailThread,
+    GraphqlSoupChannel,
+    GraphqlSoupChannelMessage,
+    GraphqlSoupCall,
+    GraphqlSoupCrmCompany,
+    GraphqlSoupForeignEntity,
+);

@@ -12,6 +12,7 @@ use email::{
 use entity_access::domain::ports::{EntityAccessService, NoOpEntityAccessService};
 use graphql_common::require_authorized_user;
 use graphql_email::{NoOpSoupEmailContentEdgeReader, SoupEmailContentEdgeReader};
+use graphql_entity_mutation::EntityMutationRoot;
 use graphql_notification::{NoOpSoupNotificationEdgeReader, SoupNotificationEdgeReader};
 use graphql_properties::{
     EntityPropertyReader, EntityPropertyWriter, NoOpEntityPropertyReader, NoOpEntityPropertyWriter,
@@ -32,7 +33,6 @@ use soup_realtime::domain::ports::{
 };
 
 use crate::SoupEdges;
-use crate::mutations::EntityMutationRoot;
 
 /// Mutation root combining property-specific and capability-oriented entity
 /// mutations without coupling either domain adapter to the other.

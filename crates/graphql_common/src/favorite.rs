@@ -60,7 +60,9 @@ where
 
 /// Request-scoped DataLoader for current-viewer favorite state.
 pub struct EntityFavoriteLoader {
+    /// Authenticated viewer whose favorite state is requested.
     user_id: MacroUserIdStr<'static>,
+    /// Domain-facing reader that resolves favorite state.
     reader: Arc<dyn EntityFavoriteEdgeReader>,
 }
 

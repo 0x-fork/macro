@@ -1,29 +1,33 @@
 //! Composition of the domain GraphQL adapter crates (`graphql_soup`,
-//! `graphql_properties`, `graphql_notification`, `graphql_email`) into the complete schema
-//! served by `document_storage_service` and exported as SDL.
+//! `graphql_properties`, `graphql_notification`, `graphql_email`,
+//! `graphql_entity_mutation`) into the complete schema served by
+//! `document_storage_service` and exported as SDL.
 #![deny(missing_docs)]
 #![deny(clippy::missing_docs_in_private_items)]
 
 /// Cross-domain fields composed onto Soup entities.
 mod edges;
-/// Capability-oriented mutations shared across entity types.
-mod mutations;
 /// Complete schema types and construction helpers.
 mod schema;
 #[cfg(test)]
 mod sdl_test;
 
-pub use edges::{SoupDocumentEdges, SoupEdges, SoupEmailThreadEdges};
+pub use edges::{SoupEdges, SoupEmailThreadEdges};
 pub use graphql_common::{
-    EntityContentEdgeReader, EntityContentKey, EntityContentLoader, EntityFavoriteEdgeReader,
-    EntityFavoriteKey, EntityFavoriteLoader, EntityPermissionEdgeReader, EntityPermissionKey,
-    EntityPermissionLoader, GraphqlChannelParticipantRole, GraphqlEntityAccessLevel,
-    GraphqlEntityPermission, GraphqlEntityPermissionKind, GraphqlRequestParts, GraphqlTeamRole,
-    entity_content_loader, entity_favorite_loader, entity_permission_loader,
+    EntityFavoriteEdgeReader, EntityFavoriteKey, EntityFavoriteLoader, EntityPermissionEdgeReader,
+    EntityPermissionKey, EntityPermissionLoader, GraphqlChannelParticipantRole,
+    GraphqlEntityAccessLevel, GraphqlEntityPermission, GraphqlEntityPermissionKind,
+    GraphqlRequestParts, GraphqlTeamRole, entity_favorite_loader, entity_permission_loader,
 };
 pub use graphql_email::{
     EmailContentKey, EmailContentLoad, EmailContentLoader, EmailServiceEmailContentReader,
     NoOpSoupEmailContentEdgeReader, SoupEmailContentEdgeReader, email_content_loader,
+};
+pub use graphql_entity_mutation::{
+    ChannelSharePolicyInput, DuplicateEntityInput, EntityMutationPayload, EntityMutationRoot,
+    EntityRefInput, EntitySharePolicyInput, GraphqlEntityMutationError,
+    GraphqlEntityMutationErrorCode, GraphqlEntityMutationRef, GraphqlEntityMutationResult,
+    GraphqlSharePolicyOperation, MoveEntityInput, RenameEntityInput, UpdateEntitySharePolicyInput,
 };
 pub use graphql_notification::{
     EntityNotificationsLoader, SoupNotificationEdgeReader, entity_notifications_loader,
@@ -32,12 +36,6 @@ pub use graphql_properties::{
     EntityPropertiesLoader, EntityPropertyReader, EntityPropertyWriter, NoOpEntityPropertyReader,
     PropertiesEntityPropertyReader, PropertiesEntityPropertyWriter, PropertiesMutationRoot,
     entity_properties_loader,
-};
-pub use mutations::{
-    ChannelSharePolicyInput, DuplicateEntityInput, EntityMutationPayload, EntityMutationRoot,
-    EntityRefInput, EntitySharePolicyInput, GraphqlEntityMutationError,
-    GraphqlEntityMutationErrorCode, GraphqlEntityMutationRef, GraphqlEntityMutationResult,
-    GraphqlSharePolicyOperation, MoveEntityInput, RenameEntityInput, UpdateEntitySharePolicyInput,
 };
 pub use schema::{
     SchemaOnlySoupSchema, SchemaOnlyState, SharedSoupSchema, SoupQueryRoot, SoupSchema,
