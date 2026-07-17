@@ -1,0 +1,30 @@
+---
+title: "July 2026"
+description: "Macro releases from July 2026."
+---
+
+<Update label="July 2026">
+## Highlights
+
+**The Activity tab.** Two new timelines join the sidebar under **Activity** (<kbd>g</kbd> \+ <kbd>y</kbd>): a team-wide **Firehose** of everything happening across your workspace, and **Things I did**, a personal record of your own recent actions. The Firehose filters email down to Signal only, so newsletters and automated mail never flood it. [Read the docs.](/product/activity)
+
+**Mark done from inside an email.** A **Mark done** button now sits alongside Reply and Forward in the open email — top bar on desktop, accessory row on mobile — so you can clear a thread without returning to the list.
+
+**Search finds email addresses.** Searching a company name now matches threads where it only appears in a participant's address (for example, `acme` surfaces mail to and from `@acme.com`), not just the subject or body.
+
+**Enterprise teams.** Teams can now be set up on an enterprise contract, billed directly rather than per seat through Stripe. See [Billing & plans](/account/billing).
+
+## Improvements
+
+* Search results are more reliable — oversized documents no longer cause matches to be silently dropped.
+* Email lists load faster.
+* CRM contact relationships are recorded more accurately, keeping unrelated recipients from being linked to one another.
+
+## Fixes
+
+* Channel message reactions keep a stable order across refreshes.
+* Auto-ingested files (invoices, receipts, and other PDFs parsed from email) no longer show up as things you did in the Activity timeline.
+* The **Add label** tag menu opens reliably from the context menu.
+* Mobile: proper **Log out** and **Danger zone** settings panels, a smoother account-setup flow, and layout fixes for search.
+* Email: the reply zone moved clear of the message body, and thread loads no longer fire duplicate requests.
+</Update>
