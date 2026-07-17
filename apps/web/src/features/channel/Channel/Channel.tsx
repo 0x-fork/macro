@@ -598,7 +598,7 @@ export function Channel(props: ChannelProps) {
               >
                 <Show when={findBar.isOpen()}>
                   <FindBar
-                    class="absolute top-2 right-3 z-10 w-80 max-w-[calc(100%-1.5rem)] mobile:top-[calc(var(--mobile-content-inset-top,0)+0.5rem)]"
+                    class="absolute top-2 right-3 z-10 w-96 max-w-[calc(100%-1.5rem)] mobile:top-[calc(var(--mobile-content-inset-top,0)+0.5rem)]"
                     controller={findBar}
                     direction="desc"
                   />

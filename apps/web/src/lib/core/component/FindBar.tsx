@@ -3,6 +3,7 @@ import CaretUp from '@phosphor/caret-up.svg';
 import MagnifyingGlass from '@phosphor/magnifying-glass.svg';
 import X from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
+import { Panel } from '@ui/components/Panel';
 import { cn } from '@ui/utils/classname';
 import {
   type Accessor,
@@ -56,9 +57,10 @@ export function FindBar(props: FindBarProps) {
     <FindBarContext.Provider
       value={{ controller: props.controller, direction }}
     >
-      <div
+      <Panel
+        depth={3}
         class={cn(
-          'flex items-center gap-1 rounded-md border border-edge bg-surface p-1 shadow-md focus-within:border-accent',
+          'flex items-center rounded-xl bg-surface p-2 shadow-lg shadow-drop-shadow',
           props.class
         )}
       >
@@ -73,7 +75,7 @@ export function FindBar(props: FindBarProps) {
         >
           {props.children}
         </Show>
-      </div>
+      </Panel>
     </FindBarContext.Provider>
   );
 }
@@ -164,31 +166,38 @@ function FindBarInput(props: { placeholder?: string; autofocus?: boolean }) {
   };
 
   return (
-    <input
-      ref={inputEl}
-      type="text"
-      class="min-w-0 flex-1 bg-transparent border-0 px-1 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-0"
-      placeholder={props.placeholder ?? 'Find'}
-      value={controller.query()}
-      onInput={(e) => controller.setQuery(e.currentTarget.value)}
-      onKeyDown={handleKeyDown}
-    />
+    <div class="mx-1 flex min-w-0 flex-1 rounded-md border border-edge bg-surface px-1">
+      <input
+        ref={inputEl}
+        type="text"
+        class="mx-0.5 h-6 min-w-0 flex-1 bg-transparent border-0 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-0"
+        placeholder={props.placeholder ?? 'Find'}
+        value={controller.query()}
+        onInput={(e) => controller.setQuery(e.currentTarget.value)}
+        onKeyDown={handleKeyDown}
+      />
+    </div>
   );
 }
 
 function FindBarCount() {
   const { controller } = useFindBarContext();
   const showCount = () =>
-    !!controller.submittedQuery() &&
-    !controller.hasUnsubmittedChanges() &&
-    !controller.isPending();
+    !!controller.submittedQuery() && !controller.hasUnsubmittedChanges();
+
+  const text = () => {
+    if (controller.isPending()) return 'searching...';
+    const count = controller.resultsCount();
+    if (count === 0) return 'no matches';
+    return `${controller.activeIndex()} of ${count} match${count === 1 ? '' : 'es'}`;
+  };
 
   return (
     <span
-      class="px-1 text-xs text-ink-muted tabular-nums whitespace-nowrap"
+      class="px-1 text-xs text-ink tabular-nums whitespace-nowrap"
       classList={{ invisible: !showCount() }}
     >
-      {controller.activeIndex()}/{controller.resultsCount()}
+      {text()}
     </span>
   );
 }
