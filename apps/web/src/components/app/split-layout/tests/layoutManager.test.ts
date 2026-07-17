@@ -512,6 +512,102 @@ describe('layoutManager', () => {
       });
     });
 
+    it('back() skips entries open in another split and lands on the nearest mountable one', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: { type: 'md', id: 'doc-1' } });
+        split.replace({ next: { type: 'md', id: 'doc-2' } });
+
+        manager.createNewSplit({
+          content: { type: 'md', id: 'doc-1' },
+          referredFrom: null,
+        });
+
+        const contentChanges: unknown[] = [];
+        split.registerContentChangeListener((payload) => {
+          contentChanges.push(payload);
+        });
+
+        split.goBack();
+
+        // doc-1 is mounted in the other split, so back() steps past it.
+        expect(split.content()).toMatchObject({
+          type: 'component',
+          id: 'inbox',
+        });
+        expect(split.history()).toHaveLength(1);
+        expect(split.canGoForward()).toBe(true);
+        expect(contentChanges).toHaveLength(1);
+
+        dispose();
+      });
+    });
+
+    it('back() no-ops without moving the index when every previous entry is blocked', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'md', id: 'doc-1' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: { type: 'md', id: 'doc-2' } });
+
+        manager.createNewSplit({
+          content: { type: 'md', id: 'doc-1' },
+          referredFrom: null,
+        });
+
+        split.goBack();
+
+        expect(split.content()).toMatchObject({ type: 'md', id: 'doc-2' });
+        expect(split.history().map((c) => c.id)).toEqual(['doc-1', 'doc-2']);
+        expect(split.canGoBack()).toBe(true);
+        expect(split.canGoForward()).toBe(false);
+
+        dispose();
+      });
+    });
+
+    it('forward() skips entries open in another split and lands on the nearest mountable one', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: { type: 'md', id: 'doc-1' } });
+        split.replace({ next: { type: 'md', id: 'doc-2' } });
+        split.goBack();
+        split.goBack();
+        expect(split.content()).toMatchObject({
+          type: 'component',
+          id: 'inbox',
+        });
+
+        manager.createNewSplit({
+          content: { type: 'md', id: 'doc-1' },
+          referredFrom: null,
+        });
+
+        split.goForward();
+
+        // doc-1 is mounted in the other split, so forward() steps past it.
+        expect(split.content()).toMatchObject({ type: 'md', id: 'doc-2' });
+        expect(split.history().map((c) => c.id)).toEqual([
+          'inbox',
+          'doc-1',
+          'doc-2',
+        ]);
+        expect(split.canGoForward()).toBe(false);
+
+        dispose();
+      });
+    });
+
     it('leaves history untouched when the target is open in another split', () => {
       createRoot((dispose) => {
         const manager = createSplitLayout(createMockOrchestrator(), [
