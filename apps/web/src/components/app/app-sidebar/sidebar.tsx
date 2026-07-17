@@ -27,6 +27,7 @@ import {
   CollapsibleSidebarSection,
   type CollapsibleSidebarSectionItem,
 } from '@components/app/app-sidebar/collapsible-sidebar-section';
+import { RecentsSection } from '@components/app/app-sidebar/recents-section';
 import {
   SidebarPromoCard,
   SidebarPromoHint,
@@ -1394,6 +1395,12 @@ export const AppSidebar = (props: AppSidebarProps) => {
             sidebarState={sidebarDisplayState()}
             onSectionOpenChange={scheduleMiddleScrollUpdate}
             onDropdownOpenChange={handleOverlayDropdownOpenChange}
+          />
+
+          <RecentsSection
+            sidebarState={sidebarDisplayState()}
+            onSectionOpenChange={scheduleMiddleScrollUpdate}
+            onContextMenuOpenChange={handleOverlayDropdownOpenChange}
           />
 
           <Show when={tryItems().length > 0}>
