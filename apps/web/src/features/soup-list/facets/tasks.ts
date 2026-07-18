@@ -22,7 +22,7 @@ const taskStatusOption = (id: string, value: string) => ({
 });
 
 export const TASK_STATUS = facet({
-  id: 'task-status',
+  id: 'task_status',
   mode: 'or',
   multiple: true,
   options: [
@@ -42,7 +42,7 @@ const namedPriorities = [
 ];
 
 export const TASK_PRIORITY = facet({
-  id: 'task-priority',
+  id: 'task_priority',
   mode: 'or',
   multiple: true,
   options: [
@@ -87,23 +87,31 @@ export const TASK_PRIORITY = facet({
 export const TASK_ASSIGNEE = facet({
   id: 'assignee',
   mode: 'or',
-  options: (optionId) =>
-    optionId === NO_ASSIGNEE
-      ? {
-          id: optionId,
-          predicate: (e) =>
-            isTaskEntity(e) && getTaskAssigneeIds(e).length === 0,
-        }
-      : {
-          id: optionId,
-          clause: (b) => ({
-            propf: b.eq('properties', {
-              propertyId: ASSIGNEES,
-              type: 'entity',
-              value: optionId,
-            }),
-          }),
-          predicate: (e) =>
-            isTaskEntity(e) && getTaskAssigneeIds(e).includes(optionId),
-        },
+  options: (optionId, ctx) => {
+    if (optionId === NO_ASSIGNEE) {
+      return {
+        id: optionId,
+        predicate: (entity) =>
+          isTaskEntity(entity) && getTaskAssigneeIds(entity).length === 0,
+      };
+    }
+
+    const predicate = (entity: Parameters<typeof isTaskEntity>[0]) =>
+      isTaskEntity(entity) && getTaskAssigneeIds(entity).includes(optionId);
+    if (ctx.assignees?.includes(NO_ASSIGNEE)) {
+      return { id: optionId, predicate };
+    }
+
+    return {
+      id: optionId,
+      clause: (b) => ({
+        propf: b.eq('properties', {
+          propertyId: ASSIGNEES,
+          type: 'entity',
+          value: optionId,
+        }),
+      }),
+      predicate,
+    };
+  },
 });

@@ -10,7 +10,7 @@ const isChannel = (entity: EntityData) =>
   entity.type === 'channel_thread';
 
 export const SEARCH_TYPE = facet({
-  id: 'search-type',
+  id: 'search_type',
   mode: 'or',
   multiple: false, // single-select; 'all' = nothing selected
   restrict: true,
@@ -50,21 +50,47 @@ export const SEARCH_TYPE = facet({
       clause: (b) => ({ cf: b.not(b.eq('chatId', NIL_UUID)) }),
       predicate: (e) => e.type === 'chat',
     },
+    {
+      id: 'doc-snippet',
+      clause: (b) => ({
+        df: b.and(b.eq('fileType', 'md'), b.eq('subType', 'snippet')),
+      }),
+      predicate: (entity) =>
+        entity.type === 'document' && entity.subType?.type === 'snippet',
+    },
+    {
+      id: 'github-pr',
+      clause: (b) => ({
+        fef: b.eq('foreignEntitySource', 'github_pull_request'),
+      }),
+      predicate: (entity) =>
+        entity.type === 'foreign' &&
+        entity.foreignSource === 'github_pull_request',
+    },
   ],
 });
 
 export const EMAIL_IMPORTANCE = facet({
-  id: 'email-importance',
+  id: 'email_importance',
   mode: 'or',
   multiple: false,
   options: [
-    { id: 'important', clause: (b) => ({ ef: b.eq('emailImportance', true) }) },
+    {
+      id: 'important',
+      clause: (b) => ({ ef: b.eq('emailImportance', true) }),
+      predicate: (entity) => entity.type === 'email' && entity.isImportant,
+    },
+    {
+      id: 'noise',
+      clause: (b) => ({ ef: b.eq('emailImportance', false) }),
+      predicate: (entity) => entity.type === 'email' && !entity.isImportant,
+    },
   ],
 });
 
 // open id spaces (search boxes): each picked id resolves to its clause
 export const EMAIL_INBOX = facet({
-  id: 'email-inbox',
+  id: 'email_inbox',
   mode: 'or',
   options: (inboxId) => ({
     id: inboxId,
@@ -73,7 +99,7 @@ export const EMAIL_INBOX = facet({
 });
 
 export const CHANNEL_IN = facet({
-  id: 'channel-in',
+  id: 'channel_in',
   mode: 'or',
   options: (channelId) => ({
     id: channelId,
@@ -82,7 +108,7 @@ export const CHANNEL_IN = facet({
 });
 
 export const CHANNEL_FROM = facet({
-  id: 'channel-from',
+  id: 'channel_from',
   mode: 'or',
   options: (senderId) => ({
     id: senderId,
@@ -91,7 +117,7 @@ export const CHANNEL_FROM = facet({
 });
 
 export const CALL_IN = facet({
-  id: 'call-in',
+  id: 'call_in',
   mode: 'or',
   options: (channelId) => ({
     id: channelId,
@@ -100,7 +126,7 @@ export const CALL_IN = facet({
 });
 
 export const CALL_FROM = facet({
-  id: 'call-from',
+  id: 'call_from',
   mode: 'or',
   options: (speakerId) => ({
     id: speakerId,
@@ -109,7 +135,7 @@ export const CALL_FROM = facet({
 });
 
 export const CALL_STATUS = facet({
-  id: 'call-status',
+  id: 'call_status',
   mode: 'or',
   multiple: false,
   options: (status) => ({
@@ -119,7 +145,7 @@ export const CALL_STATUS = facet({
 });
 
 export const TASK_CREATED_BY = facet({
-  id: 'task-created-by',
+  id: 'task_created_by',
   mode: 'or',
   options: (userId) => ({
     id: userId,
@@ -127,15 +153,22 @@ export const TASK_CREATED_BY = facet({
   }),
 });
 
-// Selected tag option ids (open id space). `mode: 'or'` makes the facet store
-// OR every selected tag into one `propf` group — across definitions — which
-// then ANDs with the status/priority groups. The owning definition id comes
+// Selected tag option ids (open id space). The `tag_mode` facet switches this
+// group between any-of (OR) and all-of (AND) while it continues to AND with
+// status/priority groups. The owning definition id comes
 // from `ctx.tagDefs` (option ids are unique, but the backend literal needs it);
 // unloaded options resolve to no clause. Search reads the raw selection as
 // `tag_option_ids` and ignores this clause.
+export const TAG_MODE = facet({
+  id: 'tag_mode',
+  mode: 'or',
+  multiple: false,
+  options: [{ id: 'all' }],
+});
+
 export const TAG = facet({
   id: 'tag',
-  mode: 'or',
+  mode: (ctx) => (ctx.tagMode === 'all' ? 'and' : 'or'),
   options: (optionId, ctx) => {
     const propertyId = ctx.tagDefs?.get(optionId);
     return {

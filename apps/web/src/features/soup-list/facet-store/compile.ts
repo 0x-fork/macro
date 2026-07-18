@@ -142,9 +142,11 @@ export const compileFacets = <Ctx>(
           : new Set([...allowed].filter((target) => facetAllowed.has(target)));
     }
 
+    const mode =
+      typeof facet.mode === 'function' ? facet.mode(ctx) : facet.mode;
     for (const [target, exprs] of exprsByTarget) {
       const combined: TargetExpr =
-        facet.mode === 'or' ? { or: exprs } : { and: exprs };
+        mode === 'or' ? { or: exprs } : { and: exprs };
       const ast = compileExpr(target, combined);
 
       if (!ast) continue;

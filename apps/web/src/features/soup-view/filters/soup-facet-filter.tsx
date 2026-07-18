@@ -1,11 +1,13 @@
-import type { ListView } from '@app/constants/list-views';
-import { useSoupCollection } from '@app/features/soup-list';
+import { SearchableMultiSelectInline } from '@app/features/next-soup/soup-view/filters-bar/searchable-multi-select';
+import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
+import { TOKENS } from '@core/hotkey/tokens';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import FilterIcon from '@phosphor/funnel-simple.svg';
 import { cn, Dropdown, Tooltip } from '@ui';
-import { For, Show } from 'solid-js';
-import { VIEW_FACETS } from './facet-views';
+import { createSignal, For, onCleanup, Show } from 'solid-js';
+import { useSoupFacetControls } from './use-soup-facet-controls';
 
 const SelectionIndicator = (props: { active: boolean }) => (
   <span
@@ -22,24 +24,43 @@ const SelectionIndicator = (props: { active: boolean }) => (
   </span>
 );
 
-export function SoupFacetFilter(props: { view: ListView }) {
-  const collection = useSoupCollection();
-  const categories = () => VIEW_FACETS[props.view] ?? [];
+export function SoupFacetFilter() {
+  const panel = useSplitPanelOrThrow();
+  const controls = useSoupFacetControls();
+  const [open, setOpen] = createSignal(false);
+  const hotkeys = createHotkeyGroup();
+  registerHotkey({
+    hotkey: 'f',
+    hotkeyToken: TOKENS.soup.filter,
+    scopeId: panel.splitHotkeyScope,
+    description: 'Open filter menu',
+    keyDownHandler: () => {
+      setOpen(true);
+      return true;
+    },
+  }).withGroup(hotkeys);
+  onCleanup(() => hotkeys.dispose());
 
-  const select = (facetId: string, optionId: string, multiple?: boolean) => {
-    if (multiple) {
-      collection.facets.toggle(facetId, optionId);
+  const select = (
+    activeIds: string[],
+    optionId: string,
+    multiple: boolean,
+    onChange: (ids: string[]) => void
+  ) => {
+    if (!multiple) {
+      onChange(activeIds.includes(optionId) ? [] : [optionId]);
       return;
     }
-    collection.facets.set(
-      facetId,
-      collection.facets.has(facetId, optionId) ? [] : [optionId]
+    onChange(
+      activeIds.includes(optionId)
+        ? activeIds.filter((id) => id !== optionId)
+        : [...activeIds, optionId]
     );
   };
 
   return (
-    <Show when={categories().length > 0}>
-      <Dropdown placement="bottom-start">
+    <Show when={controls().length > 0}>
+      <Dropdown placement="bottom-start" open={open()} onOpenChange={setOpen}>
         <Tooltip label="Filter">
           <Dropdown.Trigger depth={2} class="bg-surface">
             <FilterIcon />
@@ -47,35 +68,56 @@ export function SoupFacetFilter(props: { view: ListView }) {
           </Dropdown.Trigger>
         </Tooltip>
         <Dropdown.Content class="shadow-menu">
-          <For each={categories()}>
-            {(category) => (
+          <For each={controls()}>
+            {(control) => (
               <Dropdown.Sub>
                 <Dropdown.SubTrigger>
-                  <span class="flex-1">{category.label}</span>
+                  <span class="flex-1">{control.label}</span>
                   <CaretRightIcon class="size-3 text-ink-muted" />
                 </Dropdown.SubTrigger>
                 <Dropdown.SubContent class="shadow-menu">
-                  <Dropdown.Group>
-                    <For each={category.options}>
-                      {(option) => (
-                        <Dropdown.Item
-                          closeOnSelect={!category.multiple}
-                          onSelect={() =>
-                            select(category.id, option.id, category.multiple)
-                          }
-                        >
-                          <SelectionIndicator
-                            active={collection.facets.has(
-                              category.id,
-                              option.id
-                            )}
-                          />
-                          <Show when={option.icon}>{(icon) => icon()()}</Show>
-                          <span class="flex-1 truncate">{option.label}</span>
-                        </Dropdown.Item>
-                      )}
-                    </For>
-                  </Dropdown.Group>
+                  <Show
+                    when={control.searchable}
+                    fallback={
+                      <Dropdown.Group>
+                        <For each={control.options()}>
+                          {(option) => (
+                            <Dropdown.Item
+                              closeOnSelect={!control.multiple}
+                              onSelect={() =>
+                                select(
+                                  control.activeIds(),
+                                  option.id,
+                                  control.multiple,
+                                  control.onChange
+                                )
+                              }
+                            >
+                              <SelectionIndicator
+                                active={control.activeIds().includes(option.id)}
+                              />
+                              <Show when={option.icon}>
+                                {(icon) => icon()()}
+                              </Show>
+                              <span class="flex-1 truncate">
+                                {option.label}
+                              </span>
+                            </Dropdown.Item>
+                          )}
+                        </For>
+                      </Dropdown.Group>
+                    }
+                  >
+                    <div class="w-64 p-1">
+                      <SearchableMultiSelectInline
+                        options={control.options}
+                        activeIds={control.activeIds}
+                        onChange={control.onChange}
+                        placeholder={control.placeholder}
+                        preserveOrder={control.preserveOrder}
+                      />
+                    </div>
+                  </Show>
                 </Dropdown.SubContent>
               </Dropdown.Sub>
             )}

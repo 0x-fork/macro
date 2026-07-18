@@ -13,12 +13,12 @@ export { createSoupCollection } from './create-soup-collection';
 export type {
   CreateSoupCollectionStateOptions,
   SoupCollectionControls,
+  SoupCollectionInitialState,
   SoupCollectionSetter,
   SoupCollectionSort,
   SoupCollectionState,
   SoupEmailView,
   SoupFacetStore,
-  SoupViewMode,
 } from './create-soup-collection-state';
 export { createSoupCollectionState } from './create-soup-collection-state';
 export type {
@@ -31,4 +31,5 @@ export type {
   SoupGroupHeaderItem,
   SoupItem,
   SoupLoadMoreItem,
+  SoupSectionHeaderItem,
 } from './types';

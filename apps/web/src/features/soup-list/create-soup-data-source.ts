@@ -1,13 +1,14 @@
-import { deduplicateEntities } from '@app/features/next-soup/utils';
+import type { ListDataSource } from '@app/components/list';
+import {
+  deduplicateEntities,
+  scopeChannelNotificationsForEntity,
+} from '@app/features/next-soup/utils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { useDealStages } from '@companies/crm/deal-stages';
-import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import {
   ENABLE_FEATURED_SEARCH_RESULTS,
-  ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
-  ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
+  ENABLE_GRAPHQL_SOUP_FLAG,
+  ENABLE_GRAPHQL_SOUP_OVERRIDE,
 } from '@core/constant/featureFlags';
-import { useUserId } from '@core/context/user';
 import { idToDisplayName } from '@core/user/util';
 import {
   COMPANY_STAGE_OPTIONS,
@@ -19,22 +20,11 @@ import {
 } from '@entity';
 import { useNotificationsForEntity } from '@notifications';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
-import { useQueryClient } from '@queries/client';
 import { invalidateUserNotifications } from '@queries/notification/user-notifications';
-import { useTagsQuery } from '@queries/properties/tags';
 import type {
   GroupMeta as ApiGroupMeta,
   GroupByField,
 } from '@queries/soup/grouped/types';
-import type { SoupParams } from '@queries/soup/items';
-import { useSoupAstItemsQuery } from '@queries/soup/items';
-import { soupKeys } from '@queries/soup/keys';
-import {
-  entityMatchesTagFilter,
-  soupItemMatchesTagFilter,
-} from '@queries/soup/tag-filter';
-import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
-import type { SoupApiItem } from '@service-storage/generated/schemas';
 import { type Accessor, createMemo } from 'solid-js';
 import {
   buildDateSoupGroups,
@@ -44,14 +34,17 @@ import {
 import {
   buildFlatSoupItems,
   buildGroupedSoupItems,
+  buildSearchSoupItems,
   type SoupItemGroup,
 } from './build-soup-items';
 import { createGroupedSoupQueries } from './create-grouped-soup-queries';
 import type { SoupCollectionControls } from './create-soup-collection-state';
 import { createSearchState } from './create-soup-search-state';
-import type { FacetCtx } from './facets';
 import { createSoupEntityTransformer } from './transform-soup-entities';
 import type { SoupItem } from './types';
+import { useReactiveSoupDataSource } from './use-reactive-soup-data-source';
+import { useRestSoupDataSource } from './use-rest-soup-data-source';
+import { useSoupBrowseRequest } from './use-soup-browse-request';
 
 type SoupEntity = EntityData & { notifications?: Accessor<Notification[]> };
 
@@ -64,31 +57,11 @@ export type CreateSoupDataSourceOptions = {
   enabled?: Accessor<boolean>;
   additionalEntities?: Accessor<EntityData[]>;
   disableLocalSearch?: Accessor<boolean>;
-  scopeNotifications?: (
-    entity: EntityData,
-    notifications: Notification[]
-  ) => Notification[];
-  isClientGroup?: (field: GroupByField) => boolean;
   sortConfigs: Record<
     string,
     { id: string; fn: (a: EntityData, b: EntityData) => number }
   >;
 };
-
-type ApiSortMethod = Exclude<
-  NonNullable<SoupParams['sort_method']>,
-  'frecency'
->;
-type ApiSoupParams = Omit<SoupParams, 'sort_method'> & {
-  sort_method: ApiSortMethod;
-};
-
-const API_SORTS = new Set<ApiSortMethod>([
-  'viewed_at',
-  'created_at',
-  'updated_at',
-  'viewed_updated',
-]);
 
 /**
  * Builds browse, search, grouped and disabled Soup sources and exposes one
@@ -97,16 +70,22 @@ const API_SORTS = new Set<ApiSortMethod>([
  */
 export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
   const { controls } = options;
-  const queryClient = useQueryClient();
-  const notificationSource = useGlobalNotificationSource();
-  const userId = useUserId();
-  const dealStages = useDealStages();
-  const enabled = () => options.enabled?.() ?? true;
+  const request = useSoupBrowseRequest(options);
+  const {
+    enabled,
+    notificationSource,
+    dealStages,
+    facetContext,
+    soupBody,
+    soupParams,
+    matchesActiveFilters,
+    matchesEntityFilters,
+    showSupportedForeignEntities,
+  } = request;
 
-  const supportedForeignEntities = useFeatureFlag(
-    ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
-    { enabledOverride: ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE }
-  );
+  const graphqlSoup = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
+    enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
+  });
 
   const groupByField = createMemo((): GroupByField | undefined => {
     const id = controls.groupBy();
@@ -119,51 +98,20 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
         propertyDefinitionId: id.slice('property:'.length),
       };
     }
-    return;
   });
 
   const isClientDateGroup = () => controls.groupBy() === 'date';
   const isClientPropertyGroup = () => {
     const field = groupByField();
-    return field !== undefined && (options.isClientGroup?.(field) ?? false);
+    const scopes = controls.facets.getSelected('scope');
+    return (
+      field?.type === 'property' &&
+      (scopes.includes('crm-company-active') ||
+        scopes.includes('crm-company-hidden'))
+    );
   };
   const serverGroupByField = () =>
     isClientDateGroup() || isClientPropertyGroup() ? undefined : groupByField();
-
-  const tagsQuery = useTagsQuery();
-  const tagDefinitions = createMemo(() => {
-    const definitions = new Map<string, string>();
-    for (const set of tagsQuery.data ?? []) {
-      for (const option of set.options) {
-        definitions.set(option.id, option.propertyDefinitionId);
-      }
-    }
-    return definitions;
-  });
-  const facetContext = (): FacetCtx => ({
-    userId: userId(),
-    notificationSource,
-    assignees: controls.facets.getSelected('assignee'),
-    tagDefs: tagDefinitions(),
-    resolveCompanyStage: (entity) =>
-      dealStages.resolveStage(
-        entity as Parameters<typeof dealStages.resolveStage>[0]
-      ),
-  });
-
-  const soupBody = createMemo(() => ({
-    ...controls.facets.compile(facetContext()),
-    ...(controls.emailView() ? { emailView: controls.emailView() } : {}),
-  }));
-  const soupParams = createMemo((): ApiSoupParams => {
-    const requested = controls.sort()[0]?.id ?? 'updated_at';
-    return {
-      limit: 100,
-      sort_method: API_SORTS.has(requested as ApiSortMethod)
-        ? (requested as ApiSortMethod)
-        : 'created_at',
-    };
-  });
 
   const search = createSearchState({
     facets: controls.facets,
@@ -174,23 +122,28 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     setSearchText: controls.setSearch,
   });
 
-  const activeTagIds = () => controls.facets.getSelected('tag');
+  const reactiveEligible = () => serverGroupByField() === undefined;
+  const reactive = useReactiveSoupDataSource({
+    enabled: () => enabled() && graphqlSoup().enabled && reactiveEligible(),
+    params: soupParams,
+    body: soupBody,
+    showSupportedForeignEntities,
+  });
+  const useReactiveSource = () =>
+    graphqlSoup().enabled && reactiveEligible() && reactive.isSupported();
 
-  const matchesActiveFilters = (item: SoupApiItem) =>
-    soupItemMatchesTagFilter(item, activeTagIds()) &&
-    controls.facets.test(mapApiSoupItemToEntity(item), facetContext());
+  const rest = useRestSoupDataSource({
+    enabled: () => enabled() && !search.isSearching() && !useReactiveSource(),
+    params: soupParams,
+    body: soupBody,
+    groupBy: serverGroupByField,
+    showSupportedForeignEntities,
+    itemFilter: matchesActiveFilters,
+  });
+  const itemsQuery = rest.query;
 
-  const itemsQuery = useSoupAstItemsQuery(
-    () => ({
-      params: soupParams(),
-      body: soupBody(),
-      groupBy: serverGroupByField(),
-    }),
-    () => ({
-      enabled: enabled() && !search.isSearching(),
-      showSupportedForeignEntities: supportedForeignEntities().enabled,
-      meta: { itemFilter: matchesActiveFilters },
-    })
+  const activeBrowseSource = createMemo(() =>
+    useReactiveSource() ? reactive : rest
   );
 
   const rawNotifications = (entity: EntityData) => {
@@ -207,7 +160,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
       return {
         ...withoutRaw,
         notifications: () =>
-          options.scopeNotifications?.(withoutRaw, raw) ?? raw,
+          scopeChannelNotificationsForEntity(withoutRaw, raw),
       } as SoupEntity;
     }
 
@@ -218,8 +171,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     return {
       ...entity,
       notifications: () => {
-        const current = notifications();
-        return options.scopeNotifications?.(entity, current) ?? current;
+        return scopeChannelNotificationsForEntity(entity, notifications());
       },
     } as SoupEntity;
   };
@@ -235,18 +187,18 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
   const transformEntities = createSoupEntityTransformer<EntityData, SoupEntity>(
     {
       enrich: attachNotifications,
-      include: (entity) =>
-        controls.facets.test(entity, facetContext()) &&
-        entityMatchesTagFilter(entity, activeTagIds()),
+      include: matchesEntityFilters,
       deduplicate: (input) => deduplicateEntities(input) as SoupEntity[],
       compare: compareEntities,
     }
   );
 
   const browseEntities = (): EntityData[] => {
-    const data = itemsQuery.data;
-    if (!data || data.groups) return [];
-    return [...(options.additionalEntities?.() ?? []), ...data.entities];
+    if (serverGroupByField()) return [];
+    return [
+      ...(options.additionalEntities?.() ?? []),
+      ...activeBrowseSource().items(),
+    ];
   };
 
   const searchEntities = createMemo<EntityData[]>((previous) => {
@@ -275,7 +227,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     queryOptions: () => ({
       enabled: enabled() && !search.isSearching(),
       filterSelectedItems: false,
-      showSupportedForeignEntities: supportedForeignEntities().enabled,
+      showSupportedForeignEntities: showSupportedForeignEntities(),
       // Keep the raw API filter in query metadata for cache insertion guards.
       // Rendered group entities are filtered by the items memo below.
       meta: { itemFilter: matchesActiveFilters },
@@ -322,6 +274,18 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
       };
     });
 
+  const browseFlatEntities = createMemo(() =>
+    transformEntities(browseEntities(), { sort: true })
+  );
+
+  const searchFlatEntities = createMemo(() =>
+    transformEntities(searchEntities(), {
+      priorityIds: ENABLE_FEATURED_SEARCH_RESULTS
+        ? search.featuredIds()
+        : undefined,
+    })
+  );
+
   const buildClientPropertyItems = (entities: readonly SoupEntity[]) => {
     const field = groupByField();
     const definitionId =
@@ -342,16 +306,11 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     return buildGroupedSoupItems(groups, controls.disclosure.isExpanded);
   };
 
-  const items = createMemo((): readonly SoupItem[] => {
+  const items = createMemo(() => {
     if (!enabled()) return [];
 
     if (search.isSearching()) {
-      const entities = transformEntities(searchEntities(), {
-        priorityIds: ENABLE_FEATURED_SEARCH_RESULTS
-          ? search.featuredIds()
-          : undefined,
-      });
-      return buildFlatSoupItems(entities);
+      return buildSearchSoupItems(searchFlatEntities(), search.featuredIds());
     }
 
     const apiGroups = itemsQuery.data?.groups;
@@ -363,13 +322,15 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
       return buildGroupedSoupItems(groups, controls.disclosure.isExpanded);
     }
 
-    const entities = transformEntities(browseEntities(), { sort: true });
+    const entities = browseFlatEntities();
+
     if (isClientDateGroup()) {
       return buildGroupedSoupItems(
         buildDateSoupGroups(entities),
         controls.disclosure.isExpanded
       );
     }
+
     if (isClientPropertyGroup()) {
       return buildClientPropertyItems(entities);
     }
@@ -378,24 +339,37 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
 
   const { searchQuery } = search;
 
-  return {
+  const dataSource = {
     items,
-    isLoading: () =>
-      enabled() &&
-      (search.isSearching() ? searchQuery.isLoading : itemsQuery.isLoading),
-    isFetching: () =>
-      enabled() &&
-      (search.isSearching() ? searchQuery.isFetching : itemsQuery.isFetching),
-    error: () => (search.isSearching() ? searchQuery.error : itemsQuery.error),
-    hasMore: () =>
-      enabled() &&
-      (search.isSearching()
-        ? searchQuery.isEnabled && !!searchQuery.hasNextPage
-        : itemsQuery.isEnabled && !!itemsQuery.hasNextPage),
-    isLoadingMore: () =>
-      search.isSearching()
-        ? searchQuery.isFetchingNextPage
-        : itemsQuery.isFetchingNextPage,
+    isLoading: () => {
+      if (!enabled()) return false;
+      if (search.isSearching()) return searchQuery.isLoading;
+
+      return activeBrowseSource().isLoading();
+    },
+    isFetching: () => {
+      if (!enabled()) return false;
+      if (search.isSearching()) return searchQuery.isFetching;
+
+      return activeBrowseSource().isFetching();
+    },
+    error: () =>
+      search.isSearching() ? searchQuery.error : activeBrowseSource().error(),
+    hasMore: () => {
+      if (!enabled()) return false;
+
+      if (search.isSearching())
+        return searchQuery.isEnabled && !!searchQuery.hasNextPage;
+
+      return activeBrowseSource().hasMore();
+    },
+    isLoadingMore: () => {
+      if (search.isSearching()) {
+        return searchQuery.isFetchingNextPage;
+      }
+
+      return activeBrowseSource().isLoadingMore();
+    },
     loadMore: async () => {
       if (!enabled()) return;
       if (search.isSearching()) {
@@ -404,27 +378,32 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
         }
         return;
       }
-      if (itemsQuery.isEnabled && itemsQuery.hasNextPage) {
-        await itemsQuery.fetchNextPage();
-      }
+      const source = activeBrowseSource();
+      if (source.hasMore()) await source.loadMore();
     },
     refresh: async () => {
       if (!enabled()) return;
-      await Promise.all([
-        queryClient.invalidateQueries(
-          { queryKey: soupKeys._def },
-          { throwOnError: true }
-        ),
-        invalidateUserNotifications(),
-      ]);
+      const refreshData = search.isSearching()
+        ? searchQuery.isEnabled
+          ? searchQuery.refetch()
+          : Promise.resolve()
+        : activeBrowseSource().refresh();
+      await Promise.all([refreshData, invalidateUserNotifications()]);
     },
+  } satisfies ListDataSource<SoupItem>;
+
+  return {
+    ...dataSource,
     status: {
       isPlaceholderData: () =>
-        !search.isSearching() && itemsQuery.isPlaceholderData,
+        !search.isSearching() &&
+        !useReactiveSource() &&
+        itemsQuery.isPlaceholderData,
       isSearching: search.isSearching,
       isSearchServiceLoading: search.isSearchServiceLoading,
       isLocalSearchSettling: search.isLocalSearchSettling,
       featuredIds: search.featuredIds,
+      flatEntities: browseFlatEntities,
       groupByField,
     },
   };

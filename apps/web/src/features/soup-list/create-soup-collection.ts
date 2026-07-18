@@ -7,10 +7,7 @@ import type {
   SoupCollectionState,
 } from './create-soup-collection-state';
 import { createSoupCollectionState } from './create-soup-collection-state';
-import {
-  type CreateSoupDataSourceOptions,
-  createSoupDataSource,
-} from './create-soup-data-source';
+import { createSoupDataSource } from './create-soup-data-source';
 import { ALL_FACETS } from './facets';
 
 export type SoupCollectionStatus = ReturnType<
@@ -23,30 +20,29 @@ export type SoupCollection = SoupCollectionControls & {
   reset: () => void;
 };
 
-export type CreateSoupCollectionOptions = CreateSoupCollectionStateOptions &
-  Pick<CreateSoupDataSourceOptions, 'scopeNotifications' | 'isClientGroup'> & {
-    enabled?: Accessor<boolean>;
-    additionalEntities?: Accessor<EntityData[]>;
-    disableLocalSearch?: Accessor<boolean>;
-  };
+export type CreateSoupCollectionOptions = CreateSoupCollectionStateOptions & {
+  enabled?: Accessor<boolean>;
+  additionalEntities?: Accessor<EntityData[]>;
+  disableLocalSearch?: Accessor<boolean>;
+};
 
 /** Owns one Soup collection's controls and all concrete data sources. */
 export function createSoupCollection(
   options: CreateSoupCollectionOptions
 ): SoupCollection {
   const state: SoupCollectionState = createSoupCollectionState({
-    ...options,
     facets: options.facets ?? ALL_FACETS,
     sortConfigs: options.sortConfigs ?? SORT_CONFIGS,
-    initialSortIds: options.initialSortIds ?? ['updated_at'],
+    initialState: {
+      ...options.initialState,
+      sortIds: options.initialState?.sortIds ?? ['updated_at'],
+    },
   });
   const source = createSoupDataSource({
     controls: state,
     enabled: options.enabled,
     additionalEntities: options.additionalEntities,
     disableLocalSearch: options.disableLocalSearch,
-    scopeNotifications: options.scopeNotifications,
-    isClientGroup: options.isClientGroup,
     sortConfigs: options.sortConfigs ?? SORT_CONFIGS,
   });
   const { status, ...dataSource } = source;

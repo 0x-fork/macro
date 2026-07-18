@@ -7,6 +7,7 @@ import type { FacetSelection } from './facet-store';
 import { NIL_UUID } from './facet-store';
 import { NO_ASSIGNEE } from './facets/base';
 import { DOCUMENT_SEARCH_FILE_TYPES } from './facets/documents';
+import { isSearchTaggableType } from './search-type-capabilities';
 
 type SearchTypeValue =
   | 'all'
@@ -16,7 +17,9 @@ type SearchTypeValue =
   | 'task'
   | 'document-or-file'
   | 'folders'
-  | 'agent';
+  | 'agent'
+  | 'doc-snippet'
+  | 'github-pr';
 type CallStatus = 'ATTENDED' | 'MISSED' | 'UNATTENDED';
 
 const TASK_STATUS_VALUES: Record<string, string> = {
@@ -89,25 +92,16 @@ const ACTIVE_GROUP: Record<SearchTypeValue, EntityGroup | null> = {
   'document-or-file': 'document_filters',
   folders: 'project_filters',
   agent: 'chat_filters',
+  'doc-snippet': 'document_filters',
+  'github-pr': 'foreign_entity_filters',
 };
-
-// Search result types that carry tags. Channels/calls are excluded — they
-// aren't taggable — so a tag selection never silently empties those searches.
-const TAG_SEARCH_TYPES = new Set<SearchTypeValue>([
-  'all',
-  'task',
-  'document-or-file',
-  'email',
-  'agent',
-  'folders',
-]);
 
 export function buildSearchEntityFilters(
   selection: Partial<FacetSelection>,
   context: { userId?: string } = {}
 ): EntityFilters {
   const {
-    'search-type': searchType = [],
+    search_type: searchType = [],
     scope = [],
     agents = [],
     mail = [],
@@ -117,20 +111,21 @@ export function buildSearchEntityFilters(
     folders = [],
     calls = [],
     type: documentTypes = [],
-    'email-importance': emailImportance = [],
-    'email-inbox': emailInbox = [],
-    'channel-in': channelIn = [],
-    'channel-from': channelFrom = [],
-    'call-in': callIn = [],
-    'call-from': callFrom = [],
-    'call-status': callStatus = [],
-    'task-status': taskStatus = [],
-    'task-priority': taskPriority = [],
+    email_importance: emailImportance = [],
+    email_inbox: emailInbox = [],
+    channel_in: channelIn = [],
+    channel_from: channelFrom = [],
+    call_in: callIn = [],
+    call_from: callFrom = [],
+    call_status: callStatus = [],
+    task_status: taskStatus = [],
+    task_priority: taskPriority = [],
     assignee = [],
-    'task-created-by': taskCreatedBy = [],
-    'read-state': readState = [],
-    'channel-thread-scope': channelThreadScope = [],
+    task_created_by: taskCreatedBy = [],
+    read_state: readState = [],
+    channel_thread_scope: channelThreadScope = [],
     tag = [],
+    tag_mode: tagMode = [],
   } = selection;
 
   const scopeType: Partial<Record<string, SearchTypeValue>> = {
@@ -144,6 +139,8 @@ export function buildSearchEntityFilters(
     folders: 'folders',
     calls: 'calls',
     'document-or-file': 'document-or-file',
+    'doc-snippet': 'doc-snippet',
+    'github-pr': 'github-pr',
   };
   const type =
     (searchType[0] as SearchTypeValue | undefined) ??
@@ -169,6 +166,7 @@ export function buildSearchEntityFilters(
       const ef: NonNullable<EntityFilters['email_filters']> = {};
 
       if (emailImportance.includes('important')) ef.importance = true;
+      else if (emailImportance.includes('noise')) ef.importance = false;
       if (emailInbox.length) ef.link_ids = emailInbox;
 
       if (Object.keys(ef).length) filters.email_filters = ef;
@@ -198,6 +196,21 @@ export function buildSearchEntityFilters(
 
       if (Object.keys(cf).length) filters.call_filters = cf;
 
+      break;
+    }
+
+    case 'doc-snippet': {
+      filters.document_filters = {
+        file_types: ['md'],
+        sub_types: ['snippet'],
+      };
+      break;
+    }
+
+    case 'github-pr': {
+      filters.foreign_entity_filters = {
+        foreign_entity_sources: ['github_pull_request'],
+      };
       break;
     }
 
@@ -235,13 +248,13 @@ export function buildSearchEntityFilters(
               ]
             : [];
         }),
-        ...assignee
-          .filter((value) => value !== NO_ASSIGNEE)
-          .map((value) => ({
-            propertyId: SYSTEM_PROPERTY_IDS.ASSIGNEES,
-            type: 'entity' as const,
-            value,
-          })),
+        ...(assignee.includes(NO_ASSIGNEE)
+          ? []
+          : assignee.map((value) => ({
+              propertyId: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+              type: 'entity' as const,
+              value,
+            }))),
       ]);
 
       if (properties.length) filters.property_filters = properties;
@@ -401,8 +414,9 @@ export function buildSearchEntityFilters(
   // definitions. No definition id is sent — the backend matches values only.
   // Gated to TAG_SEARCH_TYPES (taggable result types) so a tag selection never
   // silently empties a channel/call search.
-  if (TAG_SEARCH_TYPES.has(type) && tag.length) {
+  if (isSearchTaggableType(type) && tag.length) {
     filters.tag_option_ids = tag;
+    if (tagMode.includes('all')) filters.tag_filter_mode = 'all';
   }
 
   return filters;

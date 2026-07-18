@@ -1,9 +1,9 @@
 import { createRoot, createSignal } from 'solid-js';
 import { describe, expect, it } from 'vitest';
-import { and, type BackendAstMap, eq, not } from './clause';
-import { mergeAst } from './compile';
-import { createFacetStore, deserializeFacets, serializeFacets } from './store';
-import type { Facet } from './types';
+import { and, type BackendAstMap, eq, not } from '../clause';
+import { mergeAst } from '../compile';
+import { createFacetStore, deserializeFacets, serializeFacets } from '../store';
+import type { Facet } from '../types';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ type Ctx = { userId: string };
 
 // multi-select OR category spanning fileType/fileAssoc/subType
 const DOC_TYPE: Facet = {
-  id: 'doc-type',
+  id: 'doc_type',
   mode: 'or',
   options: [
     {
@@ -89,7 +89,7 @@ const OWNERSHIP_CTX: Facet<Ctx> = {
 };
 
 const MAIL_STATUS: Facet = {
-  id: 'mail-status',
+  id: 'mail_status',
   mode: 'or',
   options: [
     { id: 'read', clause: { ef: eq('emailSeen', true) } },
@@ -99,7 +99,7 @@ const MAIL_STATUS: Facet = {
 
 // restrict: inbox-style type chips — "is this type" via idField ≠ NIL
 const INBOX_TYPE: Facet = {
-  id: 'inbox-type',
+  id: 'inbox_type',
   mode: 'or',
   restrict: true,
   options: [
@@ -132,7 +132,7 @@ const STATUS_DEF = 'status-def';
 const PRIORITY_DEF = 'priority-def';
 
 const TASK_STATUS: Facet = {
-  id: 'task-status',
+  id: 'task_status',
   mode: 'or',
   options: [
     {
@@ -159,7 +159,7 @@ const TASK_STATUS: Facet = {
 };
 
 const TASK_PRIORITY: Facet = {
-  id: 'task-priority',
+  id: 'task_priority',
   mode: 'or',
   options: [
     {
@@ -181,9 +181,9 @@ describe('compilation algebra', () => {
   it('OR facet unions same- and different-field options', () => {
     createRoot((dispose) => {
       const s = createFacetStore([DOC_TYPE]);
-      s.toggle('doc-type', 'markdown');
-      s.toggle('doc-type', 'canvas');
-      s.toggle('doc-type', 'code');
+      s.toggle('doc_type', 'markdown');
+      s.toggle('doc_type', 'canvas');
+      s.toggle('doc_type', 'code');
       expect(rootOp(s.compile().df)).toBe('or');
       const lits = signedLits(s.compile().df);
       expect(lits).toContainEqual(inc('{"ft":"md"}'));
@@ -196,9 +196,9 @@ describe('compilation algebra', () => {
   it('ANDs facets within a target; cross-target selections are independent', () => {
     createRoot((dispose) => {
       const s = createFacetStore([DOC_TYPE, OWNERSHIP_STATIC, MAIL_STATUS]);
-      s.toggle('doc-type', 'canvas');
+      s.toggle('doc_type', 'canvas');
       s.toggle('ownership', 'owned');
-      s.toggle('mail-status', 'unread');
+      s.toggle('mail_status', 'unread');
       const ast = s.compile();
       // df: canvas AND owned
       expect(rootOp(ast.df)).toBe('and');
@@ -215,8 +215,8 @@ describe('compilation algebra', () => {
       const s = createFacetStore([OWNERSHIP_STATIC, MAIL_STATUS]);
       s.toggle('ownership', 'owned');
       s.toggle('ownership', 'shared');
-      s.toggle('mail-status', 'read');
-      s.toggle('mail-status', 'unread');
+      s.toggle('mail_status', 'read');
+      s.toggle('mail_status', 'unread');
       const df = signedLits(s.compile().df);
       expect(df).toContainEqual(inc('{"o":"user-me"}'));
       expect(df).toContainEqual(exc('{"o":"user-me"}'));
@@ -231,7 +231,7 @@ describe('compilation algebra', () => {
     createRoot((dispose) => {
       const store = createFacetStore([
         {
-          id: 'thread-sender',
+          id: 'thread_sender',
           mode: 'or',
           options: [
             {
@@ -241,7 +241,7 @@ describe('compilation algebra', () => {
           ],
         } satisfies Facet,
       ]);
-      store.toggle('thread-sender', 'user-1');
+      store.toggle('thread_sender', 'user-1');
 
       expect(store.compile().cthf).toEqual({ l: { RootSender: 'user-1' } });
       dispose();
@@ -251,9 +251,9 @@ describe('compilation algebra', () => {
   it('exact compiled shape: (s1 | s2) & p1 across property facets', () => {
     createRoot((dispose) => {
       const s = createFacetStore([TASK_STATUS, TASK_PRIORITY]);
-      s.toggle('task-status', 'not-started');
-      s.toggle('task-status', 'in-progress');
-      s.toggle('task-priority', 'urgent');
+      s.toggle('task_status', 'not-started');
+      s.toggle('task_status', 'in-progress');
+      s.toggle('task_priority', 'urgent');
       expect(s.compile().propf).toEqual({
         '&': [
           {
@@ -276,8 +276,8 @@ describe('restrict mode', () => {
   it('admitted types pass through; all other entity targets receive NIL', () => {
     createRoot((dispose) => {
       const s = createFacetStore([INBOX_TYPE]);
-      s.toggle('inbox-type', 'docs');
-      s.toggle('inbox-type', 'mail');
+      s.toggle('inbox_type', 'docs');
+      s.toggle('inbox_type', 'mail');
       const ast = s.compile();
       expect(ast.df).toEqual({ '!': nil('id') });
       expect(ast.ef).toEqual({ '!': nil('ThreadId') });
@@ -292,21 +292,21 @@ describe('restrict mode', () => {
   it('intersects targets admitted by independent restricting facets', () => {
     createRoot((dispose) => {
       const documentsOnly: Facet = {
-        id: 'documents-only',
+        id: 'documents_only',
         mode: 'or',
         restrict: true,
         options: [{ id: 'documents', clause: { df: eq('documentId', 'd1') } }],
       };
       const mailOnly: Facet = {
-        id: 'mail-only',
+        id: 'mail_only',
         mode: 'or',
         restrict: true,
         options: [{ id: 'mail', clause: { ef: eq('threadId', 'e1') } }],
       };
       const store = createFacetStore([documentsOnly, mailOnly], {
         initialSelection: {
-          'documents-only': ['documents'],
-          'mail-only': ['mail'],
+          documents_only: ['documents'],
+          mail_only: ['mail'],
         },
       });
 
@@ -319,7 +319,7 @@ describe('restrict mode', () => {
   it('confinement overrides a clause on a disallowed target', () => {
     createRoot((dispose) => {
       const s = createFacetStore([INBOX_TYPE, OWNERSHIP_STATIC]);
-      s.toggle('inbox-type', 'docs'); // restrict to df
+      s.toggle('inbox_type', 'docs'); // restrict to df
       s.toggle('ownership', 'owned'); // adds to df (allowed) and would add to cf (not registered here)
       const ast = s.compile();
       expect(signedLits(ast.df)).toContainEqual(inc('{"o":"user-me"}'));
@@ -385,10 +385,11 @@ const TAG_B_DEF = 'tag-def-b';
 
 // Mirrors the real `tag` facet: option ids are stored bare, and each option's
 // owning definition id is resolved from `ctx.tagDefs` at compile so the propf
-// literal carries the right `pd`. `mode: 'or'` is what unions them.
+// literal carries the right `pd`. Context switches the group between any/all.
 const TAG: Facet = {
   id: 'tag',
-  mode: 'or',
+  mode: (ctx) =>
+    (ctx as { tagMode?: 'any' | 'all' }).tagMode === 'all' ? 'and' : 'or',
   options: (optionId, ctx) => {
     const pd = (ctx as { tagDefs?: ReadonlyMap<string, string> })?.tagDefs?.get(
       optionId
@@ -412,7 +413,7 @@ describe('tag facet', () => {
   it('ORs tags across definitions and ANDs with status; pd from ctx', () => {
     createRoot((dispose) => {
       const s = createFacetStore([TASK_STATUS, TAG]);
-      s.toggle('task-status', 'not-started');
+      s.toggle('task_status', 'not-started');
       s.toggle('tag', 'ta'); // owned by def A
       s.toggle('tag', 'tb'); // owned by def B
       const tagDefs = new Map([
@@ -436,6 +437,25 @@ describe('tag facet', () => {
     });
   });
 
+  it('ANDs tags when context selects all mode', () => {
+    createRoot((dispose) => {
+      const s = createFacetStore([TAG]);
+      s.set('tag', ['ta', 'tb']);
+      const tagDefs = new Map([
+        ['ta', TAG_A_DEF],
+        ['tb', TAG_B_DEF],
+      ]);
+
+      expect(s.compile({ tagDefs, tagMode: 'all' }).propf).toEqual({
+        '&': [
+          { l: { pd: TAG_A_DEF, v: { so: 'ta' } } },
+          { l: { pd: TAG_B_DEF, v: { so: 'tb' } } },
+        ],
+      });
+      dispose();
+    });
+  });
+
   it('unloaded tag (no ctx definition) compiles to no clause', () => {
     createRoot((dispose) => {
       const s = createFacetStore([TAG]);
@@ -453,23 +473,23 @@ describe('store lifecycle', () => {
     createRoot((dispose) => {
       const s = createFacetStore([DOC_TYPE]);
 
-      s.toggle('doc-type', 'canvas');
-      expect(s.has('doc-type', 'canvas')).toBe(true);
-      expect(s.getSelected('doc-type')).toEqual(['canvas']);
+      s.toggle('doc_type', 'canvas');
+      expect(s.has('doc_type', 'canvas')).toBe(true);
+      expect(s.getSelected('doc_type')).toEqual(['canvas']);
 
-      s.toggle('doc-type', 'canvas');
-      expect(s.has('doc-type', 'canvas')).toBe(false);
+      s.toggle('doc_type', 'canvas');
+      expect(s.has('doc_type', 'canvas')).toBe(false);
 
       // unknown facet/option: accepted by store, inert at compile
-      s.toggle('bogus-facet' as any, 'x' as any);
-      s.toggle('doc-type', 'bogus-option' as any);
+      s.toggle('bogus_facet' as any, 'x' as any);
+      s.toggle('doc_type', 'bogus-option' as any);
       expect(s.compile()).toEqual({});
 
-      s.set('doc-type', ['canvas', 'markdown']);
-      expect(s.getSelected('doc-type')).toEqual(['canvas', 'markdown']);
+      s.set('doc_type', ['canvas', 'markdown']);
+      expect(s.getSelected('doc_type')).toEqual(['canvas', 'markdown']);
 
-      s.clear('doc-type');
-      expect(s.getSelected('doc-type')).toEqual([]);
+      s.clear('doc_type');
+      expect(s.getSelected('doc_type')).toEqual([]);
 
       dispose();
     });
@@ -484,10 +504,10 @@ describe('persistence', () => {
   it('deserialize drops unknown facets; keeps option ids verbatim (inert at compile)', () => {
     expect(
       deserializeFacets(
-        { 'doc-type': ['canvas', 'gone'], 'gone-facet': ['x'] },
+        { doc_type: ['canvas', 'gone'], gone_facet: ['x'] },
         FACETS
       )
-    ).toEqual({ 'doc-type': ['canvas', 'gone'] });
+    ).toEqual({ doc_type: ['canvas', 'gone'] });
   });
 
   it('round-trips through serialize → hydrate → compile', () => {
@@ -496,7 +516,7 @@ describe('persistence', () => {
 
     createRoot((dispose) => {
       const s = createFacetStore(FACETS);
-      s.toggle('doc-type', 'markdown');
+      s.toggle('doc_type', 'markdown');
       s.toggle('ownership', 'owned');
       direct = s.compile();
 

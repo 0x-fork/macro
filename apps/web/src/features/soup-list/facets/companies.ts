@@ -26,7 +26,7 @@ const stageOf = (entity: EntityData, ctx: FacetCtx): string | undefined =>
 // Open id space: each picked id is a deal-stage option id (team-customizable,
 // so options resolve per-id); NO_STAGE matches companies with no Stage set.
 export const COMPANY_STAGE = facet({
-  id: 'company-stage',
+  id: 'company_stage',
   mode: 'or',
   multiple: true,
   options: (stageId) =>
@@ -45,7 +45,7 @@ export const COMPANY_STAGE = facet({
 // Open id space: each picked id is an owner (person) id; NO_ASSIGNEE matches
 // companies with no Owner set.
 export const COMPANY_OWNER = facet({
-  id: 'company-owner',
+  id: 'company_owner',
   mode: 'or',
   options: (ownerId) =>
     ownerId === NO_ASSIGNEE

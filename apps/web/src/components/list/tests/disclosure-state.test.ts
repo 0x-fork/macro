@@ -1,6 +1,6 @@
 import { createRoot } from 'solid-js';
 import { describe, expect, it } from 'vitest';
-import { createDisclosureState } from './disclosure-state';
+import { createDisclosureState } from '../disclosure-state';
 
 describe('createDisclosureState', () => {
   describe('default collapsed (e.g. sub-items)', () => {

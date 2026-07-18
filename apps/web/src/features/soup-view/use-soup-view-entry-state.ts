@@ -5,9 +5,10 @@ import {
   useSoupCollection,
 } from '@app/features/soup-list';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
-import { batch, createSignal, onCleanup } from 'solid-js';
+import { batch, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
+import { useSoupView } from './context';
 
 const SOUP_LIST_STATE_ENTRY_KEY = 'soup.listState';
 const SOUP_PREVIEW_ENTITY_ENTRY_KEY = 'soup.preview';
@@ -21,8 +22,6 @@ export type SoupListEntryState = {
 
 type UseSoupViewEntryStateOptions = {
   virtualizer: () => VirtualizerHandle | undefined;
-  initialPreviewOpen?: boolean;
-  defaultPreviewOpen: boolean;
   restoreCollection?: boolean;
 };
 
@@ -30,11 +29,8 @@ type UseSoupViewEntryStateOptions = {
 export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
   const panel = useSplitPanelOrThrow();
   const collection = useSoupCollection();
+  const view = useSoupView();
   const { state: listState } = useList<SoupItem>();
-  const selectedEntity = () => {
-    const item = listState.focus.item();
-    return item?.kind === 'entity' ? item.entity : undefined;
-  };
   const entryState = panel.handle.currentEntryState();
   const restoredListState = entryState?.[SOUP_LIST_STATE_ENTRY_KEY] as
     | SoupListEntryState
@@ -82,22 +78,14 @@ export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
 
       const viewMode = entryState?.['soup.viewMode'];
       if (viewMode === 'list' || viewMode === 'board') {
-        collection.setViewMode(viewMode);
+        view.setViewMode(viewMode);
       }
     });
   }
 
-  const persistedPreviewEntity = entryState?.[SOUP_PREVIEW_ENTITY_ENTRY_KEY] as
-    | string
-    | undefined;
-  const persistedPreviewOpen = entryState?.[SOUP_PREVIEW_OPEN_ENTRY_KEY] as
-    | boolean
-    | undefined;
-  const [previewOpen, setPreviewOpen] = createSignal(
-    persistedPreviewOpen ??
-      options.initialPreviewOpen ??
-      (persistedPreviewEntity ? true : options.defaultPreviewOpen)
-  );
+  const previewEntity = entryState?.[SOUP_PREVIEW_ENTITY_ENTRY_KEY];
+  const persistedPreviewEntity =
+    typeof previewEntity === 'string' ? previewEntity : undefined;
 
   const captorTeardowns = [
     panel.handle.registerEntryStateCaptor(
@@ -116,14 +104,14 @@ export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
       ...collection.disclosure.toggledIds(),
     ]),
     panel.handle.registerEntryStateCaptor('soup.tab', collection.activeTab),
-    panel.handle.registerEntryStateCaptor('soup.viewMode', collection.viewMode),
+    panel.handle.registerEntryStateCaptor('soup.viewMode', view.viewMode),
     panel.handle.registerEntryStateCaptor(
       SOUP_PREVIEW_ENTITY_ENTRY_KEY,
-      () => selectedEntity()?.id
+      () => view.previewEntity()?.id
     ),
     panel.handle.registerEntryStateCaptor(
       SOUP_PREVIEW_OPEN_ENTRY_KEY,
-      previewOpen
+      view.previewOpen
     ),
   ];
 
@@ -144,10 +132,5 @@ export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
     for (const teardown of captorTeardowns) teardown();
   });
 
-  return {
-    previewOpen,
-    setPreviewOpen,
-    restoredListState,
-    persistedPreviewEntity,
-  };
+  return { restoredListState, persistedPreviewEntity };
 }

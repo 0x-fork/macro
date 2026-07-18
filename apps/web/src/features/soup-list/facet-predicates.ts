@@ -36,7 +36,7 @@ function getPredicateNotifications(
  * - Everything else: Has at least one notification with viewedAt === null
  */
 export function unreadFilter(notificationSource: NotificationSource) {
-  return function (entity: EntityData): boolean {
+  return (entity: EntityData): boolean => {
     if (entity.type === 'email') {
       return !entity.isRead;
     }
@@ -55,7 +55,7 @@ export function unreadFilter(notificationSource: NotificationSource) {
  * - Everything else: Has at least one notification with done === false
  */
 export function notDoneFilter(notificationSource: NotificationSource) {
-  return function (entity: WithNotification<EntityData>) {
+  return (entity: WithNotification<EntityData>) => {
     if (entity.type === 'email') return !entity.done;
 
     const notifications = getPredicateNotifications(entity, notificationSource);
@@ -291,7 +291,7 @@ export function hasDocumentAttachmentFilter(entity: EntityData): boolean {
 }
 
 export function sharedEntity(getUserID: () => string | undefined) {
-  return function (entity: EntityData): boolean {
+  return (entity: EntityData): boolean => {
     const userID = getUserID();
     if (userID == null) return false;
 
@@ -300,7 +300,7 @@ export function sharedEntity(getUserID: () => string | undefined) {
 }
 
 function _ownedAgentFilter(getUserID: () => string | undefined) {
-  return function (entity: EntityData): boolean {
+  return (entity: EntityData): boolean => {
     if (entity.type !== 'chat') return false;
     const userID = getUserID();
     if (userID == null) return false;
@@ -310,7 +310,7 @@ function _ownedAgentFilter(getUserID: () => string | undefined) {
 }
 
 function _sharedAgentFilter(getUserID: () => string | undefined) {
-  return function (entity: EntityData): boolean {
+  return (entity: EntityData): boolean => {
     if (entity.type !== 'chat') return false;
     const userID = getUserID();
     if (userID == null) return false;
@@ -320,7 +320,7 @@ function _sharedAgentFilter(getUserID: () => string | undefined) {
 }
 
 export function taskAssignedToUserFilter(getUserID: () => string | undefined) {
-  return function (entity: EntityData): boolean {
+  return (entity: EntityData): boolean => {
     const userID = getUserID();
     if (!isTaskEntity(entity) || userID == null) return false;
 

@@ -4,7 +4,7 @@ import { facet } from './base';
 
 /** Read state across every entity target supported by notification filtering. */
 export const READ_STATE = facet({
-  id: 'read-state',
+  id: 'read_state',
   mode: 'or',
   multiple: false,
   options: [
@@ -43,7 +43,7 @@ export const READ_STATE = facet({
 
 /** Runtime channel-thread confinement or participant scope. */
 export const CHANNEL_THREAD_SCOPE = facet({
-  id: 'channel-thread-scope',
+  id: 'channel_thread_scope',
   mode: 'or',
   multiple: false,
   options: (optionId) => ({

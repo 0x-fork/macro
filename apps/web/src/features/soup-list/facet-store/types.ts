@@ -28,9 +28,11 @@ export type OptionResolver<Ctx> = (
   ctx: Ctx
 ) => FacetOption<Ctx> | undefined;
 
+export type FacetMode<Ctx> = 'or' | 'and' | ((ctx: Ctx) => 'or' | 'and');
+
 export type Facet<Ctx = unknown> = {
   id: string;
-  mode: 'or' | 'and';
+  mode: FacetMode<Ctx>;
   multiple?: boolean;
   restrict?: boolean;
   options: readonly FacetOption<Ctx>[] | OptionResolver<Ctx>;

@@ -387,7 +387,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         initialFacets: {
           scope: ['task'],
           ownership: ['assigned-to'],
-          'task-status': [...OPEN_TASK_STATUS_FILTER_IDS],
+          task_status: [...OPEN_TASK_STATUS_FILTER_IDS],
         },
         groupBy: `property:${SYSTEM_PROPERTY_IDS.PRIORITY}`,
         requires: (c) => !!c.userId,
@@ -396,7 +396,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         initialFacets: {
           scope: ['task'],
           ownership: ['owned-entity'],
-          'task-status': [...OPEN_TASK_STATUS_FILTER_IDS],
+          task_status: [...OPEN_TASK_STATUS_FILTER_IDS],
         },
         groupBy: `property:${SYSTEM_PROPERTY_IDS.STATUS}`,
         requires: (c) => !!c.userId,

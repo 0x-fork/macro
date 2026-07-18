@@ -18,7 +18,6 @@ export type SoupCollectionSort = {
 };
 
 export type SoupEmailView = 'inbox' | 'drafts' | 'sent' | 'all';
-export type SoupViewMode = 'list' | 'board';
 
 type SoupCollectionStore = {
   sort: SoupCollectionSort[];
@@ -27,7 +26,6 @@ type SoupCollectionStore = {
   searchPaused: boolean;
   activeTab: string | undefined;
   emailView: SoupEmailView | undefined;
-  viewMode: SoupViewMode;
 };
 
 export type SoupCollectionSetter<T> = (value: T | ((current: T) => T)) => T;
@@ -55,25 +53,25 @@ export type SoupCollectionControls = {
   setActiveTab: SoupCollectionSetter<string | undefined>;
   emailView: Accessor<SoupEmailView | undefined>;
   setEmailView: SoupCollectionSetter<SoupEmailView | undefined>;
-  viewMode: Accessor<SoupViewMode>;
-  setViewMode: SoupCollectionSetter<SoupViewMode>;
   resetViewState: () => void;
+};
+
+export type SoupCollectionInitialState = {
+  facets?: FacetSelection;
+  extraFacets?: readonly Facet<FacetCtx>[];
+  sortIds?: string[];
+  sort?: SoupCollectionSort[];
+  groupBy?: string;
+  collapsedGroups?: Iterable<string>;
+  search?: string;
+  activeTab?: string;
+  emailView?: SoupEmailView;
 };
 
 export type CreateSoupCollectionStateOptions = {
   facets?: readonly Facet<FacetCtx>[];
-  initialFacets?: FacetSelection;
-  initialExtraFacets?: readonly Facet<FacetCtx>[];
-
   sortConfigs?: Record<string, SortConfig<EntityData, string>>;
-  initialSortIds?: string[];
-
-  initialGroupBy?: string;
-  initialCollapsedGroups?: Iterable<string>;
-  initialSearch?: string;
-  initialActiveTab?: string;
-  initialEmailView?: SoupEmailView;
-  initialViewMode?: SoupViewMode;
+  initialState?: SoupCollectionInitialState;
 };
 
 export type SoupCollectionState = SoupCollectionControls & {
@@ -93,32 +91,36 @@ const storeSetter =
 export function createSoupCollectionState(
   options: CreateSoupCollectionStateOptions = {}
 ): SoupCollectionState {
+  const initialState = options.initialState ?? {};
   const initialFacets: FacetSelection = {
-    ...(options.initialFacets ?? {}),
+    ...(initialState.facets ?? {}),
   };
 
   const facets = createFacetStore(options.facets ?? [], {
     initialSelection: initialFacets,
-    initialExtraFacets: options.initialExtraFacets,
+    initialExtraFacets: initialState.extraFacets,
   });
 
   const sortConfigs: Record<
     string,
     SortConfig<EntityData, string>
   > = options.sortConfigs ?? {};
-  const initialSort: SoupCollectionSort[] = (options.initialSortIds ?? [])
-    .filter((id) => sortConfigs[id] !== undefined)
-    .map((id) => ({ id, reversed: false }));
-  const initialCollapsedGroups = [...(options.initialCollapsedGroups ?? [])];
+  const initialSort: SoupCollectionSort[] = initialState.sort
+    ? initialState.sort
+        .filter((sort) => sortConfigs[sort.id] !== undefined)
+        .map((sort) => ({ ...sort }))
+    : (initialState.sortIds ?? [])
+        .filter((id) => sortConfigs[id] !== undefined)
+        .map((id) => ({ id, reversed: false }));
+  const initialCollapsedGroups = [...(initialState.collapsedGroups ?? [])];
 
   const [state, setState] = createStore<SoupCollectionStore>({
     sort: initialSort,
-    groupBy: options.initialGroupBy,
-    search: options.initialSearch ?? '',
+    groupBy: initialState.groupBy,
+    search: initialState.search ?? '',
     searchPaused: false,
-    activeTab: options.initialActiveTab,
-    emailView: options.initialEmailView,
-    viewMode: options.initialViewMode ?? 'board',
+    activeTab: initialState.activeTab,
+    emailView: initialState.emailView,
   });
 
   const sort = () => state.sort;
@@ -153,26 +155,20 @@ export function createSoupCollectionState(
   const setEmailView = storeSetter(emailView, (value) =>
     setState('emailView', value)
   );
-  const viewMode = () => state.viewMode;
-  const setViewMode = storeSetter(viewMode, (value) =>
-    setState('viewMode', value)
-  );
-
   const resetFacets = () => facets.hydrate(initialFacets);
   const resetSort = () => setSort(initialSort.map((item) => ({ ...item })));
   const resetGrouping = () => {
-    setGroupBy(options.initialGroupBy);
+    setGroupBy(initialState.groupBy);
     disclosure.reset();
     disclosure.collapseAll(initialCollapsedGroups);
   };
   const resetSearch = () => {
-    setSearch(options.initialSearch ?? '');
+    setSearch(initialState.search ?? '');
     setSearchPaused(false);
   };
   const resetViewState = () => {
-    setActiveTab(options.initialActiveTab);
-    setEmailView(options.initialEmailView);
-    setViewMode(options.initialViewMode ?? 'board');
+    setActiveTab(initialState.activeTab);
+    setEmailView(initialState.emailView);
   };
 
   return {
@@ -194,8 +190,6 @@ export function createSoupCollectionState(
     setActiveTab,
     emailView,
     setEmailView,
-    viewMode,
-    setViewMode,
     resetViewState,
     reset: () => {
       batch(() => {

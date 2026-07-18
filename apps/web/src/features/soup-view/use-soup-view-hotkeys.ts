@@ -3,16 +3,21 @@ import {
   type ListActivation,
   useList,
 } from '@app/components/list';
-import type { ListView } from '@app/constants/list-views';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { type SoupItem, useSoupCollection } from '@app/features/soup-list';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { entityIdSelector } from '@core/dom-selectors';
-import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
+import {
+  createHotkeyGroup,
+  registerHotkey as registerBaseHotkey,
+} from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { EntityData } from '@entity';
-import { type Accessor, onCleanup, type Setter } from 'solid-js';
+import { type Accessor, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
+import { useSoupEntityActions } from './actions/use-soup-entity-actions';
+import { useSoupView } from './context';
+import { replaceSoupNavigationSession } from './navigation-session';
 
 const LOAD_MORE_DISTANCE_FROM_END = 3;
 const NUMBER_TAB_HOTKEYS = [
@@ -27,21 +32,13 @@ const NUMBER_TAB_HOTKEYS = [
   '9',
 ] as const;
 
-type SoupTab = { value: string; label?: unknown };
-
 type UseSoupViewHotkeysOptions = {
   listScopeId: string;
   scopeId?: string;
-  view: ListView;
   root: Accessor<HTMLElement | undefined>;
   virtualizer: Accessor<VirtualizerHandle | undefined>;
-  previewOpen: Accessor<boolean>;
-  setPreviewOpen: Setter<boolean>;
   activate: (activation: ListActivation<SoupItem>) => void;
-  tabs: Accessor<readonly SoupTab[]>;
-  applyTabPreset: (tabId: string) => boolean;
-  showSort: Accessor<boolean>;
-  setSortOpen: Setter<boolean>;
+  enabled?: Accessor<boolean>;
   canNavigate?: Accessor<boolean>;
   onNavigate?: (item: SoupItem, index: number) => void;
 };
@@ -53,7 +50,24 @@ const entityFromItem = (item: SoupItem | undefined): EntityData | undefined =>
 export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   const panel = useSplitPanelOrThrow();
   const collection = useSoupCollection();
+  const view = useSoupView();
+  const entityActions = useSoupEntityActions();
   const { dataSource, state: listState } = useList<SoupItem>();
+  const enabled = () => options.enabled?.() ?? true;
+  const registerHotkey = (hotkey: Parameters<typeof registerBaseHotkey>[0]) =>
+    registerBaseHotkey({
+      ...hotkey,
+      condition: () => enabled() && (hotkey.condition?.() ?? true),
+    });
+  const actionEntities = () => {
+    const selected = listState.selection
+      .selected()
+      .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []));
+    if (selected.length > 0) return selected;
+    const focused = entityFromItem(listState.focus.item());
+    return focused ? [focused] : [];
+  };
+  const actions = () => entityActions.build(actionEntities());
 
   const scrollTo = (index: number) =>
     options.virtualizer()?.scrollToIndex(index, { align: 'nearest' });
@@ -66,6 +80,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   };
 
   const canNavigate = () => {
+    if (!enabled()) return false;
     if (options.canNavigate) return options.canNavigate();
     const contentType = panel.handle.content().type;
     const referredFrom = panel.handle.referredFrom();
@@ -97,7 +112,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     ) {
       void openEntityInSplitFromUnifiedList(next.item.entity, {
         splitHandle: panel.handle,
-        referredFrom: options.view,
+        referredFrom: view.view(),
         mergeHistory: true,
       });
     }
@@ -159,45 +174,48 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   };
 
   const cycleTab = (offset: number) => {
-    const tabs = options.tabs();
+    const tabs = view.tabs();
     if (tabs.length === 0) return false;
     const current = tabs.findIndex(
       (tab) => tab.value === collection.activeTab()
     );
     const next = (Math.max(current, 0) + offset + tabs.length) % tabs.length;
-    return options.applyTabPreset(tabs[next].value);
+    return view.applyTabPreset(tabs[next].value);
   };
 
-  // J/K intentionally remain registered after the rendered list unmounts so a
-  // detail entry can continue navigating its originating collection. The
-  // split/session owner determines when the scope itself is destroyed.
-  registerHotkey({
-    hotkey: 'j',
-    hotkeyToken: TOKENS.entity.step.end,
-    scopeId: options.scopeId ?? panel.splitHotkeyScope,
-    description: 'Down',
-    condition: canNavigate,
-    keyDownHandler: () => navigate(1),
-    hide: true,
-  });
-  registerHotkey({
-    hotkey: 'k',
-    hotkeyToken: TOKENS.entity.step.start,
-    scopeId: options.scopeId ?? panel.splitHotkeyScope,
-    description: 'Up',
-    condition: canNavigate,
-    keyDownHandler: () => navigate(-1),
-    hide: true,
-  });
+  // J/K intentionally survive the rendered list, but a new list in the same
+  // split replaces the previous registrations so token commands cannot leak.
+  const persistentScope = options.scopeId ?? panel.splitHotkeyScope;
+  replaceSoupNavigationSession(persistentScope, () => [
+    registerHotkey({
+      hotkey: 'j',
+      hotkeyToken: TOKENS.entity.step.end,
+      scopeId: persistentScope,
+      description: 'Down',
+      condition: canNavigate,
+      keyDownHandler: () => navigate(1),
+      hide: true,
+    }),
+
+    registerHotkey({
+      hotkey: 'k',
+      hotkeyToken: TOKENS.entity.step.start,
+      scopeId: persistentScope,
+      description: 'Up',
+      condition: canNavigate,
+      keyDownHandler: () => navigate(-1),
+      hide: true,
+    }),
+  ]);
 
   const hotkeys = createHotkeyGroup();
 
   for (
     let index = 0;
-    index < Math.min(options.tabs().length, NUMBER_TAB_HOTKEYS.length);
+    index < Math.min(view.tabs().length, NUMBER_TAB_HOTKEYS.length);
     index++
   ) {
-    const tab = options.tabs()[index];
+    const tab = view.tabs()[index];
     const hotkey = NUMBER_TAB_HOTKEYS[index];
     if (!tab || !hotkey) continue;
     registerHotkey({
@@ -205,7 +223,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
       scopeId: options.listScopeId,
       description:
         typeof tab.label === 'string' ? `Open ${tab.label}` : 'Open tab',
-      keyDownHandler: () => options.applyTabPreset(tab.value),
+      keyDownHandler: () => view.applyTabPreset(tab.value),
       hide: true,
     }).withGroup(hotkeys);
   }
@@ -214,35 +232,38 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     hotkey: 'tab',
     scopeId: options.listScopeId,
     description: 'Next tab',
-    condition: () => options.tabs().length > 0,
+    condition: () => view.tabs().length > 0,
     keyDownHandler: (event) => {
       event?.preventDefault();
       return cycleTab(1);
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'shift+tab',
     scopeId: options.listScopeId,
     description: 'Previous tab',
-    condition: () => options.tabs().length > 0,
+    condition: () => view.tabs().length > 0,
     keyDownHandler: (event) => {
       event?.preventDefault();
       return cycleTab(-1);
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 's',
     hotkeyToken: TOKENS.soup.sort,
     scopeId: options.listScopeId,
     description: 'Open sort menu',
-    condition: options.showSort,
+    condition: view.sortVisible,
     keyDownHandler: () => {
-      options.setSortOpen(true);
+      view.setSortOpen(true);
       return true;
     },
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'arrowdown',
     scopeId: options.listScopeId,
@@ -250,6 +271,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     keyDownHandler: () => navigate(1),
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'arrowup',
     scopeId: options.listScopeId,
@@ -257,6 +279,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     keyDownHandler: () => navigate(-1),
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: ['shift+arrowup', 'shift+k'],
     hotkeyToken: TOKENS.entity.select.start,
@@ -265,6 +288,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     keyDownHandler: () => navigateAndSelect(-1),
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: ['shift+arrowdown', 'shift+j'],
     hotkeyToken: TOKENS.entity.select.end,
@@ -273,6 +297,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     keyDownHandler: () => navigateAndSelect(1),
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: ['h', 'arrowleft'],
     hotkeyToken: TOKENS.unifiedList.navigation.parent,
@@ -307,6 +332,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: ['l', 'arrowright'],
     hotkeyToken: TOKENS.unifiedList.navigation.child,
@@ -325,6 +351,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'home',
     scopeId: options.listScopeId,
@@ -336,6 +363,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'end',
     scopeId: options.listScopeId,
@@ -347,6 +375,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'enter',
     scopeId: options.listScopeId,
@@ -369,6 +398,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'shift+enter',
     scopeId: options.listScopeId,
@@ -385,6 +415,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'cmd+enter',
     scopeId: options.listScopeId,
@@ -400,13 +431,14 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
           reason: 'keyboard',
           metadata: {
             openFocused: true,
-            previewOpen: options.previewOpen(),
+            previewOpen: view.previewOpen(),
           },
         }) !== undefined
       );
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'x',
     scopeId: options.listScopeId,
@@ -421,6 +453,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'cmd+a',
     scopeId: options.listScopeId,
@@ -439,6 +472,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
       return true;
     },
   }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'escape',
     scopeId: options.listScopeId,
@@ -450,13 +484,75 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     },
     hide: true,
   }).withGroup(hotkeys);
+
+  const runAction = (id: string) => {
+    const action = actions().find((candidate) => candidate.id === id);
+    if (!action) return false;
+    void action.run();
+    return true;
+  };
+  const hasAction = (id: string) =>
+    canNavigate() && actions().some((candidate) => candidate.id === id);
+
+  registerHotkey({
+    hotkey: 'e',
+    hotkeyToken: TOKENS.entity.action.markDone,
+    scopeId: options.listScopeId,
+    description: 'Mark done',
+    condition: () => hasAction('mark-done'),
+    keyDownHandler: () => runAction('mark-done'),
+  }).withGroup(hotkeys);
+
+  registerHotkey({
+    hotkey: 'r',
+    hotkeyToken: TOKENS.entity.action.rename,
+    scopeId: options.listScopeId,
+    description: 'Rename',
+    condition: () => hasAction('rename'),
+    keyDownHandler: () => runAction('rename'),
+  }).withGroup(hotkeys);
+
+  registerHotkey({
+    hotkeyToken: TOKENS.entity.action.properties,
+    scopeId: options.listScopeId,
+    description: 'Edit properties',
+    condition: () => hasAction('properties'),
+    keyDownHandler: () => runAction('properties'),
+  }).withGroup(hotkeys);
+
+  registerHotkey({
+    hotkey: ['delete', 'backspace'],
+    hotkeyToken: TOKENS.entity.action.delete,
+    scopeId: options.listScopeId,
+    description: 'Delete',
+    condition: () => hasAction('delete'),
+    keyDownHandler: () => runAction('delete'),
+  }).withGroup(hotkeys);
+
+  registerHotkey({
+    hotkey: 'opt+f',
+    hotkeyToken: TOKENS.entity.action.favorite,
+    scopeId: options.listScopeId,
+    description: 'Toggle favorite',
+    condition: () => hasAction('favorite'),
+    keyDownHandler: () => runAction('favorite'),
+  }).withGroup(hotkeys);
+
+  registerHotkey({
+    hotkeyToken: TOKENS.entity.action.copyEntityId,
+    scopeId: options.listScopeId,
+    description: 'Copy ID',
+    condition: () => hasAction('copy-id'),
+    keyDownHandler: () => runAction('copy-id'),
+  }).withGroup(hotkeys);
+
   registerHotkey({
     hotkey: 'space',
     hotkeyToken: TOKENS.unifiedList.togglePreview,
     scopeId: panel.splitHotkeyScope,
     description: 'Toggle preview',
     keyDownHandler: () => {
-      options.setPreviewOpen((open) => !open);
+      view.setPreviewOpen((open) => !open);
       return true;
     },
   }).withGroup(hotkeys);

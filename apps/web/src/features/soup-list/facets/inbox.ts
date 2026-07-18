@@ -33,7 +33,7 @@ export const INBOX_FOCUS = facet({
 });
 
 export const ENTITY_TYPE = facet({
-  id: 'entity-type',
+  id: 'entity_type',
   mode: 'or',
   multiple: true,
   restrict: true,

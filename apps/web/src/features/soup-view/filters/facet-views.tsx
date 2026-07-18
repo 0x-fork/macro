@@ -34,7 +34,7 @@ export function buildContactLabel(
 
 const INBOX_FILTER_CATEGORIES: FilterCategory[] = [
   {
-    id: 'entity-type',
+    id: 'entity_type',
     label: 'Type',
     labelPlural: 'Types',
     options: [
@@ -130,7 +130,7 @@ const MAIL_FILTER_CATEGORIES: FilterCategory[] = [
 
 const TASKS_FILTER_CATEGORIES: FilterCategory[] = [
   {
-    id: 'task-status',
+    id: 'task_status',
     label: 'Status',
     labelPlural: 'Statuses',
     options: [
@@ -188,7 +188,7 @@ const TASKS_FILTER_CATEGORIES: FilterCategory[] = [
     multiple: true,
   },
   {
-    id: 'task-priority',
+    id: 'task_priority',
     label: 'Priority',
     labelPlural: 'Priorities',
     options: [

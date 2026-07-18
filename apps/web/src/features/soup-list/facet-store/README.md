@@ -16,7 +16,7 @@ can also provide client predicates for local/search/cache filtering.
 ```ts
 const facets = createFacetStore(catalog, { initialSelection });
 facets.toggle('type', 'doc-markdown');
-facets.set('task-status', ['task-not-started', 'task-in-progress']);
+facets.set('task_status', ['task-not-started', 'task-in-progress']);
 facets.compile(context); // Soup backend AST
 facets.test(entity, context); // client path
 facets.serialize(); // persistence-safe selection

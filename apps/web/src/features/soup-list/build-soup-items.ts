@@ -26,6 +26,37 @@ export const buildFlatSoupItems = <TEntity extends EntityData>(
 ): SoupEntityItem<TEntity>[] =>
   entities.map((entity) => buildSoupEntityItem(entity));
 
+export function buildSearchSoupItems<TEntity extends EntityData>(
+  entities: readonly TEntity[],
+  featuredIds: readonly string[]
+): SoupItem[] {
+  if (featuredIds.length === 0) return buildFlatSoupItems(entities);
+
+  const featured = new Set(featuredIds);
+  const featuredEntities = entities.filter((entity) => featured.has(entity.id));
+  if (featuredEntities.length === 0) return buildFlatSoupItems(entities);
+  const remaining = entities.filter((entity) => !featured.has(entity.id));
+  const items: SoupItem[] = [
+    {
+      kind: 'section-header',
+      id: 'section:featured-results',
+      label: 'Featured Results',
+    },
+    ...buildFlatSoupItems(featuredEntities),
+  ];
+  if (remaining.length > 0) {
+    items.push(
+      {
+        kind: 'section-header',
+        id: 'section:more-results',
+        label: 'More Results',
+      },
+      ...buildFlatSoupItems(remaining)
+    );
+  }
+  return items;
+}
+
 /** Builds explicit group-header/entity/load-more items from transformed groups. */
 export function buildGroupedSoupItems<TEntity extends EntityData>(
   groups: readonly SoupItemGroup<TEntity>[],

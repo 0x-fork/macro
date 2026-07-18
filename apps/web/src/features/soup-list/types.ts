@@ -17,6 +17,12 @@ export type SoupGroupHeaderItem = {
   count?: number;
 };
 
+export type SoupSectionHeaderItem = {
+  kind: 'section-header';
+  id: string;
+  label: string;
+};
+
 export type SoupLoadMoreItem = {
   kind: 'load-more';
   id: string;
@@ -28,4 +34,8 @@ export type SoupLoadMoreItem = {
 };
 
 /** Rows emitted by a Soup collection for the concrete Soup view. */
-export type SoupItem = SoupEntityItem | SoupGroupHeaderItem | SoupLoadMoreItem;
+export type SoupItem =
+  | SoupEntityItem
+  | SoupGroupHeaderItem
+  | SoupSectionHeaderItem
+  | SoupLoadMoreItem;

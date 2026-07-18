@@ -5,7 +5,7 @@ import { facet } from './base';
 // types the block never shows (channels, calls, crm, foreign), matching the
 // query-filter seed this replaced. Open id space: the id is the project id.
 export const PROJECT_SCOPE = facet({
-  id: 'project-scope',
+  id: 'project_scope',
   mode: 'or',
   restrict: true,
   options: (projectId) => ({

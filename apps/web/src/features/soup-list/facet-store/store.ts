@@ -17,6 +17,7 @@ export const createFacetStore = <
   options: {
     initialSelection?: FacetSelection;
     initialExtraFacets?: readonly Facet<Ctx>[];
+    beforeChange?: () => void;
   } = {}
 ) => {
   const [selection, setSelection] = createStore<FacetSelection>({
@@ -42,6 +43,7 @@ export const createFacetStore = <
     selection[facetId] ?? [];
 
   const toggle = (facetId: FacetKey<F>, optionId: string) => {
+    options.beforeChange?.();
     setSelection(
       produce((draft) => {
         const active = draft[facetId] ?? [];
@@ -53,16 +55,20 @@ export const createFacetStore = <
   };
 
   const set = (facetId: FacetKey<F>, optionIds: readonly string[]) => {
+    options.beforeChange?.();
     setSelection(facetId, [...optionIds]);
   };
 
   const clear = (facetId?: FacetKey<F>) => {
+    options.beforeChange?.();
     if (facetId) return setSelection(facetId, []);
     setSelection(reconcile({}));
   };
 
-  const hydrate = (next: FacetSelection) =>
+  const hydrate = (next: FacetSelection) => {
+    options.beforeChange?.();
     setSelection(reconcile({ ...next }));
+  };
 
   const compile = (ctx: Ctx = {} as Ctx) =>
     compileFacets(selection, activeFacets(), ctx);
@@ -85,7 +91,10 @@ export const createFacetStore = <
     deserialize,
     compile,
     test,
-    setExtraFacets,
+    setExtraFacets: (next: readonly Facet<Ctx>[]) => {
+      options.beforeChange?.();
+      setExtraFacets(next);
+    },
   };
 };
 
@@ -139,7 +148,9 @@ export const testFacets = <Ctx>(
     const testable = results.filter((r): r is boolean => r !== undefined);
     if (!testable.length) return true;
 
-    return facet.mode === 'and'
+    const mode =
+      typeof facet.mode === 'function' ? facet.mode(ctx) : facet.mode;
+    return mode === 'and'
       ? testable.every(Boolean)
       : testable.some(Boolean) || results.some((r) => r === undefined);
   });

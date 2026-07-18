@@ -20,6 +20,7 @@ import {
   EMAIL_INBOX,
   SEARCH_TYPE,
   TAG,
+  TAG_MODE,
   TASK_CREATED_BY,
 } from './search';
 import { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
@@ -47,6 +48,7 @@ export {
   EMAIL_INBOX,
   SEARCH_TYPE,
   TAG,
+  TAG_MODE,
   TASK_CREATED_BY,
 } from './search';
 export { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from './tasks';
@@ -75,6 +77,7 @@ export const ALL_FACETS = [
   CALL_STATUS,
   TASK_CREATED_BY,
   TAG,
+  TAG_MODE,
   PROJECT_SCOPE,
   READ_STATE,
   CHANNEL_THREAD_SCOPE,
