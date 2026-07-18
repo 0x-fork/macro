@@ -23,9 +23,11 @@ import { ListEntity } from '@entity';
 import Spinner from '@phosphor/spinner.svg';
 import { EmptyStatePanel } from '@ui';
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -63,15 +65,19 @@ const createInitialInboxFacets = (
   ...(isNewInbox ? { read_state: ['unread'], call_status: ['MISSED'] } : {}),
 });
 
-const syncInboxFacets = (
+const applyInboxMode = (
   collection: SoupCollection,
   isNewInbox: boolean,
   userId: string | undefined
 ) => {
-  collection.facets.set('channel_thread_scope', [
-    inboxThreadScope(isNewInbox, userId),
-  ]);
-  if (isNewInbox) collection.facets.set('call_status', ['MISSED']);
+  batch(() => {
+    collection.facets.set('channel_thread_scope', [
+      inboxThreadScope(isNewInbox, userId),
+    ]);
+    collection.facets.set('read_state', isNewInbox ? ['unread'] : []);
+    collection.facets.set('call_status', isNewInbox ? ['MISSED'] : []);
+    collection.setGroupBy(isNewInbox ? 'date' : undefined);
+  });
 };
 
 function InboxListViewContent() {
@@ -231,7 +237,11 @@ export function InboxListView(props: InboxListViewProps) {
     },
   });
 
-  createEffect(() => syncInboxFacets(setup.collection, isNewInbox(), userId()));
+  createEffect(
+    on([isNewInbox, userId], ([enabled, id]) =>
+      applyInboxMode(setup.collection, enabled, id)
+    )
+  );
 
   return (
     <SoupCollectionProvider value={setup.collection}>
