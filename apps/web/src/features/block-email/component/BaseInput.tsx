@@ -27,7 +27,7 @@ import {
   ENABLE_EMAIL_SIGNATURES_FLAG,
   ENABLE_EMAIL_SIGNATURES_OVERRIDE,
 } from '@core/constant/featureFlags';
-import { useEmail } from '@core/context/user';
+import { useEmail, useReferralCode } from '@core/context/user';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { fileSelector } from '@core/directive/fileSelector';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
@@ -35,6 +35,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { useTouchOutsideToDismissKeyboard } from '@core/mobile/useTouchOutsideToDismissKeyboard';
+import { referralLandingUrl } from '@core/referral';
 import { trackMention } from '@core/signal/mention';
 import { plural } from '@core/util/string';
 import { handleFileFolderDrop } from '@core/util/upload';
@@ -82,6 +83,7 @@ import type {
 } from '@service-email/generated/schemas';
 import { isIOS } from '@solid-primitives/platform';
 import { Button, cn, Layer, SendButton, Surface, Tooltip } from '@ui';
+import { emailWatermarkEnabled } from '@ui/signals/signals';
 import { $addUpdateTag, $getRoot } from 'lexical';
 import {
   type Accessor,
@@ -962,6 +964,7 @@ export function BaseInput(props: {
   });
 
   const hasPaidAccess = useHasPaidAccess();
+  const referralCode = useReferralCode();
 
   // Set up hotkey scope for the compose message component
   const [attachComposeHotkeys, composeHotkeyScope] =
@@ -1062,7 +1065,11 @@ export function BaseInput(props: {
     // leave orphaned watermark nodes in the editor tree.
     const cleanupWatermark = $appendWatermarkNodeToLast(
       currentEditor,
-      !hasPaidAccess() ? MACRO_EMAIL_SIGNATURE : undefined
+      !hasPaidAccess() || emailWatermarkEnabled()
+        ? MACRO_EMAIL_SIGNATURE
+        : undefined,
+      true,
+      referralLandingUrl(referralCode())
     );
 
     const replyingTo = props.replyingTo();
@@ -2085,7 +2092,7 @@ export function BaseInput(props: {
               </Tooltip>
             </div>
           </Show>
-          <Show when={!hasPaidAccess()}>
+          <Show when={!hasPaidAccess() || emailWatermarkEnabled()}>
             <div class="text-ink/50 mt-[1lh]" data-watermark>
               <MacroSignatureButton />
             </div>

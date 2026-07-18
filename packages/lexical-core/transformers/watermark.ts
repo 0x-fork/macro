@@ -20,6 +20,7 @@ export const I_WATERMARK: ElementTransformer = {
 
     const data = JSON.stringify({
       content: node.getContent(),
+      ...(node.getHref() ? { href: node.getHref() } : {}),
     });
 
     return `<m-watermark>${data}</m-watermark>`;
@@ -31,7 +32,10 @@ export const I_WATERMARK: ElementTransformer = {
         if (!(field in data)) throw new Error(`Missing field ${field}`);
       }
 
-      const watermarkNode = $createWatermarkNode({ content: data.content });
+      const watermarkNode = $createWatermarkNode({
+        content: data.content,
+        href: typeof data.href === 'string' ? data.href : undefined,
+      });
       parent.append(watermarkNode);
     } catch (e) {
       console.error('Error in I_WATERMARK replace:', e);

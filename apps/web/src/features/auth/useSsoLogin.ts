@@ -3,6 +3,7 @@ import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { SERVER_HOSTS } from '@core/constant/servers';
 import { useEmailLinks } from '@core/email-link';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { getStoredReferralCode } from '@core/referral';
 import type { RedirectLocation } from '@core/util/authRedirect';
 import { unsetTokenPromise } from '@core/util/fetchWithToken';
 import { getNativeMobilePlatform } from '@core/util/platform';
@@ -30,7 +31,8 @@ export function useSsoLogin(opts?: { signupMode?: boolean }) {
       new URL(window.location.href).searchParams.get('referral_code') ??
       new URLSearchParams(location.state?.originalLocation?.search).get(
         'referral_code'
-      );
+      ) ??
+      getStoredReferralCode();
 
     if (referral_code) authUrl.searchParams.set('referral_code', referral_code);
 

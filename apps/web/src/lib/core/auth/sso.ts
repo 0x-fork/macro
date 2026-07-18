@@ -1,5 +1,6 @@
 import { SERVER_HOSTS } from '@core/constant/servers';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { resolveReferralCode } from '@core/referral';
 import { unsetTokenPromise } from '@core/util/fetchWithToken';
 
 import { getNativeMobilePlatform } from '@core/util/platform';
@@ -28,9 +29,7 @@ export async function startSsoLogin(
   const authUrl = new URL(`${SERVER_HOSTS['auth-service']}/login/sso`);
   authUrl.searchParams.set('idp_name', idpName);
 
-  const referralCode = new URL(window.location.href).searchParams.get(
-    'referral_code'
-  );
+  const referralCode = resolveReferralCode();
   if (referralCode) authUrl.searchParams.set('referral_code', referralCode);
   if (params.loginHint)
     authUrl.searchParams.set('login_hint', params.loginHint);

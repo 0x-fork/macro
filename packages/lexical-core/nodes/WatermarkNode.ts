@@ -18,6 +18,8 @@ import { $applyIdFromSerialized } from '../plugins/nodeIdPlugin';
 
 export type WatermarkInfo = {
   content: string;
+  /** When set, the watermark is exported as a link (e.g. the sender's referral URL). */
+  href?: string;
 };
 
 export type SerializedWatermarkNode = Spread<
@@ -27,6 +29,7 @@ export type SerializedWatermarkNode = Spread<
 
 export type WatermarkDecoratorProps = {
   content: string;
+  href?: string;
   key: NodeKey;
   theme: EditorThemeClasses;
 };
@@ -35,6 +38,7 @@ export class WatermarkNode extends DecoratorNode<
   DecoratorComponent<WatermarkDecoratorProps> | undefined
 > {
   __content: string;
+  __href?: string;
 
   static getType() {
     return 'watermark';
@@ -53,17 +57,19 @@ export class WatermarkNode extends DecoratorNode<
   }
 
   static clone(node: WatermarkNode) {
-    return new WatermarkNode(node.__content, node.__key);
+    return new WatermarkNode(node.__content, node.__href, node.__key);
   }
 
-  constructor(content: string, key?: NodeKey) {
+  constructor(content: string, href?: string, key?: NodeKey) {
     super(key);
     this.__content = content;
+    this.__href = href;
   }
 
   static importJSON(serializedNode: SerializedWatermarkNode) {
     const node = $createWatermarkNode({
       content: serializedNode.content,
+      href: serializedNode.href,
     });
     $applyIdFromSerialized(node, serializedNode);
     return node;
@@ -73,6 +79,7 @@ export class WatermarkNode extends DecoratorNode<
     return {
       ...super.exportJSON(),
       content: this.__content,
+      href: this.__href,
       type: WatermarkNode.getType(),
       version: 1,
     };
@@ -81,6 +88,7 @@ export class WatermarkNode extends DecoratorNode<
   exportComponentProps(): WatermarkInfo {
     return {
       content: this.__content,
+      href: this.__href,
     };
   }
 
@@ -97,37 +105,48 @@ export class WatermarkNode extends DecoratorNode<
     return {
       'data-watermark': true,
       'data-content': this.__content,
+      ...(this.__href ? { 'data-href': this.__href } : {}),
     };
   }
 
-  static importDOM(): DOMConversionMap<HTMLSpanElement> | null {
-    return {
-      span: (domNode: HTMLSpanElement) => {
-        if (!domNode.hasAttribute('data-watermark')) {
-          return null;
-        }
-        return {
-          conversion: (domNode: HTMLElement) => {
-            const content = domNode.getAttribute('data-content');
+  static importDOM(): DOMConversionMap<HTMLElement> | null {
+    const conversionEntry = (domNode: HTMLElement) => {
+      if (!domNode.hasAttribute('data-watermark')) {
+        return null;
+      }
+      return {
+        conversion: (domNode: HTMLElement) => {
+          const content = domNode.getAttribute('data-content');
 
-            if (content) {
-              const node = $createWatermarkNode({
-                content,
-              });
-              return { node };
-            }
-            return null;
-          },
-          priority: 1,
-        };
-      },
+          if (content) {
+            const node = $createWatermarkNode({
+              content,
+              href: domNode.getAttribute('data-href') ?? undefined,
+            });
+            return { node };
+          }
+          return null;
+        },
+        priority: 1 as const,
+      };
+    };
+    return {
+      span: conversionEntry,
+      a: conversionEntry,
     };
   }
 
   exportDOM() {
-    const element = document.createElement('span');
+    const element = this.__href
+      ? document.createElement('a')
+      : document.createElement('span');
     for (const [k, v] of Object.entries(this.getDataAttrs())) {
       element.setAttribute(k, v.toString());
+    }
+    if (this.__href && element instanceof HTMLAnchorElement) {
+      element.href = this.__href;
+      element.target = '_blank';
+      element.rel = 'noopener';
     }
     element.className = 'macro-watermark-node';
     element.textContent = this.__content;
@@ -150,6 +169,10 @@ export class WatermarkNode extends DecoratorNode<
     return this.__content;
   }
 
+  getHref() {
+    return this.__href;
+  }
+
   decorate(_: LexicalEditor, config: EditorConfig) {
     const decorator = getDecorator<WatermarkDecoratorProps>(WatermarkNode);
     if (decorator) {
@@ -163,8 +186,11 @@ export class WatermarkNode extends DecoratorNode<
   }
 }
 
-export function $createWatermarkNode(params: { content: string }) {
-  const node = new WatermarkNode(params.content);
+export function $createWatermarkNode(params: {
+  content: string;
+  href?: string;
+}) {
+  const node = new WatermarkNode(params.content, params.href);
   return $applyNodeReplacement(node);
 }
 
@@ -198,7 +224,8 @@ export function $removeAllWatermarkNodes(editor: LexicalEditor | undefined) {
 export function $appendWatermarkNodeToLast(
   editor: LexicalEditor | undefined,
   content: string | undefined,
-  sync = true
+  sync = true,
+  href?: string
 ) {
   let nodeKey: string | undefined;
 
@@ -206,7 +233,7 @@ export function $appendWatermarkNodeToLast(
     () => {
       if (!content) return;
 
-      const node = $createWatermarkNode({ content });
+      const node = $createWatermarkNode({ content, href });
 
       nodeKey = node.getKey();
 

@@ -6,6 +6,7 @@ import '@fontsource-variable/playfair-display';
 // import 'solid-devtools';
 import { initializeLexical } from '@core/component/LexicalMarkdown/init';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { captureReferralCodeFromUrl } from '@core/referral';
 import { getPlatform, isTauri } from '@core/util/platform';
 import { platformFetch } from '@core/util/platformFetch';
 import { initMonochromeIcons } from '@ui/utils/monochromeIcons';
@@ -31,6 +32,9 @@ if (isTauri()) {
 
 initializeLexical();
 initMonochromeIcons();
+// Persist any ?referral_code= from the landing URL so it survives navigation
+// and is still attributed if the user signs up later.
+captureReferralCodeFromUrl();
 
 const renderApp = () => {
   const root = document.getElementById('root');

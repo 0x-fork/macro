@@ -1,5 +1,6 @@
 import { ROUTER_BASE } from '@app/constants/routerBase';
 import { SERVER_HOSTS } from '@core/constant/servers';
+import { resolveReferralCode } from '@core/referral';
 
 export const GOOGLE_GMAIL_IDP = 'google_gmail';
 type IDPName = 'google_gmail';
@@ -16,9 +17,7 @@ export function emailAuthUrl(params: EmailAuthParams) {
   const url = new URL(`${SERVER_HOSTS['auth-service']}/login/sso`);
   url.searchParams.set('idp_name', idpName);
   url.searchParams.set('original_url', returnUrl);
-  const referral_code = new URL(window.location.href).searchParams.get(
-    'referral_code'
-  );
+  const referral_code = resolveReferralCode();
   if (referral_code) url.searchParams.set('referral_code', referral_code);
   return url.toString();
 }

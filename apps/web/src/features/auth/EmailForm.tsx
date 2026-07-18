@@ -1,6 +1,7 @@
 import { SERVER_HOSTS } from '@core/constant/servers';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
+import { resolveReferralCode } from '@core/referral';
 import { platformFetch } from '@core/util/platformFetch';
 import ArrowLeft from '@phosphor/arrow-left.svg';
 import ArrowRight from '@phosphor/arrow-right.svg';
@@ -53,8 +54,7 @@ export const sendEmailCode = action(async (formData: FormData) => {
     return 'LoggedIn';
   }
 
-  const url = new URL(window.location.href);
-  const referral_code = url.searchParams.get('referral_code');
+  const referral_code = resolveReferralCode();
 
   const response = await platformFetch(
     `${SERVER_HOSTS['auth-service']}/login/passwordless`,

@@ -1,5 +1,6 @@
 import { openAddInboxDialog } from '@app/features/inbox/AddInboxDialog';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { useHasPaidAccess } from '@core/auth';
 import { toast } from '@core/component/Toast/Toast';
 import {
   ENABLE_EMAIL_SIGNATURES_FLAG,
@@ -32,7 +33,11 @@ import {
   type Link as EmailLink,
   SyncStatus,
 } from '@service-email/generated/schemas';
-import { Button, Dialog, Panel, Tooltip } from '@ui';
+import { Button, Dialog, Panel, ToggleSwitch, Tooltip } from '@ui';
+import {
+  emailWatermarkEnabled,
+  setEmailWatermarkEnabled,
+} from '@ui/signals/signals';
 import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
 import { match } from 'ts-pattern';
 import { ConnectAction, StatusDot } from './integration-ui';
@@ -53,6 +58,7 @@ import {
 export function EmailCard() {
   const email = useEmail();
   const userId = useUserId();
+  const hasPaidAccess = useHasPaidAccess();
   const multiInboxFlag = useFeatureFlag('enable-multi-inbox', {
     enabledOverride: ENABLE_MULTI_INBOX_OVERRIDE,
   });
@@ -232,6 +238,18 @@ export function EmailCard() {
               </Tooltip>
             </SettingsRow>
           </Show>
+        </Show>
+        <Show when={hasPaidAccess()}>
+          <SettingsRow
+            label="Referral link in emails"
+            description='Append "Sent from my Macro" with your referral link to outgoing emails — you get $100 in credits when someone subscribes through it.'
+          >
+            <ToggleSwitch
+              size="md"
+              onChange={setEmailWatermarkEnabled}
+              checked={emailWatermarkEnabled()}
+            />
+          </SettingsRow>
         </Show>
       </SettingsCard>
 

@@ -33,8 +33,10 @@ import {
   ENABLE_EMAIL_SIGNATURES_FLAG,
   ENABLE_EMAIL_SIGNATURES_OVERRIDE,
 } from '@core/constant/featureFlags';
+import { useReferralCode } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
 import { WrapUnlessMobile } from '@core/mobile/WrapUnlessMobile';
+import { referralLandingUrl } from '@core/referral';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
 import {
   type ContactInfo,
@@ -74,6 +76,7 @@ import { invalidateSoupEntity, refetchSoupEntity } from '@queries/soup/cache';
 import { emailClient } from '@service-email/client';
 import { debounce } from '@solid-primitives/scheduled';
 import { Surface } from '@ui';
+import { emailWatermarkEnabled } from '@ui/signals/signals';
 
 import type { LexicalEditor } from 'lexical';
 import {
@@ -113,6 +116,7 @@ type EmailComposeProps = {
 
 export function EmailCompose(props: EmailComposeProps) {
   const hasPaidAccess = useHasPaidAccess();
+  const referralCode = useReferralCode();
   const emailLinksQuery = useEmailLinksQuery();
   const uploadAttachmentMutation = useUploadDraftAttachmentsMutation();
   const saveDraftMutation = useSaveDraftMutation();
@@ -520,7 +524,11 @@ export function EmailCompose(props: EmailComposeProps) {
     // leave orphaned watermark nodes in the editor tree.
     const cleanupWatermark = $appendWatermarkNodeToLast(
       currentEditor,
-      !hasPaidAccess() ? MACRO_EMAIL_SIGNATURE : undefined
+      !hasPaidAccess() || emailWatermarkEnabled()
+        ? MACRO_EMAIL_SIGNATURE
+        : undefined,
+      true,
+      referralLandingUrl(referralCode())
     );
 
     const prepared = prepareEmailBody(currentEditor);

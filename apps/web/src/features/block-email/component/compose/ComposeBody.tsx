@@ -170,9 +170,7 @@ export function ComposeBody(props: {
               class="text-sm wrap-break-word text-ink h-auto overflow-visible"
               editable={() => !ctx.disabled()}
               placeholder="Use `@` to reference files"
-              watermark={
-                !ctx.hasPaidAccess() ? <MacroSignatureButton /> : undefined
-              }
+              watermark={<MacroSignatureButton />}
               onChange={ctx.onContentChange}
               onUserMention={(mention) => {
                 addUserMentionToCc({

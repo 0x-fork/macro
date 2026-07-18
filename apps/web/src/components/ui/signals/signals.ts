@@ -18,3 +18,14 @@ export const [monochromeIcons, setMonochromeIcons] = makePersisted(
   createSignal<boolean>(false),
   { name: 'enable-monochrome-icons' }
 );
+
+/**
+ * Whether paid users append the "Sent from my Macro" referral-link watermark
+ * to outgoing emails. Free users always get the watermark regardless of this
+ * setting. Defaults on; paid users can turn it off from the compose footer
+ * (with a confirmation) or Settings → Email.
+ */
+export const [emailWatermarkEnabled, setEmailWatermarkEnabled] = makePersisted(
+  createSignal<boolean>(true),
+  { name: 'email.watermarkEnabled' }
+);
