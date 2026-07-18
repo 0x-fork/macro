@@ -172,8 +172,13 @@ export function SoupViewProvider(
           (typeof persistedPreviewEntity === 'string' || isNewInbox()))
   );
 
+  const hasPreviewableEntity = () =>
+    collection.dataSource.items().some((item) => item.kind === 'entity');
   const previewPaneVisible = () =>
-    !isMobile() && breakpoints.wide() && previewOpen();
+    !isMobile() &&
+    breakpoints.wide() &&
+    previewOpen() &&
+    hasPreviewableEntity();
   const previewVisible = () =>
     previewPaneVisible() && previewEntity() !== undefined;
 

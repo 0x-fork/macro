@@ -124,20 +124,56 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   };
 
   const navigateAndSelect = (offset: number) => {
-    const previous = listState.focus.item();
-    const next = listState.navigate.peekOffset(offset);
-    if (!next || next.item.id === previous?.id) return true;
+    const focused = listState.focus.item();
+    const focusedIndex = listState.focus.index();
+    const selection = listState.selection;
+    const items = listState.items.all();
+    const direction = offset < 0 ? -1 : 1;
+    let nextIndex =
+      focusedIndex >= 0 ? focusedIndex : direction > 0 ? -1 : items.length;
+    let next: SoupItem | undefined;
 
-    if (previous && listState.selection.isSelectable(previous)) {
-      listState.selection.toggle(previous);
+    while (!next && nextIndex >= -1 && nextIndex <= items.length) {
+      nextIndex += direction;
+      const candidate = items[nextIndex];
+      if (!candidate) break;
+      if (selection.isSelectable(candidate)) next = candidate;
     }
-    const result = listState.navigate.by(offset, {
-      reason: 'keyboard',
-    });
-    if (result && listState.selection.isSelectable(result.item)) {
-      listState.selection.select(result.item);
-      scrollTo(result.index);
+    if (!next || next.id === focused?.id) return true;
+
+    const moveAndSelect = () => {
+      const result = listState.navigate.toIndex(nextIndex, {
+        reason: 'keyboard',
+      });
+      if (result) {
+        selection.select(next);
+        scrollTo(result.index);
+      }
+    };
+
+    if (!focused || !selection.isSelectable(focused)) {
+      moveAndSelect();
+      return true;
     }
+    if (selection.count() === 0) {
+      selection.select(focused);
+      return true;
+    }
+    if (!selection.isSelected(focused.id) && !selection.isSelected(next.id)) {
+      selection.select(focused);
+      moveAndSelect();
+      return true;
+    }
+    if (selection.isSelected(next.id)) {
+      selection.deselect(focused.id);
+      const result = listState.navigate.toIndex(nextIndex, {
+        reason: 'keyboard',
+      });
+      if (result) scrollTo(result.index);
+      return true;
+    }
+
+    moveAndSelect();
     return true;
   };
 

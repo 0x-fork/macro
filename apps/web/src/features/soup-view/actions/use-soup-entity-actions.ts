@@ -1,10 +1,11 @@
 import { useList } from '@app/components/list';
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import {
-  applyEntitiesDoneOptimistic,
-  executeMarkEntitiesDone,
+  canExecuteMarkDoneOnView,
+  makeMarkDoneAction,
+} from '@app/features/next-soup/actions/make-mark-done-action';
+import {
   openEntityInSplitFromUnifiedList,
-  resolveMarkEntitiesDoneVariables,
   trashEmails,
 } from '@app/features/next-soup/utils';
 import { openPropertyEditor } from '@app/features/property/editor/state/propertyEditor';
@@ -39,20 +40,10 @@ import {
 } from '@queries/favorites/favorites';
 import type { Component, JSX } from 'solid-js';
 import { useSoupView } from '../context';
-import { useIsNewInbox } from '../utils';
 import {
   canDeleteSoupEntity,
   canRenameSoupEntity,
 } from './soup-entity-action-model';
-
-const MARK_DONE_VIEWS = new Set([
-  'inbox-signal',
-  'inbox-noise',
-  'mail-important',
-  'mail-all',
-  'mail-noise',
-  'mail-shared',
-]);
 
 export type SoupEntityAction = {
   id:
@@ -104,9 +95,12 @@ export function useSoupEntityActions() {
   const panel = useSplitPanelOrThrow();
   const { state: listState } = useList<SoupItem>();
   const view = useSoupView();
-  const isNewInbox = useIsNewInbox();
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
+  const markDoneAction = makeMarkDoneAction({
+    userId,
+    notificationSource: () => notificationSource,
+  });
   const tagsFlag = useFeatureFlag(ENABLE_TAGS_FE_FLAG, {
     enabledOverride: ENABLE_TAGS_FE_OVERRIDE,
   });
@@ -221,43 +215,35 @@ export function useSoupEntityActions() {
     }
   };
 
-  const canMarkDone = (entity: EntityData) => {
-    if (entity.type === 'channel_message' || entity.type === 'call')
-      return false;
-    if (entity.type === 'channel_thread') return isNewInbox();
-    return (
-      entity.type === 'email' ||
-      entity.type === 'channel' ||
-      entity.type === 'chat' ||
-      entity.type === 'document' ||
-      entity.type === 'project' ||
-      entity.type === 'foreign'
-    );
-  };
-
   const markDone = async (entities: readonly EntityData[]) => {
-    const variables = resolveMarkEntitiesDoneVariables({
-      entities: [...entities],
-      notificationSource,
-      scopeChannelNotificationsToEntity: isNewInbox(),
-    });
-    const optimistic = applyEntitiesDoneOptimistic({
-      entityIds: entities.map((entity) => entity.id),
-      emailIds: variables.emailIds,
-      notificationIds: variables.notificationIds,
-    });
-    onRemove(entities.map((entity) => entity.id));
-    try {
-      await executeMarkEntitiesDone(variables);
-      toast.success(
-        entities.length > 1
-          ? `Marked ${entities.length} items as done`
-          : 'Marked as done'
-      );
-    } catch {
-      optimistic.rollback();
-      toast.failure('Failed to mark as done');
-    }
+    const focusedId = listState.focus.id();
+    const focusedIndex = listState.focus.index();
+    const markedIds = new Set(entities.map((entity) => entity.id));
+    const items = listState.items.all();
+    const adjacentEntity = (direction: 1 | -1) => {
+      for (
+        let index = focusedIndex + direction;
+        index >= 0 && index < items.length;
+        index += direction
+      ) {
+        const candidate = items[index];
+        if (
+          candidate?.kind === 'entity' &&
+          !markedIds.has(candidate.entity.id)
+        ) {
+          return candidate;
+        }
+      }
+    };
+    const next = adjacentEntity(1) ?? adjacentEntity(-1);
+    const restoreFocus = focusedId
+      ? () => listState.focus.set(focusedId, { reason: 'restore' })
+      : undefined;
+
+    listState.selection.clear();
+    if (next) listState.focus.set(next.id, { reason: 'programmatic' });
+
+    await markDoneAction.execute([...entities], restoreFocus);
   };
 
   const canEditProperties = (entity: EntityData) =>
@@ -274,8 +260,8 @@ export function useSoupEntityActions() {
     const first = entities[0];
     const actions: SoupEntityAction[] = [];
     if (
-      MARK_DONE_VIEWS.has(`${view.view()}-${collection.activeTab()}`) &&
-      entities.every(canMarkDone)
+      canExecuteMarkDoneOnView(view.view(), collection.activeTab() ?? '') &&
+      entities.every(markDoneAction.canExecute)
     ) {
       actions.push({
         id: 'mark-done',

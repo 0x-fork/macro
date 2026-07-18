@@ -8,7 +8,7 @@ import {
   type SoupItem,
 } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
-import { usePullToRefresh } from '@components/app/mobile/use-pull-to-refresh';
+import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useSplitDisplayName } from '@components/app/split-layout/use-split-display-name';
@@ -31,7 +31,10 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { SoupEmptyState } from '../../components/soup-empty-state';
+import {
+  SoupEmptyState,
+  SoupErrorState,
+} from '../../components/soup-empty-state';
 import { SoupEntityListItem } from '../../components/soup-entity-list-item';
 import { SoupFileDropzone } from '../../components/soup-file-dropzone';
 import { SoupMobileControls } from '../../components/soup-mobile-controls';
@@ -77,6 +80,7 @@ function InboxListViewContent() {
   const isNewInbox = useIsNewInbox();
   const { dataSource, state: listState } = useList<SoupItem>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
+  const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
@@ -95,11 +99,6 @@ function InboxListViewContent() {
       .selected()
       .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
   );
-  usePullToRefresh({
-    scrollContainer: viewport,
-    onRefresh: dataSource.refresh,
-    enabled: isMobile,
-  });
 
   const previewEmpty = (
     <EmptyStatePanel
@@ -135,9 +134,13 @@ function InboxListViewContent() {
                 minSize={300}
                 maxSize={view.previewPaneVisible() ? 440 : undefined}
               >
-                <div class="relative size-full min-h-0 min-w-0">
+                <div
+                  ref={setListContent}
+                  class="relative flex size-full min-h-0 min-w-0 flex-col"
+                >
                   <List.Content>
-                    <SoupEntityList
+                    <List.Items>
+                      <SoupEntityList
                       view="inbox"
                       root={root}
                       listScopeId={listScopeId}
@@ -158,16 +161,34 @@ function InboxListViewContent() {
                           }
                         </SoupEntityListItem>
                       )}
-                    </SoupEntityList>
+                      </SoupEntityList>
+                    </List.Items>
+                    <List.Error>
+                      {() => (
+                        <div class="size-full min-h-0">
+                          <SoupErrorState />
+                        </div>
+                      )}
+                    </List.Error>
                     <List.Loading>
-                      <Spinner class="size-4 animate-spin" />
+                      <div class="flex size-full items-center justify-center">
+                        <Spinner class="size-4 animate-spin" />
+                      </div>
                     </List.Loading>
                     <List.Empty>
-                      <SoupEmptyState />
+                      <div class="size-full min-h-0">
+                        <SoupEmptyState />
+                      </div>
                     </List.Empty>
                   </List.Content>
 
                   <CustomScrollbar scrollContainer={viewport} />
+                  <PullToRefresh
+                    scrollContainer={() =>
+                      dataSource.items().length > 0 ? viewport() : listContent()
+                    }
+                    onRefresh={dataSource.refresh}
+                  />
                   <Show when={selectedEntities().length > 0}>
                     <SoupSelectionToolbar
                       selected={selectedEntities()}

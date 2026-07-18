@@ -206,36 +206,32 @@ export function SoupEntityList(props: SoupEntityListProps) {
     )
   );
 
+  const swipeEntity = (id: string) =>
+    listState.items
+      .all()
+      .find(
+        (item) =>
+          item.kind === 'entity' && (item.id === id || item.entity.id === id)
+      );
+  const markDoneAction = (id: string) => {
+    const item = swipeEntity(id);
+    if (!item || item.kind !== 'entity') return;
+    return entityActions
+      .build([item.entity])
+      .find((action) => action.id === 'mark-done');
+  };
+
   return (
     <Show when={active()}>
       <ListLayoutProvider ref={viewport}>
         <SwipableRowProvider
           container={viewport}
-          triggerBehavior="spring-back"
-          canSwipeRight={(id) => {
-            const item = listState.items.get(id);
-            return (
-              item?.kind === 'entity' &&
-              entityActions
-                .build([item.entity])
-                .some(
-                  (action) =>
-                    action.id === 'mark-done' || action.id === 'favorite'
-                )
-            );
-          }}
-          canSwipeLeft={(id) => {
-            const item = listState.items.get(id);
-            return (
-              item?.kind === 'entity' &&
-              entityActions
-                .build([item.entity])
-                .some((action) => action.id === 'delete')
-            );
-          }}
+          canSwipeLeft={(id) => markDoneAction(id) !== undefined}
+          onSwipeLeft={(id) => void markDoneAction(id)?.run()}
         >
-          <SoupListHeader />
-          <StaticMarkdownContext>
+          <div class="flex size-full min-h-0 min-w-0 flex-col">
+            <SoupListHeader />
+            <StaticMarkdownContext>
             <List.Viewport
               ref={(element) => {
                 setViewport(element);
@@ -245,8 +241,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
               nearEndOffset={props.nearEndOffset ?? 300}
               onNearEndError={props.onLoadMoreError}
             >
-              <List.Items>
-                <List.Virtual<SoupItem>
+              <List.Virtual<SoupItem>
                   itemSize={props.itemSize ?? DEFAULT_ITEM_SIZE}
                   overscan={props.overscan ?? DEFAULT_OVERSCAN}
                   cache={props.cache ?? restoredListState?.virtualCache}
@@ -323,10 +318,10 @@ export function SoupEntityList(props: SoupEntityListProps) {
                       </Match>
                     </Switch>
                   )}
-                </List.Virtual>
-              </List.Items>
+              </List.Virtual>
             </List.Viewport>
-          </StaticMarkdownContext>
+            </StaticMarkdownContext>
+          </div>
         </SwipableRowProvider>
       </ListLayoutProvider>
     </Show>

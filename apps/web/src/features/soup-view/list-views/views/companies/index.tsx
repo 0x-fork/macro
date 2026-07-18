@@ -11,7 +11,7 @@ import {
   useSoupCollection,
 } from '@app/features/soup-list';
 import { useCrmUnavailable } from '@companies/crm/team-crm-config';
-import { usePullToRefresh } from '@components/app/mobile/use-pull-to-refresh';
+import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useSplitDisplayName } from '@components/app/split-layout/use-split-display-name';
@@ -70,6 +70,7 @@ function CompaniesListViewContent(props: {
   const boardActive = () => view.viewMode() === 'board';
   const previewId = panel.handle.currentEntryState()?.['soup.preview'];
   const [root, setRoot] = createSignal<HTMLDivElement>();
+  const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
@@ -94,11 +95,6 @@ function CompaniesListViewContent(props: {
       .selected()
       .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
   );
-  usePullToRefresh({
-    scrollContainer: viewport,
-    onRefresh: dataSource.refresh,
-    enabled: () => !boardActive() && isMobile(),
-  });
 
   return (
     <SplitPanelContext.Provider
@@ -125,9 +121,14 @@ function CompaniesListViewContent(props: {
                 minSize={300}
                 maxSize={view.previewPaneVisible() ? 440 : undefined}
               >
-                <div class="relative size-full min-h-0 min-w-0">
+                <div
+                  ref={setListContent}
+                  class="relative flex size-full min-h-0 min-w-0 flex-col"
+                >
                   <List.Content>
-                    <SoupEntityList
+                    <Show when={!boardActive()}>
+                      <List.Items>
+                        <SoupEntityList
                       view="companies"
                       root={root}
                       listScopeId={listScopeId}
@@ -140,22 +141,38 @@ function CompaniesListViewContent(props: {
                           {(row) => <CompanyListEntity {...row} />}
                         </SoupEntityListItem>
                       )}
-                    </SoupEntityList>
-                    <Show when={!boardActive()}>
+                        </SoupEntityList>
+                      </List.Items>
                       <List.Error>
-                        {() => <SoupCompaniesErrorState />}
+                        {() => (
+                          <div class="size-full min-h-0">
+                            <SoupCompaniesErrorState />
+                          </div>
+                        )}
                       </List.Error>
                       <List.Loading>
-                        <Spinner class="size-4 animate-spin" />
+                        <div class="flex size-full items-center justify-center">
+                          <Spinner class="size-4 animate-spin" />
+                        </div>
                       </List.Loading>
                       <List.Empty>
-                        <SoupEmptyState />
+                        <div class="size-full min-h-0">
+                          <SoupEmptyState />
+                        </div>
                       </List.Empty>
                     </Show>
                   </List.Content>
 
                   <Show when={!boardActive()}>
                     <CustomScrollbar scrollContainer={viewport} />
+                    <PullToRefresh
+                      scrollContainer={() =>
+                        dataSource.items().length > 0
+                          ? viewport()
+                          : listContent()
+                      }
+                      onRefresh={dataSource.refresh}
+                    />
                     <Show when={selectedEntities().length > 0}>
                       <SoupSelectionToolbar
                         selected={selectedEntities()}

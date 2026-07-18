@@ -22,6 +22,17 @@ import {
   hasFacetRefinements,
 } from '../filters/facet-refinements';
 
+export function SoupErrorState() {
+  return (
+    <EmptyStatePanel
+      centered
+      graphic={EmptyStateDocGraphic}
+      title="Couldn't load this view"
+      description="Try refreshing the view."
+    />
+  );
+}
+
 export function SoupCompaniesErrorState() {
   return (
     <EmptyStatePanel

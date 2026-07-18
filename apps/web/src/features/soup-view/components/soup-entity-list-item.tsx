@@ -23,7 +23,10 @@ import {
   type ProjectEntity,
   type SearchLocation,
 } from '@entity';
+import type { EntityRowConfig } from '@entity/extractors-notification';
+import CheckCircleIcon from '@phosphor/check-circle.svg';
 import { type Accessor, createEffect, createMemo, type JSX } from 'solid-js';
+import { useSoupEntityActions } from '../actions/use-soup-entity-actions';
 import { useSoupView } from '../context';
 import { SoupEntityRow } from './soup-entity-row';
 
@@ -33,6 +36,7 @@ export type SoupEntityListItemRenderProps = {
   highlighted: boolean;
   checked: boolean;
   showUnrollNotifications: boolean;
+  entityRowConfig?: EntityRowConfig;
   onMouseMove: () => void;
   onChecked: (selected: boolean, shiftKey: boolean) => void;
   onClick: (event: MouseEvent) => void;
@@ -89,6 +93,7 @@ export function SoupEntityListItem(props: {
   const orchestrator = useGlobalBlockOrchestrator();
   const collection = useSoupCollection();
   const view = useSoupView();
+  const entityActions = useSoupEntityActions();
   const { state: listState } = useList<SoupItem>();
   const { isKeypressActive } = useIsKeyPressActive();
   const hoverFocus = () =>
@@ -126,6 +131,10 @@ export function SoupEntityListItem(props: {
     }
   };
 
+  const markDoneAction = () =>
+    entityActions
+      .build([props.item().entity])
+      .find((action) => action.id === 'mark-done');
   const timestamp = (sort: SoupCollectionSort | undefined) => {
     const entity = props.item().entity;
     switch (sort?.id) {
@@ -213,6 +222,16 @@ export function SoupEntityListItem(props: {
                 collection.facets.has('focus', 'inbox') &&
                 !collection.facets.has('focus', 'noise')
               );
+            },
+            get entityRowConfig() {
+              return markDoneAction()
+                ? {
+                    swipeLeftColor: 'bg-success-surface',
+                    swipeLeftRevealedComponent: (
+                      <CheckCircleIcon class="size-5 text-ink" />
+                    ),
+                  }
+                : undefined;
             },
             onChecked: setItemSelected,
             onClick: (event) =>
