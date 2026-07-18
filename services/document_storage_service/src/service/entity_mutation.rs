@@ -1,53 +1,46 @@
-//! Document-storage composition of the unified entity mutation domain port.
+//! Document-storage router for the unified entity mutation domain port.
 //!
-//! Each capability dispatches to the domain service that owns the entity
-//! kind. The per-kind support matrix is encoded as exhaustive matches, so
-//! adding an [`EntityType`] variant fails compilation here until every
-//! capability decides whether to support it. Operations still backed by
-//! direct persistence are isolated behind [`EntityLifecycleService`];
-//! GraphQL never calls a REST handler or database adapter directly.
+//! This service is deliberately thin: each domain crate implements the
+//! capability traits in [`entity_mutation::capability`] and owns its own
+//! mapping onto its service methods, preconditions, and errors. The router
+//! resolves access receipts (typed per capability by each impl's associated
+//! `Receipt`), enforces the batch contract (ordering, bounded concurrency,
+//! partial success), validates cross-domain inputs such as move targets, and
+//! dispatches each item to the owning domain. The per-kind support matrix is
+//! encoded as exhaustive matches, so adding an [`EntityType`] fails
+//! compilation here until every capability decides whether to support it.
+//!
+//! Access-level requirements deliberately mirror the legacy REST handlers
+//! for each entity kind, including their asymmetries (for example, call
+//! permanent-deletion requires `Edit` while other kinds require `Owner`,
+//! and chat rename/move require `Owner` while documents require `Edit`).
+//! The requirement lives on each domain impl's associated `Receipt` type;
+//! do not "normalize" a level without an explicit product decision.
 
-use std::{collections::HashSet, future::Future, sync::Arc};
+use std::{future::Future, sync::Arc};
 
-use call::domain::{
-    models::{CallError, EditCallRecordRequest},
-    ports::CallService,
-};
-use channels::domain::{
-    models::{PatchChannelRequest, Sender},
-    ports::{ChannelMutationErr, ChannelService},
-};
-use chat::domain::{
-    models::{ChatErr, PatchChatArgs},
-    ports::ChatService,
-};
-use documents_hex::domain::{
-    models::{DocumentError, EditDocumentServiceArgs},
-    ports::DocumentService,
-};
-use email::domain::{models::EmailErr, ports::EmailService};
+use call::domain::ports::CallService;
+use channels::domain::ports::ChannelService;
+use chat::domain::ports::ChatService;
+use documents_hex::domain::ports::DocumentService;
+use email::domain::ports::EmailService;
 use entity_access::domain::{
     models::{
-        AccessError, AdminParticipantRole, EditAccessLevel, EntityAccessReceipt, OwnerAccessLevel,
-        OwnerParticipantRole, RequiredPermission, ViewAccessLevel,
+        AccessError, EditAccessLevel, EntityAccessReceipt, RequiredPermission, ViewAccessLevel,
     },
     ports::EntityAccessService,
 };
 use entity_mutation::{
-    DuplicateEntityRequest, EntityMutationActor, EntityMutationError, EntityMutationErrorCode,
-    EntityMutationOutcome, EntityMutationService, EntityRef, MoveEntityRequest,
-    RenameEntityRequest, UpdateEntitySharePolicyRequest,
+    DeleteEntityPermanently, DuplicateEntity, DuplicateEntityRequest, EntityMutationActor,
+    EntityMutationError, EntityMutationOutcome, EntityMutationService, EntityRef, MoveEntity,
+    MoveEntityRequest, RenameEntity, RenameEntityRequest, RestoreEntity, TrashEntity,
+    UpdateEntitySharePolicy, UpdateEntitySharePolicyRequest,
 };
 use favorites::domain::{models::FavoritesError, ports::FavoritesService};
 use futures::{StreamExt, stream};
-use model::{
-    document::DocumentBasic,
-    project::{BasicProject, request::PatchProjectRequestV2},
-};
 use model_entity::EntityType;
 use models_permissions::share_permission::UpdateSharePermissionRequestV2;
-use projects_hex::domain::{models::ProjectError, ports::ProjectService};
-use uuid::Uuid;
+use projects_hex::domain::ports::ProjectService;
 
 #[cfg(test)]
 mod test;
@@ -71,8 +64,8 @@ pub enum LifecycleError {
 /// persistence instead of a domain service.
 ///
 /// Each method should migrate behind the domain port that owns its entity
-/// kind (projects already graduated to `ProjectService`); delete this trait
-/// once it is empty.
+/// kind and become a capability-trait impl there (projects already
+/// graduated); delete this trait once it is empty.
 #[async_trait::async_trait]
 pub trait EntityLifecycleService: Send + Sync + 'static {
     /// Update an email thread's share policy.
@@ -96,239 +89,61 @@ pub trait EntityLifecycleService: Send + Sync + 'static {
     ) -> Result<Vec<EntityRef>, LifecycleError>;
 }
 
-/// Internal failure for one mutation item.
-///
-/// Wraps each domain's error so item logic can use `?`; [`public_error`] is
-/// the single place these are projected onto the stable public vocabulary.
-enum MutationError {
-    /// Access check on the requested entity failed.
-    Access(AccessError),
-    /// Access check on the target project of a move failed.
-    TargetProject(AccessError),
-    /// Document domain failure.
-    Document(DocumentError),
-    /// Chat domain failure.
-    Chat(ChatErr),
-    /// Channel domain failure.
-    Channel(ChannelMutationErr),
-    /// Call domain failure.
-    Call(CallError),
-    /// Email domain failure.
-    Email(EmailErr),
-    /// Favorites domain failure.
-    Favorites(FavoritesError),
-    /// Project domain failure.
-    Project(ProjectError),
-    /// Lifecycle port failure.
-    Lifecycle(LifecycleError),
-    /// Input violates a domain constraint.
-    Invalid(String),
-    /// Mutation conflicts with current entity state.
-    Conflict(String),
-    /// Actor lacks a capability not covered by an access receipt.
-    Forbidden(String),
-}
-
-/// Wire a domain error into [`MutationError`] so `?` converts it.
-macro_rules! impl_from_domain_error {
-    ($($variant:ident($error:ty)),+ $(,)?) => {
-        $(impl From<$error> for MutationError {
-            fn from(error: $error) -> Self {
-                Self::$variant(error)
-            }
-        })+
-    };
-}
-
-impl_from_domain_error!(
-    Access(AccessError),
-    Document(DocumentError),
-    Chat(ChatErr),
-    Channel(ChannelMutationErr),
-    Call(CallError),
-    Email(EmailErr),
-    Favorites(FavoritesError),
-    Project(ProjectError),
-    Lifecycle(LifecycleError),
-);
-
-type MutationResult<T> = Result<T, MutationError>;
-
-/// Project an internal failure onto the stable public error vocabulary.
-///
-/// Internal failures are logged here; callers run inside a per-item tracing
-/// span that carries the operation and entity fields.
-fn public_error(error: MutationError) -> EntityMutationError {
-    use EntityMutationErrorCode as Code;
-    fn internal(detail: &dyn std::fmt::Debug) -> EntityMutationError {
-        tracing::error!(error = ?detail, "unified entity mutation failed");
-        EntityMutationError::new(Code::Internal, "entity mutation failed")
-    }
+/// Map an access failure on the requested entity onto the public vocabulary.
+fn access_failure(error: AccessError) -> EntityMutationError {
     match error {
-        MutationError::Access(error) => match error {
-            AccessError::Unauthorized | AccessError::UnauthorizedWithMessage(_) => {
-                EntityMutationError::new(
-                    Code::Forbidden,
-                    "insufficient permission for entity mutation",
-                )
-            }
-            AccessError::NotFound(_) => {
-                EntityMutationError::new(Code::NotFound, "entity not found")
-            }
-            AccessError::BadRequest(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            error @ (AccessError::DatabaseError(_) | AccessError::Internal) => internal(&error),
-        },
-        MutationError::TargetProject(error) => match error {
-            AccessError::Unauthorized | AccessError::UnauthorizedWithMessage(_) => {
-                EntityMutationError::new(
-                    Code::Forbidden,
-                    "insufficient permission for the target project",
-                )
-            }
-            AccessError::NotFound(_) => {
-                EntityMutationError::new(Code::NotFound, "target project not found")
-            }
-            AccessError::BadRequest(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            error @ (AccessError::DatabaseError(_) | AccessError::Internal) => internal(&error),
-        },
-        MutationError::Document(error) => match error {
-            DocumentError::NotFound(_) | DocumentError::Gone => {
-                EntityMutationError::new(Code::NotFound, "document not found")
-            }
-            DocumentError::Unauthorized => {
-                EntityMutationError::new(Code::Forbidden, "insufficient document permission")
-            }
-            DocumentError::Conflict(message) => EntityMutationError::new(Code::Conflict, message),
-            DocumentError::BadRequest(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            DocumentError::NameTooLong { max } => EntityMutationError::new(
-                Code::InvalidInput,
-                format!("display name exceeds {max} characters"),
-            ),
-            error => internal(&error),
-        },
-        MutationError::Chat(error) => match error {
-            ChatErr::NotFound => EntityMutationError::new(Code::NotFound, "chat not found"),
-            ChatErr::BadRequest(message) => EntityMutationError::new(Code::InvalidInput, message),
-            ChatErr::Access(error) => public_error(MutationError::Access(error)),
-            error @ ChatErr::Unknown(_) => internal(&error),
-        },
-        MutationError::Channel(error) => match error {
-            ChannelMutationErr::BadRequest(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            ChannelMutationErr::Unauthorized(_) => {
-                EntityMutationError::new(Code::Forbidden, "insufficient channel role")
-            }
-            ChannelMutationErr::NotFound(_) => {
-                EntityMutationError::new(Code::NotFound, "channel not found")
-            }
-            error => internal(&error),
-        },
-        MutationError::Call(error) => match error {
-            CallError::NotFound(_) => EntityMutationError::new(Code::NotFound, "call not found"),
-            CallError::Auth | CallError::NotInCall => {
-                EntityMutationError::new(Code::Forbidden, "insufficient call permission")
-            }
-            CallError::InvalidRequest(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            CallError::AlreadyInCall(_) => {
-                EntityMutationError::new(Code::Conflict, error.to_string())
-            }
-            error @ CallError::Internal(_) => internal(&error),
-        },
-        MutationError::Email(error) => match error {
-            EmailErr::ThreadNotFound => {
-                EntityMutationError::new(Code::NotFound, "email thread not found")
-            }
-            EmailErr::Unauthorized => {
-                EntityMutationError::new(Code::Forbidden, "insufficient email thread permission")
-            }
-            error => internal(&error),
-        },
-        MutationError::Favorites(error) => match error {
-            FavoritesError::NotFound => {
-                EntityMutationError::new(Code::NotFound, "favorite not found")
-            }
-            FavoritesError::BadRequest(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            FavoritesError::Unauthorized => {
-                EntityMutationError::new(Code::Forbidden, "you do not have access to this entity")
-            }
-            error @ FavoritesError::Internal(_) => internal(&error),
-        },
-        MutationError::Project(error) => match error {
-            ProjectError::NotFound(_) => {
-                EntityMutationError::new(Code::NotFound, "project not found")
-            }
-            ProjectError::Unauthorized => {
-                EntityMutationError::new(Code::Forbidden, "insufficient project permission")
-            }
-            ProjectError::UnauthorizedWithMessage(message) => {
-                EntityMutationError::new(Code::Forbidden, message)
-            }
-            ProjectError::BadRequest(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            ProjectError::NameTooLong { max } => EntityMutationError::new(
-                Code::InvalidInput,
-                format!("display name exceeds {max} characters"),
-            ),
-            ProjectError::CannotModifyDeleted => {
-                EntityMutationError::new(Code::Conflict, "cannot modify a deleted project")
-            }
-            ProjectError::RecursiveNesting => {
-                EntityMutationError::new(Code::InvalidInput, "project move would create a cycle")
-            }
-            error @ ProjectError::Internal(_) => internal(&error),
-        },
-        MutationError::Lifecycle(error) => match error {
-            LifecycleError::NotFound => {
-                EntityMutationError::new(Code::NotFound, "entity not found")
-            }
-            LifecycleError::InvalidInput(message) => {
-                EntityMutationError::new(Code::InvalidInput, message)
-            }
-            LifecycleError::Internal(report) => internal(&report),
-        },
-        MutationError::Invalid(message) => EntityMutationError::new(Code::InvalidInput, message),
-        MutationError::Conflict(message) => EntityMutationError::new(Code::Conflict, message),
-        MutationError::Forbidden(message) => EntityMutationError::new(Code::Forbidden, message),
-    }
-}
-
-/// Attach an internal failure to the entity it occurred on.
-fn fail(requested: EntityRef, error: MutationError) -> EntityMutationOutcome {
-    EntityMutationOutcome::failure(requested, public_error(error))
-}
-
-/// Build a success outcome from a lifecycle result, guaranteeing the
-/// requested entity itself is listed as affected.
-fn lifecycle_success(requested: EntityRef, mut affected: Vec<EntityRef>) -> EntityMutationOutcome {
-    if !affected.contains(&requested) {
-        affected.insert(0, requested.clone());
-    }
-    EntityMutationOutcome::success_with(requested.clone(), Some(requested), affected)
-}
-
-/// Build a success outcome that also marks container projects as affected.
-fn success_with_projects(
-    requested: EntityRef,
-    project_ids: impl IntoIterator<Item = Option<String>>,
-) -> EntityMutationOutcome {
-    let mut affected_entities = vec![requested.clone()];
-    let mut seen = HashSet::new();
-    for project_id in project_ids.into_iter().flatten() {
-        if !project_id.is_empty() && seen.insert(project_id.clone()) {
-            affected_entities.push(EntityRef::new(EntityType::Project, project_id));
+        AccessError::Unauthorized | AccessError::UnauthorizedWithMessage(_) => {
+            EntityMutationError::forbidden("insufficient permission for entity mutation")
         }
+        AccessError::NotFound(_) => EntityMutationError::not_found("entity not found"),
+        AccessError::BadRequest(message) => EntityMutationError::invalid(message),
+        error @ (AccessError::DatabaseError(_) | AccessError::Internal) => {
+            EntityMutationError::internal(&error)
+        }
+    }
+}
+
+/// Map an access failure on the target project of a move.
+fn target_project_failure(error: AccessError) -> EntityMutationError {
+    match error {
+        AccessError::Unauthorized | AccessError::UnauthorizedWithMessage(_) => {
+            EntityMutationError::forbidden("insufficient permission for the target project")
+        }
+        AccessError::NotFound(_) => EntityMutationError::not_found("target project not found"),
+        AccessError::BadRequest(message) => EntityMutationError::invalid(message),
+        error @ (AccessError::DatabaseError(_) | AccessError::Internal) => {
+            EntityMutationError::internal(&error)
+        }
+    }
+}
+
+/// Map a favorites-domain failure onto the public vocabulary.
+fn favorites_failure(error: FavoritesError) -> EntityMutationError {
+    match error {
+        FavoritesError::NotFound => EntityMutationError::not_found("favorite not found"),
+        FavoritesError::BadRequest(message) => EntityMutationError::invalid(message),
+        FavoritesError::Unauthorized => {
+            EntityMutationError::forbidden("you do not have access to this entity")
+        }
+        error @ FavoritesError::Internal(_) => EntityMutationError::internal(&error),
+    }
+}
+
+/// Map a lifecycle-port failure onto the public vocabulary.
+fn lifecycle_failure(error: LifecycleError) -> EntityMutationError {
+    match error {
+        LifecycleError::NotFound => EntityMutationError::not_found("entity not found"),
+        LifecycleError::InvalidInput(message) => EntityMutationError::invalid(message),
+        LifecycleError::Internal(report) => EntityMutationError::internal(&report),
+    }
+}
+
+/// Build a success outcome, guaranteeing the requested entity itself is
+/// listed as affected ahead of any extra records the domain reported.
+fn success_with_affected(requested: EntityRef, affected: Vec<EntityRef>) -> EntityMutationOutcome {
+    let mut affected_entities = affected;
+    if !affected_entities.contains(&requested) {
+        affected_entities.insert(0, requested.clone());
     }
     EntityMutationOutcome::success_with(requested.clone(), Some(requested), affected_entities)
 }
@@ -353,30 +168,6 @@ fn favoritable(entity_type: EntityType) -> bool {
     }
 }
 
-/// Build entity refs of one kind from raw ids.
-fn entity_refs(
-    entity_type: EntityType,
-    ids: impl IntoIterator<Item = String>,
-) -> impl Iterator<Item = EntityRef> {
-    ids.into_iter()
-        .map(move |id| EntityRef::new(entity_type, id))
-}
-
-fn parse_uuid(entity: &EntityRef) -> MutationResult<Uuid> {
-    Uuid::parse_str(&entity.entity_id)
-        .map_err(|_| MutationError::Invalid("entity id must be a UUID".to_owned()))
-}
-
-fn sender_from_receipt<T: RequiredPermission>(
-    receipt: EntityAccessReceipt<T>,
-) -> MutationResult<Sender> {
-    receipt
-        .get_authenticated_user()
-        .cloned()
-        .map(Sender::new_from_user)
-        .map_err(|_| MutationError::Forbidden("authenticated user required".to_owned()))
-}
-
 async fn collect_ordered<F>(futures: impl IntoIterator<Item = F>) -> Vec<EntityMutationOutcome>
 where
     F: Future<Output = EntityMutationOutcome>,
@@ -387,14 +178,7 @@ where
         .await
 }
 
-/// Unified entity mutation service wired from the existing domain services.
-///
-/// Access-level requirements deliberately mirror the legacy REST handlers
-/// for each entity kind, including their asymmetries (for example, call
-/// permanent-deletion requires `Edit` while other kinds require `Owner`,
-/// and chat rename/move require `Owner` while documents require `Edit`).
-/// Do not "normalize" a level without an explicit product decision:
-/// tightening one breaks callers after the frontend migrates to this API.
+/// Unified entity mutation router wired from the domain services.
 #[derive(Clone)]
 pub struct DssEntityMutationService<D, H, C, K, E, P, A, F, L> {
     documents: Arc<D>,
@@ -409,7 +193,7 @@ pub struct DssEntityMutationService<D, H, C, K, E, P, A, F, L> {
 }
 
 impl<D, H, C, K, E, P, A, F, L> DssEntityMutationService<D, H, C, K, E, P, A, F, L> {
-    /// Compose the unified mutation service from domain services.
+    /// Compose the unified mutation router from domain services.
     pub fn new(
         documents: Arc<D>,
         chats: Arc<H>,
@@ -437,21 +221,40 @@ impl<D, H, C, K, E, P, A, F, L> DssEntityMutationService<D, H, C, K, E, P, A, F,
 
 impl<D, H, C, K, E, P, A, F, L> DssEntityMutationService<D, H, C, K, E, P, A, F, L>
 where
-    D: DocumentService,
-    H: ChatService,
-    C: ChannelService,
-    K: CallService,
-    E: EmailService,
-    P: ProjectService,
+    D: DocumentService
+        + RenameEntity
+        + MoveEntity
+        + UpdateEntitySharePolicy
+        + TrashEntity
+        + DuplicateEntity,
+    H: ChatService
+        + RenameEntity
+        + MoveEntity
+        + UpdateEntitySharePolicy
+        + TrashEntity
+        + RestoreEntity
+        + DeleteEntityPermanently
+        + DuplicateEntity,
+    C: ChannelService + RenameEntity + DeleteEntityPermanently,
+    K: CallService + RenameEntity + UpdateEntitySharePolicy + DeleteEntityPermanently,
+    E: EmailService + MoveEntity,
+    P: ProjectService
+        + RenameEntity
+        + MoveEntity
+        + UpdateEntitySharePolicy
+        + TrashEntity
+        + RestoreEntity
+        + DeleteEntityPermanently,
     A: EntityAccessService,
     F: FavoritesService,
     L: EntityLifecycleService,
 {
+    /// Resolve the access receipt a capability impl requires.
     async fn receipt<T: RequiredPermission>(
         &self,
         actor: &EntityMutationActor,
         entity: &EntityRef,
-    ) -> MutationResult<EntityAccessReceipt<T>> {
+    ) -> Result<EntityAccessReceipt<T>, EntityMutationError> {
         self.access
             .generate_entity_access_receipt::<T>(
                 &actor.user_id,
@@ -460,7 +263,7 @@ where
                 entity.entity_type,
             )
             .await
-            .map_err(MutationError::Access)
+            .map_err(access_failure)
     }
 
     /// Require edit access on the target project of a move, when one is set.
@@ -468,7 +271,7 @@ where
         &self,
         actor: &EntityMutationActor,
         project_id: Option<&str>,
-    ) -> MutationResult<Option<EntityAccessReceipt<EditAccessLevel>>> {
+    ) -> Result<Option<EntityAccessReceipt<EditAccessLevel>>, EntityMutationError> {
         let Some(project_id) = project_id else {
             return Ok(None);
         };
@@ -481,64 +284,105 @@ where
             )
             .await
             .map(Some)
-            .map_err(MutationError::TargetProject)
+            .map_err(target_project_failure)
     }
 
-    /// Fetch a document and reject the mutation if it is trashed.
-    async fn live_document(
+    /// Resolve a receipt and dispatch a rename to the owning domain.
+    async fn rename_with<S: RenameEntity>(
         &self,
-        entity: &EntityRef,
-        action: &str,
-    ) -> MutationResult<DocumentBasic> {
-        let document = self
-            .documents
-            .internal_get_basic_document(&entity.entity_id)
-            .await?;
-        if document.deleted_at.is_some() {
-            return Err(MutationError::Conflict(format!(
-                "cannot {action} a deleted document"
-            )));
-        }
-        Ok(document)
+        service: &S,
+        actor: &EntityMutationActor,
+        requested: &EntityRef,
+        display_name: String,
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        let receipt = self.receipt::<S::Receipt>(actor, requested).await?;
+        service
+            .rename_entity(requested.clone(), receipt, display_name)
+            .await
     }
 
-    /// Fetch project metadata; access is enforced separately via receipts.
-    async fn basic_project(&self, entity: &EntityRef) -> MutationResult<BasicProject> {
-        Ok(self
-            .projects
-            .internal_get_basic_project(&entity.entity_id)
-            .await?)
-    }
-
-    async fn chat_project_id(
+    /// Resolve receipts and dispatch a move to the owning domain.
+    async fn move_with<S: MoveEntity>(
         &self,
-        owner_receipt: &EntityAccessReceipt<OwnerAccessLevel>,
-    ) -> MutationResult<Option<String>> {
-        let view_receipt = owner_receipt
-            .clone()
-            .try_into_requirement::<ViewAccessLevel>()
-            .map_err(MutationError::Access)?;
-        Ok(self.chats.get_metadata(view_receipt).await?.project_id)
+        service: &S,
+        actor: &EntityMutationActor,
+        requested: &EntityRef,
+        project_id: Option<String>,
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        let receipt = self.receipt::<S::Receipt>(actor, requested).await?;
+        let project_receipt = self.target_project(actor, project_id.as_deref()).await?;
+        service
+            .move_entity(requested.clone(), receipt, project_id, project_receipt)
+            .await
     }
 
-    async fn require_archived_call(
+    /// Resolve a receipt and dispatch a share-policy update.
+    async fn share_with<S: UpdateEntitySharePolicy>(
         &self,
-        edit_receipt: &EntityAccessReceipt<EditAccessLevel>,
-        operation: &str,
-    ) -> MutationResult<()> {
-        let view_receipt = edit_receipt
-            .clone()
-            .try_into_requirement::<ViewAccessLevel>()
-            .map_err(MutationError::Access)?;
-        if self.calls.get_call_record(view_receipt).await?.is_active {
-            return Err(MutationError::Conflict(format!(
-                "cannot {operation} an active call"
-            )));
-        }
-        Ok(())
+        service: &S,
+        actor: &EntityMutationActor,
+        requested: &EntityRef,
+        policy: UpdateSharePermissionRequestV2,
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        let receipt = self.receipt::<S::Receipt>(actor, requested).await?;
+        service
+            .update_share_policy(requested.clone(), receipt, policy)
+            .await
     }
 
-    // Rename.
+    /// Resolve a receipt and dispatch a trash operation.
+    async fn trash_with<S: TrashEntity>(
+        &self,
+        service: &S,
+        actor: &EntityMutationActor,
+        requested: &EntityRef,
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        let receipt = self.receipt::<S::Receipt>(actor, requested).await?;
+        service.trash_entity(requested.clone(), receipt).await
+    }
+
+    /// Resolve a receipt and dispatch a restore operation.
+    async fn restore_with<S: RestoreEntity>(
+        &self,
+        service: &S,
+        actor: &EntityMutationActor,
+        requested: &EntityRef,
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        let receipt = self.receipt::<S::Receipt>(actor, requested).await?;
+        service.restore_entity(requested.clone(), receipt).await
+    }
+
+    /// Resolve a receipt and dispatch a permanent deletion.
+    async fn delete_with<S: DeleteEntityPermanently>(
+        &self,
+        service: &S,
+        actor: &EntityMutationActor,
+        requested: &EntityRef,
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        let receipt = self.receipt::<S::Receipt>(actor, requested).await?;
+        service
+            .delete_entity_permanently(requested.clone(), receipt)
+            .await
+    }
+
+    /// Resolve a receipt and dispatch a duplication.
+    async fn duplicate_with<S: DuplicateEntity>(
+        &self,
+        service: &S,
+        actor: &EntityMutationActor,
+        requested: &EntityRef,
+        display_name: Option<String>,
+    ) -> Result<EntityRef, EntityMutationError> {
+        let receipt = self.receipt::<S::Receipt>(actor, requested).await?;
+        service
+            .duplicate_entity(
+                requested.clone(),
+                receipt,
+                actor.user_id.clone(),
+                display_name,
+            )
+            .await
+    }
 
     #[tracing::instrument(skip_all, fields(entity_type = %request.entity.entity_type, entity_id = %request.entity.entity_id))]
     async fn rename_one(
@@ -551,11 +395,26 @@ where
             display_name,
         } = request;
         let result = match requested.entity_type {
-            EntityType::Document => self.rename_document(actor, &requested, display_name).await,
-            EntityType::Chat => self.rename_chat(actor, &requested, display_name).await,
-            EntityType::Channel => self.rename_channel(actor, &requested, display_name).await,
-            EntityType::Call => self.rename_call(actor, &requested, display_name).await,
-            EntityType::Project => self.rename_project(actor, &requested, display_name).await,
+            EntityType::Document => {
+                self.rename_with(&*self.documents, actor, &requested, display_name)
+                    .await
+            }
+            EntityType::Chat => {
+                self.rename_with(&*self.chats, actor, &requested, display_name)
+                    .await
+            }
+            EntityType::Channel => {
+                self.rename_with(&*self.channels, actor, &requested, display_name)
+                    .await
+            }
+            EntityType::Call => {
+                self.rename_with(&*self.calls, actor, &requested, display_name)
+                    .await
+            }
+            EntityType::Project => {
+                self.rename_with(&*self.projects, actor, &requested, display_name)
+                    .await
+            }
             EntityType::User
             | EntityType::Team
             | EntityType::ChannelMessage
@@ -567,122 +426,11 @@ where
                 return EntityMutationOutcome::unsupported(requested, "rename");
             }
         };
-        result.unwrap_or_else(|error| fail(requested, error))
+        match result {
+            Ok(affected) => success_with_affected(requested, affected),
+            Err(error) => EntityMutationOutcome::failure(requested, error),
+        }
     }
-
-    async fn rename_document(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        display_name: String,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        let document = self.live_document(requested, "rename").await?;
-        self.documents
-            .edit_document(
-                receipt,
-                document,
-                EditDocumentServiceArgs {
-                    document_name: Some(display_name),
-                    project_id: None,
-                    share_permission: None,
-                    file_type: None,
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    async fn rename_chat(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        display_name: String,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        self.chats
-            .patch(
-                receipt,
-                PatchChatArgs {
-                    name: Some(display_name),
-                    project_id: None,
-                    share_permission: None,
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    async fn rename_channel(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        display_name: String,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self
-            .receipt::<AdminParticipantRole>(actor, requested)
-            .await?;
-        let channel_id = parse_uuid(requested)?;
-        let sender = sender_from_receipt(receipt)?;
-        self.channels
-            .patch_channel(
-                sender,
-                channel_id,
-                PatchChannelRequest {
-                    channel_name: Some(display_name),
-                    convert_to_team_channel: None,
-                    auto_join_team: None,
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    async fn rename_call(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        display_name: String,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        self.require_archived_call(&receipt, "rename").await?;
-        self.calls
-            .edit_call_record(
-                receipt,
-                EditCallRecordRequest {
-                    share_permission: None,
-                    share_with_team: None,
-                    custom_name: Some(display_name),
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    async fn rename_project(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        display_name: String,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        let project = self.basic_project(requested).await?;
-        let parent_id = project.parent_id.clone();
-        self.projects
-            .edit_project(
-                receipt,
-                project,
-                PatchProjectRequestV2 {
-                    name: Some(display_name),
-                    project_parent_id: None,
-                    share_permission: None,
-                },
-            )
-            .await?;
-        Ok(success_with_projects(requested.clone(), [parent_id]))
-    }
-
-    // Move.
 
     #[tracing::instrument(skip_all, fields(entity_type = %request.entity.entity_type, entity_id = %request.entity.entity_id))]
     async fn move_one(
@@ -695,10 +443,22 @@ where
             project_id,
         } = request;
         let result = match requested.entity_type {
-            EntityType::Document => self.move_document(actor, &requested, project_id).await,
-            EntityType::Chat => self.move_chat(actor, &requested, project_id).await,
-            EntityType::EmailThread => self.move_email_thread(actor, &requested, project_id).await,
-            EntityType::Project => self.move_project(actor, &requested, project_id).await,
+            EntityType::Document => {
+                self.move_with(&*self.documents, actor, &requested, project_id)
+                    .await
+            }
+            EntityType::Chat => {
+                self.move_with(&*self.chats, actor, &requested, project_id)
+                    .await
+            }
+            EntityType::EmailThread => {
+                self.move_with(&*self.email, actor, &requested, project_id)
+                    .await
+            }
+            EntityType::Project => {
+                self.move_with(&*self.projects, actor, &requested, project_id)
+                    .await
+            }
             EntityType::User
             | EntityType::Team
             | EntityType::Channel
@@ -711,115 +471,11 @@ where
                 return EntityMutationOutcome::unsupported(requested, "move");
             }
         };
-        result.unwrap_or_else(|error| fail(requested, error))
+        match result {
+            Ok(affected) => success_with_affected(requested, affected),
+            Err(error) => EntityMutationOutcome::failure(requested, error),
+        }
     }
-
-    async fn move_document(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        project_id: Option<String>,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        let document = self.live_document(requested, "move").await?;
-        let old_project_id = document.project_id.clone().map(|id| id.to_string());
-        self.target_project(actor, project_id.as_deref()).await?;
-        self.documents
-            .edit_document(
-                receipt,
-                document,
-                EditDocumentServiceArgs {
-                    document_name: None,
-                    // The document edit API uses an empty id to mean "root".
-                    project_id: Some(project_id.clone().unwrap_or_default()),
-                    share_permission: None,
-                    file_type: None,
-                },
-            )
-            .await?;
-        Ok(success_with_projects(
-            requested.clone(),
-            [old_project_id, project_id],
-        ))
-    }
-
-    async fn move_chat(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        project_id: Option<String>,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let old_project_id = self.chat_project_id(&receipt).await?;
-        self.target_project(actor, project_id.as_deref()).await?;
-        self.chats
-            .patch(
-                receipt,
-                PatchChatArgs {
-                    name: None,
-                    // The chat patch API uses an empty id to mean "root".
-                    project_id: Some(project_id.clone().unwrap_or_default()),
-                    share_permission: None,
-                },
-            )
-            .await?;
-        Ok(success_with_projects(
-            requested.clone(),
-            [old_project_id, project_id],
-        ))
-    }
-
-    async fn move_email_thread(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        project_id: Option<String>,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        let project_receipt = self.target_project(actor, project_id.as_deref()).await?;
-        let old_project_id = self
-            .email
-            .update_thread_project(receipt, project_receipt)
-            .await?;
-        Ok(success_with_projects(
-            requested.clone(),
-            [old_project_id, project_id],
-        ))
-    }
-
-    async fn move_project(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        project_id: Option<String>,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let owner_receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        self.target_project(actor, project_id.as_deref()).await?;
-        let project = self.basic_project(requested).await?;
-        let old_parent_id = project.parent_id.clone();
-        let receipt = owner_receipt
-            .try_into_requirement::<EditAccessLevel>()
-            .map_err(MutationError::Access)?;
-        // Self-parenting, cycles, and deleted-state are enforced by the
-        // project domain service; an empty parent id means "root".
-        self.projects
-            .edit_project(
-                receipt,
-                project,
-                PatchProjectRequestV2 {
-                    name: None,
-                    project_parent_id: Some(project_id.clone().unwrap_or_default()),
-                    share_permission: None,
-                },
-            )
-            .await?;
-        Ok(success_with_projects(
-            requested.clone(),
-            [old_parent_id, project_id],
-        ))
-    }
-
-    // Share policy.
 
     #[tracing::instrument(skip_all, fields(entity_type = %request.entity.entity_type, entity_id = %request.entity.entity_id))]
     async fn update_share_policy_one(
@@ -832,10 +488,22 @@ where
             policy,
         } = request;
         let result = match requested.entity_type {
-            EntityType::Document => self.share_document(actor, &requested, policy).await,
-            EntityType::Chat => self.share_chat(actor, &requested, policy).await,
-            EntityType::Call => self.share_call(actor, &requested, policy).await,
-            EntityType::Project => self.share_project(actor, &requested, policy).await,
+            EntityType::Document => {
+                self.share_with(&*self.documents, actor, &requested, policy)
+                    .await
+            }
+            EntityType::Chat => {
+                self.share_with(&*self.chats, actor, &requested, policy)
+                    .await
+            }
+            EntityType::Call => {
+                self.share_with(&*self.calls, actor, &requested, policy)
+                    .await
+            }
+            EntityType::Project => {
+                self.share_with(&*self.projects, actor, &requested, policy)
+                    .await
+            }
             EntityType::EmailThread => self.share_email_thread(actor, &requested, policy).await,
             // Channels grant access through participant roles and channel
             // messages inherit from their channel; neither has a share policy.
@@ -850,112 +518,26 @@ where
                 return EntityMutationOutcome::unsupported(requested, "share policy updates");
             }
         };
-        result.unwrap_or_else(|error| fail(requested, error))
+        match result {
+            Ok(affected) => success_with_affected(requested, affected),
+            Err(error) => EntityMutationOutcome::failure(requested, error),
+        }
     }
 
-    async fn share_document(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        policy: UpdateSharePermissionRequestV2,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        let document = self.live_document(requested, "update sharing for").await?;
-        self.documents
-            .edit_document(
-                receipt,
-                document,
-                EditDocumentServiceArgs {
-                    document_name: None,
-                    project_id: None,
-                    share_permission: Some(policy),
-                    file_type: None,
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    async fn share_chat(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        policy: UpdateSharePermissionRequestV2,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        self.chats
-            .patch(
-                receipt,
-                PatchChatArgs {
-                    name: None,
-                    project_id: None,
-                    share_permission: Some(policy),
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    async fn share_call(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        policy: UpdateSharePermissionRequestV2,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        self.calls
-            .edit_call_record(
-                receipt,
-                EditCallRecordRequest {
-                    share_permission: Some(policy),
-                    share_with_team: None,
-                    custom_name: None,
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    async fn share_project(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        policy: UpdateSharePermissionRequestV2,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let owner_receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project = self.basic_project(requested).await?;
-        let receipt = owner_receipt
-            .try_into_requirement::<EditAccessLevel>()
-            .map_err(MutationError::Access)?;
-        self.projects
-            .edit_project(
-                receipt,
-                project,
-                PatchProjectRequestV2 {
-                    name: None,
-                    project_parent_id: None,
-                    share_permission: Some(policy),
-                },
-            )
-            .await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
+    /// Email threads still update share policy through the lifecycle port.
     async fn share_email_thread(
         &self,
         actor: &EntityMutationActor,
         requested: &EntityRef,
         policy: UpdateSharePermissionRequestV2,
-    ) -> MutationResult<EntityMutationOutcome> {
-        self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let affected = self
-            .lifecycle
-            .update_thread_share_policy(actor, requested, policy)
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        self.receipt::<entity_access::domain::models::OwnerAccessLevel>(actor, requested)
             .await?;
-        Ok(lifecycle_success(requested.clone(), affected))
+        self.lifecycle
+            .update_thread_share_policy(actor, requested, policy)
+            .await
+            .map_err(lifecycle_failure)
     }
-
-    // Trash.
 
     #[tracing::instrument(skip_all, fields(entity_type = %requested.entity_type, entity_id = %requested.entity_id))]
     async fn trash_one(
@@ -964,9 +546,9 @@ where
         requested: EntityRef,
     ) -> EntityMutationOutcome {
         let result = match requested.entity_type {
-            EntityType::Document => self.trash_document(actor, &requested).await,
-            EntityType::Chat => self.trash_chat(actor, &requested).await,
-            EntityType::Project => self.trash_project(actor, &requested).await,
+            EntityType::Document => self.trash_with(&*self.documents, actor, &requested).await,
+            EntityType::Chat => self.trash_with(&*self.chats, actor, &requested).await,
+            EntityType::Project => self.trash_with(&*self.projects, actor, &requested).await,
             EntityType::User
             | EntityType::Team
             | EntityType::Channel
@@ -980,102 +562,11 @@ where
                 return EntityMutationOutcome::unsupported(requested, "trash");
             }
         };
-        result.unwrap_or_else(|error| fail(requested, error))
+        match result {
+            Ok(affected) => success_with_affected(requested, affected),
+            Err(error) => EntityMutationOutcome::failure(requested, error),
+        }
     }
-
-    async fn trash_document(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project_id = self
-            .documents
-            .internal_get_basic_document(&requested.entity_id)
-            .await?
-            .project_id;
-        let affected_project_id = project_id.clone().map(|id| id.to_string());
-        self.documents.delete_document(receipt, project_id).await?;
-        Ok(success_with_projects(
-            requested.clone(),
-            [affected_project_id],
-        ))
-    }
-
-    async fn trash_chat(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project_id = self.chat_project_id(&receipt).await?;
-        self.chats.delete(receipt).await?;
-        Ok(success_with_projects(requested.clone(), [project_id]))
-    }
-
-    async fn trash_project(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project = self.basic_project(requested).await?;
-        let deleted = self
-            .projects
-            .soft_delete_project(receipt, project, actor.user_id.to_string())
-            .await?;
-        let affected = entity_refs(EntityType::Project, deleted.project_ids)
-            .chain(entity_refs(EntityType::Document, deleted.document_ids))
-            .chain(entity_refs(EntityType::Chat, deleted.chat_ids))
-            .collect();
-        Ok(lifecycle_success(requested.clone(), affected))
-    }
-
-    async fn restore_project(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project = self.basic_project(requested).await?;
-        let parent_id = project.parent_id.clone();
-        self.projects
-            .revert_delete_project(receipt, project)
-            .await?;
-        Ok(success_with_projects(requested.clone(), [parent_id]))
-    }
-
-    async fn delete_project_permanently(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project = self.basic_project(requested).await?;
-        let parent_id = project.parent_id.clone();
-        self.projects
-            .permanently_delete_project(receipt, project)
-            .await?;
-        Ok(success_with_projects(requested.clone(), [parent_id]))
-    }
-
-    /// Owner-gated lifecycle operation shared by project and document arms.
-    async fn lifecycle_op<'a, Op, Fut>(
-        &'a self,
-        actor: &'a EntityMutationActor,
-        requested: &'a EntityRef,
-        operation: Op,
-    ) -> MutationResult<EntityMutationOutcome>
-    where
-        Op: FnOnce(&'a L, &'a EntityMutationActor, &'a EntityRef) -> Fut,
-        Fut: Future<Output = Result<Vec<EntityRef>, LifecycleError>> + 'a,
-    {
-        self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let affected = operation(&self.lifecycle, actor, requested).await?;
-        Ok(lifecycle_success(requested.clone(), affected))
-    }
-
-    // Restore.
 
     #[tracing::instrument(skip_all, fields(entity_type = %requested.entity_type, entity_id = %requested.entity_id))]
     async fn restore_one(
@@ -1084,12 +575,9 @@ where
         requested: EntityRef,
     ) -> EntityMutationOutcome {
         let result = match requested.entity_type {
-            EntityType::Document => {
-                self.lifecycle_op(actor, &requested, EntityLifecycleService::restore_document)
-                    .await
-            }
-            EntityType::Chat => self.restore_chat(actor, &requested).await,
-            EntityType::Project => self.restore_project(actor, &requested).await,
+            EntityType::Document => self.restore_document(actor, &requested).await,
+            EntityType::Chat => self.restore_with(&*self.chats, actor, &requested).await,
+            EntityType::Project => self.restore_with(&*self.projects, actor, &requested).await,
             EntityType::User
             | EntityType::Team
             | EntityType::Channel
@@ -1103,21 +591,25 @@ where
                 return EntityMutationOutcome::unsupported(requested, "restore");
             }
         };
-        result.unwrap_or_else(|error| fail(requested, error))
+        match result {
+            Ok(affected) => success_with_affected(requested, affected),
+            Err(error) => EntityMutationOutcome::failure(requested, error),
+        }
     }
 
-    async fn restore_chat(
+    /// Documents still restore through the lifecycle port.
+    async fn restore_document(
         &self,
         actor: &EntityMutationActor,
         requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project_id = self.chat_project_id(&receipt).await?;
-        self.chats.revert_delete(receipt).await?;
-        Ok(success_with_projects(requested.clone(), [project_id]))
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        self.receipt::<entity_access::domain::models::OwnerAccessLevel>(actor, requested)
+            .await?;
+        self.lifecycle
+            .restore_document(actor, requested)
+            .await
+            .map_err(lifecycle_failure)
     }
-
-    // Permanent deletion.
 
     #[tracing::instrument(skip_all, fields(entity_type = %requested.entity_type, entity_id = %requested.entity_id))]
     async fn delete_permanently_one(
@@ -1126,18 +618,11 @@ where
         requested: EntityRef,
     ) -> EntityMutationOutcome {
         let result = match requested.entity_type {
-            EntityType::Document => {
-                self.lifecycle_op(
-                    actor,
-                    &requested,
-                    EntityLifecycleService::delete_document_permanently,
-                )
-                .await
-            }
-            EntityType::Chat => self.delete_chat_permanently(actor, &requested).await,
-            EntityType::Channel => self.delete_channel_permanently(actor, &requested).await,
-            EntityType::Call => self.delete_call_permanently(actor, &requested).await,
-            EntityType::Project => self.delete_project_permanently(actor, &requested).await,
+            EntityType::Document => self.delete_document_permanently(actor, &requested).await,
+            EntityType::Chat => self.delete_with(&*self.chats, actor, &requested).await,
+            EntityType::Channel => self.delete_with(&*self.channels, actor, &requested).await,
+            EntityType::Call => self.delete_with(&*self.calls, actor, &requested).await,
+            EntityType::Project => self.delete_with(&*self.projects, actor, &requested).await,
             EntityType::User
             | EntityType::Team
             | EntityType::ChannelMessage
@@ -1149,47 +634,25 @@ where
                 return EntityMutationOutcome::unsupported(requested, "permanent deletion");
             }
         };
-        result.unwrap_or_else(|error| fail(requested, error))
+        match result {
+            Ok(affected) => success_with_affected(requested, affected),
+            Err(error) => EntityMutationOutcome::failure(requested, error),
+        }
     }
 
-    async fn delete_chat_permanently(
+    /// Documents still delete permanently through the lifecycle port.
+    async fn delete_document_permanently(
         &self,
         actor: &EntityMutationActor,
         requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<OwnerAccessLevel>(actor, requested).await?;
-        let project_id = self.chat_project_id(&receipt).await?;
-        self.chats.permanently_delete(receipt).await?;
-        Ok(success_with_projects(requested.clone(), [project_id]))
-    }
-
-    async fn delete_channel_permanently(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self
-            .receipt::<OwnerParticipantRole>(actor, requested)
+    ) -> Result<Vec<EntityRef>, EntityMutationError> {
+        self.receipt::<entity_access::domain::models::OwnerAccessLevel>(actor, requested)
             .await?;
-        let channel_id = parse_uuid(requested)?;
-        let sender = sender_from_receipt(receipt)?;
-        self.channels.delete_channel(sender, channel_id).await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
+        self.lifecycle
+            .delete_document_permanently(actor, requested)
+            .await
+            .map_err(lifecycle_failure)
     }
-
-    async fn delete_call_permanently(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<EditAccessLevel>(actor, requested).await?;
-        self.require_archived_call(&receipt, "permanently delete")
-            .await?;
-        self.calls.delete_call_record(receipt).await?;
-        Ok(EntityMutationOutcome::success(requested.clone()))
-    }
-
-    // Duplication.
 
     #[tracing::instrument(skip_all, fields(entity_type = %request.entity.entity_type, entity_id = %request.entity.entity_id))]
     async fn duplicate_one(
@@ -1203,10 +666,13 @@ where
         } = request;
         let result = match requested.entity_type {
             EntityType::Document => {
-                self.duplicate_document(actor, &requested, display_name)
+                self.duplicate_with(&*self.documents, actor, &requested, display_name)
                     .await
             }
-            EntityType::Chat => self.duplicate_chat(actor, &requested, display_name).await,
+            EntityType::Chat => {
+                self.duplicate_with(&*self.chats, actor, &requested, display_name)
+                    .await
+            }
             EntityType::User
             | EntityType::Team
             | EntityType::Channel
@@ -1221,85 +687,36 @@ where
                 return EntityMutationOutcome::unsupported(requested, "duplication");
             }
         };
-        result.unwrap_or_else(|error| fail(requested, error))
-    }
-
-    async fn duplicate_document(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        display_name: Option<String>,
-    ) -> MutationResult<EntityMutationOutcome> {
-        let receipt = self.receipt::<ViewAccessLevel>(actor, requested).await?;
-        let document = self
-            .documents
-            .internal_get_basic_document(&requested.entity_id)
-            .await?;
-        let display_name =
-            display_name.unwrap_or_else(|| format!("{} copy", document.document_name));
-        let response = self
-            .documents
-            .copy_document(
-                receipt,
-                document,
-                actor.user_id.clone(),
-                display_name,
-                None,
-                None,
-            )
-            .await?;
-        let created = EntityRef::new(
-            EntityType::Document,
-            response.document_metadata.metadata.document_id,
-        );
-        Ok(EntityMutationOutcome::success_with(
-            requested.clone(),
-            Some(created.clone()),
-            vec![created],
-        ))
-    }
-
-    async fn duplicate_chat(
-        &self,
-        actor: &EntityMutationActor,
-        requested: &EntityRef,
-        display_name: Option<String>,
-    ) -> MutationResult<EntityMutationOutcome> {
-        if display_name.is_some() {
-            return Err(MutationError::Invalid(
-                "chat duplication does not yet accept a custom display name".to_owned(),
-            ));
+        match result {
+            Ok(created) => {
+                EntityMutationOutcome::success_with(requested, Some(created.clone()), vec![created])
+            }
+            Err(error) => EntityMutationOutcome::failure(requested, error),
         }
-        let receipt = self.receipt::<ViewAccessLevel>(actor, requested).await?;
-        let id = self.chats.copy_chat(receipt).await?;
-        let created = EntityRef::new(EntityType::Chat, id);
-        Ok(EntityMutationOutcome::success_with(
-            requested.clone(),
-            Some(created.clone()),
-            vec![created],
-        ))
     }
-
-    // Favorites.
 
     async fn set_favorite_one(
         &self,
         actor: &EntityMutationActor,
         entity: &EntityRef,
         favorite: bool,
-    ) -> MutationResult<()> {
+    ) -> Result<(), EntityMutationError> {
         if favorite {
             // The view receipt both proves visibility and carries the actor
             // and entity for the favorites domain.
             let receipt = self.receipt::<ViewAccessLevel>(actor, entity).await?;
-            self.favorites.add_favorite(&receipt).await?;
+            self.favorites
+                .add_favorite(&receipt)
+                .await
+                .map_err(favorites_failure)?;
         } else {
             let domain_entity = entity
                 .entity_type
                 .with_entity_str(entity.entity_id.as_str());
             self.favorites
                 .remove_favorite_by_entity(&actor.user_id, &domain_entity)
-                .await?;
+                .await
+                .map_err(favorites_failure)?;
         }
         Ok(())
     }
@@ -1309,12 +726,30 @@ where
 impl<D, H, C, K, E, P, A, F, L> EntityMutationService
     for DssEntityMutationService<D, H, C, K, E, P, A, F, L>
 where
-    D: DocumentService,
-    H: ChatService,
-    C: ChannelService,
-    K: CallService,
-    E: EmailService,
-    P: ProjectService,
+    D: DocumentService
+        + RenameEntity
+        + MoveEntity
+        + UpdateEntitySharePolicy
+        + TrashEntity
+        + DuplicateEntity,
+    H: ChatService
+        + RenameEntity
+        + MoveEntity
+        + UpdateEntitySharePolicy
+        + TrashEntity
+        + RestoreEntity
+        + DeleteEntityPermanently
+        + DuplicateEntity,
+    C: ChannelService + RenameEntity + DeleteEntityPermanently,
+    K: CallService + RenameEntity + UpdateEntitySharePolicy + DeleteEntityPermanently,
+    E: EmailService + MoveEntity,
+    P: ProjectService
+        + RenameEntity
+        + MoveEntity
+        + UpdateEntitySharePolicy
+        + TrashEntity
+        + RestoreEntity
+        + DeleteEntityPermanently,
     A: EntityAccessService,
     F: FavoritesService,
     L: EntityLifecycleService,
@@ -1422,7 +857,7 @@ where
         }
         match self.set_favorite_one(&actor, &entity, favorite).await {
             Ok(()) => EntityMutationOutcome::success(entity),
-            Err(error) => fail(entity, error),
+            Err(error) => EntityMutationOutcome::failure(entity, error),
         }
     }
 }

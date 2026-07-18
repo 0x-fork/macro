@@ -101,6 +101,35 @@ impl EntityMutationError {
             message: message.into(),
         }
     }
+
+    /// Log an internal failure and return the generic user-safe error.
+    ///
+    /// Callers run inside a per-item tracing span carrying the operation and
+    /// entity fields, so the log line stays attributable.
+    pub fn internal(detail: &dyn std::fmt::Debug) -> Self {
+        tracing::error!(error = ?detail, "unified entity mutation failed");
+        Self::new(EntityMutationErrorCode::Internal, "entity mutation failed")
+    }
+
+    /// Construct a not-found error.
+    pub fn not_found(message: impl Into<String>) -> Self {
+        Self::new(EntityMutationErrorCode::NotFound, message)
+    }
+
+    /// Construct a forbidden error.
+    pub fn forbidden(message: impl Into<String>) -> Self {
+        Self::new(EntityMutationErrorCode::Forbidden, message)
+    }
+
+    /// Construct an invalid-input error.
+    pub fn invalid(message: impl Into<String>) -> Self {
+        Self::new(EntityMutationErrorCode::InvalidInput, message)
+    }
+
+    /// Construct a state-conflict error.
+    pub fn conflict(message: impl Into<String>) -> Self {
+        Self::new(EntityMutationErrorCode::Conflict, message)
+    }
 }
 
 /// Result for one requested entity in a batch mutation.
