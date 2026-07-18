@@ -1,7 +1,15 @@
 import { constrainImageDimensions } from '@macro-inc/lexical-core/utils/media';
 import ExpandIcon from '@phosphor/arrows-out-simple.svg';
 import { Button, cn } from '@ui';
-import { createMemo, createSignal, For, Match, Show, Switch } from 'solid-js';
+import {
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  Match,
+  Show,
+  Switch,
+} from 'solid-js';
 import { MediaImage } from './MediaImage';
 import { MediaVideo } from './MediaVideo';
 import type { MediaItem } from './media-items';
@@ -12,6 +20,23 @@ const SINGLE_IMAGE_MAX_WIDTH = 400;
 const SINGLE_IMAGE_MAX_HEIGHT = 400;
 const MESSAGE_GALLERY_IMAGE_MAX_WIDTH = 200;
 const MESSAGE_GALLERY_IMAGE_MAX_HEIGHT = 200;
+const MESSAGE_VIDEO_MAX_WIDTH = 480;
+const MESSAGE_VIDEO_MAX_HEIGHT = 480;
+
+type MediaDimensions = { width: number; height: number };
+
+/** Keep message layout stable while the media element loads inside the frame. */
+function mediaFrameStyle(
+  dimensions: MediaDimensions | undefined
+): JSX.CSSProperties | undefined {
+  if (!dimensions) return;
+
+  return {
+    width: `${dimensions.width}px`,
+    'max-width': '100%',
+    'aspect-ratio': `${dimensions.width} / ${dimensions.height}`,
+  };
+}
 
 function MessageImageTile(props: {
   item: MediaItem;
@@ -25,31 +50,36 @@ function MessageImageTile(props: {
       props.large ? SINGLE_IMAGE_MAX_WIDTH : MESSAGE_GALLERY_IMAGE_MAX_WIDTH,
       props.large ? SINGLE_IMAGE_MAX_HEIGHT : MESSAGE_GALLERY_IMAGE_MAX_HEIGHT
     );
+  const hasDimensions = () => dimensions() !== undefined;
 
   return (
     <button
       type="button"
-      class="relative flex rounded-2xl"
+      class="relative flex max-w-full rounded-2xl"
+      data-message-media-frame="image"
+      style={mediaFrameStyle(dimensions())}
       onClick={props.onOpen}
       aria-label="Open image viewer"
     >
       <MediaImage.Image
         src={props.item.src}
         previewSrc={props.item.previewSrc}
-        class="max-h-[80vh] w-full select-none rounded-2xl border border-edge object-contain"
+        class={cn(
+          'max-h-[80vh] select-none rounded-2xl border border-edge object-contain',
+          hasDimensions() ? 'size-full' : 'w-full'
+        )}
         width={dimensions()?.width ?? props.item.width ?? undefined}
         height={dimensions()?.height ?? props.item.height ?? undefined}
-        fallback={<MediaImage.Fallback dims={dimensions()} />}
-        style={{
-          ...(dimensions()
-            ? {
-                'aspect-ratio': `${dimensions()!.width} / ${dimensions()!.height}`,
-                'max-width': `${dimensions()!.width}px`,
-              }
+        fallback={
+          <MediaImage.Fallback dims={dimensions()} fill={hasDimensions()} />
+        }
+        style={
+          hasDimensions()
+            ? undefined
             : {
                 'max-width': `${props.large ? SINGLE_IMAGE_MAX_WIDTH : MESSAGE_GALLERY_IMAGE_MAX_WIDTH}px`,
-              }),
-        }}
+              }
+        }
       />
     </button>
   );
@@ -80,24 +110,45 @@ function AttachmentImageTile(props: { item: MediaItem; onOpen?: () => void }) {
 function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
   const [isInlinePlaying, setIsInlinePlaying] = createSignal(false);
   const src = () => props.item.src;
-  const videoWidth = () => props.item.width ?? undefined;
-  const videoHeight = () => props.item.height ?? undefined;
+  const dimensions = () =>
+    constrainImageDimensions(
+      props.item.width ?? undefined,
+      props.item.height ?? undefined,
+      MESSAGE_VIDEO_MAX_WIDTH,
+      MESSAGE_VIDEO_MAX_HEIGHT
+    );
+  const hasDimensions = () => dimensions() !== undefined;
+  const videoWidth = () => dimensions()?.width ?? props.item.width ?? undefined;
+  const videoHeight = () =>
+    dimensions()?.height ?? props.item.height ?? undefined;
+  const videoClass = () =>
+    cn(
+      'block object-contain',
+      hasDimensions() ? 'size-full' : 'max-h-120 max-w-full'
+    );
 
   return (
-    <div class="group relative flex min-h-20 max-h-120 max-w-120 min-w-0 overflow-hidden rounded-2xl border border-edge bg-surface">
+    <div
+      class={cn(
+        'group relative flex max-h-120 max-w-120 min-w-0 overflow-hidden rounded-2xl border border-edge bg-surface',
+        !hasDimensions() && 'min-h-20'
+      )}
+      data-message-media-frame="video"
+      style={mediaFrameStyle(dimensions())}
+    >
       <Show
         when={isInlinePlaying()}
         fallback={
           <>
             <button
               type="button"
-              class="block max-w-full"
+              class={cn('block', hasDimensions() ? 'size-full' : 'max-w-full')}
               onClick={props.onOpen}
               aria-label="Open video viewer"
             >
               <MediaVideo.Preview
                 src={props.item.src}
-                class="block max-h-120 max-w-full"
+                class={videoClass()}
                 width={videoWidth()}
                 height={videoHeight()}
               />
@@ -117,7 +168,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
         }
       >
         <video
-          class="block max-h-120 max-w-full"
+          class={videoClass()}
           controls
           autoplay
           playsinline
