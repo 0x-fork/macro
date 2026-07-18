@@ -2,30 +2,20 @@ import XIcon from '@phosphor/x.svg';
 import { Button, Layer } from '@ui';
 import { For, Show } from 'solid-js';
 import { useSoupView } from '../context';
+import {
+  clearFacetControlRefinements,
+  facetControlResetValue,
+  isFacetControlRefinement,
+} from './facet-control-refinements';
 import { useSoupFacetControls } from './use-soup-facet-controls';
-
-const sameIds = (left: readonly string[], right: readonly string[]) => {
-  if (left.length !== right.length) return false;
-  const sortedLeft = [...left].sort();
-  const sortedRight = [...right].sort();
-  return sortedLeft.every((id, index) => id === sortedRight[index]);
-};
 
 export function SoupActiveFacets() {
   const baseline = useSoupView().activePresetFacets;
   const controls = useSoupFacetControls();
-  const resetValue = (control: ReturnType<typeof controls>[number]) =>
-    control.id === 'task_status' ? [] : (baseline()[control.id] ?? []);
   const active = () =>
-    controls().filter((control) => {
-      const selected = control.activeIds();
-      if (control.id === 'task_status') {
-        return (
-          selected.length > 0 && selected.length < control.options().length
-        );
-      }
-      return !sameIds(selected, baseline()[control.id] ?? []);
-    });
+    controls().filter((control) =>
+      isFacetControlRefinement(control, baseline())
+    );
 
   const valueLabel = (control: ReturnType<typeof controls>[number]) => {
     const ids = control.activeIds();
@@ -37,14 +27,7 @@ export function SoupActiveFacets() {
     return `${labels[0]} +${labels.length - 1}`;
   };
 
-  const clearAll = () => {
-    const values = baseline();
-    for (const control of controls()) {
-      control.onChange(
-        control.id === 'task_status' ? [] : (values[control.id] ?? [])
-      );
-    }
-  };
+  const clearAll = () => clearFacetControlRefinements(controls(), baseline());
 
   return (
     <Show when={active().length > 0}>
@@ -61,7 +44,11 @@ export function SoupActiveFacets() {
                   size="icon-sm"
                   class="h-full rounded-none border-l border-edge-muted hover:text-failure"
                   label={`Clear ${control.label}`}
-                  onClick={() => control.onChange(resetValue(control))}
+                  onClick={() =>
+                    control.onChange(
+                      facetControlResetValue(control, baseline())
+                    )
+                  }
                 >
                   <XIcon class="size-3" />
                 </Button>

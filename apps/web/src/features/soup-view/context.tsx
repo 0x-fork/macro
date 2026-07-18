@@ -58,6 +58,10 @@ export type SoupViewContextValue = {
 
   searchInput: Accessor<HTMLInputElement | undefined>;
   setSearchInput: Setter<HTMLInputElement | undefined>;
+  searchOpen: Accessor<boolean>;
+  setSearchOpen: Setter<boolean>;
+  focusSearch: (selectAll?: boolean) => void;
+  openSearch: (selectAll?: boolean) => void;
 
   sortOpen: Accessor<boolean>;
   setSortOpen: Setter<boolean>;
@@ -183,6 +187,18 @@ export function SoupViewProvider(
     previewPaneVisible() && previewEntity() !== undefined;
 
   const [searchInput, setSearchInput] = createSignal<HTMLInputElement>();
+  const [searchOpen, setSearchOpen] = createSignal(false);
+  const focusSearch = (selectAll = false) => {
+    queueMicrotask(() => {
+      const input = searchInput();
+      input?.focus();
+      if (selectAll) input?.select();
+    });
+  };
+  const openSearch = (selectAll = false) => {
+    setSearchOpen(true);
+    focusSearch(selectAll);
+  };
 
   const [sortOpen, setSortOpen] = createSignal(false);
 
@@ -208,6 +224,10 @@ export function SoupViewProvider(
 
     searchInput,
     setSearchInput,
+    searchOpen,
+    setSearchOpen,
+    focusSearch,
+    openSearch,
 
     sortOpen,
     setSortOpen,

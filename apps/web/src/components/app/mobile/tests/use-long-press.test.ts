@@ -11,18 +11,21 @@ describe('useLongPress', () => {
   it('triggers after the delay and consumes the following click', async () => {
     vi.useFakeTimers();
     const onLongPress = vi.fn();
+    const onPressChange = vi.fn();
     let consumeLongPress: (event?: Event) => boolean = () => false;
     let disposeRoot = () => {};
 
     createRoot((dispose) => {
       disposeRoot = dispose;
-      const press = useLongPress({ onLongPress });
+      const press = useLongPress({ onLongPress, onPressChange });
       consumeLongPress = press.consumeLongPress;
       press.longPressHandlers.onPointerDown(pointer(10, 10));
+      expect(onPressChange).toHaveBeenLastCalledWith(true);
       vi.advanceTimersByTime(449);
       expect(onLongPress).not.toHaveBeenCalled();
       vi.advanceTimersByTime(1);
       expect(onLongPress).toHaveBeenCalledOnce();
+      expect(onPressChange).toHaveBeenLastCalledWith(false);
     });
 
     const event = {
@@ -40,12 +43,14 @@ describe('useLongPress', () => {
   it('cancels when movement exceeds the threshold or the owner disposes', () => {
     vi.useFakeTimers();
     const moved = vi.fn();
+    const onPressChange = vi.fn();
     createRoot((dispose) => {
-      const press = useLongPress({ onLongPress: moved });
+      const press = useLongPress({ onLongPress: moved, onPressChange });
       press.longPressHandlers.onPointerDown(pointer(0, 0));
       press.longPressHandlers.onPointerMove(pointer(9, 0));
       vi.runAllTimers();
       expect(moved).not.toHaveBeenCalled();
+      expect(onPressChange.mock.calls).toEqual([[true], [false]]);
       dispose();
     });
 

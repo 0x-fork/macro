@@ -14,6 +14,7 @@ export function SoupEntityRow(
     isSelected: Accessor<boolean>;
     onOpen: () => void;
     onLongPress: () => void;
+    onPressChange?: (pressed: boolean) => void;
   }>
 ) {
   const { longPressHandlers, consumeLongPress } = useLongPress({
@@ -21,6 +22,7 @@ export function SoupEntityRow(
       hapticImpact('light');
       props.onLongPress();
     },
+    onPressChange: props.onPressChange,
   });
   let container: HTMLDivElement | undefined;
 

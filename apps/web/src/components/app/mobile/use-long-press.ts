@@ -5,6 +5,7 @@ export type LongPressOptions = {
   delay?: number;
   movementThreshold?: number;
   pointerType?: string;
+  onPressChange?: (pressed: boolean) => void;
 };
 
 /**
@@ -18,11 +19,19 @@ export function useLongPress(options: LongPressOptions) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let start: { x: number; y: number } | undefined;
   let triggered = false;
+  let pressing = false;
+
+  const setPressing = (next: boolean) => {
+    if (pressing === next) return;
+    pressing = next;
+    options.onPressChange?.(next);
+  };
 
   const cancel = () => {
     if (timer) clearTimeout(timer);
     timer = undefined;
     start = undefined;
+    setPressing(false);
   };
 
   const onPointerDown = (event: PointerEvent) => {
@@ -30,9 +39,11 @@ export function useLongPress(options: LongPressOptions) {
     triggered = false;
     cancel();
     start = { x: event.clientX, y: event.clientY };
+    setPressing(true);
     timer = setTimeout(() => {
       timer = undefined;
       triggered = true;
+      setPressing(false);
       options.onLongPress();
     }, delay);
   };

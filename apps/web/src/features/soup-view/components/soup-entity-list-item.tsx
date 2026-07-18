@@ -25,10 +25,18 @@ import {
 } from '@entity';
 import type { EntityRowConfig } from '@entity/extractors-notification';
 import CheckCircleIcon from '@phosphor/check-circle.svg';
-import { type Accessor, createEffect, createMemo, type JSX } from 'solid-js';
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+  type JSX,
+} from 'solid-js';
+import { actionTargets } from '../actions/soup-entity-action-model';
 import { useSoupEntityActions } from '../actions/use-soup-entity-actions';
 import { useSoupView } from '../context';
 import { SoupEntityRow } from './soup-entity-row';
+import { useMaybeSoupMobileActionDrawer } from './soup-mobile-action-drawer';
 
 export type SoupEntityListItemRenderProps = {
   entity: SoupEntityItem['entity'];
@@ -94,7 +102,9 @@ export function SoupEntityListItem(props: {
   const collection = useSoupCollection();
   const view = useSoupView();
   const entityActions = useSoupEntityActions();
+  const mobileActionDrawer = useMaybeSoupMobileActionDrawer();
   const { state: listState } = useList<SoupItem>();
+  const [touchPressed, setTouchPressed] = createSignal(false);
   const { isKeypressActive } = useIsKeyPressActive();
   const hoverFocus = () =>
     typeof props.hoverFocus === 'function'
@@ -195,8 +205,20 @@ export function SoupEntityListItem(props: {
           onOpen={() => state.focus({ reason: 'pointer' })}
           onLongPress={() => {
             state.focus({ reason: 'pointer' });
-            setItemSelected(!state.selected(), false);
+            if (!mobileActionDrawer) {
+              setItemSelected(!state.selected(), false);
+              return;
+            }
+            mobileActionDrawer.open(
+              props.item().entity,
+              actionTargets({
+                entity: props.item().entity,
+                selected: selectedEntities(),
+                entityIsSelected: state.selected(),
+              })
+            );
           }}
+          onPressChange={setTouchPressed}
         >
           {props.children({
             get entity() {
@@ -206,7 +228,7 @@ export function SoupEntityListItem(props: {
               return timestamp(collection.sort()[0]);
             },
             get highlighted() {
-              return state.focused();
+              return state.focused() || touchPressed();
             },
             get checked() {
               return state.selected();

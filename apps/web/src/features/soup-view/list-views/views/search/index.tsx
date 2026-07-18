@@ -36,7 +36,7 @@ function SearchListViewContent() {
         normalizeSearchFacets(collection.facets);
         collection.setSearch(query);
       },
-      focus: () => view.searchInput()?.focus(),
+      focus: () => view.openSearch(),
     });
     onCleanup(teardown);
   });
