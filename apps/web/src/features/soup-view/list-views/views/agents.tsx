@@ -1,13 +1,12 @@
 import { List, useList } from '@app/components/list';
+import { LIST_VIEW_DOCS_URL } from '@app/constants/docs-links';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
-import { InboxListEntity } from '@app/features/next-soup/soup-view/views/inbox/InboxListEntity';
+import { runCreateAction } from '@app/features/command/Launcher';
 import {
-  type FacetSelection,
-  type SoupCollection,
   SoupCollectionProvider,
   type SoupItem,
+  useSoupCollection,
 } from '@app/features/soup-list';
-import { NIL_UUID } from '@app/features/soup-list/facet-store';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -15,26 +14,27 @@ import { useSplitDisplayName } from '@components/app/split-layout/use-split-disp
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { Resize } from '@core/component/Resize';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
-import { useUserId } from '@core/context/user';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
-import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
+import EmptyStateAiGraphic from '@design/empty-state-ai.svg';
+import EmptyStateAutomationsGraphic from '@design/empty-state-automations.svg';
 import { ListEntity } from '@entity';
+import PlusIcon from '@phosphor/plus.svg';
 import Spinner from '@phosphor/spinner.svg';
+import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { EmptyStatePanel } from '@ui';
 import {
   createEffect,
   createMemo,
   createSignal,
+  Match,
   onCleanup,
   onMount,
   Show,
   Suspense,
+  Switch,
 } from 'solid-js';
-import {
-  SoupEmptyState,
-  SoupErrorState,
-} from '../../components/soup-empty-state';
+import { SoupErrorState } from '../../components/soup-empty-state';
 import { SoupEntityListItem } from '../../components/soup-entity-list-item';
 import { SoupFileDropzone } from '../../components/soup-file-dropzone';
 import { SoupMobileControls } from '../../components/soup-mobile-controls';
@@ -43,41 +43,54 @@ import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../components/soup-view-header';
 import { SoupViewProvider, useSoupView } from '../../context';
 import { useSoupNotificationInvalidators } from '../../use-soup-notification-invalidators';
-import { useIsNewInbox } from '../../utils';
 import { SoupEntityList } from '../soup-entity-list';
 import { SoupViewRoot } from '../soup-view-root';
 import { useSoupViewSetup } from '../use-soup-view-setup';
 
-export type InboxListViewProps = {
+export type AgentsListViewProps = {
   viewName?: string;
 };
 
-const inboxThreadScope = (isNewInbox: boolean, userId: string | undefined) =>
-  isNewInbox ? (userId ?? NIL_UUID) : NIL_UUID;
+function AgentsEmptyState() {
+  const { activeTab } = useSoupCollection();
 
-const createInitialInboxFacets = (
-  isNewInbox: boolean,
-  userId: string | undefined
-): FacetSelection => ({
-  channel_thread_scope: [inboxThreadScope(isNewInbox, userId)],
-  ...(isNewInbox ? { read_state: ['unread'], call_status: ['MISSED'] } : {}),
-});
+  return (
+    <Switch>
+      <Match when={activeTab() === 'automations'}>
+        <EmptyStatePanel
+          centered
+          graphic={EmptyStateAutomationsGraphic}
+          title="No automations to show"
+          description="Automations run in the background to handle repetitive work for you — like triaging messages, updating tasks, or sending follow-ups."
+          primaryAction={{
+            label: 'New automation',
+            icon: PlusIcon,
+            onClick: () => runCreateAction('automation'),
+          }}
+          documentationUrl={LIST_VIEW_DOCS_URL.agents}
+        />
+      </Match>
+      <Match when>
+        <EmptyStatePanel
+          centered
+          graphic={EmptyStateAiGraphic}
+          title="Get started with agents"
+          description="Create an agent, or use Macro with your favorite AI client via MCP."
+          primaryAction={{
+            label: 'New agent',
+            icon: PlusIcon,
+            onClick: () => runCreateAction('chat'),
+          }}
+          documentationUrl={LIST_VIEW_DOCS_URL.agents}
+        />
+      </Match>
+    </Switch>
+  );
+}
 
-const syncInboxFacets = (
-  collection: SoupCollection,
-  isNewInbox: boolean,
-  userId: string | undefined
-) => {
-  collection.facets.set('channel_thread_scope', [
-    inboxThreadScope(isNewInbox, userId),
-  ]);
-  if (isNewInbox) collection.facets.set('call_status', ['MISSED']);
-};
-
-function InboxListViewContent() {
+function AgentsListViewContent() {
   const panel = useSplitPanelOrThrow();
   const view = useSoupView();
-  const isNewInbox = useIsNewInbox();
   const { dataSource, state: listState } = useList<SoupItem>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
@@ -100,15 +113,6 @@ function InboxListViewContent() {
       .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
   );
 
-  const previewEmpty = (
-    <EmptyStatePanel
-      graphic={EmptyStatePreviewIcon}
-      title="Nothing selected"
-      description="Select an item from your inbox to preview it here."
-      centered
-    />
-  );
-
   return (
     <SplitPanelContext.Provider
       value={{
@@ -127,6 +131,7 @@ function InboxListViewContent() {
         >
           <SoupViewHeader />
           <SoupMobileControls />
+
           <div class="relative grow min-h-0 min-w-0 flex max-sm:flex-col">
             <Resize.Zone direction="horizontal" gutter={0}>
               <Resize.Panel
@@ -141,24 +146,14 @@ function InboxListViewContent() {
                   <List.Content>
                     <List.Items>
                       <SoupEntityList
-                        view="inbox"
+                        view="agents"
                         root={root}
                         listScopeId={listScopeId}
                         viewportRef={setViewport}
-                        autoFocusFirstEntity={() => !isNewInbox()}
                       >
                         {(item) => (
-                          <SoupEntityListItem
-                            item={item}
-                            hoverFocus={() => !isNewInbox()}
-                          >
-                            {(row) =>
-                              isNewInbox() ? (
-                                <InboxListEntity {...row} />
-                              ) : (
-                                <ListEntity {...row} />
-                              )
-                            }
+                          <SoupEntityListItem item={item}>
+                            {(row) => <ListEntity {...row} />}
                           </SoupEntityListItem>
                         )}
                       </SoupEntityList>
@@ -177,7 +172,7 @@ function InboxListViewContent() {
                     </List.Loading>
                     <List.Empty>
                       <div class="size-full min-h-0">
-                        <SoupEmptyState />
+                        <AgentsEmptyState />
                       </div>
                     </List.Empty>
                   </List.Content>
@@ -200,20 +195,15 @@ function InboxListViewContent() {
                   </Show>
                 </div>
               </Resize.Panel>
-              <SoupPreviewPane
-                root={root}
-                targetPercent={isNewInbox() ? 55 : 70}
-                empty={isNewInbox() ? previewEmpty : undefined}
-              />
+
+              <SoupPreviewPane root={root} />
             </Resize.Zone>
           </div>
         </SoupViewRoot>
       </SoupFileDropzone>
 
       <Suspense>
-        <Show
-          when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile() && !isNewInbox()}
-        >
+        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
           <SoupChatInput />
         </Show>
       </Suspense>
@@ -221,17 +211,12 @@ function InboxListViewContent() {
   );
 }
 
-export function InboxListView(props: InboxListViewProps) {
-  const userId = useUserId();
-  const isNewInbox = useIsNewInbox({ view: () => 'inbox' });
+export function AgentsListView(props: AgentsListViewProps) {
+  const automationEntities = useAutomationEntities();
   const setup = useSoupViewSetup({
-    view: 'inbox',
-    initialState: {
-      facets: createInitialInboxFacets(isNewInbox(), userId()),
-    },
+    view: 'agents',
+    additionalEntities: automationEntities,
   });
-
-  createEffect(() => syncInboxFacets(setup.collection, isNewInbox(), userId()));
 
   return (
     <SoupCollectionProvider value={setup.collection}>
@@ -239,8 +224,8 @@ export function InboxListView(props: InboxListViewProps) {
         dataSource={setup.collection.dataSource}
         state={setup.listState}
       >
-        <SoupViewProvider view="inbox" viewName={props.viewName ?? 'Inbox'}>
-          <InboxListViewContent />
+        <SoupViewProvider view="agents" viewName={props.viewName ?? 'Agents'}>
+          <AgentsListViewContent />
         </SoupViewProvider>
       </List.Root>
     </SoupCollectionProvider>

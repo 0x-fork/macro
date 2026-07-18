@@ -34,12 +34,7 @@ import { SoupEntityList } from './soup-entity-list';
 import { SoupViewRoot } from './soup-view-root';
 import { useSoupViewSetup } from './use-soup-view-setup';
 
-export type DefaultListViewId =
-  | 'agents'
-  | 'calls'
-  | 'channels'
-  | 'folders'
-  | 'mail';
+export type DefaultListViewId = 'calls' | 'channels' | 'folders' | 'mail';
 
 export type DefaultListViewProps = {
   view: DefaultListViewId;
@@ -129,16 +124,16 @@ export function DefaultListViewContent() {
                   <List.Content>
                     <List.Items>
                       <SoupEntityList
-                      view={view.view()}
-                      root={root}
-                      listScopeId={listScopeId}
-                      viewportRef={setViewport}
-                    >
-                      {(item) => (
-                        <SoupEntityListItem item={item}>
-                          {(row) => <ListEntity {...row} />}
-                        </SoupEntityListItem>
-                      )}
+                        view={view.view()}
+                        root={root}
+                        listScopeId={listScopeId}
+                        viewportRef={setViewport}
+                      >
+                        {(item) => (
+                          <SoupEntityListItem item={item}>
+                            {(row) => <ListEntity {...row} />}
+                          </SoupEntityListItem>
+                        )}
                       </SoupEntityList>
                     </List.Items>
                     <List.Error>

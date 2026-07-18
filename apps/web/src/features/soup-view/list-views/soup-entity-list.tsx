@@ -232,16 +232,16 @@ export function SoupEntityList(props: SoupEntityListProps) {
           <div class="flex size-full min-h-0 min-w-0 flex-col">
             <SoupListHeader />
             <StaticMarkdownContext>
-            <List.Viewport
-              ref={(element) => {
-                setViewport(element);
-                props.viewportRef?.(element);
-              }}
-              class="scrollbar-hidden pb-15 mobile:pb-(--mobile-content-inset-bottom)"
-              nearEndOffset={props.nearEndOffset ?? 300}
-              onNearEndError={props.onLoadMoreError}
-            >
-              <List.Virtual<SoupItem>
+              <List.Viewport
+                ref={(element) => {
+                  setViewport(element);
+                  props.viewportRef?.(element);
+                }}
+                class="scrollbar-hidden pb-15 mobile:pb-(--mobile-content-inset-bottom)"
+                nearEndOffset={props.nearEndOffset ?? 300}
+                onNearEndError={props.onLoadMoreError}
+              >
+                <List.Virtual<SoupItem>
                   itemSize={props.itemSize ?? DEFAULT_ITEM_SIZE}
                   overscan={props.overscan ?? DEFAULT_OVERSCAN}
                   cache={props.cache ?? restoredListState?.virtualCache}
@@ -318,8 +318,8 @@ export function SoupEntityList(props: SoupEntityListProps) {
                       </Match>
                     </Switch>
                   )}
-              </List.Virtual>
-            </List.Viewport>
+                </List.Virtual>
+              </List.Viewport>
             </StaticMarkdownContext>
           </div>
         </SwipableRowProvider>

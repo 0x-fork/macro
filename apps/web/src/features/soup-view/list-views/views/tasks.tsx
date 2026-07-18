@@ -98,16 +98,16 @@ function TasksListViewContent() {
                   <List.Content>
                     <List.Items>
                       <SoupEntityList
-                      view="tasks"
-                      root={root}
-                      listScopeId={listScopeId}
-                      viewportRef={setViewport}
-                    >
-                      {(item) => (
-                        <SoupEntityListItem item={item}>
-                          {(row) => <TaskListEntity {...row} />}
-                        </SoupEntityListItem>
-                      )}
+                        view="tasks"
+                        root={root}
+                        listScopeId={listScopeId}
+                        viewportRef={setViewport}
+                      >
+                        {(item) => (
+                          <SoupEntityListItem item={item}>
+                            {(row) => <TaskListEntity {...row} />}
+                          </SoupEntityListItem>
+                        )}
                       </SoupEntityList>
                     </List.Items>
                     <List.Error>

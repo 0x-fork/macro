@@ -9,14 +9,16 @@ import { NIL_UUID } from '@app/features/soup-list/facet-store';
 import { usePreference } from '@app/preferences/use-preference';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import type { EntityData } from '@entity';
 import { useIsTeamAdmin } from '@queries/team/teams';
-import { createEffect, on } from 'solid-js';
+import { type Accessor, createEffect, on } from 'solid-js';
 import { getViewPreset, type PresetContext } from '../soup-view-presets';
 import { useIsNewInbox } from '../utils';
 
 export type SoupViewSetupOptions = {
   view: ListView;
   initialState?: SoupCollectionInitialState;
+  additionalEntities?: Accessor<EntityData[]>;
 };
 
 /** Creates the shared Soup collection and generic List state for one view. */
@@ -62,6 +64,7 @@ export function useSoupViewSetup(options: SoupViewSetupOptions) {
 
   const collection = createSoupCollection({
     initialState: resolvedInitialState,
+    additionalEntities: options.additionalEntities,
   });
 
   createEffect(() => {

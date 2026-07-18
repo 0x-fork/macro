@@ -7,6 +7,10 @@ import {
   SoupViewImplementation,
 } from './list-views/default-list-view';
 import {
+  AgentsListView,
+  type AgentsListViewProps,
+} from './list-views/views/agents';
+import {
   CompaniesListView,
   type CompaniesListViewProps,
 } from './list-views/views/companies';
@@ -29,6 +33,7 @@ import {
 
 export type SoupViewProps =
   | ({ view: DefaultListViewId } & Omit<DefaultListViewProps, 'view'>)
+  | ({ view: 'agents' } & AgentsListViewProps)
   | ({ view: 'companies' } & CompaniesListViewProps)
   | ({ view: 'documents' } & DocumentsListViewProps)
   | ({ view: 'inbox' } & InboxListViewProps)
@@ -36,6 +41,7 @@ export type SoupViewProps =
   | ({ view: 'tasks' } & TasksListViewProps);
 
 const SPECIALIZED_VIEWS: Partial<Record<ListView, Component<SoupViewProps>>> = {
+  agents: AgentsListView as Component<SoupViewProps>,
   companies: CompaniesListView as Component<SoupViewProps>,
   documents: DocumentsListView as Component<SoupViewProps>,
   inbox: InboxListView as Component<SoupViewProps>,

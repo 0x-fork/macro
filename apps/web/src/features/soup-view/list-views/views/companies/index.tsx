@@ -129,18 +129,18 @@ function CompaniesListViewContent(props: {
                     <Show when={!boardActive()}>
                       <List.Items>
                         <SoupEntityList
-                      view="companies"
-                      root={root}
-                      listScopeId={listScopeId}
-                      viewportRef={setViewport}
-                      active={() => !boardActive()}
-                      restoreCollection={!props.initialCrmView}
-                    >
-                      {(item) => (
-                        <SoupEntityListItem item={item}>
-                          {(row) => <CompanyListEntity {...row} />}
-                        </SoupEntityListItem>
-                      )}
+                          view="companies"
+                          root={root}
+                          listScopeId={listScopeId}
+                          viewportRef={setViewport}
+                          active={() => !boardActive()}
+                          restoreCollection={!props.initialCrmView}
+                        >
+                          {(item) => (
+                            <SoupEntityListItem item={item}>
+                              {(row) => <CompanyListEntity {...row} />}
+                            </SoupEntityListItem>
+                          )}
                         </SoupEntityList>
                       </List.Items>
                       <List.Error>
