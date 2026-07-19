@@ -231,7 +231,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
             canSwipeLeft={(id) => markDoneAction(id) !== undefined}
             onSwipeLeft={(id) => void markDoneAction(id)?.run()}
           >
-            <div class="flex size-full min-h-0 min-w-0 flex-col">
+            <div class="@container/u-list unified-list-root no-select-children relative flex size-full min-h-0 min-w-0 flex-col">
               <SoupListHeader />
               <StaticMarkdownContext>
                 <List.Viewport
