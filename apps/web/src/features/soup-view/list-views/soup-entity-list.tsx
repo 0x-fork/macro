@@ -65,6 +65,7 @@ type SoupEntityListProps = {
   listScopeId: string;
   viewportRef?: Setter<HTMLDivElement | undefined>;
   children: (item: Accessor<SoupEntityItem>) => JSX.Element;
+  trailing?: JSX.Element;
   active?: Accessor<boolean>;
   autoFocusFirstEntity?: boolean | Accessor<boolean>;
   restoreCollection?: boolean;
@@ -253,76 +254,85 @@ export function SoupEntityList(props: SoupEntityListProps) {
                     }
                     virtualizerRef={setVirtualizer}
                   >
-                    {(item) => (
-                      <Switch>
-                        <Match
-                          when={item.kind === 'group-header' ? item : undefined}
-                        >
-                          {(header) => (
-                            <List.Item item={header()}>
-                              {(state) => (
-                                <SoupGroupHeader
-                                  item={header()}
-                                  focused={state.focused()}
-                                />
-                              )}
-                            </List.Item>
-                          )}
-                        </Match>
-                        <Match
-                          when={
-                            item.kind === 'section-header' ? item : undefined
-                          }
-                        >
-                          {(section) => (
-                            <List.Item item={section()}>
-                              {() => (
-                                <div class="flex h-8 items-end px-3 pb-1 text-xs font-semibold text-ink-extra-muted">
-                                  {section().label}
-                                </div>
-                              )}
-                            </List.Item>
-                          )}
-                        </Match>
-                        <Match
-                          when={item.kind === 'load-more' ? item : undefined}
-                        >
-                          {(loadMore) => (
-                            <List.Item item={loadMore()}>
-                              {(state) => (
-                                <div
-                                  class="my-1 flex min-h-9 items-center justify-center"
-                                  classList={{
-                                    'mx-1 rounded bg-active/60':
-                                      state.focused(),
-                                  }}
-                                >
-                                  <Button
-                                    variant="base"
-                                    size="sm"
-                                    depth={2}
-                                    disabled={loadMore().isLoading?.()}
-                                    onClick={() => void loadMore().loadMore()}
+                    {(item, index) => (
+                      <>
+                        <Switch>
+                          <Match
+                            when={
+                              item.kind === 'group-header' ? item : undefined
+                            }
+                          >
+                            {(header) => (
+                              <List.Item item={header()}>
+                                {(state) => (
+                                  <SoupGroupHeader
+                                    item={header()}
+                                    focused={state.focused()}
+                                  />
+                                )}
+                              </List.Item>
+                            )}
+                          </Match>
+                          <Match
+                            when={
+                              item.kind === 'section-header' ? item : undefined
+                            }
+                          >
+                            {(section) => (
+                              <List.Item item={section()}>
+                                {() => (
+                                  <div class="flex h-8 items-end px-3 pb-1 text-xs font-semibold text-ink-extra-muted">
+                                    {section().label}
+                                  </div>
+                                )}
+                              </List.Item>
+                            )}
+                          </Match>
+                          <Match
+                            when={item.kind === 'load-more' ? item : undefined}
+                          >
+                            {(loadMore) => (
+                              <List.Item item={loadMore()}>
+                                {(state) => (
+                                  <div
+                                    class="my-1 flex min-h-9 items-center justify-center"
+                                    classList={{
+                                      'mx-1 rounded bg-active/60':
+                                        state.focused(),
+                                    }}
                                   >
-                                    <Show
-                                      when={loadMore().isLoading?.()}
-                                      fallback={
-                                        <CaretDownIcon class="size-2.5" />
-                                      }
+                                    <Button
+                                      variant="base"
+                                      size="sm"
+                                      depth={2}
+                                      disabled={loadMore().isLoading?.()}
+                                      onClick={() => void loadMore().loadMore()}
                                     >
-                                      <Spinner class="size-3 animate-spin" />
-                                    </Show>
-                                    {loadMore().label ?? 'Load More'}
-                                  </Button>
-                                </div>
-                              )}
-                            </List.Item>
-                          )}
-                        </Match>
-                        <Match when={item.kind === 'entity' ? item : undefined}>
-                          {(entity) => props.children(entity)}
-                        </Match>
-                      </Switch>
+                                      <Show
+                                        when={loadMore().isLoading?.()}
+                                        fallback={
+                                          <CaretDownIcon class="size-2.5" />
+                                        }
+                                      >
+                                        <Spinner class="size-3 animate-spin" />
+                                      </Show>
+                                      {loadMore().label ?? 'Load More'}
+                                    </Button>
+                                  </div>
+                                )}
+                              </List.Item>
+                            )}
+                          </Match>
+                          <Match
+                            when={item.kind === 'entity' ? item : undefined}
+                          >
+                            {(entity) => props.children(entity)}
+                          </Match>
+                        </Switch>
+                        <Show when={index() === dataSource.items().length - 1}>
+                          {props.trailing}
+                        </Show>
+                      </>
                     )}
                   </List.Virtual>
                 </List.Viewport>

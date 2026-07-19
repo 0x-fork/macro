@@ -12,6 +12,7 @@ import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import { ListEntity } from '@entity';
 import Spinner from '@phosphor/spinner.svg';
+import { cn } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -119,7 +120,10 @@ export function DefaultListViewContent() {
               >
                 <div
                   ref={setListContent}
-                  class="relative flex size-full min-h-0 min-w-0 flex-col"
+                  class={cn(
+                    'relative flex size-full min-h-0 min-w-0 flex-col',
+                    view.previewPaneVisible() && 'border-r border-edge-muted'
+                  )}
                 >
                   <List.Content>
                     <List.Items>

@@ -1,4 +1,5 @@
 import { SearchableMultiSelectInline } from '@app/features/next-soup/soup-view/filters-bar/searchable-multi-select';
+import { useSoupCollection } from '@app/features/soup-list';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -17,6 +18,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
+import { useIsNewInbox } from '../utils';
 import {
   type SoupFacetControl,
   useSoupFacetControls,
@@ -147,6 +149,57 @@ function SearchableFilterSubmenu(props: { control: SoupFacetControl }) {
   );
 }
 
+type InboxReadFilter = 'all' | 'unread' | 'read';
+
+const INBOX_READ_FILTER_OPTIONS: {
+  id: InboxReadFilter;
+  label: string;
+}[] = [
+  { id: 'unread', label: 'Unread' },
+  { id: 'read', label: 'Read' },
+  { id: 'all', label: 'All' },
+];
+
+function InboxReadStatusSubmenu(props: {
+  value: InboxReadFilter;
+  onChange: (value: InboxReadFilter) => void;
+}) {
+  return (
+    <Dropdown.Sub>
+      <Dropdown.SubTrigger>
+        <span class="text-ink">Status</span>
+        <CaretRightIcon class="size-3 text-ink-muted" />
+      </Dropdown.SubTrigger>
+      <Dropdown.SubContent>
+        <Dropdown.Group>
+          <For each={INBOX_READ_FILTER_OPTIONS}>
+            {(option) => {
+              const active = () => props.value === option.id;
+
+              return (
+                <Dropdown.Item
+                  onSelect={() => props.onChange(option.id)}
+                  closeOnSelect
+                >
+                  <TypeIndicator active={active()} />
+                  <span
+                    class={cn(
+                      'flex-1 truncate',
+                      active() ? 'text-ink' : 'text-ink-muted'
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                </Dropdown.Item>
+              );
+            }}
+          </For>
+        </Dropdown.Group>
+      </Dropdown.SubContent>
+    </Dropdown.Sub>
+  );
+}
+
 function FacetSubmenu(props: { control: SoupFacetControl }) {
   return (
     <Show
@@ -178,7 +231,9 @@ export function UnifiedFilterDropdown(props: UnifiedFilterDropdownProps = {}) {
     props.onOpenChange?.(next);
   };
   const panel = useSplitPanelOrThrow();
+  const collection = useSoupCollection();
   const controls = useSoupFacetControls();
+  const isNewInbox = useIsNewInbox();
   const hotkeys = createHotkeyGroup();
 
   if (props.registerHotkey !== false) {
@@ -195,9 +250,18 @@ export function UnifiedFilterDropdown(props: UnifiedFilterDropdownProps = {}) {
   }
   onCleanup(() => hotkeys.dispose());
 
+  const inboxReadFilter = (): InboxReadFilter => {
+    if (collection.facets.has('read_state', 'read')) return 'read';
+    if (collection.facets.has('read_state', 'unread')) return 'unread';
+    return 'all';
+  };
+  const setInboxReadFilter = (value: InboxReadFilter) => {
+    collection.facets.set('read_state', value === 'all' ? [] : [value]);
+  };
+
   const directControl = () => {
     const available = controls();
-    return available.length === 1 && !available[0]?.searchable
+    return available.length === 1 && !available[0]?.searchable && !isNewInbox()
       ? available[0]
       : undefined;
   };
@@ -218,7 +282,7 @@ export function UnifiedFilterDropdown(props: UnifiedFilterDropdownProps = {}) {
   };
 
   return (
-    <Show when={controls().length > 0}>
+    <Show when={controls().length > 0 || isNewInbox()}>
       <Dropdown
         open={open()}
         onOpenChange={handleOpenChange}
@@ -240,6 +304,12 @@ export function UnifiedFilterDropdown(props: UnifiedFilterDropdownProps = {}) {
 
         <Dropdown.Content class="shadow-menu">
           <Dropdown.Group>
+            <Show when={isNewInbox()}>
+              <InboxReadStatusSubmenu
+                value={inboxReadFilter()}
+                onChange={setInboxReadFilter}
+              />
+            </Show>
             <Show
               when={directControl()}
               fallback={

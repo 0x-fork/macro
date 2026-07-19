@@ -68,7 +68,10 @@ export function createSoupSearchDataSource<TEntity extends EntityData>(
 
   const dataSource = {
     items,
-    isLoading: () => options.enabled() && searchQuery.isLoading,
+    isLoading: () =>
+      options.enabled() &&
+      searchQuery.isFetching &&
+      !searchQuery.isFetchingNextPage,
     isFetching: () =>
       options.enabled() &&
       (searchQuery.isFetching ||

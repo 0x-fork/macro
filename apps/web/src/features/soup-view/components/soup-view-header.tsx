@@ -26,7 +26,7 @@ import InfoIcon from '@phosphor/info.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
 import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-solid';
-import { Button, Layer, Tooltip } from '@ui';
+import { Button, cn, Layer, Tooltip } from '@ui';
 import { createSignal, onCleanup, Show } from 'solid-js';
 import { useSoupView } from '../context';
 import { SoupActiveFacets } from '../filters/soup-active-facets';
@@ -45,27 +45,6 @@ const COMPANY_MODE_TABS = [
   { value: 'board', label: 'Board' },
   { value: 'list', label: 'List' },
 ];
-
-const INBOX_READ_TABS = [
-  { value: 'unread', label: 'Unread' },
-  { value: 'read', label: 'Read' },
-  { value: 'all', label: 'All' },
-];
-
-type SoupReadFilter = 'all' | 'unread' | 'read';
-
-const readFilter = (
-  collection: ReturnType<typeof useSoupCollection>
-): SoupReadFilter => {
-  if (collection.facets.has('read_state', 'read')) return 'read';
-  if (collection.facets.has('read_state', 'unread')) return 'unread';
-  return 'all';
-};
-
-const setReadFilter = (
-  collection: ReturnType<typeof useSoupCollection>,
-  value: SoupReadFilter
-) => collection.facets.set('read_state', value === 'all' ? [] : [value]);
 
 export function SoupViewHeader() {
   const collection = useSoupCollection();
@@ -140,7 +119,14 @@ export function SoupViewHeader() {
     );
 
   return (
-    <div class="flex w-full shrink-0 flex-col">
+    <div
+      class={cn(
+        'flex w-full shrink-0 flex-col',
+        !isMobile() &&
+          viewState.previewPaneVisible() &&
+          'border-b-px border-edge-muted'
+      )}
+    >
       <SplitHeaderLeft>
         <div class="flex h-full min-w-0 items-center gap-3">
           <Show when={!isMobile() && !viewState.searchOpen()}>
@@ -270,19 +256,6 @@ export function SoupViewHeader() {
                 options={soupSortOptions(view())}
                 open={viewState.sortOpen()}
                 onOpenChange={viewState.setSortOpen}
-              />
-            </Show>
-            <Show when={view() === 'inbox' && isNewInbox()}>
-              <TabsInset
-                list={INBOX_READ_TABS}
-                value={readFilter(collection)}
-                defaultValue="unread"
-                onChange={(value) =>
-                  setReadFilter(
-                    collection,
-                    value === 'read' || value === 'all' ? value : 'unread'
-                  )
-                }
               />
             </Show>
             <Show when={soupGroupOptions(view()).length > 0}>

@@ -33,6 +33,17 @@ export function SoupErrorState() {
   );
 }
 
+export function SoupSearchErrorState() {
+  return (
+    <EmptyStatePanel
+      centered
+      graphic={EmptyStateNoSearchGraphic}
+      title="Couldn't load search results"
+      description="Try searching again."
+    />
+  );
+}
+
 export function SoupCompaniesErrorState() {
   return (
     <EmptyStatePanel

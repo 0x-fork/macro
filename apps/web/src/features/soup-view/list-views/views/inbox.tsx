@@ -21,7 +21,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
 import { ListEntity } from '@entity';
 import Spinner from '@phosphor/spinner.svg';
-import { EmptyStatePanel } from '@ui';
+import { cn, EmptyStatePanel } from '@ui';
 import {
   batch,
   createEffect,
@@ -142,7 +142,10 @@ function InboxListViewContent() {
               >
                 <div
                   ref={setListContent}
-                  class="relative flex size-full min-h-0 min-w-0 flex-col"
+                  class={cn(
+                    'relative flex size-full min-h-0 min-w-0 flex-col',
+                    view.previewPaneVisible() && 'border-r border-edge-muted'
+                  )}
                 >
                   <List.Content>
                     <List.Items>
