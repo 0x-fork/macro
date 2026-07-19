@@ -30,7 +30,7 @@ export function SoupGroupHeader(props: {
 }) {
   const collection = useSoupCollection();
   const dealStages = useDealStages();
-  const field = () => collection.status.groupByField();
+  const field = collection.groupByField;
   const expanded = () => collection.disclosure.isExpanded(props.item.groupId);
   const propertyId = () => {
     const current = field();

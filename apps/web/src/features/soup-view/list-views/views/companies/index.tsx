@@ -197,9 +197,7 @@ function CompaniesListViewContent(props: {
                           <Spinner class="size-4 animate-spin" />
                         </div>
                       </Match>
-                      <Match
-                        when={collection.status.flatEntities().length === 0}
-                      >
+                      <Match when={collection.browseEntities().length === 0}>
                         <SoupEmptyState />
                       </Match>
                       <Match when={true}>

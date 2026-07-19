@@ -7,7 +7,6 @@ export {
 export type {
   CreateSoupCollectionOptions,
   SoupCollection,
-  SoupCollectionStatus,
 } from './create-soup-collection';
 export { createSoupCollection } from './create-soup-collection';
 export type {

@@ -24,7 +24,7 @@ export function useCompanyBoardPreviewRestoration(options: {
   createEffect(() => {
     if (!options.enabled()) return;
     attempt();
-    const entities = collection.status.flatEntities();
+    const entities = collection.browseEntities();
 
     if (!settled && !dataSource.isLoading()) {
       const restored = options.persistedEntityId

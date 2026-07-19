@@ -4,7 +4,8 @@ import {
 } from '@app/components/list';
 import type { SortConfig } from '@app/features/next-soup/create-sort-state';
 import type { EntityData } from '@entity';
-import { type Accessor, batch } from 'solid-js';
+import type { GroupByField } from '@queries/soup/grouped/types';
+import { type Accessor, batch, createMemo } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { Facet, FacetSelection } from './facet-store';
 import { createFacetStore } from './facet-store';
@@ -39,6 +40,7 @@ export type SoupCollectionControls = {
   resetSort: () => void;
 
   groupBy: Accessor<string | undefined>;
+  groupByField: Accessor<GroupByField | undefined>;
   setGroupBy: SoupCollectionSetter<string | undefined>;
   disclosure: DisclosureState;
   resetGrouping: () => void;
@@ -87,6 +89,20 @@ const storeSetter =
     return next;
   };
 
+const resolveGroupByField = (
+  groupBy: string | undefined
+): GroupByField | undefined => {
+  if (groupBy === 'date') return { type: 'date' };
+  if (groupBy === 'entity_type') return { type: 'entity_type' };
+  if (groupBy === 'project') return { type: 'project' };
+  if (groupBy?.startsWith('property:')) {
+    return {
+      type: 'property',
+      propertyDefinitionId: groupBy.slice('property:'.length),
+    };
+  }
+};
+
 /** Creates local Soup controls independently from query transport wiring. */
 export function createSoupCollectionState(
   options: CreateSoupCollectionStateOptions = {}
@@ -124,6 +140,7 @@ export function createSoupCollectionState(
   });
 
   const sort = () => state.sort;
+
   const setSort = storeSetter<SoupCollectionSort[]>(sort, (value) => {
     setState(
       'sort',
@@ -132,40 +149,49 @@ export function createSoupCollectionState(
   });
 
   const groupBy = () => state.groupBy;
+  const groupByField = createMemo(() => resolveGroupByField(groupBy()));
+
   const setGroupBy = storeSetter(groupBy, (value) => {
     setState('groupBy', value);
   });
+
   const disclosure = createDisclosureState({
     defaultExpanded: true,
     initialToggled: initialCollapsedGroups,
   });
 
   const search = () => state.search;
-  const setSearch = storeSetter(search, (value) => setState('search', value));
   const searchPaused = () => state.searchPaused;
+
+  const setSearch = storeSetter(search, (value) => setState('search', value));
   const setSearchPaused = storeSetter(searchPaused, (value) =>
     setState('searchPaused', value)
   );
 
   const activeTab = () => state.activeTab;
+  const emailView = () => state.emailView;
+
   const setActiveTab = storeSetter(activeTab, (value) =>
     setState('activeTab', value)
   );
-  const emailView = () => state.emailView;
   const setEmailView = storeSetter(emailView, (value) =>
     setState('emailView', value)
   );
+
   const resetFacets = () => facets.hydrate(initialFacets);
   const resetSort = () => setSort(initialSort.map((item) => ({ ...item })));
+
   const resetGrouping = () => {
     setGroupBy(initialState.groupBy);
     disclosure.reset();
     disclosure.collapseAll(initialCollapsedGroups);
   };
+
   const resetSearch = () => {
     setSearch(initialState.search ?? '');
     setSearchPaused(false);
   };
+
   const resetViewState = () => {
     setActiveTab(initialState.activeTab);
     setEmailView(initialState.emailView);
@@ -178,6 +204,7 @@ export function createSoupCollectionState(
     setSort,
     resetSort,
     groupBy,
+    groupByField,
     setGroupBy,
     disclosure,
     resetGrouping,

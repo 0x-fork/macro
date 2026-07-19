@@ -43,7 +43,7 @@ export function CompanyKanban(props: {
   const [scroll, setScroll] = createSignal<HTMLDivElement>();
 
   const companies = () =>
-    collection.status.flatEntities().filter(isCrmCompanyEntity);
+    collection.browseEntities().filter(isCrmCompanyEntity);
   type Company = ReturnType<typeof companies>[number];
   const columns = createMemo(() =>
     buildCompanyBoardColumns<Company>({

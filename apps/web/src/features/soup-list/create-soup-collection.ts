@@ -10,13 +10,9 @@ import { createSoupCollectionState } from './create-soup-collection-state';
 import { createSoupDataSource } from './create-soup-data-source';
 import { ALL_FACETS } from './facets';
 
-export type SoupCollectionStatus = ReturnType<
-  typeof createSoupDataSource
->['status'];
-
 export type SoupCollection = SoupCollectionControls & {
-  dataSource: Omit<ReturnType<typeof createSoupDataSource>, 'status'>;
-  status: SoupCollectionStatus;
+  dataSource: Omit<ReturnType<typeof createSoupDataSource>, 'browseEntities'>;
+  browseEntities: ReturnType<typeof createSoupDataSource>['browseEntities'];
   reset: () => void;
 };
 
@@ -45,11 +41,11 @@ export function createSoupCollection(
     disableLocalSearch: options.disableLocalSearch,
     sortConfigs: options.sortConfigs ?? SORT_CONFIGS,
   });
-  const { status, ...dataSource } = source;
+  const { browseEntities, ...dataSource } = source;
 
   return {
     ...state,
     dataSource,
-    status,
+    browseEntities,
   };
 }
