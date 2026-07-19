@@ -5,7 +5,8 @@ import { TOKENS } from '@core/hotkey/tokens';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import FilterIcon from '@phosphor/funnel-simple.svg';
-import { cn, Dropdown, Tooltip } from '@ui';
+import PlusIcon from '@phosphor/plus.svg';
+import { cn, Dropdown } from '@ui';
 import { createSignal, For, onCleanup, Show } from 'solid-js';
 import { useSoupFacetControls } from './use-soup-facet-controls';
 
@@ -24,21 +25,25 @@ const SelectionIndicator = (props: { active: boolean }) => (
   </span>
 );
 
-export function SoupFacetFilter() {
+export function SoupFacetFilter(
+  props: { variant?: 'default' | 'add'; registerHotkey?: boolean } = {}
+) {
   const panel = useSplitPanelOrThrow();
   const controls = useSoupFacetControls();
   const [open, setOpen] = createSignal(false);
   const hotkeys = createHotkeyGroup();
-  registerHotkey({
-    hotkey: 'f',
-    hotkeyToken: TOKENS.soup.filter,
-    scopeId: panel.splitHotkeyScope,
-    description: 'Open filter menu',
-    keyDownHandler: () => {
-      setOpen(true);
-      return true;
-    },
-  }).withGroup(hotkeys);
+  if (props.registerHotkey !== false) {
+    registerHotkey({
+      hotkey: 'f',
+      hotkeyToken: TOKENS.soup.filter,
+      scopeId: panel.splitHotkeyScope,
+      description: 'Open filter menu',
+      keyDownHandler: () => {
+        setOpen(true);
+        return true;
+      },
+    }).withGroup(hotkeys);
+  }
   onCleanup(() => hotkeys.dispose());
 
   const select = (
@@ -61,12 +66,25 @@ export function SoupFacetFilter() {
   return (
     <Show when={controls().length > 0}>
       <Dropdown placement="bottom-start" open={open()} onOpenChange={setOpen}>
-        <Tooltip label="Filter">
-          <Dropdown.Trigger depth={2} class="bg-surface">
-            <FilterIcon />
-            <span>Filter</span>
-          </Dropdown.Trigger>
-        </Tooltip>
+        <Dropdown.Trigger
+          depth={props.variant === 'add' ? undefined : 2}
+          variant={props.variant === 'add' ? 'ghost' : 'base'}
+          size={props.variant === 'add' ? 'icon-sm' : 'sm'}
+          tooltip={props.variant === 'add' ? 'Add filters' : 'Filter'}
+          class={props.variant === 'add' ? 'p-1 rounded-full' : 'bg-surface'}
+        >
+          <Show
+            when={props.variant === 'add'}
+            fallback={
+              <>
+                <FilterIcon />
+                <span>Filter</span>
+              </>
+            }
+          >
+            <PlusIcon class="size-3" />
+          </Show>
+        </Dropdown.Trigger>
         <Dropdown.Content class="shadow-menu">
           <For each={controls()}>
             {(control) => (

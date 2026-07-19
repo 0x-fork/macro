@@ -12,6 +12,7 @@ import {
   facetControlResetValue,
   isFacetControlRefinement,
 } from './facet-control-refinements';
+import { SoupFacetFilter } from './soup-facet-filter';
 import {
   type SoupFacetControl,
   useSoupFacetControls,
@@ -84,21 +85,30 @@ export function SoupActiveFacets() {
     <Show when={active().length > 0}>
       <Layer depth={0}>
         <div class="w-full p-2">
-          <div class="flex min-w-0 items-center gap-2 overflow-x-auto rounded-lg border border-edge-muted bg-surface p-2 scrollbar-hidden">
-            <For each={active()}>
-              {(control) => (
-                <SoupActiveFacetChip control={control} baseline={baseline()} />
-              )}
-            </For>
-            <Button
-              variant="ghost"
-              size="sm"
-              class="shrink-0"
-              onClick={clearAll}
-            >
-              <XIcon class="size-3.5" />
-              Clear all
-            </Button>
+          <div class="flex items-start p-2 border border-edge-muted bg-surface rounded-lg font-medium">
+            <div class="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+              <For each={active()}>
+                {(control) => (
+                  <SoupActiveFacetChip
+                    control={control}
+                    baseline={baseline()}
+                  />
+                )}
+              </For>
+              <SoupFacetFilter variant="add" registerHotkey={false} />
+            </div>
+            <div class="flex items-center shrink-0">
+              <Button
+                variant="base"
+                size="sm"
+                class="h-7 rounded-md"
+                tooltip="Clear active filters"
+                onClick={clearAll}
+              >
+                <XIcon />
+                <span class="hidden @min-[300px]/split:inline">Clear all</span>
+              </Button>
+            </div>
           </div>
         </div>
       </Layer>
