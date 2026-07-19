@@ -1,6 +1,7 @@
 import { SoupViewCreateButton } from '@app/features/next-soup/soup-view/soup-view-create-button';
 import { useSoupCollection } from '@app/features/soup-list';
 import { PillTabs } from '@components/app/mobile/PillTabs';
+import { isMobile } from '@core/mobile/isMobile';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { Button, Layer } from '@ui';
 import { Show } from 'solid-js';
@@ -9,7 +10,7 @@ import { SoupSearchbar } from '../filters/soup-searchbar';
 import { SoupSearchFacets } from '../list-views/views/search/soup-search-facets';
 import { SoupMobileFilterDrawer } from './soup-mobile-filter-drawer';
 
-export function SoupMobileControls() {
+function SoupMobileControlsContent() {
   const collection = useSoupCollection();
   const viewState = useSoupView();
   const view = viewState.view;
@@ -63,5 +64,13 @@ export function SoupMobileControls() {
         </div>
       </Show>
     </div>
+  );
+}
+
+export function SoupMobileControls() {
+  return (
+    <Show when={isMobile()}>
+      <SoupMobileControlsContent />
+    </Show>
   );
 }

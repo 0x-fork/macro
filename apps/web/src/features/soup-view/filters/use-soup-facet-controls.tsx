@@ -38,7 +38,12 @@ import {
   type FilterOption,
   VIEW_FACETS,
 } from './facet-views';
-import { encodeInboxSelection, inboxActiveIds } from './inbox-selection';
+import {
+  encodeInboxSelection,
+  inboxActiveIds,
+  isNoInboxesSelection,
+  selectOnlyInbox,
+} from './inbox-selection';
 
 export type SoupFacetControl = {
   id: FacetId;
@@ -52,6 +57,10 @@ export type SoupFacetControl = {
   options: () => FilterOption[];
   activeIds: () => string[];
   onChange: (ids: string[]) => void;
+  displayValues?: () => FilterOption[];
+  isDefault?: () => boolean;
+  reset?: () => void;
+  onOnly?: (id: string) => void;
 };
 
 const option = (
@@ -122,6 +131,10 @@ export function useSoupFacetControls() {
     options: () => FilterOption[];
     activeIds?: () => string[];
     onChange?: (ids: string[]) => void;
+    displayValues?: () => FilterOption[];
+    isDefault?: () => boolean;
+    reset?: () => void;
+    onOnly?: (id: string) => void;
   }): SoupFacetControl => ({
     ...args,
     multiple: args.multiple ?? false,
@@ -361,8 +374,36 @@ export function useSoupFacetControls() {
             onChange: (ids) =>
               collection.facets.set(
                 'email_inbox',
-                encodeInboxSelection(
-                  ids,
+                ids.length === 0
+                  ? []
+                  : encodeInboxSelection(
+                      ids,
+                      inboxOptions().map((option) => option.id)
+                    )
+              ),
+            displayValues: () => {
+              const selected = collection.facets.getSelected('email_inbox');
+              if (selected.length === 0) {
+                return [option('all', 'All inboxes')];
+              }
+              if (isNoInboxesSelection(selected)) {
+                return [option('none', 'No inboxes')];
+              }
+              return selected.map(
+                (id) =>
+                  inboxOptions().find((candidate) => candidate.id === id) ??
+                  option(id, id)
+              );
+            },
+            isDefault: () =>
+              collection.facets.getSelected('email_inbox').length === 0,
+            reset: () => collection.facets.set('email_inbox', []),
+            onOnly: (id) =>
+              collection.facets.set(
+                'email_inbox',
+                selectOnlyInbox(
+                  id,
+                  collection.facets.getSelected('email_inbox'),
                   inboxOptions().map((option) => option.id)
                 )
               ),
