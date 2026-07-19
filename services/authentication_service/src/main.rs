@@ -19,6 +19,7 @@ use github::{
 };
 use loops_client::LoopsClient;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
+use macro_authorization::{InternalAuthConfig, MacroAuthJwtValidator, MacroAuthorizationState};
 use macro_entrypoint::MacroEntrypoint;
 use macro_service_urls::AppServiceUrl;
 use macro_service_urls::DocumentStorageServiceUrl;
@@ -51,8 +52,8 @@ use referral::{
 };
 
 use crate::api::context::{
-    ApiContext, MacroApiTokenContext, MacroApiTokenExpirySeconds, MacroApiTokenIssuer,
-    MacroApiTokenPrivateSecretKey, StripeWebhookSecretKey,
+    ApiContext, AuthorizationService, MacroApiTokenContext, MacroApiTokenExpirySeconds,
+    MacroApiTokenIssuer, MacroApiTokenPrivateSecretKey, StripeWebhookSecretKey,
 };
 use std::sync::Arc;
 
@@ -66,8 +67,10 @@ async fn main() -> anyhow::Result<()> {
     MacroEntrypoint::default().init();
     let env = Environment::new_or_prod();
 
+    // One SDK config is sufficient for every AWS client in this process.
+    let aws_config = macro_aws_config::get_macro_aws_config().await;
     let secretsmanager_client = secretsmanager_client::SecretsManager::new(
-        aws_sdk_secretsmanager::Client::new(&macro_aws_config::get_macro_aws_config().await),
+        aws_sdk_secretsmanager::Client::new(&aws_config),
     );
 
     // Parse our configuration from the environment.
@@ -173,13 +176,20 @@ async fn main() -> anyhow::Result<()> {
 
     // `from_env` routes to local SMTP (Mailpit) when SMTP_HOST is set, else SES.
     let ses_client = ses_client::Ses::from_env(
-        aws_sdk_sesv2::Client::new(&macro_aws_config::get_macro_aws_config().await),
+        aws_sdk_sesv2::Client::new(&aws_config),
         &config.environment.to_string(),
     );
 
     let jwt_args =
         JwtValidationArgs::new_with_secret_manager(config.environment, &secretsmanager_client)
             .await?;
+    let authorization_state = MacroAuthorizationState::new(Arc::new(AuthorizationService::new(
+        MacroAuthJwtValidator::new(jwt_args.clone()),
+        InternalAuthConfig {
+            api_key: internal_api_key.to_string(),
+            default_user_id: None,
+        },
+    )));
 
     let redis_client = redis::Client::open(config.redis_uri.to_string().as_str())
         .context("failed to create redis client")?;
@@ -201,12 +211,10 @@ async fn main() -> anyhow::Result<()> {
     };
     tracing::trace!("initialized notification ingress service");
 
-    let sqs_client = sqs_client::SQS::new(aws_sdk_sqs::Client::new(
-        &macro_aws_config::get_macro_aws_config().await,
-    ))
-    .search_event_queue(&search_event_queue)
-    .email_link_manager_queue(&link_manager_queue)
-    .email_backfill_queue(&email_backfill_queue);
+    let sqs_client = sqs_client::SQS::new(aws_sdk_sqs::Client::new(&aws_config))
+        .search_event_queue(&search_event_queue)
+        .email_link_manager_queue(&link_manager_queue)
+        .email_backfill_queue(&email_backfill_queue);
     tracing::trace!("initialized sqs client");
 
     // Initialize analytics client with configured providers
@@ -339,6 +347,7 @@ async fn main() -> anyhow::Result<()> {
             environment: config.environment,
             rate_limit_service: rate_limit,
             jwt_args,
+            authorization_state,
             token_context: MacroApiTokenContext {
                 issuer: MacroApiTokenIssuer::new()?,
                 macro_api_token_private_key,

@@ -6,6 +6,7 @@ import {
   type SplitContent,
   SplitEvent,
 } from '../layoutManager';
+import { createMobileSwipeLayout } from '../mobile/createMobileSwipeLayout';
 
 vi.mock('../componentRegistry', () => ({
   resolveComponent: vi.fn((id: string, params: Record<string, string>) => ({
@@ -185,6 +186,106 @@ describe('layoutManager', () => {
     });
   });
 
+  describe('navigation params', () => {
+    const channelWithTarget = {
+      type: 'channel',
+      id: 'ch-1',
+      params: { channel_message_id: 'm-1' },
+    } satisfies SplitContent;
+
+    it('delivers one-shot params on same-split forward navigation', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: channelWithTarget });
+
+        expect(split.content()).toMatchObject(channelWithTarget);
+
+        dispose();
+      });
+    });
+
+    it('delivers one-shot params on mergeHistory navigation', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: channelWithTarget, mergeHistory: true });
+
+        expect(split.content()).toMatchObject(channelWithTarget);
+
+        dispose();
+      });
+    });
+
+    it('strips params when re-visiting an entry via history back/forward', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: channelWithTarget });
+
+        split.goBack();
+        expect(split.content()).toMatchObject({
+          type: 'component',
+          id: 'inbox',
+        });
+
+        split.goForward();
+        expect(split.content().type).toBe('channel');
+        expect(split.content().params).toBeUndefined();
+
+        dispose();
+      });
+    });
+
+    it('strips params when removeFromHistory reattaches a prior entry', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({ next: channelWithTarget });
+        split.replace({ next: { type: 'md', id: 'doc-1' } });
+
+        split.removeFromHistory((content) => content.type === 'md');
+
+        expect(split.content().type).toBe('channel');
+        expect(split.content().params).toBeUndefined();
+
+        dispose();
+      });
+    });
+
+    it('keeps params on history navigation when preserveParams is set', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.replace({
+          next: { ...channelWithTarget, preserveParams: true },
+        });
+
+        split.goBack();
+        split.goForward();
+
+        expect(split.content()).toMatchObject(channelWithTarget);
+
+        dispose();
+      });
+    });
+  });
+
   describe('replaceAllSplits', () => {
     it('keeps the first split that already contains the target content', () => {
       createRoot((dispose) => {
@@ -296,6 +397,63 @@ describe('layoutManager', () => {
           'current',
         ]);
         expect(manager.activeSplitId()).toBe(inserted?.id);
+
+        dispose();
+      });
+    });
+  });
+
+  describe('activation invariant', () => {
+    it('refuses to activate an excluded split', () => {
+      createRoot((dispose) => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'md', id: 'foreground' },
+          { type: 'md', id: 'background' },
+        ]);
+
+        const [fg, bg] = manager.splits();
+        manager.activateSplit(fg.id);
+        manager.setExclusionFilter((split) => split.id === bg.id);
+
+        manager.activateSplit(bg.id);
+        expect(manager.activeSplitId()).toBe(fg.id);
+
+        manager.setExclusionFilter(undefined);
+        manager.activateSplit(bg.id);
+        expect(manager.activeSplitId()).toBe(bg.id);
+
+        warn.mockRestore();
+        dispose();
+      });
+    });
+
+    it('keeps the promoted split active through mobile forward navigation and swipe back', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'md', id: 'list' },
+        ]);
+        const originalId = manager.splits()[0].id;
+        manager.activateSplit(originalId);
+
+        const swipeLayout = createMobileSwipeLayout(manager);
+
+        // Forward navigation goes through the interceptor; with no animation
+        // trigger registered it completes synchronously.
+        manager.openWithSplit(
+          { type: 'md', id: 'detail' },
+          { referredFrom: null }
+        );
+
+        const detailId = swipeLayout.fgIsSlotA()
+          ? swipeLayout.slotASplitId()
+          : swipeLayout.slotBSplitId();
+        expect(detailId).toBeDefined();
+        expect(detailId).not.toBe(originalId);
+        expect(manager.activeSplitId()).toBe(detailId);
+
+        swipeLayout.swipeBack();
+        expect(manager.activeSplitId()).toBe(originalId);
 
         dispose();
       });

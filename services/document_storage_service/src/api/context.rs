@@ -69,11 +69,22 @@ use github::domain::service::GithubSyncServiceImpl;
 use github::outbound::github_sync_client::GithubSyncClientImpl;
 use github::outbound::pg_github_sync_repo::PgGithubSyncRepo;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
+use macro_authorization::{
+    MacroAuthJwtValidator, MacroAuthorizationServiceImpl, MacroAuthorizationState,
+};
 use macro_env_var::env_var;
 use macro_sha_count_client::Redis;
 use notification::domain::service::SqsNotificationIngress;
 use notification::outbound::queue::SqsQueue;
 use opensearch_client::OpensearchClient;
+use projects_hex::{
+    domain::service::ProjectServiceImpl,
+    inbound::axum_router::ProjectRouterState,
+    outbound::{
+        DynamoBulkUploadAdapter, PgProjectRepo, S3ProjectUploadAdapter, ShaCountAdapter,
+        SqsProjectSearchIndexer,
+    },
+};
 use properties::{
     NotificationServiceImpl, PermissionServiceImpl, PropertiesPgRepo, PropertiesServiceImpl,
 };
@@ -100,11 +111,6 @@ use webhook::{
     },
 };
 
-#[derive(Debug, Clone)]
-pub struct InternalFlag {
-    pub internal: bool,
-}
-
 /// CRM service for DSS — no-op resolver since DSS doesn't populate.
 pub(crate) type DssCrmService = crm::domain::service::CrmServiceImpl<
     crm::outbound::companies_repo::CompaniesRepositoryImpl,
@@ -120,8 +126,11 @@ pub(crate) type DssEmailService = EmailServiceImpl<
 >;
 
 /// CRM router state.
-pub(crate) type DssCrmState =
-    crm::inbound::axum_router::CrmRouterState<DssCrmService, EntityAccessService>;
+pub(crate) type DssCrmState = crm::inbound::axum_router::CrmRouterState<
+    DssCrmService,
+    EntityAccessService,
+    AuthorizationService,
+>;
 
 pub(crate) type DssSoupService = SoupImpl<
     PgSoupRepo,
@@ -133,7 +142,8 @@ pub(crate) type DssSoupService = SoupImpl<
     ForeignEntityServiceType,
 >;
 
-type DssSoupState = SoupRouterState<DssSoupService, DssEmailService, EntityAccessService>;
+type DssSoupState =
+    SoupRouterState<DssSoupService, DssEmailService, EntityAccessService, AuthorizationService>;
 
 /// GraphQL Soup schema wired to the DSS services; the `ApiContext` state
 /// parameter lets GraphQL resolvers run the same axum extractors as the REST
@@ -143,6 +153,7 @@ pub(crate) type DssGraphqlSoupSchema = complete_graph::SharedSoupSchema<
     DssSoupService,
     DssEmailService,
     EntityAccessService,
+    AuthorizationService,
     ApiContext,
     complete_graph::PropertiesEntityPropertyWriter<PropertiesService, EntityAccessService>,
     Arc<ai_tools::ToolNotificationService>,
@@ -203,16 +214,11 @@ impl TaskPropertiesPort for TaskPropertiesAdapter {
                 &user_id,
                 None,
                 entity_id,
-                properties::access_entity_type(models_properties::EntityType::Task),
+                model_entity::EntityType::Document,
             )
             .await?;
-        let access = properties::PropertiesAccessReceipt::try_from_entity_access_receipt(
-            entity_access_receipt,
-            models_properties::EntityType::Task,
-        )?;
-
         self.properties
-            .set_entity_property(&access, property_definition_id, value)
+            .set_entity_property(&entity_access_receipt, property_definition_id, value)
             .await
             .map(|_| ())
             .map_err(Into::into)
@@ -247,15 +253,35 @@ pub(crate) type DocumentService = DocumentServiceImpl<
     MacroEventBrokerService<KafkaEventPublisher>,
 >;
 
+/// Type alias for the authorization service.
+pub(crate) type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJwtValidator>;
+
 /// Type alias for the documents router state.
-pub(crate) type DocumentsState = DocumentRouterState<DocumentService, EntityAccessService>;
+pub(crate) type DocumentsState =
+    DocumentRouterState<DocumentService, EntityAccessService, AuthorizationService>;
+
+/// Concrete project service wired into DSS.
+pub(crate) type ProjectService = ProjectServiceImpl<
+    PgProjectRepo,
+    S3ProjectUploadAdapter,
+    DynamoBulkUploadAdapter,
+    ShaCountAdapter,
+    EntityAccessManagementService,
+    SqsProjectSearchIndexer,
+    MacroEventBrokerService<KafkaEventPublisher>,
+>;
+
+/// Type alias for the projects router state.
+pub(crate) type ProjectsState =
+    ProjectRouterState<ProjectService, EntityAccessService, AuthorizationService>;
 
 /// Type alias for the legacy channel list service.
 pub(crate) type DssChannelListService =
     ChannelListServiceImpl<PgChannelsRepo, PgChannelsRepo, FrecencyPgStorage>;
 
 /// Type alias for the legacy channel list router state.
-pub(crate) type DssChannelListState = ChannelListRouterState<DssChannelListService>;
+pub(crate) type DssChannelListState =
+    ChannelListRouterState<DssChannelListService, AuthorizationService>;
 
 /// Type alias for the channels service wired into DSS.
 pub(crate) type DssChannelService = ChannelServiceImpl<
@@ -275,17 +301,23 @@ pub(crate) type DssChannelService = ChannelServiceImpl<
 >;
 
 /// Type alias for the channels router state.
-pub(crate) type DssChannelsState = ChannelsRouterState<DssChannelService, EntityAccessService>;
+pub(crate) type DssChannelsState =
+    ChannelsRouterState<DssChannelService, EntityAccessService, AuthorizationService>;
 
 /// Type alias for the bots service wired into DSS.
 pub(crate) type DssBotService = BotServiceImpl<PgBotsRepo>;
 
 /// Type alias for the bots router state.
-pub(crate) type DssBotsState = BotsRouterState<DssBotService, EntityAccessService>;
+pub(crate) type DssBotsState =
+    BotsRouterState<DssBotService, EntityAccessService, AuthorizationService>;
 
 /// Type alias for the channel bot webhook router state.
-pub(crate) type DssChannelBotWebhookState =
-    ChannelBotWebhookRouterState<DssBotService, Arc<DssChannelService>, EntityAccessService>;
+pub(crate) type DssChannelBotWebhookState = ChannelBotWebhookRouterState<
+    DssBotService,
+    Arc<DssChannelService>,
+    EntityAccessService,
+    AuthorizationService,
+>;
 
 /// Type alias for the call connection service.
 pub(crate) type CallConnectionService =
@@ -314,7 +346,8 @@ pub(crate) type DssCallService = CallServiceImpl<
 >;
 
 /// Type alias for the call router state.
-pub(crate) type DssCallState = CallRouterState<DssCallService, EntityAccessService>;
+pub(crate) type DssCallState =
+    CallRouterState<DssCallService, EntityAccessService, AuthorizationService>;
 
 /// Type alias for the call webhook router state.
 pub(crate) type DssCallWebhookState = WebhookRouterState<DssCallService>;
@@ -326,7 +359,8 @@ pub(crate) type DssCallInternalState = InternalCallRouterState<DssCallService>;
 pub(crate) type FavoritesServiceType = FavoritesServiceImpl<PgFavoritesRepo>;
 
 /// Type alias for the favorites router state.
-pub(crate) type DssFavoritesState = FavoritesRouterState<FavoritesServiceType, EntityAccessService>;
+pub(crate) type DssFavoritesState =
+    FavoritesRouterState<FavoritesServiceType, EntityAccessService, AuthorizationService>;
 
 /// Type alias for the foreign entity service.
 pub(crate) type ForeignEntityServiceType = ForeignEntityServiceImpl<PgForeignEntityRepo>;
@@ -359,7 +393,8 @@ pub(crate) type DssWebhookRateLimiter =
     rate_limit::RateLimitServiceImpl<rate_limit::RedisRateLimitAdapter<redis::Client>>;
 
 /// Type alias for the product webhook router state.
-pub(crate) type DssWebhookState = MacroWebhookRouterState<DssWebhookService, DssWebhookRateLimiter>;
+pub(crate) type DssWebhookState =
+    MacroWebhookRouterState<DssWebhookService, DssWebhookRateLimiter, AuthorizationService>;
 
 #[derive(Clone, FromRef)]
 pub(crate) struct ApiContext {
@@ -386,6 +421,7 @@ pub(crate) struct ApiContext {
     pub system_properties_service: Arc<SystemPropertiesService>,
     pub properties_service: Arc<PropertiesService>,
     pub opensearch_client: Arc<OpensearchClient>,
+    pub authorization_state: MacroAuthorizationState<AuthorizationService>,
     pub jwt_validation_args: JwtValidationArgs,
     pub config: Arc<Config>,
     pub dss_auth_key: DocumentStorageServiceAuthKey,
@@ -395,6 +431,7 @@ pub(crate) struct ApiContext {
     pub channel_list_state: DssChannelListState,
     pub entity_access_service: Arc<EntityAccessService>,
     pub documents_state: DocumentsState,
+    pub projects_state: ProjectsState,
     pub channels_state: DssChannelsState,
     pub bots_state: DssBotsState,
     pub channel_bot_webhook_state: DssChannelBotWebhookState,
@@ -417,6 +454,7 @@ impl From<&ApiContext> for PropertiesHandlerState {
         PropertiesHandlerState::new(
             ctx.properties_service.clone(),
             ctx.entity_access_service.clone(),
+            ctx.authorization_state.clone(),
         )
     }
 }
@@ -444,8 +482,8 @@ impl FromRef<ApiContext> for SearchHandlerState {
 }
 
 /// `#[derive(FromRef)]` only exposes direct field types, so hand the email
-/// router state out of the nested soup router state for extractors like
-/// `MultiEmailLinkExtractor` that key off `EmailRouterState`.
+/// router state out of the nested soup router state for email-link extractors
+/// that key off `EmailRouterState`.
 impl FromRef<ApiContext>
     for email::inbound::axum::previews_router::EmailRouterState<DssEmailService>
 {
