@@ -71,6 +71,74 @@ fn transform_external_url_preserves_existing_is_mobile_false() {
     );
 }
 
+fn plugin_with_app_links() -> MacroNavigationPlugin {
+    MacroNavigationPlugin::new(&["https://macro.com", "http://localhost:3000"])
+        .unwrap()
+        .with_app_link_domains(&["https://macro.com", "https://dev.macro.com"])
+        .unwrap()
+}
+
+#[test]
+fn as_app_link_converts_app_path_on_app_domain() {
+    let plugin = plugin_with_app_links();
+    let url =
+        Url::parse("https://macro.com/app/task/019f7009-4645-763a-9a97-d2411da16659").unwrap();
+    let result = plugin.as_app_link(&url).unwrap();
+    assert_eq!(result.path(), "/task/019f7009-4645-763a-9a97-d2411da16659");
+    assert_eq!(result.query(), None);
+}
+
+#[test]
+fn as_app_link_preserves_query() {
+    let plugin = plugin_with_app_links();
+    let url = Url::parse("https://macro.com/app/channel/abc?message=def").unwrap();
+    let result = plugin.as_app_link(&url).unwrap();
+    assert_eq!(result.path(), "/channel/abc");
+    assert_eq!(result.query(), Some("message=def"));
+}
+
+#[test]
+fn as_app_link_handles_dev_domain() {
+    let plugin = plugin_with_app_links();
+    let url = Url::parse("https://dev.macro.com/app/md/doc123").unwrap();
+    let result = plugin.as_app_link(&url).unwrap();
+    assert_eq!(result.path(), "/md/doc123");
+}
+
+#[test]
+fn as_app_link_ignores_non_app_paths() {
+    let plugin = plugin_with_app_links();
+    let url = Url::parse("https://macro.com/blog/some-post").unwrap();
+    assert!(plugin.as_app_link(&url).is_none());
+    // "/apple" must not match the "/app" prefix
+    let url = Url::parse("https://macro.com/apple").unwrap();
+    assert!(plugin.as_app_link(&url).is_none());
+}
+
+#[test]
+fn as_app_link_ignores_other_domains() {
+    let plugin = plugin_with_app_links();
+    let url = Url::parse("https://example.com/app/task/123").unwrap();
+    assert!(plugin.as_app_link(&url).is_none());
+    // internal (bundle/dev server) origins are not app link origins
+    let url = Url::parse("http://localhost:3000/app/task/123").unwrap();
+    assert!(plugin.as_app_link(&url).is_none());
+}
+
+#[test]
+fn as_app_link_ignores_non_http_schemes() {
+    let plugin = plugin_with_app_links();
+    let url = Url::parse("tauri://localhost/app/task/123").unwrap();
+    assert!(plugin.as_app_link(&url).is_none());
+}
+
+#[test]
+fn as_app_link_without_configured_domains_matches_nothing() {
+    let plugin = MacroNavigationPlugin::new(&["https://macro.com"]).unwrap();
+    let url = Url::parse("https://macro.com/app/task/123").unwrap();
+    assert!(plugin.as_app_link(&url).is_none());
+}
+
 #[test]
 fn transform_external_url_preserves_other_query_params() {
     let url = Url::parse("https://example.com/path?foo=bar&baz=qux").unwrap();
@@ -88,4 +156,3 @@ fn transform_external_url_preserves_other_query_params() {
         Some((Cow::Borrowed("is_mobile"), Cow::Borrowed("true")))
     );
 }
-

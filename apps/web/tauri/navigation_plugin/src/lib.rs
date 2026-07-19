@@ -2,7 +2,7 @@ use crate::scheme::MacroScheme;
 use logger::Logger;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, collections::HashMap, path::PathBuf, sync::Arc};
-use tauri::{Manager, Runtime, plugin::Plugin};
+use tauri::{Emitter, Manager, Runtime, plugin::Plugin};
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
 
@@ -53,6 +53,11 @@ pub enum Platform {
 #[derive(Clone)]
 pub struct MacroNavigationPlugin {
     internal_domains: Arc<[Url]>,
+    /// Origins of the hosted web app (e.g. https://macro.com). Navigations to
+    /// `/app/...` paths on these origins are app links: they are converted to
+    /// an in-app `navigate` event instead of loading in the webview or the
+    /// system browser.
+    app_link_domains: Arc<[Url]>,
     allowed_file_prefix: Option<PathBuf>,
 }
 
@@ -77,8 +82,20 @@ impl MacroNavigationPlugin {
                 .iter()
                 .map(|s| s.parse())
                 .collect::<Result<Arc<_>, _>>()?,
+            app_link_domains: Arc::new([]),
             allowed_file_prefix: None,
         })
+    }
+
+    pub fn with_app_link_domains(
+        mut self,
+        domains: &'static [&'static str],
+    ) -> Result<Self, url::ParseError> {
+        self.app_link_domains = domains
+            .iter()
+            .map(|s| s.parse())
+            .collect::<Result<Arc<_>, _>>()?;
+        Ok(self)
     }
 
     pub fn with_allowed_file_prefix(mut self, prefix: PathBuf) -> Self {
@@ -99,6 +116,29 @@ impl MacroNavigationPlugin {
             },
             None => NavigationOutput::Internal(internal),
         }
+    }
+
+    /// Returns the [MacroScheme] conversion for links that point at the hosted
+    /// web app (e.g. `https://macro.com/app/task/<id>`), so they can be routed
+    /// inside the app like a deep link instead of leaving the bundle.
+    #[tracing::instrument(ret, level = tracing::Level::DEBUG, skip(self))]
+    fn as_app_link(&self, url: &Url) -> Option<MacroScheme> {
+        if !matches!(url.scheme(), "http" | "https") {
+            return None;
+        }
+        let is_app_domain = self.app_link_domains.iter().any(|cur| {
+            cur.scheme().eq(url.scheme())
+                && cur.domain().eq(&url.domain())
+                && cur.port().eq(&url.port())
+        });
+        if !is_app_domain {
+            return None;
+        }
+        let path = url.path();
+        if path != "/app" && !path.starts_with("/app/") {
+            return None;
+        }
+        MacroScheme::from_url(url).ok()
     }
 
     #[tracing::instrument(ret, level = tracing::Level::DEBUG, skip(self))]
@@ -129,6 +169,28 @@ impl MacroNavigationPlugin {
             Err(ExternalUrl(Cow::Borrowed(url)))
         }
     }
+}
+
+#[derive(Clone, Serialize, Debug)]
+struct NavigatePayload<'a> {
+    path: &'a str,
+    query: &'a str,
+}
+
+/// Emits the `navigate` event the frontend router listens for, performing an
+/// in-app (client side) navigation to the path of the given [MacroScheme].
+/// We send an event instead of calling `Webview::navigate` because the latter
+/// performs a full browser navigation and reloads the app.
+pub fn emit_navigate<R: Runtime>(
+    handle: &tauri::AppHandle<R>,
+    macro_scheme: &MacroScheme,
+) -> tauri::Result<()> {
+    let payload = NavigatePayload {
+        path: macro_scheme.path(),
+        query: macro_scheme.query().unwrap_or_default(),
+    };
+    tracing::trace!("emitting navigate event {payload:?}");
+    handle.emit("navigate", payload)
 }
 
 #[tracing::instrument(ret, level = tracing::Level::DEBUG)]
@@ -185,6 +247,14 @@ impl<R: Runtime> Plugin<R> for MacroNavigationPlugin {
     }
 
     fn on_navigation(&mut self, webview: &tauri::Webview<R>, url: &tauri::Url) -> bool {
+        // Links to the hosted web app (e.g. https://macro.com/app/task/<id>)
+        // are routed in-app like deep links, rather than letting the webview
+        // navigate away from the bundle or opening the system browser.
+        if let Some(macro_scheme) = self.as_app_link(url) {
+            emit_navigate(webview.app_handle(), &macro_scheme).log_and_consume();
+            return false;
+        }
+
         let dest = self.get_destination(url);
 
         match dest {

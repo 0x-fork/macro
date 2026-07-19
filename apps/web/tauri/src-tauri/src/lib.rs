@@ -9,14 +9,13 @@ use navigation_plugin::scheme::MacroScheme;
 use reqwest::cookie::CookieStore;
 use reqwest::header::{COOKIE, ORIGIN};
 use rootcause::{Report, report};
-use serde::Serialize;
 use share_target::{
     PendingShareFilesState, clear_shared_files, get_pending_share_filenames,
     maybe_handle_share_deep_link, pop_shared_files, read_shared_file_text,
 };
 use staged_upload::cleanup_stale_staged_files;
 use tauri::http::{HeaderMap, HeaderValue};
-use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime};
+use tauri::{AppHandle, Manager, RunEvent, Runtime};
 
 mod tauri_protocol;
 
@@ -74,6 +73,16 @@ fn embedded_bundle_build() -> u64 {
 /// This module provides debuging utilities and should not be compiled in prodiction builds
 #[cfg(debug_assertions)] // do not remove this
 mod debug;
+
+/// origins of the hosted web app. hyperlinks to `/app/...` paths on these
+/// origins (e.g. https://macro.com/app/task/<id>) are treated as deep links
+/// and routed inside the app instead of opening the web browser.
+/// Keep in sync with the universal link hosts in tauri.conf.json.
+static APP_LINK_DOMAINS: &[&str] = &[
+    "https://macro.com",
+    "https://dev.macro.com",
+    "https://staging.macro.com",
+];
 
 /// domains which the tauri webview can render.
 /// This should be as restrictive as possible.
@@ -171,7 +180,12 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .plugin(MacroNavigationPlugin::new(ALLOWED_DOMAINS).expect("Domains must be valid urls"))
+        .plugin(
+            MacroNavigationPlugin::new(ALLOWED_DOMAINS)
+                .expect("Domains must be valid urls")
+                .with_app_link_domains(APP_LINK_DOMAINS)
+                .expect("App link domains must be valid urls"),
+        )
         .plugin(
             macro_bundle_updater_plugin::inbound::plugin::MacroBundleUpdaterPlugin::new(
                 AppEnvironment::current()
@@ -392,21 +406,7 @@ fn attach_deep_link_handler(app: &mut tauri::App) {
             }
         };
 
-        #[derive(Clone, Serialize, Debug)]
-        struct NavigatePayload<'a> {
-            path: &'a str,
-            query: &'a str,
-        }
-
-        let payload = NavigatePayload {
-            path: macro_scheme.0.path(),
-            query: macro_scheme.0.query().unwrap_or_default(),
-        };
-        // we send a navigate event instead of calling navigate directly
-        // because navigate performs a full browser navigation
-
-        tracing::trace!("{payload:?}");
-        Ok(handle.emit("navigate", payload)?)
+        Ok(navigation_plugin::emit_navigate(handle, &macro_scheme)?)
     }
 
     app.deep_link().on_open_url({
