@@ -18,10 +18,13 @@ export const READ_STATE = facet({
         pf: b.eq('folderSeen', false),
         fef: b.eq('foreignEntitySeen', false),
       }),
-      predicate: (entity, ctx) =>
-        ctx.notificationSource
+      predicate: (entity, ctx) => {
+        if (entity.type === 'email') return true;
+
+        return ctx.notificationSource
           ? unreadFilter(ctx.notificationSource)(entity)
-          : true,
+          : true;
+      },
     },
     {
       id: 'read',
@@ -33,10 +36,13 @@ export const READ_STATE = facet({
         pf: b.eq('folderSeen', true),
         fef: b.eq('foreignEntitySeen', true),
       }),
-      predicate: (entity, ctx) =>
-        ctx.notificationSource
+      predicate: (entity, ctx) => {
+        if (entity.type === 'email') return true;
+
+        return ctx.notificationSource
           ? !unreadFilter(ctx.notificationSource)(entity)
-          : true,
+          : true;
+      },
     },
   ],
 });
