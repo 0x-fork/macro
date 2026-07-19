@@ -319,9 +319,6 @@ export function SoupViewHeader() {
                 onOpenChange={setGroupOpen}
               />
             </Show>
-            <Show when={view() !== 'search'}>
-              <SoupActiveFacets />
-            </Show>
           </div>
         </SplitToolbarLeft>
         <SplitToolbarRight>
@@ -344,6 +341,10 @@ export function SoupViewHeader() {
             </Button>
           </Tooltip>
         </SplitToolbarRight>
+      </Show>
+
+      <Show when={!isMobile() && view() !== 'search'}>
+        <SoupActiveFacets />
       </Show>
     </div>
   );

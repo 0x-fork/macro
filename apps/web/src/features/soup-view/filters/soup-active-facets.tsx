@@ -1,3 +1,8 @@
+import {
+  type ConsolidatedFilter,
+  ConsolidatedFilterChip,
+} from '@app/features/next-soup/soup-view/filters-bar/consolidated-filter-chip';
+import type { FacetSelection } from '@app/features/soup-list';
 import XIcon from '@phosphor/x.svg';
 import { Button, Layer } from '@ui';
 import { For, Show } from 'solid-js';
@@ -7,7 +12,64 @@ import {
   facetControlResetValue,
   isFacetControlRefinement,
 } from './facet-control-refinements';
-import { useSoupFacetControls } from './use-soup-facet-controls';
+import {
+  type SoupFacetControl,
+  useSoupFacetControls,
+} from './use-soup-facet-controls';
+
+function SoupActiveFacetChip(props: {
+  control: SoupFacetControl;
+  baseline: FacetSelection;
+}) {
+  const values = () =>
+    props.control.activeIds().map((id) => {
+      const option = props.control
+        .options()
+        .find((candidate) => candidate.id === id);
+      return option ?? { id, label: id };
+    });
+  const toggleValue = (id: string) => {
+    const active = props.control.activeIds();
+    if (!props.control.multiple) {
+      props.control.onChange(active.includes(id) ? [] : [id]);
+      return;
+    }
+    props.control.onChange(
+      active.includes(id)
+        ? active.filter((activeId) => activeId !== id)
+        : [...active, id]
+    );
+  };
+  const filter: ConsolidatedFilter = {
+    key: props.control.id,
+    categoryLabel: props.control.label,
+    categoryLabelPlural: props.control.labelPlural,
+    values,
+    get availableOptions() {
+      return props.control.searchable ? undefined : props.control.options();
+    },
+    multiple: props.control.multiple,
+    onRemoveAll: () =>
+      props.control.onChange(
+        facetControlResetValue(props.control, props.baseline)
+      ),
+    onToggleValue: toggleValue,
+    isValueActive: (id) => props.control.activeIds().includes(id),
+    searchableOptions: props.control.searchable
+      ? props.control.options
+      : undefined,
+    activeSearchableIds: props.control.searchable
+      ? props.control.activeIds
+      : undefined,
+    onSearchableChange: props.control.searchable
+      ? props.control.onChange
+      : undefined,
+    searchPlaceholder: props.control.placeholder,
+    preserveOptionOrder: props.control.preserveOrder,
+  };
+
+  return <ConsolidatedFilterChip filter={filter} />;
+}
 
 export function SoupActiveFacets() {
   const baseline = useSoupView().activePresetFacets;
@@ -16,50 +78,30 @@ export function SoupActiveFacets() {
     controls().filter((control) =>
       isFacetControlRefinement(control, baseline())
     );
-
-  const valueLabel = (control: ReturnType<typeof controls>[number]) => {
-    const ids = control.activeIds();
-    if (ids.length === 0) return 'None';
-    const labels = ids.map(
-      (id) => control.options().find((option) => option.id === id)?.label ?? id
-    );
-    if (labels.length <= 2) return labels.join(', ');
-    return `${labels[0]} +${labels.length - 1}`;
-  };
-
   const clearAll = () => clearFacetControlRefinements(controls(), baseline());
 
   return (
     <Show when={active().length > 0}>
-      <div class="flex min-w-0 items-center gap-1.5 overflow-x-auto scrollbar-hidden">
-        <For each={active()}>
-          {(control) => (
-            <Layer depth={2}>
-              <div class="flex h-7 items-center overflow-hidden rounded-md border border-edge-muted bg-surface text-xs">
-                <span class="px-2 text-ink-muted">{control.label}</span>
-                <span class="max-w-40 truncate border-l border-edge-muted px-2">
-                  {valueLabel(control)}
-                </span>
-                <Button
-                  size="icon-sm"
-                  class="h-full rounded-none border-l border-edge-muted hover:text-failure"
-                  label={`Clear ${control.label}`}
-                  onClick={() =>
-                    control.onChange(
-                      facetControlResetValue(control, baseline())
-                    )
-                  }
-                >
-                  <XIcon class="size-3" />
-                </Button>
-              </div>
-            </Layer>
-          )}
-        </For>
-        <Button variant="ghost" size="sm" onClick={clearAll}>
-          Clear all
-        </Button>
-      </div>
+      <Layer depth={0}>
+        <div class="w-full p-2">
+          <div class="flex min-w-0 items-center gap-2 overflow-x-auto rounded-lg border border-edge-muted bg-surface p-2 scrollbar-hidden">
+            <For each={active()}>
+              {(control) => (
+                <SoupActiveFacetChip control={control} baseline={baseline()} />
+              )}
+            </For>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="shrink-0"
+              onClick={clearAll}
+            >
+              <XIcon class="size-3.5" />
+              Clear all
+            </Button>
+          </div>
+        </div>
+      </Layer>
     </Show>
   );
 }
