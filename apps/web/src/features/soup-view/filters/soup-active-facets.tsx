@@ -3,8 +3,9 @@ import {
   ConsolidatedFilterChip,
 } from '@app/features/next-soup/soup-view/filters-bar/consolidated-filter-chip';
 import type { FacetSelection } from '@app/features/soup-list';
+import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
-import { Button, Layer } from '@ui';
+import { Button, Dropdown, Layer } from '@ui';
 import { For, Show } from 'solid-js';
 import { useSoupView } from '../context';
 import {
@@ -12,11 +13,22 @@ import {
   facetControlResetValue,
   isFacetControlRefinement,
 } from './facet-control-refinements';
-import { SoupFacetFilter } from './soup-facet-filter';
+import { UnifiedFilterDropdown } from './unified-filter-dropdown';
 import {
   type SoupFacetControl,
   useSoupFacetControls,
 } from './use-soup-facet-controls';
+
+const AddFilterButton = () => (
+  <Dropdown.Trigger
+    variant="ghost"
+    size="icon-sm"
+    tooltip="Add filters"
+    class="p-1 rounded-full"
+  >
+    <PlusIcon class="size-3" />
+  </Dropdown.Trigger>
+);
 
 function SoupActiveFacetChip(props: {
   control: SoupFacetControl;
@@ -95,7 +107,10 @@ export function SoupActiveFacets() {
                   />
                 )}
               </For>
-              <SoupFacetFilter variant="add" registerHotkey={false} />
+              <UnifiedFilterDropdown
+                customTrigger={<AddFilterButton />}
+                registerHotkey={false}
+              />
             </div>
             <div class="flex items-center shrink-0">
               <Button

@@ -31,7 +31,7 @@ import { Button, Tooltip } from '@ui';
 import { createSignal, onCleanup, Show } from 'solid-js';
 import { useSoupView } from '../context';
 import { SoupActiveFacets } from '../filters/soup-active-facets';
-import { SoupFacetFilter } from '../filters/soup-facet-filter';
+import { UnifiedFilterDropdown } from '../filters/unified-filter-dropdown';
 import {
   CompanyDisplayMenu,
   CompanyViewsMenu,
@@ -282,7 +282,10 @@ export function SoupViewHeader() {
 
         <SplitToolbarLeft>
           <div class="flex min-w-0 flex-1 items-center gap-1">
-            <Show when={view() === 'search'} fallback={<SoupFacetFilter />}>
+            <Show
+              when={view() === 'search'}
+              fallback={<UnifiedFilterDropdown />}
+            >
               <SoupSearchFacets />
             </Show>
             <Show when={showSoupSort(view(), isNewInbox())}>
