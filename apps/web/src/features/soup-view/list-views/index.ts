@@ -1,7 +1,4 @@
-export {
-  SoupEntityListItem,
-  type SoupEntityListItemRenderProps,
-} from '../components/soup-entity-list-item';
+export { SoupEntityListItem } from '../components/soup-entity-list-item';
 export { SoupPreviewPane } from '../components/soup-preview-pane';
 export type {
   DefaultListViewId,

@@ -6,6 +6,7 @@ import {
   type SoupCollection,
   SoupCollectionProvider,
   type SoupItem,
+  useSoupCollection,
 } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
@@ -37,7 +38,10 @@ import {
   SoupEmptyState,
   SoupErrorState,
 } from '../../components/soup-empty-state';
-import { SoupEntityListItem } from '../../components/soup-entity-list-item';
+import {
+  SOUP_MARK_DONE_ROW_CONFIG,
+  SoupEntityListItem,
+} from '../../components/soup-entity-list-item';
 import { SoupFileDropzone } from '../../components/soup-file-dropzone';
 import { SoupMobileControls } from '../../components/soup-mobile-controls';
 import { SoupPreviewPane } from '../../components/soup-preview-pane';
@@ -82,6 +86,7 @@ const applyInboxMode = (
 
 function InboxListViewContent() {
   const panel = useSplitPanelOrThrow();
+  const collection = useSoupCollection();
   const view = useSoupView();
   const isNewInbox = useIsNewInbox();
   const { dataSource, state: listState } = useList<SoupItem>();
@@ -161,13 +166,39 @@ function InboxListViewContent() {
                             item={item}
                             hoverFocus={() => !isNewInbox()}
                           >
-                            {(row) =>
-                              isNewInbox() ? (
-                                <InboxListEntity {...row} />
-                              ) : (
-                                <ListEntity {...row} />
-                              )
-                            }
+                            {(scope) => (
+                              <Show
+                                when={isNewInbox()}
+                                fallback={
+                                  <ListEntity
+                                    entity={scope.item().entity}
+                                    highlighted={scope.highlighted()}
+                                    checked={scope.selected()}
+                                    showUnrollNotifications={
+                                      scope.item().entity.type !== 'email' &&
+                                      collection.facets.has('focus', 'inbox') &&
+                                      !collection.facets.has('focus', 'noise')
+                                    }
+                                    entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
+                                    onChecked={scope.onChecked}
+                                    onClick={scope.onClick}
+                                    onProjectClick={scope.onProjectClick}
+                                    onContentHitClick={scope.onContentHitClick}
+                                  />
+                                }
+                              >
+                                <InboxListEntity
+                                  entity={scope.item().entity}
+                                  highlighted={scope.highlighted()}
+                                  checked={scope.selected()}
+                                  entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
+                                  onChecked={scope.onChecked}
+                                  onClick={scope.onClick}
+                                  onProjectClick={scope.onProjectClick}
+                                  onContentHitClick={scope.onContentHitClick}
+                                />
+                              </Show>
+                            )}
                           </SoupEntityListItem>
                         )}
                       </SoupEntityList>

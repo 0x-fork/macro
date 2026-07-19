@@ -9,14 +9,11 @@ import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
-import {
-  type SoupCollectionSort,
-  type SoupEntityItem,
-  type SoupItem,
-  useSoupCollection,
-} from '@app/features/soup-list';
+import type { SoupEntityItem, SoupItem } from '@app/features/soup-list';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
+import { useLongPress } from '@components/app/mobile/use-long-press';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { hapticImpact } from '@core/mobile/haptics';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import {
   isSearchEntity,
@@ -31,25 +28,35 @@ import {
   createMemo,
   createSignal,
   type JSX,
+  onCleanup,
+  onMount,
 } from 'solid-js';
 import { actionTargets } from '../actions/soup-entity-action-model';
-import { useSoupEntityActions } from '../actions/use-soup-entity-actions';
 import { useSoupView } from '../context';
-import { SoupEntityRow } from './soup-entity-row';
+import { SoupEntityContextMenu } from './soup-entity-context-menu';
 import { useMaybeSoupMobileActionDrawer } from './soup-mobile-action-drawer';
 
-export type SoupEntityListItemRenderProps = {
-  entity: SoupEntityItem['entity'];
-  timestamp: SoupEntityItem['entity']['updatedAt'];
-  highlighted: boolean;
-  checked: boolean;
-  showUnrollNotifications: boolean;
-  entityRowConfig?: EntityRowConfig;
-  onMouseMove: () => void;
+export const SOUP_MARK_DONE_ROW_CONFIG: EntityRowConfig = {
+  swipeLeftColor: 'bg-success-surface',
+  swipeLeftRevealedComponent: <CheckCircleIcon class="size-5 text-ink" />,
+};
+
+export type SoupEntityListItemScope = {
+  item: Accessor<SoupEntityItem>;
+  focused: Accessor<boolean>;
+  selected: Accessor<boolean>;
+  pressed: Accessor<boolean>;
+  highlighted: Accessor<boolean>;
   onChecked: (selected: boolean, shiftKey: boolean) => void;
   onClick: (event: MouseEvent) => void;
-  onProjectClick: (project: ProjectEntity, event: MouseEvent) => void;
-  onContentHitClick: (event: MouseEvent, location?: SearchLocation) => void;
+  onProjectClick: (
+    project: ProjectEntity,
+    event: MouseEvent | PointerEvent
+  ) => void;
+  onContentHitClick: (
+    event: MouseEvent | PointerEvent,
+    location?: SearchLocation
+  ) => void;
 };
 
 type SoupActivationMetadata = {
@@ -93,15 +100,13 @@ const selectionAnchors = new WeakMap<object, number>();
 
 export function SoupEntityListItem(props: {
   item: Accessor<SoupEntityItem>;
-  children: (props: SoupEntityListItemRenderProps) => JSX.Element;
+  children: (scope: SoupEntityListItemScope) => JSX.Element;
   hoverFocus?: boolean | Accessor<boolean>;
   onActivate?: (activation: ListActivation<SoupItem>) => void;
 }) {
   const panel = useSplitPanelOrThrow();
   const orchestrator = useGlobalBlockOrchestrator();
-  const collection = useSoupCollection();
   const view = useSoupView();
-  const entityActions = useSoupEntityActions();
   const mobileActionDrawer = useMaybeSoupMobileActionDrawer();
   const { state: listState } = useList<SoupItem>();
   const [touchPressed, setTouchPressed] = createSignal(false);
@@ -141,25 +146,7 @@ export function SoupEntityListItem(props: {
     }
   };
 
-  const markDoneAction = () =>
-    entityActions
-      .build([props.item().entity])
-      .find((action) => action.id === 'mark-done');
-  const timestamp = (sort: SoupCollectionSort | undefined) => {
-    const entity = props.item().entity;
-    switch (sort?.id) {
-      case 'created_at':
-        return entity.createdAt;
-      case 'viewed_at':
-        return entity.viewedAt ?? entity.updatedAt ?? entity.createdAt;
-      case 'viewed_updated':
-        return entity.sortTs ?? entity.updatedAt ?? entity.createdAt;
-      default:
-        return entity.updatedAt ?? entity.createdAt;
-    }
-  };
-
-  const activate = (metadata: SoupActivationMetadata) => {
+  const open = (metadata: SoupActivationMetadata) => {
     const item = props.item();
     const activation: ListActivation<SoupItem> = {
       item,
@@ -197,81 +184,82 @@ export function SoupEntityListItem(props: {
 
   return (
     <List.Item item={props.item()}>
-      {(state) => (
-        <SoupEntityRow
-          item={props.item()}
-          selectedEntities={selectedEntities}
-          isSelected={state.selected}
-          onOpen={() => state.focus({ reason: 'pointer' })}
-          onLongPress={() => {
-            state.focus({ reason: 'pointer' });
-            if (!mobileActionDrawer) {
-              setItemSelected(!state.selected(), false);
-              return;
-            }
-            mobileActionDrawer.open(
-              props.item().entity,
-              actionTargets({
-                entity: props.item().entity,
-                selected: selectedEntities(),
-                entityIsSelected: state.selected(),
-              })
-            );
-          }}
-          onPressChange={setTouchPressed}
-        >
-          {props.children({
-            get entity() {
-              return props.item().entity;
-            },
-            get timestamp() {
-              return timestamp(collection.sort()[0]);
-            },
-            get highlighted() {
-              return state.focused() || touchPressed();
-            },
-            get checked() {
-              return state.selected();
-            },
-            onMouseMove: () => {
-              if (isKeypressActive() || view.previewOpen() || !hoverFocus())
-                return;
-              state.focus({ reason: 'hover' });
-            },
-            get showUnrollNotifications() {
-              return (
-                props.item().entity.type !== 'email' &&
-                collection.facets.has('focus', 'inbox') &&
-                !collection.facets.has('focus', 'noise')
-              );
-            },
-            get entityRowConfig() {
-              return markDoneAction()
-                ? {
-                    swipeLeftColor: 'bg-success-surface',
-                    swipeLeftRevealedComponent: (
-                      <CheckCircleIcon class="size-5 text-ink" />
-                    ),
-                  }
-                : undefined;
-            },
-            onChecked: setItemSelected,
-            onClick: (event) =>
-              handleSoupEntityClick(
-                {
-                  item: props.item,
-                  state,
-                  previewPaneVisible: view.previewPaneVisible,
-                  activate,
-                },
-                event
-              ),
-            onProjectClick: (project, event) => activate({ event, project }),
-            onContentHitClick: (event, location) =>
-              activate({ event, location }),
-          })}
-        </SoupEntityRow>
-      )}
+      {(state) => {
+        const onLongPress = () => {
+          hapticImpact('light');
+          state.focus({ reason: 'pointer' });
+          if (!mobileActionDrawer) {
+            setItemSelected(!state.selected(), false);
+            return;
+          }
+          mobileActionDrawer.open(
+            props.item().entity,
+            actionTargets({
+              entity: props.item().entity,
+              selected: selectedEntities(),
+              entityIsSelected: state.selected(),
+            })
+          );
+        };
+        const { longPressHandlers, consumeLongPress } = useLongPress({
+          onLongPress,
+          onPressChange: setTouchPressed,
+        });
+        let container: HTMLDivElement | undefined;
+
+        onMount(() => {
+          const captureClick = (event: MouseEvent) => consumeLongPress(event);
+          container?.addEventListener('click', captureClick, { capture: true });
+          onCleanup(() =>
+            container?.removeEventListener('click', captureClick, {
+              capture: true,
+            })
+          );
+        });
+
+        const scope: SoupEntityListItemScope = {
+          item: props.item,
+          focused: state.focused,
+          selected: state.selected,
+          pressed: touchPressed,
+          highlighted: () => state.focused() || touchPressed(),
+          onChecked: setItemSelected,
+          onClick: (event) =>
+            handleSoupEntityClick(
+              {
+                item: props.item,
+                state,
+                previewPaneVisible: view.previewPaneVisible,
+                activate: open,
+              },
+              event
+            ),
+          onProjectClick: (project, event) => open({ event, project }),
+          onContentHitClick: (event, location) => open({ event, location }),
+        };
+
+        return (
+          <SoupEntityContextMenu
+            entity={props.item().entity}
+            selectedEntities={selectedEntities}
+            isSelected={state.selected}
+            onOpen={() => state.focus({ reason: 'pointer' })}
+          >
+            <div
+              ref={container}
+              class="size-full"
+              onMouseMove={() => {
+                if (isKeypressActive() || view.previewOpen() || !hoverFocus())
+                  return;
+                state.focus({ reason: 'hover' });
+              }}
+              {...longPressHandlers}
+            >
+              {props.children(scope)}
+            </div>
+          </SoupEntityContextMenu>
+        );
+      }}
     </List.Item>
   );
 }

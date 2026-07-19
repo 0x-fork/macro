@@ -25,7 +25,10 @@ import {
   SoupEmptyState,
   SoupErrorState,
 } from '../../components/soup-empty-state';
-import { SoupEntityListItem } from '../../components/soup-entity-list-item';
+import {
+  SOUP_MARK_DONE_ROW_CONFIG,
+  SoupEntityListItem,
+} from '../../components/soup-entity-list-item';
 import { SoupFileDropzone } from '../../components/soup-file-dropzone';
 import { SoupMobileControls } from '../../components/soup-mobile-controls';
 import { SoupPreviewPane } from '../../components/soup-preview-pane';
@@ -105,7 +108,18 @@ function TasksListViewContent() {
                       >
                         {(item) => (
                           <SoupEntityListItem item={item}>
-                            {(row) => <TaskListEntity {...row} />}
+                            {(scope) => (
+                              <TaskListEntity
+                                entity={scope.item().entity}
+                                highlighted={scope.highlighted()}
+                                checked={scope.selected()}
+                                entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
+                                onChecked={scope.onChecked}
+                                onClick={scope.onClick}
+                                onProjectClick={scope.onProjectClick}
+                                onContentHitClick={scope.onContentHitClick}
+                              />
+                            )}
                           </SoupEntityListItem>
                         )}
                       </SoupEntityList>
