@@ -35,6 +35,9 @@ const WIDE_SPLIT_PANEL_BREAKPOINT = 640;
 
 export type SoupViewMode = 'list' | 'board';
 export type SoupViewTab = { value: string; label: JSX.Element };
+export type SoupSearchControl = {
+  focus: (selectAll?: boolean) => void;
+};
 
 export type SoupViewContextValue = {
   view: Accessor<ListView>;
@@ -56,8 +59,8 @@ export type SoupViewContextValue = {
   previewPaneVisible: Accessor<boolean>;
   previewVisible: Accessor<boolean>;
 
-  searchInput: Accessor<HTMLInputElement | undefined>;
-  setSearchInput: Setter<HTMLInputElement | undefined>;
+  searchControl: Accessor<SoupSearchControl | undefined>;
+  setSearchControl: Setter<SoupSearchControl | undefined>;
   searchOpen: Accessor<boolean>;
   setSearchOpen: Setter<boolean>;
   focusSearch: (selectAll?: boolean) => void;
@@ -186,14 +189,10 @@ export function SoupViewProvider(
   const previewVisible = () =>
     previewPaneVisible() && previewEntity() !== undefined;
 
-  const [searchInput, setSearchInput] = createSignal<HTMLInputElement>();
+  const [searchControl, setSearchControl] = createSignal<SoupSearchControl>();
   const [searchOpen, setSearchOpen] = createSignal(false);
   const focusSearch = (selectAll = false) => {
-    queueMicrotask(() => {
-      const input = searchInput();
-      input?.focus();
-      if (selectAll) input?.select();
-    });
+    queueMicrotask(() => searchControl()?.focus(selectAll));
   };
   const openSearch = (selectAll = false) => {
     setSearchOpen(true);
@@ -222,8 +221,8 @@ export function SoupViewProvider(
     previewPaneVisible,
     previewVisible,
 
-    searchInput,
-    setSearchInput,
+    searchControl,
+    setSearchControl,
     searchOpen,
     setSearchOpen,
     focusSearch,

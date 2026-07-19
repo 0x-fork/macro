@@ -24,13 +24,13 @@ import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
 import InfoIcon from '@phosphor/info.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
-import XIcon from '@phosphor/x.svg';
 import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
 import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-solid';
-import { Button, Tooltip } from '@ui';
+import { Button, Layer, Tooltip } from '@ui';
 import { createSignal, onCleanup, Show } from 'solid-js';
 import { useSoupView } from '../context';
 import { SoupActiveFacets } from '../filters/soup-active-facets';
+import { SoupSearchbar } from '../filters/soup-searchbar';
 import { UnifiedFilterDropdown } from '../filters/unified-filter-dropdown';
 import {
   CompanyDisplayMenu,
@@ -66,35 +66,6 @@ const setReadFilter = (
   collection: ReturnType<typeof useSoupCollection>,
   value: SoupReadFilter
 ) => collection.facets.set('read_state', value === 'all' ? [] : [value]);
-
-function SoupSearchInput(props: {
-  class: string;
-  autofocus?: boolean;
-  placeholder?: string;
-}) {
-  const collection = useSoupCollection();
-  const view = useSoupView();
-  let input: HTMLInputElement | undefined;
-
-  onCleanup(() => {
-    if (view.searchInput() === input) view.setSearchInput(undefined);
-  });
-
-  return (
-    <input
-      ref={(element) => {
-        input = element;
-        view.setSearchInput(element);
-      }}
-      value={collection.search()}
-      onInput={(event) => collection.setSearch(event.currentTarget.value)}
-      class={props.class}
-      placeholder={props.placeholder ?? 'Search, @mention contacts'}
-      aria-label="Search"
-      autofocus={props.autofocus}
-    />
-  );
-}
 
 export function SoupViewHeader() {
   const collection = useSoupCollection();
@@ -237,7 +208,11 @@ export function SoupViewHeader() {
                       priority={0}
                       onCollapsedChange={setSearchCollapsed}
                       expanded={() => (
-                        <SoupSearchInput class="h-7 w-60 rounded-lg border border-edge-muted bg-surface px-2 text-sm outline-none" />
+                        <Layer depth={2}>
+                          <div class="w-60 ml-2">
+                            <SoupSearchbar variant="secondary" />
+                          </div>
+                        </Layer>
                       )}
                       collapsed={() => (
                         <Tooltip label="Search" hotkey={TOKENS.soup.openSearch}>
@@ -256,27 +231,27 @@ export function SoupViewHeader() {
                     />
                   }
                 >
-                  <div class="ml-2 min-w-0 grow [contain:inline-size]">
-                    <SoupSearchInput class="h-7 w-full rounded-lg border border-edge-muted bg-surface px-2 text-sm outline-none" />
-                  </div>
+                  <Layer depth={2}>
+                    <div class="grow ml-2 min-w-0 [contain:inline-size]">
+                      <SoupSearchbar
+                        variant="secondary"
+                        placeholder="Search, @mention contacts"
+                      />
+                    </div>
+                  </Layer>
                 </Show>
               </>
             }
           >
-            <div class="ml-2 flex min-w-0 grow items-center gap-1">
-              <SoupSearchInput
-                class="h-7 min-w-0 flex-1 rounded-lg border border-edge-muted bg-surface px-2 text-sm outline-none"
-                autofocus
-              />
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                label="Close search"
-                onClick={() => viewState.setSearchOpen(false)}
-              >
-                <XIcon />
-              </Button>
-            </div>
+            <Layer depth={2}>
+              <div class="flex-1 min-w-0">
+                <SoupSearchbar
+                  variant="secondary"
+                  autoFocus
+                  onDismiss={() => viewState.setSearchOpen(false)}
+                />
+              </div>
+            </Layer>
           </Show>
         </SplitHeaderRight>
 

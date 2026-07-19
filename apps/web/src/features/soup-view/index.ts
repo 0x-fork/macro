@@ -1,4 +1,5 @@
 export type {
+  SoupSearchControl,
   SoupViewContextValue,
   SoupViewMode,
   SoupViewTab,
