@@ -171,23 +171,6 @@ function cacheResult(
   };
 }
 
-function queuedMutationResult(
-  op: Operation,
-  transactionId: string
-): OperationResult {
-  return withOptimisticMutationDisposition(
-    {
-      operation: op,
-      data: optimisticContextOf(op)?.optimisticResponse,
-      error: undefined,
-      extensions: undefined,
-      stale: false,
-      hasNext: false,
-    },
-    { kind: 'queued', transactionId }
-  );
-}
-
 const entityCacheTypeByApiType: Readonly<Record<string, string>> = {
   DOCUMENT: 'GraphqlSoupDocument',
   CHAT: 'GraphqlSoupChat',
@@ -300,6 +283,23 @@ function mutationCacheKeys(data: unknown, op: Operation): string[] {
   }
 
   return [...keys];
+}
+
+function queuedMutationResult(
+  op: Operation,
+  transactionId: string
+): OperationResult {
+  return withOptimisticMutationDisposition(
+    {
+      operation: op,
+      data: optimisticContextOf(op)?.optimisticResponse,
+      error: undefined,
+      extensions: undefined,
+      stale: false,
+      hasNext: false,
+    },
+    { kind: 'queued', transactionId }
+  );
 }
 
 export interface NormalizedCacheExchangeOptions {
