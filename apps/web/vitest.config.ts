@@ -70,6 +70,13 @@ export default defineConfig({
         },
       },
       {
+        plugins: [tsconfigPaths()],
+        test: {
+          include: ['src/lib/analytics/**/*.{test,spec}.{ts,tsx}'],
+          name: 'analytics',
+        },
+      },
+      {
         test: {
           environment: 'jsdom',
           globals: true,

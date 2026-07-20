@@ -3,6 +3,7 @@ import {
   type GoogleConversionAction,
   googleConversionSendTo,
 } from '@app/lib/analytics/googleConversions';
+import { normalizeNativeAppUrls } from '@app/lib/analytics/nativeAppUrls';
 import {
   initializeGoogleAnalytics,
   initializeMetaPixel,
@@ -114,6 +115,10 @@ const initializePosthog = (instance: PostHog) => {
     defaults: '2026-01-30',
     before_send: (cr) => {
       if (cr) {
+        // Tauri apps report tauri://localhost URLs, which PostHog's test
+        // account filter treats as internal traffic (see nativeAppUrls.ts).
+        normalizeNativeAppUrls(cr);
+
         cr.properties.env = DEV_MODE_ENV
           ? 'DEV'
           : PROD_MODE_ENV
