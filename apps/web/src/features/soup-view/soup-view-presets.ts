@@ -52,7 +52,7 @@ type TabSpec = {
   emailView?: SoupEmailView;
   /** Facets to activate for this tab */
   initialFacets?: FacetSelection;
-  groupBy?: string;
+  groupBy?: string | ((ctx: PresetContext) => string | undefined);
   /** Tab is hidden (resolver returns `undefined`) when this returns false. */
   requires?: (ctx: PresetContext) => boolean;
 };
@@ -158,17 +158,17 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
       signal: {
         emailView: 'inbox',
         initialFacets: { focus: ['inbox'] },
-        groupBy: 'date',
+        groupBy: (ctx) => (ctx.isNewInbox ? 'date' : undefined),
       },
       noise: {
         emailView: 'inbox',
         initialFacets: { focus: ['noise'] },
-        groupBy: 'date',
+        groupBy: (ctx) => (ctx.isNewInbox ? 'date' : undefined),
       },
       all: {
         emailView: 'all',
         initialFacets: { focus: ['explicit-noise'] },
-        groupBy: 'date',
+        groupBy: (ctx) => (ctx.isNewInbox ? 'date' : undefined),
       },
     },
   },
@@ -556,11 +556,15 @@ export function getViewPreset(
   const build = (tabId: string): SoupViewPreset | undefined => {
     const spec = config.tabs[tabId];
     if (!spec || (spec.requires && !spec.requires(presetCtx))) return undefined;
+    const groupBy =
+      typeof spec.groupBy === 'function'
+        ? spec.groupBy(presetCtx)
+        : spec.groupBy;
     return {
       ...(spec.emailView ? { emailView: spec.emailView } : {}),
       facets: config.facets(presetCtx),
       initialFacets: { ...spec.initialFacets, [view]: [tabId] },
-      ...(spec.groupBy ? { groupBy: spec.groupBy } : {}),
+      ...(groupBy ? { groupBy } : {}),
     };
   };
 

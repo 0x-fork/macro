@@ -23,6 +23,7 @@ import {
   type Accessor,
   batch,
   createContext,
+  createRenderEffect,
   createSignal,
   type JSX,
   type ParentProps,
@@ -68,20 +69,23 @@ const legacyStateSchema = z
   }))
   .refine((state) => Object.values(state).some((value) => value !== undefined));
 
-const restoreSoupViewState = (
-  current: SoupViewState,
-  entryState: EntryState | undefined,
-  restoreViewMode: boolean
-): SoupViewState | undefined => {
+const parseSoupViewState = (entryState: EntryState | undefined) => {
   if (!entryState) return undefined;
   const canonical = entryState[SOUP_VIEW_STATE_ENTRY_KEY];
   const parsed =
     canonical !== undefined
       ? persistedStateSchema.safeParse(canonical)
       : legacyStateSchema.safeParse(entryState);
-  if (!parsed.success) return undefined;
+  return parsed.success ? parsed.data : undefined;
+};
 
-  const restored = parsed.data;
+const restoreSoupViewState = (
+  current: SoupViewState,
+  entryState: EntryState | undefined,
+  restoreViewMode: boolean
+): SoupViewState | undefined => {
+  const restored = parseSoupViewState(entryState);
+  if (!restored) return undefined;
   return {
     viewMode:
       restoreViewMode && restored.viewMode
@@ -263,20 +267,27 @@ export function SoupViewProvider(
     wide: WIDE_SPLIT_PANEL_BREAKPOINT,
   });
 
+  const restoredViewState = parseSoupViewState(
+    panel.handle.currentEntryState()
+  );
+  const hasPersistedPreviewState =
+    restoredViewState?.previewOpen !== undefined ||
+    restoredViewState?.previewEntityId !== undefined;
+  const stateStorage = createSoupViewStateStorage(
+    panel,
+    props.initialViewMode === undefined
+  );
+  let previewDefaultResolved =
+    props.initialPreviewOpen !== undefined || hasPersistedPreviewState;
   const [state, setState] = makePersistedState(
     createStore<SoupViewState>({
       viewMode:
         props.initialViewMode ??
         (props.view === 'companies' ? 'board' : 'list'),
       previewEntityId: undefined,
-      previewOpen: props.initialPreviewOpen ?? isNewInbox(),
+      previewOpen: props.initialPreviewOpen ?? false,
     }),
-    {
-      storage: createSoupViewStateStorage(
-        panel,
-        props.initialViewMode === undefined
-      ),
-    }
+    { storage: stateStorage }
   );
 
   const viewMode = () => state.viewMode;
@@ -309,6 +320,12 @@ export function SoupViewProvider(
     setState('previewOpen', value);
     return value;
   };
+
+  createRenderEffect(() => {
+    if (previewDefaultResolved || !isNewInbox()) return;
+    previewDefaultResolved = true;
+    setPreviewOpen(true);
+  });
 
   const hasPreviewableEntity = () =>
     collection.dataSource.items().some((item) => item.kind === 'entity');

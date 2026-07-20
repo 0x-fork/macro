@@ -20,6 +20,7 @@ export type SoupViewSetupOptions = {
   view: ListView;
   initialState?: SoupCollectionInitialState;
   additionalEntities?: Accessor<EntityData[]>;
+  disableLocalSearch?: Accessor<boolean>;
   restoreCollection?: boolean;
 };
 
@@ -64,6 +65,7 @@ export function useSoupViewSetup(options: SoupViewSetupOptions) {
   const collection = createSoupCollection({
     initialState: resolvedInitialState,
     additionalEntities: options.additionalEntities,
+    disableLocalSearch: options.disableLocalSearch,
     persistence: createSoupCollectionPersistence({
       panel,
       view: options.view,

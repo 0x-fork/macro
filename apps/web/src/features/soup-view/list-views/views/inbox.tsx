@@ -69,15 +69,22 @@ const createInitialInboxFacets = (
   ...(isNewInbox ? { read_state: ['unread'], call_status: ['MISSED'] } : {}),
 });
 
+const applyInboxThreadScope = (
+  collection: SoupCollection,
+  isNewInbox: boolean,
+  userId: string | undefined
+) =>
+  collection.facets.set('channel_thread_scope', [
+    inboxThreadScope(isNewInbox, userId),
+  ]);
+
 const applyInboxMode = (
   collection: SoupCollection,
   isNewInbox: boolean,
   userId: string | undefined
 ) => {
   batch(() => {
-    collection.facets.set('channel_thread_scope', [
-      inboxThreadScope(isNewInbox, userId),
-    ]);
+    applyInboxThreadScope(collection, isNewInbox, userId);
     collection.facets.set('read_state', isNewInbox ? ['unread'] : []);
     collection.facets.set('call_status', isNewInbox ? ['MISSED'] : []);
     collection.setState('groupBy', isNewInbox ? 'date' : undefined);
@@ -270,12 +277,19 @@ export function InboxListView(props: InboxListViewProps) {
     initialState: {
       facets: createInitialInboxFacets(isNewInbox(), userId()),
     },
+    disableLocalSearch: () => true,
   });
 
+  let appliedMode = setup.collection.state.groupBy === 'date';
   createEffect(
-    on([isNewInbox, userId], ([enabled, id]) =>
-      applyInboxMode(setup.collection, enabled, id)
-    )
+    on([isNewInbox, userId], ([enabled, id]) => {
+      if (enabled !== appliedMode) {
+        applyInboxMode(setup.collection, enabled, id);
+        appliedMode = enabled;
+        return;
+      }
+      applyInboxThreadScope(setup.collection, enabled, id);
+    })
   );
 
   return (
