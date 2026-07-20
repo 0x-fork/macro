@@ -128,10 +128,7 @@ fn cross_operation_invalidation() {
         else {
             panic!("expected hit");
         };
-        assert_eq!(
-            data["user"]["soup"]["items"][0]["documentName"],
-            json!("B")
-        );
+        assert_eq!(data["user"]["soup"]["items"][0]["documentName"], json!("B"));
 
         // Identical rewrite changes nothing → nobody re-executes.
         let write = engine

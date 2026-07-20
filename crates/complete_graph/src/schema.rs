@@ -22,7 +22,7 @@ use graphql_properties::{
     PropertiesMutationRoot,
 };
 use graphql_soup::{
-    GraphqlSoupItem, GroupedSoup, GroupedSoupInput, SoupInput, SoupPage, resolve_grouped_soup,
+    GraphqlSoupEntity, GroupedSoup, GroupedSoupInput, SoupInput, SoupPage, resolve_grouped_soup,
     resolve_soup, resolve_soup_updates,
 };
 use macro_authorization::{
@@ -333,7 +333,9 @@ where
         &self,
         ctx: &Context<'_>,
     ) -> async_graphql::Result<
-        impl async_graphql::futures_util::Stream<Item = GraphqlSoupItem<SoupEdges<NR, PR, ER, FR, AR>>>,
+        impl async_graphql::futures_util::Stream<
+            Item = GraphqlSoupEntity<SoupEdges<NR, PR, ER, FR, AR>>,
+        >,
     > {
         resolve_soup_updates::<R, Auth, St, SoupEdges<NR, PR, ER, FR, AR>>(&self.service, ctx).await
     }

@@ -3299,7 +3299,7 @@ type SoupSubscriptionRoot {
 	"""
 	Subscribe to realtime Soup updates for the authenticated user.
 	"""
-	soupUpdates: GraphqlSoupItem!
+	soupUpdates: GraphqlSoupEntity!
 }
 
 """

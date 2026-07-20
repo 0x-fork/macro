@@ -89,7 +89,11 @@ impl<E: SoupEntityEdges> From<PaginatedOpaqueCursor<SoupItem<()>>> for SoupPage<
     fn from(page: PaginatedOpaqueCursor<SoupItem<()>>) -> Self {
         let has_more = page.next_cursor.is_some();
         Self {
-            items: page.items.into_iter().map(GraphqlSoupEntity::from).collect(),
+            items: page
+                .items
+                .into_iter()
+                .map(GraphqlSoupEntity::from)
+                .collect(),
             next_cursor: page.next_cursor,
             has_more,
         }
@@ -100,7 +104,11 @@ impl<E: SoupEntityEdges> From<PaginatedOpaqueCursor<EnrichedSoupItem>> for SoupP
     fn from(page: PaginatedOpaqueCursor<EnrichedSoupItem>) -> Self {
         let has_more = page.next_cursor.is_some();
         Self {
-            items: page.items.into_iter().map(GraphqlSoupEntity::from).collect(),
+            items: page
+                .items
+                .into_iter()
+                .map(GraphqlSoupEntity::from)
+                .collect(),
             next_cursor: page.next_cursor,
             has_more,
         }
@@ -761,7 +769,11 @@ impl From<&SoupAttachment> for GraphqlSoupEmailAttachment {
 }
 
 /// GraphQL email thread entity.
-pub struct GraphqlSoupEmailThread<E: SoupEntityEdges>(SoupEnrichedEmailThreadPreview<()>, E, Option<f64>);
+pub struct GraphqlSoupEmailThread<E: SoupEntityEdges>(
+    SoupEnrichedEmailThreadPreview<()>,
+    E,
+    Option<f64>,
+);
 
 /// GraphQL representation of the soup email thread.
 #[Object(name = "GraphqlSoupEmailThread")]

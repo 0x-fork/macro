@@ -610,7 +610,7 @@ async fn soup_updates_subscribes_as_the_authenticated_user() {
         NoOpSoupEmailContentEdgeReader,
     > = build_schema_with_services(NoOpSoupService, realtime);
     let request = async_graphql::Request::new(
-        "subscription { soupUpdates { id entityType entity { __typename ... on GraphqlSoupDocument { id name } } } }",
+        "subscription { soupUpdates { id entityType ... on GraphqlSoupDocument { name } } }",
     )
     .data(user_id.clone());
     let responses = schema.execute_stream(request);
@@ -628,7 +628,7 @@ async fn soup_updates_subscribes_as_the_authenticated_user() {
     assert_eq!(data["soupUpdates"]["id"], document_id.to_string());
     assert_eq!(data["soupUpdates"]["entityType"], "DOCUMENT");
     assert_eq!(
-        data["soupUpdates"]["entity"]["name"],
+        data["soupUpdates"]["name"],
         format!("Document {document_id}")
     );
     assert_eq!(

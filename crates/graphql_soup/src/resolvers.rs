@@ -35,14 +35,14 @@ use soup_realtime::domain::ports::SoupRealtimeSubscriptionService;
 
 use crate::{
     inputs::{GroupedSoupInput, SoupInput},
-    objects::{GraphqlSoupEntity, GraphqlSoupItem, GroupedSoup, SoupEntityEdges, SoupPage},
+    objects::{GraphqlSoupEntity, GroupedSoup, SoupEntityEdges, SoupPage},
 };
 
 /// Subscribe to realtime Soup updates for the authenticated user.
 pub async fn resolve_soup_updates<R, Auth, St, Edges>(
     service: &R,
     ctx: &Context<'_>,
-) -> async_graphql::Result<impl Stream<Item = GraphqlSoupItem<Edges>> + Send + 'static>
+) -> async_graphql::Result<impl Stream<Item = GraphqlSoupEntity<Edges>> + Send + 'static>
 where
     R: SoupRealtimeSubscriptionService,
     Auth: MacroAuthorizationService,
@@ -55,7 +55,7 @@ where
 
     Ok(async_stream::stream! {
         while let Some(item) = receiver.recv().await {
-            yield GraphqlSoupItem::from(item.as_ref().clone());
+            yield GraphqlSoupEntity::from(item.as_ref().clone());
         }
     })
 }
