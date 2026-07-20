@@ -180,7 +180,16 @@ function SplitCloseButton() {
   });
 
   return (
-    <Show when={layout.manager.splits().length > 1}>
+    // Show whenever there's more than one split (always closeable), or the
+    // lone split isn't the home/unified-list view (the "Return to list" case
+    // handled by `label` above) — otherwise a split left showing a deleted
+    // or inaccessible document has no mouse-driven way to leave it.
+    <Show
+      when={
+        layout.manager.splits().length > 1 ||
+        !isListViewID(context.handle.content().id)
+      }
+    >
       <Button
         class="p-1 rounded-lg"
         label={label()}
