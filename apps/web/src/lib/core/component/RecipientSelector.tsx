@@ -297,11 +297,19 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
     HTMLDivElement | undefined
   >();
 
-  const portalMount = () => {
-    if (props.portalScope !== 'local') return undefined;
-    return (
+  // `.portal-scope` must be resolved after mount — during render the element
+  // isn't connected yet, so `closest` finds nothing.
+  const [localPortalMount, setLocalPortalMount] = createSignal<HTMLElement>();
+  onMount(() => {
+    if (props.portalScope !== 'local') return;
+    setLocalPortalMount(
       portalSearchRef()?.closest<HTMLElement>('.portal-scope') ?? undefined
     );
+  });
+
+  const portalMount = () => {
+    if (props.portalScope !== 'local') return undefined;
+    return localPortalMount();
   };
   const shouldRenderPortal = () =>
     props.portalScope !== 'local' || portalMount() !== undefined;
@@ -809,7 +817,21 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
         <Show when={shouldRenderPortal()}>
           <Combobox.Portal mount={portalMount()}>
             <Layer depth={2}>
-              <Combobox.Content class="z-modal-content bg-surface translate-y-1 border-edge p-2 rounded-xl shadow-lg shadow-drop-shadow ring ring-edge">
+              <Combobox.Content
+                // When portaled into a corvu drawer (mobile reply/forward),
+                // the drawer claims touches as drag gestures (0.3px threshold)
+                // and swallows the tap; opt this subtree out.
+                data-corvu-no-drag=""
+                // On touch, Kobalte selects an option on `click`, but the tap
+                // first blurs the input (the option isn't focusable), tearing
+                // the listbox down before the click lands. Preventing the
+                // compat `mousedown` keeps the input focused. Don't prevent
+                // `pointerdown` instead — iOS suppresses the click entirely.
+                on:mousedown={(e: MouseEvent) => {
+                  if (isMobile()) e.preventDefault();
+                }}
+                class="z-modal-content bg-surface translate-y-1 border-edge p-2 rounded-xl shadow-lg shadow-drop-shadow ring ring-edge"
+              >
                 <Combobox.Listbox
                   ref={setListboxRef}
                   class="flex flex-col gap-1"

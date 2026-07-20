@@ -1839,6 +1839,7 @@ export function BaseInput(props: {
               triggerMode="input"
               hideBorder
               noPadding
+              portalScope={composePortalScope()}
               onChipDragStart={(option, e) =>
                 handleChipDragStart('to', option, e)
               }
@@ -1882,6 +1883,7 @@ export function BaseInput(props: {
                 triggerMode="input"
                 hideBorder
                 noPadding
+                portalScope={composePortalScope()}
                 onChipDragStart={(option, e) =>
                   handleChipDragStart('cc', option, e)
                 }
@@ -1911,6 +1913,7 @@ export function BaseInput(props: {
                 triggerMode="input"
                 hideBorder
                 noPadding
+                portalScope={composePortalScope()}
                 onChipDragStart={(option, e) =>
                   handleChipDragStart('bcc', option, e)
                 }
