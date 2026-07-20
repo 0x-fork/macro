@@ -176,7 +176,7 @@ export type GraphqlGroupedSoupPage = {
 };
 
 export type GraphqlSoupItem = SoupQuery['user']['soup']['items'][number];
-type GraphqlSoupEntity = GraphqlSoupItem['entity'];
+type GraphqlSoupEntity = GraphqlSoupItem;
 type GraphqlProperty = Extract<
   GraphqlSoupEntity,
   { __typename: 'GraphqlSoupDocument' }
@@ -320,9 +320,9 @@ function mapGraphqlNotifications(notifications: GraphqlSoupNotification[]) {
 }
 
 export function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
-  const frecency = item.frecencyScore;
+  const frecency = item.frecencyScore ?? 0;
 
-  return match(item.entity)
+  return match(item)
     .with(
       { __typename: 'GraphqlSoupDocument' },
       (entity) =>
@@ -619,8 +619,8 @@ export function mapGraphqlGroupedSoupPage(
   const items: Record<string, SoupApiItem> = {};
   const groups = data.user.groupSoup.bins.map((bin) => {
     const itemIds = bin.items.map((item) => {
-      items[item.entityId] = mapGraphqlSoupItem(item);
-      return item.entityId;
+      items[item.id] = mapGraphqlSoupItem(item);
+      return item.id;
     });
 
     return {

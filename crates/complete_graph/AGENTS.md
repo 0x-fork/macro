@@ -30,9 +30,11 @@ Clients key cache records by `__typename:id`. Consequences:
   This is correct for value objects and query-scoped wrappers. Do **not**
   add constant or synthetic ids to such types — a constant id (e.g.
   `"soup_page"`) would merge every instance into a single record globally.
-  `GraphqlSoupItem` is intentionally embedded and exposes `entityId`: its
-  frecency and position belong to one Soup view, while its nested `entity`
-  is the canonical normalized record.
+  A type without an `id` may only carry fields that are facts about the
+  edge it represents, never facts about an entity — entity facts belong on
+  the entity record where every view shares them. Soup pages therefore
+  return entities directly (there is no per-item wrapper type), and
+  per-view state is limited to list membership and order.
 - `id` fields must be exactly `ID!` (non-null, non-list); the cache build
   (`crates/client/cache-core/build.rs`) fails otherwise, and fails if
   the query root exposes an `id`.

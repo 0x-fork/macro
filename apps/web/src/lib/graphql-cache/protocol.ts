@@ -72,27 +72,7 @@ export type OptimisticLinkPatchWire = {
   operation:
     | { kind: 'remove'; entityKey: string }
     | { kind: 'prependUnique'; entityKey: string }
-    | {
-        kind: 'captureEmbedded';
-        selector: {
-          whereField: string;
-          equals: string | number | boolean | null;
-        };
-      }
-    | {
-        kind: 'removeEmbedded';
-        selector: {
-          whereField: string;
-          equals: string | number | boolean | null;
-        };
-      }
-    | {
-        kind: 'prependUniqueEmbedded';
-        selector: {
-          whereField: string;
-          equals: string | number | boolean | null;
-        };
-      };
+;
 };
 
 export type CachedQueryInstanceWire = {

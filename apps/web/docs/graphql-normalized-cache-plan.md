@@ -78,12 +78,11 @@ entire cache in browser memory. With 10s of thousands of cached objects
     name a field `id` when it is a global identity — hence
     `GraphqlProperty.propertyDefinitionId` and
     `GraphqlSoupChannelMessage.id`); the build fails on malformed shapes.
-    `GraphqlSoupItem` deliberately exposes `entityId`, not `id`: it is a
-    query-scoped edge whose frecency and ordering vary by Soup view. Its
-    nested concrete `entity` carries the normalized `__typename:id` identity.
-    Optimistic membership moves therefore patch embedded list items by
-    `entityId` while ordinary entity-field mutations update the shared nested
-    record.
+    Soup pages return entities directly: `frecencyScore` is a per-entity
+    fact shared by every view through the normalized record, and the only
+    per-view state is list membership and order, which live in each page's
+    own `items` list. Optimistic membership moves patch those reference
+    lists, while entity-field mutations update the shared records.
 
     The normalized entity contract lives on `GraphqlSoupEntity`, not only on
     its concrete implementations: `id`, `entityType`, `displayName`,

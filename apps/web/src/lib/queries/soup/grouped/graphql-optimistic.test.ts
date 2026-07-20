@@ -39,7 +39,7 @@ function host(args?: {
         key: args?.sourceKey ?? 'in-progress',
         totalCount: 1,
         nextCursor: null,
-        items: containsItem ? [{ entityId: 'task-1' }] : [],
+        items: containsItem ? [{ id: 'task-1' }] : [],
       },
       ...(args?.destination === false
         ? []
@@ -101,6 +101,7 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host({ includeUnrelated: true }),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: ['in-progress'],
       newGroupKeys: ['completed'],
@@ -108,14 +109,8 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
 
     expect(result.updates).toHaveLength(2);
     expect(result.updates.map((patch) => patch.operation)).toEqual([
-      {
-        kind: 'removeEmbedded',
-        selector: { whereField: 'entityId', equals: 'task-1' },
-      },
-      {
-        kind: 'prependUniqueEmbedded',
-        selector: { whereField: 'entityId', equals: 'task-1' },
-      },
+      { kind: 'remove', entityKey: 'GraphqlSoupDocument:task-1' },
+      { kind: 'prependUnique', entityKey: 'GraphqlSoupDocument:task-1' },
     ]);
     expect(result.updates.map((update) => update.path)).toEqual([
       [
@@ -140,6 +135,7 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host({ destination: false }),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: ['in-progress'],
       newGroupKeys: ['completed'],
@@ -154,6 +150,7 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host({ continuation: true, initialContainsItem: false }),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: ['in-progress'],
       newGroupKeys: ['completed'],
@@ -166,8 +163,8 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
       )
     ).toEqual([continuationInput, input]);
     expect(result.updates.map((patch) => patch.operation.kind)).toEqual([
-      'removeEmbedded',
-      'prependUniqueEmbedded',
+      'remove',
+      'prependUnique',
     ]);
   });
 
@@ -175,14 +172,15 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host(),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: ['in-progress', 'shared'],
       newGroupKeys: ['shared', 'completed'],
     });
 
     expect(result.updates.map((patch) => patch.operation.kind)).toEqual([
-      'removeEmbedded',
-      'prependUniqueEmbedded',
+      'remove',
+      'prependUnique',
     ]);
   });
 
@@ -190,20 +188,14 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host({ sourceKey: 'shared' }),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: ['shared'],
       newGroupKeys: ['shared', 'completed'],
     });
 
     expect(result.updates.map((patch) => patch.operation)).toEqual([
-      {
-        kind: 'captureEmbedded',
-        selector: { whereField: 'entityId', equals: 'task-1' },
-      },
-      {
-        kind: 'prependUniqueEmbedded',
-        selector: { whereField: 'entityId', equals: 'task-1' },
-      },
+      { kind: 'prependUnique', entityKey: 'GraphqlSoupDocument:task-1' },
     ]);
   });
 
@@ -211,6 +203,7 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host({ miss: true }),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: ['in-progress'],
       newGroupKeys: ['completed'],
@@ -226,6 +219,7 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host({ onInspect }),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: ['in-progress', 'in-progress'],
       newGroupKeys: ['in-progress'],
@@ -239,6 +233,7 @@ describe('buildOptimisticGroupedPropertyUpdates', () => {
     const result = await buildOptimisticGroupedPropertyUpdates({
       host: host(),
       entityId: 'task-1',
+      entityType: 'DOCUMENT',
       propertyDefinitionId: 'status-def',
       oldGroupKeys: [],
       newGroupKeys: [],

@@ -192,12 +192,15 @@ export class CacheWorkerCore {
       .with({ kind: 'delete-records' }, async (request) => {
         const engine = this.requireEngine();
         const affectedOps = await engine.deleteKeys(request.keys);
-        this.fanOut({
-          changed: request.keys,
-          affectedOps,
-          reset: false,
-          revalidations: [],
-        });
+        this.fanOut(
+          {
+            changed: request.keys,
+            affectedOps,
+            reset: false,
+            revalidations: [],
+          },
+          true
+        );
         return affectedOps;
       })
       .with({ kind: 'teardown' }, async (request) => {

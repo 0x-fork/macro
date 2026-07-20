@@ -1,13 +1,14 @@
 import { inspect, selectAll } from '@graphql-cache/exchange/inspection';
 import {
-  captureEmbedded,
   type OptimisticUpdate,
-  prependUniqueEmbedded,
+  prependUnique,
   type QueryRevalidation,
-  removeEmbedded,
+  remove,
   select,
+  update,
 } from '@graphql-cache/exchange/optimistic';
 import type { CacheHost } from '@graphql-cache/host/types';
+import type { EntityType } from '@service-properties/generated/schemas/entityType';
 import {
   type GroupedSoupInput,
   GroupSoupMembershipDocument,
@@ -19,12 +20,37 @@ import { NOT_SET_GROUP_KEY } from './types';
 type BuildArgs = {
   host: CacheHost;
   entityId: string;
+  /** Properties-service entity kind, used to key the normalized record. */
+  entityType: EntityType;
   propertyDefinitionId: string;
   oldGroupKeys: readonly string[];
   newGroupKeys: readonly string[];
   /** Unsupported/date values still discover and revalidate relevant fields. */
   revalidateOnly?: boolean;
 };
+
+/** Cache `__typename` for a properties-service entity kind. */
+function soupEntityTypename(entityType: EntityType): string | undefined {
+  switch (entityType) {
+    case 'DOCUMENT':
+    case 'TASK':
+      return 'GraphqlSoupDocument';
+    case 'CHAT':
+      return 'GraphqlSoupChat';
+    case 'PROJECT':
+      return 'GraphqlSoupProject';
+    case 'THREAD':
+      return 'GraphqlSoupEmailThread';
+    case 'CHANNEL':
+      return 'GraphqlSoupChannel';
+    case 'CALL_RECORD':
+      return 'GraphqlSoupCall';
+    case 'COMPANY':
+      return 'GraphqlSoupCrmCompany';
+    case 'USER':
+      return undefined;
+  }
+}
 
 export type OptimisticGroupedPropertyUpdates = {
   updates: OptimisticUpdate[];
@@ -125,13 +151,18 @@ export async function buildOptimisticGroupedPropertyUpdates(
   );
   const { removed, added } = changes;
   const updates: OptimisticUpdate[] = [];
+  const soupTypename = soupEntityTypename(args.entityType);
+  // Kinds without a Soup entity record cannot be optimistically moved;
+  // membership converges through revalidation instead.
+  if (!soupTypename) return { updates: [], revalidations };
+  const itemEntityKey = `${soupTypename}:${args.entityId}`;
   for (const pages of views.values()) {
     const sourceGroupKeys = removed.length > 0 ? removed : args.oldGroupKeys;
     const sourcePages = pages.filter((page) =>
       sourceGroupKeys.some((key) =>
         page.bins
           .find((bin) => bin.key === key)
-          ?.items.some((item) => item.entityId === args.entityId)
+          ?.items.some((item) => item.id === args.entityId)
       )
     );
     if (sourcePages.length === 0) continue;
@@ -146,21 +177,9 @@ export async function buildOptimisticGroupedPropertyUpdates(
     if (added.length > 0 && destinationPages.length === 0) continue;
 
     for (const page of sourcePages) {
-      if (removed.length === 0) {
-        const items = select(GroupSoupMembershipDocument, {
-          input: page.input,
-        })
-          .field('user')
-          .field('groupSoup')
-          .field('bins')
-          .item('key', sourceGroupKeys[0]!)
-          .field('items');
-        updates.push(captureEmbedded(items, 'entityId', args.entityId));
-      }
       for (const key of removed) {
         const source = page.bins.find((bin) => bin.key === key);
-        if (!source?.items.some((item) => item.entityId === args.entityId))
-          continue;
+        if (!source?.items.some((item) => item.id === args.entityId)) continue;
         const items = select(GroupSoupMembershipDocument, {
           input: page.input,
         })
@@ -169,7 +188,7 @@ export async function buildOptimisticGroupedPropertyUpdates(
           .field('bins')
           .item('key', key)
           .field('items');
-        updates.push(removeEmbedded(items, 'entityId', args.entityId));
+        updates.push(update(items, remove(itemEntityKey)));
       }
     }
     for (const page of destinationPages) {
@@ -182,7 +201,7 @@ export async function buildOptimisticGroupedPropertyUpdates(
           .field('bins')
           .item('key', key)
           .field('items');
-        updates.push(prependUniqueEmbedded(items, 'entityId', args.entityId));
+        updates.push(update(items, prependUnique(itemEntityKey)));
       }
     }
   }
