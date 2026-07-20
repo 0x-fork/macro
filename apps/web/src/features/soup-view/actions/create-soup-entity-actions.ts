@@ -154,7 +154,12 @@ export function createSoupEntityActions() {
         id: 'mark-done',
         label: 'Mark Done',
         hotkeyToken: TOKENS.entity.action.markDone,
-        onClick: handle(markDone.executeWithList),
+        onClick: () =>
+          markDone.executeWithList(entities, list, undefined, {
+            collapseEntity: view.collapseEntity.shouldCollapse()
+              ? view.collapseEntity.callback()
+              : undefined,
+          }),
       });
     }
 

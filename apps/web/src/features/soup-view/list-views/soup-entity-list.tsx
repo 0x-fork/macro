@@ -244,7 +244,11 @@ export function SoupEntityList(props: SoupEntityListProps) {
   const executeMarkDone = (id: string) => {
     const item = swipeEntity(id);
     if (item?.kind !== 'entity') return;
-    void markDone.executeWithList([item.entity], listState);
+    void markDone.executeWithList([item.entity], listState, undefined, {
+      collapseEntity: view.collapseEntity.shouldCollapse()
+        ? view.collapseEntity.callback()
+        : undefined,
+    });
   };
 
   return (
@@ -256,6 +260,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
               container={viewport}
               canSwipeLeft={canMarkDone}
               onSwipeLeft={executeMarkDone}
+              setCollapseEntity={view.collapseEntity.set}
             >
               <div class="@container/u-list unified-list-root no-select-children relative flex size-full min-h-0 min-w-0 flex-col">
                 <SoupListHeader />

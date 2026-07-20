@@ -14,6 +14,7 @@ import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { Property, PropertyDefinitionDomain } from '@property/types';
 import { macroEntityToPropertyEntityType } from '@property/utils';
 import { onCleanup } from 'solid-js';
+import { useSoupView } from '../context';
 import { useIsNewInbox } from '../utils';
 import {
   makeCopyAction,
@@ -51,6 +52,7 @@ export const useEntityActionHotkeys = (
 
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
+  const view = useSoupView();
 
   const group = createHotkeyGroup();
 
@@ -146,7 +148,11 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.every(markDone.canExecute)) return false;
 
-      markDone.executeWithList(entities, list, openNextEntity);
+      markDone.executeWithList(entities, list, openNextEntity, {
+        collapseEntity: view.collapseEntity.shouldCollapse()
+          ? view.collapseEntity.callback()
+          : undefined,
+      });
       return true;
     },
     condition: () => {

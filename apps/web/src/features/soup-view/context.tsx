@@ -12,6 +12,7 @@ import { createSplitBreakpoints } from '@components/app/split-layout/create-spli
 import type { EntryState } from '@components/app/split-layout/layoutManager';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useUserId } from '@core/context/user';
+import { isModality } from '@core/mobile/inputModality';
 import { isMobile } from '@core/mobile/isMobile';
 import {
   makePersistedState,
@@ -126,6 +127,8 @@ export type SoupSearchControl = {
   focus: (selectAll?: boolean) => void;
 };
 
+export type SoupEntityCollapse = (entityId: string) => Promise<void>;
+
 export type SoupViewContextValue = {
   view: Accessor<ListView>;
   viewName: Accessor<string>;
@@ -163,6 +166,12 @@ export type SoupViewContextValue = {
   sortOpen: Accessor<boolean>;
   setSortOpen: Setter<boolean>;
   sortVisible: Accessor<boolean>;
+
+  collapseEntity: {
+    callback: Accessor<SoupEntityCollapse | undefined>;
+    set: Setter<SoupEntityCollapse | undefined>;
+    shouldCollapse: Accessor<boolean>;
+  };
 };
 
 const SoupViewContext = createContext<SoupViewContextValue>();
@@ -353,6 +362,16 @@ export function SoupViewProvider(
 
   const [sortOpen, setSortOpen] = createSignal(false);
 
+  const [collapseEntityCallback, setCollapseEntityCallback] = createSignal<
+    SoupEntityCollapse | undefined
+  >();
+  const shouldCollapseEntity = () =>
+    collapseEntityCallback() !== undefined &&
+    isModality('touch') &&
+    (collection.facets.has('focus', 'inbox') ||
+      collection.facets.has('focus', 'noise') ||
+      collection.facets.has('status', 'not-done'));
+
   const value = {
     view: () => props.view,
     viewName: () => props.viewName,
@@ -385,6 +404,12 @@ export function SoupViewProvider(
     sortOpen,
     setSortOpen,
     sortVisible: () => showSoupSort(props.view, isNewInbox()),
+
+    collapseEntity: {
+      callback: collapseEntityCallback,
+      set: setCollapseEntityCallback,
+      shouldCollapse: shouldCollapseEntity,
+    },
   } satisfies SoupViewContextValue;
 
   return (
