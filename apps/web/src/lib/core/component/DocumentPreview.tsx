@@ -1,15 +1,9 @@
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { URL_PARAMS as URL_PARAMS_CANVAS } from '@block-canvas/constants';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
-import { useOpenChatForAttachment } from '@block-chat/client';
 import { URL_PARAMS as URL_PARAMS_MD } from '@block-md/constants';
 import { URL_PARAMS as URL_PARAMS_PDF } from '@block-pdf/constants';
-import {
-  type BlockAlias,
-  type BlockName,
-  useMaybeBlockId,
-  useMaybeBlockName,
-} from '@core/block';
+import type { BlockAlias, BlockName } from '@core/block';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { isBlockNameWithLocation } from '@core/component/LexicalMarkdown/component/core/BlockLink';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -24,6 +18,7 @@ import MacroEmbed from '@icon/macro-embed.svg';
 import CollapseInlinePreview from '@phosphor/arrows-in-line-horizontal.svg';
 import OpenIcon from '@phosphor/arrows-out.svg';
 import ExpandInlinePreview from '@phosphor/arrows-out-line-horizontal.svg';
+import CaretRightIcon from '@phosphor/caret-right.svg';
 import MessageIcon from '@phosphor/chat-circle.svg';
 import ThreadIcon from '@phosphor/chats-circle.svg';
 import ClockIcon from '@phosphor/clock.svg';
@@ -32,19 +27,22 @@ import GitBranchIcon from '@phosphor/git-branch.svg';
 import HighlightIcon from '@phosphor/highlighter-circle.svg';
 import Link from '@phosphor/link.svg';
 import MapPinIcon from '@phosphor/map-pin-simple.svg';
-import SparkleIcon from '@phosphor/sparkle.svg';
 import LoadingSpinner from '@phosphor/spinner.svg';
 import TrashSimple from '@phosphor/trash-simple.svg';
 import { Property } from '@property';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useEntityProperties } from '@property/hooks';
+import { type ResolvedTag, useDocTags } from '@property/tags';
+import { TagDot, TagDotStack } from '@property/tags/TagDot';
 import { getEntityValues, hasValue } from '@property/utils';
 import {
+  type AccessiblePreviewItem,
   isAccessiblePreviewItem,
   isChannelPreviewItem,
   isPreviewItemNoAccess,
 } from '@queries/preview';
 import { useBinaryDocumentQuery } from '@queries/storage/binary-document';
+import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { blockNameToItemType } from '@service-storage/client';
 import { fetchBinary } from '@service-storage/util/fetchBinary';
 import { createCallback } from '@solid-primitives/rootless';
@@ -258,7 +256,7 @@ function MetadataInfo(props: {
         props.align === 'left' && 'truncate  '
       )}
     >
-      <span class="relative text-[0.8em] text-ink-muted max-w-full flex items-center">
+      <span class="relative text-xxs text-ink-extra-muted max-w-full flex items-center">
         <Dynamic component={props.icon} class="relative size-3 mx-1" />
         {props.children}
       </span>
@@ -379,7 +377,11 @@ const TASK_PREVIEW_PROPERTIES = [
   SYSTEM_PROPERTY_IDS.ASSIGNEES,
 ];
 
-export function TaskPropertiesPreview(props: { taskId: string }) {
+export function TaskPropertiesPreview(props: {
+  taskId: string;
+  after?: JSX.Element;
+  hasAfter?: () => boolean;
+}) {
   const { properties, isLoading } = useEntityProperties(
     props.taskId,
     'TASK',
@@ -394,11 +396,16 @@ export function TaskPropertiesPreview(props: { taskId: string }) {
   );
 
   return (
-    <Show when={!isLoading() && previewProperties().length > 0}>
+    <Show
+      when={props.hasAfter?.() || (!isLoading() && previewProperties().length)}
+    >
       <div class="px-2 pb-2 flex flex-row flex-wrap gap-1 text-xs justify-start">
-        <For each={previewProperties()}>
-          {(property) => <PreviewPropertyPill property={property} />}
-        </For>
+        <Show when={!isLoading()}>
+          <For each={previewProperties()}>
+            {(property) => <PreviewPropertyPill property={property} />}
+          </For>
+        </Show>
+        {props.after}
       </div>
     </Show>
   );
@@ -452,6 +459,123 @@ function PreviewPropertyPill(props: {
   );
 }
 
+const PREVIEW_TAG_EXPAND_THRESHOLD = 4;
+type PreviewDocTags = ReturnType<typeof useDocTags>;
+
+function previewTagEntity(
+  item: AccessiblePreviewItem,
+  blockType: BlockName | BlockAlias
+): { entityId: string; entityType: EntityType } | undefined {
+  if (blockType === 'task') {
+    return { entityId: item.id, entityType: EntityType.TASK };
+  }
+
+  switch (item.type) {
+    case 'call':
+      return { entityId: item.id, entityType: EntityType.CALL_RECORD };
+    case 'channel':
+      return { entityId: item.id, entityType: EntityType.CHANNEL };
+    case 'chat':
+      return { entityId: item.id, entityType: EntityType.CHAT };
+    case 'document':
+      return { entityId: item.id, entityType: EntityType.DOCUMENT };
+    case 'email':
+      return { entityId: item.id, entityType: EntityType.THREAD };
+    case 'project':
+      return { entityId: item.id, entityType: EntityType.PROJECT };
+    default:
+      return undefined;
+  }
+}
+
+function PreviewTagPill(props: { tag: ResolvedTag }) {
+  return (
+    <Layer depth={2}>
+      <span
+        class={cn(
+          'inline-flex items-center gap-1.5 min-w-0 max-w-[18ch]',
+          'px-2 py-1 leading-tight rounded-full bg-surface text-ink-muted text-xs',
+          'ring ring-edge-muted'
+        )}
+      >
+        <TagDot color={props.tag.color} class="size-2.5" />
+        <span class="min-w-0 truncate">{props.tag.label}</span>
+      </span>
+    </Layer>
+  );
+}
+
+function PreviewTags(props: { docTags: PreviewDocTags }) {
+  const [expanded, setExpanded] = createSignal(false);
+  const tags = () => props.docTags.appliedTags();
+  const tagColors = () => tags().map((tag) => tag.color);
+  const showExpandButton = () =>
+    tags().length > PREVIEW_TAG_EXPAND_THRESHOLD && !expanded();
+
+  return (
+    <Show
+      when={showExpandButton()}
+      fallback={
+        <For each={tags()}>{(tag) => <PreviewTagPill tag={tag} />}</For>
+      }
+    >
+      <Layer depth={2}>
+        <button
+          type="button"
+          class={cn(
+            'inline-flex items-center gap-1.5 min-w-0 ring ring-edge-muted',
+            'px-2 py-1 leading-tight text-left rounded-full bg-surface',
+            'text-ink-muted hover:bg-hover hover:text-ink'
+          )}
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpanded(true);
+          }}
+        >
+          <TagDotStack colors={tagColors()} />
+          <span>{tags().length} Tags</span>
+          <CaretRightIcon class="size-3 shrink-0" aria-hidden="true" />
+        </button>
+      </Layer>
+    </Show>
+  );
+}
+
+function PreviewTagsRow(props: { entityId: string; entityType: EntityType }) {
+  const docTags = useDocTags(props.entityId, props.entityType);
+  const tags = () => docTags.appliedTags();
+
+  return (
+    <Show when={tags().length > 0}>
+      <div
+        class="px-2 pb-2 flex flex-row flex-wrap gap-1 text-xs justify-start"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <PreviewTags docTags={docTags} />
+      </div>
+    </Show>
+  );
+}
+
+function TaskPreviewPills(props: {
+  taskId: string;
+  tagEntity: { entityId: string; entityType: EntityType };
+}) {
+  const docTags = useDocTags(
+    props.tagEntity.entityId,
+    props.tagEntity.entityType
+  );
+  const hasTags = () => docTags.appliedTags().length > 0;
+
+  return (
+    <TaskPropertiesPreview
+      taskId={props.taskId}
+      after={<PreviewTags docTags={docTags} />}
+      hasAfter={hasTags}
+    />
+  );
+}
+
 /**
  * Props for the reusable document-preview body. These are everything
  * {@link PopupPreview} needs EXCEPT the floating-hover-card concerns
@@ -499,9 +623,6 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
   // Hooks
   const navigate = useNavigate();
 
-  const blockName = useMaybeBlockName();
-  const blockId = useMaybeBlockId();
-
   const itemPreviewEntity = () => {
     const type = blockNameToItemType(props.documentInfo.type);
     let messageId: string | undefined;
@@ -525,22 +646,6 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
       return itemToBlockName(i);
     }
     return props.documentInfo.type;
-  });
-
-  // Derived state
-  const canOpenInChat = createCallback(() => {
-    if (blockName && ['chat'].includes(blockName)) {
-      return false;
-    }
-    const validChatInputTypes = [
-      'write',
-      'pdf',
-      'md',
-      'code',
-      'image',
-      'canvas',
-    ];
-    return validChatInputTypes.includes(props.documentInfo.type);
   });
 
   // Handle collapse toggle
@@ -570,16 +675,6 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
       params: props.documentInfo.params,
     });
   });
-
-  // H opening document in chat
-  const openChatForAttachment = useOpenChatForAttachment();
-  const handleOpenInChat = () => {
-    openChatForAttachment({
-      attachmentId: props.documentInfo.id,
-      callerBlock:
-        blockName && blockId ? { name: blockName, id: blockId } : undefined,
-    });
-  };
 
   const handleCopy = () => {
     try {
@@ -699,17 +794,6 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
       );
     }
 
-    // Open in AI chat button
-    if (canOpenInChat()) {
-      buttons.push(
-        <PopupIconButton
-          tooltip="Open Document in AI Chat"
-          onClick={handleOpenInChat}
-          icon={SparkleIcon}
-        />
-      );
-    }
-
     buttons.push(
       <PopupIconButton tooltip="Copy Link" onClick={handleCopy} icon={Link} />
     );
@@ -785,6 +869,8 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
             const item = accessibleItem();
             return isChannelPreviewItem(item) ? item.messageContext : undefined;
           };
+          const tagEntity = () =>
+            previewTagEntity(accessibleItem(), targetBlockType());
 
           return (
             <div class="w-full flex flex-col">
@@ -810,11 +896,31 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
                 {props.documentInfo.name || accessibleItem().name}
               </div>
 
-              {/* Task properties: status, priority, assignees */}
-              <Show when={props.documentInfo.type === 'task'}>
-                <Suspense fallback={<div class="w-full bg-active h-4 m-2" />}>
-                  <TaskPropertiesPreview taskId={props.documentInfo.id} />
-                </Suspense>
+              <Show when={tagEntity()}>
+                {(entity) => (
+                  <Suspense
+                    fallback={
+                      <Show when={targetBlockType() === 'task'}>
+                        <div class="w-full bg-active h-4 m-2" />
+                      </Show>
+                    }
+                  >
+                    <Show
+                      when={targetBlockType() === 'task'}
+                      fallback={
+                        <PreviewTagsRow
+                          entityId={entity().entityId}
+                          entityType={entity().entityType}
+                        />
+                      }
+                    >
+                      <TaskPreviewPills
+                        taskId={props.documentInfo.id}
+                        tagEntity={entity()}
+                      />
+                    </Show>
+                  </Suspense>
+                )}
               </Show>
 
               {/* Visual preview for images */}
@@ -868,9 +974,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
                         <Show when={accessibleItem().updatedAt}>
                           {(time) => (
                             <MetadataInfo icon={ClockIcon} align="right">
-                              <span class="text-xxs font-mono uppercase">
-                                {formatDate(time())}
-                              </span>
+                              {formatDate(time())}
                             </MetadataInfo>
                           )}
                         </Show>

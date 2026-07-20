@@ -5,7 +5,7 @@ import { EntityType } from '@service-properties/generated/schemas/entityType';
 import type { SoupProperty } from '@service-storage/generated/schemas/soupProperty';
 import { cn, HoverCard, Layer } from '@ui';
 import { createSignal, For, Match, Show, Switch } from 'solid-js';
-import { TagDot } from './TagDot';
+import { TagDot, TagDotStack } from './TagDot';
 import { TagPicker } from './TagPicker';
 import { type ResolvedTag, useDocTags, useSoupDocTags } from './useDocTags';
 
@@ -92,7 +92,7 @@ function TagOverflow(props: {
   onFilterByTag?: (id: string) => void;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
-  const dots = () => props.tags.slice(0, MAX_OVERFLOW_DOTS);
+  const colors = () => props.tags.map((tag) => tag.color);
   const count = () =>
     `+${props.tags.length} ${props.tags.length === 1 ? 'tag' : 'tags'}`;
 
@@ -117,16 +117,11 @@ function TagOverflow(props: {
           triggerLabel="Edit tags"
           onOpenChange={setPickerOpen}
         >
-          <span class="flex items-center">
-            <For each={dots()}>
-              {(tag, index) => (
-                <TagDot
-                  color={tag.color}
-                  class={cn('size-2 ring ring-surface', index() > 0 && '-ml-1')}
-                />
-              )}
-            </For>
-          </span>
+          <TagDotStack
+            colors={colors()}
+            max={MAX_OVERFLOW_DOTS}
+            dotClass="size-2 ring ring-surface"
+          />
           <span>{count()}</span>
         </TagPicker>
       </HoverCard>
@@ -192,7 +187,7 @@ export function InlineTagsPill(props: {
 }) {
   const tags = () => props.docTags.appliedTags();
   const first = () => tags()[0];
-  const dots = () => tags().slice(0, MAX_OVERFLOW_DOTS);
+  const colors = () => tags().map((tag) => tag.color);
   const label = () =>
     `${tags().length} ${tags().length === 1 ? 'Tag' : 'Tags'}`;
 
@@ -230,19 +225,7 @@ export function InlineTagsPill(props: {
               )}
             </Match>
             <Match when={tags().length > 1}>
-              <span class="flex items-center">
-                <For each={dots()}>
-                  {(tag, index) => (
-                    <TagDot
-                      color={tag.color}
-                      class={cn(
-                        'size-2.5 ring-2 ring-surface',
-                        index() > 0 && '-ml-1'
-                      )}
-                    />
-                  )}
-                </For>
-              </span>
+              <TagDotStack colors={colors()} max={MAX_OVERFLOW_DOTS} />
               <span class="min-w-0 truncate @max-2xl/u-list:hidden">
                 {label()}
               </span>
