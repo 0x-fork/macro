@@ -194,6 +194,10 @@ pub struct DssEntityMutationService<D, H, C, K, E, P, A, F, L> {
 
 impl<D, H, C, K, E, P, A, F, L> DssEntityMutationService<D, H, C, K, E, P, A, F, L> {
     /// Compose the unified mutation router from domain services.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "composition root wiring: one dependency per domain"
+    )]
     pub fn new(
         documents: Arc<D>,
         chats: Arc<H>,
