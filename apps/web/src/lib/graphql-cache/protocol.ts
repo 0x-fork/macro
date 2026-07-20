@@ -71,8 +71,7 @@ export type OptimisticLinkPatchWire = {
   path: EmbeddedLinkPathSegment[];
   operation:
     | { kind: 'remove'; entityKey: string }
-    | { kind: 'prependUnique'; entityKey: string }
-;
+    | { kind: 'prependUnique'; entityKey: string };
 };
 
 export type CachedQueryInstanceWire = {
