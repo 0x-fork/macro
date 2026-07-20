@@ -1,0 +1,41 @@
+import {
+  isShareableEntityType,
+  openGlobalShareModal,
+  type ShareableEntityData,
+} from '@app/features/sharing/global-share-modal/GlobalShareModal';
+import type { EntityData } from '@entity';
+import type { SoupActionListState } from './list-action-state';
+
+export const makeShareAction = () => {
+  /**
+   * Check if the share action can be executed
+   * Only requires shareable type - the modal handles permissions
+   */
+  const canExecute = (entity: EntityData): boolean => {
+    return isShareableEntityType(entity.type);
+  };
+
+  const execute = async (entity: EntityData) => {
+    if (!isShareableEntityType(entity.type)) {
+      return;
+    }
+
+    openGlobalShareModal({
+      // TODO: use type guard on entity data, not the type
+      entity: entity as ShareableEntityData,
+    });
+  };
+
+  const executeWithList = async (
+    entities: EntityData[],
+    _list: SoupActionListState
+  ) => {
+    const entity = entities[0];
+    if (!entity) return;
+
+    await execute(entity);
+    // Don't clear selection or change focus for share
+  };
+
+  return { canExecute, execute, executeWithList };
+};

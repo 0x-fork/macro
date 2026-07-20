@@ -15,7 +15,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { EntityData } from '@entity';
 import { type Accessor, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
-import { useSoupEntityActions } from './actions/use-soup-entity-actions';
+import { useEntityActionHotkeys } from './actions/use-entity-action-hotkeys';
 import { useSoupView } from './context';
 import { replaceSoupNavigationSession } from './navigation-session';
 
@@ -51,24 +51,22 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   const panel = useSplitPanelOrThrow();
   const collection = useSoupCollection();
   const view = useSoupView();
-  const entityActions = useSoupEntityActions();
   const { dataSource, state: listState } = useList<SoupItem>();
   const enabled = () => options.enabled?.() ?? true;
+
+  useEntityActionHotkeys({
+    scopeId: options.listScopeId,
+    list: listState,
+    activeListView: view.view,
+    activeSoupViewTab: () => collection.state.activeTab,
+    splitHandle: panel.handle,
+    condition: enabled,
+  });
   const registerHotkey = (hotkey: Parameters<typeof registerBaseHotkey>[0]) =>
     registerBaseHotkey({
       ...hotkey,
       condition: () => enabled() && (hotkey.condition?.() ?? true),
     });
-  const actionEntities = () => {
-    const selected = listState.selection
-      .selected()
-      .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []));
-    if (selected.length > 0) return selected;
-    const focused = entityFromItem(listState.focus.item());
-    return focused ? [focused] : [];
-  };
-  const actions = () => entityActions.build(actionEntities());
-
   const scrollTo = (index: number) =>
     options.virtualizer()?.scrollToIndex(index, { align: 'nearest' });
 
@@ -521,67 +519,6 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
       return true;
     },
     hide: true,
-  }).withGroup(hotkeys);
-
-  const runAction = (id: string) => {
-    const action = actions().find((candidate) => candidate.id === id);
-    if (!action) return false;
-    void action.run();
-    return true;
-  };
-  const hasAction = (id: string) =>
-    canNavigate() && actions().some((candidate) => candidate.id === id);
-
-  registerHotkey({
-    hotkey: 'e',
-    hotkeyToken: TOKENS.entity.action.markDone,
-    scopeId: options.listScopeId,
-    description: 'Mark done',
-    condition: () => hasAction('mark-done'),
-    keyDownHandler: () => runAction('mark-done'),
-  }).withGroup(hotkeys);
-
-  registerHotkey({
-    hotkey: 'r',
-    hotkeyToken: TOKENS.entity.action.rename,
-    scopeId: options.listScopeId,
-    description: 'Rename',
-    condition: () => hasAction('rename'),
-    keyDownHandler: () => runAction('rename'),
-  }).withGroup(hotkeys);
-
-  registerHotkey({
-    hotkeyToken: TOKENS.entity.action.properties,
-    scopeId: options.listScopeId,
-    description: 'Edit properties',
-    condition: () => hasAction('properties'),
-    keyDownHandler: () => runAction('properties'),
-  }).withGroup(hotkeys);
-
-  registerHotkey({
-    hotkey: ['delete', 'backspace'],
-    hotkeyToken: TOKENS.entity.action.delete,
-    scopeId: options.listScopeId,
-    description: 'Delete',
-    condition: () => hasAction('delete'),
-    keyDownHandler: () => runAction('delete'),
-  }).withGroup(hotkeys);
-
-  registerHotkey({
-    hotkey: 'opt+f',
-    hotkeyToken: TOKENS.entity.action.favorite,
-    scopeId: options.listScopeId,
-    description: 'Toggle favorite',
-    condition: () => hasAction('favorite'),
-    keyDownHandler: () => runAction('favorite'),
-  }).withGroup(hotkeys);
-
-  registerHotkey({
-    hotkeyToken: TOKENS.entity.action.copyEntityId,
-    scopeId: options.listScopeId,
-    description: 'Copy ID',
-    condition: () => hasAction('copy-id'),
-    keyDownHandler: () => runAction('copy-id'),
   }).withGroup(hotkeys);
 
   registerHotkey({

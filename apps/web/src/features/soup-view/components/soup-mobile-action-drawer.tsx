@@ -14,7 +14,7 @@ import {
   useContext,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { useSoupEntityActions } from '../actions/use-soup-entity-actions';
+import { createSoupEntityActions } from '../actions/create-soup-entity-actions';
 
 type SoupMobileActionDrawerState = {
   open: (source: EntityData, targets: readonly EntityData[]) => void;
@@ -33,8 +33,8 @@ function SoupMobileActionDrawer(props: {
   targets: Accessor<readonly EntityData[]>;
   close: () => void;
 }) {
-  const entityActions = useSoupEntityActions();
-  const actions = () => entityActions.build(props.targets());
+  const entityActions = createSoupEntityActions();
+  const actionGroups = () => entityActions.buildActionGroups(props.targets());
 
   return (
     <MobileDrawer
@@ -63,34 +63,43 @@ function SoupMobileActionDrawer(props: {
               </div>
             )}
           </Show>
-          <MobileDrawer.Section class="flex shrink-0 flex-col">
-            <For each={actions()}>
-              {(action) => (
-                <button
-                  type="button"
-                  class={cn(
-                    'flex items-center gap-3 bg-surface px-4 py-3 text-left text-sm not-last:mb-px hover:bg-hover hover-transition-bg',
-                    action.destructive ? 'text-failure-ink' : 'text-ink'
+          <For each={actionGroups()}>
+            {(group) => (
+              <MobileDrawer.Section class="flex shrink-0 flex-col">
+                <For each={group.items}>
+                  {(action) => (
+                    <button
+                      type="button"
+                      class={cn(
+                        'flex items-center gap-3 bg-surface px-4 py-3 text-left text-sm not-last:mb-px hover:bg-hover hover-transition-bg',
+                        action.destructive ? 'text-failure-ink' : 'text-ink'
+                      )}
+                      onClick={async () => {
+                        try {
+                          await action.onClick();
+                        } finally {
+                          props.close();
+                        }
+                      }}
+                    >
+                      <Dynamic
+                        component={action.icon}
+                        class="size-4 shrink-0"
+                      />
+                      <span>{action.label}</span>
+                    </button>
                   )}
-                  onClick={async () => {
-                    try {
-                      await action.run();
-                    } finally {
-                      props.close();
-                    }
-                  }}
-                >
-                  <Dynamic component={action.icon} class="size-4 shrink-0" />
-                  <span>{action.label}</span>
-                </button>
-              )}
-            </For>
-            <Show when={actions().length === 0}>
+                </For>
+              </MobileDrawer.Section>
+            )}
+          </For>
+          <Show when={actionGroups().length === 0}>
+            <MobileDrawer.Section>
               <div class="px-4 py-3 text-sm text-ink-extra-muted">
                 No actions available
               </div>
-            </Show>
-          </MobileDrawer.Section>
+            </MobileDrawer.Section>
+          </Show>
         </MobileDrawer.Content>
       </MobileDrawer.Portal>
     </MobileDrawer>

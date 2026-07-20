@@ -1,4 +1,9 @@
-import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
+import { useRowTagsVisible } from '@app/features/next-soup/soup-view/filters-bar/search/search-tags-flag';
+import {
+  ContextMenuContent,
+  MenuItem,
+  MenuSeparator,
+} from '@core/component/ContextMenu';
 import { isMobile } from '@core/mobile/isMobile';
 import type { EntityData } from '@entity';
 import { ContextMenu } from '@kobalte/core/context-menu';
@@ -12,8 +17,8 @@ import {
   For,
   Show,
 } from 'solid-js';
+import { createSoupEntityActions } from '../actions/create-soup-entity-actions';
 import { actionTargets } from '../actions/soup-entity-action-model';
-import { useSoupEntityActions } from '../actions/use-soup-entity-actions';
 
 const tagEntityType = (entity: EntityData): EntityType | undefined => {
   if (entity.type === 'document') {
@@ -54,7 +59,8 @@ export const SoupEntityContextMenu: FlowComponent<{
   isSelected: Accessor<boolean>;
   onOpen: () => void;
 }> = (props) => {
-  const entityActions = useSoupEntityActions();
+  const entityActions = createSoupEntityActions();
+  const rowTagsVisible = useRowTagsVisible();
   const [tagPickerOpen, setTagPickerOpen] = createSignal(false);
   const [menuPosition, setMenuPosition] = createSignal<{
     x: number;
@@ -66,11 +72,12 @@ export const SoupEntityContextMenu: FlowComponent<{
       selected: props.selectedEntities(),
       entityIsSelected: props.isSelected(),
     });
-  const actions = () =>
-    entityActions.build(targets(), {
-      editTags: tagEntityType(props.entity)
-        ? () => setTimeout(() => setTagPickerOpen(true), 0)
-        : undefined,
+  const actionGroups = () =>
+    entityActions.buildActionGroups(targets(), {
+      editTags:
+        rowTagsVisible() && tagEntityType(props.entity)
+          ? () => setTimeout(() => setTagPickerOpen(true), 0)
+          : undefined,
     });
   if (isMobile()) return <div class="size-full">{props.children}</div>;
   return (
@@ -86,17 +93,30 @@ export const SoupEntityContextMenu: FlowComponent<{
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
           <ContextMenuContent class="text-xs text-ink-muted">
-            <For each={actions()}>
-              {(action) => (
-                <MenuItem
-                  text={action.label}
-                  icon={action.icon}
-                  onClick={() => void action.run()}
-                  class={action.destructive ? 'text-failure-ink' : undefined}
-                />
+            <For each={actionGroups()}>
+              {(group, groupIndex) => (
+                <>
+                  <Show when={groupIndex() > 0}>
+                    <MenuSeparator />
+                  </Show>
+                  <For each={group.items}>
+                    {(action) => (
+                      <MenuItem
+                        text={action.label}
+                        icon={action.icon}
+                        hotkeyToken={action.hotkeyToken}
+                        shortcut={action.shortcut}
+                        onClick={() => void action.onClick()}
+                        class={
+                          action.destructive ? 'text-failure-ink' : undefined
+                        }
+                      />
+                    )}
+                  </For>
+                </>
               )}
             </For>
-            <Show when={actions().length === 0}>
+            <Show when={actionGroups().length === 0}>
               <div class="px-2 py-1.5 text-ink-extra-muted">
                 No actions available
               </div>

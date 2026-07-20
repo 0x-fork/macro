@@ -10,10 +10,14 @@ import {
   type SoupItem,
   useSoupCollection,
 } from '@app/features/soup-list';
-import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
+import {
+  useGlobalBlockOrchestrator,
+  useGlobalNotificationSource,
+} from '@components/app/GlobalAppState';
 import { SwipableRowProvider } from '@components/app/mobile/SwipableRow';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { useUserId } from '@core/context/user';
 import {
   type EntityData,
   isSearchEntity,
@@ -38,13 +42,17 @@ import {
 } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
-import { useSoupEntityActions } from '../actions/use-soup-entity-actions';
+import {
+  canExecuteMarkDoneOnView,
+  makeMarkDoneAction,
+} from '../actions/make-mark-done-action';
 import { SoupGroupHeader } from '../components/soup-group-header';
 import { SoupListHeader } from '../components/soup-list-headers';
 import { SoupMobileActionDrawerManager } from '../components/soup-mobile-action-drawer';
 import { useSoupView } from '../context';
 import { useSoupViewEntryState } from '../use-soup-view-entry-state';
 import { useSoupViewHotkeys } from '../use-soup-view-hotkeys';
+import { useIsNewInbox } from '../utils';
 
 const DEFAULT_OVERSCAN = 5;
 
@@ -87,7 +95,13 @@ export function SoupEntityList(props: SoupEntityListProps) {
   const collection = useSoupCollection();
   const view = useSoupView();
   const { dataSource, state: listState } = useList<SoupItem>();
-  const entityActions = useSoupEntityActions();
+  const userId = useUserId();
+  const notificationSource = useGlobalNotificationSource();
+  const markDone = makeMarkDoneAction({
+    userId,
+    notificationSource: () => notificationSource,
+    isNewInbox: useIsNewInbox(),
+  });
   const active = () => props.active?.() ?? true;
   const autoFocusFirstEntity = () =>
     typeof props.autoFocusFirstEntity === 'function'
@@ -213,12 +227,18 @@ export function SoupEntityList(props: SoupEntityListProps) {
         (item) =>
           item.kind === 'entity' && (item.id === id || item.entity.id === id)
       );
-  const markDoneAction = (id: string) => {
+  const canMarkDone = (id: string) => {
     const item = swipeEntity(id);
-    if (!item || item.kind !== 'entity') return;
-    return entityActions
-      .build([item.entity])
-      .find((action) => action.id === 'mark-done');
+    return (
+      item?.kind === 'entity' &&
+      canExecuteMarkDoneOnView(props.view, collection.state.activeTab ?? '') &&
+      markDone.canExecute(item.entity)
+    );
+  };
+  const executeMarkDone = (id: string) => {
+    const item = swipeEntity(id);
+    if (item?.kind !== 'entity') return;
+    void markDone.executeWithList([item.entity], listState);
   };
 
   return (
@@ -228,8 +248,8 @@ export function SoupEntityList(props: SoupEntityListProps) {
           <ListLayoutProvider ref={viewport}>
             <SwipableRowProvider
               container={viewport}
-              canSwipeLeft={(id) => markDoneAction(id) !== undefined}
-              onSwipeLeft={(id) => void markDoneAction(id)?.run()}
+              canSwipeLeft={canMarkDone}
+              onSwipeLeft={executeMarkDone}
             >
               <div class="@container/u-list unified-list-root no-select-children relative flex size-full min-h-0 min-w-0 flex-col">
                 <SoupListHeader />

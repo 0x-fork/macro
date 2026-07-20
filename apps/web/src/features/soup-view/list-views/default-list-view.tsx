@@ -183,6 +183,7 @@ export function DefaultListViewContent() {
                   <Show when={selectedEntities().length > 0}>
                     <SoupSelectionToolbar
                       selected={selectedEntities()}
+                      onClose={listState.selection.clear}
                       onClear={() => {
                         listState.selection.clear();
                         root()?.focus();
