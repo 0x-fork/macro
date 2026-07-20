@@ -79,12 +79,14 @@ export function useSoupBrowseRequest(options: {
   const soupBody = createMemo(
     (): SoupAstBody => ({
       ...controls.facets.compile(facetContext()),
-      ...(controls.emailView() ? { emailView: controls.emailView() } : {}),
+      ...(controls.state.emailView
+        ? { emailView: controls.state.emailView }
+        : {}),
     })
   );
 
   const soupParams = createMemo((): ApiSoupParams => {
-    const requested = controls.sort()[0]?.id ?? 'updated_at';
+    const requested = controls.state.sort[0]?.id ?? 'updated_at';
     return {
       limit: 100,
       sort_method: API_SORTS.has(requested as ApiSortMethod)

@@ -47,7 +47,7 @@ export function SoupSearchbar(props: SoupSearchbarProps) {
   const initialEditorValue =
     typeof persistedSearchText === 'string'
       ? persistedSearchText
-      : collection.search() || props.initialValue;
+      : collection.state.search || props.initialValue;
   const [hasContent, setHasContent] = createSignal(
     Boolean(initialEditorValue?.trim())
   );
@@ -95,24 +95,27 @@ export function SoupSearchbar(props: SoupSearchbarProps) {
 
   const menuIsOpen = () => editor.controls.isInlineMenuOpen();
 
-  createEffect(() => collection.setSearchPaused(menuIsOpen()));
+  createEffect(() => collection.setState('searchPaused', menuIsOpen()));
   createEffect(
     on(latestMarkdown, (markdown) => {
       if (menuIsOpen()) return;
-      collection.setSearch(markdownToPlainText(markdown).trim());
+      collection.setState('search', markdownToPlainText(markdown).trim());
     })
   );
 
   // External Search navigation writes plain text into the collection. Keep the
   // editor synchronized without replacing mention markdown during local edits.
   createEffect(
-    on(collection.search, (search) => {
-      const current = markdownToPlainText(latestMarkdown()).trim();
-      if (search === current) return;
-      editor.controls.setMarkdown(search);
-      setLatestMarkdown(search);
-      setHasContent(search.trim().length > 0);
-    })
+    on(
+      () => collection.state.search,
+      (search) => {
+        const current = markdownToPlainText(latestMarkdown()).trim();
+        if (search === current) return;
+        editor.controls.setMarkdown(search);
+        setLatestMarkdown(search);
+        setHasContent(search.trim().length > 0);
+      }
+    )
   );
 
   const searchControl = {
@@ -126,7 +129,7 @@ export function SoupSearchbar(props: SoupSearchbarProps) {
 
   onMount(() => view.setSearchControl(searchControl));
   onCleanup(() => {
-    collection.setSearchPaused(false);
+    collection.setState('searchPaused', false);
     if (view.searchControl() === searchControl)
       view.setSearchControl(undefined);
   });
@@ -175,7 +178,7 @@ export function SoupSearchbar(props: SoupSearchbarProps) {
               event.preventDefault();
               event.stopPropagation();
               editor.controls.clear();
-              collection.setSearch('');
+              collection.setState('search', '');
               setHasContent(false);
               props.onDismiss?.();
             }}

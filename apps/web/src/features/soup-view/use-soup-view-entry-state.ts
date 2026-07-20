@@ -1,11 +1,7 @@
 import { useList } from '@app/components/list';
-import {
-  type SoupCollectionSort,
-  type SoupItem,
-  useSoupCollection,
-} from '@app/features/soup-list';
+import type { SoupItem } from '@app/features/soup-list';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
-import { batch, onCleanup } from 'solid-js';
+import { onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
 import { useSoupView } from './context';
@@ -22,13 +18,11 @@ export type SoupListEntryState = {
 
 type UseSoupViewEntryStateOptions = {
   virtualizer: () => VirtualizerHandle | undefined;
-  restoreCollection?: boolean;
 };
 
-/** Restores and captures all split-entry-owned Soup view state. */
+/** Restores and captures runtime state that requires mounted list/view handles. */
 export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
   const panel = useSplitPanelOrThrow();
-  const collection = useSoupCollection();
   const view = useSoupView();
   const { state: listState } = useList<SoupItem>();
   const entryState = panel.handle.currentEntryState();
@@ -36,74 +30,15 @@ export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
     | SoupListEntryState
     | undefined;
 
-  if (options.restoreCollection ?? true) {
-    batch(() => {
-      const facets = entryState?.['search.facets'];
-      if (facets && typeof facets === 'object') {
-        collection.facets.hydrate(collection.facets.deserialize(facets));
-      }
-
-      const search = entryState?.['search.text'];
-      if (typeof search === 'string') collection.setSearch(search);
-
-      const sort = entryState?.['soup.sort'];
-      if (Array.isArray(sort)) {
-        collection.setSort(
-          sort.filter(
-            (item): item is SoupCollectionSort =>
-              typeof item === 'object' &&
-              item !== null &&
-              'id' in item &&
-              typeof item.id === 'string' &&
-              'reversed' in item &&
-              typeof item.reversed === 'boolean'
-          )
-        );
-      }
-
-      const groupBy = entryState?.['soup.groupBy'];
-      if (typeof groupBy === 'string' || groupBy === null) {
-        collection.setGroupBy(groupBy ?? undefined);
-      }
-
-      const collapsed = entryState?.['soup.collapsedGroups'];
-      if (Array.isArray(collapsed)) {
-        collection.disclosure.collapseAll(collapsed);
-      }
-
-      const activeTab = entryState?.['soup.tab'];
-      if (typeof activeTab === 'string') {
-        collection.setActiveTab(activeTab);
-      }
-
-      const viewMode = entryState?.['soup.viewMode'];
-      if (viewMode === 'list' || viewMode === 'board') {
-        view.setViewMode(viewMode);
-      }
-    });
-  }
-
   const previewEntity = entryState?.[SOUP_PREVIEW_ENTITY_ENTRY_KEY];
   const persistedPreviewEntity =
     typeof previewEntity === 'string' ? previewEntity : undefined;
+  const viewMode = entryState?.['soup.viewMode'];
+  if (viewMode === 'list' || viewMode === 'board') {
+    view.setViewMode(viewMode);
+  }
 
   const captorTeardowns = [
-    panel.handle.registerEntryStateCaptor(
-      'search.facets',
-      collection.facets.serialize
-    ),
-    panel.handle.registerEntryStateCaptor('search.text', collection.search),
-    panel.handle.registerEntryStateCaptor('soup.sort', () =>
-      collection.sort().map((item) => ({ ...item }))
-    ),
-    panel.handle.registerEntryStateCaptor(
-      'soup.groupBy',
-      () => collection.groupBy() ?? null
-    ),
-    panel.handle.registerEntryStateCaptor('soup.collapsedGroups', () => [
-      ...collection.disclosure.toggledIds(),
-    ]),
-    panel.handle.registerEntryStateCaptor('soup.tab', collection.activeTab),
     panel.handle.registerEntryStateCaptor('soup.viewMode', view.viewMode),
     panel.handle.registerEntryStateCaptor(
       SOUP_PREVIEW_ENTITY_ENTRY_KEY,

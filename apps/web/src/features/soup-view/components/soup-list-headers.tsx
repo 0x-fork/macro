@@ -34,9 +34,9 @@ const TASK_SORTS: Partial<Record<string, SystemSortOption>> = {
 
 function useHeaderSort() {
   const collection = useSoupCollection();
-  const active = () => collection.sort()[0];
+  const active = () => collection.state.sort[0];
   const toggle = (id: SystemSortOption) => {
-    collection.setSort([nextHeaderSort(active(), id)]);
+    collection.setState('sort', [nextHeaderSort(active(), id)]);
   };
   return { active, toggle };
 }

@@ -29,9 +29,10 @@ export function createSoupCollection(
   const state: SoupCollectionState = createSoupCollectionState({
     facets: options.facets ?? ALL_FACETS,
     sortConfigs: options.sortConfigs ?? SORT_CONFIGS,
+    persistence: options.persistence,
     initialState: {
       ...options.initialState,
-      sortIds: options.initialState?.sortIds ?? ['updated_at'],
+      sort: options.initialState?.sort ?? ['updated_at'],
     },
   });
   const source = createSoupDataSource({

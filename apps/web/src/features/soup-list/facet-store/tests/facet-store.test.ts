@@ -1,9 +1,50 @@
 import { createRoot, createSignal } from 'solid-js';
+import { createStore, produce, reconcile } from 'solid-js/store';
 import { describe, expect, it } from 'vitest';
 import { and, type BackendAstMap, eq, not } from '../clause';
-import { mergeAst } from '../compile';
-import { createFacetStore, deserializeFacets, serializeFacets } from '../store';
-import type { Facet } from '../types';
+import { compileFacets, mergeAst } from '../compile';
+import { deserializeFacets, serializeFacets } from '../helpers';
+import type { Facet, FacetSelection } from '../types';
+
+const createFacetHarness = <Ctx = unknown>(
+  facets: readonly Facet<Ctx>[],
+  options: { initialSelection?: FacetSelection } = {}
+) => {
+  const [selection, setSelection] = createStore<FacetSelection>({
+    ...(options.initialSelection ?? {}),
+  });
+
+  return {
+    selection,
+    has: (facetId: string, optionId: string) =>
+      (selection[facetId] ?? []).includes(optionId),
+    getSelected: (facetId: string) => selection[facetId] ?? [],
+    toggle: (facetId: string, optionId: string) => {
+      setSelection(
+        produce((draft) => {
+          const active = draft[facetId] ?? [];
+          draft[facetId] = active.includes(optionId)
+            ? active.filter((id) => id !== optionId)
+            : [...active, optionId];
+        })
+      );
+    },
+    set: (facetId: string, optionIds: readonly string[]) => {
+      setSelection(facetId, [...optionIds]);
+    },
+    clear: (facetId?: string) => {
+      if (facetId) {
+        setSelection(facetId, []);
+        return;
+      }
+      setSelection(reconcile({}));
+    },
+    hydrate: (next: FacetSelection) => {
+      setSelection(reconcile({ ...next }));
+    },
+    compile: (ctx: Ctx = {} as Ctx) => compileFacets(selection, facets, ctx),
+  };
+};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -180,7 +221,7 @@ const TASK_PRIORITY: Facet = {
 describe('compilation algebra', () => {
   it('OR facet unions same- and different-field options', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([DOC_TYPE]);
+      const s = createFacetHarness([DOC_TYPE]);
       s.toggle('doc_type', 'markdown');
       s.toggle('doc_type', 'canvas');
       s.toggle('doc_type', 'code');
@@ -195,7 +236,7 @@ describe('compilation algebra', () => {
 
   it('ANDs facets within a target; cross-target selections are independent', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([DOC_TYPE, OWNERSHIP_STATIC, MAIL_STATUS]);
+      const s = createFacetHarness([DOC_TYPE, OWNERSHIP_STATIC, MAIL_STATUS]);
       s.toggle('doc_type', 'canvas');
       s.toggle('ownership', 'owned');
       s.toggle('mail_status', 'unread');
@@ -212,7 +253,7 @@ describe('compilation algebra', () => {
 
   it('OR-within-facet subsumes cancellation: both polarities selected → no collapse', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([OWNERSHIP_STATIC, MAIL_STATUS]);
+      const s = createFacetHarness([OWNERSHIP_STATIC, MAIL_STATUS]);
       s.toggle('ownership', 'owned');
       s.toggle('ownership', 'shared');
       s.toggle('mail_status', 'read');
@@ -229,7 +270,7 @@ describe('compilation algebra', () => {
 
   it('maps channel thread root sender to the backend RootSender field', () => {
     createRoot((dispose) => {
-      const store = createFacetStore([
+      const store = createFacetHarness([
         {
           id: 'thread_sender',
           mode: 'or',
@@ -250,7 +291,7 @@ describe('compilation algebra', () => {
 
   it('exact compiled shape: (s1 | s2) & p1 across property facets', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([TASK_STATUS, TASK_PRIORITY]);
+      const s = createFacetHarness([TASK_STATUS, TASK_PRIORITY]);
       s.toggle('task_status', 'not-started');
       s.toggle('task_status', 'in-progress');
       s.toggle('task_priority', 'urgent');
@@ -275,7 +316,7 @@ describe('compilation algebra', () => {
 describe('restrict mode', () => {
   it('admitted types pass through; all other entity targets receive NIL', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([INBOX_TYPE]);
+      const s = createFacetHarness([INBOX_TYPE]);
       s.toggle('inbox_type', 'docs');
       s.toggle('inbox_type', 'mail');
       const ast = s.compile();
@@ -303,7 +344,7 @@ describe('restrict mode', () => {
         restrict: true,
         options: [{ id: 'mail', clause: { ef: eq('threadId', 'e1') } }],
       };
-      const store = createFacetStore([documentsOnly, mailOnly], {
+      const store = createFacetHarness([documentsOnly, mailOnly], {
         initialSelection: {
           documents_only: ['documents'],
           mail_only: ['mail'],
@@ -318,7 +359,7 @@ describe('restrict mode', () => {
 
   it('confinement overrides a clause on a disallowed target', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([INBOX_TYPE, OWNERSHIP_STATIC]);
+      const s = createFacetHarness([INBOX_TYPE, OWNERSHIP_STATIC]);
       s.toggle('inbox_type', 'docs'); // restrict to df
       s.toggle('ownership', 'owned'); // adds to df (allowed) and would add to cf (not registered here)
       const ast = s.compile();
@@ -334,7 +375,7 @@ describe('restrict mode', () => {
 describe('resolver facets', () => {
   it('dynamic entity ids OR within the facet; clause-less option emits nothing', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([ASSIGNEE]);
+      const s = createFacetHarness([ASSIGNEE]);
       s.toggle('assignee', 'no-assignee');
       expect(s.has('assignee', 'no-assignee')).toBe(true);
       expect(s.compile()).toEqual({});
@@ -359,7 +400,7 @@ describe('ctx-relative values', () => {
   it('owner resolves from ctx at compile; selection stores intent only', () => {
     createRoot((dispose) => {
       const [userId, setUserId] = createSignal('alice');
-      const s = createFacetStore([OWNERSHIP_CTX]);
+      const s = createFacetHarness([OWNERSHIP_CTX]);
 
       s.toggle('ownership', 'owned');
       expect(signedLits(s.compile({ userId: userId() }).df)).toEqual([
@@ -412,7 +453,7 @@ const TAG: Facet = {
 describe('tag facet', () => {
   it('ORs tags across definitions and ANDs with status; pd from ctx', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([TASK_STATUS, TAG]);
+      const s = createFacetHarness([TASK_STATUS, TAG]);
       s.toggle('task_status', 'not-started');
       s.toggle('tag', 'ta'); // owned by def A
       s.toggle('tag', 'tb'); // owned by def B
@@ -439,7 +480,7 @@ describe('tag facet', () => {
 
   it('ANDs tags when context selects all mode', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([TAG]);
+      const s = createFacetHarness([TAG]);
       s.set('tag', ['ta', 'tb']);
       const tagDefs = new Map([
         ['ta', TAG_A_DEF],
@@ -458,7 +499,7 @@ describe('tag facet', () => {
 
   it('unloaded tag (no ctx definition) compiles to no clause', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([TAG]);
+      const s = createFacetHarness([TAG]);
       s.toggle('tag', 'ta');
       expect(s.compile({ tagDefs: new Map() })).toEqual({});
       dispose();
@@ -471,7 +512,7 @@ describe('tag facet', () => {
 describe('store lifecycle', () => {
   it('toggle / has / getSelected / clear / set; unknown ids are inert', () => {
     createRoot((dispose) => {
-      const s = createFacetStore([DOC_TYPE]);
+      const s = createFacetHarness([DOC_TYPE]);
 
       s.toggle('doc_type', 'canvas');
       expect(s.has('doc_type', 'canvas')).toBe(true);
@@ -501,13 +542,16 @@ describe('store lifecycle', () => {
 describe('persistence', () => {
   const FACETS = [DOC_TYPE, OWNERSHIP_STATIC, MAIL_STATUS];
 
-  it('deserialize drops unknown facets; keeps option ids verbatim (inert at compile)', () => {
+  it('deserializes selection without requiring loaded definitions', () => {
     expect(
-      deserializeFacets(
-        { doc_type: ['canvas', 'gone'], gone_facet: ['x'] },
-        FACETS
-      )
-    ).toEqual({ doc_type: ['canvas', 'gone'] });
+      deserializeFacets({
+        doc_type: ['canvas', 'gone'],
+        gone_facet: ['x'],
+      })
+    ).toEqual({
+      doc_type: ['canvas', 'gone'],
+      gone_facet: ['x'],
+    });
   });
 
   it('round-trips through serialize → hydrate → compile', () => {
@@ -515,13 +559,13 @@ describe('persistence', () => {
     let restored: BackendAstMap = {};
 
     createRoot((dispose) => {
-      const s = createFacetStore(FACETS);
+      const s = createFacetHarness(FACETS);
       s.toggle('doc_type', 'markdown');
       s.toggle('ownership', 'owned');
       direct = s.compile();
 
       const blob = JSON.parse(JSON.stringify(serializeFacets(s.selection)));
-      const loaded = deserializeFacets(blob, FACETS);
+      const loaded = deserializeFacets(blob);
       s.hydrate(loaded);
       restored = s.compile();
       dispose();
@@ -548,7 +592,7 @@ describe('presets', () => {
 
   it('switching tabs swaps baseline only; user filters persist unchanged', () => {
     createRoot((dispose) => {
-      const user = createFacetStore([TYPE_FACET]);
+      const user = createFacetHarness([TYPE_FACET]);
       user.toggle('type', 'canvas');
 
       const signal = mergeAst(baseline('signal'), user.compile());

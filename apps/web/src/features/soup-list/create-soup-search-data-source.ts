@@ -31,9 +31,17 @@ export function createSoupSearchDataSource<TEntity extends EntityData>(
     facets: options.controls.facets,
     facetContext: options.facetContext,
     disableLocalSearch: options.disableLocalSearch,
-    searchPaused: () => options.controls.searchPaused() || !options.enabled(),
-    searchText: options.controls.search,
-    setSearchText: options.controls.setSearch,
+    searchPaused: () =>
+      options.controls.state.searchPaused || !options.enabled(),
+    searchText: () => options.controls.state.search,
+    setSearchText: (value) => {
+      const next =
+        typeof value === 'function'
+          ? value(options.controls.state.search)
+          : value;
+      options.controls.setState('search', next);
+      return next;
+    },
   });
 
   const entities = createMemo<EntityData[]>((previous) => {

@@ -20,7 +20,7 @@ function SoupMobileControlsContent() {
       <Show when={viewState.tabs().length > 0}>
         <PillTabs
           items={viewState.tabs()}
-          value={collection.activeTab()}
+          value={collection.state.activeTab}
           onChange={viewState.applyTabPreset}
           class="pointer-events-auto"
         />

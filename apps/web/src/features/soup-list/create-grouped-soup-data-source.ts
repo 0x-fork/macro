@@ -222,7 +222,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
       labelFor: (id) => resolveGroupLabel(id, id),
     });
 
-    return buildGroupedSoupItems(groups, controls.disclosure.isExpanded);
+    return buildGroupedSoupItems(groups, controls.collapsedGroups.isExpanded);
   };
 
   const items = createMemo(() => {
@@ -241,7 +241,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
         entities: options.transformEntities(group.entities, { sort: true }),
       }));
 
-      return buildGroupedSoupItems(groups, controls.disclosure.isExpanded);
+      return buildGroupedSoupItems(groups, controls.collapsedGroups.isExpanded);
     }
 
     const entities = browseEntities();
@@ -249,7 +249,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     if (grouping.isClientDateGroup()) {
       return buildGroupedSoupItems(
         buildDateSoupGroups(entities),
-        controls.disclosure.isExpanded
+        controls.collapsedGroups.isExpanded
       );
     }
 

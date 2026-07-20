@@ -105,14 +105,14 @@ export function SoupViewProvider(
   };
 
   const defaultTab = () => VIEW_TAB_PRESETS[props.view]?.default;
-  if (!collection.activeTab() && defaultTab()) {
-    collection.setActiveTab(defaultTab());
+  if (!collection.state.activeTab && defaultTab()) {
+    collection.setState('activeTab', defaultTab());
   }
 
   const activePresetFacets = () =>
     getViewPreset(
       props.view,
-      collection.activeTab() ?? defaultTab(),
+      collection.state.activeTab ?? defaultTab(),
       presetContext()
     )?.initialFacets ?? {};
 
@@ -141,7 +141,7 @@ export function SoupViewProvider(
 
     const currentPreset = getViewPreset(
       props.view,
-      collection.activeTab() ?? defaultTab(),
+      collection.state.activeTab ?? defaultTab(),
       presetContext()
     );
 
@@ -151,10 +151,12 @@ export function SoupViewProvider(
         preset.initialFacets ?? {}
       );
       collection.facets.setExtraFacets(preset.facets ?? []);
-      collection.setActiveTab(tabId);
-      collection.setEmailView(preset.emailView);
-      collection.setGroupBy(preset.groupBy);
-      collection.disclosure.expandAll();
+      collection.setState({
+        activeTab: tabId,
+        emailView: preset.emailView,
+        groupBy: preset.groupBy,
+        collapsedGroups: [],
+      });
     });
 
     return true;

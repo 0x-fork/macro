@@ -180,9 +180,11 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   const setFocusedGroupExpanded = (expanded: boolean): boolean | undefined => {
     const item = listState.focus.item();
     if (!item || item.kind !== 'group-header') return undefined;
-    const currentlyExpanded = collection.disclosure.isExpanded(item.groupId);
+    const currentlyExpanded = collection.collapsedGroups.isExpanded(
+      item.groupId
+    );
     if (currentlyExpanded === expanded) return false;
-    collection.disclosure.setExpanded(item.groupId, expanded);
+    collection.collapsedGroups.toggle(item.groupId);
     return true;
   };
 
@@ -213,7 +215,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     const tabs = view.tabs();
     if (tabs.length === 0) return false;
     const current = tabs.findIndex(
-      (tab) => tab.value === collection.activeTab()
+      (tab) => tab.value === collection.state.activeTab
     );
     const next = (Math.max(current, 0) + offset + tabs.length) % tabs.length;
     return view.applyTabPreset(tabs[next].value);
@@ -351,8 +353,8 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
 
       const item = listState.focus.item();
       if (!item || item.kind !== 'entity' || !item.groupId) return false;
-      if (!collection.disclosure.isExpanded(item.groupId)) return false;
-      collection.disclosure.collapse(item.groupId);
+      if (!collection.collapsedGroups.isExpanded(item.groupId)) return false;
+      collection.collapsedGroups.toggle(item.groupId);
       const header = listState.items
         .all()
         .find(
@@ -419,7 +421,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     keyDownHandler: () => {
       const item = listState.focus.item();
       if (item?.kind === 'group-header') {
-        collection.disclosure.toggle(item.groupId);
+        collection.collapsedGroups.toggle(item.groupId);
         return true;
       }
       if (item?.kind === 'load-more') {

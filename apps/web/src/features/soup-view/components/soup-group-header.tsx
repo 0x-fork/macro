@@ -31,14 +31,15 @@ export function SoupGroupHeader(props: {
   const collection = useSoupCollection();
   const dealStages = useDealStages();
   const field = collection.groupByField;
-  const expanded = () => collection.disclosure.isExpanded(props.item.groupId);
+  const expanded = () =>
+    collection.collapsedGroups.isExpanded(props.item.groupId);
   const propertyId = () => {
     const current = field();
     return current?.type === 'property'
       ? current.propertyDefinitionId
       : undefined;
   };
-  const isDate = () => collection.groupBy() === 'date';
+  const isDate = () => collection.state.groupBy === 'date';
   const isPerson = () =>
     propertyId() === SYSTEM_PROPERTY_IDS.ASSIGNEES ||
     propertyId() === SYSTEM_PROPERTY_IDS.COMPANY_OWNER;
@@ -62,7 +63,7 @@ export function SoupGroupHeader(props: {
           props.focused && 'bg-active',
           tint()
         )}
-        onClick={() => collection.disclosure.toggle(props.item.groupId)}
+        onClick={() => collection.collapsedGroups.toggle(props.item.groupId)}
       >
         <Layer depth={3}>
           <div class="flex size-4.5 items-center justify-center rounded-xs group-hover/header:bg-ink/5">

@@ -89,7 +89,7 @@ export function SoupEmptyState() {
           documentationUrl={docsUrl()}
         />
       </Match>
-      <Match when={collection.search().trim()}>
+      <Match when={collection.state.search.trim()}>
         {(searchText) => (
           <EmptyStatePanel
             centered
@@ -170,7 +170,7 @@ export function SoupEmptyState() {
       <Match
         when={
           view() === 'folders' ||
-          (view() === 'documents' && collection.activeTab() === 'folders')
+          (view() === 'documents' && collection.state.activeTab === 'folders')
         }
       >
         <EmptyStatePanel

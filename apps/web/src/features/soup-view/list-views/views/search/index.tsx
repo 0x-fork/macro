@@ -96,7 +96,7 @@ function SearchListViewContent() {
           channel_thread_scope: [NIL_UUID],
         });
         normalizeSearchFacets(collection.facets);
-        collection.setSearch(query);
+        collection.setState('search', query);
       },
       focus: () => view.openSearch(),
     });

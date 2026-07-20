@@ -55,11 +55,11 @@ export type AgentsListViewProps = {
 };
 
 function AgentsEmptyState() {
-  const { activeTab } = useSoupCollection();
+  const collection = useSoupCollection();
 
   return (
     <Switch>
-      <Match when={activeTab() === 'automations'}>
+      <Match when={collection.state.activeTab === 'automations'}>
         <EmptyStatePanel
           centered
           graphic={EmptyStateAutomationsGraphic}

@@ -89,7 +89,7 @@ export function CompanyDisplayMenu() {
   const display = useCrmDisplayOptions();
   const isTeamAdmin = useIsTeamAdmin();
   const listMode = () => view.viewMode() === 'list';
-  const showingHidden = () => collection.activeTab() === 'hidden';
+  const showingHidden = () => collection.state.activeTab === 'hidden';
   return (
     <Show when={listMode() || isTeamAdmin()}>
       <Dropdown>

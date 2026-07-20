@@ -101,7 +101,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
   };
 
   const compareEntities = (left: SoupEntity, right: SoupEntity) => {
-    for (const sort of controls.sort()) {
+    for (const sort of controls.state.sort) {
       const result = options.sortConfigs[sort.id]?.fn(left, right) ?? 0;
 
       if (result !== 0) {
@@ -123,7 +123,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
 
   const searchSource = createSoupSearchDataSource({
     controls,
-    enabled: () => enabled() && controls.search().trim().length > 0,
+    enabled: () => enabled() && controls.state.search.trim().length > 0,
     facetContext,
     disableLocalSearch: options.disableLocalSearch,
     transformEntities,

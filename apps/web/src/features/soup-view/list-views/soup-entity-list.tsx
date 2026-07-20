@@ -68,7 +68,6 @@ type SoupEntityListProps = {
   trailing?: JSX.Element;
   active?: Accessor<boolean>;
   autoFocusFirstEntity?: boolean | Accessor<boolean>;
-  restoreCollection?: boolean;
 
   itemSize?: number;
   overscan?: number;
@@ -137,7 +136,6 @@ export function SoupEntityList(props: SoupEntityListProps) {
   });
   const { restoredListState, persistedPreviewEntity } = useSoupViewEntryState({
     virtualizer,
-    restoreCollection: props.restoreCollection,
   });
 
   const { scrollTo } = useSoupViewHotkeys({
@@ -199,8 +197,8 @@ export function SoupEntityList(props: SoupEntityListProps) {
   createEffect(
     on(
       [
-        collection.search,
-        collection.groupBy,
+        () => collection.state.search,
+        () => collection.state.groupBy,
         () => collection.facets.serialize(),
       ],
       () => queueMicrotask(focusFirstEntity),

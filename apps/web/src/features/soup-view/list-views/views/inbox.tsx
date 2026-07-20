@@ -80,7 +80,7 @@ const applyInboxMode = (
     ]);
     collection.facets.set('read_state', isNewInbox ? ['unread'] : []);
     collection.facets.set('call_status', isNewInbox ? ['MISSED'] : []);
-    collection.setGroupBy(isNewInbox ? 'date' : undefined);
+    collection.setState('groupBy', isNewInbox ? 'date' : undefined);
   });
 };
 

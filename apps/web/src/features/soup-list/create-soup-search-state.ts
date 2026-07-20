@@ -13,7 +13,7 @@ import {
 import type { UnifiedSearchRequest } from '@service-search/generated/models';
 import { type Accessor, createMemo, on, type Setter } from 'solid-js';
 import { buildSearchEntityFilters } from './build-soup-search-filters';
-import type { SoupFacetStore } from './create-soup-collection-state';
+import type { SoupFacets } from './create-soup-collection-state';
 import type { FacetCtx } from './facets';
 
 // A fully-quoted term searches exactly, not as a prefix. Quotes stay in the
@@ -37,7 +37,7 @@ const FEATURED_COUNT = 3;
 const freshSearch = createSoupFreshSearch();
 
 interface CreateSearchStateArgs {
-  facets: SoupFacetStore;
+  facets: SoupFacets;
   facetContext: Accessor<FacetCtx>;
   disableLocalSearch?: Accessor<boolean>;
   searchPaused?: Accessor<boolean>;

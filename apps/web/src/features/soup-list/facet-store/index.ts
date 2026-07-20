@@ -8,11 +8,10 @@ export {
   NIL as NIL_UUID,
 } from './compile';
 export {
-  createFacetStore,
   deserializeFacets,
   serializeFacets,
   testFacets,
-} from './store';
+} from './helpers';
 export type {
   ClauseBuilder,
   ClauseDef,

@@ -57,9 +57,10 @@ export function SoupViewHeader() {
   const [searchCollapsed, setSearchCollapsed] = createSignal(false);
   const docsUrl = () => LIST_VIEW_DOCS_URL[view()];
   const activeSort = () =>
-    (collection.sort()[0]?.id as SystemSortOption | undefined) ?? 'updated_at';
+    (collection.state.sort[0]?.id as SystemSortOption | undefined) ??
+    'updated_at';
   const activeGroup = () =>
-    (collection.groupBy() as GroupOptionId | undefined) ?? 'none';
+    (collection.state.groupBy as GroupOptionId | undefined) ?? 'none';
 
   const searchHotkey = registerHotkey({
     hotkey: 'cmd+f',
@@ -94,7 +95,7 @@ export function SoupViewHeader() {
     ) : (
       <TabsInset
         list={viewState.tabs()}
-        value={collection.activeTab()}
+        value={collection.state.activeTab}
         defaultValue={viewState.defaultTab()}
         onChange={viewState.applyTabPreset}
       />
@@ -112,7 +113,7 @@ export function SoupViewHeader() {
     ) : (
       <TabsInsetDropdown
         list={viewState.tabs()}
-        value={collection.activeTab()}
+        value={collection.state.activeTab}
         defaultValue={viewState.defaultTab()}
         onChange={viewState.applyTabPreset}
       />
@@ -252,7 +253,9 @@ export function SoupViewHeader() {
             <Show when={showSoupSort(view(), isNewInbox())}>
               <SortDropdown
                 value={activeSort}
-                onChange={(id) => collection.setSort([{ id, reversed: false }])}
+                onChange={(id) =>
+                  collection.setState('sort', [{ id, reversed: false }])
+                }
                 options={soupSortOptions(view())}
                 open={viewState.sortOpen()}
                 onOpenChange={viewState.setSortOpen}
@@ -262,8 +265,11 @@ export function SoupViewHeader() {
               <GroupDropdown
                 value={activeGroup}
                 onChange={(id) => {
-                  collection.setGroupBy(id === 'none' ? undefined : id);
-                  collection.disclosure.expandAll();
+                  collection.setState(
+                    'groupBy',
+                    id === 'none' ? undefined : id
+                  );
+                  collection.collapsedGroups.expandAll();
                 }}
                 options={soupGroupOptions(view())}
                 open={groupOpen()}

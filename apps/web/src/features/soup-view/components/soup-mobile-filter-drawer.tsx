@@ -51,9 +51,10 @@ export function SoupMobileFilterDrawer() {
   const sortOptions = () => soupSortOptions(view.view());
   const groupOptions = () => soupGroupOptions(view.view());
   const activeSort = () =>
-    (collection.sort()[0]?.id as SystemSortOption | undefined) ?? 'updated_at';
+    (collection.state.sort[0]?.id as SystemSortOption | undefined) ??
+    'updated_at';
   const activeGroup = () =>
-    (collection.groupBy() as GroupOptionId | undefined) ?? 'none';
+    (collection.state.groupBy as GroupOptionId | undefined) ?? 'none';
   const activeControls = () =>
     controls().filter((control) =>
       isFacetControlRefinement(control, view.activePresetFacets())
@@ -145,7 +146,7 @@ export function SoupMobileFilterDrawer() {
                           label={option.label}
                           icon={option.icon}
                           onClick={() =>
-                            collection.setSort([
+                            collection.setState('sort', [
                               { id: option.value, reversed: false },
                             ])
                           }
@@ -171,10 +172,11 @@ export function SoupMobileFilterDrawer() {
                           active={activeGroup() === option.value}
                           label={option.label}
                           onClick={() => {
-                            collection.setGroupBy(
+                            collection.setState(
+                              'groupBy',
                               option.value === 'none' ? undefined : option.value
                             );
-                            collection.disclosure.expandAll();
+                            collection.collapsedGroups.expandAll();
                           }}
                         />
                       )}

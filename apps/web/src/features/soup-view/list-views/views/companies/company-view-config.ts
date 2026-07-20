@@ -25,10 +25,9 @@ export function resolveInitialCompanyView(config: InitialSoupCompanyView) {
   const initialState: SoupCollectionInitialState = {
     facets,
     search: config.searchText,
-    sortIds: config.sort,
-    ...(config.sortState?.length
-      ? { sort: config.sortState.map((sort) => ({ ...sort })) }
-      : {}),
+    sort: config.sortState?.length
+      ? config.sortState.map((sort) => ({ ...sort }))
+      : config.sort,
     groupBy: config.groupBy ?? undefined,
     activeTab: config.activeTab,
   };
@@ -80,32 +79,26 @@ export function isSoupCompanyViewConfig(
 }
 
 export function captureCompanyView(
-  collection: Pick<
-    SoupCollection,
-    'facets' | 'search' | 'groupBy' | 'sort' | 'activeTab'
-  >,
+  collection: Pick<SoupCollection, 'facets' | 'state'>,
   view: Pick<SoupViewContextValue, 'viewMode'>
 ): SoupCompanyViewConfig {
   const facets = collection.facets.serialize();
   return {
     kind: 'crm',
     facets,
-    searchText: collection.search(),
-    groupBy: collection.groupBy() ?? null,
-    sort: collection.sort().map((sort) => sort.id),
-    sortState: collection.sort().map((sort) => ({ ...sort })),
+    searchText: collection.state.search,
+    groupBy: collection.state.groupBy ?? null,
+    sort: collection.state.sort.map((sort) => sort.id),
+    sortState: collection.state.sort.map((sort) => ({ ...sort })),
     viewMode: view.viewMode(),
-    activeTab: collection.activeTab(),
+    activeTab: collection.state.activeTab,
     stageFilter: [...(facets.company_stage ?? [])],
     ownerFilter: [...(facets.company_owner ?? [])],
   };
 }
 
 export function applyCompanyView(
-  collection: Pick<
-    SoupCollection,
-    'facets' | 'setSearch' | 'setGroupBy' | 'setSort' | 'setActiveTab'
-  >,
+  collection: Pick<SoupCollection, 'facets' | 'setState'>,
   view: Pick<SoupViewContextValue, 'setViewMode'>,
   config: SoupCompanyViewConfig,
   options: {
@@ -117,18 +110,21 @@ export function applyCompanyView(
   const facets = collection.facets.deserialize(config.facets);
   facets.companies = [tab];
 
+  const sort =
+    config.sortState && config.sortState.length > 0
+      ? config.sortState.map((item) => ({ ...item }))
+      : config.sort.length > 0
+        ? config.sort.map((id) => ({ id, reversed: false }))
+        : (options.fallbackSort ?? [{ id: 'updated_at', reversed: false }]);
+
   batch(() => {
     collection.facets.hydrate(facets);
-    collection.setSearch(config.searchText ?? '');
-    collection.setGroupBy(config.groupBy ?? undefined);
-    collection.setSort(
-      config.sortState && config.sortState.length > 0
-        ? config.sortState.map((sort) => ({ ...sort }))
-        : config.sort.length > 0
-          ? config.sort.map((id) => ({ id, reversed: false }))
-          : (options.fallbackSort ?? [{ id: 'updated_at', reversed: false }])
-    );
+    collection.setState({
+      search: config.searchText ?? '',
+      groupBy: config.groupBy ?? undefined,
+      sort,
+      activeTab: tab,
+    });
     view.setViewMode(config.viewMode ?? 'list');
-    collection.setActiveTab(tab);
   });
 }

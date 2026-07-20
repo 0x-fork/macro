@@ -62,9 +62,7 @@ export type CompaniesListViewProps = {
   initialCrmView?: InitialSoupCompanyView;
 };
 
-function CompaniesListViewContent(props: {
-  initialCrmView?: InitialSoupCompanyView;
-}) {
+function CompaniesListViewContent() {
   const collection = useSoupCollection();
   const { dataSource, state: listState } = useList<SoupItem>();
   const panel = useSplitPanelOrThrow();
@@ -137,7 +135,6 @@ function CompaniesListViewContent(props: {
                           listScopeId={listScopeId}
                           viewportRef={setViewport}
                           active={() => !boardActive()}
-                          restoreCollection={!props.initialCrmView}
                         >
                           {(item) => (
                             <SoupEntityListItem item={item}>
@@ -264,6 +261,7 @@ export function CompaniesListView(props: CompaniesListViewProps) {
   const setup = useSoupViewSetup({
     view: 'companies',
     initialState: initialView?.initialState,
+    restoreCollection: !props.initialCrmView,
   });
 
   return (
@@ -277,7 +275,7 @@ export function CompaniesListView(props: CompaniesListViewProps) {
           viewName={props.viewName ?? 'Companies'}
           initialViewMode={initialView?.viewMode}
         >
-          <CompaniesListViewContent initialCrmView={props.initialCrmView} />
+          <CompaniesListViewContent />
         </SoupViewProvider>
       </List.Root>
     </SoupCollectionProvider>

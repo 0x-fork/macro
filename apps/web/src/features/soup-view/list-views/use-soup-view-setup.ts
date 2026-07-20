@@ -6,12 +6,13 @@ import {
   type SoupItem,
 } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
-import { usePreference } from '@app/preferences/use-preference';
+import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { EntityData } from '@entity';
 import { useIsTeamAdmin } from '@queries/team/teams';
-import { type Accessor, createEffect, on } from 'solid-js';
+import { type Accessor, createEffect } from 'solid-js';
+import { createSoupCollectionPersistence } from '../soup-collection-persistence';
 import { getViewPreset, type PresetContext } from '../soup-view-presets';
 import { useIsNewInbox } from '../utils';
 
@@ -19,27 +20,28 @@ export type SoupViewSetupOptions = {
   view: ListView;
   initialState?: SoupCollectionInitialState;
   additionalEntities?: Accessor<EntityData[]>;
+  restoreCollection?: boolean;
 };
 
 /** Creates the shared Soup collection and generic List state for one view. */
 export function useSoupViewSetup(options: SoupViewSetupOptions) {
+  const panel = useSplitPanelOrThrow();
   const userId = useUserId();
   const isTeamAdmin = useIsTeamAdmin();
   const isNewInbox = useIsNewInbox({ view: () => options.view });
+
   const presetContext = (): PresetContext => ({
     userId: userId(),
     isTeamAdmin: isTeamAdmin(),
     isNewInbox: isNewInbox(),
   });
-  const [sortPreference, setSortPreference] = usePreference<string[]>(
-    `macro:pref:soup:${options.view}:sort`,
-    { default: [] }
-  );
+
   const initialState = options.initialState ?? {};
   const initialPreset =
     getViewPreset(options.view, initialState.activeTab, presetContext()) ??
     getViewPreset(options.view, undefined, presetContext());
   const initialTab = initialPreset?.initialFacets?.[options.view]?.[0];
+
   const resolvedInitialState: SoupCollectionInitialState = {
     groupBy: initialPreset?.groupBy,
     emailView: initialPreset?.emailView,
@@ -56,34 +58,33 @@ export function useSoupViewSetup(options: SoupViewSetupOptions) {
       ...(initialPreset?.facets ?? []),
       ...(initialState.extraFacets ?? []),
     ],
-    sortIds:
-      initialState.sortIds ??
-      (sortPreference().length > 0 ? sortPreference() : undefined),
+    sort: initialState.sort,
     activeTab: initialTab,
   };
-
   const collection = createSoupCollection({
     initialState: resolvedInitialState,
     additionalEntities: options.additionalEntities,
+    persistence: createSoupCollectionPersistence({
+      panel,
+      view: options.view,
+      restoreEntryState: options.restoreCollection,
+      restorePreferences: initialState.sort === undefined,
+    }),
   });
 
   createEffect(() => {
     const preset = getViewPreset(
       options.view,
-      collection.activeTab(),
+      collection.state.activeTab,
       presetContext()
     );
+
     collection.facets.setExtraFacets([
       ...(preset?.facets ?? []),
       ...(initialState.extraFacets ?? []),
     ]);
-    collection.setEmailView(preset?.emailView);
+    collection.setState('emailView', preset?.emailView);
   });
-  createEffect(
-    on(() => collection.sort().map((sort) => sort.id), setSortPreference, {
-      defer: true,
-    })
-  );
 
   const listState = createListState<SoupItem>({
     isNavigable: (item) => item.kind !== 'section-header',

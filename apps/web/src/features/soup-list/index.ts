@@ -11,13 +11,14 @@ export type {
 export { createSoupCollection } from './create-soup-collection';
 export type {
   CreateSoupCollectionStateOptions,
+  SoupCollapsedGroups,
   SoupCollectionControls,
   SoupCollectionInitialState,
-  SoupCollectionSetter,
   SoupCollectionSort,
   SoupCollectionState,
+  SoupCollectionStore,
   SoupEmailView,
-  SoupFacetStore,
+  SoupFacets,
 } from './create-soup-collection-state';
 export { createSoupCollectionState } from './create-soup-collection-state';
 export type {
