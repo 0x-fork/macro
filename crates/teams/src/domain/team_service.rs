@@ -22,6 +22,7 @@ use model_notifications::InviteToTeamMetadata;
 use notification::domain::{models::SendNotificationRequestBuilder, service::NotificationIngress};
 
 use crate::domain::{
+    contacts_enqueuer::{ContactsEnqueuer, NoOpContactsEnqueuer},
     crm_enqueuer::CrmEnqueuer,
     customer_repo::CustomerRepository,
     model::{
@@ -39,8 +40,17 @@ use crate::domain::{
 
 /// Implementation of the TeamService using a TeamRepository
 #[derive(Debug)]
-pub struct TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA = NoOpTeamAnalytics>
-where
+pub struct TeamServiceImpl<
+    TR,
+    CR,
+    TCR,
+    URPS,
+    NI,
+    CE,
+    TCRMS,
+    TA = NoOpTeamAnalytics,
+    CNE = NoOpContactsEnqueuer,
+> where
     TR: TeamRepository,
     CR: CustomerRepository,
     TCR: TeamChannelsRepository,
@@ -49,6 +59,7 @@ where
     CE: CrmEnqueuer,
     TCRMS: TeamCrmSettingsRepository,
     TA: TeamAnalytics,
+    CNE: ContactsEnqueuer,
 {
     /// The underlying team repository
     team_repository: TR,
@@ -69,10 +80,12 @@ where
     team_crm_settings_repository: TCRMS,
     /// Outbound port for best-effort team lifecycle analytics events.
     team_analytics: TA,
+    /// Outbound port for contact connections created through team membership.
+    contacts_enqueuer: CNE,
 }
 
-impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA> Clone
-    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE> Clone
+    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -82,6 +95,7 @@ where
     CE: CrmEnqueuer,
     TCRMS: TeamCrmSettingsRepository,
     TA: TeamAnalytics,
+    CNE: ContactsEnqueuer,
 {
     fn clone(&self) -> Self {
         Self {
@@ -93,12 +107,13 @@ where
             crm_enqueuer: self.crm_enqueuer.clone(),
             team_crm_settings_repository: self.team_crm_settings_repository.clone(),
             team_analytics: self.team_analytics.clone(),
+            contacts_enqueuer: self.contacts_enqueuer.clone(),
         }
     }
 }
 
 impl<TR, CR, TCR, URPS, NI, CE, TCRMS>
-    TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, NoOpTeamAnalytics>
+    TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, NoOpTeamAnalytics, NoOpContactsEnqueuer>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -131,7 +146,8 @@ where
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA>
+    TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, NoOpContactsEnqueuer>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -166,6 +182,42 @@ where
             crm_enqueuer,
             team_crm_settings_repository,
             team_analytics,
+            contacts_enqueuer: NoOpContactsEnqueuer,
+        }
+    }
+}
+
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE>
+    TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE>
+where
+    TR: TeamRepository,
+    CR: CustomerRepository,
+    TCR: TeamChannelsRepository,
+    URPS: UserRolesAndPermissionsService,
+    NI: NotificationIngress,
+    CE: CrmEnqueuer,
+    TCRMS: TeamCrmSettingsRepository,
+    TA: TeamAnalytics,
+    CNE: ContactsEnqueuer,
+{
+    /// Replaces the contacts enqueuer while preserving every other service dependency.
+    pub fn with_contacts_enqueuer<CNE2>(
+        self,
+        contacts_enqueuer: CNE2,
+    ) -> TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE2>
+    where
+        CNE2: ContactsEnqueuer,
+    {
+        TeamServiceImpl {
+            team_repository: self.team_repository,
+            customer_repository: self.customer_repository,
+            team_channels_repository: self.team_channels_repository,
+            user_roles_and_permissions_service: self.user_roles_and_permissions_service,
+            notification_ingress: self.notification_ingress,
+            crm_enqueuer: self.crm_enqueuer,
+            team_crm_settings_repository: self.team_crm_settings_repository,
+            team_analytics: self.team_analytics,
+            contacts_enqueuer,
         }
     }
 
@@ -177,6 +229,61 @@ where
                 tracing::error!(
                     error = ?error,
                     "failed to track team analytics event"
+                );
+            })
+            .ok();
+    }
+
+    async fn enqueue_joining_user_contacts(
+        &self,
+        team_id: &uuid::Uuid,
+        user_id: &MacroUserIdStr<'_>,
+    ) {
+        let Some(team_with_members) = self
+            .team_repository
+            .get_team_by_id(team_id)
+            .await
+            .inspect_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    team_id = %team_id,
+                    user_id = %user_id,
+                    "failed to load team roster for contact connections"
+                );
+            })
+            .ok()
+        else {
+            return;
+        };
+
+        let joining_user = user_id.clone().into_owned();
+        let teammates: HashSet<_> = std::iter::once(team_with_members.team.owner_id)
+            .chain(
+                team_with_members
+                    .members
+                    .into_iter()
+                    .map(|member| member.user_id),
+            )
+            .filter(|teammate| teammate != &joining_user)
+            .collect();
+        let connections = teammates
+            .into_iter()
+            .map(|teammate| (joining_user.clone(), teammate))
+            .collect::<Vec<_>>();
+
+        if connections.is_empty() {
+            return;
+        }
+
+        self.contacts_enqueuer
+            .enqueue_contact_connections(connections)
+            .await
+            .inspect_err(|error| {
+                tracing::error!(
+                    error = ?error,
+                    team_id = %team_id,
+                    user_id = %user_id,
+                    "failed to enqueue team contact connections"
                 );
             })
             .ok();
@@ -372,8 +479,8 @@ impl GetTeamSubscriptionError {
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA> TeamMembersService
-    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE> TeamMembersService
+    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -383,6 +490,7 @@ where
     CE: CrmEnqueuer,
     TCRMS: TeamCrmSettingsRepository,
     TA: TeamAnalytics,
+    CNE: ContactsEnqueuer,
 {
     #[tracing::instrument(skip(self), err)]
     async fn list_team_members(
@@ -399,8 +507,8 @@ where
     }
 }
 
-impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA> TeamService
-    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA>
+impl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE> TeamService
+    for TeamServiceImpl<TR, CR, TCR, URPS, NI, CE, TCRMS, TA, CNE>
 where
     TR: TeamRepository,
     CR: CustomerRepository,
@@ -410,6 +518,7 @@ where
     CE: CrmEnqueuer,
     TCRMS: TeamCrmSettingsRepository,
     TA: TeamAnalytics,
+    CNE: ContactsEnqueuer,
 {
     #[tracing::instrument(skip(self), err)]
     async fn create_team(
@@ -1093,6 +1202,9 @@ where
             );
         }
 
+        self.enqueue_joining_user_contacts(&team_member.team_id, user_id)
+            .await;
+
         self.track_team_analytics_event(TeamAnalyticsEvent::TeamJoined {
             team_id: team_member.team_id,
             team_invite_id: accepted_invite.invite.id,
@@ -1541,6 +1653,8 @@ where
                 "Failed to enqueue PopulateCrmForUser after team auto-join; CRM tables will not be seeded from sent-mail history (per-message fan-out will still cover future sends)"
             );
         }
+
+        self.enqueue_joining_user_contacts(&team_id, user_id).await;
 
         // NOTE: no TeamJoined analytics event here — that event is tied to
         // the team invite that was accepted, and a domain auto-join has none.
