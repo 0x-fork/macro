@@ -77,7 +77,6 @@ import {
   useUserInfoQuery,
 } from '@queries/auth/user-info';
 import { useChatRenameWebsocketSync } from '@queries/chat';
-import { prefetchHistory } from '@queries/history/history';
 import { QuerySyncProvider } from '@queries/sync/SyncProvider';
 import { MutationUndoProvider } from '@queries/undo';
 import { useReopenTrackedEntitiesOnReconnect } from '@service-connection/client';
@@ -129,7 +128,6 @@ function useSyncLoginCookie() {
 
 const rootPreload: RoutePreloadFunc = async (args) => {
   await prefetchUserInfo();
-  prefetchHistory();
 
   // even though we are using the transformUrl prop, we may still need to replace the url in the history
   const url = new URL(window.location.href);
