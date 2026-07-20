@@ -12,6 +12,15 @@ import {
   type SortOption,
   TASK_SORT_OPTIONS,
 } from '@app/features/next-soup/soup-view/sort-options';
+import type { SoupViewMode } from '../context';
+
+export const COMPANY_MODE_TABS: Array<{
+  value: SoupViewMode;
+  label: string;
+}> = [
+  { value: 'board', label: 'Board' },
+  { value: 'list', label: 'List' },
+];
 
 export const soupSortOptions = (view: ListView): SortOption[] => {
   if (view === 'tasks') return TASK_SORT_OPTIONS;

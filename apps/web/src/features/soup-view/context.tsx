@@ -7,10 +7,16 @@ import {
   type FacetSelection,
   useSoupCollection,
 } from '@app/features/soup-list';
+import type { SplitPanelContextType } from '@components/app/split-layout/context';
 import { createSplitBreakpoints } from '@components/app/split-layout/create-split-breakpoints';
+import type { EntryState } from '@components/app/split-layout/layoutManager';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useUserId } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
+import {
+  makePersistedState,
+  type PersistenceStorage,
+} from '@core/state/persistence';
 import type { EntityData } from '@entity';
 import { useIsTeamAdmin } from '@queries/team/teams';
 import {
@@ -23,6 +29,8 @@ import {
   type Setter,
   useContext,
 } from 'solid-js';
+import { createStore } from 'solid-js/store';
+import { z } from 'zod';
 
 import {
   getViewPreset,
@@ -32,8 +40,83 @@ import {
 import { showSoupSort, useIsNewInbox } from './utils';
 
 const WIDE_SPLIT_PANEL_BREAKPOINT = 640;
+const SOUP_VIEW_STATE_ENTRY_KEY = 'soup.viewState';
 
 export type SoupViewMode = 'list' | 'board';
+type SoupViewState = {
+  viewMode: SoupViewMode;
+  previewEntityId: string | undefined;
+  previewOpen: boolean;
+};
+
+const persistedStateSchema = z.object({
+  viewMode: z.enum(['list', 'board']).optional(),
+  previewEntityId: z.string().optional(),
+  previewOpen: z.boolean().optional(),
+});
+
+const legacyStateSchema = z
+  .object({
+    'soup.viewMode': z.enum(['list', 'board']).optional(),
+    'soup.preview': z.string().optional(),
+    'soup.previewOpen': z.boolean().optional(),
+  })
+  .transform((state) => ({
+    viewMode: state['soup.viewMode'],
+    previewEntityId: state['soup.preview'],
+    previewOpen: state['soup.previewOpen'],
+  }))
+  .refine((state) => Object.values(state).some((value) => value !== undefined));
+
+const restoreSoupViewState = (
+  current: SoupViewState,
+  entryState: EntryState | undefined,
+  restoreViewMode: boolean
+): SoupViewState | undefined => {
+  if (!entryState) return undefined;
+  const canonical = entryState[SOUP_VIEW_STATE_ENTRY_KEY];
+  const parsed =
+    canonical !== undefined
+      ? persistedStateSchema.safeParse(canonical)
+      : legacyStateSchema.safeParse(entryState);
+  if (!parsed.success) return undefined;
+
+  const restored = parsed.data;
+  return {
+    viewMode:
+      restoreViewMode && restored.viewMode
+        ? restored.viewMode
+        : current.viewMode,
+    previewEntityId: restored.previewEntityId,
+    previewOpen:
+      restored.previewOpen ??
+      (restored.previewEntityId !== undefined ? true : current.previewOpen),
+  };
+};
+
+const createSoupViewStateStorage = (
+  panel: SplitPanelContextType,
+  restoreViewMode: boolean
+): PersistenceStorage<SoupViewState> => {
+  const entryState = panel.handle.currentEntryState();
+  let captured: SoupViewState;
+  const dispose = panel.handle.registerEntryStateCaptor(
+    SOUP_VIEW_STATE_ENTRY_KEY,
+    () => captured
+  );
+  const update = (state: SoupViewState) => {
+    captured = { ...state };
+  };
+
+  return {
+    restore: (current) =>
+      restoreSoupViewState(current, entryState, restoreViewMode),
+    initialize: update,
+    write: update,
+    dispose,
+  };
+};
+
 export type SoupViewTab = { value: string; label: JSX.Element };
 export type SoupSearchControl = {
   focus: (selectAll?: boolean) => void;
@@ -46,6 +129,7 @@ export type SoupViewContextValue = {
 
   tabs: Accessor<SoupViewTab[]>;
   defaultTab: Accessor<string | undefined>;
+  isTabAvailable: (tabId: string) => boolean;
   applyTabPreset: (tabId: string) => boolean;
   activePresetFacets: Accessor<FacetSelection>;
 
@@ -53,7 +137,13 @@ export type SoupViewContextValue = {
   setViewMode: Setter<SoupViewMode>;
 
   previewEntity: Accessor<EntityData | undefined>;
-  setPreviewEntity: Setter<EntityData | undefined>;
+  previewEntityId: Accessor<string | undefined>;
+  setPreviewEntity: (
+    next:
+      | EntityData
+      | undefined
+      | ((previous: EntityData | undefined) => EntityData | undefined)
+  ) => EntityData | undefined;
   previewOpen: Accessor<boolean>;
   setPreviewOpen: Setter<boolean>;
   previewPaneVisible: Accessor<boolean>;
@@ -86,11 +176,14 @@ export function SoupViewProvider(
   const panel = useSplitPanelOrThrow();
 
   const userId = useUserId();
+
   const isTeamAdmin = useIsTeamAdmin();
+
   const isNewInbox = useIsNewInbox({
     view: () => props.view,
     override: () => props.newInboxOverride,
   });
+
   const presetContext = (): PresetContext => ({
     userId: userId(),
     isTeamAdmin: isTeamAdmin(),
@@ -99,6 +192,7 @@ export function SoupViewProvider(
 
   const tabbedView = (): TabbedListView | undefined =>
     props.view in VIEW_TAB_LISTS ? (props.view as TabbedListView) : undefined;
+
   const tabs = () => {
     const view = tabbedView();
     return view ? VIEW_TAB_LISTS[view] : [];
@@ -135,6 +229,9 @@ export function SoupViewProvider(
     }
   };
 
+  const isTabAvailable = (tabId: string) =>
+    getViewPreset(props.view, tabId, presetContext()) !== undefined;
+
   const applyTabPreset = (tabId: string) => {
     const preset = getViewPreset(props.view, tabId, presetContext());
     if (!preset) return false;
@@ -165,37 +262,73 @@ export function SoupViewProvider(
   const breakpoints = createSplitBreakpoints({
     wide: WIDE_SPLIT_PANEL_BREAKPOINT,
   });
-  const entryState = panel.handle.currentEntryState();
-  const persistedPreviewEntity = entryState?.['soup.preview'];
-  const persistedPreviewOpen = entryState?.['soup.previewOpen'];
 
-  const [viewMode, setViewMode] = createSignal(
-    props.initialViewMode ?? (props.view === 'companies' ? 'board' : 'list')
+  const [state, setState] = makePersistedState(
+    createStore<SoupViewState>({
+      viewMode:
+        props.initialViewMode ??
+        (props.view === 'companies' ? 'board' : 'list'),
+      previewEntityId: undefined,
+      previewOpen: props.initialPreviewOpen ?? isNewInbox(),
+    }),
+    {
+      storage: createSoupViewStateStorage(
+        panel,
+        props.initialViewMode === undefined
+      ),
+    }
   );
-  const [previewEntity, setPreviewEntity] = createSignal<EntityData>();
 
-  const [previewOpen, setPreviewOpen] = createSignal(
-    typeof persistedPreviewOpen === 'boolean'
-      ? persistedPreviewOpen
-      : (props.initialPreviewOpen ??
-          (typeof persistedPreviewEntity === 'string' || isNewInbox()))
-  );
+  const viewMode = () => state.viewMode;
+  const setViewMode: Setter<SoupViewMode> = (next) => {
+    const value = typeof next === 'function' ? next(state.viewMode) : next;
+    setState('viewMode', value);
+    return value;
+  };
+
+  const [previewEntity, setPreviewEntitySignal] = createSignal<EntityData>();
+
+  const previewEntityId = () => state.previewEntityId;
+
+  const setPreviewEntity = (
+    next:
+      | EntityData
+      | undefined
+      | ((previous: EntityData | undefined) => EntityData | undefined)
+  ) => {
+    const entity = typeof next === 'function' ? next(previewEntity()) : next;
+    setPreviewEntitySignal(() => entity);
+    setState('previewEntityId', entity?.id);
+    return entity;
+  };
+
+  const previewOpen = () => state.previewOpen;
+
+  const setPreviewOpen: Setter<boolean> = (next) => {
+    const value = typeof next === 'function' ? next(state.previewOpen) : next;
+    setState('previewOpen', value);
+    return value;
+  };
 
   const hasPreviewableEntity = () =>
     collection.dataSource.items().some((item) => item.kind === 'entity');
+
   const previewPaneVisible = () =>
     !isMobile() &&
     breakpoints.wide() &&
     previewOpen() &&
     hasPreviewableEntity();
+
   const previewVisible = () =>
     previewPaneVisible() && previewEntity() !== undefined;
 
   const [searchControl, setSearchControl] = createSignal<SoupSearchControl>();
   const [searchOpen, setSearchOpen] = createSignal(false);
+
   const focusSearch = (selectAll = false) => {
     queueMicrotask(() => searchControl()?.focus(selectAll));
   };
+
   const openSearch = (selectAll = false) => {
     setSearchOpen(true);
     focusSearch(selectAll);
@@ -210,6 +343,7 @@ export function SoupViewProvider(
 
     tabs,
     defaultTab,
+    isTabAvailable,
     applyTabPreset,
     activePresetFacets,
 
@@ -217,6 +351,7 @@ export function SoupViewProvider(
     setViewMode,
 
     previewEntity,
+    previewEntityId,
     setPreviewEntity,
     previewOpen,
     setPreviewOpen,

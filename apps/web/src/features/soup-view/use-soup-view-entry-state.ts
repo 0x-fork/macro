@@ -7,8 +7,6 @@ import type { CacheSnapshot } from 'virtua/unstable_core';
 import { useSoupView } from './context';
 
 const SOUP_LIST_STATE_ENTRY_KEY = 'soup.listState';
-const SOUP_PREVIEW_ENTITY_ENTRY_KEY = 'soup.preview';
-const SOUP_PREVIEW_OPEN_ENTRY_KEY = 'soup.previewOpen';
 
 export type SoupListEntryState = {
   focus?: string;
@@ -30,42 +28,20 @@ export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
     | SoupListEntryState
     | undefined;
 
-  const previewEntity = entryState?.[SOUP_PREVIEW_ENTITY_ENTRY_KEY];
-  const persistedPreviewEntity =
-    typeof previewEntity === 'string' ? previewEntity : undefined;
-  const viewMode = entryState?.['soup.viewMode'];
-  if (viewMode === 'list' || viewMode === 'board') {
-    view.setViewMode(viewMode);
-  }
+  const persistedPreviewEntity = view.previewEntityId();
+  const disposeListCaptor =
+    panel.handle.content().type !== 'project'
+      ? panel.handle.registerEntryStateCaptor(
+          SOUP_LIST_STATE_ENTRY_KEY,
+          (): SoupListEntryState => ({
+            focus: listState.focus.id(),
+            virtualCache: options.virtualizer()?.cache,
+            scrollOffset: options.virtualizer()?.scrollOffset,
+          })
+        )
+      : undefined;
 
-  const captorTeardowns = [
-    panel.handle.registerEntryStateCaptor('soup.viewMode', view.viewMode),
-    panel.handle.registerEntryStateCaptor(
-      SOUP_PREVIEW_ENTITY_ENTRY_KEY,
-      () => view.previewEntity()?.id
-    ),
-    panel.handle.registerEntryStateCaptor(
-      SOUP_PREVIEW_OPEN_ENTRY_KEY,
-      view.previewOpen
-    ),
-  ];
-
-  if (panel.handle.content().type !== 'project') {
-    captorTeardowns.push(
-      panel.handle.registerEntryStateCaptor(
-        SOUP_LIST_STATE_ENTRY_KEY,
-        (): SoupListEntryState => ({
-          focus: listState.focus.id(),
-          virtualCache: options.virtualizer()?.cache,
-          scrollOffset: options.virtualizer()?.scrollOffset,
-        })
-      )
-    );
-  }
-
-  onCleanup(() => {
-    for (const teardown of captorTeardowns) teardown();
-  });
+  onCleanup(() => disposeListCaptor?.());
 
   return { restoredListState, persistedPreviewEntity };
 }

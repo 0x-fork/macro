@@ -521,17 +521,6 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     hide: true,
   }).withGroup(hotkeys);
 
-  registerHotkey({
-    hotkey: 'space',
-    hotkeyToken: TOKENS.unifiedList.togglePreview,
-    scopeId: panel.splitHotkeyScope,
-    description: 'Toggle preview',
-    keyDownHandler: () => {
-      view.setPreviewOpen((open) => !open);
-      return true;
-    },
-  }).withGroup(hotkeys);
-
   onCleanup(() => hotkeys.dispose());
 
   return { scrollTo, fetchMore, navigate };

@@ -6,6 +6,7 @@ import {
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
 import {
+  type SoupCollection,
   SoupCollectionProvider,
   type SoupItem,
   useSoupCollection,
@@ -20,8 +21,12 @@ import { Resize } from '@core/component/Resize';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
+import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
 import Spinner from '@phosphor/spinner.svg';
+import { useIsTeamAdmin } from '@queries/team/teams';
+import { EmptyStatePanel } from '@ui';
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -32,6 +37,7 @@ import {
   Suspense,
   Switch,
 } from 'solid-js';
+import { findEntityItem } from '../../../actions/list-action-state';
 import {
   SoupCompaniesErrorState,
   SoupEmptyState,
@@ -46,6 +52,8 @@ import { SoupPreviewPane } from '../../../components/soup-preview-pane';
 import { SoupSelectionToolbar } from '../../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../../components/soup-view-header';
 import { SoupViewProvider, useSoupView } from '../../../context';
+import { hasSoupCollectionEntryState } from '../../../soup-collection-persistence';
+import { getViewPreset } from '../../../soup-view-presets';
 import { useSoupNotificationInvalidators } from '../../../use-soup-notification-invalidators';
 import { SoupEntityList } from '../../soup-entity-list';
 import { SoupViewRoot } from '../../soup-view-root';
@@ -53,14 +61,46 @@ import { useSoupViewSetup } from '../../use-soup-view-setup';
 import { CompanyKanban } from './company-kanban';
 import {
   type InitialSoupCompanyView,
+  isSoupCompanyViewConfig,
   resolveInitialCompanyView,
 } from './company-view-config';
+import { CrmDefaultViewLoader } from './crm-default-view';
 import { useCompanyBoardPreviewRestoration } from './use-company-board-preview-restoration';
 
 export type CompaniesListViewProps = {
   viewName?: string;
   initialCrmView?: InitialSoupCompanyView;
 };
+
+function sanitizeRestoredCompanyState(
+  collection: SoupCollection,
+  isTeamAdmin: boolean
+) {
+  const context = {
+    userId: undefined,
+    isTeamAdmin,
+    isNewInbox: false,
+  };
+  const activeTab = collection.state.activeTab;
+  if (!activeTab || getViewPreset('companies', activeTab, context)) return;
+
+  const fallback = getViewPreset('companies', undefined, context);
+  const fallbackFacets = fallback?.initialFacets;
+  const fallbackTab = fallbackFacets?.companies?.[0];
+  if (!fallback || !fallbackFacets || !fallbackTab) return;
+
+  batch(() => {
+    collection.facets.hydrate({
+      ...collection.facets.serialize(),
+      ...fallbackFacets,
+    });
+    collection.setState({
+      activeTab: fallbackTab,
+      groupBy: fallback.groupBy,
+      emailView: fallback.emailView,
+    });
+  });
+}
 
 function CompaniesListViewContent() {
   const collection = useSoupCollection();
@@ -69,7 +109,11 @@ function CompaniesListViewContent() {
   const view = useSoupView();
   const crmUnavailable = useCrmUnavailable();
   const boardActive = () => view.viewMode() === 'board';
-  const previewId = panel.handle.currentEntryState()?.['soup.preview'];
+  const companyPreviewPaneVisible = () =>
+    !crmUnavailable() && view.previewPaneVisible();
+  const companyPreviewVisible = () =>
+    !crmUnavailable() && view.previewVisible();
+  const previewId = view.previewEntityId();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
@@ -77,15 +121,34 @@ function CompaniesListViewContent() {
 
   useCompanyBoardPreviewRestoration({
     enabled: boardActive,
-    persistedEntityId: typeof previewId === 'string' ? previewId : undefined,
+    persistedEntityId: previewId,
     previewEntity: view.previewEntity,
     setPreviewEntity: view.setPreviewEntity,
   });
+
+  createEffect(() => {
+    const activeTab = collection.state.activeTab;
+    const fallbackTab = view.defaultTab();
+    if (!activeTab || !fallbackTab || view.isTabAvailable(activeTab)) {
+      return;
+    }
+
+    batch(() => {
+      // A restored Hidden entry can outlive the user's admin permission.
+      // Clear both preset-owned facets before applying Active so an invalid
+      // hidden scope cannot survive the fallback merge.
+      collection.facets.set('scope', []);
+      collection.facets.set('companies', []);
+      collection.setState('activeTab', undefined);
+      view.applyTabPreset(fallbackTab);
+    });
+  });
+
   useSplitDisplayName(view.viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   createEffect(() => {
-    const visible = view.previewPaneVisible();
+    const visible = companyPreviewPaneVisible();
     const [current, setCurrent] = panel.previewState;
     if (current() !== visible) setCurrent(visible);
   });
@@ -102,7 +165,9 @@ function CompaniesListViewContent() {
       value={{
         ...panel,
         halfSplitState: () =>
-          view.previewVisible() ? { side: 'left', percentage: 30 } : undefined,
+          companyPreviewVisible()
+            ? { side: 'left', percentage: 30 }
+            : undefined,
       }}
     >
       <SoupFileDropzone>
@@ -118,15 +183,19 @@ function CompaniesListViewContent() {
           <div class="relative grow min-h-0 min-w-0 flex max-sm:flex-col">
             <Resize.Zone direction="horizontal" gutter={0}>
               <Resize.Panel
-                id="soup-list"
-                minSize={300}
-                maxSize={view.previewPaneVisible() ? 440 : undefined}
+                id={boardActive() ? 'company-kanban' : 'soup-list'}
+                minSize={boardActive() ? 200 : 300}
+                maxSize={
+                  !boardActive() && companyPreviewPaneVisible()
+                    ? 440
+                    : undefined
+                }
               >
                 <div
                   ref={setListContent}
                   class="relative flex size-full min-h-0 min-w-0 flex-col"
                 >
-                  <List.Content>
+                  <List.Content forceEmpty={crmUnavailable()}>
                     <Show when={!boardActive()}>
                       <List.Items>
                         <SoupEntityList
@@ -157,7 +226,16 @@ function CompaniesListViewContent() {
                       <List.Error>
                         {() => (
                           <div class="size-full min-h-0">
-                            <SoupCompaniesErrorState />
+                            <Show
+                              when={crmUnavailable()}
+                              fallback={
+                                <SoupCompaniesErrorState
+                                  onRetry={dataSource.refresh}
+                                />
+                              }
+                            >
+                              <SoupEmptyState />
+                            </Show>
                           </div>
                         )}
                       </List.Error>
@@ -198,11 +276,16 @@ function CompaniesListViewContent() {
 
                   <Show when={boardActive()}>
                     <Switch>
-                      <Match when={dataSource.error()}>
-                        <SoupCompaniesErrorState />
-                      </Match>
                       <Match when={crmUnavailable()}>
                         <SoupEmptyState />
+                      </Match>
+                      <Match
+                        when={
+                          dataSource.error() &&
+                          collection.browseEntities().length === 0
+                        }
+                      >
+                        <SoupCompaniesErrorState onRetry={dataSource.refresh} />
                       </Match>
                       <Match when={dataSource.isLoading()}>
                         <div class="flex size-full items-center justify-center">
@@ -215,10 +298,13 @@ function CompaniesListViewContent() {
                       <Match when={true}>
                         <CompanyKanban
                           onEntityClick={(entity, event) => {
-                            listState.navigate.toId(entity.id, {
-                              reason: 'pointer',
-                            });
-                            if (view.previewPaneVisible()) {
+                            const item = findEntityItem(listState, entity.id);
+                            if (item) {
+                              listState.navigate.toId(item.id, {
+                                reason: 'pointer',
+                              });
+                            }
+                            if (companyPreviewPaneVisible()) {
                               view.setPreviewEntity(entity);
                               return;
                             }
@@ -238,7 +324,22 @@ function CompaniesListViewContent() {
                   </Show>
                 </div>
               </Resize.Panel>
-              <SoupPreviewPane root={root} />
+              <Show when={!crmUnavailable()}>
+                <SoupPreviewPane
+                  root={root}
+                  minSize={boardActive() ? 500 : 0}
+                  empty={
+                    boardActive() ? (
+                      <EmptyStatePanel
+                        graphic={EmptyStatePreviewIcon}
+                        title="Nothing selected"
+                        description="Select a card from the board to preview it here"
+                        centered
+                      />
+                    ) : undefined
+                  }
+                />
+              </Show>
             </Resize.Zone>
           </div>
         </SoupViewRoot>
@@ -246,7 +347,11 @@ function CompaniesListViewContent() {
 
       <Suspense>
         <Show
-          when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile() && !boardActive()}
+          when={
+            ENABLE_UNIFIED_LIST_AI_INPUT &&
+            !isMobile() &&
+            (!boardActive() || crmUnavailable())
+          }
         >
           <SoupChatInput />
         </Show>
@@ -256,14 +361,28 @@ function CompaniesListViewContent() {
 }
 
 export function CompaniesListView(props: CompaniesListViewProps) {
-  const initialView = props.initialCrmView
-    ? resolveInitialCompanyView(props.initialCrmView)
+  const panel = useSplitPanelOrThrow();
+  const isTeamAdmin = useIsTeamAdmin();
+  const applyDefaultView =
+    props.initialCrmView === undefined &&
+    !hasSoupCollectionEntryState(panel.handle.currentEntryState());
+  const initialCrmView = isSoupCompanyViewConfig(props.initialCrmView)
+    ? props.initialCrmView
+    : undefined;
+  const initialView = initialCrmView
+    ? resolveInitialCompanyView(initialCrmView, {
+        allowedTab: (requested) =>
+          requested === 'hidden' && !isTeamAdmin()
+            ? 'active'
+            : (requested ?? 'active'),
+      })
     : undefined;
   const setup = useSoupViewSetup({
     view: 'companies',
     initialState: initialView?.initialState,
-    restoreCollection: !props.initialCrmView,
+    restoreCollection: props.initialCrmView === undefined,
   });
+  sanitizeRestoredCompanyState(setup.collection, isTeamAdmin());
 
   return (
     <SoupCollectionProvider value={setup.collection}>
@@ -276,6 +395,9 @@ export function CompaniesListView(props: CompaniesListViewProps) {
           viewName={props.viewName ?? 'Companies'}
           initialViewMode={initialView?.viewMode}
         >
+          <Show when={applyDefaultView}>
+            <CrmDefaultViewLoader />
+          </Show>
           <CompaniesListViewContent />
         </SoupViewProvider>
       </List.Root>

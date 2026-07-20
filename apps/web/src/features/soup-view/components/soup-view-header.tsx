@@ -39,12 +39,11 @@ import {
 import { SoupSearchFacets } from '../list-views/views/search/soup-search-facets';
 import { showSoupSort, useIsNewInbox } from '../utils';
 import { SoupInboxSelector } from './soup-inbox-selector';
-import { soupGroupOptions, soupSortOptions } from './soup-view-options';
-
-const COMPANY_MODE_TABS = [
-  { value: 'board', label: 'Board' },
-  { value: 'list', label: 'List' },
-];
+import {
+  COMPANY_MODE_TABS,
+  soupGroupOptions,
+  soupSortOptions,
+} from './soup-view-options';
 
 export function SoupViewHeader() {
   const collection = useSoupCollection();
@@ -81,6 +80,19 @@ export function SoupViewHeader() {
     },
   });
   onCleanup(searchHotkey.dispose);
+
+  const previewHotkey = registerHotkey({
+    hotkey: 'space',
+    hotkeyToken: TOKENS.unifiedList.togglePreview,
+    scopeId: panel.splitHotkeyScope,
+    registrationType: 'add',
+    description: 'Toggle preview',
+    keyDownHandler: () => {
+      viewState.setPreviewOpen((open) => !open);
+      return true;
+    },
+  });
+  onCleanup(previewHotkey.dispose);
 
   const expandedTabs = () =>
     view() === 'companies' ? (

@@ -143,9 +143,15 @@ export function SoupEntityList(props: SoupEntityListProps) {
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
 
+  let focusHasResolved = false;
   createEffect(() => {
-    if (active()) {
-      view.setPreviewEntity(entityFromItem(listState.focus.item()));
+    if (!active()) return;
+    const entity = entityFromItem(listState.focus.item());
+    if (entity) {
+      focusHasResolved = true;
+      view.setPreviewEntity(entity);
+    } else if (focusHasResolved || view.previewEntityId() === undefined) {
+      view.setPreviewEntity(undefined);
     }
   });
   const { restoredListState, persistedPreviewEntity } = useSoupViewEntryState({

@@ -9,6 +9,7 @@ import { useSoupView } from '../context';
 
 type SoupPreviewPaneProps = {
   root: Accessor<HTMLDivElement | undefined>;
+  minSize?: number;
   targetPercent?: number;
   empty?: JSX.Element;
 };
@@ -22,7 +23,7 @@ export function SoupPreviewPane(props: SoupPreviewPaneProps) {
     <Show when={view.previewPaneVisible()}>
       <Resize.Panel
         id="soup-preview"
-        minSize={0}
+        minSize={props.minSize ?? 0}
         target={{ kind: 'percent', percent: props.targetPercent ?? 70 }}
       >
         <div class="size-full">

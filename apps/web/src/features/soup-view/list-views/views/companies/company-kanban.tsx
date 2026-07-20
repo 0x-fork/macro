@@ -19,6 +19,7 @@ import CircleDashedIcon from '@phosphor/circle-dashed.svg';
 import Spinner from '@phosphor/spinner.svg';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
+import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, cn, Layer } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { SoupEntityContextMenu } from '../../../components/soup-entity-context-menu';
@@ -28,6 +29,10 @@ import {
   companyStageMutationValues,
   NO_STAGE_KEY,
 } from './company-board-model';
+
+const MIN_COLUMN_WIDTH = 224;
+const COLUMN_GAP = 12;
+const BOARD_PADDING_X = 24;
 
 export function CompanyKanban(props: {
   onEntityClick: (entity: EntityData, event: MouseEvent) => void;
@@ -54,6 +59,22 @@ export function CompanyKanban(props: {
       resolveStage: dealStages.resolveStage,
     })
   );
+
+  const boardSize = createElementSize(scroll);
+  const columnWidth = createMemo(() => {
+    const width = boardSize.width;
+    const count = columns().length;
+    if (!width || count === 0) return undefined;
+    const usable = width - BOARD_PADDING_X;
+    const fit = Math.max(
+      1,
+      Math.min(
+        count,
+        Math.floor((usable + COLUMN_GAP) / (MIN_COLUMN_WIDTH + COLUMN_GAP))
+      )
+    );
+    return Math.floor((usable - (fit - 1) * COLUMN_GAP) / fit);
+  });
 
   const canDragFrom = (stage: string) =>
     canMoveCompanyFromStage({
@@ -90,16 +111,21 @@ export function CompanyKanban(props: {
         ref={setScroll}
         class="scrollbar-hidden size-full overflow-x-auto overflow-y-hidden"
       >
-        <div class="flex h-full min-w-max gap-3 p-3">
+        <div class="flex h-full gap-3 p-3">
           <For each={columns()}>
             {(column, index) => (
               <div
                 class={cn(
-                  'flex h-full w-64 min-w-56 flex-col rounded-lg border border-edge-muted bg-surface',
+                  'flex h-full min-w-56 flex-1 flex-col rounded-lg border border-edge-muted bg-surface',
                   dropTarget() === column.key &&
                     draggedId() &&
                     'border-accent/50 bg-accent/5'
                 )}
+                style={
+                  columnWidth() !== undefined
+                    ? { width: `${columnWidth()}px`, flex: 'none' }
+                    : undefined
+                }
                 onDragOver={(event) => {
                   if (!draggedId()) return;
                   event.preventDefault();
@@ -137,42 +163,41 @@ export function CompanyKanban(props: {
                     />
                   </Show>
                   <span class="truncate">{column.label}</span>
-                  <span class="ml-auto tabular-nums text-ink-extra-muted">
-                    {column.entities.length}
-                  </span>
                 </div>
                 <div class="scrollbar-hidden flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
                   <For each={column.entities}>
                     {(entity) => (
-                      <SoupEntityContextMenu
-                        entity={entity}
-                        selectedEntities={() => []}
-                        isSelected={() => false}
-                        onOpen={() => {}}
-                      >
-                        <CompanyCard
+                      <div class="shrink-0">
+                        <SoupEntityContextMenu
                           entity={entity}
-                          draggable={canDragFrom(column.key)}
-                          dragging={draggedId() === entity.id}
-                          onClick={(event) =>
-                            props.onEntityClick(entity, event)
-                          }
-                          onDragStart={(event) => {
-                            event.dataTransfer?.setData(
-                              'text/plain',
-                              entity.id
-                            );
-                            if (event.dataTransfer) {
-                              event.dataTransfer.effectAllowed = 'move';
+                          selectedEntities={() => []}
+                          isSelected={() => false}
+                          onOpen={() => {}}
+                        >
+                          <CompanyCard
+                            entity={entity}
+                            draggable={canDragFrom(column.key)}
+                            dragging={draggedId() === entity.id}
+                            onClick={(event) =>
+                              props.onEntityClick(entity, event)
                             }
-                            setDraggedId(entity.id);
-                          }}
-                          onDragEnd={() => {
-                            setDraggedId(undefined);
-                            setDropTarget(undefined);
-                          }}
-                        />
-                      </SoupEntityContextMenu>
+                            onDragStart={(event) => {
+                              event.dataTransfer?.setData(
+                                'text/plain',
+                                entity.id
+                              );
+                              if (event.dataTransfer) {
+                                event.dataTransfer.effectAllowed = 'move';
+                              }
+                              setDraggedId(entity.id);
+                            }}
+                            onDragEnd={() => {
+                              setDraggedId(undefined);
+                              setDropTarget(undefined);
+                            }}
+                          />
+                        </SoupEntityContextMenu>
+                      </div>
                     )}
                   </For>
                 </div>
@@ -244,7 +269,11 @@ function CompanyCard(props: {
             <Entity.Title entity={props.entity} />
           </span>
           <Show when={ownerId()}>
-            {(id) => <UserIcon id={id()} size="sm" suppressClick />}
+            {(id) => (
+              <span class="ml-auto shrink-0">
+                <UserIcon id={id()} size="sm" suppressClick />
+              </span>
+            )}
           </Show>
         </div>
         <div class="flex min-w-0 items-center gap-2 text-xs text-ink-extra-muted">

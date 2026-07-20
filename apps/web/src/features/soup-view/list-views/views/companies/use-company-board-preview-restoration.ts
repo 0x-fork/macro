@@ -1,19 +1,15 @@
 import { useList } from '@app/components/list';
 import { type SoupItem, useSoupCollection } from '@app/features/soup-list';
 import type { EntityData } from '@entity';
-import {
-  type Accessor,
-  createEffect,
-  createSignal,
-  type Setter,
-} from 'solid-js';
+import { type Accessor, createEffect, createSignal } from 'solid-js';
+import type { SoupViewContextValue } from '../../../context';
 
 /** Restores a persisted board preview, paging until it is found or exhausted. */
 export function useCompanyBoardPreviewRestoration(options: {
   enabled: Accessor<boolean>;
   persistedEntityId?: string;
   previewEntity: Accessor<EntityData | undefined>;
-  setPreviewEntity: Setter<EntityData | undefined>;
+  setPreviewEntity: SoupViewContextValue['setPreviewEntity'];
 }) {
   const collection = useSoupCollection();
   const { dataSource } = useList<SoupItem>();
@@ -25,6 +21,10 @@ export function useCompanyBoardPreviewRestoration(options: {
     if (!options.enabled()) return;
     attempt();
     const entities = collection.browseEntities();
+    const current = options.previewEntity();
+    if (!settled && current && current.id !== options.persistedEntityId) {
+      settled = true;
+    }
 
     if (!settled && !dataSource.isLoading()) {
       const restored = options.persistedEntityId
@@ -39,6 +39,9 @@ export function useCompanyBoardPreviewRestoration(options: {
         !dataSource.hasMore()
       ) {
         settled = true;
+        if (options.persistedEntityId && !current) {
+          options.setPreviewEntity(undefined);
+        }
       } else if (!dataSource.isLoadingMore() && !loading) {
         loading = true;
         void dataSource.loadMore().finally(() => {
@@ -48,7 +51,6 @@ export function useCompanyBoardPreviewRestoration(options: {
       }
     }
 
-    const current = options.previewEntity();
     if (
       current &&
       !dataSource.isLoading() &&

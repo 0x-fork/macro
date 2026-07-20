@@ -9,7 +9,21 @@ import type {
 } from '@core/state/persistence';
 import { z } from 'zod';
 
-const SOUP_COLLECTION_ENTRY_KEY = 'soup.collection';
+export const SOUP_COLLECTION_ENTRY_KEY = 'soup.collection';
+
+/** Whether a split entry already owns collection state that must beat CRM defaults. */
+export const hasSoupCollectionEntryState = (
+  entryState: EntryState | undefined
+): boolean =>
+  entryState?.[SOUP_COLLECTION_ENTRY_KEY] !== undefined ||
+  entryState?.['search.facets'] !== undefined ||
+  entryState?.['search.filters'] !== undefined ||
+  entryState?.['search.predicates'] !== undefined ||
+  entryState?.['search.text'] !== undefined ||
+  entryState?.['soup.sort'] !== undefined ||
+  entryState?.['soup.groupBy'] !== undefined ||
+  entryState?.['soup.collapsedGroups'] !== undefined ||
+  entryState?.['soup.tab'] !== undefined;
 
 const SORT_IDS = new Set([
   'updated_at',

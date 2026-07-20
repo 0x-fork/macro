@@ -9,6 +9,7 @@ import { useSoupView } from '../context';
 import { SoupSearchbar } from '../filters/soup-searchbar';
 import { SoupSearchFacets } from '../list-views/views/search/soup-search-facets';
 import { SoupMobileFilterDrawer } from './soup-mobile-filter-drawer';
+import { COMPANY_MODE_TABS } from './soup-view-options';
 
 function SoupMobileControlsContent() {
   const collection = useSoupCollection();
@@ -17,11 +18,25 @@ function SoupMobileControlsContent() {
 
   return (
     <div class="z-floating hidden shrink-0 flex-col gap-2 px-2 pb-2 pt-[calc(var(--mobile-content-inset-top,0px)+0.5rem)] mobile:flex">
-      <Show when={viewState.tabs().length > 0}>
+      <Show
+        when={view() === 'companies'}
+        fallback={
+          <Show when={viewState.tabs().length > 0}>
+            <PillTabs
+              items={viewState.tabs()}
+              value={collection.state.activeTab}
+              onChange={viewState.applyTabPreset}
+              class="pointer-events-auto"
+            />
+          </Show>
+        }
+      >
         <PillTabs
-          items={viewState.tabs()}
-          value={collection.state.activeTab}
-          onChange={viewState.applyTabPreset}
+          items={COMPANY_MODE_TABS}
+          value={viewState.viewMode()}
+          onChange={(value) =>
+            viewState.setViewMode(value === 'list' ? 'list' : 'board')
+          }
           class="pointer-events-auto"
         />
       </Show>

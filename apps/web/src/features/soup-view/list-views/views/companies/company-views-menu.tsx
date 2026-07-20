@@ -15,19 +15,20 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import FloppyDiskIcon from '@phosphor/floppy-disk.svg';
 import LinkIcon from '@phosphor/link.svg';
+import PushPinIcon from '@phosphor/push-pin.svg';
 import SlidersIcon from '@phosphor/sliders-horizontal.svg';
 import StackIcon from '@phosphor/stack.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import { useIsTeamAdmin } from '@queries/team/teams';
 import { Button, cn, Dropdown, SegmentedControl, Tooltip } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, For, type JSX, Show } from 'solid-js';
 import { useSoupView } from '../../../context';
 import {
-  applyCompanyView,
   captureCompanyView,
   isSoupCompanyViewConfig,
   type SoupCompanyViewConfig,
 } from './company-view-config';
+import { useApplyCompanyView } from './use-apply-company-view';
 
 const asSharedConfig = (config: SoupCompanyViewConfig): CrmViewConfig => config;
 
@@ -38,10 +39,20 @@ const copyShareLink = (config: SoupCompanyViewConfig) => {
     .catch(() => toast.failure('Failed to copy link'));
 };
 
+const copySavedViewLink = (config: unknown) => {
+  if (!isSoupCompanyViewConfig(config)) {
+    toast.failure("This view couldn't be loaded");
+    return;
+  }
+  copyShareLink(config);
+};
+
 function SavedViewRow(props: {
   name: string;
+  isDefault?: boolean;
   onApply: () => void;
-  onCopy: () => void;
+  onCopyLink: () => void;
+  onSetDefault?: () => void;
   onDelete?: () => void;
 }) {
   return (
@@ -53,13 +64,37 @@ function SavedViewRow(props: {
       >
         {props.name}
       </button>
+      <Show when={props.isDefault && !props.onSetDefault}>
+        <PushPinIcon class="size-3.5 shrink-0 text-ink-muted" />
+      </Show>
+      <Show when={props.onSetDefault}>
+        {(setDefault) => (
+          <Tooltip
+            label={props.isDefault ? 'Remove default' : 'Set as default'}
+          >
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              label={props.isDefault ? 'Remove default' : 'Set as default'}
+              class={cn(
+                'size-6 shrink-0 text-ink-muted',
+                !props.isDefault &&
+                  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+              )}
+              onClick={() => setDefault()()}
+            >
+              <PushPinIcon class="size-3.5" />
+            </Button>
+          </Tooltip>
+        )}
+      </Show>
       <Tooltip label="Copy link">
         <Button
           variant="ghost"
           size="icon-sm"
           label="Copy link"
-          class="size-6 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-          onClick={props.onCopy}
+          class="size-6 shrink-0 text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          onClick={props.onCopyLink}
         >
           <LinkIcon class="size-3.5" />
         </Button>
@@ -71,7 +106,7 @@ function SavedViewRow(props: {
               variant="ghost"
               size="icon-sm"
               label="Delete view"
-              class="size-6 shrink-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              class="size-6 shrink-0 text-ink-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
               onClick={() => remove()()}
             >
               <TrashIcon class="size-3.5" />
@@ -80,6 +115,12 @@ function SavedViewRow(props: {
         )}
       </Show>
     </div>
+  );
+}
+
+function EmptyViewsHint(props: { children: JSX.Element }) {
+  return (
+    <div class="px-2 py-1.5 text-xs text-ink-extra-muted">{props.children}</div>
   );
 }
 
@@ -153,19 +194,9 @@ export function CompanyViewsMenu() {
   const [scope, setScope] = createSignal<'personal' | 'team'>('personal');
 
   const current = () => captureCompanyView(collection, view);
-  const allowedTab = (requested: string | undefined) => {
-    const allowed = view.tabs().map((tab) => tab.value);
-    return requested && allowed.includes(requested)
-      ? requested
-      : (allowed[0] ?? 'active');
-  };
+  const applyCompanyView = useApplyCompanyView();
   const apply = (config: unknown) => {
-    if (!isSoupCompanyViewConfig(config)) {
-      toast.failure('This view uses the previous filter format');
-      return;
-    }
-    applyCompanyView(collection, view, config, { allowedTab });
-    setOpen(false);
+    if (applyCompanyView(config)) setOpen(false);
   };
   const save = () => {
     const viewName = name().trim();
@@ -185,7 +216,8 @@ export function CompanyViewsMenu() {
     toast.success('View saved');
   };
   const canDeleteTeam = (createdBy: string | undefined) =>
-    permissions.canEditCrm() || createdBy === userId();
+    permissions.canEditCrm() ||
+    (createdBy !== undefined && createdBy === userId());
 
   return (
     <Dropdown
@@ -207,20 +239,19 @@ export function CompanyViewsMenu() {
           <Dropdown.GroupLabel>My views</Dropdown.GroupLabel>
           <For
             each={personal.views()}
-            fallback={
-              <div class="px-2 py-1.5 text-xs text-ink-extra-muted">
-                No saved views
-              </div>
-            }
+            fallback={<EmptyViewsHint>No saved views</EmptyViewsHint>}
           >
             {(view) => (
               <SavedViewRow
                 name={view.name}
+                isDefault={view.config.isDefault === true}
                 onApply={() => apply(view.config)}
-                onCopy={() => {
-                  if (isSoupCompanyViewConfig(view.config))
-                    copyShareLink(view.config);
-                }}
+                onCopyLink={() => copySavedViewLink(view.config)}
+                onSetDefault={() =>
+                  personal.setDefault.mutate({
+                    id: view.config.isDefault ? undefined : view.id,
+                  })
+                }
                 onDelete={() => personal.remove.mutate({ id: view.id })}
               />
             )}
@@ -230,20 +261,22 @@ export function CompanyViewsMenu() {
           <Dropdown.GroupLabel>Team views</Dropdown.GroupLabel>
           <For
             each={team.views()}
-            fallback={
-              <div class="px-2 py-1.5 text-xs text-ink-extra-muted">
-                No team views
-              </div>
-            }
+            fallback={<EmptyViewsHint>No team views</EmptyViewsHint>}
           >
             {(view) => (
               <SavedViewRow
                 name={view.name}
+                isDefault={view.id === team.defaultViewId()}
                 onApply={() => apply(view.config)}
-                onCopy={() => {
-                  if (isSoupCompanyViewConfig(view.config))
-                    copyShareLink(view.config);
-                }}
+                onCopyLink={() => copySavedViewLink(view.config)}
+                onSetDefault={
+                  permissions.canEditCrm()
+                    ? () =>
+                        team.setDefault(
+                          view.id === team.defaultViewId() ? undefined : view.id
+                        )
+                    : undefined
+                }
                 onDelete={
                   canDeleteTeam(view.createdBy)
                     ? () => team.remove(view.id)
