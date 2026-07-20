@@ -24,7 +24,7 @@ pub const MAX_PATH_DEPTH: usize = 16;
 pub const MAX_TRAVERSED_LIST: usize = 10_000;
 
 /// One constrained step through an embedded cache value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum LinkPathSegment {
     /// Selects a field on the current embedded object.
@@ -41,7 +41,7 @@ pub enum LinkPathSegment {
 }
 
 /// Scalar selector for an embedded list item.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListItemByScalar {
     /// Field on the embedded object to inspect.
@@ -66,39 +66,12 @@ pub enum LinkOperation {
         #[serde(rename = "entityKey")]
         entity_key: EntityKey,
     },
-    /// Captures a matching embedded object for a later prepend.
-    CaptureEmbedded {
-        /// Scalar identity for the embedded list item.
-        selector: ListItemByScalar,
-    },
-    /// Removes every embedded object matching the scalar selector.
-    RemoveEmbedded {
-        /// Scalar identity for the embedded list item.
-        selector: ListItemByScalar,
-    },
-    /// Removes matching embedded objects and inserts one value at the front.
-    PrependUniqueEmbedded {
-        /// Scalar identity for the embedded list item.
-        selector: ListItemByScalar,
-    },
 }
 
 impl LinkOperation {
-    fn entity_key(&self) -> Option<&EntityKey> {
+    fn entity_key(&self) -> &EntityKey {
         match self {
-            Self::Remove { entity_key } | Self::PrependUnique { entity_key } => Some(entity_key),
-            Self::CaptureEmbedded { .. }
-            | Self::RemoveEmbedded { .. }
-            | Self::PrependUniqueEmbedded { .. } => None,
-        }
-    }
-
-    fn embedded_selector(&self) -> Option<&ListItemByScalar> {
-        match self {
-            Self::CaptureEmbedded { selector }
-            | Self::RemoveEmbedded { selector }
-            | Self::PrependUniqueEmbedded { selector } => Some(selector),
-            Self::Remove { .. } | Self::PrependUnique { .. } => None,
+            Self::Remove { entity_key } | Self::PrependUnique { entity_key } => entity_key,
         }
     }
 }
@@ -183,9 +156,6 @@ pub enum LinkPatchError {
     /// The final list contains values other than normalized refs or nulls.
     #[error("link patch target list contains non-link values")]
     NonLinkTarget,
-    /// No matching embedded value was available to capture or prepend.
-    #[error("embedded link patch could not find its selected value")]
-    MissingEmbeddedValue,
 }
 
 /// Removes exact duplicate recipes while retaining the first occurrence and
@@ -216,14 +186,7 @@ fn validate_recipe(patch: &OptimisticLinkPatch) -> Result<(), LinkPatchError> {
         return Err(LinkPatchError::InvalidDepth(patch.path.len()));
     }
     validate_entrypoint(patch)?;
-    if let Some(entity_key) = patch.operation.entity_key() {
-        validate_entity_key(entity_key)?;
-    }
-    if let Some(selector) = patch.operation.embedded_selector()
-        && !is_json_scalar(&selector.equals)
-    {
-        return Err(LinkPatchError::NonScalarSelector);
-    }
+    validate_entity_key(patch.operation.entity_key())?;
     for segment in &patch.path {
         if let LinkPathSegment::ListItem { list_item } = segment
             && !is_json_scalar(&list_item.equals)
@@ -295,14 +258,8 @@ pub fn apply_link_patches(
     // Work on clones so strict validation is all-or-nothing.
     let mut staged_effective = effective.clone();
     let mut staged_updates = updates.clone();
-    let mut captured_embedded = HashMap::new();
     for patch in &patches {
-        if let Err(error) = apply_one(
-            &mut staged_effective,
-            &mut staged_updates,
-            &mut captured_embedded,
-            patch,
-        ) {
+        if let Err(error) = apply_one(&mut staged_effective, &mut staged_updates, patch) {
             if skip_not_applicable {
                 continue;
             }
@@ -317,7 +274,6 @@ pub fn apply_link_patches(
 fn apply_one(
     effective: &mut HashMap<EntityKey, Record>,
     updates: &mut RecordUpdates,
-    captured_embedded: &mut HashMap<String, CacheValue>,
     patch: &OptimisticLinkPatch,
 ) -> Result<(), LinkPatchError> {
     let resolved = resolve_target(effective, patch)?;
@@ -342,42 +298,17 @@ fn apply_one(
             maximum: MAX_TRAVERSED_LIST,
         });
     }
-    match &patch.operation {
-        LinkOperation::Remove { entity_key } | LinkOperation::PrependUnique { entity_key } => {
-            if links
-                .iter()
-                .any(|value| !matches!(value, CacheValue::Ref(_) | CacheValue::Null))
-            {
-                return Err(LinkPatchError::NonLinkTarget);
-            }
-            links.retain(|value| !matches!(value, CacheValue::Ref(key) if key == entity_key));
-            if matches!(patch.operation, LinkOperation::PrependUnique { .. }) {
-                links.insert(0, CacheValue::Ref(entity_key.clone()));
-            }
-        }
-        LinkOperation::CaptureEmbedded { selector }
-        | LinkOperation::RemoveEmbedded { selector } => {
-            let selector_key = embedded_selector_key(selector);
-            captured_embedded.remove(&selector_key);
-            let value = links
-                .iter()
-                .find(|value| embedded_item_matches(value, selector))
-                .cloned()
-                .ok_or(LinkPatchError::MissingEmbeddedValue)?;
-            captured_embedded.insert(selector_key, value);
-            if matches!(patch.operation, LinkOperation::CaptureEmbedded { .. }) {
-                return Ok(());
-            }
-            links.retain(|value| !embedded_item_matches(value, selector));
-        }
-        LinkOperation::PrependUniqueEmbedded { selector } => {
-            let value = captured_embedded
-                .get(&embedded_selector_key(selector))
-                .cloned()
-                .ok_or(LinkPatchError::MissingEmbeddedValue)?;
-            links.retain(|value| !embedded_item_matches(value, selector));
-            links.insert(0, value);
-        }
+    if links
+        .iter()
+        .any(|value| !matches!(value, CacheValue::Ref(_) | CacheValue::Null))
+    {
+        return Err(LinkPatchError::NonLinkTarget);
+    }
+
+    let entity_key = patch.operation.entity_key();
+    links.retain(|value| !matches!(value, CacheValue::Ref(key) if key == entity_key));
+    if matches!(patch.operation, LinkOperation::PrependUnique { .. }) {
+        links.insert(0, CacheValue::Ref(entity_key.clone()));
     }
 
     record
@@ -683,33 +614,13 @@ fn cache_number_equals_json(actual: CacheNumber, expected: &serde_json::Number) 
     actual.to_json() == *expected
 }
 
-fn embedded_item_matches(value: &CacheValue, selector: &ListItemByScalar) -> bool {
-    let CacheValue::Object(object) = value else {
-        return false;
-    };
-    object
-        .get(&selector.where_field)
-        .is_some_and(|value| cache_scalar_equals(value, &selector.equals))
-}
-
-fn embedded_selector_key(selector: &ListItemByScalar) -> String {
-    canonical_json(&serde_json::to_value(selector).expect("selector serializes"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
     use std::collections::BTreeMap;
 
-    const QUERY: &str = "query { user { groupSoup { bins { key items { entityId } } } } }";
-
-    fn embedded_item(id: &str) -> CacheValue {
-        CacheValue::Object(BTreeMap::from([(
-            "entityId".into(),
-            CacheValue::String(id.into()),
-        )]))
-    }
+    const QUERY: &str = "query { user { groupSoup { bins { key items { id } } } } }";
 
     fn record() -> (EntityKey, Record) {
         let parent = EntityKey("GraphqlUser:user-1".into());
@@ -724,7 +635,10 @@ mod tests {
             CacheValue::List(vec![
                 bin(
                     "in-progress",
-                    vec![embedded_item("task-1"), embedded_item("task-1")],
+                    vec![
+                        CacheValue::Ref(EntityKey("GraphqlSoupItem:task-1".into())),
+                        CacheValue::Ref(EntityKey("GraphqlSoupItem:task-1".into())),
+                    ],
                 ),
                 bin("completed", vec![]),
             ]),
@@ -783,20 +697,14 @@ mod tests {
             &[
                 patch(
                     "in-progress",
-                    LinkOperation::RemoveEmbedded {
-                        selector: ListItemByScalar {
-                            where_field: "entityId".into(),
-                            equals: json!("task-1"),
-                        },
+                    LinkOperation::Remove {
+                        entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
                     },
                 ),
                 patch(
                     "completed",
-                    LinkOperation::PrependUniqueEmbedded {
-                        selector: ListItemByScalar {
-                            where_field: "entityId".into(),
-                            equals: json!("task-1"),
-                        },
+                    LinkOperation::PrependUnique {
+                        entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
                     },
                 ),
             ],
@@ -821,7 +729,9 @@ mod tests {
         };
         assert_eq!(
             destination["items"],
-            CacheValue::List(vec![embedded_item("task-1")])
+            CacheValue::List(vec![CacheValue::Ref(EntityKey(
+                "GraphqlSoupItem:task-1".into()
+            ))])
         );
         assert_eq!(updates.len(), 1);
     }
@@ -845,20 +755,14 @@ mod tests {
             &[
                 patch(
                     "in-progress",
-                    LinkOperation::RemoveEmbedded {
-                        selector: ListItemByScalar {
-                            where_field: "entityId".into(),
-                            equals: json!("task-1"),
-                        },
+                    LinkOperation::Remove {
+                        entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
                     },
                 ),
                 patch(
                     "missing",
-                    LinkOperation::PrependUniqueEmbedded {
-                        selector: ListItemByScalar {
-                            where_field: "entityId".into(),
-                            equals: json!("task-1"),
-                        },
+                    LinkOperation::PrependUnique {
+                        entity_key: EntityKey("GraphqlSoupItem:task-1".into()),
                     },
                 ),
             ],

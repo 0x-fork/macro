@@ -168,10 +168,11 @@ mod tests {
         assert_eq!(f.ty.kind, FieldKind::OpaqueScalar);
         assert!(!f.ty.nullable);
 
-        // entity: GraphqlSoupEntity! (composite link to a union)
-        let f = field_meta("GraphqlSoupItem", "entity").unwrap();
+        // items: [GraphqlSoupEntity!]! (composite link to the entity interface)
+        let f = field_meta("SoupPage", "items").unwrap();
         assert_eq!(f.ty.kind, FieldKind::Composite);
         assert_eq!(f.ty.name, "GraphqlSoupEntity");
+        assert!(f.ty.list);
     }
 
     #[test]

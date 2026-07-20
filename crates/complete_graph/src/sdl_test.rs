@@ -65,12 +65,17 @@ fn soup_interface_exposes_the_complete_shared_entity_contract() {
         "notifications",
         "isFavorited",
         "viewerPermission",
+        "frecencyScore",
     ] {
         assert!(
             entity.fields.contains_key(shared_field),
             "Soup interface missing shared field {shared_field}"
         );
     }
+    assert!(
+        !schema.types.contains_key("GraphqlSoupItem"),
+        "soup items are entities directly; no query-scoped wrapper type"
+    );
     assert!(
         !entity.fields.contains_key("content"),
         "entity-specific content must not be flattened into the shared Soup interface"

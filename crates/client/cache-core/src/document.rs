@@ -422,7 +422,7 @@ mod tests {
         query Soup($input: SoupInput!) {
           soup(input: $input) {
             items {
-              entityId
+              id
               entity {
                 __typename
                 ... on GraphqlSoupDocument { id docName: name }

@@ -6,6 +6,7 @@ use cache_core::link_patch::{
 };
 use cache_core::query_inspection::{MAX_INSPECTED_VARIANTS, QueryInspection, QueryInspectionError};
 use cache_core::store::InMemoryStorage;
+use cache_core::value::EntityKey;
 use pollster::block_on;
 use serde_json::{Value as Json, json};
 
@@ -14,7 +15,7 @@ query GroupViews($input: GroupedSoupInput!) {
   user {
     id
     groupSoup(input: $input) {
-      bins { key nextCursor items { entityId } }
+      bins { key nextCursor items { __typename id } }
     }
   }
 }
@@ -22,7 +23,7 @@ query GroupViews($input: GroupedSoupInput!) {
 
 const SHORT_GROUP_QUERY: &str = r#"
 query GroupViews($input: GroupedSoupInput!) {
-  user { id groupSoup(input: $input) { bins { key items { entityId } } } }
+  user { id groupSoup(input: $input) { bins { key items { __typename id } } } }
 }
 "#;
 
@@ -52,7 +53,7 @@ fn page(item: &str, next_cursor: Option<&str>) -> Json {
     json!({"user": {"id": "user-1", "groupSoup": {"bins": [{
         "key": "in-progress",
         "nextCursor": next_cursor,
-        "items": [{"entityId": item}]
+        "items": [{"__typename": "GraphqlSoupDocument", "id": item}]
     }]}}})
 }
 
@@ -142,7 +143,7 @@ fn enumerates_variants_aliases_and_misses_in_canonical_order() {
             .find(|result| result.variables == initial(20))
             .unwrap();
         assert_eq!(
-            hit.value.as_ref().unwrap()["bins"][0]["items"][0]["entityId"],
+            hit.value.as_ref().unwrap()["bins"][0]["items"][0]["id"],
             "task-1"
         );
     });
@@ -162,7 +163,7 @@ query GroupViews($same: String!, $cursor: String!) {
         groupKey: "in-progress"
         cursor: $cursor
       }
-    }) { bins { key nextCursor items { entityId } } }
+    }) { bins { key nextCursor items { __typename id } } }
   }
 }
 "#;
@@ -233,7 +234,7 @@ fn inspection_reads_the_effective_optimistic_view() {
         let mut engine = Engine::new(InMemoryStorage::new());
         let variables = initial(20);
         let data = json!({"user": {"id": "user-1", "groupSoup": {"bins": [
-            {"key": "in-progress", "nextCursor": null, "items": [{"entityId": "task-1"}]},
+            {"key": "in-progress", "nextCursor": null, "items": [{"__typename": "GraphqlSoupDocument", "id": "task-1"}]},
             {"key": "completed", "nextCursor": null, "items": []}
         ]}}});
         write_group(&mut engine, GROUP_QUERY, &variables, &data).await;
@@ -262,11 +263,8 @@ fn inspection_reads_the_effective_optimistic_view() {
                     field: "items".into(),
                 },
             ],
-            operation: LinkOperation::RemoveEmbedded {
-                selector: ListItemByScalar {
-                    where_field: "entityId".into(),
-                    equals: json!("task-1"),
-                },
+            operation: LinkOperation::Remove {
+                entity_key: EntityKey("GraphqlSoupDocument:task-1".into()),
             },
         };
         let mutation = r#"
@@ -361,7 +359,7 @@ query GroupViews {
     groupSoup(input: { initial: {
       groupBy: { field: PROPERTY, propertyDefinitionId: "status-def" }
       limit: 20
-    } }) { bins { items { entityId } } }
+    } }) { bins { items { __typename id } } }
   }
 }
 "#;

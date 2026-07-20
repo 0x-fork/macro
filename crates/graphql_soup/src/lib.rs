@@ -19,7 +19,7 @@ pub use objects::{
     GraphqlSoupBin, GraphqlSoupCall, GraphqlSoupChannel, GraphqlSoupChannelMessage,
     GraphqlSoupChannelMessagePreview, GraphqlSoupChat, GraphqlSoupCrmCompany, GraphqlSoupDocument,
     GraphqlSoupDocumentSubType, GraphqlSoupEmailThread, GraphqlSoupEntity,
-    GraphqlSoupForeignEntity, GraphqlSoupItem, GraphqlSoupProject, GroupedSoup, SoupEntityEdges,
+    GraphqlSoupForeignEntity, GraphqlSoupProject, GroupedSoup, SoupEntityEdges,
     SoupPage,
 };
 pub use resolvers::{resolve_entity, resolve_grouped_soup, resolve_soup, resolve_soup_updates};

@@ -738,7 +738,7 @@ async fn group_soup_nests_items_in_bins_and_reuses_cached_authorization() {
 
     let response = harness
         .execute(
-            "{ user { id groupSoup(input: {initial: {groupBy: {field: ENTITY_TYPE}}}) { bins { key totalCount nextCursor items { entityId entityType } } } } }",
+            "{ user { id groupSoup(input: {initial: {groupBy: {field: ENTITY_TYPE}}}) { bins { key totalCount nextCursor items { id entityType } } } } }",
         )
         .await;
 

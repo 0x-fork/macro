@@ -23,7 +23,6 @@ use uuid::Uuid;
 ///
 /// The concrete edge object is supplied by the schema composition crate and
 /// flattened into each Soup entity's GraphQL fields.
-#[async_graphql::async_trait::async_trait]
 pub trait SoupEntityEdges: ObjectType + Clone + Send + Sync + 'static {
     /// GraphQL property object supplied by the property adapter.
     type Property: OutputType;
@@ -51,32 +50,35 @@ pub trait SoupEntityEdges: ObjectType + Clone + Send + Sync + 'static {
     fn email_thread_edges(email_thread_id: Uuid) -> Self::EmailThreadEdges;
 
     /// Resolve properties assigned to this entity.
-    async fn resolve_properties(
+    fn resolve_properties(
         &self,
         ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<Self::Property>>;
+    ) -> impl Future<Output = async_graphql::Result<Vec<Self::Property>>> + Send;
 
     /// Resolve notifications associated with this entity.
-    async fn resolve_notifications(
+    fn resolve_notifications(
         &self,
         ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<Self::Notification>>;
+    ) -> impl Future<Output = async_graphql::Result<Vec<Self::Notification>>> + Send;
 
     /// Resolve whether the authenticated viewer has favorited this entity.
-    async fn resolve_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool>;
-
-    /// Resolve the authenticated viewer's effective permission.
-    async fn resolve_viewer_permission(
+    fn resolve_is_favorited(
         &self,
         ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>>;
+    ) -> impl Future<Output = async_graphql::Result<bool>> + Send;
+
+    /// Resolve the authenticated viewer's effective permission.
+    fn resolve_viewer_permission(
+        &self,
+        ctx: &Context<'_>,
+    ) -> impl Future<Output = async_graphql::Result<Option<GraphqlEntityPermission>>> + Send;
 }
 
 /// Page returned by `Query.soup`.
 #[derive(SimpleObject)]
 pub struct SoupPage<E: SoupEntityEdges> {
     /// Items in the current page.
-    items: Vec<GraphqlSoupItem<E>>,
+    items: Vec<GraphqlSoupEntity<E>>,
     /// Opaque cursor for the next page, if one exists.
     next_cursor: Option<String>,
     /// Whether more items are available after this page.
@@ -87,7 +89,7 @@ impl<E: SoupEntityEdges> From<PaginatedOpaqueCursor<SoupItem<()>>> for SoupPage<
     fn from(page: PaginatedOpaqueCursor<SoupItem<()>>) -> Self {
         let has_more = page.next_cursor.is_some();
         Self {
-            items: page.items.into_iter().map(GraphqlSoupItem::from).collect(),
+            items: page.items.into_iter().map(GraphqlSoupEntity::from).collect(),
             next_cursor: page.next_cursor,
             has_more,
         }
@@ -98,7 +100,7 @@ impl<E: SoupEntityEdges> From<PaginatedOpaqueCursor<EnrichedSoupItem>> for SoupP
     fn from(page: PaginatedOpaqueCursor<EnrichedSoupItem>) -> Self {
         let has_more = page.next_cursor.is_some();
         Self {
-            items: page.items.into_iter().map(GraphqlSoupItem::from).collect(),
+            items: page.items.into_iter().map(GraphqlSoupEntity::from).collect(),
             next_cursor: page.next_cursor,
             has_more,
         }
@@ -123,7 +125,7 @@ impl<E: SoupEntityEdges> From<NestedSoupGroups<SoupPropertiesField>> for Grouped
                     next_cursor: bin.next_cursor().map(ToOwned::to_owned),
                     items: bin
                         .into_items()
-                        .map(|item| GraphqlSoupItem::from(item.map_extra(|_| ())))
+                        .map(|item| GraphqlSoupEntity::from(item.map_extra(|_| ())))
                         .collect(),
                 })
                 .collect(),
@@ -141,78 +143,39 @@ pub struct GraphqlSoupBin<E: SoupEntityEdges> {
     /// Opaque cursor for the next page in this bin, if one exists.
     next_cursor: Option<String>,
     /// Items in this bin, ordered by their index within the group.
-    items: Vec<GraphqlSoupItem<E>>,
+    items: Vec<GraphqlSoupEntity<E>>,
 }
 
-/// GraphQL Soup item envelope.
-pub struct GraphqlSoupItem<E: SoupEntityEdges> {
-    /// The unique identifier.
-    entity_id: String,
-    /// The entity type.
-    entity_type: GraphqlSoupEntityType,
-    /// The frecency score.
-    frecency_score: f64,
-    /// The expanded Soup entity.
-    entity: GraphqlSoupEntity<E>,
-}
-
-/// GraphQL representation of the soup item.
-#[Object(name = "GraphqlSoupItem")]
-impl<E> GraphqlSoupItem<E>
+impl<E> From<EnrichedSoupItem> for GraphqlSoupEntity<E>
 where
     E: SoupEntityEdges,
 {
-    /// The unique identifier.
-    async fn entity_id(&self) -> ID {
-        ID(self.entity_id.clone())
-    }
-
-    /// The entity type.
-    async fn entity_type(&self) -> GraphqlSoupEntityType {
-        self.entity_type
-    }
-
-    /// The frecency score.
-    async fn frecency_score(&self) -> f64 {
-        self.frecency_score
-    }
-
-    /// The expanded Soup entity.
-    async fn entity(&self) -> &GraphqlSoupEntity<E> {
-        &self.entity
-    }
-}
-
-impl<E: SoupEntityEdges> From<SoupItem<()>> for GraphqlSoupItem<E> {
-    fn from(item: SoupItem<()>) -> Self {
-        let entity_ref = item.entity();
-        Self {
-            entity_id: entity_ref.entity_id.into_owned(),
-            entity_type: GraphqlSoupEntityType::from(entity_ref.entity_type),
-            frecency_score: 0.0,
-            entity: GraphqlSoupEntity::from(item),
-        }
-    }
-}
-
-impl<E: SoupEntityEdges> From<EnrichedSoupItem> for GraphqlSoupItem<E> {
     fn from(item: EnrichedSoupItem) -> Self {
         let EnrichedSoupItem {
             item,
             frecency_score,
             ..
         } = item;
-        let item = item.map_extra(|_| ());
-        let entity_ref = item.entity();
+        let score = frecency_score.map(|f| f.data.frecency_score);
+        Self::from(item.map_extra(|_| ())).with_frecency(score)
+    }
+}
 
-        Self {
-            entity_id: entity_ref.entity_id.into_owned(),
-            entity_type: GraphqlSoupEntityType::from(entity_ref.entity_type),
-            frecency_score: frecency_score
-                .map(|f| f.data.frecency_score)
-                .unwrap_or_default(),
-            entity: GraphqlSoupEntity::from(item),
+impl<E: SoupEntityEdges> GraphqlSoupEntity<E> {
+    /// Attach the viewer's frecency score for this entity.
+    fn with_frecency(mut self, score: Option<f64>) -> Self {
+        match &mut self {
+            Self::Document(entity) => entity.2 = score,
+            Self::Chat(entity) => entity.2 = score,
+            Self::Project(entity) => entity.2 = score,
+            Self::EmailThread(entity) => entity.2 = score,
+            Self::Channel(entity) => entity.2 = score,
+            Self::ChannelMessage(entity) => entity.2 = score,
+            Self::Call(entity) => entity.2 = score,
+            Self::CrmCompany(entity) => entity.2 = score,
+            Self::ForeignEntity(entity) => entity.2 = score,
         }
+        self
     }
 }
 
@@ -294,6 +257,12 @@ pub struct GraphqlEntityMetadata {
         method = "interface_viewer_permission",
         ty = "Option<GraphqlEntityPermission>",
         desc = "The current viewer's effective permission for this entity."
+    ),
+    field(
+        name = "frecencyScore",
+        method = "frecency_score",
+        ty = "Option<f64>",
+        desc = "The viewer's frecency score for this entity, when loaded."
     )
 )]
 pub enum GraphqlSoupEntity<E: SoupEntityEdges> {
@@ -327,62 +296,62 @@ where
                 let edges = E::from_entity(
                     model_entity::EntityType::Document.with_entity_string(item.id.to_string()),
                 );
-                Self::Document(GraphqlSoupDocument(item, edges))
+                Self::Document(GraphqlSoupDocument(item, edges, None))
             }
             SoupItem::Chat(item) => {
                 let edges = E::from_entity(
                     model_entity::EntityType::Chat.with_entity_string(item.id.to_string()),
                 );
-                Self::Chat(GraphqlSoupChat(item, edges))
+                Self::Chat(GraphqlSoupChat(item, edges, None))
             }
             SoupItem::Project(item) => {
                 let edges = E::from_entity(
                     model_entity::EntityType::Project.with_entity_string(item.id.to_string()),
                 );
-                Self::Project(GraphqlSoupProject(item, edges))
+                Self::Project(GraphqlSoupProject(item, edges, None))
             }
             SoupItem::EmailThread(item) => {
                 let edges = E::from_entity(
                     model_entity::EntityType::EmailThread
                         .with_entity_string(item.thread.id.to_string()),
                 );
-                Self::EmailThread(GraphqlSoupEmailThread(item, edges))
+                Self::EmailThread(GraphqlSoupEmailThread(item, edges, None))
             }
             SoupItem::Channel(item) => {
                 let edges = E::from_entity(
                     model_entity::EntityType::Channel
                         .with_entity_string(item.channel.channel.id.0.to_string()),
                 );
-                Self::Channel(GraphqlSoupChannel(item, edges))
+                Self::Channel(GraphqlSoupChannel(item, edges, None))
             }
             SoupItem::ChannelThread(item) => {
                 let edges = E::from_channel_message(item.id, item.channel_id);
-                Self::ChannelMessage(GraphqlSoupChannelMessage(item, edges))
+                Self::ChannelMessage(GraphqlSoupChannelMessage(item, edges, None))
             }
             SoupItem::Call(item) => {
                 let edges = E::from_entity(
                     model_entity::EntityType::Call.with_entity_string(item.call_id.to_string()),
                 );
-                Self::Call(GraphqlSoupCall(item, edges))
+                Self::Call(GraphqlSoupCall(item, edges, None))
             }
             SoupItem::CrmCompany(item) => {
                 let edges = E::from_entity(
                     model_entity::EntityType::CrmCompany.with_entity_string(item.id.to_string()),
                 );
-                Self::CrmCompany(GraphqlSoupCrmCompany(item, edges))
+                Self::CrmCompany(GraphqlSoupCrmCompany(item, edges, None))
             }
             SoupItem::ForeignEntity(item) => {
                 let edges = E::from_entity(
                     model_entity::EntityType::ForeignEntity.with_entity_string(item.id.to_string()),
                 );
-                Self::ForeignEntity(GraphqlSoupForeignEntity(item, edges))
+                Self::ForeignEntity(GraphqlSoupForeignEntity(item, edges, None))
             }
         }
     }
 }
 
 /// GraphQL document entity.
-pub struct GraphqlSoupDocument<E: SoupEntityEdges>(SoupDocument<()>, E);
+pub struct GraphqlSoupDocument<E: SoupEntityEdges>(SoupDocument<()>, E, Option<f64>);
 
 /// GraphQL representation of the soup document.
 #[Object(name = "GraphqlSoupDocument")]
@@ -473,6 +442,11 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
+
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
+    }
 }
 
 /// GraphQL representation of the soup document sub type.
@@ -500,7 +474,7 @@ impl From<&SoupDocumentSubType> for GraphqlSoupDocumentSubType {
 }
 
 /// GraphQL chat entity.
-pub struct GraphqlSoupChat<E: SoupEntityEdges>(SoupChat<()>, E);
+pub struct GraphqlSoupChat<E: SoupEntityEdges>(SoupChat<()>, E, Option<f64>);
 
 /// GraphQL representation of the soup chat.
 #[Object(name = "GraphqlSoupChat")]
@@ -583,10 +557,15 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
+
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
+    }
 }
 
 /// GraphQL project entity.
-pub struct GraphqlSoupProject<E: SoupEntityEdges>(SoupProject<()>, E);
+pub struct GraphqlSoupProject<E: SoupEntityEdges>(SoupProject<()>, E, Option<f64>);
 
 /// GraphQL representation of the soup project.
 #[Object(name = "GraphqlSoupProject")]
@@ -663,6 +642,11 @@ where
     /// The edges.
     async fn edges(&self) -> E {
         self.1.clone()
+    }
+
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
     }
 }
 
@@ -777,7 +761,7 @@ impl From<&SoupAttachment> for GraphqlSoupEmailAttachment {
 }
 
 /// GraphQL email thread entity.
-pub struct GraphqlSoupEmailThread<E: SoupEntityEdges>(SoupEnrichedEmailThreadPreview<()>, E);
+pub struct GraphqlSoupEmailThread<E: SoupEntityEdges>(SoupEnrichedEmailThreadPreview<()>, E, Option<f64>);
 
 /// GraphQL representation of the soup email thread.
 #[Object(name = "GraphqlSoupEmailThread")]
@@ -950,6 +934,11 @@ where
         self.1.clone()
     }
 
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
+    }
+
     /// the email thread edge
     #[graphql(flatten)]
     async fn email_thread_edges(&self) -> E::EmailThreadEdges {
@@ -1064,7 +1053,7 @@ impl GraphqlSoupChannelMessagePreview {
 }
 
 /// GraphQL channel entity.
-pub struct GraphqlSoupChannel<E: SoupEntityEdges>(SoupChannel, E);
+pub struct GraphqlSoupChannel<E: SoupEntityEdges>(SoupChannel, E, Option<f64>);
 
 impl<E: SoupEntityEdges> GraphqlSoupChannel<E> {
     /// Return the stable GraphQL name for a channel type.
@@ -1222,11 +1211,16 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
+
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
+    }
 }
 
 /// Canonical GraphQL channel-message entity represented by a top-level Soup
 /// thread row.
-pub struct GraphqlSoupChannelMessage<E: SoupEntityEdges>(SoupChannelThread, E);
+pub struct GraphqlSoupChannelMessage<E: SoupEntityEdges>(SoupChannelThread, E, Option<f64>);
 
 /// GraphQL representation of the soup channel thread.
 #[Object(name = "GraphqlSoupChannelMessage")]
@@ -1304,6 +1298,11 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
+
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
+    }
 }
 
 /// GraphQL representation of the soup call participant.
@@ -1328,7 +1327,7 @@ impl From<&SoupCallRecordParticipant> for GraphqlSoupCallParticipant {
 }
 
 /// GraphQL call entity.
-pub struct GraphqlSoupCall<E: SoupEntityEdges>(SoupCallRecord<()>, E);
+pub struct GraphqlSoupCall<E: SoupEntityEdges>(SoupCallRecord<()>, E, Option<f64>);
 
 /// GraphQL representation of the soup call.
 #[Object(name = "GraphqlSoupCall")]
@@ -1464,10 +1463,15 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
+
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
+    }
 }
 
 /// GraphQL CRM company entity.
-pub struct GraphqlSoupCrmCompany<E: SoupEntityEdges>(SoupCrmCompany<()>, E);
+pub struct GraphqlSoupCrmCompany<E: SoupEntityEdges>(SoupCrmCompany<()>, E, Option<f64>);
 
 /// GraphQL representation of the soup crm company.
 #[Object(name = "GraphqlSoupCrmCompany")]
@@ -1559,10 +1563,15 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
+
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
+    }
 }
 
 /// GraphQL foreign entity.
-pub struct GraphqlSoupForeignEntity<E: SoupEntityEdges>(SoupForeignEntity, E);
+pub struct GraphqlSoupForeignEntity<E: SoupEntityEdges>(SoupForeignEntity, E, Option<f64>);
 
 /// GraphQL representation of the soup foreign entity.
 #[Object(name = "GraphqlSoupForeignEntity")]
@@ -1637,283 +1646,64 @@ where
     async fn edges(&self) -> E {
         self.1.clone()
     }
-}
 
-impl<E: SoupEntityEdges> GraphqlSoupDocument<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
+    /// The viewer's frecency score for this entity, when loaded.
+    async fn frecency_score(&self) -> Option<f64> {
+        self.2
     }
 }
 
-impl<E: SoupEntityEdges> GraphqlSoupChat<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
+/// Implement interface-only dispatch methods for fields whose concrete
+/// GraphQL definitions are supplied by the flattened edge object.
+macro_rules! impl_common_interface_edges {
+    ($($entity:ident),+ $(,)?) => {
+        $(
+            impl<E: SoupEntityEdges> $entity<E> {
+                /// Resolve shared properties through the composed edge adapter.
+                async fn interface_properties(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<Vec<E::Property>> {
+                    self.1.resolve_properties(ctx).await
+                }
 
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
+                /// Resolve shared notifications through the composed edge adapter.
+                async fn interface_notifications(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<Vec<E::Notification>> {
+                    self.1.resolve_notifications(ctx).await
+                }
 
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
+                /// Resolve shared favorite state through the composed edge adapter.
+                async fn interface_is_favorited(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<bool> {
+                    self.1.resolve_is_favorited(ctx).await
+                }
 
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
+                /// Resolve shared viewer permission through the composed edge adapter.
+                async fn interface_viewer_permission(
+                    &self,
+                    ctx: &Context<'_>,
+                ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
+                    self.1.resolve_viewer_permission(ctx).await
+                }
+
+            }
+        )+
+    };
 }
 
-impl<E: SoupEntityEdges> GraphqlSoupProject<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
-}
-
-impl<E: SoupEntityEdges> GraphqlSoupEmailThread<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
-}
-
-impl<E: SoupEntityEdges> GraphqlSoupChannel<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
-}
-
-impl<E: SoupEntityEdges> GraphqlSoupChannelMessage<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
-}
-
-impl<E: SoupEntityEdges> GraphqlSoupCall<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
-}
-
-impl<E: SoupEntityEdges> GraphqlSoupCrmCompany<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
-}
-
-impl<E: SoupEntityEdges> GraphqlSoupForeignEntity<E> {
-    /// Resolve shared properties through the composed edge adapter.
-    async fn interface_properties(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Property>> {
-        self.1.resolve_properties(ctx).await
-    }
-
-    /// Resolve shared notifications through the composed edge adapter.
-    async fn interface_notifications(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Vec<E::Notification>> {
-        self.1.resolve_notifications(ctx).await
-    }
-
-    /// Resolve shared favorite state through the composed edge adapter.
-    async fn interface_is_favorited(&self, ctx: &Context<'_>) -> async_graphql::Result<bool> {
-        self.1.resolve_is_favorited(ctx).await
-    }
-
-    /// Resolve shared viewer permission through the composed edge adapter.
-    async fn interface_viewer_permission(
-        &self,
-        ctx: &Context<'_>,
-    ) -> async_graphql::Result<Option<GraphqlEntityPermission>> {
-        self.1.resolve_viewer_permission(ctx).await
-    }
-}
+impl_common_interface_edges!(
+    GraphqlSoupDocument,
+    GraphqlSoupChat,
+    GraphqlSoupProject,
+    GraphqlSoupEmailThread,
+    GraphqlSoupChannel,
+    GraphqlSoupChannelMessage,
+    GraphqlSoupCall,
+    GraphqlSoupCrmCompany,
+    GraphqlSoupForeignEntity,
+);

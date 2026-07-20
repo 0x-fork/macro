@@ -42,7 +42,6 @@ impl<NR, PR, ER, FR, AR> Clone for SoupEdges<NR, PR, ER, FR, AR> {
     }
 }
 
-#[async_graphql::async_trait::async_trait]
 impl<NR, PR, ER, FR, AR> SoupEntityEdges for SoupEdges<NR, PR, ER, FR, AR>
 where
     NR: SoupNotificationEdgeReader,

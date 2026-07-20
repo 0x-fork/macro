@@ -17,11 +17,8 @@ const QUERY: &str = r#"query Soup($input: SoupInput!) {
             nextCursor
             hasMore
             items {
-                entityId
-                entity {
-                    __typename
-                    ... on GraphqlSoupDocument { id }
-                }
+                __typename
+                id
             }
         }
     }
@@ -45,10 +42,7 @@ async fn write_then_read_through_js_boundary() {
             "soup": {
                 "nextCursor": null,
                 "hasMore": false,
-                "items": [{
-                    "entityId": "doc-1",
-                    "entity": { "__typename": "GraphqlSoupDocument", "id": "doc-1" }
-                }]
+                "items": [{ "__typename": "GraphqlSoupDocument", "id": "doc-1" }]
             }
         }
     });
@@ -154,10 +148,11 @@ async fn write_then_read_through_js_boundary() {
 }
 
 const PROPERTY_QUERY: &str = r#"query Soup($input: SoupInput!) {
-    user { id soup(input: $input) { hasMore items { entityId entity {
+    user { id soup(input: $input) { hasMore items {
         __typename
-        ... on GraphqlSoupDocument { id properties { id displayName } }
-    } } } }
+        id
+        ... on GraphqlSoupDocument { properties { id displayName } }
+    } } }
 }"#;
 
 const PROPERTY_MUTATION: &str = r#"mutation SetEntityProperty($input: SetEntityPropertyInput!) {
@@ -174,12 +169,9 @@ async fn optimistic_write_round_trip() {
     let vars = serde_json::json!({"input": {"limit": 1}});
     let base = serde_json::json!({
         "user": { "id": "user-1", "soup": { "hasMore": false, "items": [{
-            "entityId": "item-1",
-            "entity": {
-                "__typename": "GraphqlSoupDocument",
-                "id": "doc-1",
-                "properties": [{ "id": "prop-1", "displayName": "Status" }]
-            }
+            "__typename": "GraphqlSoupDocument",
+            "id": "doc-1",
+            "properties": [{ "id": "prop-1", "displayName": "Status" }]
         }] } }
     });
     JsFuture::from(engine.write_query(

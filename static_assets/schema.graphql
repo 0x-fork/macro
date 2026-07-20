@@ -1785,7 +1785,7 @@ type GraphqlSoupBin {
 	"""
 	Items in this bin, ordered by their index within the group.
 	"""
-	items: [GraphqlSoupItem!]!
+	items: [GraphqlSoupEntity!]!
 }
 
 """
@@ -1884,6 +1884,10 @@ type GraphqlSoupCall implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -2000,6 +2004,10 @@ type GraphqlSoupChannel implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -2066,6 +2074,10 @@ type GraphqlSoupChannelMessage implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -2204,6 +2216,10 @@ type GraphqlSoupChat implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -2278,6 +2294,10 @@ type GraphqlSoupCrmCompany implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -2352,6 +2372,10 @@ type GraphqlSoupDocument implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -2725,6 +2749,10 @@ type GraphqlSoupEmailThread implements GraphqlSoupEntity {
 	"""
 	viewerPermission: GraphqlEntityPermission
 	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
+	"""
 	The newest non-draft content message in this thread.
 	"""
 	latestContentMessage: GraphqlSoupEmailMessage
@@ -2766,6 +2794,10 @@ interface GraphqlSoupEntity {
 	The current viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -2874,28 +2906,10 @@ type GraphqlSoupForeignEntity implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
-}
-
-"""
-GraphQL representation of the soup item.
-"""
-type GraphqlSoupItem {
 	"""
-	The unique identifier.
+	The viewer's frecency score for this entity, when loaded.
 	"""
-	entityId: ID!
-	"""
-	The entity type.
-	"""
-	entityType: GraphqlSoupEntityType!
-	"""
-	The frecency score.
-	"""
-	frecencyScore: Float!
-	"""
-	The expanded Soup entity.
-	"""
-	entity: GraphqlSoupEntity!
+	frecencyScore: Float
 }
 
 """
@@ -3016,6 +3030,10 @@ type GraphqlSoupProject implements GraphqlSoupEntity {
 	The authenticated viewer's effective permission for this entity.
 	"""
 	viewerPermission: GraphqlEntityPermission
+	"""
+	The viewer's frecency score for this entity, when loaded.
+	"""
+	frecencyScore: Float
 }
 
 """
@@ -3253,7 +3271,7 @@ type SoupPage {
 	"""
 	Items in the current page.
 	"""
-	items: [GraphqlSoupItem!]!
+	items: [GraphqlSoupEntity!]!
 	"""
 	Opaque cursor for the next page, if one exists.
 	"""

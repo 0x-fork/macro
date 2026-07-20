@@ -11,13 +11,10 @@ query Soup($input: SoupInput!) {
 	}
 }
 
-fragment SoupItemFields on GraphqlSoupItem {
-	entityId
-	entityType
+fragment SoupItemFields on GraphqlSoupEntity {
+	__typename
+	...SoupEntityCoreFields
 	frecencyScore
-	entity {
-		__typename
-		...SoupEntityCoreFields
 					... on GraphqlSoupDocument {
 						documentName: name
 						ownerId
@@ -232,7 +229,6 @@ fragment SoupItemFields on GraphqlSoupItem {
 						createdAt
 						updatedAt
 					}
-	}
 }
 
 fragment SoupEntityCoreFields on GraphqlSoupEntity {
