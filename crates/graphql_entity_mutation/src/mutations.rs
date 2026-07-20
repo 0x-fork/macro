@@ -6,7 +6,8 @@ use entity_mutation::{
     EntityMutationService, EntityRef, MoveEntityRequest, RenameEntityRequest,
     UpdateEntitySharePolicyRequest,
 };
-use graphql_common::{GraphqlEntityAccessLevel, GraphqlEntityType};
+use graphql_common::GraphqlEntityType;
+use graphql_permission::GraphqlEntityAccessLevel;
 use model_entity::EntityType;
 use models_permissions::share_permission::{
     UpdateSharePermissionRequestV2,

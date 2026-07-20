@@ -2888,7 +2888,9 @@ dependencies = [
  "graphql_common",
  "graphql_email",
  "graphql_entity_mutation",
+ "graphql_favorite",
  "graphql_notification",
+ "graphql_permission",
  "graphql_properties",
  "graphql_soup",
  "macro_authorization",
@@ -6022,10 +6024,7 @@ dependencies = [
  "async-trait",
  "axum",
  "axum-extra",
- "entity_access",
- "favorites",
  "filter_ast",
- "futures",
  "item_filters",
  "macro_authorization",
  "macro_user_id",
@@ -6034,7 +6033,6 @@ dependencies = [
  "models_properties",
  "rootcause",
  "tokio",
- "tracing",
  "uuid",
  "workspace-hack",
 ]
@@ -6061,10 +6059,25 @@ dependencies = [
  "async-graphql",
  "entity_mutation",
  "graphql_common",
+ "graphql_permission",
  "macro_user_id",
  "model-entity",
  "models_permissions",
  "tokio",
+ "workspace-hack",
+]
+
+[[package]]
+name = "graphql_favorite"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "favorites",
+ "macro_user_id",
+ "model-entity",
+ "rootcause",
+ "tokio",
+ "tracing",
  "workspace-hack",
 ]
 
@@ -6079,6 +6092,20 @@ dependencies = [
  "notification",
  "rootcause",
  "serde_json",
+ "tokio",
+ "workspace-hack",
+]
+
+[[package]]
+name = "graphql_permission"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "entity_access",
+ "futures",
+ "macro_user_id",
+ "model-entity",
+ "rootcause",
  "tokio",
  "workspace-hack",
 ]
@@ -6117,6 +6144,7 @@ dependencies = [
  "filter_ast",
  "futures",
  "graphql_common",
+ "graphql_permission",
  "item_filters",
  "macro_authorization",
  "macro_user_id",

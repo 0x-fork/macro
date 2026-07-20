@@ -10,13 +10,12 @@ use email::{
     inbound::axum::previews_router::EmailRouterState,
 };
 use entity_access::domain::ports::{EntityAccessService, NoOpEntityAccessService};
-use graphql_common::{
-    EntityFavoriteEdgeReader, EntityPermissionEdgeReader, NoOpEntityFavoriteEdgeReader,
-    NoOpEntityPermissionEdgeReader, require_authorized_user,
-};
+use graphql_common::require_authorized_user;
 use graphql_email::{NoOpSoupEmailContentEdgeReader, SoupEmailContentEdgeReader};
 use graphql_entity_mutation::EntityMutationRoot;
+use graphql_favorite::{EntityFavoriteEdgeReader, NoOpEntityFavoriteEdgeReader};
 use graphql_notification::{NoOpSoupNotificationEdgeReader, SoupNotificationEdgeReader};
+use graphql_permission::{EntityPermissionEdgeReader, NoOpEntityPermissionEdgeReader};
 use graphql_properties::{
     EntityPropertyReader, EntityPropertyWriter, NoOpEntityPropertyReader, NoOpEntityPropertyWriter,
     PropertiesMutationRoot,

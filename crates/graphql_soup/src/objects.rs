@@ -1,5 +1,6 @@
 use async_graphql::{Context, ID, Interface, Json, Object, ObjectType, OutputType, SimpleObject};
-use graphql_common::{GraphqlEntityPermission, GraphqlEntityType, GraphqlSoupEntityType};
+use graphql_common::{GraphqlEntityType, GraphqlSoupEntityType};
+use graphql_permission::GraphqlEntityPermission;
 use models_pagination::PaginatedOpaqueCursor;
 use models_soup::{
     call_record::{SoupCallRecord, SoupCallRecordParticipant},

@@ -1,15 +1,16 @@
 use std::marker::PhantomData;
 
 use async_graphql::{Context, Object};
-use graphql_common::{
-    EntityFavoriteEdgeReader, EntityFavoriteKey, EntityPermissionEdgeReader, EntityPermissionKey,
-    GraphqlEntityPermission, load_entity_favorite, load_entity_permission,
-};
 use graphql_email::{
     EmailContentKey, GraphqlSoupEmailMessage, SoupEmailContentEdgeReader, load_latest_email_message,
 };
+use graphql_favorite::{EntityFavoriteEdgeReader, EntityFavoriteKey, load_entity_favorite};
 use graphql_notification::{
     GraphqlSoupNotification, SoupNotificationEdgeReader, load_entity_notifications,
+};
+use graphql_permission::{
+    EntityPermissionEdgeReader, EntityPermissionKey, GraphqlEntityPermission,
+    load_entity_permission,
 };
 use graphql_properties::{EntityPropertyReader, GraphqlProperty, load_entity_properties};
 use graphql_soup::SoupEntityEdges;

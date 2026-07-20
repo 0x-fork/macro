@@ -13,12 +13,7 @@ mod schema;
 mod sdl_test;
 
 pub use edges::{SoupEdges, SoupEmailThreadEdges};
-pub use graphql_common::{
-    EntityFavoriteEdgeReader, EntityFavoriteKey, EntityFavoriteLoader, EntityPermissionEdgeReader,
-    EntityPermissionKey, EntityPermissionLoader, GraphqlChannelParticipantRole,
-    GraphqlEntityAccessLevel, GraphqlEntityPermission, GraphqlEntityPermissionKind,
-    GraphqlRequestParts, GraphqlTeamRole, entity_favorite_loader, entity_permission_loader,
-};
+pub use graphql_common::GraphqlRequestParts;
 pub use graphql_email::{
     EmailContentKey, EmailContentLoad, EmailContentLoader, EmailServiceEmailContentReader,
     NoOpSoupEmailContentEdgeReader, SoupEmailContentEdgeReader, email_content_loader,
@@ -29,8 +24,16 @@ pub use graphql_entity_mutation::{
     GraphqlEntityMutationErrorCode, GraphqlEntityMutationRef, GraphqlEntityMutationResult,
     GraphqlSharePolicyOperation, MoveEntityInput, RenameEntityInput, UpdateEntitySharePolicyInput,
 };
+pub use graphql_favorite::{
+    EntityFavoriteEdgeReader, EntityFavoriteKey, EntityFavoriteLoader, entity_favorite_loader,
+};
 pub use graphql_notification::{
     EntityNotificationsLoader, SoupNotificationEdgeReader, entity_notifications_loader,
+};
+pub use graphql_permission::{
+    EntityPermissionEdgeReader, EntityPermissionKey, EntityPermissionLoader,
+    GraphqlChannelParticipantRole, GraphqlEntityAccessLevel, GraphqlEntityPermission,
+    GraphqlEntityPermissionKind, GraphqlTeamRole, entity_permission_loader,
 };
 pub use graphql_properties::{
     EntityPropertiesLoader, EntityPropertyReader, EntityPropertyWriter, NoOpEntityPropertyReader,

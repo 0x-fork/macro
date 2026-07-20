@@ -9,14 +9,7 @@ async-graphql = { workspace = true, features = ["dataloader"] }
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-extra = { workspace = true }
-entity_access = { path = "../entity_access", default-features = false, features = [
-  "ports",
-] }
-favorites = { path = "../favorites", default-features = false, features = [
-  "ports",
-] }
 filter_ast = { path = "../filter_ast" }
-futures = { workspace = true }
 item_filters = { path = "../item_filters" }
 macro_authorization = { path = "../macro_authorization", default-features = false, features = ["axum"] }
 macro_user_id = { path = "../macro_user_id" }
@@ -24,7 +17,6 @@ model-entity = { path = "../model-entity" }
 models_properties = { path = "../models_properties" }
 rootcause = { workspace = true }
 tokio = { workspace = true }
-tracing = { workspace = true }
 uuid = { workspace = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 

@@ -503,8 +503,8 @@ struct TestHarness {
         NoOpSoupNotificationEdgeReader,
         NoOpEntityPropertyReader,
         NoOpSoupEmailContentEdgeReader,
-        graphql_common::NoOpEntityFavoriteEdgeReader,
-        graphql_common::NoOpEntityPermissionEdgeReader,
+        graphql_favorite::NoOpEntityFavoriteEdgeReader,
+        graphql_permission::NoOpEntityPermissionEdgeReader,
     >,
     state: TestState,
     authorization_calls: Arc<AtomicUsize>,
@@ -608,6 +608,8 @@ async fn soup_updates_subscribes_as_the_authenticated_user() {
         NoOpSoupNotificationEdgeReader,
         NoOpEntityPropertyReader,
         NoOpSoupEmailContentEdgeReader,
+        NoOpEntityFavoriteEdgeReader,
+        NoOpEntityPermissionEdgeReader,
     > = build_schema_with_services(NoOpSoupService, realtime);
     let request = async_graphql::Request::new(
         "subscription { soupUpdates { id entityType ... on GraphqlSoupDocument { name } } }",
