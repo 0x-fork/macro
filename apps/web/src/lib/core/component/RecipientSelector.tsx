@@ -519,7 +519,7 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
     };
   });
 
-  const options = createMemo(() => {
+  const optionsRaw = createMemo(() => {
     const { raw, emails, sorted } = recipients();
     const currentUserInput = inputValue();
 
@@ -551,6 +551,36 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
     }
 
     return allOptions as CombinedRecipientItem<K>[];
+  });
+
+  // Keep the options array referentially stable across refreshes that don't
+  // change what's shown. Query-backed sources (thread participants, contacts)
+  // re-emit with fresh object identities on every refetch/draft save; without
+  // this, each emit rebuilds Kobalte's collection and the virtualized rows,
+  // replacing option DOM nodes. On touch that's fatal: selection happens on
+  // `click`, and if the node under the finger is replaced between touchstart
+  // and click, the click lands on a detached/blank node and nothing selects
+  // (Enter and desktop mouse don't hit this — they don't span that window).
+  const options = createMemo((prev: CombinedRecipientItem<K>[] | undefined) => {
+    const next = optionsRaw();
+    if (
+      prev &&
+      prev.length === next.length &&
+      next.every((nextOption, i) => {
+        const option = nextOption as CombinedRecipientItem;
+        const prevOption = prev[i] as CombinedRecipientItem;
+        return (
+          getRecipientOptionValue(option) ===
+            getRecipientOptionValue(prevOption) &&
+          getRecipientOptionTextValue(option) ===
+            getRecipientOptionTextValue(prevOption) &&
+          getOptionDisabled(option) === getOptionDisabled(prevOption)
+        );
+      })
+    ) {
+      return prev;
+    }
+    return next;
   });
 
   const visibleOptionKeys = createMemo(
