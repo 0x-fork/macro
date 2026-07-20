@@ -12,8 +12,8 @@ import { useList } from './context';
 import type { Identifiable } from './selection-state';
 import { useListViewport } from './Viewport';
 
-const DEFAULT_ITEM_SIZE = 48;
 const DEFAULT_OVERSCAN = 5;
+const DEFAULT_ITEM_SIZE_ESTIMATE = 40;
 
 export type ListVirtualProps<TItem extends Identifiable = Identifiable> = {
   children: (item: TItem, index: Accessor<number>) => JSX.Element;
@@ -72,10 +72,10 @@ export function ListVirtual<TItem extends Identifiable = Identifiable>(
       ref={registerVirtualizer}
       data={items()}
       startMargin={startMargin()}
-      itemSize={props.itemSize ?? DEFAULT_ITEM_SIZE}
+      itemSize={props.itemSize}
       bufferSize={
         (props.overscan ?? DEFAULT_OVERSCAN) *
-        (props.itemSize ?? DEFAULT_ITEM_SIZE)
+        (props.itemSize ?? DEFAULT_ITEM_SIZE_ESTIMATE)
       }
     >
       {(item, index) => props.children(item, index)}

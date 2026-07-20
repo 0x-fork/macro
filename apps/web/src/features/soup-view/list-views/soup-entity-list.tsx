@@ -17,6 +17,7 @@ import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component
 import {
   type EntityData,
   isSearchEntity,
+  ListEntityMetadataQueryProvider,
   ListLayoutProvider,
   type ProjectEntity,
   type SearchLocation,
@@ -45,7 +46,6 @@ import { useSoupView } from '../context';
 import { useSoupViewEntryState } from '../use-soup-view-entry-state';
 import { useSoupViewHotkeys } from '../use-soup-view-hotkeys';
 
-const DEFAULT_ITEM_SIZE = 10;
 const DEFAULT_OVERSCAN = 5;
 
 type SoupActivationMetadata = {
@@ -223,122 +223,132 @@ export function SoupEntityList(props: SoupEntityListProps) {
 
   return (
     <Show when={active()}>
-      <SoupMobileActionDrawerManager>
-        <ListLayoutProvider ref={viewport}>
-          <SwipableRowProvider
-            container={viewport}
-            canSwipeLeft={(id) => markDoneAction(id) !== undefined}
-            onSwipeLeft={(id) => void markDoneAction(id)?.run()}
-          >
-            <div class="@container/u-list unified-list-root no-select-children relative flex size-full min-h-0 min-w-0 flex-col">
-              <SoupListHeader />
-              <StaticMarkdownContext>
-                <List.Viewport
-                  ref={(element) => {
-                    setViewport(element);
-                    props.viewportRef?.(element);
-                  }}
-                  class="scrollbar-hidden pb-15 mobile:pb-(--mobile-content-inset-bottom)"
-                  nearEndOffset={props.nearEndOffset ?? 300}
-                  onNearEndError={props.onLoadMoreError}
-                >
-                  <List.Virtual<SoupItem>
-                    itemSize={props.itemSize ?? DEFAULT_ITEM_SIZE}
-                    overscan={props.overscan ?? DEFAULT_OVERSCAN}
-                    cache={props.cache ?? restoredListState?.virtualCache}
-                    initialScrollOffset={
-                      props.initialScrollOffset ??
-                      restoredListState?.scrollOffset
-                    }
-                    virtualizerRef={setVirtualizer}
+      <ListEntityMetadataQueryProvider>
+        <SoupMobileActionDrawerManager>
+          <ListLayoutProvider ref={viewport}>
+            <SwipableRowProvider
+              container={viewport}
+              canSwipeLeft={(id) => markDoneAction(id) !== undefined}
+              onSwipeLeft={(id) => void markDoneAction(id)?.run()}
+            >
+              <div class="@container/u-list unified-list-root no-select-children relative flex size-full min-h-0 min-w-0 flex-col">
+                <SoupListHeader />
+                <StaticMarkdownContext>
+                  <List.Viewport
+                    ref={(element) => {
+                      setViewport(element);
+                      props.viewportRef?.(element);
+                    }}
+                    class="scrollbar-hidden pb-15 mobile:pb-(--mobile-content-inset-bottom)"
+                    nearEndOffset={props.nearEndOffset ?? 300}
+                    onNearEndError={props.onLoadMoreError}
                   >
-                    {(item, index) => (
-                      <>
-                        <Switch>
-                          <Match
-                            when={
-                              item.kind === 'group-header' ? item : undefined
-                            }
-                          >
-                            {(header) => (
-                              <List.Item item={header()}>
-                                {(state) => (
-                                  <SoupGroupHeader
-                                    item={header()}
-                                    focused={state.focused()}
-                                  />
-                                )}
-                              </List.Item>
-                            )}
-                          </Match>
-                          <Match
-                            when={
-                              item.kind === 'section-header' ? item : undefined
-                            }
-                          >
-                            {(section) => (
-                              <List.Item item={section()}>
-                                {() => (
-                                  <div class="flex h-8 items-end px-3 pb-1 text-xs font-semibold text-ink-extra-muted">
-                                    {section().label}
-                                  </div>
-                                )}
-                              </List.Item>
-                            )}
-                          </Match>
-                          <Match
-                            when={item.kind === 'load-more' ? item : undefined}
-                          >
-                            {(loadMore) => (
-                              <List.Item item={loadMore()}>
-                                {(state) => (
-                                  <div
-                                    class="my-1 flex min-h-9 items-center justify-center"
-                                    classList={{
-                                      'mx-1 rounded bg-active/60':
-                                        state.focused(),
-                                    }}
-                                  >
-                                    <Button
-                                      variant="base"
-                                      size="sm"
-                                      depth={2}
-                                      disabled={loadMore().isLoading?.()}
-                                      onClick={() => void loadMore().loadMore()}
+                    <List.Virtual<SoupItem>
+                      itemSize={props.itemSize}
+                      overscan={props.overscan ?? DEFAULT_OVERSCAN}
+                      cache={props.cache ?? restoredListState?.virtualCache}
+                      initialScrollOffset={
+                        props.initialScrollOffset ??
+                        restoredListState?.scrollOffset
+                      }
+                      virtualizerRef={setVirtualizer}
+                    >
+                      {(item, index) => (
+                        <>
+                          <Switch>
+                            <Match
+                              when={
+                                item.kind === 'group-header' ? item : undefined
+                              }
+                            >
+                              {(header) => (
+                                <List.Item item={header()}>
+                                  {(state) => (
+                                    <SoupGroupHeader
+                                      item={header()}
+                                      focused={state.focused()}
+                                    />
+                                  )}
+                                </List.Item>
+                              )}
+                            </Match>
+                            <Match
+                              when={
+                                item.kind === 'section-header'
+                                  ? item
+                                  : undefined
+                              }
+                            >
+                              {(section) => (
+                                <List.Item item={section()}>
+                                  {() => (
+                                    <div class="flex h-8 items-end px-3 pb-1 text-xs font-semibold text-ink-extra-muted">
+                                      {section().label}
+                                    </div>
+                                  )}
+                                </List.Item>
+                              )}
+                            </Match>
+                            <Match
+                              when={
+                                item.kind === 'load-more' ? item : undefined
+                              }
+                            >
+                              {(loadMore) => (
+                                <List.Item item={loadMore()}>
+                                  {(state) => (
+                                    <div
+                                      class="my-1 flex min-h-9 items-center justify-center"
+                                      classList={{
+                                        'mx-1 rounded bg-active/60':
+                                          state.focused(),
+                                      }}
                                     >
-                                      <Show
-                                        when={loadMore().isLoading?.()}
-                                        fallback={
-                                          <CaretDownIcon class="size-2.5" />
+                                      <Button
+                                        variant="base"
+                                        size="sm"
+                                        depth={2}
+                                        disabled={loadMore().isLoading?.()}
+                                        onClick={() =>
+                                          void loadMore().loadMore()
                                         }
                                       >
-                                        <Spinner class="size-3 animate-spin" />
-                                      </Show>
-                                      {loadMore().label ?? 'Load More'}
-                                    </Button>
-                                  </div>
-                                )}
-                              </List.Item>
-                            )}
-                          </Match>
-                          <Match
-                            when={item.kind === 'entity' ? item : undefined}
+                                        <Show
+                                          when={loadMore().isLoading?.()}
+                                          fallback={
+                                            <CaretDownIcon class="size-2.5" />
+                                          }
+                                        >
+                                          <Spinner class="size-3 animate-spin" />
+                                        </Show>
+                                        {loadMore().label ?? 'Load More'}
+                                      </Button>
+                                    </div>
+                                  )}
+                                </List.Item>
+                              )}
+                            </Match>
+                            <Match
+                              when={item.kind === 'entity' ? item : undefined}
+                            >
+                              {(entity) => props.children(entity)}
+                            </Match>
+                          </Switch>
+                          <Show
+                            when={index() === dataSource.items().length - 1}
                           >
-                            {(entity) => props.children(entity)}
-                          </Match>
-                        </Switch>
-                        <Show when={index() === dataSource.items().length - 1}>
-                          {props.trailing}
-                        </Show>
-                      </>
-                    )}
-                  </List.Virtual>
-                </List.Viewport>
-              </StaticMarkdownContext>
-            </div>
-          </SwipableRowProvider>
-        </ListLayoutProvider>
-      </SoupMobileActionDrawerManager>
+                            {props.trailing}
+                          </Show>
+                        </>
+                      )}
+                    </List.Virtual>
+                  </List.Viewport>
+                </StaticMarkdownContext>
+              </div>
+            </SwipableRowProvider>
+          </ListLayoutProvider>
+        </SoupMobileActionDrawerManager>
+      </ListEntityMetadataQueryProvider>
     </Show>
   );
 }
