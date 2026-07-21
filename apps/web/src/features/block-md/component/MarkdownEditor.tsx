@@ -1027,7 +1027,7 @@ export function MarkdownEditor(props: {
           </div>
         </Show>
         <Show when={editorReady() && isBlankMarkdown()}>
-          <div class="pointer-events-none text-ink-placeholder/70 absolute top-0">
+          <div class="pointer-events-none text-ink-placeholder/85 absolute top-0">
             {getBlankMarkdownPlaceholder(canEdit())}
           </div>
         </Show>
