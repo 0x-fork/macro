@@ -102,11 +102,12 @@ function CreateOptionIcon(props: {
   );
 }
 
-export const SoupViewCreateButton = () => {
+export const SoupViewCreateButton = (props: { view?: ListView }) => {
   const panel = useSplitPanelOrThrow();
   const handleFileUpload = useHandleFileUpload();
 
   const currentView = createMemo(() => {
+    if (props.view) return props.view;
     const content = panel.handle.content();
     if (content.type !== 'component') return undefined;
     return isListViewID(content.id) ? content.id : undefined;

@@ -197,7 +197,7 @@ export function SoupViewHeader() {
                   <CompanyDisplayMenu />
                 </Show>
                 <Show when={view() !== 'search'}>
-                  <SoupViewCreateButton />
+                  <SoupViewCreateButton view={view()} />
                 </Show>
                 <Show
                   when={view() === 'search'}
