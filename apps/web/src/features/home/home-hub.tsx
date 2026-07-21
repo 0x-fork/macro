@@ -59,7 +59,7 @@ const ATTACHABLE_ENTITY_TYPES = new Set<RecommendedItem['entityType']>([
 ]);
 
 /** Temporary recommendations fixtures for UI testing */
-const USE_DUMMY_RECOMMENDATIONS = true;
+const USE_DUMMY_RECOMMENDATIONS = false;
 const DUMMY_RECOMMENDATION_ID_PREFIX = 'home-dummy-recommendation-';
 const DUMMY_RECOMMENDATIONS: RecommendedItem[] = [
   {

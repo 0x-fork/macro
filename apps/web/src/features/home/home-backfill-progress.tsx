@@ -8,7 +8,7 @@ import { SyncStatus } from '@service-email/generated/schemas';
 import { createMemo, Match, Show, Switch } from 'solid-js';
 
 /** Temporary home-layout override */
-const FORCE_BACKFILL_PROGRESS_VISIBLE = true;
+const FORCE_BACKFILL_PROGRESS_VISIBLE = false;
 
 /**
  * Slim inbox-import line for the home header. Shows a spinner, label, a thin
