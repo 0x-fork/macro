@@ -2160,6 +2160,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "broadcast"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -14406,6 +14417,7 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]
