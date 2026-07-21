@@ -38,14 +38,15 @@ pub async fn main() -> anyhow::Result<()> {
     cli.command.validate_environment(&env_vars)?;
     tracing::trace!("initializing");
 
+    let database_url = env_vars
+        .database_url
+        .replace("postgres:5432", "localhost:5432");
+    cli.command.pre_connect(&database_url).await?;
+
     let db = PgPoolOptions::new()
         .min_connections(1)
         .max_connections(95)
-        .connect(
-            &env_vars
-                .database_url
-                .replace("postgres:5432", "localhost:5432"),
-        )
+        .connect(&database_url)
         .await
         .context("could not connect to db")?;
     tracing::trace!("initialized db");
@@ -69,6 +70,7 @@ pub async fn main() -> anyhow::Result<()> {
             &env_vars.document_storage_bucket,
             macro_aws_config::s3_client().await,
         ),
+        doc_content: crate::config::DocContentClients::from_env(),
     };
 
     cli.command.execute(context).await
