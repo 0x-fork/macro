@@ -1,3 +1,4 @@
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   FEATURED_MCP_SERVERS,
   type FeaturedMcpServer,
@@ -5,6 +6,10 @@ import {
   type SvgIcon,
 } from '@core/component/AI/constant/mcpServers';
 import { toast } from '@core/component/Toast/Toast';
+import {
+  ENABLE_SLACK_CONNECTOR_FLAG,
+  ENABLE_SLACK_CONNECTOR_OVERRIDE,
+} from '@core/constant/featureFlags';
 import CheckIcon from '@phosphor-icons/core/regular/check.svg?component-solid';
 import PlugIcon from '@phosphor-icons/core/regular/plug.svg?component-solid';
 import PlusIcon from '@phosphor-icons/core/regular/plus.svg?component-solid';
@@ -401,10 +406,18 @@ export function IntegrationsSection() {
   const serversQuery = useMcpServersQuery();
   const [showAddDialog, setShowAddDialog] = createSignal(false);
 
+  const slackConnectorFlag = useFeatureFlag(ENABLE_SLACK_CONNECTOR_FLAG, {
+    enabledOverride: ENABLE_SLACK_CONNECTOR_OVERRIDE,
+  });
+
   const servers = () => serversQuery.data ?? [];
   const existingUrls = () => new Set(servers().map((s) => s.url));
   const suggestions = () =>
-    FEATURED_MCP_SERVERS.filter((s) => !existingUrls().has(s.url));
+    FEATURED_MCP_SERVERS.filter(
+      (s) =>
+        !existingUrls().has(s.url) &&
+        (s.server_name !== 'Slack' || slackConnectorFlag().enabled)
+    );
 
   return (
     <SettingsSection

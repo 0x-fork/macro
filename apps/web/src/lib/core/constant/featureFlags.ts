@@ -546,3 +546,10 @@ export const UNIFIED_CHANNEL_INPUT = resolveFeatureFlag(
 export const BOT_MANAGEMENT_FLAG = 'bot-management';
 export const BOT_MANAGEMENT_OVERRIDE =
   resolveFeatureFlag('BOT_MANAGEMENT', DEV_MODE_ENV) || undefined;
+
+// Slack MCP connector: the Slack entry among the quick-connect suggestions on
+// the Connections page. PostHog-gated with a dev-mode default; override
+// locally with VITE_ENABLE_SLACK_CONNECTOR.
+export const ENABLE_SLACK_CONNECTOR_FLAG = 'enable-slack-connector';
+export const ENABLE_SLACK_CONNECTOR_OVERRIDE =
+  resolveFeatureFlag('ENABLE_SLACK_CONNECTOR', DEV_MODE_ENV) || undefined;
