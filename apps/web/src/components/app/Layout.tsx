@@ -36,7 +36,7 @@ import {
   GoToHotkeys,
   type SidebarState,
 } from '@components/app/app-sidebar/sidebar';
-import { mountMailtoInterceptor } from '@components/app/mailto-interceptor';
+import { registerMailtoComposerHandler } from '@components/app/mailtoComposerHandler';
 import {
   isSidebarVisible,
   SidebarCollapseContext,
@@ -349,7 +349,8 @@ function LayoutInner(props: RouteSectionProps) {
 
   mountGlobalFocusListener();
 
-  mountMailtoInterceptor();
+  // Route mailto: links (via openExternalUrl) to the in-app email composer.
+  registerMailtoComposerHandler();
 
   attachGlobalDOMScope(document.body);
 
