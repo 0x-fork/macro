@@ -129,7 +129,7 @@ function HomeContent() {
 
       <div class="min-h-0 flex-1 overflow-hidden">
         <div class="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col px-4">
-          {/* Spacer block, this is conjunction with pb-* on div below maintains correct spacing of home content */}
+          {/* Spacer block to create home content padding that looks good with various amounts of content */}
           <div
             aria-hidden="true"
             class="hidden min-h-0 max-h-16 flex-1 md:block"
@@ -163,6 +163,7 @@ function HomeContent() {
               <HomeExamples preferences={preferences} onSend={handleSend} />
             </HomeSectionBoundary>
           </div>
+          {/* Spacer block to create home content padding that looks good with various amounts of content */}
           <div
             aria-hidden="true"
             class="hidden min-h-0 max-h-24 flex-1 md:block"
