@@ -1,8 +1,9 @@
+import type { ChatSendInput } from '@core/component/AI/component/input/buildRequest';
 import { useChatInputContext } from '@core/component/AI/context';
 import { isMobile } from '@core/mobile/isMobile';
-import { AnimatedEmailIcon } from '@icon/wide-email';
 import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
-import { AnimatedSearchIcon } from '@icon/wide-search';
+import { AnimatedTaskIcon } from '@icon/wide-task';
+import TagIcon from '@phosphor/tag.svg';
 import XIcon from '@phosphor/x.svg';
 import { createSignal, For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
@@ -12,38 +13,58 @@ import type { HomePreferences } from './home-prefs';
 type HomeExample = {
   icon: (props: { class?: string; triggerAnimation?: boolean }) => JSX.Element;
   title: string;
-  description: string;
   prompt: string;
 };
 
 const HOME_EXAMPLES: HomeExample[] = [
   {
+    icon: TagIcon,
+    title: 'Auto-organize my inbox',
+    prompt:
+      'Categorize and tag recent emails in my inbox. Link me to macro.com/app/settings/tags where I can manage all of my tags.',
+  },
+  {
+    icon: AnimatedTaskIcon,
+    title: 'Pull tasks from inbox',
+    prompt:
+      'Find my most important recent emails and create tasks from them. Link me to macro.com/app/component/tasks where I can see all of my tasks.',
+  },
+  {
     icon: AnimatedFileMdIcon,
-    title: 'Draft a document',
-    description: 'Start from an idea',
-    prompt: 'Help me draft a document about ',
-  },
-  {
-    icon: AnimatedEmailIcon,
-    title: 'Draft an email',
-    description: 'Reply or compose',
-    prompt: 'Help me draft an email to ',
-  },
-  {
-    icon: AnimatedSearchIcon,
-    title: 'Search & research',
-    description: 'Across your workspace',
-    prompt: 'Research and summarize everything we have about ',
+    title: 'Build weekly brief',
+    prompt:
+      'Review my recent emails, documents, and tasks from the past week. Identify key decisions, open questions, blockers, and next steps, then create a concise weekly briefing document with links to the original sources.',
   },
 ];
 
 /**
- * Dismissible example-prompt cards. Clicking one loads the prompt prefix into
- * the home composer. Hidden on mobile.
+ * Dismissible example-prompt cards. Clicking one loads and runs the prompt in
+ * a new chat. Hidden on mobile.
  */
-export function HomeExamples(props: { preferences: HomePreferences }) {
+export function HomeExamples(props: {
+  preferences: HomePreferences;
+  onSend: (request: ChatSendInput) => void | Promise<void>;
+}) {
   const input = useChatInputContext();
   const [hovered, setHovered] = createSignal<number | null>(null);
+  const [executing, setExecuting] = createSignal(false);
+
+  const executeExample = async (example: HomeExample) => {
+    if (executing()) return;
+
+    setExecuting(true);
+    replaceHomeComposerSelection(input, example.prompt);
+    try {
+      await props.onSend({
+        content: example.prompt,
+        model: input.model(),
+        attachments: [],
+        toolset: { type: 'all' },
+      });
+    } finally {
+      setExecuting(false);
+    }
+  };
 
   return (
     <Show when={!isMobile() && !props.preferences.isDismissed('examples')}>
@@ -65,9 +86,8 @@ export function HomeExamples(props: { preferences: HomePreferences }) {
               <button
                 type="button"
                 class="group flex flex-col gap-1 rounded-xl border border-edge-muted bg-active p-3 text-left transition-colors hover:bg-hover"
-                onClick={() =>
-                  replaceHomeComposerSelection(input, example.prompt)
-                }
+                disabled={executing()}
+                onClick={() => void executeExample(example)}
                 onMouseEnter={() => setHovered(i())}
                 onMouseLeave={() =>
                   setHovered((prev) => (prev === i() ? null : prev))
@@ -83,9 +103,6 @@ export function HomeExamples(props: { preferences: HomePreferences }) {
                     {example.title}
                   </span>
                 </div>
-                <span class="truncate text-xs text-ink-muted">
-                  {example.description}
-                </span>
               </button>
             )}
           </For>

@@ -94,6 +94,7 @@ export function Home() {
 function HomeContent() {
   const user = useUserContext();
   const preferences = createHomePreferences();
+  const handleSend = useHomeChatSend();
 
   const firstName = () => {
     const name = user.author();
@@ -126,48 +127,115 @@ function HomeContent() {
         `
       }</style>
 
-      <div class="min-h-0 flex-1 overflow-y-auto">
-        <div class="home-content mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-6 pt-10 mobile:pt-[calc(var(--mobile-content-inset-top,0px)+0.5rem)] mobile:pb-(--mobile-content-inset-bottom) md:pt-16">
-          <header class="flex items-center gap-2.5">
-            <AnimatedHeroLogo class="size-6 shrink-0 text-accent" />
-            <h1 class="text-xl font-normal tracking-tight text-ink">
-              {greeting}, <span class="capitalize">{firstName()}</span>
-            </h1>
-          </header>
+      <div class="min-h-0 flex-1 overflow-hidden">
+        <div class="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col px-4">
+          {/* Spacer block, this is conjunction with pb-* on div below maintains correct spacing of home content */}
+          <div
+            aria-hidden="true"
+            class="hidden min-h-0 max-h-16 flex-1 md:block"
+          />
+          <div class="home-content min-h-0 flex flex-col gap-6 overflow-y-auto pb-6 mobile:pt-[calc(var(--mobile-content-inset-top,0px)+0.5rem)] mobile:pb-(--mobile-content-inset-bottom)">
+            <header class="flex items-center gap-2.5">
+              <AnimatedHeroLogo class="size-6 shrink-0 text-accent" />
+              <h1 class="text-xl font-normal tracking-tight text-ink">
+                {greeting}, <span class="capitalize">{firstName()}</span>
+              </h1>
+            </header>
 
-          <HomeSectionBoundary title="import">
-            <HomeBackfillProgress />
-          </HomeSectionBoundary>
-
-          <ShowFeatureFlag
-            key={ENABLE_HOME_RECOMMENDATIONS_FLAG}
-            enabledOverride={ENABLE_HOME_RECOMMENDATIONS_OVERRIDE}
-          >
-            <HomeSectionBoundary title="recommendations" fallback={null}>
-              <RecommendedSection />
+            <HomeSectionBoundary title="import">
+              <HomeBackfillProgress />
             </HomeSectionBoundary>
-          </ShowFeatureFlag>
 
-          <HomeSectionBoundary title="getting started" fallback={null}>
-            <GettingStartedSection preferences={preferences} />
-          </HomeSectionBoundary>
+            <ShowFeatureFlag
+              key={ENABLE_HOME_RECOMMENDATIONS_FLAG}
+              enabledOverride={ENABLE_HOME_RECOMMENDATIONS_OVERRIDE}
+            >
+              <HomeSectionBoundary title="recommendations" fallback={null}>
+                <RecommendedSection />
+              </HomeSectionBoundary>
+            </ShowFeatureFlag>
 
-          <HomeSectionBoundary title="examples">
-            <HomeExamples preferences={preferences} />
-          </HomeSectionBoundary>
+            <HomeSectionBoundary title="getting started" fallback={null}>
+              <GettingStartedSection preferences={preferences} />
+            </HomeSectionBoundary>
+
+            <HomeSectionBoundary title="examples">
+              <HomeExamples preferences={preferences} onSend={handleSend} />
+            </HomeSectionBoundary>
+          </div>
+          <div
+            aria-hidden="true"
+            class="hidden min-h-0 max-h-24 flex-1 md:block"
+          />
         </div>
       </div>
 
       <FloatRegionOrInline region="accessory">
         <div class="mx-auto w-full max-w-3xl shrink-0 px-4 pb-3 pointer-events-auto mobile:px-(--mobile-chrome-gutter) mobile:pb-0">
-          <HomeChatInput />
+          <HomeChatInput onSend={handleSend} />
         </div>
       </FloatRegionOrInline>
     </main>
   );
 }
 
-const HomeChatInput = () => {
+function useHomeChatSend() {
+  const splitPanelContext = useSplitPanelOrThrow();
+  const renameMutation = createRenameDssEntityMutation();
+
+  return async (request: ChatSendInput) => {
+    const backgroundSend = request.metaKey;
+
+    // Create a new persistent chat
+    const response = await cognitionApiServiceClient.createChat({});
+    if (response.isErr()) {
+      if (isPaymentError(response)) {
+        const { showPaywall } = usePaywallState();
+        showPaywall(PaywallKey.CHAT_LIMIT);
+      }
+      return;
+    }
+    const { id: chatId } = response.value;
+
+    // Rename via mutation for optimistic cache updates (history, preview, soup)
+    const name = deriveChatName(request.content);
+    if (name) {
+      renameMutation.mutate({
+        entity: { type: 'chat', id: chatId, name: '', ownerId: '' },
+        newName: name,
+      });
+    }
+
+    if (backgroundSend) {
+      // Send the message in the background without navigating
+      cognitionApiServiceClient.sendStreamChatMessage({
+        content: request.content,
+        model: request.model,
+        chat_id: chatId,
+        attachments:
+          request.attachments.length > 0 ? request.attachments : undefined,
+        toolset: { type: 'all' },
+      });
+      invalidateAllSoup();
+    } else {
+      // Store the pending send data for the chat to pick up
+      setPendingSendData({
+        content: request.content,
+        attachments: request.attachments,
+        model: request.model,
+      });
+
+      // Replace the soup split with the chat split
+      splitPanelContext.handle.replace({
+        next: { type: 'chat', id: chatId },
+      });
+    }
+  };
+}
+
+const HomeChatInput = (props: {
+  onSend: (request: ChatSendInput) => void | Promise<void>;
+}) => {
   const analytics = useAnalytics();
   const splitPanelContext = useSplitPanelOrThrow();
   const input = useChatInputContext();
@@ -217,62 +285,11 @@ const HomeChatInput = () => {
     hide: true,
   });
 
-  const renameMutation = createRenameDssEntityMutation();
-
-  const handleSend = async (request: ChatSendInput) => {
-    const backgroundSend = request.metaKey;
-
-    // Create a new persistent chat
-    const response = await cognitionApiServiceClient.createChat({});
-    if (response.isErr()) {
-      if (isPaymentError(response)) {
-        const { showPaywall } = usePaywallState();
-        showPaywall(PaywallKey.CHAT_LIMIT);
-      }
-      return;
-    }
-    const { id: chatId } = response.value;
-
-    // Rename via mutation for optimistic cache updates (history, preview, soup)
-    const name = deriveChatName(request.content);
-    if (name) {
-      renameMutation.mutate({
-        entity: { type: 'chat', id: chatId, name: '', ownerId: '' },
-        newName: name,
-      });
-    }
-
-    if (backgroundSend) {
-      // Send the message in the background without navigating
-      cognitionApiServiceClient.sendStreamChatMessage({
-        content: request.content,
-        model: request.model,
-        chat_id: chatId,
-        attachments:
-          request.attachments.length > 0 ? request.attachments : undefined,
-        toolset: { type: 'all' },
-      });
-      invalidateAllSoup();
-    } else {
-      // Store the pending send data for the chat to pick up
-      setPendingSendData({
-        content: request.content,
-        attachments: request.attachments,
-        model: request.model,
-      });
-
-      // Replace the soup split with the chat split
-      splitPanelContext.handle.replace({
-        next: { type: 'chat', id: chatId },
-      });
-    }
-  };
-
   return (
     <ChatInput
       variant="default"
       editor={editor}
-      onSend={handleSend}
+      onSend={(request) => void props.onSend(request)}
       onEscape={() => {
         splitPanelContext.panelRef()?.focus();
         return true;

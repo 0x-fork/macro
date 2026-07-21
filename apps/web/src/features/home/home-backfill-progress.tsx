@@ -7,6 +7,9 @@ import { useEmailLinksQuery } from '@queries/email/link';
 import { SyncStatus } from '@service-email/generated/schemas';
 import { createMemo, Match, Show, Switch } from 'solid-js';
 
+/** Temporary home-layout override */
+const FORCE_BACKFILL_PROGRESS_VISIBLE = true;
+
 /**
  * Slim inbox-import line for the home header. Shows a spinner, label, a thin
  * progress bar, and the count while one or more connected inboxes are
@@ -42,7 +45,11 @@ export function HomeBackfillProgress() {
   };
 
   return (
-    <Show when={active().length > 0 || isImporting()}>
+    <Show
+      when={
+        FORCE_BACKFILL_PROGRESS_VISIBLE || active().length > 0 || isImporting()
+      }
+    >
       <div class="rounded-xl border border-edge-muted bg-active p-4">
         <div class="flex items-center justify-between gap-3">
           <div class="flex min-w-0 items-center gap-2">
@@ -64,7 +71,7 @@ export function HomeBackfillProgress() {
                 style={{ width: `${percent()}%` }}
               />
             </Match>
-            <Match when={isImporting()}>
+            <Match when={isImporting() || FORCE_BACKFILL_PROGRESS_VISIBLE}>
               <div class="h-full w-1/3 animate-pulse rounded-full bg-ink-muted" />
             </Match>
           </Switch>

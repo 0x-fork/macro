@@ -1,6 +1,11 @@
 import { DOCS_BASE } from '@app/constants/docs-links';
 import { LIST_VIEW_PATHS } from '@app/constants/list-views';
+import { FavoriteIcon } from '@app/features/favorites/FavoriteIcon';
 import { globalSplitManager } from '@app/signal/splitLayout';
+import {
+  favoriteSplitContent,
+  useFavoriteDisplayName,
+} from '@app/util/favorites';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useChatInputContext } from '@core/component/AI/context';
 import { EntityIcon, getEntityIconType } from '@core/component/EntityIcon';
@@ -24,9 +29,11 @@ import {
   type RecommendedItem,
 } from '@queries/ai/homeRecommendations';
 import { useEmailLinksQuery } from '@queries/email/link';
+import { useFavoritesData } from '@queries/favorites/favorites';
 import { useMcpServersQuery } from '@queries/mcp-servers';
+import type { Favorite } from '@service-storage/generated/schemas/favorite';
 import { useNavigate } from '@solidjs/router';
-import { For, Match, Show, Switch } from 'solid-js';
+import { createSignal, For, Match, Show, Switch } from 'solid-js';
 import { match } from 'ts-pattern';
 import { replaceHomeComposerSelection } from './home-composer-selection';
 import type { HomePreferences } from './home-prefs';
@@ -41,6 +48,8 @@ const STATUS: Record<RecommendedAction, { label: string; accent: boolean }> = {
 
 /** Show the "Connect your tools" row until this many connections exist. */
 const CONNECTION_GOAL = 4;
+const COLLAPSED_RECOMMENDATIONS_COUNT = 3;
+const STARTER_DOC_NAME = 'Macro how to guide';
 
 const ATTACHABLE_ENTITY_TYPES = new Set<RecommendedItem['entityType']>([
   'channel',
@@ -48,6 +57,106 @@ const ATTACHABLE_ENTITY_TYPES = new Set<RecommendedItem['entityType']>([
   'email_thread',
   'project',
 ]);
+
+/** Temporary recommendations fixtures for UI testing */
+const USE_DUMMY_RECOMMENDATIONS = true;
+const DUMMY_RECOMMENDATION_ID_PREFIX = 'home-dummy-recommendation-';
+const DUMMY_RECOMMENDATIONS: RecommendedItem[] = [
+  {
+    entityType: 'email_thread',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}1`,
+    title: 'Confirm the launch timeline with the product team',
+    source: 'Maya Chen',
+    action: 'reply_now',
+    reason: 'Waiting on your approval',
+    prompt: 'Draft a reply confirming the proposed launch timeline.',
+  },
+  {
+    entityType: 'document',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}2`,
+    title: 'Review the Q3 planning brief',
+    source: 'Product Planning',
+    action: 'review',
+    reason: 'Comments requested today',
+    prompt: 'Review the Q3 planning brief and summarize the key risks.',
+  },
+  {
+    entityType: 'channel',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}3`,
+    title: 'Resolve the onboarding flow decision',
+    source: '#design-reviews',
+    action: 'discuss',
+    reason: 'Team needs a decision',
+    prompt: 'Help me outline a decision for the onboarding flow discussion.',
+  },
+  {
+    entityType: 'email_thread',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}4`,
+    title: 'Send feedback on the customer proposal',
+    source: 'Jordan Patel',
+    action: 'reply_later',
+    reason: 'Feedback due tomorrow',
+    prompt: 'Draft thoughtful feedback on the customer proposal.',
+  },
+  {
+    entityType: 'project',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}5`,
+    title: 'Check the website refresh milestones',
+    source: 'Website Refresh',
+    action: 'review',
+    reason: 'Two milestones are at risk',
+    prompt: 'Review the website refresh milestones and identify blockers.',
+  },
+  {
+    entityType: 'chat',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}6`,
+    title: 'Follow up on the analytics handoff',
+    source: 'Alex Morgan',
+    action: 'reply_now',
+    reason: 'Handoff is blocked',
+    prompt: 'Draft a concise follow-up about the analytics handoff.',
+  },
+  {
+    entityType: 'document',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}7`,
+    title: 'Review edits to the hiring plan',
+    source: 'People Operations',
+    action: 'review',
+    reason: 'New headcount assumptions',
+    prompt: 'Review the hiring plan edits and flag material changes.',
+  },
+  {
+    entityType: 'channel',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}8`,
+    title: 'Decide how to handle the beta feedback',
+    source: '#customer-feedback',
+    action: 'discuss',
+    reason: 'Several reports overlap',
+    prompt: 'Group the beta feedback into themes and suggest next steps.',
+  },
+  {
+    entityType: 'email_thread',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}9`,
+    title: 'Reply to the partnership introduction',
+    source: 'Sam Rivera',
+    action: 'reply_later',
+    reason: 'Introduction needs a response',
+    prompt: 'Draft a warm response to the partnership introduction.',
+  },
+  {
+    entityType: 'project',
+    entityId: `${DUMMY_RECOMMENDATION_ID_PREFIX}10`,
+    title: 'Prepare for the weekly execution review',
+    source: 'Company Priorities',
+    action: 'review',
+    reason: 'Status review starts soon',
+    prompt: 'Summarize the most important updates for the execution review.',
+  },
+];
+
+function isDummyRecommendation(item: RecommendedItem) {
+  return item.entityId.startsWith(DUMMY_RECOMMENDATION_ID_PREFIX);
+}
 
 /**
  * AI-recommended inbox items, generated by a fast projection for immediate
@@ -59,6 +168,8 @@ export function RecommendedSection() {
   const notificationSource = useGlobalNotificationSource();
   const { openSettings } = useSettingsState();
   const navigate = useNavigate();
+  const [recommendationsExpanded, setRecommendationsExpanded] =
+    createSignal(false);
 
   const emailLinks = useEmailLinksQuery();
   const recommendations = createHomeRecommendations();
@@ -69,25 +180,34 @@ export function RecommendedSection() {
       failed:
         (emailLinks.isError && emailLinks.data === undefined) ||
         recommendations.hasError(),
-      items: recommendations.items(),
+      items: USE_DUMMY_RECOMMENDATIONS
+        ? DUMMY_RECOMMENDATIONS
+        : recommendations.items(),
       emailLinked: (emailLinks.data?.links.length ?? 0) > 0,
     });
   const items = () => {
     const current = view();
     return current.kind === 'items' ? current.items : [];
   };
+  const visibleItems = () =>
+    recommendationsExpanded()
+      ? items()
+      : items().slice(0, COLLAPSED_RECOMMENDATIONS_COUNT);
 
   const selectRecommendation = (item: RecommendedItem) => {
     replaceHomeComposerSelection(
       input,
       item.prompt,
-      ATTACHABLE_ENTITY_TYPES.has(item.entityType)
+      !isDummyRecommendation(item) &&
+        ATTACHABLE_ENTITY_TYPES.has(item.entityType)
         ? [{ entity_id: item.entityId, entity_type: item.entityType }]
         : undefined
     );
   };
 
   const openRecommendation = async (item: RecommendedItem) => {
+    if (isDummyRecommendation(item)) return;
+
     const splitManager = globalSplitManager();
     if (!splitManager) return;
 
@@ -131,13 +251,6 @@ export function RecommendedSection() {
     <section>
       <div class="mb-2 flex items-center justify-between px-1">
         <span class="text-sm text-ink-muted">Recommended</span>
-        <button
-          type="button"
-          class="text-xs text-ink-extra-muted transition-colors hover:text-ink-muted"
-          onClick={() => navigate(LIST_VIEW_PATHS.inbox)}
-        >
-          Show all
-        </button>
       </div>
       <div class="flex flex-col gap-2">
         <Switch>
@@ -145,7 +258,7 @@ export function RecommendedSection() {
             <For each={[0, 1, 2]}>
               {() => (
                 <div
-                  class="group flex h-14 w-full items-center gap-3.5 rounded-xl border border-edge-muted bg-hover/40 px-4 py-3 text-left animate-pulse"
+                  class="group flex h-14 w-full shrink-0 items-center gap-3.5 rounded-xl border border-edge-muted bg-hover/40 px-4 py-3 text-left animate-pulse"
                   aria-hidden="true"
                 />
               )}
@@ -171,7 +284,7 @@ export function RecommendedSection() {
             </div>
           </Match>
           <Match when={view().kind === 'items'}>
-            <For each={items()}>
+            <For each={visibleItems()}>
               {(item) => (
                 <RecommendedRow
                   item={item}
@@ -180,6 +293,20 @@ export function RecommendedSection() {
                 />
               )}
             </For>
+            <Show when={items().length > COLLAPSED_RECOMMENDATIONS_COUNT}>
+              <button
+                type="button"
+                class="w-full rounded-lg py-2 text-xs font-medium text-ink-muted transition-colors hover:bg-hover hover:text-ink"
+                aria-expanded={recommendationsExpanded()}
+                onClick={() =>
+                  setRecommendationsExpanded((expanded) => !expanded)
+                }
+              >
+                {recommendationsExpanded()
+                  ? 'Collapse'
+                  : `Show ${items().length - COLLAPSED_RECOMMENDATIONS_COUNT} more`}
+              </button>
+            </Show>
           </Match>
           <Match when={view().kind === 'connect-inbox'}>
             <button
@@ -231,8 +358,13 @@ function useConnectionsCount() {
 export function GettingStartedSection(props: { preferences: HomePreferences }) {
   const { openSettings } = useSettingsState();
   const connectionsCount = useConnectionsCount();
+  const favoritesData = useFavoritesData();
 
   const showConnectRow = () => connectionsCount() < CONNECTION_GOAL;
+  const documentFavorites = () =>
+    (favoritesData()?.favorites ?? []).filter(
+      (favorite) => favorite.entityType === 'document'
+    );
 
   return (
     <Show when={!isMobile() && !props.preferences.isDismissed('setup')}>
@@ -266,6 +398,9 @@ export function GettingStartedSection(props: { preferences: HomePreferences }) {
               onActivate={() => openSettings('Connected')}
             />
           </Show>
+          <For each={documentFavorites()}>
+            {(favorite) => <StarterDocRow favorite={favorite} />}
+          </For>
           <SetupRow
             icon={<BookOpenIcon class="size-4" />}
             title="Learn the basics"
@@ -281,6 +416,32 @@ export function GettingStartedSection(props: { preferences: HomePreferences }) {
   );
 }
 
+ /**
+  * Hacky, fragile method of linking to the starter doc, relying on the fact that it gets added to favorites, and has a certain name.
+  */
+function StarterDocRow(props: { favorite: Favorite }) {
+  const displayName = useFavoriteDisplayName(props.favorite);
+
+  return (
+    <Show when={displayName() === STARTER_DOC_NAME}>
+      <SetupRow
+        icon={<FavoriteIcon favorite={props.favorite} />}
+        title="Open your Macro how to guide"
+        desc="Learn Macro's shortcuts, workflows & core features"
+        trailing={
+          <ChevronRightIcon class="size-4 shrink-0 text-ink-extra-muted" />
+        }
+        onActivate={() =>
+          globalSplitManager()?.openWithSplit(
+            favoriteSplitContent(props.favorite),
+            { activate: true }
+          )
+        }
+      />
+    </Show>
+  );
+}
+
 function RecommendedRow(props: {
   item: RecommendedItem;
   onSelect: () => void;
@@ -288,7 +449,7 @@ function RecommendedRow(props: {
 }) {
   const status = () => STATUS[props.item.action];
   return (
-    <div class="group flex w-full items-stretch overflow-hidden rounded-xl border border-edge-muted bg-active transition-colors hover:border-edge">
+    <div class="group flex w-full shrink-0 items-stretch overflow-hidden rounded-xl border border-edge-muted bg-active transition-colors hover:border-edge">
       <div class="flex min-w-0 flex-1 items-center gap-3.5 px-4 py-3">
         <div class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface text-ink-muted">
           <EntityIcon
