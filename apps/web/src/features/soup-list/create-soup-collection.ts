@@ -1,3 +1,4 @@
+import type { ListView } from '@app/constants/list-views';
 import { SORT_CONFIGS } from '@app/features/next-soup/soup-view/sort-options';
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
@@ -17,9 +18,11 @@ export type SoupCollection = SoupCollectionControls & {
 };
 
 export type CreateSoupCollectionOptions = CreateSoupCollectionStateOptions & {
+  view: ListView;
   enabled?: Accessor<boolean>;
   additionalEntities?: Accessor<EntityData[]>;
   disableLocalSearch?: Accessor<boolean>;
+  limit?: Accessor<number>;
 };
 
 /** Owns one Soup collection's controls and all concrete data sources. */
@@ -36,10 +39,12 @@ export function createSoupCollection(
     },
   });
   const source = createSoupDataSource({
+    view: options.view,
     controls: state,
     enabled: options.enabled,
     additionalEntities: options.additionalEntities,
     disableLocalSearch: options.disableLocalSearch,
+    limit: options.limit,
     sortConfigs: options.sortConfigs ?? SORT_CONFIGS,
   });
   const { browseEntities, ...dataSource } = source;

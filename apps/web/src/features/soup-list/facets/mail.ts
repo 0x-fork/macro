@@ -67,7 +67,6 @@ export const MAIL_CALENDAR = facet({
   options: [
     {
       id: 'has-calendar-invite',
-      clause: (b) => ({ ef: b.eq('emailCalendarOnly', true) }),
       predicate: hasCalendarInviteFilter,
     },
   ],

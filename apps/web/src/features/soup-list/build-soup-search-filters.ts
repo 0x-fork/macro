@@ -21,6 +21,9 @@ type SearchTypeValue =
   | 'doc-snippet';
 type CallStatus = 'ATTENDED' | 'MISSED' | 'UNATTENDED';
 
+const isCallStatus = (value: string | undefined): value is CallStatus =>
+  value === 'ATTENDED' || value === 'MISSED' || value === 'UNATTENDED';
+
 const TASK_STATUS_VALUES: Record<string, string> = {
   'task-not-started': PROPERTY_OPTION_IDS.STATUS.NOT_STARTED,
   'task-in-progress': PROPERTY_OPTION_IDS.STATUS.IN_PROGRESS,
@@ -101,6 +104,7 @@ export function buildSearchEntityFilters(
   const {
     search_type: searchType = [],
     scope = [],
+    inbox = [],
     agents = [],
     mail = [],
     documents = [],
@@ -146,6 +150,9 @@ export function buildSearchEntityFilters(
   const crmOnly =
     scope.includes('crm-company-active') ||
     scope.includes('crm-company-hidden');
+  const selectedCallStatus = isCallStatus(callStatus[0])
+    ? callStatus[0]
+    : undefined;
 
   const active = ACTIVE_GROUP[type];
   const filters: EntityFilters =
@@ -188,8 +195,7 @@ export function buildSearchEntityFilters(
       if (callIn.length) cf.channel_ids = callIn;
       if (callFrom.length) cf.speaker_ids = callFrom;
 
-      const status = callStatus[0] as CallStatus | undefined;
-      if (status) cf.status = status;
+      if (selectedCallStatus) cf.status = selectedCallStatus;
 
       if (Object.keys(cf).length) filters.call_filters = cf;
 
@@ -226,18 +232,20 @@ export function buildSearchEntityFilters(
               ]
             : [];
         }),
-        ...taskPriority.flatMap((id) => {
-          const value = TASK_PRIORITY_VALUES[id];
-          return value
-            ? [
-                {
-                  propertyId: SYSTEM_PROPERTY_IDS.PRIORITY,
-                  type: 'select' as const,
-                  value,
-                },
-              ]
-            : [];
-        }),
+        ...(taskPriority.includes('task-no-priority')
+          ? []
+          : taskPriority.flatMap((id) => {
+              const value = TASK_PRIORITY_VALUES[id];
+              return value
+                ? [
+                    {
+                      propertyId: SYSTEM_PROPERTY_IDS.PRIORITY,
+                      type: 'select' as const,
+                      value,
+                    },
+                  ]
+                : [];
+            })),
         ...(assignee.includes(NO_ASSIGNEE)
           ? []
           : assignee.map((value) => ({
@@ -251,6 +259,15 @@ export function buildSearchEntityFilters(
 
       break;
     }
+  }
+
+  const inboxTab = inbox[0];
+  if (inboxTab === 'signal' || inboxTab === 'noise') {
+    filters.email_filters = {
+      ...filters.email_filters,
+      importance: inboxTab === 'signal',
+      shared: 'exclude',
+    };
   }
 
   const userId = context.userId;
@@ -269,7 +286,6 @@ export function buildSearchEntityFilters(
   } else if (mailTab === 'calendar') {
     filters.email_filters = {
       ...filters.email_filters,
-      calendar_only: true,
       shared: 'exclude',
     };
   } else if (mailTab === 'shared') {
@@ -279,19 +295,14 @@ export function buildSearchEntityFilters(
   const selectedFileTypes = documentTypes.flatMap(
     (id) => DOCUMENT_SEARCH_FILE_TYPES[id] ?? []
   );
-  if (selectedFileTypes.length) {
+  if (!documentTypes.includes('file-other') && selectedFileTypes.length) {
     filters.document_filters = {
       ...filters.document_filters,
       file_types: [...new Set(selectedFileTypes)],
     };
   }
   const documentsTab = documents[0];
-  if (documentsTab === 'attachments') {
-    filters.document_filters = {
-      ...filters.document_filters,
-      is_email_attachment: true,
-    };
-  } else if (userId && documentsTab === 'owned') {
+  if (userId && documentsTab === 'owned') {
     filters.document_filters = {
       ...filters.document_filters,
       owners: [userId],
@@ -328,12 +339,7 @@ export function buildSearchEntityFilters(
   const channelTab =
     channels[0] ??
     (scope[0] === 'people' || scope[0] === 'teams' ? scope[0] : undefined);
-  if (channelTab === 'recent') {
-    filters.channel_filters = {
-      ...filters.channel_filters,
-      importance: true,
-    };
-  } else if (channelTab === 'people' || channelTab === 'teams') {
+  if (channelTab === 'people' || channelTab === 'teams') {
     filters.channel_filters = {
       ...filters.channel_filters,
       channel_types:
@@ -365,7 +371,6 @@ export function buildSearchEntityFilters(
       : { participant_ids: [threadScope] }
     : (filters.channel_thread_filters ?? { thread_ids: [NIL_UUID] });
 
-  const selectedCallStatus = callStatus[0] as CallStatus | undefined;
   if (selectedCallStatus) {
     filters.call_filters = {
       ...filters.call_filters,

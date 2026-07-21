@@ -39,6 +39,7 @@ export type ApiSoupParams = Omit<SoupParams, 'sort_method'> & {
 export function useSoupBrowseRequest(options: {
   controls: SoupCollectionControls;
   enabled?: Accessor<boolean>;
+  limit?: Accessor<number>;
 }) {
   const { controls } = options;
   const enabled = () => options.enabled?.() ?? true;
@@ -88,7 +89,7 @@ export function useSoupBrowseRequest(options: {
   const soupParams = createMemo((): ApiSoupParams => {
     const requested = controls.state.sort[0]?.id ?? 'updated_at';
     return {
-      limit: 100,
+      limit: options.limit?.() ?? 100,
       sort_method: API_SORTS.has(requested as ApiSortMethod)
         ? (requested as ApiSortMethod)
         : 'created_at',

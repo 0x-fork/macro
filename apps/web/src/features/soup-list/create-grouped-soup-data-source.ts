@@ -69,6 +69,7 @@ export type CreateGroupedSoupDataSourceOptions<
   controls: SoupCollectionControls;
   enabled: Accessor<boolean>;
   additionalEntities?: Accessor<EntityData[]>;
+  limit?: Accessor<number>;
   transformEntities: (
     entities: readonly EntityData[],
     options?: TransformSoupEntitiesOptions
@@ -90,6 +91,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
   } = useSoupBrowseRequest({
     controls,
     enabled: options.enabled,
+    limit: options.limit,
   });
   const graphqlSoup = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
     enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
@@ -97,6 +99,10 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
 
   const clientGrouping = () =>
     grouping.active() && grouping.serverGroupByField() === undefined;
+  const groupedTransport = (): 'graphql' | undefined =>
+    grouping.serverGroupByField() && graphqlSoup().enabled
+      ? 'graphql'
+      : undefined;
 
   const reactive = useReactiveSoupDataSource({
     enabled: () =>
@@ -114,6 +120,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     params: soupParams,
     body: soupBody,
     groupBy: grouping.serverGroupByField,
+    transport: groupedTransport,
     showSupportedForeignEntities,
     itemFilter: matchesActiveFilters,
   });
@@ -155,6 +162,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     groupByField: grouping.serverGroupByField,
     soupParams,
     soupBody,
+    transport: groupedTransport,
     queryOptions: () => ({
       enabled: options.enabled() && grouping.active(),
       filterSelectedItems: false,

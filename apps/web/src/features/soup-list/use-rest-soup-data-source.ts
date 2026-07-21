@@ -15,6 +15,7 @@ export function useRestSoupDataSource(options: {
   params: Accessor<ApiSoupParams>;
   body: Accessor<SoupAstBody>;
   groupBy: Accessor<GroupByField | undefined>;
+  transport?: Accessor<'rest' | 'graphql' | undefined>;
   showSupportedForeignEntities: Accessor<boolean>;
   itemFilter: (item: SoupApiItem) => boolean;
 }) {
@@ -24,6 +25,7 @@ export function useRestSoupDataSource(options: {
       params: options.params(),
       body: options.body(),
       groupBy: options.groupBy(),
+      transport: options.transport?.(),
     }),
     () => ({
       enabled: options.enabled(),

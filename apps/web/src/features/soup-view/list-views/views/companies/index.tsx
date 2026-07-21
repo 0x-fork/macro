@@ -159,6 +159,10 @@ function CompaniesListViewContent() {
       .selected()
       .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
   );
+  const boardEntityCount = () =>
+    collection.state.search.trim()
+      ? dataSource.items().filter((item) => item.kind === 'entity').length
+      : collection.browseEntities().length;
 
   return (
     <SplitPanelContext.Provider
@@ -280,10 +284,7 @@ function CompaniesListViewContent() {
                         <SoupEmptyState />
                       </Match>
                       <Match
-                        when={
-                          dataSource.error() &&
-                          collection.browseEntities().length === 0
-                        }
+                        when={dataSource.error() && boardEntityCount() === 0}
                       >
                         <SoupCompaniesErrorState onRetry={dataSource.refresh} />
                       </Match>
@@ -292,7 +293,7 @@ function CompaniesListViewContent() {
                           <Spinner class="size-4 animate-spin" />
                         </div>
                       </Match>
-                      <Match when={collection.browseEntities().length === 0}>
+                      <Match when={boardEntityCount() === 0}>
                         <SoupEmptyState />
                       </Match>
                       <Match when={true}>

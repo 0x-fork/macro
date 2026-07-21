@@ -1,4 +1,5 @@
 import type { ListDataSource } from '@app/components/list';
+import type { ListView } from '@app/constants/list-views';
 import {
   deduplicateEntities,
   scopeChannelNotificationsForEntity,
@@ -7,6 +8,8 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_GRAPHQL_SOUP_FLAG,
   ENABLE_GRAPHQL_SOUP_OVERRIDE,
+  ENABLE_NEW_INBOX_FLAG,
+  ENABLE_NEW_INBOX_OVERRIDE,
 } from '@core/constant/featureFlags';
 import {
   type EntityData,
@@ -35,10 +38,12 @@ type EntityWithRawNotifications = EntityData & {
 };
 
 export type CreateSoupDataSourceOptions = {
+  view: ListView;
   controls: SoupCollectionControls;
   enabled?: Accessor<boolean>;
   additionalEntities?: Accessor<EntityData[]>;
   disableLocalSearch?: Accessor<boolean>;
+  limit?: Accessor<number>;
   sortConfigs: Record<
     string,
     { id: string; fn: (a: EntityData, b: EntityData) => number }
@@ -67,11 +72,23 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
   const graphqlSoup = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
     enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
   });
+  const newInbox = useFeatureFlag(ENABLE_NEW_INBOX_FLAG, {
+    enabledOverride: ENABLE_NEW_INBOX_OVERRIDE,
+  });
+  const shouldScopeChannelNotifications = () =>
+    options.view === 'inbox' && newInbox().enabled;
 
   const rawNotifications = (entity: EntityData) => {
     const value = (entity as EntityWithRawNotifications).notifications;
     return Array.isArray(value) ? value : undefined;
   };
+  const notificationsForEntity = (
+    entity: EntityData,
+    notifications: Notification[]
+  ) =>
+    shouldScopeChannelNotifications()
+      ? scopeChannelNotificationsForEntity(entity, notifications)
+      : notifications;
 
   const attachNotifications = (entity: EntityData): SoupEntity => {
     if (isWithNotification(entity)) {
@@ -84,8 +101,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
         entity as EntityWithRawNotifications;
       return {
         ...withoutRaw,
-        notifications: () =>
-          scopeChannelNotificationsForEntity(withoutRaw, raw),
+        notifications: () => notificationsForEntity(withoutRaw, raw),
       } as SoupEntity;
     }
 
@@ -95,8 +111,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     );
     return {
       ...entity,
-      notifications: () =>
-        scopeChannelNotificationsForEntity(entity, notifications()),
+      notifications: () => notificationsForEntity(entity, notifications()),
     } as SoupEntity;
   };
 
@@ -133,6 +148,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     controls,
     enabled: () => enabled() && !searchSource.active(),
     additionalEntities: options.additionalEntities,
+    limit: options.limit,
     transformEntities,
   });
 

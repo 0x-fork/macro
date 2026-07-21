@@ -81,8 +81,8 @@ export function useSoupFacetControls() {
     enabled: () => view() === 'inbox',
   });
   const { useList: useQuickAccessList } = useQuickAccess();
-  const quickAccessChannels = useQuickAccessList('channel', 'dm');
-  const quickAccessPeople = useQuickAccessList('person');
+  const quickAccessChannels = useQuickAccessList('channel', 'dm').items;
+  const quickAccessPeople = useQuickAccessList('person').items;
   const teamQuery = useCurrentTeamQuery();
   const dealStages = useDealStages();
   const emailLinksQuery = useEmailLinksQuery();

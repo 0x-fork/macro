@@ -63,9 +63,11 @@ export function useSoupViewSetup(options: SoupViewSetupOptions) {
     activeTab: initialTab,
   };
   const collection = createSoupCollection({
+    view: options.view,
     initialState: resolvedInitialState,
     additionalEntities: options.additionalEntities,
     disableLocalSearch: options.disableLocalSearch,
+    limit: () => (options.view === 'mail' ? 30 : 100),
     persistence: createSoupCollectionPersistence({
       panel,
       view: options.view,
