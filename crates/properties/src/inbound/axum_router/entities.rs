@@ -27,8 +27,12 @@ use super::extract::{EditReceiptExtractor, ViewReceiptExtractor};
 use super::extract::{mint_authenticated_receipt, mint_view_receipt, target_entity_type};
 use super::{PropertiesRouterState, properties_err_status};
 use crate::domain::error::PropertiesErr;
+use crate::domain::model::EntityPropertyOptionUpdate;
 use crate::domain::model::PropertyAccessReceiptExt;
 use crate::domain::service::PropertiesService;
+
+#[cfg(test)]
+mod test;
 
 // Re-export EntityQueryParams from models_properties for convenience
 pub use models_properties::api::EntityQueryParams;
@@ -498,6 +502,169 @@ pub async fn remove_entity_property_option<
         .await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// One property's option changes in a bulk selection update. The change is a
+/// delta (options to add / remove) so it composes with concurrent edits rather
+/// than replacing the whole value.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EntityPropertyOptionUpdateRequest {
+    /// The multi-select property definition being changed.
+    pub property_id: Uuid,
+    /// Options to add (deduped against the current value).
+    #[serde(default)]
+    pub add_option_ids: Vec<Uuid>,
+    /// Options to remove (a no-op if not present).
+    #[serde(default)]
+    pub remove_option_ids: Vec<Uuid>,
+}
+
+/// Request to apply option deltas across one or more of an entity's multi-select
+/// properties in a single transaction.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct BulkUpdateEntityPropertyOptionsRequest {
+    /// The per-property option changes to apply.
+    pub properties: Vec<EntityPropertyOptionUpdateRequest>,
+}
+
+/// The reconciled final option ids stored for one property after a bulk update.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EntityPropertyOptionSelectionResponse {
+    /// The property definition the options belong to.
+    pub property_id: Uuid,
+    /// The final option ids the server persisted, in stored order.
+    pub option_ids: Vec<Uuid>,
+}
+
+/// Response for a bulk option update: each property's reconciled final ids.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct BulkUpdateEntityPropertyOptionsResponse {
+    /// The final option ids per updated property.
+    pub properties: Vec<EntityPropertyOptionSelectionResponse>,
+}
+
+/// Maximum properties changeable in one bulk option request.
+const MAX_BULK_OPTION_PROPERTIES: usize = 100;
+/// Maximum option ids (added plus removed) per property in one bulk request.
+const MAX_OPTION_IDS_PER_PROPERTY: usize = 500;
+
+#[derive(Debug, Error)]
+pub enum BulkUpdateEntityPropertyOptionsErr {
+    #[error(transparent)]
+    Properties(#[from] PropertiesErr),
+    #[error("Duplicate property id in request")]
+    DuplicateProperty,
+    #[error("Cannot update more than {MAX_BULK_OPTION_PROPERTIES} properties at once")]
+    TooManyProperties,
+    #[error("Cannot change more than {MAX_OPTION_IDS_PER_PROPERTY} options for a property at once")]
+    TooManyOptions,
+}
+
+impl IntoResponse for BulkUpdateEntityPropertyOptionsErr {
+    fn into_response(self) -> Response {
+        let status_code = match &self {
+            BulkUpdateEntityPropertyOptionsErr::Properties(e) => properties_err_status(e),
+            BulkUpdateEntityPropertyOptionsErr::DuplicateProperty
+            | BulkUpdateEntityPropertyOptionsErr::TooManyProperties
+            | BulkUpdateEntityPropertyOptionsErr::TooManyOptions => StatusCode::BAD_REQUEST,
+        };
+
+        if status_code.is_server_error() {
+            tracing::error!(
+                error = ?self,
+                error_type = "BulkUpdateEntityPropertyOptionsErr",
+                "Internal server error"
+            );
+        }
+
+        (status_code, self.to_string()).into_response()
+    }
+}
+
+/// Reject oversized or duplicate-property requests before any database work, so
+/// one authenticated call can't force unbounded query and lock work.
+fn validate_bulk_option_request(
+    request: &BulkUpdateEntityPropertyOptionsRequest,
+) -> Result<(), BulkUpdateEntityPropertyOptionsErr> {
+    if request.properties.len() > MAX_BULK_OPTION_PROPERTIES {
+        return Err(BulkUpdateEntityPropertyOptionsErr::TooManyProperties);
+    }
+    let mut seen = std::collections::HashSet::with_capacity(request.properties.len());
+    for property in &request.properties {
+        if !seen.insert(property.property_id) {
+            return Err(BulkUpdateEntityPropertyOptionsErr::DuplicateProperty);
+        }
+        if property.add_option_ids.len() + property.remove_option_ids.len()
+            > MAX_OPTION_IDS_PER_PROPERTY
+        {
+            return Err(BulkUpdateEntityPropertyOptionsErr::TooManyOptions);
+        }
+    }
+    Ok(())
+}
+
+/// Apply a complete tag-picker selection across an entity's multi-select
+/// properties in one request.
+///
+/// Each property change is expressed as an option delta and applied to the
+/// current stored value under a per-row lock inside a single transaction, so the
+/// selection persists atomically and composes with concurrent edits instead of
+/// clobbering them. Returns the reconciled final option ids per property for
+/// cache reconciliation.
+#[utoipa::path(
+    post,
+    path = "/properties/entities/{entity_type}/{entity_id}/options/bulk",
+    params(
+        ("entity_type" = PropertyTargetEntityType, Path, description = "Canonical entity type; tasks use DOCUMENT"),
+        ("entity_id" = String, Path, description = "Entity ID")
+    ),
+    request_body = BulkUpdateEntityPropertyOptionsRequest,
+    responses(
+        (status = 200, description = "Options updated; returns final ids per property", body = BulkUpdateEntityPropertyOptionsResponse),
+        (status = 400, description = "Invalid request, a property is not multi-select, or an option does not belong to its property"),
+        (status = 403, description = "No edit access to the entity"),
+        (status = 500, description = "Internal server error")
+    ),
+    tags = ["Properties"]
+)]
+#[tracing::instrument(skip(state, access, request), fields(entity_id = %access.0.entity_id(), entity_type = ?access.0.entity_type(), property_count = request.properties.len()), err)]
+pub async fn bulk_update_entity_property_options<
+    S: PropertiesService,
+    A: EntityAccessService,
+    Auth: MacroAuthorizationService,
+>(
+    State(state): State<PropertiesRouterState<S, A, Auth>>,
+    access: EditReceiptExtractor,
+    Json(request): Json<BulkUpdateEntityPropertyOptionsRequest>,
+) -> Result<Json<BulkUpdateEntityPropertyOptionsResponse>, BulkUpdateEntityPropertyOptionsErr> {
+    tracing::info!("bulk updating entity property options");
+
+    validate_bulk_option_request(&request)?;
+
+    let updates = request
+        .properties
+        .into_iter()
+        .map(|property| EntityPropertyOptionUpdate {
+            property_definition_id: property.property_id,
+            add_option_ids: property.add_option_ids,
+            remove_option_ids: property.remove_option_ids,
+        })
+        .collect();
+
+    let selections = state
+        .properties_service
+        .bulk_update_entity_property_options(&access.0, updates)
+        .await?;
+
+    Ok(Json(BulkUpdateEntityPropertyOptionsResponse {
+        properties: selections
+            .into_iter()
+            .map(|selection| EntityPropertyOptionSelectionResponse {
+                property_id: selection.property_definition_id,
+                option_ids: selection.option_ids,
+            })
+            .collect(),
+    }))
 }
 
 #[derive(Debug, Error)]
