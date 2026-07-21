@@ -279,10 +279,6 @@ export function InboxListView(props: InboxListViewProps) {
     disableLocalSearch: () => true,
   });
 
-  // Earlier replacement state applied a hidden missed-call filter to Inbox.
-  // Production does not, so remove it from restored collection state.
-  setup.collection.facets.set('call_status', []);
-
   let appliedMode = setup.collection.state.groupBy === 'date';
   createEffect(
     on([isNewInbox, userId], ([enabled, id]) => {
