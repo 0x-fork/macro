@@ -416,9 +416,9 @@ export function GettingStartedSection(props: { preferences: HomePreferences }) {
   );
 }
 
- /**
-  * Hacky, fragile method of linking to the starter doc, relying on the fact that it gets added to favorites, and has a certain name.
-  */
+/**
+ * Hacky, fragile method of linking to the starter doc, relying on the fact that it gets added to favorites, and has a certain name.
+ */
 function StarterDocRow(props: { favorite: Favorite }) {
   const displayName = useFavoriteDisplayName(props.favorite);
 
