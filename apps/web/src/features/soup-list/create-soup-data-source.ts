@@ -21,12 +21,12 @@ import { useNotificationsForEntity } from '@notifications';
 import { invalidateUserNotifications } from '@queries/notification/user-notifications';
 import type { Accessor } from 'solid-js';
 import { createMemo } from 'solid-js';
-import { buildFlatSoupItems } from './build-soup-items';
 import { createGroupedSoupDataSource } from './create-grouped-soup-data-source';
 import type { SoupCollectionControls } from './create-soup-collection-state';
 import { createSoupSearchDataSource } from './create-soup-search-data-source';
+import { createSoupEntityRow } from './soup-rows';
 import { createSoupEntityTransformer } from './transform-soup-entities';
-import type { SoupItem } from './types';
+import type { SoupRow } from './types';
 import { useReactiveSoupDataSource } from './use-reactive-soup-data-source';
 import { useRestSoupDataSource } from './use-rest-soup-data-source';
 import { useSoupBrowseRequest } from './use-soup-browse-request';
@@ -191,7 +191,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     items: createMemo(() => {
       if (!flatEnabled()) return [];
 
-      return buildFlatSoupItems(flatEntities());
+      return flatEntities().map((entity) => createSoupEntityRow(entity));
     }),
     isLoading: () => flatEnabled() && activeFlatSource().isLoading(),
     isFetching: () => flatEnabled() && activeFlatSource().isFetching(),
@@ -211,9 +211,9 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
 
       await activeFlatSource().refresh();
     },
-  } satisfies ListDataSource<SoupItem>;
+  } satisfies ListDataSource<SoupRow>;
 
-  const activeSource = (): ListDataSource<SoupItem> => {
+  const activeSource = (): ListDataSource<SoupRow> => {
     if (searchSource.active()) {
       return searchSource;
     }
@@ -243,11 +243,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
         invalidateUserNotifications(),
       ]);
     },
-  } satisfies ListDataSource<SoupItem>;
+  } satisfies ListDataSource<SoupRow>;
 
-  return {
-    ...dataSource,
-    browseEntities: () =>
-      groupedSource.active() ? groupedSource.entities() : flatEntities(),
-  };
+  return dataSource;
 }

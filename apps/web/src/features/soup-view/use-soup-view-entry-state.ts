@@ -1,5 +1,5 @@
 import { useList } from '@app/components/list';
-import type { SoupItem } from '@app/features/soup-list';
+import type { SoupRow } from '@app/features/soup-list';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
@@ -22,7 +22,7 @@ type UseSoupViewEntryStateOptions = {
 export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
   const panel = useSplitPanelOrThrow();
   const view = useSoupView();
-  const { state: listState } = useList<SoupItem>();
+  const { state: listState } = useList<SoupRow>();
   const entryState = panel.handle.currentEntryState();
   const restoredListState = entryState?.[SOUP_LIST_STATE_ENTRY_KEY] as
     | SoupListEntryState

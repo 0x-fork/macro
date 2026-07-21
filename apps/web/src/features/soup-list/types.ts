@@ -1,7 +1,7 @@
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
 
-export type SoupEntityItem<TEntity extends EntityData = EntityData> = {
+export type SoupEntityRow<TEntity extends EntityData = EntityData> = {
   kind: 'entity';
   /** Stable identifier for this rendered occurrence, not the entity id. */
   id: string;
@@ -9,7 +9,7 @@ export type SoupEntityItem<TEntity extends EntityData = EntityData> = {
   groupId?: string;
 };
 
-export type SoupGroupHeaderItem = {
+export type SoupGroupHeaderRow = {
   kind: 'group-header';
   id: string;
   groupId: string;
@@ -17,13 +17,13 @@ export type SoupGroupHeaderItem = {
   count?: number;
 };
 
-export type SoupSectionHeaderItem = {
+export type SoupSectionHeaderRow = {
   kind: 'section-header';
   id: string;
   label: string;
 };
 
-export type SoupLoadMoreItem = {
+export type SoupLoadMoreRow = {
   kind: 'load-more';
   id: string;
   /** Present when this loads another page for one group rather than the list. */
@@ -34,8 +34,8 @@ export type SoupLoadMoreItem = {
 };
 
 /** Rows emitted by a Soup collection for the concrete Soup view. */
-export type SoupItem =
-  | SoupEntityItem
-  | SoupGroupHeaderItem
-  | SoupSectionHeaderItem
-  | SoupLoadMoreItem;
+export type SoupRow =
+  | SoupEntityRow
+  | SoupGroupHeaderRow
+  | SoupSectionHeaderRow
+  | SoupLoadMoreRow;

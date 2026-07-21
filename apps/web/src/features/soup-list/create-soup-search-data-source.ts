@@ -3,12 +3,48 @@ import { ENABLE_FEATURED_SEARCH_RESULTS } from '@core/constant/featureFlags';
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
 import { createMemo } from 'solid-js';
-import { buildSearchSoupItems } from './build-soup-items';
 import type { SoupCollectionControls } from './create-soup-collection-state';
 import { createSearchState } from './create-soup-search-state';
 import type { FacetCtx } from './facets';
+import { createSoupEntityRow } from './soup-rows';
 import type { TransformSoupEntitiesOptions } from './transform-soup-entities';
-import type { SoupItem } from './types';
+import type { SoupRow } from './types';
+
+function buildSearchSoupRows<TEntity extends EntityData>(
+  entities: readonly TEntity[],
+  featuredIds: readonly string[]
+): SoupRow[] {
+  if (featuredIds.length === 0) {
+    return entities.map((entity) => createSoupEntityRow(entity));
+  }
+
+  const featured = new Set(featuredIds);
+  const featuredEntities = entities.filter((entity) => featured.has(entity.id));
+  if (featuredEntities.length === 0) {
+    return entities.map((entity) => createSoupEntityRow(entity));
+  }
+
+  const remaining = entities.filter((entity) => !featured.has(entity.id));
+  const rows: SoupRow[] = [
+    {
+      kind: 'section-header',
+      id: 'section:featured-results',
+      label: 'Featured Results',
+    },
+    ...featuredEntities.map((entity) => createSoupEntityRow(entity)),
+  ];
+  if (remaining.length > 0) {
+    rows.push(
+      {
+        kind: 'section-header',
+        id: 'section:more-results',
+        label: 'More Results',
+      },
+      ...remaining.map((entity) => createSoupEntityRow(entity))
+    );
+  }
+  return rows;
+}
 
 export type CreateSoupSearchDataSourceOptions<
   TEntity extends EntityData = EntityData,
@@ -69,7 +105,7 @@ export function createSoupSearchDataSource<TEntity extends EntityData>(
       return [];
     }
 
-    return buildSearchSoupItems(transformedEntities(), search.featuredIds());
+    return buildSearchSoupRows(transformedEntities(), search.featuredIds());
   });
 
   const { searchQuery } = search;
@@ -100,7 +136,7 @@ export function createSoupSearchDataSource<TEntity extends EntityData>(
 
       await searchQuery.refetch();
     },
-  } satisfies ListDataSource<SoupItem>;
+  } satisfies ListDataSource<SoupRow>;
 
   return {
     ...dataSource,

@@ -1,7 +1,7 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import { TaskListEntity } from '@app/features/next-soup/soup-view/views/tasks/TaskListEntity';
-import { SoupCollectionProvider, type SoupItem } from '@app/features/soup-list';
+import { SoupCollectionProvider, type SoupRow } from '@app/features/soup-list';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -47,7 +47,7 @@ export type TasksListViewProps = {
 function TasksListViewContent() {
   const panel = useSplitPanelOrThrow();
   const view = useSoupView();
-  const { dataSource, state: listState } = useList<SoupItem>();
+  const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();

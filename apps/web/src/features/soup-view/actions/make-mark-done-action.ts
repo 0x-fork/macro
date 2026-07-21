@@ -256,10 +256,13 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     const requestedNextItem = opts?.nextEntityId
       ? findEntityItem(list, opts.nextEntityId)
       : undefined;
-    const nextItem =
-      requestedNextItem?.kind === 'entity'
-        ? requestedNextItem
-        : fallbackNextItem;
+    let nextItem = fallbackNextItem;
+    if (
+      requestedNextItem?.kind === 'entity' &&
+      list.selection.isSelectable(requestedNextItem)
+    ) {
+      nextItem = requestedNextItem;
+    }
 
     if (opts?.collapseEntity) {
       await Promise.all(
@@ -274,8 +277,8 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     list.selection.clear();
 
     if (nextItem) {
-      list.focus.set(nextItem.id);
-      onNavigate?.(nextItem.entity);
+      const focused = list.focus.set(nextItem.id);
+      if (focused) onNavigate?.(nextItem.entity);
     }
 
     await execute(entities, restoreFocus, opts);

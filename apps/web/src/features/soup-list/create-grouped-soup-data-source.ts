@@ -11,57 +11,24 @@ import {
   getPropertyOptionLabel,
 } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
-import type {
-  GroupMeta as ApiGroupMeta,
-  GroupByField,
-} from '@queries/soup/grouped/types';
+import type { GroupMeta as ApiGroupMeta } from '@queries/soup/grouped/types';
 import type { Accessor } from 'solid-js';
 import { createMemo } from 'solid-js';
-import {
-  buildDateSoupGroups,
-  buildPropertySoupGroups,
-  soupPropertyGroupKey,
-} from './build-soup-groups';
-import { buildGroupedSoupItems, type SoupItemGroup } from './build-soup-items';
 import { createGroupedSoupQueries } from './create-grouped-soup-queries';
 import type { SoupCollectionControls } from './create-soup-collection-state';
+import {
+  buildDateSoupRows,
+  buildPropertySoupRows,
+  buildServerSoupRows,
+  createSoupGrouping,
+  type ServerSoupGroup,
+  soupPropertyGroupKey,
+} from './soup-grouping';
 import type { TransformSoupEntitiesOptions } from './transform-soup-entities';
-import type { SoupItem } from './types';
+import type { SoupRow } from './types';
 import { useReactiveSoupDataSource } from './use-reactive-soup-data-source';
 import { useRestSoupDataSource } from './use-rest-soup-data-source';
 import { useSoupBrowseRequest } from './use-soup-browse-request';
-
-function createSoupGrouping(controls: SoupCollectionControls) {
-  const active = () => controls.groupByField() !== undefined;
-
-  const isClientDateGroup = () => controls.groupByField()?.type === 'date';
-
-  const isClientPropertyGroup = () => {
-    const field = controls.groupByField();
-    const scopes = controls.facets.getSelected('scope');
-
-    return (
-      field?.type === 'property' &&
-      (scopes.includes('crm-company-active') ||
-        scopes.includes('crm-company-hidden'))
-    );
-  };
-
-  const serverGroupByField = (): GroupByField | undefined => {
-    if (isClientDateGroup() || isClientPropertyGroup()) {
-      return undefined;
-    }
-
-    return controls.groupByField();
-  };
-
-  return {
-    active,
-    isClientDateGroup,
-    isClientPropertyGroup,
-    serverGroupByField,
-  };
-}
 
 export type CreateGroupedSoupDataSourceOptions<
   TEntity extends EntityData = EntityData,
@@ -130,7 +97,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
 
   const itemsQuery = rest.query;
 
-  const browseEntities = createMemo(() => {
+  const groupedEntities = createMemo(() => {
     if (grouping.serverGroupByField()) {
       return [];
     }
@@ -195,7 +162,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
 
   const rawServerGroups = (
     groups: readonly ApiGroupMeta[]
-  ): SoupItemGroup<EntityData>[] =>
+  ): ServerSoupGroup<EntityData>[] =>
     groups.map((group) => {
       const query = groupQueries.map().get(group.key);
 
@@ -211,26 +178,29 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
       };
     });
 
-  const buildClientPropertyItems = (entities: readonly TEntity[]) => {
+  const buildClientPropertyRows = (entities: readonly TEntity[]) => {
     const field = controls.groupByField();
-    const definitionId =
-      field?.type === 'property' ? field.propertyDefinitionId : '';
-    const stage = definitionId === SYSTEM_PROPERTY_IDS.STAGE;
+    if (field?.type !== 'property') return [];
 
-    const groups = buildPropertySoupGroups(entities, {
-      groupIdFor: (entity) =>
-        stage
-          ? (dealStages.resolveStage(
-              entity as Parameters<typeof dealStages.resolveStage>[0]
-            ) ?? '')
-          : soupPropertyGroupKey(entity, definitionId),
-      preferredOrder: stage
-        ? dealStages.stages().map((item) => item.id)
-        : COMPANY_STAGE_OPTIONS.map((item) => item.value as string),
+    const definitionId = field.propertyDefinitionId;
+    const stage = definitionId === SYSTEM_PROPERTY_IDS.STAGE;
+    let preferredOrder = COMPANY_STAGE_OPTIONS.map(
+      (item) => item.value as string
+    );
+    if (stage) preferredOrder = dealStages.stages().map((item) => item.id);
+
+    return buildPropertySoupRows(entities, {
+      groupIdFor: (entity) => {
+        if (!stage) return soupPropertyGroupKey(entity, definitionId);
+        return (
+          dealStages.resolveStage(
+            entity as Parameters<typeof dealStages.resolveStage>[0]
+          ) ?? ''
+        );
+      },
+      preferredOrder,
       labelFor: (id) => resolveGroupLabel(id, id),
     });
-
-    return buildGroupedSoupItems(groups, controls.collapsedGroups.isExpanded);
   };
 
   const items = createMemo(() => {
@@ -249,20 +219,17 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
         entities: options.transformEntities(group.entities, { sort: true }),
       }));
 
-      return buildGroupedSoupItems(groups, controls.collapsedGroups.isExpanded);
+      return buildServerSoupRows(groups);
     }
 
-    const entities = browseEntities();
+    const entities = groupedEntities();
 
     if (grouping.isClientDateGroup()) {
-      return buildGroupedSoupItems(
-        buildDateSoupGroups(entities),
-        controls.collapsedGroups.isExpanded
-      );
+      return buildDateSoupRows(entities);
     }
 
     if (grouping.isClientPropertyGroup()) {
-      return buildClientPropertyItems(entities);
+      return buildClientPropertyRows(entities);
     }
 
     return [];
@@ -289,11 +256,10 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
 
       await activeBrowseSource().refresh();
     },
-  } satisfies ListDataSource<SoupItem>;
+  } satisfies ListDataSource<SoupRow>;
 
   return {
     ...dataSource,
     active: grouping.active,
-    entities: browseEntities,
   };
 }

@@ -5,7 +5,7 @@ import {
   type FacetSelection,
   type SoupCollection,
   SoupCollectionProvider,
-  type SoupItem,
+  type SoupRow,
   useSoupCollection,
 } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
@@ -95,7 +95,7 @@ function InboxListViewContent() {
   const collection = useSoupCollection();
   const view = useSoupView();
   const isNewInbox = useIsNewInbox();
-  const { dataSource, state: listState } = useList<SoupItem>();
+  const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();

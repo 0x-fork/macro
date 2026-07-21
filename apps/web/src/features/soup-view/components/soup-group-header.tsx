@@ -1,4 +1,4 @@
-import type { SoupGroupHeaderItem } from '@app/features/soup-list';
+import type { SoupGroupHeaderRow } from '@app/features/soup-list';
 import { useSoupCollection } from '@app/features/soup-list';
 import { useDealStages } from '@companies/crm/deal-stages';
 import { CrmStageIcon } from '@companies/crm/StageIcon';
@@ -25,7 +25,7 @@ const STATUS_TINTS: Record<string, string> = {
 };
 
 export function SoupGroupHeader(props: {
-  item: SoupGroupHeaderItem;
+  item: SoupGroupHeaderRow;
   focused: boolean;
 }) {
   const collection = useSoupCollection();

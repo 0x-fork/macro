@@ -3,7 +3,7 @@ import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import {
   type FacetSelection,
   SoupCollectionProvider,
-  type SoupItem,
+  type SoupRow,
   useSoupCollection,
 } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
@@ -68,7 +68,7 @@ function SearchProgress(props: { label: string }) {
 
 function SearchListViewContent() {
   const collection = useSoupCollection();
-  const { dataSource, state: listState } = useList<SoupItem>();
+  const { dataSource, state: listState } = useList<SoupRow>();
   const panel = useSplitPanelOrThrow();
   const view = useSoupView();
   const [root, setRoot] = createSignal<HTMLDivElement>();

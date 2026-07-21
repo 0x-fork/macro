@@ -12,8 +12,7 @@ import { createSoupDataSource } from './create-soup-data-source';
 import { ALL_FACETS } from './facets';
 
 export type SoupCollection = SoupCollectionControls & {
-  dataSource: Omit<ReturnType<typeof createSoupDataSource>, 'browseEntities'>;
-  browseEntities: ReturnType<typeof createSoupDataSource>['browseEntities'];
+  dataSource: ReturnType<typeof createSoupDataSource>;
   reset: () => void;
 };
 
@@ -38,7 +37,7 @@ export function createSoupCollection(
       sort: options.initialState?.sort ?? ['updated_at'],
     },
   });
-  const source = createSoupDataSource({
+  const dataSource = createSoupDataSource({
     view: options.view,
     controls: state,
     enabled: options.enabled,
@@ -47,11 +46,8 @@ export function createSoupCollection(
     limit: options.limit,
     sortConfigs: options.sortConfigs ?? SORT_CONFIGS,
   });
-  const { browseEntities, ...dataSource } = source;
-
   return {
     ...state,
     dataSource,
-    browseEntities,
   };
 }

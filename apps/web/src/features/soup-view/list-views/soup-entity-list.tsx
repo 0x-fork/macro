@@ -6,8 +6,9 @@ import {
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
 import {
-  type SoupEntityItem,
-  type SoupItem,
+  isSoupRowVisible,
+  type SoupEntityRow,
+  type SoupRow,
   useSoupCollection,
 } from '@app/features/soup-list';
 import {
@@ -64,15 +65,17 @@ type SoupActivationMetadata = {
   openInNewSplit?: boolean;
 };
 
-const entityFromItem = (item: SoupItem | undefined): EntityData | undefined =>
-  item?.kind === 'entity' ? item.entity : undefined;
+const entityFromRow = (row: SoupRow | undefined): EntityData | undefined => {
+  if (row?.kind !== 'entity') return;
+  return row.entity;
+};
 
 type SoupEntityListProps = {
   view: ListView;
   root: Accessor<HTMLDivElement | undefined>;
   listScopeId: string;
   viewportRef?: Setter<HTMLDivElement | undefined>;
-  children: (item: Accessor<SoupEntityItem>) => JSX.Element;
+  children: (row: Accessor<SoupEntityRow>) => JSX.Element;
   trailing?: JSX.Element;
   active?: Accessor<boolean>;
   autoFocusFirstEntity?: boolean | Accessor<boolean>;
@@ -83,8 +86,8 @@ type SoupEntityListProps = {
   initialScrollOffset?: number;
   nearEndOffset?: number;
   scopeId?: string;
-  onActivate?: (activation: ListActivation<SoupItem>) => void;
-  onNavigate?: (item: SoupItem, index: number) => void;
+  onActivate?: (activation: ListActivation<SoupRow>) => void;
+  onNavigate?: (row: SoupRow, index: number) => void;
   canNavigate?: () => boolean;
   onLoadMoreError?: (error: unknown) => void;
 };
@@ -94,7 +97,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
   const orchestrator = useGlobalBlockOrchestrator();
   const collection = useSoupCollection();
   const view = useSoupView();
-  const { dataSource, state: listState } = useList<SoupItem>();
+  const { dataSource, state: listState } = useList<SoupRow>();
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
   const markDone = makeMarkDoneAction({
@@ -103,12 +106,14 @@ export function SoupEntityList(props: SoupEntityListProps) {
     isNewInbox: useIsNewInbox(),
   });
   const active = () => props.active?.() ?? true;
+  const isVisible = (row: SoupRow) =>
+    isSoupRowVisible(row, collection.collapsedGroups.isExpanded);
   const autoFocusFirstEntity = () =>
     typeof props.autoFocusFirstEntity === 'function'
       ? props.autoFocusFirstEntity()
       : (props.autoFocusFirstEntity ?? true);
 
-  const activateItem = (activation: ListActivation<SoupItem>) => {
+  const activateRow = (activation: ListActivation<SoupRow>) => {
     props.onActivate?.(activation);
     if (activation.item.kind !== 'entity') return;
 
@@ -146,7 +151,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
   let focusHasResolved = false;
   createEffect(() => {
     if (!active()) return;
-    const entity = entityFromItem(listState.focus.item());
+    const entity = entityFromRow(listState.focus.item());
     if (entity) {
       focusHasResolved = true;
       view.setPreviewEntity(entity);
@@ -163,7 +168,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
     scopeId: props.scopeId,
     root: props.root,
     virtualizer,
-    activate: activateItem,
+    activate: activateRow,
     enabled: active,
     canNavigate: () => props.canNavigate?.() ?? true,
     onNavigate: props.onNavigate,
@@ -174,12 +179,27 @@ export function SoupEntityList(props: SoupEntityListProps) {
       return;
     const firstEntity = listState.items
       .all()
-      .find((item) => item.kind === 'entity');
+      .find((row) => listState.selection.isSelectable(row));
     if (!firstEntity) return;
     const result = listState.navigate.toId(firstEntity.id, {
       reason: 'programmatic',
     });
     if (result) scrollTo(result.index);
+  };
+
+  const restoreFocus = (rowId: string | undefined) => {
+    if (rowId !== undefined) {
+      const restored = listState.focus.set(rowId, {
+        reason: 'restore',
+        force: true,
+      });
+      if (restored) return restored;
+    }
+
+    return listState.focus.restore(undefined, {
+      reason: 'restore',
+      fallback: 'nearest',
+    });
   };
 
   let initialFocusApplied = false;
@@ -195,18 +215,18 @@ export function SoupEntityList(props: SoupEntityListProps) {
     initialFocusApplied = true;
     queueMicrotask(() => {
       if (restoredListState?.focus) {
-        const restored = listState.focus.restore(restoredListState.focus, {
-          reason: 'restore',
-          fallback: 'nearest',
-        });
+        const restored = restoreFocus(restoredListState.focus);
         if (restored) scrollTo(restored.index);
         return;
       }
       if (persistedPreviewEntity) {
-        const restored = listState.focus.restore(persistedPreviewEntity, {
-          reason: 'restore',
-          fallback: 'nearest',
-        });
+        const previewRow = listState.items
+          .all()
+          .find(
+            (row) =>
+              row.kind === 'entity' && row.entity.id === persistedPreviewEntity
+          );
+        const restored = restoreFocus(previewRow?.id);
         if (restored) scrollTo(restored.index);
         return;
       }
@@ -274,7 +294,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
                     nearEndOffset={props.nearEndOffset ?? 300}
                     onNearEndError={props.onLoadMoreError}
                   >
-                    <List.Virtual<SoupItem>
+                    <List.Virtual<SoupRow>
                       itemSize={props.itemSize}
                       overscan={props.overscan ?? DEFAULT_OVERSCAN}
                       cache={props.cache ?? restoredListState?.virtualCache}
@@ -322,7 +342,9 @@ export function SoupEntityList(props: SoupEntityListProps) {
                             </Match>
                             <Match
                               when={
-                                item.kind === 'load-more' ? item : undefined
+                                item.kind === 'load-more' && isVisible(item)
+                                  ? item
+                                  : undefined
                               }
                             >
                               {(loadMore) => (
@@ -360,7 +382,11 @@ export function SoupEntityList(props: SoupEntityListProps) {
                               )}
                             </Match>
                             <Match
-                              when={item.kind === 'entity' ? item : undefined}
+                              when={
+                                item.kind === 'entity' && isVisible(item)
+                                  ? item
+                                  : undefined
+                              }
                             >
                               {(entity) => props.children(entity)}
                             </Match>

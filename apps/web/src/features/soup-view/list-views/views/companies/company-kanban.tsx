@@ -1,5 +1,9 @@
 import { useList } from '@app/components/list';
-import { type SoupItem, useSoupCollection } from '@app/features/soup-list';
+import {
+  getSoupRowEntities,
+  type SoupRow,
+  useSoupCollection,
+} from '@app/features/soup-list';
 import { useDealStages } from '@companies/crm/deal-stages';
 import { CrmStageIcon } from '@companies/crm/StageIcon';
 import {
@@ -38,7 +42,7 @@ export function CompanyKanban(props: {
   onEntityClick: (entity: EntityData, event: MouseEvent) => void;
 }) {
   const collection = useSoupCollection();
-  const { dataSource } = useList<SoupItem>();
+  const { dataSource } = useList<SoupRow>();
   const dealStages = useDealStages();
   const permissions = useCrmPermissions();
   const closedStages = useClosedStageIds(dealStages.stages);
@@ -47,14 +51,8 @@ export function CompanyKanban(props: {
   const [dropTarget, setDropTarget] = createSignal<string>();
   const [scroll, setScroll] = createSignal<HTMLDivElement>();
 
-  const companies = () => {
-    const entities = collection.state.search.trim()
-      ? dataSource
-          .items()
-          .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
-      : collection.browseEntities();
-    return entities.filter(isCrmCompanyEntity);
-  };
+  const companies = () =>
+    getSoupRowEntities(dataSource.items()).filter(isCrmCompanyEntity);
   type Company = ReturnType<typeof companies>[number];
   const columns = createMemo(() =>
     buildCompanyBoardColumns<Company>({

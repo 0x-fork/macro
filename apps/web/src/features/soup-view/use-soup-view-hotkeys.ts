@@ -4,7 +4,7 @@ import {
   useList,
 } from '@app/components/list';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
-import { type SoupItem, useSoupCollection } from '@app/features/soup-list';
+import { type SoupRow, useSoupCollection } from '@app/features/soup-list';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { entityIdSelector } from '@core/dom-selectors';
 import {
@@ -37,21 +37,21 @@ type UseSoupViewHotkeysOptions = {
   scopeId?: string;
   root: Accessor<HTMLElement | undefined>;
   virtualizer: Accessor<VirtualizerHandle | undefined>;
-  activate: (activation: ListActivation<SoupItem>) => void;
+  activate: (activation: ListActivation<SoupRow>) => void;
   enabled?: Accessor<boolean>;
   canNavigate?: Accessor<boolean>;
-  onNavigate?: (item: SoupItem, index: number) => void;
+  onNavigate?: (row: SoupRow, index: number) => void;
 };
 
-const entityFromItem = (item: SoupItem | undefined): EntityData | undefined =>
-  item?.kind === 'entity' ? item.entity : undefined;
+const entityFromRow = (row: SoupRow | undefined): EntityData | undefined =>
+  row?.kind === 'entity' ? row.entity : undefined;
 
 /** Owns Soup keyboard commands and their mounted/persistent lifetimes. */
 export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   const panel = useSplitPanelOrThrow();
   const collection = useSoupCollection();
   const view = useSoupView();
-  const { dataSource, state: listState } = useList<SoupItem>();
+  const { dataSource, state: listState } = useList<SoupRow>();
   const enabled = () => options.enabled?.() ?? true;
 
   useEntityActionHotkeys({
@@ -129,7 +129,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     const direction = offset < 0 ? -1 : 1;
     let nextIndex =
       focusedIndex >= 0 ? focusedIndex : direction > 0 ? -1 : items.length;
-    let next: SoupItem | undefined;
+    let next: SoupRow | undefined;
 
     while (!next && nextIndex >= -1 && nextIndex <= items.length) {
       nextIndex += direction;
@@ -187,7 +187,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   };
 
   const getCollapsibleToggle = () => {
-    const entity = entityFromItem(listState.focus.item());
+    const entity = entityFromRow(listState.focus.item());
     if (!entity) return;
     const element = options.root()?.querySelector(entityIdSelector(entity.id));
     return element?.querySelector(
@@ -199,7 +199,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     const item = listState.focus.item();
     const index = listState.focus.index();
     if (!item || index < 0) return;
-    const activation: ListActivation<SoupItem> = {
+    const activation: ListActivation<SoupRow> = {
       item,
       index,
       reason: activateOptions.reason ?? 'programmatic',

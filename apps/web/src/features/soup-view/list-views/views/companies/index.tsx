@@ -6,9 +6,10 @@ import {
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
 import {
+  getSoupRowEntities,
   type SoupCollection,
   SoupCollectionProvider,
-  type SoupItem,
+  type SoupRow,
   useSoupCollection,
 } from '@app/features/soup-list';
 import { useCrmUnavailable } from '@companies/crm/team-crm-config';
@@ -104,7 +105,7 @@ function sanitizeRestoredCompanyState(
 
 function CompaniesListViewContent() {
   const collection = useSoupCollection();
-  const { dataSource, state: listState } = useList<SoupItem>();
+  const { dataSource, state: listState } = useList<SoupRow>();
   const panel = useSplitPanelOrThrow();
   const view = useSoupView();
   const crmUnavailable = useCrmUnavailable();
@@ -159,10 +160,7 @@ function CompaniesListViewContent() {
       .selected()
       .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
   );
-  const boardEntityCount = () =>
-    collection.state.search.trim()
-      ? dataSource.items().filter((item) => item.kind === 'entity').length
-      : collection.browseEntities().length;
+  const boardEntityCount = () => getSoupRowEntities(dataSource.items()).length;
 
   return (
     <SplitPanelContext.Provider
@@ -303,6 +301,7 @@ function CompaniesListViewContent() {
                             if (item) {
                               listState.navigate.toId(item.id, {
                                 reason: 'pointer',
+                                force: true,
                               });
                             }
                             if (companyPreviewPaneVisible()) {

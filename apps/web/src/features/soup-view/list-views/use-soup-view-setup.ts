@@ -2,8 +2,9 @@ import { createListState } from '@app/components/list';
 import type { ListView } from '@app/constants/list-views';
 import {
   createSoupCollection,
+  isSoupRowVisible,
   type SoupCollectionInitialState,
-  type SoupItem,
+  type SoupRow,
 } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -90,9 +91,11 @@ export function useSoupViewSetup(options: SoupViewSetupOptions) {
     collection.setState('emailView', preset?.emailView);
   });
 
-  const listState = createListState<SoupItem>({
-    isNavigable: (item) => item.kind !== 'section-header',
-    isSelectable: (item) => item.kind === 'entity',
+  const isVisible = (row: SoupRow) =>
+    isSoupRowVisible(row, collection.collapsedGroups.isExpanded);
+  const listState = createListState<SoupRow>({
+    isNavigable: (row) => row.kind !== 'section-header' && isVisible(row),
+    isSelectable: (row) => row.kind === 'entity' && isVisible(row),
     suppressFocus: () => isTouchDevice(),
   });
 

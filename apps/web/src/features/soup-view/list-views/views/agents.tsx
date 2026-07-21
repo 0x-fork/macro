@@ -4,7 +4,7 @@ import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import { runCreateAction } from '@app/features/command/Launcher';
 import {
   SoupCollectionProvider,
-  type SoupItem,
+  type SoupRow,
   useSoupCollection,
 } from '@app/features/soup-list';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
@@ -94,7 +94,7 @@ function AgentsEmptyState() {
 function AgentsListViewContent() {
   const panel = useSplitPanelOrThrow();
   const view = useSoupView();
-  const { dataSource, state: listState } = useList<SoupItem>();
+  const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();

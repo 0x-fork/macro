@@ -1,5 +1,5 @@
 import { useList } from '@app/components/list';
-import { type SoupItem, useSoupCollection } from '@app/features/soup-list';
+import { getSoupRowEntities, type SoupRow } from '@app/features/soup-list';
 import type { EntityData } from '@entity';
 import { type Accessor, createEffect, createSignal } from 'solid-js';
 import type { SoupViewContextValue } from '../../../context';
@@ -11,8 +11,7 @@ export function useCompanyBoardPreviewRestoration(options: {
   previewEntity: Accessor<EntityData | undefined>;
   setPreviewEntity: SoupViewContextValue['setPreviewEntity'];
 }) {
-  const collection = useSoupCollection();
-  const { dataSource } = useList<SoupItem>();
+  const { dataSource } = useList<SoupRow>();
   let settled = false;
   let loading = false;
   const [attempt, setAttempt] = createSignal(0);
@@ -20,7 +19,7 @@ export function useCompanyBoardPreviewRestoration(options: {
   createEffect(() => {
     if (!options.enabled()) return;
     attempt();
-    const entities = collection.browseEntities();
+    const entities = getSoupRowEntities(dataSource.items());
     const current = options.previewEntity();
     if (!settled && current && current.id !== options.persistedEntityId) {
       settled = true;

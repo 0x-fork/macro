@@ -26,10 +26,11 @@ export type {
   FacetOption,
   FacetSelection,
 } from './facet-store';
+export { getSoupRowEntities, isSoupRowVisible } from './soup-rows';
 export type {
-  SoupEntityItem,
-  SoupGroupHeaderItem,
-  SoupItem,
-  SoupLoadMoreItem,
-  SoupSectionHeaderItem,
+  SoupEntityRow,
+  SoupGroupHeaderRow,
+  SoupLoadMoreRow,
+  SoupRow,
+  SoupSectionHeaderRow,
 } from './types';

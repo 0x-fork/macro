@@ -9,7 +9,7 @@ import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
-import type { SoupEntityItem, SoupItem } from '@app/features/soup-list';
+import type { SoupEntityRow, SoupRow } from '@app/features/soup-list';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
 import { useLongPress } from '@components/app/mobile/use-long-press';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -42,7 +42,7 @@ export const SOUP_MARK_DONE_ROW_CONFIG: EntityRowConfig = {
 };
 
 export type SoupEntityListItemScope = {
-  item: Accessor<SoupEntityItem>;
+  item: Accessor<SoupEntityRow>;
   focused: Accessor<boolean>;
   selected: Accessor<boolean>;
   pressed: Accessor<boolean>;
@@ -68,7 +68,7 @@ type SoupActivationMetadata = {
 };
 
 type SoupEntityClickDependencies = {
-  item: Accessor<SoupEntityItem>;
+  item: Accessor<SoupEntityRow>;
   state: ListItemState;
   previewPaneVisible: Accessor<boolean>;
   activate: (metadata: SoupActivationMetadata) => void;
@@ -99,16 +99,16 @@ export function handleSoupEntityClick(
 const selectionAnchors = new WeakMap<object, number>();
 
 export function SoupEntityListItem(props: {
-  item: Accessor<SoupEntityItem>;
+  item: Accessor<SoupEntityRow>;
   children: (scope: SoupEntityListItemScope) => JSX.Element;
   hoverFocus?: boolean | Accessor<boolean>;
-  onActivate?: (activation: ListActivation<SoupItem>) => void;
+  onActivate?: (activation: ListActivation<SoupRow>) => void;
 }) {
   const panel = useSplitPanelOrThrow();
   const orchestrator = useGlobalBlockOrchestrator();
   const view = useSoupView();
   const mobileActionDrawer = useMaybeSoupMobileActionDrawer();
-  const { state: listState } = useList<SoupItem>();
+  const { state: listState } = useList<SoupRow>();
   const [touchPressed, setTouchPressed] = createSignal(false);
   const { isKeypressActive } = useIsKeyPressActive();
   const hoverFocus = () =>
@@ -148,7 +148,7 @@ export function SoupEntityListItem(props: {
 
   const open = (metadata: SoupActivationMetadata) => {
     const item = props.item();
-    const activation: ListActivation<SoupItem> = {
+    const activation: ListActivation<SoupRow> = {
       item,
       index: index(),
       reason: 'pointer',

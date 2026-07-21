@@ -1,7 +1,7 @@
 import { useList } from '@app/components/list';
 import { isListViewID } from '@app/constants/list-views';
 import { getChannelEntityTarget } from '@app/features/next-soup/utils';
-import { type SoupItem, useSoupCollection } from '@app/features/soup-list';
+import { type SoupRow, useSoupCollection } from '@app/features/soup-list';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
@@ -91,7 +91,7 @@ export function createSoupEntityActions() {
   const view = useSoupView();
   const panel = useSplitPanelOrThrow();
   const isNewInbox = useIsNewInbox();
-  const { state: list } = useList<SoupItem>();
+  const { state: list } = useList<SoupRow>();
 
   const markDone = makeMarkDoneAction({
     userId,
