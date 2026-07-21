@@ -41,9 +41,13 @@ export const testFacets = <Ctx>(
     const active = selection[facet.id] ?? [];
     if (!active.length) return true;
 
-    const results = active.map((id) =>
-      optionFor(facet, id, ctx)?.predicate?.(entity, ctx)
-    );
+    const options = active.flatMap((id) => {
+      const option = optionFor(facet, id, ctx);
+      return option ? [option] : [];
+    });
+    if (!options.length) return true;
+
+    const results = options.map((option) => option.predicate?.(entity, ctx));
     const testable = results.filter(
       (result): result is boolean => result !== undefined
     );

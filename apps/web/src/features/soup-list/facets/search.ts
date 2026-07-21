@@ -58,15 +58,6 @@ export const SEARCH_TYPE = facet({
       predicate: (entity) =>
         entity.type === 'document' && entity.subType?.type === 'snippet',
     },
-    {
-      id: 'github-pr',
-      clause: (b) => ({
-        fef: b.eq('foreignEntitySource', 'github_pull_request'),
-      }),
-      predicate: (entity) =>
-        entity.type === 'foreign' &&
-        entity.foreignSource === 'github_pull_request',
-    },
   ],
 });
 
@@ -78,12 +69,10 @@ export const EMAIL_IMPORTANCE = facet({
     {
       id: 'important',
       clause: (b) => ({ ef: b.eq('emailImportance', true) }),
-      predicate: (entity) => entity.type === 'email' && entity.isImportant,
     },
     {
       id: 'noise',
       clause: (b) => ({ ef: b.eq('emailImportance', false) }),
-      predicate: (entity) => entity.type === 'email' && !entity.isImportant,
     },
   ],
 });
@@ -138,10 +127,10 @@ export const CALL_STATUS = facet({
   id: 'call_status',
   mode: 'or',
   multiple: false,
-  options: (status) => ({
+  options: ['ATTENDED', 'MISSED', 'UNATTENDED'].map((status) => ({
     id: status,
     clause: (b) => ({ callf: b.eq('callStatus', status) }),
-  }),
+  })),
 });
 
 export const TASK_CREATED_BY = facet({

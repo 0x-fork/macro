@@ -13,7 +13,6 @@ import {
   ENABLE_SNIPPETS,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
 } from '@core/constant/featureFlags';
-import type { EntityData } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { startOfDay, subWeeks } from 'date-fns';
 
@@ -68,14 +67,6 @@ export type ViewConfig = {
   tabs: Record<string, TabSpec>;
 };
 
-const emailLabelIncludes = (entity: EntityData, label: string) =>
-  entity.type === 'email' &&
-  (entity.labels ?? []).some((candidate) =>
-    [candidate.id, candidate.providerLabelId, candidate.name]
-      .filter((value): value is string => typeof value === 'string')
-      .some((value) => value.toUpperCase() === label)
-  );
-
 const defineViewFacet = (
   id: ListView,
   options: readonly FacetOption<FacetCtx>[]
@@ -86,49 +77,43 @@ const defineViewFacet = (
 export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
   inbox: {
     default: 'signal',
-    facets: (ctx) => {
+    facets: () => {
       const cutoff = subWeeks(startOfDay(new Date()), 2).toISOString();
       return defineViewFacet('inbox', [
         {
           id: 'signal',
-          clause: defineClause(
-            {
-              documentDone: false,
-              documentUpdatedAt: { gte: cutoff },
-              ...excludeSnippets(),
-              emailDone: false,
-              emailImportance: true,
-              emailShared: 'exclude',
-              emailUpdatedAt: { gte: cutoff },
-              channelDone: false,
-              channelThreadDone: false,
-              chatDone: false,
-              chatUpdatedAt: { gte: cutoff },
-              folderDone: false,
-              folderUpdatedAt: { gte: cutoff },
-              foreignEntitySource: 'github_pull_request',
-              foreignEntityDone: false,
-              foreignEntityIncludesMe: true,
-            },
-            { restrict: !ctx.isNewInbox }
-          ),
+          clause: defineClause({
+            documentDone: false,
+            documentUpdatedAt: { gte: cutoff },
+            ...excludeSnippets(),
+            emailDone: false,
+            emailImportance: true,
+            emailShared: 'exclude',
+            emailUpdatedAt: { gte: cutoff },
+            channelDone: false,
+            channelThreadDone: false,
+            chatDone: false,
+            chatUpdatedAt: { gte: cutoff },
+            folderDone: false,
+            folderUpdatedAt: { gte: cutoff },
+            foreignEntitySource: 'github_pull_request',
+            foreignEntityDone: false,
+            foreignEntityIncludesMe: true,
+          }),
         },
         {
           id: 'noise',
-          clause: defineClause(
-            {
-              documentDone: false,
-              ...excludeSnippets(),
-              emailDone: false,
-              emailImportance: false,
-              emailShared: 'exclude',
-              channelDone: false,
-              channelThreadDone: false,
-              chatDone: false,
-              folderDone: false,
-            },
-            { restrict: !ctx.isNewInbox }
-          ),
+          clause: defineClause({
+            documentDone: false,
+            ...excludeSnippets(),
+            emailDone: false,
+            emailImportance: false,
+            emailShared: 'exclude',
+            channelDone: false,
+            channelThreadDone: false,
+            chatDone: false,
+            folderDone: false,
+          }),
         },
         {
           id: 'all',
@@ -137,7 +122,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
               crmCompanyId: NIL_UUID,
               documentId: { not: NIL_UUID },
               ...excludeSnippets(),
-              $clause: (b) => ({ ef: b.and() }),
+              threadId: { not: NIL_UUID },
               channelId: { not: NIL_UUID },
               chatId: { not: NIL_UUID },
               folderId: { not: NIL_UUID },
@@ -179,20 +164,14 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         {
           id: 'owned',
           clause: defineClause({ chatOwnerId: ctx.userId }),
-          predicate: (entity) =>
-            entity.type === 'chat' && entity.ownerId === ctx.userId,
         },
         {
           id: 'running',
           clause: defineClause({ chatOwnerId: ctx.userId }),
-          predicate: (entity) =>
-            entity.type === 'chat' && entity.ownerId === ctx.userId,
         },
         {
           id: 'shared',
           clause: defineClause({ chatOwnerId: { not: ctx.userId as string } }),
-          predicate: (entity) =>
-            entity.type === 'chat' && entity.ownerId !== ctx.userId,
         },
         {
           id: 'automations',
@@ -226,7 +205,6 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             emailImportance: true,
             emailShared: 'exclude',
           }),
-          predicate: (entity) => entity.type === 'email' && entity.isImportant,
         },
         {
           id: 'noise',
@@ -234,7 +212,6 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             emailImportance: false,
             emailShared: 'exclude',
           }),
-          predicate: (entity) => entity.type === 'email' && !entity.isImportant,
         },
         {
           id: 'calendar',
@@ -242,12 +219,10 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             emailShared: 'exclude',
             emailCalendarOnly: true,
           }),
-          predicate: (entity) =>
-            entity.type === 'email' && entity.hasIcsAttachment === true,
         },
         {
           id: 'drafts',
-          clause: defineClause({ $clause: (b) => ({ ef: b.and() }) }),
+          clause: defineClause({ threadId: { not: NIL_UUID } }),
         },
         // No sender filter: the 'sent' view already scopes to messages with
         // is_sent = TRUE per linked inbox, which covers multi-inbox correctly
@@ -255,12 +230,11 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         {
           id: 'sent',
           clause: defineClause({ $clause: (b) => ({ ef: b.and() }) }),
-          predicate: (entity) => emailLabelIncludes(entity, 'SENT'),
         },
         { id: 'shared', clause: defineClause({ emailShared: 'only' }) },
         {
           id: 'all',
-          clause: defineClause({ $clause: (b) => ({ ef: b.and() }) }),
+          clause: defineClause({ threadId: { not: NIL_UUID } }),
         },
       ]),
     tabs: {
@@ -435,14 +409,10 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
         {
           id: 'missed',
           clause: defineClause({ callStatus: 'MISSED' }),
-          predicate: (entity) =>
-            entity.type === 'call' && entity.status === 'MISSED',
         },
         {
           id: 'unattended',
           clause: defineClause({ callStatus: 'UNATTENDED' }),
-          predicate: (entity) =>
-            entity.type === 'call' && entity.status === 'UNATTENDED',
         },
       ]),
     tabs: {

@@ -18,7 +18,9 @@ const taskStatusOption = (id: string, value: string) => ({
   id,
   clause: selectProp(STATUS, value),
   predicate: (entity: Parameters<typeof isTaskEntity>[0]) =>
-    isTaskEntity(entity) && getTaskStatusOptionId(entity) === value,
+    isTaskEntity(entity) &&
+    ((value === P.STATUS.COMPLETED && entity.subType?.is_completed === true) ||
+      getTaskStatusOptionId(entity) === value),
 });
 
 export const TASK_STATUS = facet({
@@ -74,10 +76,7 @@ export const TASK_PRIORITY = facet({
         ),
       }),
       predicate: (entity) =>
-        isTaskEntity(entity) &&
-        !namedPriorities.includes(
-          getTaskPriorityOptionId(entity) as (typeof namedPriorities)[number]
-        ),
+        isTaskEntity(entity) && getTaskPriorityOptionId(entity) === undefined,
     },
   ],
 });

@@ -1,4 +1,5 @@
 import type { SoupCollection } from '@app/features/soup-list';
+import { NO_ASSIGNEE } from '@app/features/soup-list/facets/base';
 import { isSearchTaggableType } from '@app/features/soup-list/search-type-capabilities';
 import { batch } from 'solid-js';
 
@@ -11,8 +12,7 @@ export type SoupSearchType =
   | 'document-or-file'
   | 'folders'
   | 'agent'
-  | 'doc-snippet'
-  | 'github-pr';
+  | 'doc-snippet';
 
 export const SEARCH_SECTION_FACETS = {
   all: ['tag', 'tag_mode'],
@@ -31,7 +31,6 @@ export const SEARCH_SECTION_FACETS = {
   folders: ['tag', 'tag_mode'],
   agent: ['tag', 'tag_mode'],
   'doc-snippet': ['tag', 'tag_mode'],
-  'github-pr': ['tag', 'tag_mode'],
 } as const satisfies Record<SoupSearchType, readonly string[]>;
 
 const ALL_SECTION_FACETS = [
@@ -49,23 +48,33 @@ const capture = (facets: Facets, ids: readonly string[]): Section =>
     })
   );
 
-const selectedType = (facets: Facets): SoupSearchType =>
-  (facets.getSelected('search_type')[0] as SoupSearchType | undefined) ?? 'all';
+const selectedType = (facets: Facets): SoupSearchType => {
+  const selected = facets.getSelected('search_type')[0];
+  return selected && selected in SEARCH_SECTION_FACETS
+    ? (selected as SoupSearchType)
+    : 'all';
+};
 
 export function sanitizeSearchTypeAvailability(
   type: SoupSearchType,
-  availability: {
-    snippets: boolean;
-    githubPr?: boolean;
-  }
+  availability: { snippets: boolean }
 ): SoupSearchType {
   if (type === 'doc-snippet' && !availability.snippets) return 'all';
-  if (type === 'github-pr' && availability.githubPr === false) return 'all';
   return type;
 }
 
 export function normalizeSearchFacets(facets: Facets) {
   const activeType = selectedType(facets);
+  const selected = facets.getSelected('search_type')[0];
+  if (selected && selected !== activeType) facets.set('search_type', []);
+
+  if (activeType === 'task') {
+    const assignees = facets
+      .getSelected('assignee')
+      .filter((id) => id !== NO_ASSIGNEE);
+    facets.set('assignee', assignees);
+  }
+
   const activeIds = new Set<string>(SEARCH_SECTION_FACETS[activeType]);
   for (const id of ALL_SECTION_FACETS) {
     if (!activeIds.has(id)) facets.set(id, []);

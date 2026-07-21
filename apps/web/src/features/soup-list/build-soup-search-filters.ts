@@ -18,8 +18,7 @@ type SearchTypeValue =
   | 'document-or-file'
   | 'folders'
   | 'agent'
-  | 'doc-snippet'
-  | 'github-pr';
+  | 'doc-snippet';
 type CallStatus = 'ATTENDED' | 'MISSED' | 'UNATTENDED';
 
 const TASK_STATUS_VALUES: Record<string, string> = {
@@ -93,7 +92,6 @@ const ACTIVE_GROUP: Record<SearchTypeValue, EntityGroup | null> = {
   folders: 'project_filters',
   agent: 'chat_filters',
   'doc-snippet': 'document_filters',
-  'github-pr': 'foreign_entity_filters',
 };
 
 export function buildSearchEntityFilters(
@@ -140,7 +138,6 @@ export function buildSearchEntityFilters(
     calls: 'calls',
     'document-or-file': 'document-or-file',
     'doc-snippet': 'doc-snippet',
-    'github-pr': 'github-pr',
   };
   const type =
     (searchType[0] as SearchTypeValue | undefined) ??
@@ -203,13 +200,6 @@ export function buildSearchEntityFilters(
       filters.document_filters = {
         file_types: ['md'],
         sub_types: ['snippet'],
-      };
-      break;
-    }
-
-    case 'github-pr': {
-      filters.foreign_entity_filters = {
-        foreign_entity_sources: ['github_pull_request'],
       };
       break;
     }
@@ -347,7 +337,9 @@ export function buildSearchEntityFilters(
     filters.channel_filters = {
       ...filters.channel_filters,
       channel_types:
-        channelTab === 'people' ? ['direct_message'] : ['public', 'private'],
+        channelTab === 'people'
+          ? ['direct_message']
+          : ['public', 'private', 'team'],
     };
   }
 

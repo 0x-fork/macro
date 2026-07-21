@@ -7,7 +7,6 @@ export const SEARCH_TAGGABLE_TYPES = [
   'folders',
   'calls',
   'doc-snippet',
-  'github-pr',
 ] as const;
 
 export const isSearchTaggableType = (type: string) =>

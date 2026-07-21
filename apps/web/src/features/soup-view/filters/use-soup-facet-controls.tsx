@@ -78,7 +78,7 @@ export function useSoupFacetControls() {
       : undefined;
   const contacts = useContacts();
   const githubLinkStatus = useGithubLinkStatusQuery({
-    enabled: () => view() === 'inbox' || view() === 'search',
+    enabled: () => view() === 'inbox',
   });
   const { useList: useQuickAccessList } = useQuickAccess();
   const quickAccessChannels = useQuickAccessList('channel', 'dm');
@@ -110,11 +110,8 @@ export function useSoupFacetControls() {
   createEffect(() => {
     if (view() !== 'search' || !searchFacetController) return;
     const type = searchFacetController.type();
-    const githubStatus = githubLinkStatus.data?.status;
     const sanitized = sanitizeSearchTypeAvailability(type, {
       snippets: snippetsFlag().enabled,
-      githubPr:
-        githubStatus === undefined ? undefined : githubStatus === 'linked',
     });
     if (sanitized !== type) searchFacetController.setType(sanitized);
   });
@@ -165,12 +162,16 @@ export function useSoupFacetControls() {
     others.sort((left, right) => left.label.localeCompare(right.label));
     return [
       ...me,
-      option('NO_ASSIGNEE', 'Unassigned', () => (
+      option(NO_ASSIGNEE, 'Unassigned', () => (
         <CircleDashedIcon class="size-3.5 text-ink-muted" />
       )),
       ...others,
     ];
   });
+
+  const searchAssigneeOptions = createMemo(() =>
+    assigneeOptions().filter((candidate) => candidate.id !== NO_ASSIGNEE)
+  );
 
   const ownerOptions = createMemo(() => {
     const currentUserId = userId();
@@ -322,17 +323,6 @@ export function useSoupFacetControls() {
                 option('doc-snippet', 'Snippets', () => (
                   <EntityIcon
                     targetType="snippet"
-                    size="xs"
-                    theme="monochrome"
-                  />
-                )),
-              ]
-            : []),
-          ...(githubLinkStatus.data?.status === 'linked'
-            ? [
-                option('github-pr', 'GitHub PRs', () => (
-                  <EntityIcon
-                    targetType="githubPullRequest"
                     size="xs"
                     theme="monochrome"
                   />
@@ -500,7 +490,7 @@ export function useSoupFacetControls() {
           multiple: true,
           searchable: true,
           placeholder: 'Search assignees...',
-          options: assigneeOptions,
+          options: searchAssigneeOptions,
         }),
         makeControl({
           id: 'task_created_by',

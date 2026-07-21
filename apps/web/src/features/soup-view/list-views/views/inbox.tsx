@@ -66,7 +66,7 @@ const createInitialInboxFacets = (
   userId: string | undefined
 ): FacetSelection => ({
   channel_thread_scope: [inboxThreadScope(isNewInbox, userId)],
-  ...(isNewInbox ? { read_state: ['unread'], call_status: ['MISSED'] } : {}),
+  ...(isNewInbox ? { read_state: ['unread'] } : {}),
 });
 
 const applyInboxThreadScope = (
@@ -86,7 +86,6 @@ const applyInboxMode = (
   batch(() => {
     applyInboxThreadScope(collection, isNewInbox, userId);
     collection.facets.set('read_state', isNewInbox ? ['unread'] : []);
-    collection.facets.set('call_status', isNewInbox ? ['MISSED'] : []);
     collection.setState('groupBy', isNewInbox ? 'date' : undefined);
   });
 };
@@ -279,6 +278,10 @@ export function InboxListView(props: InboxListViewProps) {
     },
     disableLocalSearch: () => true,
   });
+
+  // Earlier replacement state applied a hidden missed-call filter to Inbox.
+  // Production does not, so remove it from restored collection state.
+  setup.collection.facets.set('call_status', []);
 
   let appliedMode = setup.collection.state.groupBy === 'date';
   createEffect(

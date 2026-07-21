@@ -33,7 +33,8 @@ export const COMPANY_STAGE = facet({
     stageId === NO_STAGE
       ? {
           id: stageId,
-          predicate: (e, ctx) => isCrmCompanyEntity(e) && !stageOf(e, ctx),
+          predicate: (e, ctx) =>
+            isCrmCompanyEntity(e) && stageOf(e, ctx) === undefined,
         }
       : {
           id: stageId,
@@ -51,7 +52,8 @@ export const COMPANY_OWNER = facet({
     ownerId === NO_ASSIGNEE
       ? {
           id: ownerId,
-          predicate: (e) => isCrmCompanyEntity(e) && !getCompanyOwnerId(e),
+          predicate: (e) =>
+            isCrmCompanyEntity(e) && getCompanyOwnerId(e) === undefined,
         }
       : {
           id: ownerId,

@@ -1,8 +1,10 @@
-import { unreadFilter } from '../facet-predicates';
 import { NIL_UUID } from '../facet-store';
 import { facet } from './base';
 
-/** Read state across every entity target supported by notification filtering. */
+/**
+ * New Inbox read state is server-owned. Channel threads intentionally have no
+ * seen clause because production only read-filters their parent channels.
+ */
 export const READ_STATE = facet({
   id: 'read_state',
   mode: 'or',
@@ -18,13 +20,6 @@ export const READ_STATE = facet({
         pf: b.eq('folderSeen', false),
         fef: b.eq('foreignEntitySeen', false),
       }),
-      predicate: (entity, ctx) => {
-        if (entity.type === 'email') return true;
-
-        return ctx.notificationSource
-          ? unreadFilter(ctx.notificationSource)(entity)
-          : true;
-      },
     },
     {
       id: 'read',
@@ -36,13 +31,6 @@ export const READ_STATE = facet({
         pf: b.eq('folderSeen', true),
         fef: b.eq('foreignEntitySeen', true),
       }),
-      predicate: (entity, ctx) => {
-        if (entity.type === 'email') return true;
-
-        return ctx.notificationSource
-          ? !unreadFilter(ctx.notificationSource)(entity)
-          : true;
-      },
     },
   ],
 });
