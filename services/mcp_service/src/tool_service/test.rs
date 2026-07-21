@@ -1,6 +1,7 @@
 use super::*;
 use ai_toolset::AsyncToolCollection;
 use rmcp::{handler::server::ServerHandler, model::ErrorCode};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn empty_service() -> AuthenticatedToolService<()> {
     AuthenticatedToolService::new(
@@ -83,6 +84,41 @@ async fn server_instructions_link_items_as_urls_not_mention_tags() {
 #[tokio::test]
 async fn empty_toolset_lists_no_tools() {
     assert!(empty_service().tool_definitions().is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn with_heartbeat_ticks_periodically_until_the_future_resolves() {
+    let ticks = Arc::new(AtomicUsize::new(0));
+    let ticks_for_callback = ticks.clone();
+
+    let output = with_heartbeat(
+        move || {
+            ticks_for_callback.fetch_add(1, Ordering::SeqCst);
+            async {}
+        },
+        tokio::time::sleep(PROGRESS_HEARTBEAT_INTERVAL * 3 + Duration::from_secs(5)),
+    )
+    .await;
+
+    assert_eq!(output, ());
+    assert_eq!(ticks.load(Ordering::SeqCst), 3);
+}
+
+#[tokio::test(start_paused = true)]
+async fn with_heartbeat_never_ticks_for_a_future_that_resolves_before_the_first_interval() {
+    let ticks = Arc::new(AtomicUsize::new(0));
+    let ticks_for_callback = ticks.clone();
+
+    with_heartbeat(
+        move || {
+            ticks_for_callback.fetch_add(1, Ordering::SeqCst);
+            async {}
+        },
+        tokio::time::sleep(PROGRESS_HEARTBEAT_INTERVAL / 2),
+    )
+    .await;
+
+    assert_eq!(ticks.load(Ordering::SeqCst), 0);
 }
 
 #[test]
