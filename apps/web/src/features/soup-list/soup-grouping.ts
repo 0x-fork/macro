@@ -1,12 +1,12 @@
 import { dateBucket } from '@app/features/next-soup/soup-view/group-by-date';
 import type { EntityData } from '@entity';
-import type { GroupByField } from '@queries/soup/grouped/types';
+import { COMPANY_STAGE_OPTIONS } from '@entity/utils/task-properties';
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { Accessor } from 'solid-js';
-import type { SoupCollectionControls } from './create-soup-collection-state';
 import { createSoupEntityRow } from './soup-rows';
 import type { SoupRow } from './types';
 
-export const soupPropertyGroupKey = (
+const soupPropertyGroupKey = (
   entity: EntityData,
   propertyDefinitionId: string
 ): string => {
@@ -79,7 +79,7 @@ type PropertyGroupRowsOptions<TEntity extends EntityData> = {
   labelFor: (groupId: string) => string;
 };
 
-export function buildPropertySoupRows<TEntity extends EntityData>(
+function buildPropertySoupRows<TEntity extends EntityData>(
   entities: readonly TEntity[],
   options: PropertyGroupRowsOptions<TEntity>
 ): SoupRow[] {
@@ -135,6 +135,37 @@ export function buildPropertySoupRows<TEntity extends EntityData>(
   return rows;
 }
 
+export type BuildClientPropertySoupRowsOptions<TEntity extends EntityData> = {
+  propertyDefinitionId: string;
+  stageIds: readonly string[];
+  resolveStage: (entity: TEntity) => string | undefined;
+  labelFor: (groupId: string) => string;
+};
+
+export function buildClientPropertySoupRows<TEntity extends EntityData>(
+  entities: readonly TEntity[],
+  options: BuildClientPropertySoupRowsOptions<TEntity>
+): SoupRow[] {
+  const stage = options.propertyDefinitionId === SYSTEM_PROPERTY_IDS.STAGE;
+  let preferredOrder = COMPANY_STAGE_OPTIONS.map(
+    (item) => item.value as string
+  );
+  if (stage) preferredOrder = [...options.stageIds];
+
+  return buildPropertySoupRows(entities, {
+    groupIdFor: (entity) => {
+      if (!stage) {
+        return soupPropertyGroupKey(entity, options.propertyDefinitionId);
+      }
+      const stageId = options.resolveStage(entity);
+      if (stageId === undefined) return '';
+      return stageId;
+    },
+    preferredOrder,
+    labelFor: options.labelFor,
+  });
+}
+
 export type ServerSoupGroup<TEntity extends EntityData = EntityData> = {
   id: string;
   label: string;
@@ -176,33 +207,4 @@ export function buildServerSoupRows<TEntity extends EntityData>(
   }
 
   return rows;
-}
-
-export function createSoupGrouping(controls: SoupCollectionControls) {
-  const active = () => controls.groupByField() !== undefined;
-
-  const isClientDateGroup = () => controls.groupByField()?.type === 'date';
-
-  const isClientPropertyGroup = () => {
-    const field = controls.groupByField();
-    const scopes = controls.facets.getSelected('scope');
-
-    return (
-      field?.type === 'property' &&
-      (scopes.includes('crm-company-active') ||
-        scopes.includes('crm-company-hidden'))
-    );
-  };
-
-  const serverGroupByField = (): GroupByField | undefined => {
-    if (isClientDateGroup() || isClientPropertyGroup()) return;
-    return controls.groupByField();
-  };
-
-  return {
-    active,
-    isClientDateGroup,
-    isClientPropertyGroup,
-    serverGroupByField,
-  };
 }
