@@ -310,6 +310,7 @@ export function MarkdownEditor(props: {
   const [state, setState] = createSignal<EditorState>(editor.getEditorState());
 
   setMdStore('editor', editor);
+  setMdStore('mapping', lexicalWrapper.mapping);
   setMdStore('plugins', plugins);
 
   const [editorFocus, setEditorFocus] = createSignal(false);
