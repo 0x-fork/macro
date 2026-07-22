@@ -29,7 +29,7 @@ export function ListVirtual<TItem extends Identifiable = Identifiable>(
 ) {
   const { dataSource } = useList<TItem>();
   const viewport = useListViewport();
-  const items = createMemo(() => [...dataSource.items()]);
+  const items = createMemo(() => dataSource.items());
   const [startMargin, setStartMargin] = createSignal(0);
   let restored = false;
 

@@ -164,7 +164,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
   });
 
   const { scrollTo } = useSoupViewHotkeys({
-    listScopeId: props.listScopeId,
+    listScopeId: props.scopeId ?? panel.splitHotkeyScope,
     scopeId: props.scopeId,
     root: props.root,
     virtualizer,
@@ -405,7 +405,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
                                   : undefined
                               }
                             >
-                              {(entity) => props.children(entity)}
+                              {(entity) => <>{props.children(entity)}</>}
                             </Match>
                           </Switch>
                           <Show
