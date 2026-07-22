@@ -15,8 +15,7 @@ macro_env_var::maybe_env_var! {
     struct AwsRegion;
 }
 
-/// Apply the TLS + SASL/OAUTHBEARER settings required to authenticate to an
-/// AWS MSK cluster with IAM auth (the `:9098` bootstrap listener).
+/// Applies the TLS and SASL/OAUTHBEARER settings required for MSK IAM auth.
 pub fn configure_sasl_iam(mut config: ClientConfig) -> ClientConfig {
     config
         .set("security.protocol", "SASL_SSL")
@@ -24,18 +23,15 @@ pub fn configure_sasl_iam(mut config: ClientConfig) -> ClientConfig {
     config
 }
 
-/// Client context that supplies AWS MSK IAM (SASL/OAUTHBEARER) auth tokens,
-/// signing with the ambient AWS credentials (e.g. the ECS task role).
+/// Client context that supplies AWS MSK IAM authentication tokens.
 ///
-/// librdkafka invokes [`ClientContext::generate_oauth_token`] when the
-/// connection is first established and again before each token expires.
+/// Tokens are signed with ambient AWS credentials such as an ECS task role.
 pub struct MskIamClientContext {
     region: Region,
 }
 
 impl MskIamClientContext {
-    /// Build a context that signs tokens for the region in `AWS_REGION`,
-    /// falling back to `us-east-1`.
+    /// Builds a context using `AWS_REGION`, falling back to `us-east-1`.
     pub fn from_env() -> Self {
         let region = AwsRegion::new()
             .and_then(|region| region.value().map(str::to_string))
@@ -56,12 +52,9 @@ impl ClientContext for MskIamClientContext {
     ) -> Result<OAuthToken, Box<dyn std::error::Error>> {
         let region = self.region.clone();
 
-        // librdkafka may invoke this callback on a tokio runtime thread (for a
-        // `StreamConsumer`, it fires while `recv()` is polled from async code),
-        // where blocking on the ambient runtime panics. Sign on a dedicated
-        // thread with its own single-threaded runtime instead, so the callback
-        // is safe from any calling context. Tokens live ~15 minutes, so the
-        // per-refresh thread + runtime cost is negligible.
+        // librdkafka may invoke this callback on a Tokio runtime thread. Sign
+        // on a dedicated thread with its own runtime so blocking is safe from
+        // every calling context.
         let signer = std::thread::spawn(
             move || -> Result<(String, i64), Box<dyn std::error::Error + Send + Sync>> {
                 let runtime = tokio::runtime::Builder::new_current_thread()
@@ -74,9 +67,9 @@ impl ClientContext for MskIamClientContext {
         let (token, expiration_time_ms) = signer
             .join()
             .map_err(|_| "MSK IAM token signer thread panicked")?
-            .map_err(|e| -> Box<dyn std::error::Error> { e })
-            .inspect_err(|e| {
-                tracing::error!(error = %e, "failed to sign MSK IAM auth token");
+            .map_err(|error| -> Box<dyn std::error::Error> { error })
+            .inspect_err(|error| {
+                tracing::error!(error = %error, "failed to sign MSK IAM auth token");
             })?;
 
         tracing::info!(expiration_time_ms, "signed MSK IAM auth token");
@@ -89,6 +82,4 @@ impl ClientContext for MskIamClientContext {
     }
 }
 
-/// Lets consumers (e.g. `StreamConsumer<MskIamClientContext>`) use this
-/// context; all behavior is the trait's defaults.
 impl ConsumerContext for MskIamClientContext {}

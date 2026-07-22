@@ -1,29 +1,31 @@
-//! Kafka publisher for versioned realtime Soup messages.
+//! Macro event broker publisher for realtime Soup events.
 
 #[cfg(test)]
 mod test;
 
-use macro_event_broker::EventPublisher;
-use macro_event_topics::MacroSoupRealtimeTopic;
+use macro_event_broker::MacroEventBroker;
 use rootcause::prelude::{Report, ResultExt as _};
 
-use crate::domain::{models::SoupRealtimeMessage, ports::SoupRealtimePublisher};
+use crate::domain::{
+    models::{SoupMacroEvent, SoupRealtimeMessage},
+    ports::SoupRealtimePublisher,
+};
 
-/// Realtime Soup publisher backed by a byte-oriented event publisher.
-pub struct KafkaSoupRealtimePublisher<P> {
-    publisher: P,
+/// Realtime Soup publisher backed by the typed macro event broker service.
+pub struct KafkaSoupRealtimePublisher<B> {
+    broker: B,
 }
 
-impl<P> KafkaSoupRealtimePublisher<P> {
-    /// Creates a realtime Soup Kafka publisher.
-    pub fn new(publisher: P) -> Self {
-        Self { publisher }
+impl<B> KafkaSoupRealtimePublisher<B> {
+    /// Creates a realtime Soup publisher from a macro event broker service.
+    pub fn new(broker: B) -> Self {
+        Self { broker }
     }
 }
 
-impl<P> SoupRealtimePublisher for KafkaSoupRealtimePublisher<P>
+impl<B> SoupRealtimePublisher for KafkaSoupRealtimePublisher<B>
 where
-    P: EventPublisher,
+    B: MacroEventBroker,
 {
     #[tracing::instrument(
         skip(self, message),
@@ -31,13 +33,16 @@ where
         err
     )]
     async fn publish(&self, message: SoupRealtimeMessage) -> Result<(), Report> {
-        let payload =
-            serde_json::to_vec(&message).context("failed to serialize realtime Soup message")?;
+        let event = SoupMacroEvent::item_updated(message);
+        let publish = self
+            .broker
+            .send_event(&event)
+            .context("failed to dispatch realtime Soup event")?;
 
-        self.publisher
-            .publish(MacroSoupRealtimeTopic, message.user_id.as_ref(), &payload)
+        publish
             .await
-            .context("failed to publish realtime Soup message")?;
+            .context("realtime Soup publish task failed")?
+            .context("failed to publish realtime Soup event")?;
 
         Ok(())
     }
