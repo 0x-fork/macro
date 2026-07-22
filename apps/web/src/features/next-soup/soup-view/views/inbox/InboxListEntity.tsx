@@ -49,7 +49,12 @@ export function InboxListEntity(props: BaseListEntityProps) {
           <button
             type="button"
             aria-label="Mark done"
-            class="hidden size-8 place-items-center rounded-full bg-surface text-ink-muted transition-colors hover:text-ink group-hover/mark-done-icon:grid"
+            class={cn(
+              'grid size-8 place-items-center rounded-full bg-surface text-ink-muted opacity-0 pointer-events-none transition-opacity hover:text-ink',
+              'group-hover/mark-done-icon:opacity-100 group-hover/mark-done-icon:pointer-events-auto',
+              'group-focus-within/mark-done-icon:opacity-100 group-focus-within/mark-done-icon:pointer-events-auto',
+              'focus-visible:opacity-100 focus-visible:pointer-events-auto'
+            )}
             onMouseDown={(event) => event.stopPropagation()}
             onClick={(event) => {
               event.stopPropagation();

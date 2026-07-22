@@ -1609,12 +1609,19 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                             ),
                                           }}
                                           canMarkDone={(entity) => {
+                                            // Re-read the panel's content id rather than closing
+                                            // over the outer `contentId` const: this row can
+                                            // outlive a content/tab change without remounting
+                                            // (same reasoning as `canSwipeLeft` below), so a
+                                            // stale id would keep gating against the wrong view.
+                                            const freshContentId =
+                                              panel.handle.content().id;
                                             const tab = activeTab();
                                             if (
-                                              !isListViewID(contentId) ||
+                                              !isListViewID(freshContentId) ||
                                               (tab &&
                                                 !canExecuteMarkDoneOnView(
-                                                  contentId,
+                                                  freshContentId,
                                                   tab
                                                 ))
                                             )
