@@ -2,6 +2,7 @@ import {
   createContext,
   createRenderEffect,
   createUniqueId,
+  on,
   type ParentProps,
   Suspense,
   useContext,
@@ -28,23 +29,28 @@ function SyncDataSourceItems<TItem extends Identifiable>(props: {
   dataSource: ListDataSource<TItem>;
   state: ListState<TItem>;
 }) {
-  createRenderEffect(() => {
-    const items = [...props.dataSource.items()];
+  createRenderEffect(
+    on(
+      () => props.dataSource.items(),
+      (sourceItems) => {
+        const items = sourceItems.slice();
 
-    if (import.meta.env.DEV) {
-      const ids = new Set<string>();
-      for (const item of items) {
-        if (ids.has(item.id)) {
-          throw new Error(
-            `List data source emitted duplicate item id: ${item.id}`
-          );
+        if (import.meta.env.DEV) {
+          const ids = new Set<string>();
+          for (const item of items) {
+            if (ids.has(item.id)) {
+              throw new Error(
+                `List data source emitted duplicate item id: ${item.id}`
+              );
+            }
+            ids.add(item.id);
+          }
         }
-        ids.add(item.id);
-      }
-    }
 
-    props.state.items.set(items);
-  });
+        props.state.items.set(items);
+      }
+    )
+  );
 
   return null;
 }

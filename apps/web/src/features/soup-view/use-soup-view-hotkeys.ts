@@ -1,23 +1,44 @@
 import {
   type ListActivateOptions,
   type ListActivation,
+  type ListNavigationResult,
   useList,
 } from '@app/components/list';
+import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
+import { CommandState } from '@app/features/command/state';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
-import { type SoupRow, useSoupCollection } from '@app/features/soup-list';
+import {
+  type SoupEntityRow,
+  type SoupRow,
+  useSoupCollection,
+} from '@app/features/soup-list';
+import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { globalSplitManager } from '@app/signal/splitLayout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { entityIdSelector } from '@core/dom-selectors';
 import {
   createHotkeyGroup,
   registerHotkey as registerBaseHotkey,
 } from '@core/hotkey/hotkeys';
+import { activeScope, hotkeyScopeTree } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
-import type { EntityData } from '@entity';
+import {
+  getHotkeyCommand,
+  getScopeElement,
+  isScopeInActiveBranch,
+  runCommand,
+} from '@core/hotkey/utils';
+import {
+  type EntityData,
+  filterNotDoneNotifications,
+  filterValidNotifications,
+  isWithNotification,
+} from '@entity';
+import { openSingleStackNotification } from '@notifications';
 import { type Accessor, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import { useEntityActionHotkeys } from './actions/use-entity-action-hotkeys';
 import { useSoupView } from './context';
-import { replaceSoupNavigationSession } from './navigation-session';
 
 const LOAD_MORE_DISTANCE_FROM_END = 3;
 const NUMBER_TAB_HOTKEYS = [
@@ -43,14 +64,17 @@ type UseSoupViewHotkeysOptions = {
   onNavigate?: (row: SoupRow, index: number) => void;
 };
 
-const entityFromRow = (row: SoupRow | undefined): EntityData | undefined =>
-  row?.kind === 'entity' ? row.entity : undefined;
+const entityFromRow = (row: SoupRow | undefined): EntityData | undefined => {
+  if (row?.kind !== 'entity') return;
+  return row.entity;
+};
 
 /** Owns Soup keyboard commands and their mounted/persistent lifetimes. */
 export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   const panel = useSplitPanelOrThrow();
   const collection = useSoupCollection();
   const view = useSoupView();
+  const analytics = useAnalytics();
   const { dataSource, state: listState } = useList<SoupRow>();
   const enabled = () => options.enabled?.() ?? true;
 
@@ -79,7 +103,8 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
 
   const canNavigate = () => {
     if (!enabled()) return false;
-    if (options.canNavigate) return options.canNavigate();
+    if (options.canNavigate && !options.canNavigate()) return false;
+
     const contentType = panel.handle.content().type;
     const referredFrom = panel.handle.referredFrom();
     return (
@@ -90,10 +115,34 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     );
   };
 
+  const navigateToAdjacentEntity = (offset: number) => {
+    const rows = listState.items.all();
+    const direction = offset < 0 ? -1 : 1;
+    let index = listState.focus.index();
+    if (index < 0) index = direction > 0 ? -1 : rows.length;
+
+    for (
+      index += direction;
+      index >= 0 && index < rows.length;
+      index += direction
+    ) {
+      const row = rows[index];
+      if (row?.kind !== 'entity') continue;
+      if (!listState.selection.isSelectable(row)) continue;
+      return listState.navigate.toIndex(index, { reason: 'keyboard' });
+    }
+  };
+
   const navigate = (offset: number) => {
     if (!canNavigate()) return false;
     const count = listState.items.count();
-    const next = listState.navigate.by(offset, { reason: 'keyboard' });
+    const listVisible = options.root()?.isConnected === true;
+    let next: ListNavigationResult<SoupRow>;
+    if (listVisible) {
+      next = listState.navigate.by(offset, { reason: 'keyboard' });
+    } else {
+      next = navigateToAdjacentEntity(offset);
+    }
     if (!next) {
       if (offset > 0) void fetchMore();
       return true;
@@ -102,12 +151,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     scrollTo(next.index);
     options.onNavigate?.(next.item, next.index);
 
-    const contentType = panel.handle.content().type;
-    if (
-      next.item.kind === 'entity' &&
-      contentType !== 'component' &&
-      contentType !== 'project'
-    ) {
+    if (next.item.kind === 'entity' && !listVisible) {
       void openEntityInSplitFromUnifiedList(next.item.entity, {
         splitHandle: panel.handle,
         referredFrom: view.view(),
@@ -195,6 +239,18 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     ) as HTMLButtonElement | null;
   };
 
+  const tryOpenChannelNotification = (newSplit: boolean) => {
+    const entity = entityFromRow(listState.focus.item());
+    if (entity?.type !== 'channel' || !isWithNotification(entity)) return false;
+
+    const notifications = filterNotDoneNotifications(
+      filterValidNotifications(entity.notifications?.() ?? [])
+    );
+    const splitManager = globalSplitManager();
+    if (!splitManager) return false;
+    return openSingleStackNotification(notifications, splitManager, newSplit);
+  };
+
   const activateCurrent = (activateOptions: ListActivateOptions) => {
     const item = listState.focus.item();
     const index = listState.focus.index();
@@ -209,66 +265,73 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     return activation;
   };
 
-  const cycleTab = (offset: number) => {
+  const currentTabIndex = () => {
     const tabs = view.tabs();
-    if (tabs.length === 0) return false;
     const current = tabs.findIndex(
       (tab) => tab.value === collection.state.activeTab
     );
-    const next = (Math.max(current, 0) + offset + tabs.length) % tabs.length;
-    return view.applyTabPreset(tabs[next].value);
+    if (current >= 0) return current;
+    return 0;
   };
 
-  // J/K intentionally survive the rendered list, but a new list in the same
-  // split replaces the previous registrations so token commands cannot leak.
-  const persistentScope = options.scopeId ?? panel.splitHotkeyScope;
-  replaceSoupNavigationSession(persistentScope, () => [
-    registerHotkey({
-      hotkey: 'j',
-      hotkeyToken: TOKENS.entity.step.end,
-      scopeId: persistentScope,
-      description: 'Down',
-      condition: canNavigate,
-      keyDownHandler: () => navigate(1),
-      hide: true,
-    }),
+  const cycleTab = (offset: number) => {
+    const tabs = view.tabs();
+    if (tabs.length <= 1) return false;
+    const next = (currentTabIndex() + offset + tabs.length) % tabs.length;
+    const tab = tabs[next];
+    if (!tab) return false;
+    return view.applyTabPreset(tab.value);
+  };
 
-    registerHotkey({
-      hotkey: 'k',
-      hotkeyToken: TOKENS.entity.step.start,
-      scopeId: persistentScope,
-      description: 'Up',
-      condition: canNavigate,
-      keyDownHandler: () => navigate(-1),
-      hide: true,
-    }),
-  ]);
+  // J/K intentionally survive the rendered list. The split owns this group
+  // and replaces it when another Soup list mounts.
+  const persistentScope = options.scopeId ?? panel.splitHotkeyScope;
+  const persistentHotkeys = createHotkeyGroup();
+  registerHotkey({
+    hotkey: 'j',
+    hotkeyToken: TOKENS.entity.step.end,
+    scopeId: persistentScope,
+    description: 'Down',
+    condition: canNavigate,
+    keyDownHandler: () => navigate(1),
+    hide: true,
+  }).withGroup(persistentHotkeys);
+  registerHotkey({
+    hotkey: 'k',
+    hotkeyToken: TOKENS.entity.step.start,
+    scopeId: persistentScope,
+    description: 'Up',
+    condition: canNavigate,
+    keyDownHandler: () => navigate(-1),
+    hide: true,
+  }).withGroup(persistentHotkeys);
 
   const hotkeys = createHotkeyGroup();
 
-  for (
-    let index = 0;
-    index < Math.min(view.tabs().length, NUMBER_TAB_HOTKEYS.length);
-    index++
-  ) {
-    const tab = view.tabs()[index];
+  for (let index = 0; index < NUMBER_TAB_HOTKEYS.length; index++) {
     const hotkey = NUMBER_TAB_HOTKEYS[index];
-    if (!tab || !hotkey) continue;
+    if (!hotkey) continue;
     registerHotkey({
       hotkey,
+      hotkeyToken: TOKENS.soup.tabs[hotkey],
       scopeId: options.listScopeId,
-      description:
-        typeof tab.label === 'string' ? `Open ${tab.label}` : 'Open tab',
-      keyDownHandler: () => view.applyTabPreset(tab.value),
+      description: `Switch to tab ${hotkey}`,
+      condition: () => view.tabs().length > index,
+      keyDownHandler: () => {
+        const tab = view.tabs()[index];
+        if (!tab) return false;
+        return view.applyTabPreset(tab.value);
+      },
       hide: true,
     }).withGroup(hotkeys);
   }
 
   registerHotkey({
     hotkey: 'tab',
+    hotkeyToken: TOKENS.soup.tabs.next,
     scopeId: options.listScopeId,
     description: 'Next tab',
-    condition: () => view.tabs().length > 0,
+    condition: () => view.tabs().length > 1,
     keyDownHandler: (event) => {
       event?.preventDefault();
       return cycleTab(1);
@@ -278,9 +341,10 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
 
   registerHotkey({
     hotkey: 'shift+tab',
+    hotkeyToken: TOKENS.soup.tabs.prev,
     scopeId: options.listScopeId,
     description: 'Previous tab',
-    condition: () => view.tabs().length > 0,
+    condition: () => view.tabs().length > 1,
     keyDownHandler: (event) => {
       event?.preventDefault();
       return cycleTab(-1);
@@ -366,6 +430,8 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
       }
       return true;
     },
+    registrationType: 'add',
+    handlerPriority: 4,
     hide: true,
   }).withGroup(hotkeys);
 
@@ -385,11 +451,14 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
       }
       return false;
     },
+    registrationType: 'add',
+    handlerPriority: 4,
     hide: true,
   }).withGroup(hotkeys);
 
   registerHotkey({
     hotkey: 'home',
+    hotkeyToken: TOKENS.entity.jump.home,
     scopeId: options.listScopeId,
     description: 'First item',
     keyDownHandler: () => {
@@ -401,7 +470,21 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   }).withGroup(hotkeys);
 
   registerHotkey({
-    hotkey: 'end',
+    hotkey: GO_TO_LEADER_KEY,
+    scopeId: GO_TO_COMMAND_SCOPE,
+    description: 'First item',
+    condition: () => isScopeInActiveBranch(options.listScopeId),
+    keyDownHandler: () => {
+      const next = listState.navigate.toFirst();
+      if (next) scrollTo(next.index);
+      return true;
+    },
+    registrationType: 'add',
+  }).withGroup(hotkeys);
+
+  registerHotkey({
+    hotkey: ['shift+g', 'end'],
+    hotkeyToken: TOKENS.entity.jump.end,
     scopeId: options.listScopeId,
     description: 'Last item',
     keyDownHandler: () => {
@@ -414,8 +497,10 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
 
   registerHotkey({
     hotkey: 'enter',
+    hotkeyToken: TOKENS.entity.open,
     scopeId: options.listScopeId,
     description: 'Open item',
+    displayPriority: 4,
     keyDownHandler: () => {
       const item = listState.focus.item();
       if (item?.kind === 'group-header') {
@@ -430,6 +515,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
         });
         return true;
       }
+      if (tryOpenChannelNotification(false)) return true;
       return activateCurrent({ reason: 'keyboard' }) !== undefined;
     },
     hide: true,
@@ -442,6 +528,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     keyDownHandler: () => {
       const item = listState.focus.item();
       if (!item || item.kind !== 'entity') return false;
+      if (tryOpenChannelNotification(true)) return true;
       return (
         activateCurrent({
           reason: 'keyboard',
@@ -455,23 +542,39 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   registerHotkey({
     hotkey: 'cmd+enter',
     scopeId: options.listScopeId,
-    description: 'Open focused item',
+    description: 'Focus preview',
     keyDownHandler: () => {
       const item = listState.focus.item();
       if (item?.kind === 'load-more') {
         void item.loadMore();
         return true;
       }
-      return (
-        activateCurrent({
-          reason: 'keyboard',
-          metadata: {
-            openFocused: true,
-            previewOpen: view.previewOpen(),
-          },
-        }) !== undefined
+      if (item?.kind !== 'entity') return false;
+      if (!view.previewVisible()) {
+        return activateCurrent({ reason: 'keyboard' }) !== undefined;
+      }
+
+      const block = document.getElementById(`block-${item.entity.id}`);
+      if (!block) return false;
+      block.setAttribute('data-allow-focus-in-preview', '');
+      block.focus();
+
+      const currentScope = activeScope();
+      if (!currentScope) return true;
+      const scope = hotkeyScopeTree.get(currentScope);
+      if (scope?.type !== 'dom') return true;
+      const scopeElement = getScopeElement(currentScope);
+      const blockScope = scopeElement?.closest(
+        `[id="block-${item.entity.id}"]`
       );
+      if (!(blockScope instanceof HTMLElement)) return true;
+      const blockScopeId = blockScope.dataset.hotkeyScope;
+      if (!blockScopeId) return true;
+      const enterCommand = getHotkeyCommand(blockScopeId, 'enter');
+      if (enterCommand) runCommand(enterCommand);
+      return true;
     },
+    displayPriority: 4,
     hide: true,
   }).withGroup(hotkeys);
 
@@ -510,12 +613,53 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   }).withGroup(hotkeys);
 
   registerHotkey({
+    hotkey: 'cmd+k',
+    hotkeyToken: TOKENS.global.commandMenu,
+    scopeId: options.listScopeId,
+    description: () =>
+      CommandState.isOpen() ? 'Close command menu' : 'Open command menu',
+    condition: () => !CommandState.isOpen(),
+    keyDownHandler: (event) => {
+      event?.preventDefault();
+      const selected = listState.selection
+        .selected()
+        .filter((row): row is SoupEntityRow => row.kind === 'entity')
+        .map((row) => row.entity);
+      if (selected.length > 0) {
+        analytics.track('command_menu_open', {
+          from: 'soup_view_entity_action',
+        });
+        CommandState.openForEntityAction(selected);
+        return true;
+      }
+
+      analytics.track('command_menu_open', { from: 'soup_view' });
+      CommandState.toggle();
+      return true;
+    },
+    displayPriority: 10,
+    hide: CommandState.isOpen,
+    runWithInputFocused: true,
+  }).withGroup(hotkeys);
+
+  const canClearSelection = () => listState.selection.count() > 0;
+  const canCloseSpotlight = () => panel.handle.isSpotLight();
+  registerHotkey({
     hotkey: 'escape',
     scopeId: options.listScopeId,
-    description: 'Clear selection',
+    description: () => {
+      if (canClearSelection()) return 'Clear selection';
+      if (canCloseSpotlight()) return 'Close spotlight';
+      return '';
+    },
+    condition: () => canClearSelection() || canCloseSpotlight(),
     keyDownHandler: () => {
-      if (listState.selection.count() === 0) return false;
-      listState.selection.clear();
+      if (canClearSelection()) {
+        listState.selection.clear();
+        return true;
+      }
+      if (!canCloseSpotlight()) return false;
+      panel.handle.toggleSpotlight();
       return true;
     },
     hide: true,

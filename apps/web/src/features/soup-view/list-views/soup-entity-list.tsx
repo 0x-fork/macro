@@ -234,17 +234,34 @@ export function SoupEntityList(props: SoupEntityListProps) {
     });
   });
 
+  const [focusResetPending, setFocusResetPending] = createSignal(false);
   createEffect(
     on(
       [
+        () => collection.state.activeTab,
         () => collection.state.search,
         () => collection.state.groupBy,
         () => collection.facets.serialize(),
       ],
-      () => queueMicrotask(focusFirstEntity),
+      () => {
+        listState.focus.clear({ reason: 'items' });
+        setFocusResetPending(true);
+      },
       { defer: true }
     )
   );
+  createEffect(() => {
+    if (!focusResetPending()) return;
+    listState.items.all();
+    if (dataSource.isLoading() || dataSource.isFetching()) return;
+
+    queueMicrotask(() => {
+      if (!focusResetPending()) return;
+      if (dataSource.isLoading() || dataSource.isFetching()) return;
+      setFocusResetPending(false);
+      focusFirstEntity();
+    });
+  });
 
   const swipeEntity = (id: string) =>
     listState.items

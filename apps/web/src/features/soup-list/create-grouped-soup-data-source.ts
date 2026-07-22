@@ -43,11 +43,15 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
 ) {
   const { controls } = options;
 
-  const groupingActive = () => controls.groupByField() !== undefined;
+  const groupingActive = createMemo(
+    () => controls.groupByField() !== undefined
+  );
 
-  const isClientDateGroup = () => controls.groupByField()?.type === 'date';
+  const isClientDateGroup = createMemo(
+    () => controls.groupByField()?.type === 'date'
+  );
 
-  const isClientPropertyGroup = () => {
+  const isClientPropertyGroup = createMemo(() => {
     if (controls.groupByField()?.type !== 'property') return false;
 
     const scopes = controls.facets.getSelected('scope');
@@ -55,12 +59,12 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
       scopes.includes('crm-company-active') ||
       scopes.includes('crm-company-hidden')
     );
-  };
+  });
 
-  const serverGroupByField = () => {
+  const serverGroupByField = createMemo(() => {
     if (isClientDateGroup() || isClientPropertyGroup()) return;
     return controls.groupByField();
-  };
+  });
 
   const {
     dealStages,
@@ -78,13 +82,14 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
   });
 
-  const clientGrouping = () =>
-    groupingActive() && serverGroupByField() === undefined;
+  const clientGrouping = createMemo(
+    () => groupingActive() && serverGroupByField() === undefined
+  );
 
-  const groupedTransport = (): 'graphql' | undefined => {
+  const groupedTransport = createMemo((): 'graphql' | undefined => {
     if (!serverGroupByField() || !graphqlSoup().enabled) return;
     return 'graphql';
-  };
+  });
 
   const reactive = useReactiveSoupDataSource({
     enabled: () =>
@@ -94,8 +99,9 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     showSupportedForeignEntities,
   });
 
-  const useReactiveSource = () =>
-    clientGrouping() && graphqlSoup().enabled && reactive.isSupported();
+  const useReactiveSource = createMemo(
+    () => clientGrouping() && graphqlSoup().enabled && reactive.isSupported()
+  );
 
   const rest = useRestSoupDataSource({
     enabled: () =>
@@ -254,10 +260,8 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
 
       await activeBrowseSource().refresh();
     },
-  } satisfies ListDataSource<SoupRow>;
-
-  return {
-    ...dataSource,
     active: groupingActive,
-  };
+  } satisfies ListDataSource<SoupRow> & { [key: string]: unknown };
+
+  return dataSource;
 }
