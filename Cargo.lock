@@ -9349,6 +9349,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cached",
+ "channels",
  "chrono",
  "macro_db_migrator",
  "macro_user_id",
@@ -16176,7 +16177,6 @@ dependencies = [
  "flate2",
  "foldhash 0.2.0",
  "form_urlencoded",
- "futures",
  "futures-channel",
  "futures-core",
  "futures-executor",
