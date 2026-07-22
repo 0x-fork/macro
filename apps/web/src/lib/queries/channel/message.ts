@@ -3,10 +3,7 @@ import type { OptimisticPostMessageAttachment } from '@channel/Input/message-pay
 import { toast } from '@core/component/Toast/Toast';
 import type { DateValue } from '@core/util/date';
 import { throwOnErr } from '@core/util/result';
-import {
-  invalidateSoupEntity,
-  refetchSoupEntity,
-} from '@queries/soup/normalized-cache';
+import { invalidateSoupEntity } from '@queries/soup/normalized-cache';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import {
   type ApiChannelMessage,
@@ -470,10 +467,12 @@ export function useSendMessageMutation(
           });
 
           // The sender does not receive the notification that normally refreshes
-          // this soup entity. Refresh root messages here so the channel moves to
-          // its updated position in soup lists.
+          // this soup entity. Invalidate (rather than optimistically merging a
+          // fresh fetch) so the channel's position updates via each view's own
+          // query, which re-applies server-side filters like the inbox done
+          // gate — a direct merge would bypass that gate and leak the channel
+          // into done-filtered inbox queries it doesn't belong in.
           if (threadId === undefined) {
-            refetchSoupEntity(variables.channelID, 'channel');
             invalidateSoupEntity(variables.channelID);
           }
 
