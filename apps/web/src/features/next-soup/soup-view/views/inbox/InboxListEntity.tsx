@@ -1,6 +1,7 @@
 import { useChannelsContext } from '@core/context/channels';
 import { MaybeEntityRow, MultiSelectCheckbox, UnreadIndicator } from '@entity';
 import type { BaseListEntityProps } from '@entity/composed/list-entity/shared';
+import CheckIcon from '@phosphor/check.svg';
 import { cn } from '@ui';
 import { createMemo, Show } from 'solid-js';
 import { InboxCardLayout, toInboxCardDisplayItem } from './inbox-card-layouts';
@@ -41,6 +42,24 @@ export function InboxListEntity(props: BaseListEntityProps) {
           onClick={props.onClick}
         />
       </MaybeEntityRow>
+      {/* Hover the leading icon (col-start-1 of the card's grid, just right of
+          the `pl-9` gutter) to reveal a mark-done checkmark in its place. */}
+      <Show when={props.onMarkDone && props.canMarkDone?.(props.entity)}>
+        <div class="group/mark-done-icon absolute left-9 top-2.5 z-10 grid size-8 place-items-center">
+          <button
+            type="button"
+            aria-label="Mark done"
+            class="hidden size-8 place-items-center rounded-full bg-surface text-ink-muted transition-colors hover:text-ink group-hover/mark-done-icon:grid"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onMarkDone?.(props.entity);
+            }}
+          >
+            <CheckIcon class="size-4" />
+          </button>
+        </div>
+      </Show>
       {/* Select checkbox lives in the gutter reserved by the card's `pl-9`. */}
       <Show when={!props.hideCheckbox}>
         <div class="group/select-control absolute left-1 top-2.5 z-10 grid size-8 place-items-center">

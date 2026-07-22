@@ -1608,6 +1608,27 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                               <CheckIcon class="size-8 text-panel" />
                                             ),
                                           }}
+                                          canMarkDone={(entity) => {
+                                            const tab = activeTab();
+                                            if (
+                                              !isListViewID(contentId) ||
+                                              (tab &&
+                                                !canExecuteMarkDoneOnView(
+                                                  contentId,
+                                                  tab
+                                                ))
+                                            )
+                                              return false;
+                                            return markDoneAction.canExecute(
+                                              entity
+                                            );
+                                          }}
+                                          onMarkDone={(entity) => {
+                                            markDoneAction.executeWithSoup(
+                                              [entity],
+                                              soup
+                                            );
+                                          }}
                                         />
                                       </SoupEntityContextMenu>
                                     </Match>

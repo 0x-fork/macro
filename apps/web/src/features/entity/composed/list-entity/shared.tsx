@@ -39,6 +39,10 @@ export interface BaseListEntityProps<E extends EntityData = EntityData> {
     location?: SearchLocation
   ) => void;
   entityRowConfig?: EntityRowConfig;
+  /** Whether the row's mark-done affordance (e.g. hover-to-check the leading icon) should be shown for this entity. */
+  canMarkDone?: (entity: WithNotification<E>) => boolean;
+  /** Marks the row done, e.g. when the leading icon's hover checkmark is clicked. */
+  onMarkDone?: (entity: WithNotification<E>) => void;
 }
 
 const WIDE_BREAKPOINT = 512; // @lg container query = 32rem
