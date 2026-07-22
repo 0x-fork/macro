@@ -13,6 +13,7 @@ import { usePendingNotificationNavigationEffect } from '@app/features/notificati
 import { InteractiveOnboardingModal } from '@app/features/onboarding/InteractiveOnboardingModal';
 import MobileWebSignup from '@app/features/onboarding/MobileWebSignup';
 import { useCheckoutCompletionListener } from '@app/features/paywall/use-checkout-completion-listener';
+import { SetupPage } from '@app/features/setup/SetupPage';
 import { TeamInviteAcceptance } from '@app/features/team-invitations/TeamInviteAcceptance';
 import {
   AnalyticsContextProvider,
@@ -34,6 +35,7 @@ import { LAYOUT_ROUTE } from '@components/app/split-layout/SplitLayoutRoute';
 import { clearLocalAuthSession } from '@core/auth/logout';
 import { ChatAttachmentsInit } from '@core/component/AI/signal/globalAttachments';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
+import { ENABLE_NEW_ONBOARDING_V3 } from '@core/constant/featureFlags';
 import { ChannelsContextProvider } from '@core/context/channels';
 import { EmailLinksContextProvider } from '@core/context/emailLinks';
 import { QuickAccessProvider } from '@core/context/quickAccess';
@@ -46,6 +48,7 @@ import {
 import { initAndStartEmailSync } from '@core/email-link';
 import { useHotKeyRoot } from '@core/hotkey/hotkeys';
 import { IosPushNotificationModal } from '@core/mobile/IosPushNotificationModal';
+import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { createBlockOrchestrator } from '@core/orchestrator';
 import { formatTabTitle, tabTitleSignal } from '@core/signal/tabTitle';
@@ -427,6 +430,20 @@ const ROUTES: RouteDefinition[] = [
       ),
   },
   {
+    path: '/setup',
+    // Flag-gated at the route, not just the redirect: with the flag off a
+    // direct /setup visit must not touch the onboarding backend (reading
+    // it creates the flow's row and starts gathers).
+    component: () =>
+      !ENABLE_NEW_ONBOARDING_V3 ? (
+        <Navigate href="/" />
+      ) : isNativeMobilePlatform() ? (
+        <Navigate href="/onboarding" />
+      ) : (
+        <SetupPage />
+      ),
+  },
+  {
     path: '/team-invite',
     component: TeamInviteAcceptance,
   },
@@ -559,6 +576,9 @@ function InitialInteractiveOnboardingModal() {
 
   const modalOpen = () =>
     open() &&
+    // The new split-screen onboarding replaces this modal on desktop; the
+    // Layout redirect sends first-time users to /setup instead.
+    (!ENABLE_NEW_ONBOARDING_V3 || isMobile()) &&
     !isNativeMobilePlatform() &&
     userInfoQuery.data?.authenticated === true &&
     (userInfoQuery.data.tutorialComplete === false || onboardingStarted());
