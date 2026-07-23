@@ -108,6 +108,26 @@ impl CompaniesRepository for StubRepo {
         unimplemented!()
     }
 
+    async fn set_company_custom_name(
+        &self,
+        _team_id: &uuid::Uuid,
+        _company_id: &uuid::Uuid,
+        _name: &str,
+        _include_hidden: bool,
+    ) -> Result<(), CrmError> {
+        unimplemented!()
+    }
+
+    async fn set_contact_name(
+        &self,
+        _team_id: &uuid::Uuid,
+        _contact_id: &uuid::Uuid,
+        _name: &str,
+        _include_hidden: bool,
+    ) -> Result<(), CrmError> {
+        unimplemented!()
+    }
+
     async fn set_contact_hidden(
         &self,
         _team_id: &uuid::Uuid,
@@ -408,6 +428,50 @@ async fn create_company_rejects_generic_email_domains() {
 
 fn company_receipt() -> CrmCompanyReceipt<ViewAccessLevel> {
     CrmCompanyReceipt::dangerously_internal(uuid::Uuid::now_v7(), uuid::Uuid::now_v7())
+}
+
+#[tokio::test]
+async fn set_company_name_rejects_blank_name() {
+    let access = company_receipt();
+    for name in ["", "   ", "\t\n"] {
+        let err = service().set_company_name(&access, name).await.unwrap_err();
+        assert!(matches!(err, CrmError::InvalidRequest(_)), "name {name:?}");
+    }
+}
+
+#[tokio::test]
+async fn set_company_name_rejects_overlong_name() {
+    let access = company_receipt();
+    let name = "x".repeat(201);
+    let err = service()
+        .set_company_name(&access, &name)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, CrmError::InvalidRequest(_)));
+}
+
+fn contact_receipt() -> CrmContactReceipt<ViewAccessLevel> {
+    CrmContactReceipt::dangerously_internal(uuid::Uuid::now_v7(), uuid::Uuid::now_v7())
+}
+
+#[tokio::test]
+async fn set_contact_name_rejects_blank_name() {
+    let access = contact_receipt();
+    for name in ["", "   ", "\t\n"] {
+        let err = service().set_contact_name(&access, name).await.unwrap_err();
+        assert!(matches!(err, CrmError::InvalidRequest(_)), "name {name:?}");
+    }
+}
+
+#[tokio::test]
+async fn set_contact_name_rejects_overlong_name() {
+    let access = contact_receipt();
+    let name = "x".repeat(201);
+    let err = service()
+        .set_contact_name(&access, &name)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, CrmError::InvalidRequest(_)));
 }
 
 #[tokio::test]

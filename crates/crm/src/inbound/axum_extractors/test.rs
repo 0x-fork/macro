@@ -315,6 +315,22 @@ impl CrmService for FakeCrmService {
         panic!("unexpected set_company_hidden call")
     }
 
+    async fn set_company_name(
+        &self,
+        _access: &CrmCompanyReceipt<ViewAccessLevel>,
+        _name: &str,
+    ) -> Result<(), CrmError> {
+        panic!("unexpected set_company_name call")
+    }
+
+    async fn set_contact_name(
+        &self,
+        _access: &CrmContactReceipt<ViewAccessLevel>,
+        _name: &str,
+    ) -> Result<(), CrmError> {
+        panic!("unexpected set_contact_name call")
+    }
+
     async fn set_contact_hidden(
         &self,
         _access: &CrmContactReceipt<EditAccessLevel>,

@@ -3562,6 +3562,27 @@ export const setCompanyHiddenBody = zod
   .describe('Request body for `PUT \/companies\/{company_id}\/hidden`.');
 
 /**
+ * @summary Rename a CRM company. Access is enforced by
+[`CrmCompanyAccessLevelExtractor`]: the caller must be on the team
+that owns the company (hidden companies are reachable for
+admin/owner only). The name is a team-scoped override
+(`custom_name`) and never touches the global domain directory.
+ */
+export const setCrmCompanyNameParams = zod.object({
+  company_id: zod.uuid().describe('The CRM company to rename'),
+});
+
+export const setCrmCompanyNameBody = zod
+  .object({
+    name: zod
+      .string()
+      .describe(
+        'New display name for the company. Stored on the team-scoped\n`crm_companies.custom_name` override, which read paths COALESCE\nover the global directory name — the shared directory is never\nmodified. Must be non-blank (400 otherwise).'
+      ),
+  })
+  .describe('Request body for `PUT \/companies\/{company_id}\/name`.');
+
+/**
  * @summary Fetch a single CRM contact by id. Access is enforced by
 [`CrmContactAccessLevelExtractor`]: the user must be on the team that
 owns the contact's parent company, and hidden contacts are invisible
@@ -3622,6 +3643,27 @@ export const setContactHiddenBody = zod
       ),
   })
   .describe('Request body for `PUT \/contacts\/{contact_id}\/hidden`.');
+
+/**
+ * @summary Rename a CRM contact. Access is enforced by
+[`CrmContactAccessLevelExtractor`]: the caller must be on the team
+that owns the contact's company (hidden contacts are reachable for
+admin/owner only). The name overwrites the team-scoped
+`crm_contacts.name` column.
+ */
+export const setCrmContactNameParams = zod.object({
+  contact_id: zod.uuid().describe('The CRM contact to rename'),
+});
+
+export const setCrmContactNameBody = zod
+  .object({
+    name: zod
+      .string()
+      .describe(
+        'New display name for the contact. Stored on `crm_contacts.name`,\nwhich is already team-scoped — unlike company renames no global\ndirectory is involved. Must be non-blank (400 otherwise).'
+      ),
+  })
+  .describe('Request body for `PUT \/contacts\/{contact_id}\/name`.');
 
 /**
  * @summary Read the caller's team CRM configuration. Any team member may read;
