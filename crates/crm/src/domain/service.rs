@@ -195,7 +195,8 @@ pub trait CrmService: Clone + Send + Sync + 'static {
 
     /// Toggle `email_sync` for the company addressed by `access`. Purely
     /// a visibility/permission flag — populate continues to write CRM
-    /// rows regardless. See
+    /// rows regardless. Requires an admin/owner role on the receipt;
+    /// returns [`CrmError::AdminRoleRequired`] otherwise. See
     /// [`crate::domain::companies_repo::CompaniesRepository::set_email_sync`].
     fn set_email_sync(
         &self,
@@ -208,7 +209,8 @@ pub trait CrmService: Clone + Send + Sync + 'static {
     /// contact (`hidden = TRUE`), un-hide soft-restores them (`hidden =
     /// FALSE`). Contact rows and `crm_contact_sources` are preserved
     /// across the cycle. Hide additionally forces `email_sync = false`;
-    /// un-hide leaves `email_sync` as-is. See
+    /// un-hide leaves `email_sync` as-is. Requires an admin/owner role on
+    /// the receipt; returns [`CrmError::AdminRoleRequired`] otherwise. See
     /// [`crate::domain::companies_repo::CompaniesRepository::set_company_hidden`].
     fn set_company_hidden(
         &self,
@@ -216,13 +218,45 @@ pub trait CrmService: Clone + Send + Sync + 'static {
         hidden: bool,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
+    /// Set the team-scoped display-name override for the company
+    /// addressed by `access` (`crm_companies.custom_name`, which every
+    /// read path COALESCEs over the global directory name). Any team
+    /// member who can see the company may rename it — the same access
+    /// model as [`CrmService::create_contact`]; the receipt's role
+    /// decides whether a hidden company is reachable. The name is
+    /// validated like the creation flows (non-blank, within a sane
+    /// length; [`CrmError::InvalidRequest`] otherwise) and is never
+    /// written to the global `crm_domain_directory`. See
+    /// [`crate::domain::companies_repo::CompaniesRepository::set_company_custom_name`].
+    fn set_company_name(
+        &self,
+        access: &CrmCompanyReceipt<ViewAccessLevel>,
+        name: &str,
+    ) -> impl Future<Output = Result<(), CrmError>> + Send;
+
     /// Toggle the `hidden` flag on the contact addressed by `access`.
     /// Hiding is a display-only opt-out and does not affect
-    /// populate/depopulate.
+    /// populate/depopulate. Requires an admin/owner role on the receipt;
+    /// returns [`CrmError::AdminRoleRequired`] otherwise.
     fn set_contact_hidden(
         &self,
         access: &CrmContactReceipt<EditAccessLevel>,
         hidden: bool,
+    ) -> impl Future<Output = Result<(), CrmError>> + Send;
+
+    /// Set the display name for the contact addressed by `access`
+    /// (`crm_contacts.name` — already team-scoped, so unlike company
+    /// renames no global directory is involved). Any team member who
+    /// can see the contact may rename it — the same access model as
+    /// [`CrmService::set_company_name`]; the receipt's role decides
+    /// whether a hidden contact is reachable. The name is validated
+    /// like the creation flows (non-blank, within a sane length;
+    /// [`CrmError::InvalidRequest`] otherwise). See
+    /// [`crate::domain::companies_repo::CompaniesRepository::set_contact_name`].
+    fn set_contact_name(
+        &self,
+        access: &CrmContactReceipt<ViewAccessLevel>,
+        name: &str,
     ) -> impl Future<Output = Result<(), CrmError>> + Send;
 
     /// Batched authorization probe for a CRM-scoped email query. See
@@ -694,6 +728,9 @@ where
         access: &CrmCompanyReceipt<EditAccessLevel>,
         email_sync: bool,
     ) -> Result<(), CrmError> {
+        if !access.has_admin_role() {
+            return Err(CrmError::AdminRoleRequired);
+        }
         let team_id = access.team_id();
         let company_id = access.company_id()?;
         self.companies_repository
@@ -707,10 +744,27 @@ where
         access: &CrmCompanyReceipt<EditAccessLevel>,
         hidden: bool,
     ) -> Result<(), CrmError> {
+        if !access.has_admin_role() {
+            return Err(CrmError::AdminRoleRequired);
+        }
         let team_id = access.team_id();
         let company_id = access.company_id()?;
         self.companies_repository
             .set_company_hidden(&team_id, &company_id, hidden)
+            .await
+    }
+
+    #[tracing::instrument(skip(self, access), err)]
+    async fn set_company_name(
+        &self,
+        access: &CrmCompanyReceipt<ViewAccessLevel>,
+        name: &str,
+    ) -> Result<(), CrmError> {
+        let name = validate_display_name(name)?;
+        let team_id = access.team_id();
+        let company_id = access.company_id()?;
+        self.companies_repository
+            .set_company_custom_name(&team_id, &company_id, name, access.include_hidden())
             .await
     }
 
@@ -720,10 +774,27 @@ where
         access: &CrmContactReceipt<EditAccessLevel>,
         hidden: bool,
     ) -> Result<(), CrmError> {
+        if !access.has_admin_role() {
+            return Err(CrmError::AdminRoleRequired);
+        }
         let team_id = access.team_id();
         let contact_id = access.contact_id()?;
         self.companies_repository
             .set_contact_hidden(&team_id, &contact_id, hidden)
+            .await
+    }
+
+    #[tracing::instrument(skip(self, access), err)]
+    async fn set_contact_name(
+        &self,
+        access: &CrmContactReceipt<ViewAccessLevel>,
+        name: &str,
+    ) -> Result<(), CrmError> {
+        let name = validate_display_name(name)?;
+        let team_id = access.team_id();
+        let contact_id = access.contact_id()?;
+        self.companies_repository
+            .set_contact_name(&team_id, &contact_id, name, access.include_hidden())
             .await
     }
 
@@ -1027,12 +1098,28 @@ impl CrmService for NoOpCrmService {
         unimplemented!("NoOpCrmService.set_company_hidden")
     }
 
+    async fn set_company_name(
+        &self,
+        _access: &CrmCompanyReceipt<ViewAccessLevel>,
+        _name: &str,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.set_company_name")
+    }
+
     async fn set_contact_hidden(
         &self,
         _access: &CrmContactReceipt<EditAccessLevel>,
         _hidden: bool,
     ) -> Result<(), CrmError> {
         unimplemented!("NoOpCrmService.set_contact_hidden")
+    }
+
+    async fn set_contact_name(
+        &self,
+        _access: &CrmContactReceipt<ViewAccessLevel>,
+        _name: &str,
+    ) -> Result<(), CrmError> {
+        unimplemented!("NoOpCrmService.set_contact_name")
     }
 
     async fn crm_scope_precheck(

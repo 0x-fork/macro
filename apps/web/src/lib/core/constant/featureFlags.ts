@@ -288,12 +288,6 @@ const _ENABLE_SOUP_FROM_FILTER = resolveFeatureFlag(
   false
 );
 
-export const ENABLE_PREVIEW = resolveFeatureFlag('ENABLE_PREVIEW', true);
-export const ENABLE_PROJECT_VIEW_PREVIEW = resolveFeatureFlag(
-  'ENABLE_PROJECT_VIEW_PREVIEW',
-  true
-);
-
 const _ENABLE_DOCK_NOTITIFCATIONS = resolveFeatureFlag(
   'ENABLE_DOCK_NOTITIFCATIONS',
   DEV_MODE_ENV
@@ -427,6 +421,14 @@ export const ENABLE_TEAM_INVITE_TIERS_OVERRIDE = DEV_MODE_ENV
   : undefined;
 
 export const ENABLE_SOUP_GROUP_BY_OVERRIDE = DEV_MODE_ENV ? true : undefined;
+
+// Persist soup filters, predicates and tabs across reloads. PostHog controls
+// production rollout; VITE_ENABLE_SOUP_FILTER_PERSISTENCE overrides locally.
+export const ENABLE_SOUP_FILTER_PERSISTENCE_FLAG =
+  'enable-soup-filter-persistence';
+export const ENABLE_SOUP_FILTER_PERSISTENCE_OVERRIDE = getFeatureFlagOverride(
+  'ENABLE_SOUP_FILTER_PERSISTENCE'
+);
 
 export const ENABLE_TASK_DUPLICATES_FLAG = 'enable-task-duplicates';
 export const ENABLE_TASK_DUPLICATES_OVERRIDE = DEV_MODE_ENV ? true : undefined;

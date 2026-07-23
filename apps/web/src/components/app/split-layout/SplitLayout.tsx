@@ -6,9 +6,11 @@ import {
 } from '@components/app/sidebarVisibility';
 import { Resize } from '@core/component/Resize';
 import { splitContainerSelector } from '@core/dom-selectors';
+import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { tabTitleSignal } from '@core/signal/tabTitle';
-import { useNavigate } from '@solidjs/router';
+import { useWindowSize } from '@solid-primitives/resize-observer';
+import { useLocation, useNavigate } from '@solidjs/router';
 import { cn } from '@ui';
 import {
   type Accessor,
@@ -27,19 +29,22 @@ import { SplitPanel } from './components/SplitPanel';
 import { SplitLayoutContext } from './context';
 import {
   createSplitLayout,
-  type SplitContent,
   SplitEvent,
   type SplitEventWithType,
   type SplitId,
   type SplitManager,
   type SplitState,
 } from './layoutManager';
-import { decodePairs } from './layoutUtils';
+import { createLayoutUrlSync, restorePreviewPairs } from './layoutUrlSync';
 import {
   createMobileSwipeLayout,
   type MobileSwipeLayout,
 } from './mobile/createMobileSwipeLayout';
 import { MobileSplitContainer } from './mobile/MobileSplitContainer';
+import {
+  loadRestorablePreviewLayout,
+  PREVIEW_QUERY_PARAM,
+} from './previewPersistence';
 
 type SplitLayoutContainerProps = {
   pairs: string[];
@@ -53,75 +58,6 @@ function getParentSplitId(element: Element | null) {
   const splitId = splitParent.getAttribute('data-split-id');
   if (!splitId) return null;
   return splitId as SplitId;
-}
-
-function sameSplitContentIdentity(a: SplitContent, b: SplitContent) {
-  return a.type === b.type && a.id === b.id;
-}
-
-function getUrlSyncAffectedSplit(
-  splitManager: SplitManager,
-  currentPairs: SplitContent[],
-  nextPairs: SplitContent[]
-) {
-  const changedIndex = nextPairs.findIndex(
-    (nextPair, index) =>
-      !currentPairs[index] ||
-      !sameSplitContentIdentity(currentPairs[index], nextPair)
-  );
-
-  if (changedIndex < 0) return undefined;
-
-  const affectedPair = nextPairs[changedIndex];
-  return splitManager
-    .splits()
-    .find((split) => sameSplitContentIdentity(split.content, affectedPair));
-}
-
-/**
- * Creates an effect that syncs the layout manager with the URL.
- *
- * @param splitManager The layout manager to sync with
- * @param pairs The accessor to the current pairs
- * @param decodedPairs The accessor to the decoded pairs
- */
-function createLayoutUrlSync(
-  splitManager: SplitManager,
-  pairs: Accessor<string[]>,
-  decodedPairs: Accessor<SplitContent[]>
-) {
-  const navigate = useNavigate();
-  const urlLayoutDrift = createMemo(
-    () => splitManager.getUrlSegments().join('/') !== pairs().join('/')
-  );
-
-  /** Syncs changes from the layout manager to the URL*/
-  createEffect(
-    on([() => splitManager.getUrlSegments().join('/')], () => {
-      if (urlLayoutDrift()) {
-        const nextUrlSegments = splitManager.getUrlSegments();
-        const nextPairs = decodePairs(nextUrlSegments);
-        const affectedSplit = getUrlSyncAffectedSplit(
-          splitManager,
-          decodedPairs(),
-          nextPairs
-        );
-        const replace = affectedSplit?.lastNavigationCause === 'replace';
-
-        // Flush the state to the url
-        navigate(`/${nextUrlSegments.join('/')}`, { replace });
-      }
-    })
-  );
-
-  /** Syncs changes from the URL to the layout manager */
-  createEffect(
-    on([pairs], () => {
-      if (urlLayoutDrift()) {
-        splitManager.reconcile(decodedPairs());
-      }
-    })
-  );
 }
 
 /**
@@ -308,9 +244,22 @@ function createSplitFocusTracker(props: {
 }
 
 export function SplitLayoutContainer(props: SplitLayoutContainerProps) {
-  const decodedPairs = () => decodePairs(props.pairs);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const viewportSize = useWindowSize();
+  const previewQuery = () => location.query[PREVIEW_QUERY_PARAM];
+  const decodedLayout = createMemo(() =>
+    loadRestorablePreviewLayout(props.pairs, previewQuery(), {
+      allowPreviewPairs: !isMobile(),
+    })
+  );
+  const initialLayout = decodedLayout();
   const blockOrchestrator = useGlobalBlockOrchestrator();
-  const splitManager = createSplitLayout(blockOrchestrator, decodedPairs());
+  const splitManager = createSplitLayout(
+    blockOrchestrator,
+    initialLayout.contents
+  );
+  restorePreviewPairs(splitManager, initialLayout.previewPairs);
   const [, setTabTitle] = tabTitleSignal;
   const sidebar = useSidebarCollapse();
 
@@ -345,7 +294,17 @@ export function SplitLayoutContainer(props: SplitLayoutContainerProps) {
   // <For> on plain ids for stable referential equality
   const ids = createMemo(() => splits().map(({ id }) => id));
 
-  createLayoutUrlSync(splitManager, () => props.pairs, decodedPairs);
+  createLayoutUrlSync(
+    splitManager,
+    () => props.pairs,
+    previewQuery,
+    decodedLayout,
+    {
+      navigate,
+      search: () => location.search,
+      hash: () => location.hash,
+    }
+  );
   createSplitFocusTracker({ splitManager, panelRefs, splits });
 
   return (
@@ -369,7 +328,19 @@ export function SplitLayoutContainer(props: SplitLayoutContainerProps) {
                   <Show when={splitManager.getSplit(id)}>
                     {(handle) => (
                       <Suspense>
-                        <Resize.Panel id={id} minSize={400} index={index()}>
+                        <Resize.Panel
+                          id={id}
+                          minSize={400}
+                          // Automatic redistribution targets an engaged
+                          // Controller at its configured preferred width.
+                          // This is not a hard max: the gutter can still be
+                          // dragged past it.
+                          redistributionPreferredSize={splitManager.previewControllerWidth(
+                            id,
+                            viewportSize.width
+                          )}
+                          index={index()}
+                        >
                           <SplitPanel
                             split={splits()[index()]!}
                             handle={handle()}

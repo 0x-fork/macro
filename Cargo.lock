@@ -2897,6 +2897,7 @@ dependencies = [
  "rootcause",
  "serde",
  "soup",
+ "soup_realtime",
  "tokio",
  "uuid",
  "workspace-hack",
@@ -4317,6 +4318,7 @@ dependencies = [
  "serde",
  "serde_json",
  "soup",
+ "soup_realtime",
  "sqlx",
  "sqs_client",
  "sqs_worker",
@@ -6063,6 +6065,7 @@ name = "graphql_soup"
 version = "0.1.0"
 dependencies = [
  "async-graphql",
+ "async-stream",
  "axum",
  "axum-extra",
  "chrono",
@@ -6070,6 +6073,7 @@ dependencies = [
  "email",
  "entity_access",
  "filter_ast",
+ "futures",
  "graphql_common",
  "item_filters",
  "macro_authorization",
@@ -6082,6 +6086,7 @@ dependencies = [
  "serde",
  "serde_json",
  "soup",
+ "soup_realtime",
  "uuid",
  "workspace-hack",
 ]
@@ -7128,6 +7133,7 @@ dependencies = [
  "connection_gateway_client",
  "futures",
  "macro_authorization",
+ "macro_db_migrator",
  "macro_user_id",
  "mcp_client",
  "model-entity",
@@ -8230,11 +8236,13 @@ name = "macro_authorization"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bot_id",
  "constant_time_eq",
  "cookie",
  "http-body-util",
  "jsonwebtoken 10.3.0",
  "macro_auth",
+ "macro_db_migrator",
  "macro_env_var",
  "macro_user_id",
  "model-error-response",
@@ -8243,11 +8251,13 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "sqlx",
  "thiserror 2.0.18",
  "tokio",
  "tower 0.5.3",
  "tracing",
  "urlencoding",
+ "uuid",
  "workspace-hack",
 ]
 
@@ -8374,6 +8384,8 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
+ "rootcause",
+ "rootcause-tracing",
  "serde_json",
  "tracing",
  "tracing-opentelemetry",
@@ -12065,6 +12077,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rootcause-tracing"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3128c7019d8e7814a832aaa712fe55314d1fa0f0ec53e593bc1b4410962db94"
+dependencies = [
+ "rootcause",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "rowan"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13467,6 +13490,7 @@ dependencies = [
 name = "soup_realtime"
 version = "0.1.0"
 dependencies = [
+ "broadcast",
  "chrono",
  "documents",
  "entity_access",
@@ -13484,6 +13508,7 @@ dependencies = [
  "serde_json",
  "soup",
  "tokio",
+ "tokio-retry",
  "tracing",
  "uuid",
  "workspace-hack",
@@ -14434,6 +14459,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "tokio-retry"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a129d95275ebf4c493ec53bf0f8cd95f5ac161bc4f381700809a54f595d4470"
+dependencies = [
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]

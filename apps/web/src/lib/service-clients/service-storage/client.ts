@@ -139,6 +139,8 @@ import type { Project } from './generated/schemas/project';
 import type { RemoveParticipantsRequest } from './generated/schemas/removeParticipantsRequest';
 import type { ReorderPinRequest } from './generated/schemas/reorderPinRequest';
 import type { SaveDocumentResponseData } from './generated/schemas/saveDocumentResponseData';
+import type { SetCompanyNameRequest } from './generated/schemas/setCompanyNameRequest';
+import type { SetContactNameRequest } from './generated/schemas/setContactNameRequest';
 import type { SharePermissionV2 } from './generated/schemas/sharePermissionV2';
 import type { SyncServiceVersionID } from './generated/schemas/syncServiceVersionID';
 import type { ThreadResponse } from './generated/schemas/threadResponse';
@@ -2327,6 +2329,15 @@ export const storageServiceClient = {
       body: JSON.stringify({ hidden }),
     });
   },
+  async setContactName({
+    contactId,
+    ...body
+  }: { contactId: string } & SetContactNameRequest) {
+    return await dssFetch(`/crm/contacts/${contactId}/name`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  },
   async setCompanyHidden({
     companyId,
     hidden,
@@ -2337,6 +2348,15 @@ export const storageServiceClient = {
     return await dssFetch(`/crm/companies/${companyId}/hidden`, {
       method: 'PUT',
       body: JSON.stringify({ hidden }),
+    });
+  },
+  async setCompanyName({
+    companyId,
+    ...body
+  }: { companyId: string } & SetCompanyNameRequest) {
+    return await dssFetch(`/crm/companies/${companyId}/name`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
     });
   },
   async setEmailSync({

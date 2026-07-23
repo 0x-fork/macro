@@ -8,6 +8,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode, header},
 };
+use entity_access::domain::models::TeamRole;
 use entity_access::domain::{
     models::{
         AccessError, AccessLevel, BotId, CallChannelInfo, EntityPermission, EntityType,
@@ -18,7 +19,7 @@ use entity_access::domain::{
 use entity_access::{domain::service::EntityAccessServiceImpl, outbound::PgAccessRepository};
 use macro_authorization::{
     InternalAuthConfig, JwtValidator, MacroAuthorizationError, MacroAuthorizationServiceImpl,
-    MacroAuthorizationState, ValidatedIdentity,
+    MacroAuthorizationState, NoBotAuthorizer, ValidatedIdentity,
 };
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use macro_event_broker::NoopMacroEventBroker;
@@ -179,6 +180,14 @@ impl BotService for TestBotService {
         unimplemented!()
     }
 
+    async fn ensure_bot_in_channel(
+        &self,
+        _bot_id: BotId,
+        _channel_id: Uuid,
+    ) -> Result<(), BotError> {
+        unimplemented!()
+    }
+
     async fn authenticate_token(&self, _token: &str) -> Result<AuthenticatedBot, BotError> {
         unimplemented!()
     }
@@ -266,7 +275,7 @@ impl EntityAccessService for TestAccessService {
         _user_id: Option<&MacroUserId<Lowercase<'_>>>,
         _entity_id: &str,
         _entity_type: EntityType,
-    ) -> Result<(EntityPermission, uuid::Uuid), AccessError> {
+    ) -> Result<(EntityPermission, uuid::Uuid, TeamRole), AccessError> {
         unimplemented!("bots test mock does not support CRM entity access")
     }
 
@@ -327,6 +336,7 @@ fn authorization_state() -> MacroAuthorizationState<TestAuthorizationService> {
             api_key: "test-internal-key".to_string(),
             default_user_id: None,
         },
+        NoBotAuthorizer,
     );
     MacroAuthorizationState::new(Arc::new(service))
 }

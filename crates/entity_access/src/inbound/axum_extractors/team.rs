@@ -22,7 +22,7 @@ use crate::domain::{
     ports::EntityAccessService,
 };
 use macro_authorization::{
-    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState,
+    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState, UserOrInternal,
 };
 use macro_user_id::user_id::MacroUserIdStr;
 
@@ -124,11 +124,15 @@ where
     #[tracing::instrument(err, skip(state, parts))]
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let service = <Arc<Svc>>::from_ref(state);
-        let MacroAuthorizationExtractor { macro_user_id, .. } = parts
+        let authorization: MacroAuthorizationExtractor<Auth, UserOrInternal> = parts
             .extract_with_state(state)
             .await
             .map_err(ExtractorError::from)?;
-        let outcome = team_access_outcome::<T, Svc>(service.as_ref(), macro_user_id).await?;
+        let outcome = team_access_outcome::<T, Svc>(
+            service.as_ref(),
+            authorization.authorization.user.macro_user_id,
+        )
+        .await?;
 
         Ok(Self {
             entity_access_receipt: outcome.into_optional_receipt(),
@@ -164,13 +168,16 @@ where
     #[tracing::instrument(err, skip(state, parts))]
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let service = <Arc<Svc>>::from_ref(state);
-        let MacroAuthorizationExtractor { macro_user_id, .. } = parts
+        let authorization: MacroAuthorizationExtractor<Auth, UserOrInternal> = parts
             .extract_with_state(state)
             .await
             .map_err(ExtractorError::from)?;
-        let entity_access_receipt = team_access_outcome::<T, Svc>(service.as_ref(), macro_user_id)
-            .await?
-            .into_required_receipt()?;
+        let entity_access_receipt = team_access_outcome::<T, Svc>(
+            service.as_ref(),
+            authorization.authorization.user.macro_user_id,
+        )
+        .await?
+        .into_required_receipt()?;
 
         Ok(Self {
             entity_access_receipt,
