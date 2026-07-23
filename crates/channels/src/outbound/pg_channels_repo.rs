@@ -729,6 +729,7 @@ static CHANNEL_LIST_SELECT: &str = r#"
         uc.channel_type as "channel_type",
         uc.org_id as "org_id",
         uc.team_id as "team_id",
+        uc.auto_join_team as "auto_join_team",
         uc.created_at as "created_at",
         uc.updated_at as "updated_at",
         uc.owner_id as "owner_id",
@@ -1120,6 +1121,7 @@ struct ChannelListRow {
     channel_type: ChannelType,
     org_id: Option<i64>,
     team_id: Option<Uuid>,
+    auto_join_team: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
     owner_id: String,
@@ -1136,6 +1138,7 @@ impl ChannelListRow {
             channel_type: self.channel_type,
             org_id: self.org_id,
             team_id: self.team_id,
+            auto_join_team: self.auto_join_team,
             created_at: self.created_at,
             updated_at: self.updated_at,
             owner_id: MacroUserIdStr::parse_from_str(&self.owner_id)
@@ -1190,6 +1193,7 @@ impl ChannelListRepo for PgChannelsRepo {
                     channel_type: row.try_get("channel_type")?,
                     org_id: row.try_get("org_id")?,
                     team_id: row.try_get("team_id")?,
+                    auto_join_team: row.try_get("auto_join_team")?,
                     created_at: row.try_get("created_at")?,
                     updated_at: row.try_get("updated_at")?,
                     owner_id: row.try_get("owner_id")?,
@@ -2732,6 +2736,23 @@ impl ChannelRepo for PgChannelsRepo {
         Ok(has_team)
     }
 
+    async fn get_user_team_id(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+    ) -> Result<Option<Uuid>, Self::Err> {
+        sqlx::query_scalar!(
+            r#"
+            SELECT team_id
+            FROM team_user
+            WHERE user_id = $1
+            "#,
+            user_id.as_ref(),
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("unable to get user's team")
+    }
+
     async fn create_channel(
         &self,
         owner_id: MacroUserIdStr<'_>,
@@ -2990,8 +3011,21 @@ impl ChannelRepo for PgChannelsRepo {
         &self,
         channel_id: Uuid,
         user_id: String,
+        team_id: Option<Uuid>,
         req: PatchChannelRequest,
     ) -> Result<(), Self::Err> {
+        let PatchChannelRequest {
+            channel_name,
+            convert_to_team_channel,
+            auto_join_team,
+        } = req;
+        let enables_auto_join =
+            auto_join_team == Some(true) && convert_to_team_channel != Some(false);
+        if (convert_to_team_channel == Some(true) || enables_auto_join) && team_id.is_none() {
+            anyhow::bail!("team id is required to patch team channel settings");
+        }
+
+        let mut transaction = self.pool.begin().await?;
         let row = sqlx::query_as!(
             ExistsRow,
             r#"
@@ -3009,7 +3043,7 @@ impl ChannelRepo for PgChannelsRepo {
             channel_id,
             user_id,
         )
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *transaction)
         .await
         .context("failed to check user authorization")?;
 
@@ -3019,19 +3053,62 @@ impl ChannelRepo for PgChannelsRepo {
             );
         }
 
-        if let Some(channel_name) = req.channel_name {
+        sqlx::query!(
+            r#"
+            UPDATE comms_channels
+            SET name = COALESCE($2, name),
+                channel_type = CASE
+                    WHEN $3 IS TRUE THEN 'team'::comms_channel_type
+                    WHEN $3 IS FALSE AND channel_type = 'team'::comms_channel_type
+                        THEN 'private'::comms_channel_type
+                    ELSE channel_type
+                END,
+                team_id = CASE
+                    WHEN $3 IS TRUE THEN $4
+                    WHEN $3 IS FALSE AND channel_type = 'team'::comms_channel_type THEN NULL
+                    ELSE team_id
+                END,
+                auto_join_team = CASE
+                    WHEN $3 IS FALSE AND channel_type = 'team'::comms_channel_type THEN FALSE
+                    ELSE COALESCE($5, auto_join_team)
+                END
+            WHERE id = $1
+            "#,
+            channel_id,
+            channel_name,
+            convert_to_team_channel,
+            team_id,
+            auto_join_team,
+        )
+        .execute(&mut *transaction)
+        .await
+        .context("unable to patch channel")?;
+
+        if enables_auto_join {
             sqlx::query!(
                 r#"
-                UPDATE comms_channels
-                SET name = $1
-                WHERE id = $2
+                INSERT INTO comms_channel_participants (channel_id, role, user_id)
+                SELECT $1, 'member'::comms_participant_role, user_id
+                FROM team_user
+                WHERE team_id = $2
+                ON CONFLICT (channel_id, user_id) DO UPDATE
+                SET role = EXCLUDED.role,
+                    joined_at = NOW(),
+                    left_at = NULL
+                WHERE comms_channel_participants.left_at IS NOT NULL
                 "#,
-                channel_name,
                 channel_id,
+                team_id,
             )
-            .execute(&self.pool)
-            .await?;
+            .execute(&mut *transaction)
+            .await
+            .context("unable to add current team members to channel")?;
         }
+
+        transaction
+            .commit()
+            .await
+            .context("unable to commit channel patch")?;
         Ok(())
     }
 

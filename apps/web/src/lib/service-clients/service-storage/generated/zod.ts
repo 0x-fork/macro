@@ -1893,7 +1893,17 @@ export const patchChannelParams = zod.object({
 
 export const patchChannelBody = zod
   .object({
+    auto_join_team: zod
+      .boolean()
+      .nullish()
+      .describe('Whether team members should automatically join the channel.'),
     channel_name: zod.string().nullish().describe('New channel name.'),
+    convert_to_team_channel: zod
+      .boolean()
+      .nullish()
+      .describe(
+        'Sets whether the channel is a team channel.\n\n`true` converts a non-team channel to a team channel, while `false`\nconverts a team channel to a private channel.'
+      ),
   })
   .describe('Request to patch a channel.');
 

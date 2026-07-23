@@ -16957,9 +16957,17 @@
         "type": "object",
         "description": "Request to patch a channel.",
         "properties": {
+          "auto_join_team": {
+            "type": ["boolean", "null"],
+            "description": "Whether team members should automatically join the channel."
+          },
           "channel_name": {
             "type": ["string", "null"],
             "description": "New channel name."
+          },
+          "convert_to_team_channel": {
+            "type": ["boolean", "null"],
+            "description": "Sets whether the channel is a team channel.\n\n`true` converts a non-team channel to a team channel, while `false`\nconverts a team channel to a private channel."
           }
         }
       },
