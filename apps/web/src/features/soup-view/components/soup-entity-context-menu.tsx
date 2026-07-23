@@ -1,4 +1,3 @@
-import { useRowTagsVisible } from '@app/features/next-soup/soup-view/filters-bar/search/search-tags-flag';
 import {
   ContextMenuContent,
   MenuItem,
@@ -60,7 +59,6 @@ export const SoupEntityContextMenu: FlowComponent<{
   onOpen: () => void;
 }> = (props) => {
   const entityActions = createSoupEntityActions();
-  const rowTagsVisible = useRowTagsVisible();
   const [tagPickerOpen, setTagPickerOpen] = createSignal(false);
   const [menuPosition, setMenuPosition] = createSignal<{
     x: number;
@@ -74,10 +72,9 @@ export const SoupEntityContextMenu: FlowComponent<{
     });
   const actionGroups = () =>
     entityActions.buildActionGroups(targets(), {
-      editTags:
-        rowTagsVisible() && tagEntityType(props.entity)
-          ? () => setTimeout(() => setTagPickerOpen(true), 0)
-          : undefined,
+      editTags: tagEntityType(props.entity)
+        ? () => setTimeout(() => setTagPickerOpen(true), 0)
+        : undefined,
     });
   if (isMobile()) return <div class="size-full">{props.children}</div>;
   return (

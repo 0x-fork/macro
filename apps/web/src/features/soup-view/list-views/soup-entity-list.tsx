@@ -21,6 +21,7 @@ import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component
 import { useUserId } from '@core/context/user';
 import {
   type EntityData,
+  isNonMemberChannelEntity,
   isSearchEntity,
   ListEntityMetadataQueryProvider,
   ListLayoutProvider,
@@ -114,6 +115,13 @@ export function SoupEntityList(props: SoupEntityListProps) {
       : (props.autoFocusFirstEntity ?? true);
 
   const activateRow = (activation: ListActivation<SoupRow>) => {
+    if (
+      activation.item.kind === 'entity' &&
+      isNonMemberChannelEntity(activation.item.entity)
+    ) {
+      return;
+    }
+
     props.onActivate?.(activation);
     if (activation.item.kind !== 'entity') return;
 

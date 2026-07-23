@@ -121,11 +121,8 @@ export function githubPrFilter(entity: EntityData): boolean {
 }
 
 export function channelsFilter(entity: EntityData): boolean {
-  return (
-    entity.type === 'channel' ||
-    entity.type === 'channel_message' ||
-    entity.type === 'channel_thread'
-  );
+  if (entity.type === 'channel') return entity.isParticipant !== false;
+  return entity.type === 'channel_message' || entity.type === 'channel_thread';
 }
 
 export function callsFilter(entity: EntityData): boolean {

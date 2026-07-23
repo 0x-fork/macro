@@ -16,6 +16,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { hapticImpact } from '@core/mobile/haptics';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import {
+  isNonMemberChannelEntity,
   isSearchEntity,
   type ProjectEntity,
   type SearchLocation,
@@ -148,6 +149,8 @@ export function SoupEntityListItem(props: {
 
   const open = (metadata: SoupActivationMetadata) => {
     const item = props.item();
+    if (isNonMemberChannelEntity(item.entity)) return;
+
     const activation: ListActivation<SoupRow> = {
       item,
       index: index(),

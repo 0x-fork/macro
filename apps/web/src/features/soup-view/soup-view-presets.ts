@@ -91,6 +91,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             emailShared: 'exclude',
             emailUpdatedAt: { gte: cutoff },
             channelDone: false,
+            channelIsParticipant: true,
             channelThreadDone: false,
             chatDone: false,
             chatUpdatedAt: { gte: cutoff },
@@ -385,14 +386,28 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
     default: 'recent',
     facets: () =>
       defineViewFacet('channels', [
-        { id: 'recent', clause: defineClause({ channelImportance: true }) },
+        {
+          id: 'recent',
+          clause: defineClause({
+            channelImportance: true,
+            channelIsParticipant: true,
+          }),
+        },
         {
           id: 'people',
           clause: defineClause({ channelType: 'direct_message' }),
         },
         {
           id: 'teams',
-          clause: defineClause({ channelType: { not: 'direct_message' } }),
+          clause: defineClause({
+            channelType: { not: 'direct_message' },
+            $clause: (b) => ({
+              chanf: b.or(
+                b.eq('channelIsParticipant', true),
+                b.eq('channelIsParticipant', false)
+              ),
+            }),
+          }),
         },
       ]),
     tabs: {

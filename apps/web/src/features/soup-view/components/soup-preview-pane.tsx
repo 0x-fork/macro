@@ -1,8 +1,10 @@
+import { NonMemberChannelPreview } from '@app/features/next-soup/soup-view/non-member-channel-preview';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
 import { PreviewPanel } from '@components/app/PreviewPanel';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { Resize } from '@core/component/Resize';
 import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
+import { type ChannelEntity, isNonMemberChannelEntity } from '@entity';
 import { EmptyStatePanel } from '@ui';
 import { type Accessor, type JSX, Show } from 'solid-js';
 import { useSoupView } from '../context';
@@ -41,12 +43,23 @@ export function SoupPreviewPane(props: SoupPreviewPaneProps) {
             }
           >
             {(entity) => (
-              <PreviewPanel
-                selectedEntity={entity()}
-                orchestrator={orchestrator}
-                splitPanelContext={panel}
-                onFocusOut={() => props.root()?.focus()}
-              />
+              <Show
+                when={
+                  isNonMemberChannelEntity(entity())
+                    ? (entity() as ChannelEntity)
+                    : undefined
+                }
+                fallback={
+                  <PreviewPanel
+                    selectedEntity={entity()}
+                    orchestrator={orchestrator}
+                    splitPanelContext={panel}
+                    onFocusOut={() => props.root()?.focus()}
+                  />
+                }
+              >
+                {(channel) => <NonMemberChannelPreview entity={channel()} />}
+              </Show>
             )}
           </Show>
         </div>

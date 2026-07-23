@@ -1,3 +1,4 @@
+import { TAGGABLE_LIST_VIEWS } from '@app/constants/list-views';
 import { useSoupCollection } from '@app/features/soup-list';
 import type { FacetId } from '@app/features/soup-list/facets';
 import { NO_ASSIGNEE, NO_STAGE } from '@app/features/soup-list/facets/base';
@@ -10,10 +11,6 @@ import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_SNIPPETS_FLAG,
   ENABLE_SNIPPETS_OVERRIDE,
-  ENABLE_TAGS_FE_FLAG,
-  ENABLE_TAGS_FE_OVERRIDE,
-  ENABLE_TAGS_SEARCH_FE_FLAG,
-  ENABLE_TAGS_SEARCH_FE_OVERRIDE,
 } from '@core/constant/featureFlags';
 import { useQuickAccess } from '@core/context/quickAccess';
 import { useUserId } from '@core/context/user';
@@ -91,22 +88,6 @@ export function useSoupFacetControls() {
   const snippetsFlag = useFeatureFlag(ENABLE_SNIPPETS_FLAG, {
     enabledOverride: ENABLE_SNIPPETS_OVERRIDE,
   });
-  const tagsFlag = useFeatureFlag(ENABLE_TAGS_FE_FLAG, {
-    enabledOverride: ENABLE_TAGS_FE_OVERRIDE,
-  });
-  const searchTagsFlag = useFeatureFlag(ENABLE_TAGS_SEARCH_FE_FLAG, {
-    enabledOverride: ENABLE_TAGS_SEARCH_FE_OVERRIDE,
-  });
-
-  createEffect(() => {
-    const tagsAvailable =
-      tagsFlag().enabled && (view() !== 'search' || searchTagsFlag().enabled);
-    if (!tagsAvailable && collection.facets.getSelected('tag').length > 0) {
-      collection.facets.set('tag', []);
-      collection.facets.set('tag_mode', []);
-    }
-  });
-
   createEffect(() => {
     if (view() !== 'search' || !searchFacetController) return;
     const type = searchFacetController.type();
@@ -504,12 +485,7 @@ export function useSoupFacetControls() {
       );
     }
 
-    if (
-      tagsFlag().enabled &&
-      searchTagsFlag().enabled &&
-      tagOptions().length > 0 &&
-      isSearchTaggableType(type)
-    ) {
+    if (tagOptions().length > 0 && isSearchTaggableType(type)) {
       controls.push(
         makeControl({
           id: 'tag',
@@ -575,11 +551,7 @@ export function useSoupFacetControls() {
         })
       );
     }
-    if (
-      tagsFlag().enabled &&
-      tagOptions().length > 0 &&
-      (view() === 'tasks' || view() === 'documents')
-    ) {
+    if (tagOptions().length > 0 && TAGGABLE_LIST_VIEWS.has(view())) {
       result.push(
         makeControl({
           id: 'tag',

@@ -23,6 +23,8 @@ import {
   makeCopyLinkAction,
   makeDeleteAction,
   makeFavoriteAction,
+  makeMarkReadAction,
+  makeMarkUnreadAction,
   makeMoveToProjectAction,
   makeRenameAction,
   makeSetCompanyPropertyAction,
@@ -62,6 +64,8 @@ export const useEntityActionHotkeys = (
     hotkeyGroup: group,
     isNewInbox: useIsNewInbox(),
   });
+  const markRead = makeMarkReadAction();
+  const markUnread = makeMarkUnreadAction();
 
   const deleteAction = makeDeleteAction({ userId });
   const renameAction = makeRenameAction({ userId });
@@ -170,6 +174,56 @@ export const useEntityActionHotkeys = (
       return entities.length > 0 && entities.every(markDone.canExecute);
     },
     displayPriority: 10,
+    tags: [HotkeyTags.SelectionModification],
+  }).withGroup(group);
+
+  // Mark unread - 'u', read email threads only; rows stay in place
+  registerHotkey({
+    hotkey: ['u'],
+    hotkeyToken: TOKENS.entity.action.markUnread,
+    scopeId,
+    description: 'Mark unread',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!entities.every(markUnread.canExecute)) return false;
+
+      markUnread.executeWithList(entities, list);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return entities.length > 0 && entities.every(markUnread.canExecute);
+    },
+    displayPriority: 9,
+    tags: [HotkeyTags.SelectionModification],
+  }).withGroup(group);
+
+  // Mark read - 'shift+u', email selections with at least one unread thread
+  registerHotkey({
+    hotkey: ['shift+u'],
+    hotkeyToken: TOKENS.entity.action.markRead,
+    scopeId,
+    description: 'Mark read',
+    keyDownHandler: () => {
+      const entities = getEntitiesForAction();
+      if (entities.length === 0) return false;
+      if (!entities.some(markRead.canExecute)) return false;
+
+      markRead.executeWithList(entities, list);
+      return true;
+    },
+    condition: () => {
+      if (condition && !condition()) return false;
+      const entities = getEntitiesForAction();
+      return (
+        entities.length > 0 &&
+        entities.every((entity) => entity.type === 'email') &&
+        entities.some(markRead.canExecute)
+      );
+    },
+    displayPriority: 9,
     tags: [HotkeyTags.SelectionModification],
   }).withGroup(group);
 

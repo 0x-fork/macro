@@ -91,9 +91,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
       : notifications;
 
   const attachNotifications = (entity: EntityData): SoupEntity => {
-    if (isWithNotification(entity)) {
-      return entity;
-    }
+    if (isWithNotification(entity)) return entity;
 
     const raw = rawNotifications(entity);
     if (raw) {

@@ -27,6 +27,12 @@ query/predicate stores. View/tab baseline facets live in
 `features/soup-list/`.
 
 `SoupView` renders the items itself and selects the Inbox, Task, Company, or
-generic row implementation based on the active view. Remaining TODOs cover
-active facet chips, dynamic assignee/company filters, the Search facet row,
-shared entity actions, Companies board mode, and mobile-specific controls.
+generic row implementation based on the active view. The isolated view includes
+active facet chips, dynamic assignee/company/tag filters, gated type-specific
+Search controls, Mail inbox selection, specialized headers/empty states,
+reactive flat transport, a Company board and saved-view controls, and mobile
+navigation/filter/create controls, long-press selection, and swipe actions.
+The replacement also owns mark-done, rename, property/tag, favorite, copy,
+delete, context-menu, hotkey, selection-toolbar, and file/folder-drop behavior.
+Remaining parity work is concentrated in replacement-owned row-tag
+interaction and deeper mounted end-to-end coverage.

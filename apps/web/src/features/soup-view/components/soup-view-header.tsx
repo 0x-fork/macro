@@ -192,12 +192,12 @@ export function SoupViewHeader() {
             when={viewState.searchOpen()}
             fallback={
               <>
+                <Show when={view() !== 'search'}>
+                  <SoupViewCreateButton view={view()} />
+                </Show>
                 <Show when={view() === 'companies'}>
                   <CompanyViewsMenu />
                   <CompanyDisplayMenu />
-                </Show>
-                <Show when={view() !== 'search'}>
-                  <SoupViewCreateButton view={view()} />
                 </Show>
                 <Show
                   when={view() === 'search'}

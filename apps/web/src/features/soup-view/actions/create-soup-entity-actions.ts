@@ -14,7 +14,7 @@ import { fileTypeToBlockName, itemToBlockName } from '@core/constant/allBlocks';
 import { useUserId } from '@core/context/user';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
-import type { EntityData } from '@entity';
+import { type EntityData, isNonMemberChannelEntity } from '@entity';
 import { useSetCompanyHiddenMutation } from '@queries/crm/companies';
 import type { Component, JSX } from 'solid-js';
 import { useSoupView } from '../context';
@@ -28,8 +28,10 @@ import {
   makeDeleteAction,
   makeFavoriteAction,
   makeHideCompanyAction,
+  makeMarkReadAction,
   makeMarkSenderNoiseAction,
   makeMarkSenderSignalAction,
+  makeMarkUnreadAction,
   makeMoveToProjectAction,
   makeRemoveFromProjectAction,
   makeRenameAction,
@@ -98,6 +100,8 @@ export function createSoupEntityActions() {
     notificationSource: () => notificationSource,
     isNewInbox,
   });
+  const markRead = makeMarkReadAction();
+  const markUnread = makeMarkUnreadAction();
 
   const deleteAction = makeDeleteAction({ userId });
   const renameAction = makeRenameAction({ userId });
@@ -163,10 +167,30 @@ export function createSoupEntityActions() {
       });
     }
 
+    if (canExecuteAll(markUnread.canExecute)) {
+      topItems.push({
+        id: 'mark-unread',
+        label: 'Mark Unread',
+        hotkeyToken: TOKENS.entity.action.markUnread,
+        onClick: handle(markUnread.executeWithList),
+      });
+    } else if (
+      entities.every((entity) => entity.type === 'email') &&
+      entities.some(markRead.canExecute)
+    ) {
+      topItems.push({
+        id: 'mark-read',
+        label: 'Mark Read',
+        hotkeyToken: TOKENS.entity.action.markRead,
+        onClick: handle(markRead.executeWithList),
+      });
+    }
+
     const canOpenInSplit = () => {
       if (isMobile()) return false;
       if (entities.length !== 1) return false;
       const entity = entities[0];
+      if (isNonMemberChannelEntity(entity)) return false;
       const splitManager = globalSplitManager();
       if (!splitManager) return false;
       // TODO(dev-rb/github): Allow GitHub PRs once they map to /pr.

@@ -1,5 +1,5 @@
-import { soupItemMatchesTagFilter } from '@app/constants/list-views';
 import type { SoupBody, SoupItemsQueryFilters } from '@queries/soup/items';
+import { soupItemMatchesTagFilter } from '@queries/soup/tag-filter';
 import type { SoupApiItem } from '@service-storage/generated/schemas';
 import { match } from 'ts-pattern';
 import { defineQueryFilters } from './filter-store/compile';

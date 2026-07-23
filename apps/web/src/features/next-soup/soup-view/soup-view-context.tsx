@@ -1,9 +1,7 @@
 import {
-  entityMatchesTagFilter,
   isListViewID,
   type ListView,
   soupItemMatchesListView,
-  soupItemMatchesTagFilter,
 } from '@app/constants/list-views';
 import {
   createSoupState,
@@ -75,6 +73,10 @@ import type { SoupParams } from '@queries/soup/items';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { soupKeys } from '@queries/soup/keys';
 import { useReactiveSoupAstItemsQuery } from '@queries/soup/reactive-items';
+import {
+  entityMatchesTagFilter,
+  soupItemMatchesTagFilter,
+} from '@queries/soup/tag-filter';
 import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
 import type { SoupApiItem, SoupPage } from '@service-storage/generated/schemas';
 import type { InfiniteData } from '@tanstack/solid-query';

@@ -68,6 +68,7 @@ export const FILTER_TARGETS = {
     channelSeen: { backend: 'NotificationSeen', domain: [true, false] },
     channelDone: { backend: 'NotificationDone', domain: [true, false] },
     channelImportance: { backend: 'Importance', domain: [true, false] },
+    channelIsParticipant: { backend: 'IsParticipant', domain: [true, false] },
   },
 
   // cthf — channel threads
@@ -169,6 +170,7 @@ type FilterTargetsMeta = {
     channelSeen: boolean;
     channelDone: boolean;
     channelImportance: boolean;
+    channelIsParticipant: boolean;
   };
 
   // cthf — channel threads

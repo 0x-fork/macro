@@ -57,7 +57,7 @@ export type ListActivateOptions = {
 };
 
 export type CreateListStateOptions<T extends Identifiable> = {
-  initialItems?: T[];
+  initialItems?: readonly T[];
   /** Whether keyboard navigation may land on an item. Defaults to always. */
   isNavigable?: (item: T) => boolean;
   /** Whether an item may participate in selection. Defaults to always. */
@@ -116,7 +116,7 @@ export const createListState = <T extends Identifiable>(
     onActivate,
   } = options;
 
-  const [items, setItemsInternal] = createSignal<T[]>(initialItems);
+  const [items, setItemsInternal] = createSignal<readonly T[]>(initialItems);
   const [focusedIndex, setFocusedIndex] = createSignal(-1);
   let lastFocusedItemId: string | undefined;
 
@@ -303,7 +303,7 @@ export const createListState = <T extends Identifiable>(
     }
   };
 
-  const setItems = (nextItems: T[]) => {
+  const setItems = (nextItems: readonly T[]) => {
     const previous = currentFocusResult();
 
     setItemsInternal(nextItems);
@@ -461,7 +461,7 @@ export const createListState = <T extends Identifiable>(
 
   return {
     items: {
-      all: items as Accessor<T[]>,
+      all: items as Accessor<readonly T[]>,
       set: setItems,
       count: () => items().length,
       get: (id: string) => items().find((item) => item.id === id),
