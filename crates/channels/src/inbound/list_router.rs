@@ -12,7 +12,7 @@ use axum::{
 };
 use frecency::domain::models::AggregateFrecency;
 use macro_authorization::{
-    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState,
+    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState, UserOrInternal,
 };
 use macro_user_id::user_id::MacroUserIdStr;
 use serde::Serialize;
@@ -108,16 +108,17 @@ impl IntoResponse for ChannelListRouterErr {
 )]
 async fn get_channels_handler<S, Auth>(
     State(service): State<ChannelListRouterState<S, Auth>>,
-    MacroAuthorizationExtractor { macro_user_id, .. }: MacroAuthorizationExtractor<Auth>,
+    authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
 ) -> Result<Json<Vec<ApiChannelWithLatest>>, ChannelListRouterErr>
 where
     S: ChannelListService,
     Auth: MacroAuthorizationService,
 {
+    let user = &authorization.authorization.user;
     let res = service
         .inner
         .get_channels(GetChannelsRequest {
-            macro_id: macro_user_id,
+            macro_id: user.macro_user_id.clone(),
             limit: Some(DEFAULT_CHANNEL_LIST_LIMIT),
             include_frecency: true,
             query: models_pagination::Query::Sort(
@@ -135,7 +136,7 @@ where
     ))
 }
 
-#[tracing::instrument(skip(service))]
+#[tracing::instrument(skip(service, authorization))]
 #[utoipa::path(get,
     tag = "activity",
     operation_id = "get_activity",
@@ -148,15 +149,16 @@ where
 /// Handle legacy channel activity list requests.
 pub async fn get_activity_handler<S, Auth>(
     State(service): State<ChannelListRouterState<S, Auth>>,
-    MacroAuthorizationExtractor { macro_user_id, .. }: MacroAuthorizationExtractor<Auth>,
+    authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
 ) -> Result<Json<Vec<ApiActivity>>, ChannelListRouterErr>
 where
     S: ChannelListService,
     Auth: MacroAuthorizationService,
 {
+    let user = &authorization.authorization.user;
     let res = service
         .inner
-        .get_activities(macro_user_id)
+        .get_activities(user.macro_user_id.clone())
         .await
         .map_err(|_| ChannelListRouterErr::Internal)?;
 

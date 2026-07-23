@@ -13,7 +13,7 @@ use entity_access::domain::models::{EditAccessLevel, OwnerAccessLevel, ViewAcces
 use entity_access::domain::ports::EntityAccessService;
 use entity_access::inbound::axum_extractors::ChatAccessLevelExtractor;
 use macro_authorization::{
-    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState,
+    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState, UserOrInternal,
 };
 use model::response::StringIDResponse;
 use models_permissions::share_permission::SharePermissionV2;
@@ -184,7 +184,11 @@ pub struct CreateChatRequest {
     )
 )]
 /// Create a new chat.
-#[tracing::instrument(skip(state, user, _access, req), fields(user_id = %user.macro_user_id), err(Debug))]
+#[tracing::instrument(
+    skip(state, user, _access, req),
+    fields(actor = %user.acting_entity()),
+    err(Debug)
+)]
 pub async fn create_chat_handler<
     S: ChatService,
     Svc: EntityAccessService,
@@ -192,15 +196,17 @@ pub async fn create_chat_handler<
     P: UserRolesAndPermissionsService,
 >(
     State(state): State<ChatRouterState<S, Svc, Auth, P>>,
-    user: MacroAuthorizationExtractor<Auth>,
+    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     // 402 on no perms
     _access: ChatModelAccess<Auth, P>,
     Json(req): Json<CreateChatRequest>,
 ) -> Result<Json<StringIDResponse>> {
+    let user = &user.authorization.user;
+
     let id = state
         .inner
         .create(
-            user.macro_user_id,
+            user.macro_user_id.clone(),
             CreateChatArgs {
                 name: req.name.unwrap_or_else(|| "New Chat".to_string()),
                 project_id: req.project_id,

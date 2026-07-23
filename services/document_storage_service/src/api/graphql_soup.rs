@@ -13,7 +13,9 @@ use axum::{
 };
 use axum_extra::extract::Cached;
 use complete_graph::GraphqlRequestParts;
-use macro_authorization::OptionalMacroAuthorizationExtractor;
+use macro_authorization::{
+    OptionalMacroAuthorizationExtractor, UserOrInternalService, UserOrInternalServiceAuthorization,
+};
 use macro_user_id::user_id::MacroUserIdStr;
 
 const GRAPHQL_PATH: &str = "/soup/graphql";
@@ -36,11 +38,20 @@ async fn graphiql() -> Html<String> {
 
 async fn graphql_handler(
     State(state): State<ApiContext>,
-    Cached(auth): Cached<OptionalMacroAuthorizationExtractor<AuthorizationService>>,
+    Cached(auth): Cached<
+        OptionalMacroAuthorizationExtractor<AuthorizationService, UserOrInternalService>,
+    >,
     request_parts: Parts,
     request: GraphQLRequest,
 ) -> GraphQLResponse {
-    let request = graphql_query_context_data(request.into_inner(), &state, auth.macro_user_id);
+    let request = graphql_query_context_data(
+        request.into_inner(),
+        &state,
+        auth.authorization
+            .as_ref()
+            .and_then(UserOrInternalServiceAuthorization::acting_user)
+            .map(|user| user.macro_user_id.clone()),
+    );
     state
         .graphql_soup_schema
         .execute(request.data(GraphqlRequestParts::new(request_parts)))
@@ -50,11 +61,18 @@ async fn graphql_handler(
 
 async fn subscription_handler(
     State(state): State<ApiContext>,
-    Cached(auth): Cached<OptionalMacroAuthorizationExtractor<AuthorizationService>>,
+    Cached(auth): Cached<
+        OptionalMacroAuthorizationExtractor<AuthorizationService, UserOrInternalService>,
+    >,
     protocol: GraphQLProtocol,
     upgrade: WebSocketUpgrade,
 ) -> Response {
-    let Some(macro_user_id) = auth.macro_user_id else {
+    let Some(macro_user_id) = auth
+        .authorization
+        .as_ref()
+        .and_then(UserOrInternalServiceAuthorization::acting_user)
+        .map(|user| user.macro_user_id.clone())
+    else {
         return (
             StatusCode::UNAUTHORIZED,
             "authentication required for GraphQL Soup subscriptions",

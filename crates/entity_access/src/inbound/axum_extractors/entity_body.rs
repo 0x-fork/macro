@@ -11,6 +11,7 @@ use axum::{
 };
 use macro_authorization::{
     MacroAuthorizationService, MacroAuthorizationState, OptionalMacroAuthorizationExtractor,
+    UserOrInternalService, UserOrInternalServiceAuthorization,
 };
 use serde::{Deserialize, de::DeserializeOwned};
 
@@ -55,11 +56,19 @@ where
 
     #[tracing::instrument(err, skip(req, state))]
     async fn from_request(mut req: Request, state: &S) -> Result<Self, Self::Rejection> {
-        let OptionalMacroAuthorizationExtractor { macro_user_id, .. } = req
-            .extract_parts_with_state::<OptionalMacroAuthorizationExtractor<Auth>, _>(state)
+        let authorization = req
+            .extract_parts_with_state::<
+                OptionalMacroAuthorizationExtractor<Auth, UserOrInternalService>,
+                _,
+            >(state)
             .await
             .map_err(ExtractorError::from)?;
-        let user = macro_user_id.ok_or(ExtractorError::Unauthorized)?;
+        let user = authorization
+            .authorization
+            .as_ref()
+            .and_then(UserOrInternalServiceAuthorization::acting_user)
+            .map(|user| user.macro_user_id.clone())
+            .ok_or(ExtractorError::Unauthorized)?;
 
         let Json(json): Json<serde_json::Value> = req
             .extract()

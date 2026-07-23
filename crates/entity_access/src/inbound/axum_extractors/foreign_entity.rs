@@ -1,5 +1,8 @@
 //! Foreign entity access extractor.
 
+#[cfg(test)]
+mod test;
+
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -11,6 +14,7 @@ use axum::{
 };
 use macro_authorization::{
     MacroAuthorizationService, MacroAuthorizationState, OptionalMacroAuthorizationExtractor,
+    UserOrInternalService, UserOrInternalServiceAuthorization,
 };
 use uuid::Uuid;
 
@@ -58,13 +62,21 @@ where
             })?;
         let foreign_entity_id = extract_foreign_entity_id(&path_params)?.to_string();
 
-        let OptionalMacroAuthorizationExtractor {
-            macro_user_id,
-            is_internal_access,
-            ..
-        } = OptionalMacroAuthorizationExtractor::<Auth>::from_request_parts(parts, state)
+        let authorization =
+            OptionalMacroAuthorizationExtractor::<Auth, UserOrInternalService>::from_request_parts(
+                parts, state,
+            )
             .await
             .map_err(ExtractorError::from)?;
+        let is_internal_access = authorization
+            .authorization
+            .as_ref()
+            .is_some_and(UserOrInternalServiceAuthorization::is_internal);
+        let macro_user_id = authorization
+            .authorization
+            .as_ref()
+            .and_then(UserOrInternalServiceAuthorization::acting_user)
+            .map(|user| user.macro_user_id.clone());
 
         if macro_user_id.is_none() && is_internal_access {
             return Self::from_permission(

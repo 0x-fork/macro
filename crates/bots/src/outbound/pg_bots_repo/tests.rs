@@ -17,7 +17,6 @@ const USER_OWNER: &str = "macro|bot-owner@example.com";
 const USER_OTHER: &str = "macro|bot-other@example.com";
 const TEAM_MEMBER: &str = "macro|bot-team-member@example.com";
 const TEAM_OTHER: &str = "macro|bot-team-other@example.com";
-
 fn user_id(value: &str) -> MacroUserIdStr<'static> {
     MacroUserIdStr::try_from(value.to_string()).expect("valid macro user id")
 }
@@ -258,6 +257,49 @@ async fn token_last_used_at(
     .await?;
 
     Ok(last_used_at)
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn bot_active_in_channel_returns_true_for_active_membership(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let channel_id = Uuid::new_v4();
+    let bot_id = BotId::new_from_uuid(Uuid::new_v4());
+    insert_channel(&pool, channel_id).await?;
+    let repo = PgBotsRepo::new(pool);
+    repo.add_bot_to_channel(channel_id, bot_id).await?;
+
+    assert!(repo.bot_active_in_channel(channel_id, bot_id).await?);
+
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn bot_active_in_channel_returns_false_for_non_member(pool: PgPool) -> anyhow::Result<()> {
+    let channel_id = Uuid::new_v4();
+    let bot_id = BotId::new_from_uuid(Uuid::new_v4());
+    insert_channel(&pool, channel_id).await?;
+    let repo = PgBotsRepo::new(pool);
+
+    assert!(!repo.bot_active_in_channel(channel_id, bot_id).await?);
+
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn bot_active_in_channel_returns_false_for_soft_deleted_membership(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let channel_id = Uuid::new_v4();
+    let bot_id = BotId::new_from_uuid(Uuid::new_v4());
+    insert_channel(&pool, channel_id).await?;
+    let repo = PgBotsRepo::new(pool);
+    repo.add_bot_to_channel(channel_id, bot_id).await?;
+    assert!(repo.remove_bot_from_channel(channel_id, bot_id).await?);
+
+    assert!(!repo.bot_active_in_channel(channel_id, bot_id).await?);
+
+    Ok(())
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]

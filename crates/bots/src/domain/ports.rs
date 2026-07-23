@@ -49,6 +49,13 @@ pub trait BotRepo: Clone + Send + Sync + 'static {
         team_id: Uuid,
     ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
 
+    /// Check whether a bot is an active channel participant.
+    fn bot_active_in_channel(
+        &self,
+        channel_id: Uuid,
+        bot_id: BotId,
+    ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
+
     /// Patch an active bot.
     fn patch_bot(
         &self,
@@ -219,6 +226,13 @@ pub trait BotService: Clone + Send + Sync + 'static {
         caller: MacroUserIdStr<'static>,
         bot_id: BotId,
         token_id: Uuid,
+    ) -> impl Future<Output = Result<(), BotError>> + Send;
+
+    /// Ensure that a bot is an active participant in a channel.
+    fn ensure_bot_in_channel(
+        &self,
+        bot_id: BotId,
+        channel_id: Uuid,
     ) -> impl Future<Output = Result<(), BotError>> + Send;
 
     /// Authenticate a raw bearer token.

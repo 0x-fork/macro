@@ -8236,11 +8236,13 @@ name = "macro_authorization"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "bot_id",
  "constant_time_eq",
  "cookie",
  "http-body-util",
  "jsonwebtoken 10.3.0",
  "macro_auth",
+ "macro_db_migrator",
  "macro_env_var",
  "macro_user_id",
  "model-error-response",
@@ -8249,11 +8251,13 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "sqlx",
  "thiserror 2.0.18",
  "tokio",
  "tower 0.5.3",
  "tracing",
  "urlencoding",
+ "uuid",
  "workspace-hack",
 ]
 
