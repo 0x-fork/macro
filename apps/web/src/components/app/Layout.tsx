@@ -284,9 +284,9 @@ function CollapsedSidebarIncomingCallWidget(props: {
 }
 
 /**
- * Sends first-time desktop users into the split-screen onboarding at
- * /setup. Fires from anywhere in the app (marketing SSO lands on /app, not
- * /login), but never off auth/full-screen routes — /setup itself included.
+ * Sends first-time desktop users into the onboarding flow at /onboarding.
+ * Fires from anywhere in the app (marketing SSO lands on /app, not /login),
+ * but never off auth/full-screen routes — /onboarding itself included.
  */
 function NewOnboardingRedirect() {
   const userInfoQuery = useUserInfoQuery();
@@ -303,12 +303,14 @@ function NewOnboardingRedirect() {
     }
     if (AUTH_URLS.includes(location.pathname)) return;
     // Preserve the deep link the user arrived on (a shared doc, an invite):
-    // /setup carries it as ?next and its finish() returns there instead of
+    // the flow carries it as ?next and its finish() returns there instead of
     // home. Base-relative so navigate() can resolve it against the router.
     const target =
       location.pathname.slice(ROUTER_BASE_CONCAT.length - 1) + location.search;
     navigate(
-      target === '/' ? '/setup' : `/setup?next=${encodeURIComponent(target)}`,
+      target === '/'
+        ? '/onboarding'
+        : `/onboarding?next=${encodeURIComponent(target)}`,
       { replace: true }
     );
   });

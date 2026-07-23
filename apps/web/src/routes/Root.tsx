@@ -13,7 +13,7 @@ import { usePendingNotificationNavigationEffect } from '@app/features/notificati
 import { InteractiveOnboardingModal } from '@app/features/onboarding/InteractiveOnboardingModal';
 import MobileWebSignup from '@app/features/onboarding/MobileWebSignup';
 import { useCheckoutCompletionListener } from '@app/features/paywall/use-checkout-completion-listener';
-import { SetupPage } from '@app/features/setup/SetupPage';
+import { OnboardingFlow } from '@app/features/setup/flow/OnboardingFlow';
 import { TeamInviteAcceptance } from '@app/features/team-invitations/TeamInviteAcceptance';
 import {
   AnalyticsContextProvider,
@@ -94,6 +94,7 @@ import {
   type RoutePreloadFunc,
   Router,
   type RouterProps,
+  useLocation,
   useSearchParams,
 } from '@solidjs/router';
 import {
@@ -300,6 +301,12 @@ const { EmailCallback, CALLBACK_PATH, EmailLinkCallback, LINK_CALLBACK_PATH } =
     successPath: '/',
   });
 
+/** The retired /setup path forwards to the onboarding flow, query intact. */
+function SetupRedirect() {
+  const location = useLocation();
+  return <Navigate href={`/onboarding${location.search}`} />;
+}
+
 const ROUTES: RouteDefinition[] = [
   LAYOUT_ROUTE,
   /** BEGIN - APP ROUTES */
@@ -422,26 +429,26 @@ const ROUTES: RouteDefinition[] = [
   },
   {
     path: '/onboarding',
+    // Flag-gated at the route, not just the redirect: with the flag off a
+    // direct visit must not touch the onboarding backend (reading it
+    // creates the flow's row and starts gathers).
     component: () =>
       isNativeMobilePlatform() ? (
         <MobileOnboarding />
-      ) : (
+      ) : !ENABLE_NEW_ONBOARDING_V3 ? (
         <Navigate href="/login" />
+      ) : (
+        <OnboardingFlow />
       ),
   },
   {
+    // The old split-screen /setup surface is retired; the onboarding flow
+    // lives at /onboarding now. Preserve the query (?next deep links).
+    // Flag off, /setup must go home — forwarding would land flag-off web
+    // users on /login and native users on the MobileOnboarding screen.
     path: '/setup',
-    // Flag-gated at the route, not just the redirect: with the flag off a
-    // direct /setup visit must not touch the onboarding backend (reading
-    // it creates the flow's row and starts gathers).
     component: () =>
-      !ENABLE_NEW_ONBOARDING_V3 ? (
-        <Navigate href="/" />
-      ) : isNativeMobilePlatform() ? (
-        <Navigate href="/onboarding" />
-      ) : (
-        <SetupPage />
-      ),
+      ENABLE_NEW_ONBOARDING_V3 ? <SetupRedirect /> : <Navigate href="/" />,
   },
   {
     path: '/team-invite',
