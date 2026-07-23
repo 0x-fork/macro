@@ -3,6 +3,7 @@ import { idToDisplayName } from '@core/user/util';
 import CheckIcon from '@phosphor/check.svg';
 import Plus from '@phosphor/plus.svg';
 import { useContacts } from '@queries/contacts/contacts';
+import { useOnboardingQuery } from '@queries/onboarding';
 import {
   useJoinTeamMutation,
   useUserInvitesQuery,
@@ -13,13 +14,19 @@ import {
 } from '@queries/team/teams';
 import type { TeamInviteDetails } from '@service-auth/generated/schemas/teamInviteDetails';
 import { Button } from '@ui';
-import { createMemo, createSignal, For, Index, Show } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Index,
+  Show,
+} from 'solid-js';
 import {
   ContinueButton,
   deriveTeamName,
   emailDomain,
   FormInput,
-  isFreeMailDomain,
   isPlausibleEmail,
   SkipButton,
 } from './shared';
@@ -124,16 +131,22 @@ function CreateTeamForm(props: { onContinue: () => void }) {
   const email = useEmail();
   const contacts = useContacts();
   const createTeam = useCreateTeamWithInvitesMutation();
+  const onboardingQuery = useOnboardingQuery();
 
-  const domain = createMemo(() => emailDomain(email()));
-  const customDomain = createMemo(() => {
-    const value = domain();
-    return value !== undefined && !isFreeMailDomain(value) ? value : undefined;
+  // The server judges whether the account domain can back a domain team,
+  // with the same list the teams service uses for auto-join/claiming — so
+  // this form never suggests a domain team the server would refuse.
+  const customDomain = () =>
+    onboardingQuery.data?.suggested_team_domain ?? undefined;
+
+  const [name, setName] = createSignal('');
+  const [nameTouched, setNameTouched] = createSignal(false);
+  // Prefill from the server's judgment once it arrives — but never over
+  // something the user typed.
+  createEffect(() => {
+    const domain = customDomain();
+    if (domain && !nameTouched()) setName(deriveTeamName(domain));
   });
-
-  const [name, setName] = createSignal(
-    customDomain() ? deriveTeamName(customDomain() ?? '') : ''
-  );
   const [inviteSlots, setInviteSlots] = createSignal<string[]>([
     ...INITIAL_INVITE_SLOTS,
   ]);
@@ -190,7 +203,10 @@ function CreateTeamForm(props: { onContinue: () => void }) {
         placeholder="Team name"
         value={name()}
         autoFocus={!customDomain()}
-        onInput={setName}
+        onInput={(value) => {
+          setNameTouched(true);
+          setName(value);
+        }}
       />
 
       {/* Index, not For: slots are edited strings, and For keys by value —

@@ -27,44 +27,9 @@ export function emailDomain(address: string | undefined): string | undefined {
   return address.slice(at + 1).toLowerCase();
 }
 
-/**
- * Generic consumer email domains ("free-mail"). A domain on this list says
- * nothing about where the user works, so team-name suggestions and
- * same-domain invite suggestions are off the table. Mirrors the backend's
- * `email_utils::free_mail` intent (the common cases, not the full list).
- */
-const FREE_MAIL_DOMAINS = new Set([
-  'gmail.com',
-  'googlemail.com',
-  'yahoo.com',
-  'yahoo.co.uk',
-  'outlook.com',
-  'hotmail.com',
-  'hotmail.co.uk',
-  'live.com',
-  'msn.com',
-  'icloud.com',
-  'me.com',
-  'mac.com',
-  'aol.com',
-  'proton.me',
-  'protonmail.com',
-  'pm.me',
-  'gmx.com',
-  'gmx.net',
-  'mail.com',
-  'yandex.com',
-  'yandex.ru',
-  'zoho.com',
-  'hey.com',
-  'fastmail.com',
-]);
-
-export function isFreeMailDomain(domain: string | undefined): boolean {
-  return domain !== undefined && FREE_MAIL_DOMAINS.has(domain);
-}
-
-/** "macro.com" → "Macro": the domain root, capitalized. */
+/** "macro.com" → "Macro": the domain root, capitalized. Whether a domain
+ * deserves a team suggestion at all is judged server-side
+ * (`OnboardingState.suggested_team_domain`) — no domain list lives here. */
 export function deriveTeamName(domain: string): string {
   const root = domain.split('.')[0] ?? domain;
   return root.charAt(0).toUpperCase() + root.slice(1);

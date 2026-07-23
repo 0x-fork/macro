@@ -53,11 +53,17 @@ Scenarios:
 
 - **Custom domain, no existing team** (Google signup or plain email under a custom domain):
   - Auto-suggest a team name derived from the domain.
-  - If Google is connected we can query contacts by this point: suggest inviting people under the same domain (email service colleagues endpoint — same-domain contacts ranked by interaction).
+  - If Google is connected we can query contacts by this point: suggest inviting people under the same domain (v1: filtered client-side from the contacts service; a ranked colleagues endpoint does not exist on main).
 - **Custom domain, team already exists for the domain:**
-  - Show that they have been automatically added to that team (backend `try_join_team_by_domain` exists in the teams crate; frontend wiring is new work).
+  - Show that they have been automatically added to that team. Verified backend behavior: the join happens at account creation (`create_user_webhook` → `try_join_team_by_domain`, fire-and-forget), keyed on the **signup/account email only**. The step just renders the resulting membership.
 - **Free-mail domain** (generic consumer domains — gmail.com, yahoo.com, etc.; the shared list lives in `email_utils::free_mail`):
   - Still show the team step, just without domain-derived suggestions: the user can create a team (they name it themselves) and invite teammates by email. Skippable like the other optional steps.
+
+Verified backend facts the step builds on (and their limits):
+
+- Creating a team already auto-claims the owner's account-email domain when it's non-generic (`create_team` toggles `auto_join_domain` on by default; owners can turn it off). One team per domain. The flow does not need to enable anything.
+- The domain is always derived from the team **owner's account email** — and that is the decision for v1: the flow keys everything (prefill, suggestions, claiming) off the main/account email only. A user who signed up with gmail but connected a `@acme.com` inbox gets the plain create-team form; supporting connected-inbox domains would need backend work (accept/verify a chosen inbox domain on create/toggle) and is deliberately deferred.
+- Auto-join fires only at signup, immediately, with no zero-other-teams guard. Fine for this flow (its users just signed up); a later "join by domain from settings" surface would need the guard.
 
 ### 7. Summary
 
