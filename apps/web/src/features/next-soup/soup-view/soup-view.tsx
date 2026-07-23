@@ -417,6 +417,7 @@ export const SoupView = (props: SoupViewProps) => {
         initialSearchText: initialCrmView
           ? (initialCrmView.searchText ?? '')
           : (persistedSearchText ?? props.initialSearchText),
+        preferInitialFilters: initialCrmView !== undefined,
         disableLocalSearch: props.disableLocalSearch,
         additionalEntities: props.additionalEntities,
       });
@@ -432,7 +433,13 @@ export const SoupView = (props: SoupViewProps) => {
         initialSortIds = ['updated_at'];
       }
 
-      let initialActiveTab = initialCrmView?.activeTab ?? persistedActiveTab;
+      const persistedViewActiveTab = isListViewID(contentId)
+        ? soupView.getPersistedActiveTab(contentId)
+        : undefined;
+      let initialActiveTab =
+        initialCrmView?.activeTab ??
+        persistedActiveTab ??
+        persistedViewActiveTab;
 
       if (initialActiveTab === undefined && isListViewID(contentId)) {
         initialActiveTab = VIEW_TAB_PRESETS[contentId].default;
