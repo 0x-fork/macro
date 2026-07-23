@@ -198,43 +198,73 @@ function SoupNavigationButtons() {
   const soup = useSoup();
   if (!context) return null;
 
-  const rows = createMemo(() => soup.rows());
-  const currentIndex = () => soup.focus.index();
+  const registeredList = () => (soup.list.dataSource() ? soup.list : undefined);
+  const rowCount = () => registeredList()?.items.count() ?? soup.rows().length;
+  const currentIndex = () =>
+    registeredList()?.focus.index() ?? soup.focus.index();
 
   const navigationReferredFrom = createMemo(() => {
     const referredFrom = context.handle.referredFrom();
-    if (referredFrom !== 'inbox' && referredFrom !== 'mail') {
-      return;
+    return referredFrom === 'inbox' || referredFrom === 'mail'
+      ? referredFrom
+      : undefined;
+  });
+
+  const adjacentListIndex = (offset: number) => {
+    const list = registeredList();
+    if (!list) return -1;
+
+    const rows = list.items.all();
+    const direction = offset < 0 ? -1 : 1;
+    let index = list.focus.index();
+    if (index < 0) index = direction > 0 ? -1 : rows.length;
+
+    for (
+      index += direction;
+      index >= 0 && index < rows.length;
+      index += direction
+    ) {
+      const row = rows[index];
+      if (row?.kind !== 'entity') continue;
+      if (!list.selection.isSelectable(row)) continue;
+      return index;
     }
 
-    return referredFrom;
-  });
+    return -1;
+  };
 
   const shouldShow = createMemo(() => {
     // The mobile swipe layout doesn't handle mergeHistory navigations, so
     // these controls would silently no-op there.
     if (isMobile()) return false;
-
-    const referredFrom = navigationReferredFrom();
-    const isNavigableListView =
-      referredFrom === 'inbox' || referredFrom === 'mail';
-
-    return isNavigableListView && rows().length > 0;
+    return navigationReferredFrom() !== undefined && rowCount() > 0;
   });
 
-  const canNavigateUp = createMemo(() => {
-    return rows().length > 0 && currentIndex() !== 0;
-  });
+  const canNavigateUp = createMemo(() =>
+    registeredList()
+      ? adjacentListIndex(-1) >= 0
+      : rowCount() > 0 && currentIndex() !== 0
+  );
 
-  const canNavigateDown = createMemo(() => {
-    return rows().length > 0 && currentIndex() !== rows().length - 1;
-  });
+  const canNavigateDown = createMemo(() =>
+    registeredList()
+      ? adjacentListIndex(1) >= 0
+      : rowCount() > 0 && currentIndex() !== rowCount() - 1
+  );
 
   const navigate = (offset: number) => {
-    const next = soup.navigate.by(offset);
-    if (!next) return;
+    const list = registeredList();
+    const listIndex = adjacentListIndex(offset);
+    const next =
+      list && listIndex >= 0 ? list.navigate.toIndex(listIndex) : undefined;
+    const entity = list
+      ? next?.item.kind === 'entity'
+        ? next.item.entity
+        : undefined
+      : soup.navigate.by(offset)?.row.original;
+    if (!entity) return;
 
-    void openEntityInSplitFromUnifiedList(next.row.original, {
+    void openEntityInSplitFromUnifiedList(entity, {
       splitHandle: context.handle,
       mergeHistory: true,
       referredFrom: navigationReferredFrom(),

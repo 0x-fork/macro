@@ -6,10 +6,11 @@ import { createMemo } from 'solid-js';
 export function useNavigatedFromJK() {
   const soup = useSoup();
   const navigatedFromJK = createMemo(() => {
-    const rows = soup.rows();
-    if (!rows) return false;
+    const hasRows = soup.list.dataSource()
+      ? soup.list.items.count() > 0
+      : soup.rows().length > 0;
     return (
-      rows.length > 0 &&
+      hasRows &&
       document.documentElement.getAttribute('data-modality') === 'keyboard' &&
       (lastExecutedCommand()?.hotkeyToken === TOKENS.entity.step.end ||
         lastExecutedCommand()?.hotkeyToken === TOKENS.entity.step.start ||
