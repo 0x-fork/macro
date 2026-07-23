@@ -12,6 +12,7 @@ import { SearchProvider } from '@app/features/next-soup/search-context';
 import { usePendingNotificationNavigationEffect } from '@app/features/notifications/PendingNotificationNavigationEffect';
 import { InteractiveOnboardingModal } from '@app/features/onboarding/InteractiveOnboardingModal';
 import MobileWebSignup from '@app/features/onboarding/MobileWebSignup';
+import { Onboarding2 } from '@app/features/onboarding/Onboarding2';
 import { useCheckoutCompletionListener } from '@app/features/paywall/use-checkout-completion-listener';
 import { SetupPage } from '@app/features/setup/SetupPage';
 import { TeamInviteAcceptance } from '@app/features/team-invitations/TeamInviteAcceptance';
@@ -428,6 +429,12 @@ const ROUTES: RouteDefinition[] = [
       ) : (
         <Navigate href="/login" />
       ),
+  },
+  {
+    // Draft of the new signup/onboarding flow — UI only, integrations are
+    // still mocked (see Onboarding2.tsx).
+    path: '/onboarding2',
+    component: Onboarding2,
   },
   {
     path: '/setup',
