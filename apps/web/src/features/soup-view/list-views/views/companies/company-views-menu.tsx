@@ -1,4 +1,4 @@
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import {
   CRM_LIST_COLUMN_LABELS,
   type CrmListColumnId,
@@ -22,7 +22,7 @@ import TrashIcon from '@phosphor/trash.svg';
 import { useIsTeamAdmin } from '@queries/team/teams';
 import { Button, cn, Dropdown, SegmentedControl, Tooltip } from '@ui';
 import { createSignal, For, type JSX, Show } from 'solid-js';
-import { useSoupView } from '../../../context';
+
 import {
   captureCompanyView,
   isSoupCompanyViewConfig,
@@ -125,11 +125,10 @@ function EmptyViewsHint(props: { children: JSX.Element }) {
 }
 
 export function CompanyDisplayMenu() {
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const { applyTabPreset, collection, viewMode } = useSoupView();
   const display = useCrmDisplayOptions();
   const isTeamAdmin = useIsTeamAdmin();
-  const listMode = () => view.viewMode() === 'list';
+  const listMode = () => viewMode() === 'list';
   const showingHidden = () => collection.state.activeTab === 'hidden';
   return (
     <Show when={listMode() || isTeamAdmin()}>
@@ -167,7 +166,7 @@ export function CompanyDisplayMenu() {
               <Dropdown.CheckboxItem
                 checked={showingHidden()}
                 onChange={() =>
-                  view.applyTabPreset(showingHidden() ? 'active' : 'hidden')
+                  applyTabPreset(showingHidden() ? 'active' : 'hidden')
                 }
                 closeOnSelect={false}
               >
@@ -182,8 +181,7 @@ export function CompanyDisplayMenu() {
 }
 
 export function CompanyViewsMenu() {
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const { collection, viewMode } = useSoupView();
   const personal = usePersonalCrmViews();
   const team = useTeamCrmViews();
   const permissions = useCrmPermissions();
@@ -193,7 +191,7 @@ export function CompanyViewsMenu() {
   const [name, setName] = createSignal('');
   const [scope, setScope] = createSignal<'personal' | 'team'>('personal');
 
-  const current = () => captureCompanyView(collection, view);
+  const current = () => captureCompanyView(collection, { viewMode });
   const applyCompanyView = useApplyCompanyView();
   const apply = (config: unknown) => {
     if (applyCompanyView(config)) setOpen(false);

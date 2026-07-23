@@ -1,9 +1,3 @@
-export type { SoupCollectionProviderProps } from './context';
-export {
-  SoupCollectionProvider,
-  useMaybeSoupCollection,
-  useSoupCollection,
-} from './context';
 export type {
   CreateSoupCollectionOptions,
   SoupCollection,

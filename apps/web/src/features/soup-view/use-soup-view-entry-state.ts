@@ -21,14 +21,14 @@ type UseSoupViewEntryStateOptions = {
 /** Restores and captures runtime state that requires mounted list/view handles. */
 export function useSoupViewEntryState(options: UseSoupViewEntryStateOptions) {
   const panel = useSplitPanelOrThrow();
-  const view = useSoupView();
+  const { previewEntityId } = useSoupView();
   const { state: listState } = useList<SoupRow>();
   const entryState = panel.handle.currentEntryState();
   const restoredListState = entryState?.[SOUP_LIST_STATE_ENTRY_KEY] as
     | SoupListEntryState
     | undefined;
 
-  const persistedPreviewEntity = view.previewEntityId();
+  const persistedPreviewEntity = previewEntityId();
   const disposeListCaptor =
     panel.handle.content().type !== 'project'
       ? panel.handle.registerEntryStateCaptor(

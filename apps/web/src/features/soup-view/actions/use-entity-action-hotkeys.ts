@@ -54,7 +54,7 @@ export const useEntityActionHotkeys = (
 
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
-  const view = useSoupView();
+  const { collapseEntity } = useSoupView();
 
   const group = createHotkeyGroup();
 
@@ -153,8 +153,8 @@ export const useEntityActionHotkeys = (
       if (!entities.every(markDone.canExecute)) return false;
 
       markDone.executeWithList(entities, list, openNextEntity, {
-        collapseEntity: view.collapseEntity.shouldCollapse()
-          ? view.collapseEntity.callback()
+        collapseEntity: collapseEntity.shouldCollapse()
+          ? collapseEntity.callback()
           : undefined,
       });
       return true;

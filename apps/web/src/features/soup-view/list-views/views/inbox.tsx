@@ -1,14 +1,13 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import { InboxListEntity } from '@app/features/next-soup/soup-view/views/inbox/InboxListEntity';
-import {
-  type FacetSelection,
-  type SoupCollection,
-  SoupCollectionProvider,
-  type SoupRow,
-  useSoupCollection,
+import type {
+  FacetSelection,
+  SoupCollection,
+  SoupRow,
 } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
+import { useSoupView } from '@app/features/soup-view/context';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -47,12 +46,12 @@ import { SoupMobileControls } from '../../components/soup-mobile-controls';
 import { SoupPreviewPane } from '../../components/soup-preview-pane';
 import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../components/soup-view-header';
-import { SoupViewProvider, useSoupView } from '../../context';
+import { SoupViewProvider } from '../../context';
 import { useSoupNotificationInvalidators } from '../../use-soup-notification-invalidators';
 import { useIsNewInbox } from '../../utils';
+import { createSoupList } from '../create-soup-list';
 import { SoupEntityList } from '../soup-entity-list';
 import { SoupViewRoot } from '../soup-view-root';
-import { useSoupViewSetup } from '../use-soup-view-setup';
 
 export type InboxListViewProps = {
   viewName?: string;
@@ -92,8 +91,8 @@ const applyInboxMode = (
 
 function InboxListViewContent() {
   const panel = useSplitPanelOrThrow();
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const { collection, previewPaneVisible, previewVisible, viewName } =
+    useSoupView();
   const isNewInbox = useIsNewInbox();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
@@ -101,11 +100,11 @@ function InboxListViewContent() {
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
-  useSplitDisplayName(view.viewName);
+  useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   createEffect(() => {
-    const visible = view.previewPaneVisible();
+    const visible = previewPaneVisible();
     const [current, setCurrent] = panel.previewState;
     if (current() !== visible) setCurrent(visible);
   });
@@ -131,7 +130,7 @@ function InboxListViewContent() {
       value={{
         ...panel,
         halfSplitState: () =>
-          view.previewVisible() ? { side: 'left', percentage: 30 } : undefined,
+          previewVisible() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
       <SoupFileDropzone>
@@ -149,13 +148,13 @@ function InboxListViewContent() {
               <Resize.Panel
                 id="soup-list"
                 minSize={300}
-                maxSize={view.previewPaneVisible() ? 440 : undefined}
+                maxSize={previewPaneVisible() ? 440 : undefined}
               >
                 <div
                   ref={setListContent}
                   class={cn(
                     'relative flex size-full min-h-0 min-w-0 flex-col',
-                    view.previewPaneVisible() && 'border-r border-edge-muted'
+                    previewPaneVisible() && 'border-r border-edge-muted'
                   )}
                 >
                   <List.Content>
@@ -271,7 +270,7 @@ function InboxListViewContent() {
 export function InboxListView(props: InboxListViewProps) {
   const userId = useUserId();
   const isNewInbox = useIsNewInbox({ view: () => 'inbox' });
-  const setup = useSoupViewSetup({
+  const setup = createSoupList({
     view: 'inbox',
     initialState: {
       facets: createInitialInboxFacets(isNewInbox(), userId()),
@@ -292,15 +291,14 @@ export function InboxListView(props: InboxListViewProps) {
   );
 
   return (
-    <SoupCollectionProvider value={setup.collection}>
-      <List.Root
-        dataSource={setup.collection.dataSource}
-        state={setup.listState}
+    <List.Root state={setup.list}>
+      <SoupViewProvider
+        soup={setup}
+        view="inbox"
+        viewName={props.viewName ?? 'Inbox'}
       >
-        <SoupViewProvider view="inbox" viewName={props.viewName ?? 'Inbox'}>
-          <InboxListViewContent />
-        </SoupViewProvider>
-      </List.Root>
-    </SoupCollectionProvider>
+        <InboxListViewContent />
+      </SoupViewProvider>
+    </List.Root>
   );
 }

@@ -1,21 +1,18 @@
 import { List } from '@app/components/list';
 import { registerDocumentsFilterSplit } from '@app/features/next-soup/soup-view/documents-filter-controllers';
-import {
-  SoupCollectionProvider,
-  useSoupCollection,
-} from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { onCleanup, onMount } from 'solid-js';
 import { SoupViewProvider } from '../../context';
+import { createSoupList } from '../create-soup-list';
 import { DefaultListViewContent } from '../default-list-view';
-import { useSoupViewSetup } from '../use-soup-view-setup';
 
 export type DocumentsListViewProps = {
   viewName?: string;
 };
 
 function DocumentsListViewContent() {
-  const collection = useSoupCollection();
+  const { collection } = useSoupView();
   const panel = useSplitPanelOrThrow();
   onMount(() => {
     const teardown = registerDocumentsFilterSplit(panel.handle.id, {
@@ -28,21 +25,17 @@ function DocumentsListViewContent() {
 }
 
 export function DocumentsListView(props: DocumentsListViewProps) {
-  const setup = useSoupViewSetup({ view: 'documents' });
+  const setup = createSoupList({ view: 'documents' });
 
   return (
-    <SoupCollectionProvider value={setup.collection}>
-      <List.Root
-        dataSource={setup.collection.dataSource}
-        state={setup.listState}
+    <List.Root state={setup.list}>
+      <SoupViewProvider
+        soup={setup}
+        view="documents"
+        viewName={props.viewName ?? 'Documents'}
       >
-        <SoupViewProvider
-          view="documents"
-          viewName={props.viewName ?? 'Documents'}
-        >
-          <DocumentsListViewContent />
-        </SoupViewProvider>
-      </List.Root>
-    </SoupCollectionProvider>
+        <DocumentsListViewContent />
+      </SoupViewProvider>
+    </List.Root>
   );
 }

@@ -1,6 +1,6 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
-import { SoupCollectionProvider, type SoupRow } from '@app/features/soup-list';
+import type { SoupRow } from '@app/features/soup-list';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -34,9 +34,9 @@ import { SoupSelectionToolbar } from '../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../components/soup-view-header';
 import { SoupViewProvider, useSoupView } from '../context';
 import { useSoupNotificationInvalidators } from '../use-soup-notification-invalidators';
+import { createSoupList } from './create-soup-list';
 import { SoupEntityList } from './soup-entity-list';
 import { SoupViewRoot } from './soup-view-root';
-import { useSoupViewSetup } from './use-soup-view-setup';
 
 export type DefaultListViewId = 'calls' | 'channels' | 'folders' | 'mail';
 
@@ -49,41 +49,40 @@ export function DefaultListView(props: DefaultListViewProps) {
   return <SoupViewImplementation {...props} />;
 }
 
-function useDefaultSoupViewSetup(props: DefaultListViewProps) {
-  return useSoupViewSetup({ view: props.view });
+function createDefaultSoupList(props: DefaultListViewProps) {
+  return createSoupList({ view: props.view });
 }
 
 /** Compatibility entry while concrete views migrate to their own provider roots. */
 export function SoupViewImplementation(props: DefaultListViewProps) {
-  const setup = useDefaultSoupViewSetup(props);
+  const setup = createDefaultSoupList(props);
   return (
-    <SoupCollectionProvider value={setup.collection}>
-      <List.Root
-        dataSource={setup.collection.dataSource}
-        state={setup.listState}
+    <List.Root state={setup.list}>
+      <SoupViewProvider
+        soup={setup}
+        view={props.view}
+        viewName={props.viewName}
       >
-        <SoupViewProvider view={props.view} viewName={props.viewName}>
-          <DefaultListViewContent />
-        </SoupViewProvider>
-      </List.Root>
-    </SoupCollectionProvider>
+        <DefaultListViewContent />
+      </SoupViewProvider>
+    </List.Root>
   );
 }
 
 export function DefaultListViewContent() {
   const panel = useSplitPanelOrThrow();
-  const view = useSoupView();
+  const { previewPaneVisible, previewVisible, view, viewName } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
-  useSplitDisplayName(view.viewName);
+  useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   createEffect(() => {
-    const visible = view.previewPaneVisible();
+    const visible = previewPaneVisible();
     const [current, setCurrent] = panel.previewState;
     if (current() !== visible) setCurrent(visible);
   });
@@ -100,7 +99,7 @@ export function DefaultListViewContent() {
       value={{
         ...panel,
         halfSplitState: () =>
-          view.previewVisible() ? { side: 'left', percentage: 30 } : undefined,
+          previewVisible() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
       <SoupFileDropzone>
@@ -119,19 +118,19 @@ export function DefaultListViewContent() {
               <Resize.Panel
                 id="soup-list"
                 minSize={300}
-                maxSize={view.previewPaneVisible() ? 440 : undefined}
+                maxSize={previewPaneVisible() ? 440 : undefined}
               >
                 <div
                   ref={setListContent}
                   class={cn(
                     'relative flex size-full min-h-0 min-w-0 flex-col',
-                    view.previewPaneVisible() && 'border-r border-edge-muted'
+                    previewPaneVisible() && 'border-r border-edge-muted'
                   )}
                 >
                   <List.Content>
                     <List.Items>
                       <SoupEntityList
-                        view={view.view()}
+                        view={view()}
                         root={root}
                         listScopeId={listScopeId}
                         viewportRef={setViewport}

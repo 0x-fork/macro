@@ -1,6 +1,6 @@
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { toast } from '@core/component/Toast/Toast';
-import { useSoupView } from '../../../context';
+
 import {
   applyCompanyView,
   isSoupCompanyViewConfig,
@@ -8,8 +8,14 @@ import {
 
 /** Apply production or replacement CRM saved-view formats to the collection. */
 export function useApplyCompanyView() {
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const {
+    activePresetFacets,
+    applyTabPreset,
+    collection,
+    defaultTab,
+    isTabAvailable,
+    setViewMode,
+  } = useSoupView();
 
   return (config: unknown): boolean => {
     if (!isSoupCompanyViewConfig(config)) {
@@ -17,12 +23,17 @@ export function useApplyCompanyView() {
       return false;
     }
 
-    applyCompanyView(collection, view, config, {
-      allowedTab: (requested) =>
-        requested && view.isTabAvailable(requested)
-          ? requested
-          : (view.defaultTab() ?? 'active'),
-    });
+    applyCompanyView(
+      collection,
+      { activePresetFacets, applyTabPreset, setViewMode },
+      config,
+      {
+        allowedTab: (requested) =>
+          requested && isTabAvailable(requested)
+            ? requested
+            : (defaultTab() ?? 'active'),
+      }
+    );
     return true;
   };
 }

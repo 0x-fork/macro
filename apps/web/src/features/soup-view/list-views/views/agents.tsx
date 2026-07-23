@@ -2,11 +2,8 @@ import { List, useList } from '@app/components/list';
 import { LIST_VIEW_DOCS_URL } from '@app/constants/docs-links';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import { runCreateAction } from '@app/features/command/Launcher';
-import {
-  SoupCollectionProvider,
-  type SoupRow,
-  useSoupCollection,
-} from '@app/features/soup-list';
+import type { SoupRow } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -44,18 +41,18 @@ import { SoupMobileControls } from '../../components/soup-mobile-controls';
 import { SoupPreviewPane } from '../../components/soup-preview-pane';
 import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../components/soup-view-header';
-import { SoupViewProvider, useSoupView } from '../../context';
+import { SoupViewProvider } from '../../context';
 import { useSoupNotificationInvalidators } from '../../use-soup-notification-invalidators';
+import { createSoupList } from '../create-soup-list';
 import { SoupEntityList } from '../soup-entity-list';
 import { SoupViewRoot } from '../soup-view-root';
-import { useSoupViewSetup } from '../use-soup-view-setup';
 
 export type AgentsListViewProps = {
   viewName?: string;
 };
 
 function AgentsEmptyState() {
-  const collection = useSoupCollection();
+  const { collection } = useSoupView();
 
   return (
     <Switch>
@@ -93,18 +90,18 @@ function AgentsEmptyState() {
 
 function AgentsListViewContent() {
   const panel = useSplitPanelOrThrow();
-  const view = useSoupView();
+  const { previewPaneVisible, previewVisible, viewName } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
-  useSplitDisplayName(view.viewName);
+  useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   createEffect(() => {
-    const visible = view.previewPaneVisible();
+    const visible = previewPaneVisible();
     const [current, setCurrent] = panel.previewState;
     if (current() !== visible) setCurrent(visible);
   });
@@ -121,7 +118,7 @@ function AgentsListViewContent() {
       value={{
         ...panel,
         halfSplitState: () =>
-          view.previewVisible() ? { side: 'left', percentage: 30 } : undefined,
+          previewVisible() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
       <SoupFileDropzone>
@@ -140,7 +137,7 @@ function AgentsListViewContent() {
               <Resize.Panel
                 id="soup-list"
                 minSize={300}
-                maxSize={view.previewPaneVisible() ? 440 : undefined}
+                maxSize={previewPaneVisible() ? 440 : undefined}
               >
                 <div
                   ref={setListContent}
@@ -228,21 +225,20 @@ function AgentsListViewContent() {
 
 export function AgentsListView(props: AgentsListViewProps) {
   const automationEntities = useAutomationEntities();
-  const setup = useSoupViewSetup({
+  const setup = createSoupList({
     view: 'agents',
     additionalEntities: automationEntities,
   });
 
   return (
-    <SoupCollectionProvider value={setup.collection}>
-      <List.Root
-        dataSource={setup.collection.dataSource}
-        state={setup.listState}
+    <List.Root state={setup.list}>
+      <SoupViewProvider
+        soup={setup}
+        view="agents"
+        viewName={props.viewName ?? 'Agents'}
       >
-        <SoupViewProvider view="agents" viewName={props.viewName ?? 'Agents'}>
-          <AgentsListViewContent />
-        </SoupViewProvider>
-      </List.Root>
-    </SoupCollectionProvider>
+        <AgentsListViewContent />
+      </SoupViewProvider>
+    </List.Root>
   );
 }

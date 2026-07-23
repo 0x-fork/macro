@@ -8,10 +8,9 @@ import {
 import {
   getSoupRowEntities,
   type SoupCollection,
-  SoupCollectionProvider,
   type SoupRow,
-  useSoupCollection,
 } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useCrmUnavailable } from '@companies/crm/team-crm-config';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
@@ -52,13 +51,13 @@ import { SoupMobileControls } from '../../../components/soup-mobile-controls';
 import { SoupPreviewPane } from '../../../components/soup-preview-pane';
 import { SoupSelectionToolbar } from '../../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../../components/soup-view-header';
-import { SoupViewProvider, useSoupView } from '../../../context';
+import { SoupViewProvider } from '../../../context';
 import { hasSoupCollectionEntryState } from '../../../soup-collection-persistence';
 import { getViewPreset } from '../../../soup-view-presets';
 import { useSoupNotificationInvalidators } from '../../../use-soup-notification-invalidators';
+import { createSoupList } from '../../create-soup-list';
 import { SoupEntityList } from '../../soup-entity-list';
 import { SoupViewRoot } from '../../soup-view-root';
-import { useSoupViewSetup } from '../../use-soup-view-setup';
 import { CompanyKanban } from './company-kanban';
 import {
   type InitialSoupCompanyView,
@@ -104,17 +103,27 @@ function sanitizeRestoredCompanyState(
 }
 
 function CompaniesListViewContent() {
-  const collection = useSoupCollection();
   const { dataSource, state: listState } = useList<SoupRow>();
   const panel = useSplitPanelOrThrow();
-  const view = useSoupView();
+  const {
+    applyTabPreset,
+    collection,
+    defaultTab,
+    isTabAvailable,
+    previewEntity,
+    previewEntityId,
+    previewPaneVisible,
+    previewVisible,
+    setPreviewEntity,
+    viewMode,
+    viewName,
+  } = useSoupView();
   const crmUnavailable = useCrmUnavailable();
-  const boardActive = () => view.viewMode() === 'board';
+  const boardActive = () => viewMode() === 'board';
   const companyPreviewPaneVisible = () =>
-    !crmUnavailable() && view.previewPaneVisible();
-  const companyPreviewVisible = () =>
-    !crmUnavailable() && view.previewVisible();
-  const previewId = view.previewEntityId();
+    !crmUnavailable() && previewPaneVisible();
+  const companyPreviewVisible = () => !crmUnavailable() && previewVisible();
+  const previewId = previewEntityId();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
@@ -123,14 +132,14 @@ function CompaniesListViewContent() {
   useCompanyBoardPreviewRestoration({
     enabled: boardActive,
     persistedEntityId: previewId,
-    previewEntity: view.previewEntity,
-    setPreviewEntity: view.setPreviewEntity,
+    previewEntity: previewEntity,
+    setPreviewEntity: setPreviewEntity,
   });
 
   createEffect(() => {
     const activeTab = collection.state.activeTab;
-    const fallbackTab = view.defaultTab();
-    if (!activeTab || !fallbackTab || view.isTabAvailable(activeTab)) {
+    const fallbackTab = defaultTab();
+    if (!activeTab || !fallbackTab || isTabAvailable(activeTab)) {
       return;
     }
 
@@ -141,11 +150,11 @@ function CompaniesListViewContent() {
       collection.facets.set('scope', []);
       collection.facets.set('companies', []);
       collection.setState('activeTab', undefined);
-      view.applyTabPreset(fallbackTab);
+      applyTabPreset(fallbackTab);
     });
   });
 
-  useSplitDisplayName(view.viewName);
+  useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   createEffect(() => {
@@ -305,7 +314,7 @@ function CompaniesListViewContent() {
                               });
                             }
                             if (companyPreviewPaneVisible()) {
-                              view.setPreviewEntity(entity);
+                              setPreviewEntity(entity);
                               return;
                             }
                             if (event.metaKey || event.ctrlKey) {
@@ -377,7 +386,7 @@ export function CompaniesListView(props: CompaniesListViewProps) {
             : (requested ?? 'active'),
       })
     : undefined;
-  const setup = useSoupViewSetup({
+  const setup = createSoupList({
     view: 'companies',
     initialState: initialView?.initialState,
     restoreCollection: props.initialCrmView === undefined,
@@ -385,22 +394,18 @@ export function CompaniesListView(props: CompaniesListViewProps) {
   sanitizeRestoredCompanyState(setup.collection, isTeamAdmin());
 
   return (
-    <SoupCollectionProvider value={setup.collection}>
-      <List.Root
-        dataSource={setup.collection.dataSource}
-        state={setup.listState}
+    <List.Root state={setup.list}>
+      <SoupViewProvider
+        soup={setup}
+        view="companies"
+        viewName={props.viewName ?? 'Companies'}
+        initialViewMode={initialView?.viewMode}
       >
-        <SoupViewProvider
-          view="companies"
-          viewName={props.viewName ?? 'Companies'}
-          initialViewMode={initialView?.viewMode}
-        >
-          <Show when={applyDefaultView}>
-            <CrmDefaultViewLoader />
-          </Show>
-          <CompaniesListViewContent />
-        </SoupViewProvider>
-      </List.Root>
-    </SoupCollectionProvider>
+        <Show when={applyDefaultView}>
+          <CrmDefaultViewLoader />
+        </Show>
+        <CompaniesListViewContent />
+      </SoupViewProvider>
+    </List.Root>
   );
 }

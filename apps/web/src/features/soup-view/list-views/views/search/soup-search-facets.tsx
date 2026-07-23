@@ -8,7 +8,7 @@ import { useSearchFacets } from './search-facets';
 
 export function SoupSearchFacets() {
   const panel = useSplitPanelOrThrow();
-  const view = useSoupView().view;
+  const { view } = useSoupView();
   const facets = useSearchFacets();
   const [typeMenuOpen, setTypeMenuOpen] = createSignal(false);
   const hotkeys = createHotkeyGroup();

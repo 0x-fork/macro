@@ -1,5 +1,5 @@
 import { SearchableMultiSelectInline } from '@app/features/next-soup/soup-view/filters-bar/searchable-multi-select';
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -231,7 +231,7 @@ export function UnifiedFilterDropdown(props: UnifiedFilterDropdownProps = {}) {
     props.onOpenChange?.(next);
   };
   const panel = useSplitPanelOrThrow();
-  const collection = useSoupCollection();
+  const { collection } = useSoupView();
   const controls = useSoupFacetControls();
   const isNewInbox = useIsNewInbox();
   const hotkeys = createHotkeyGroup();

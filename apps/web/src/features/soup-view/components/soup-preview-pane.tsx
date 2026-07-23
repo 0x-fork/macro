@@ -19,10 +19,10 @@ type SoupPreviewPaneProps = {
 export function SoupPreviewPane(props: SoupPreviewPaneProps) {
   const panel = useSplitPanelOrThrow();
   const orchestrator = useGlobalBlockOrchestrator();
-  const view = useSoupView();
+  const { previewEntity, previewPaneVisible } = useSoupView();
 
   return (
-    <Show when={view.previewPaneVisible()}>
+    <Show when={previewPaneVisible()}>
       <Resize.Panel
         id="soup-preview"
         minSize={props.minSize ?? 0}
@@ -30,7 +30,7 @@ export function SoupPreviewPane(props: SoupPreviewPaneProps) {
       >
         <div class="size-full">
           <Show
-            when={view.previewEntity()}
+            when={previewEntity()}
             fallback={
               props.empty ?? (
                 <EmptyStatePanel

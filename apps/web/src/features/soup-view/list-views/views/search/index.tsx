@@ -1,12 +1,8 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
-import {
-  type FacetSelection,
-  SoupCollectionProvider,
-  type SoupRow,
-  useSoupCollection,
-} from '@app/features/soup-list';
+import type { FacetSelection, SoupRow } from '@app/features/soup-list';
 import { NIL_UUID } from '@app/features/soup-list/facet-store';
+import { useSoupView } from '@app/features/soup-view/context';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -42,12 +38,12 @@ import { SoupMobileControls } from '../../../components/soup-mobile-controls';
 import { SoupPreviewPane } from '../../../components/soup-preview-pane';
 import { SoupSelectionToolbar } from '../../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../../components/soup-view-header';
-import { SoupViewProvider, useSoupView } from '../../../context';
+import { SoupViewProvider } from '../../../context';
 import { getViewPreset } from '../../../soup-view-presets';
 import { useSoupNotificationInvalidators } from '../../../use-soup-notification-invalidators';
+import { createSoupList } from '../../create-soup-list';
 import { SoupEntityList } from '../../soup-entity-list';
 import { SoupViewRoot } from '../../soup-view-root';
-import { useSoupViewSetup } from '../../use-soup-view-setup';
 import { registerSoupSearchSplit } from './search-controllers';
 import { normalizeSearchFacets } from './search-facet-state';
 
@@ -67,20 +63,25 @@ function SearchProgress(props: { label: string }) {
 }
 
 function SearchListViewContent() {
-  const collection = useSoupCollection();
   const { dataSource, state: listState } = useList<SoupRow>();
   const panel = useSplitPanelOrThrow();
-  const view = useSoupView();
+  const {
+    collection,
+    openSearch,
+    previewPaneVisible,
+    previewVisible,
+    viewName,
+  } = useSoupView();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
-  useSplitDisplayName(view.viewName);
+  useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   createEffect(() => {
-    const visible = view.previewPaneVisible();
+    const visible = previewPaneVisible();
     const [current, setCurrent] = panel.previewState;
     if (current() !== visible) setCurrent(visible);
   });
@@ -98,7 +99,7 @@ function SearchListViewContent() {
         normalizeSearchFacets(collection.facets);
         collection.setState('search', query);
       },
-      focus: () => view.openSearch(),
+      focus: () => openSearch(),
     });
     onCleanup(teardown);
   });
@@ -114,7 +115,7 @@ function SearchListViewContent() {
       value={{
         ...panel,
         halfSplitState: () =>
-          view.previewVisible() ? { side: 'left', percentage: 30 } : undefined,
+          previewVisible() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
       <SoupFileDropzone>
@@ -133,13 +134,13 @@ function SearchListViewContent() {
               <Resize.Panel
                 id="soup-list"
                 minSize={300}
-                maxSize={view.previewPaneVisible() ? 440 : undefined}
+                maxSize={previewPaneVisible() ? 440 : undefined}
               >
                 <div
                   ref={setListContent}
                   class={cn(
                     'relative flex size-full min-h-0 min-w-0 flex-col',
-                    view.previewPaneVisible() && 'border-r border-edge-muted'
+                    previewPaneVisible() && 'border-r border-edge-muted'
                   )}
                 >
                   <List.Content>
@@ -246,7 +247,7 @@ function SearchListViewContent() {
 }
 
 export function SearchListView(props: SearchListViewProps) {
-  const setup = useSoupViewSetup({
+  const setup = createSoupList({
     view: 'search',
     initialState: {
       facets: props.initialFacets,
@@ -255,15 +256,14 @@ export function SearchListView(props: SearchListViewProps) {
   });
 
   return (
-    <SoupCollectionProvider value={setup.collection}>
-      <List.Root
-        dataSource={setup.collection.dataSource}
-        state={setup.listState}
+    <List.Root state={setup.list}>
+      <SoupViewProvider
+        soup={setup}
+        view="search"
+        viewName={props.viewName ?? 'Search'}
       >
-        <SoupViewProvider view="search" viewName={props.viewName ?? 'Search'}>
-          <SearchListViewContent />
-        </SoupViewProvider>
-      </List.Root>
-    </SoupCollectionProvider>
+        <SearchListViewContent />
+      </SoupViewProvider>
+    </List.Root>
   );
 }

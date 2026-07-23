@@ -1,17 +1,14 @@
-import {
-  type ListActivateOptions,
-  type ListActivation,
-  type ListNavigationResult,
-  useList,
+import type {
+  ListActivateOptions,
+  ListActivation,
+  ListNavigationResult,
 } from '@app/components/list';
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { CommandState } from '@app/features/command/state';
+import { useSoup } from '@app/features/next-soup/soup-context';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
-import {
-  type SoupEntityRow,
-  type SoupRow,
-  useSoupCollection,
-} from '@app/features/soup-list';
+import type { SoupEntityRow, SoupRow } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -38,7 +35,6 @@ import { openSingleStackNotification } from '@notifications';
 import { type Accessor, createMemo, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import { useEntityActionHotkeys } from './actions/use-entity-action-hotkeys';
-import { useSoupView } from './context';
 
 const LOAD_MORE_DISTANCE_FROM_END = 3;
 const NUMBER_TAB_HOTKEYS = [
@@ -72,16 +68,23 @@ const entityFromRow = (row: SoupRow | undefined): EntityData | undefined => {
 /** Owns Soup keyboard commands and their mounted/persistent lifetimes. */
 export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   const panel = useSplitPanelOrThrow();
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const {
+    applyTabPreset,
+    collection,
+    previewVisible,
+    setSortOpen,
+    sortVisible,
+    tabs,
+    view,
+  } = useSoupView();
   const analytics = useAnalytics();
-  const { dataSource, state: listState } = useList<SoupRow>();
+  const listState = useSoup().list;
   const enabled = () => options.enabled?.() ?? true;
 
   useEntityActionHotkeys({
     scopeId: options.listScopeId,
     list: listState,
-    activeListView: view.view,
+    activeListView: view,
     activeSoupViewTab: () => collection.state.activeTab,
     splitHandle: panel.handle,
     condition: enabled,
@@ -95,7 +98,8 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     options.virtualizer()?.scrollToIndex(index, { align: 'nearest' });
 
   const fetchMore = async () => {
-    if (!dataSource.hasMore() || dataSource.isLoadingMore()) {
+    const dataSource = listState.dataSource();
+    if (!dataSource || !dataSource.hasMore() || dataSource.isLoadingMore()) {
       return;
     }
     await dataSource.loadMore();
@@ -154,7 +158,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     if (next.item.kind === 'entity' && !listVisible) {
       void openEntityInSplitFromUnifiedList(next.item.entity, {
         splitHandle: panel.handle,
-        referredFrom: view.view(),
+        referredFrom: view(),
         mergeHistory: true,
       });
     }
@@ -266,8 +270,8 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   };
 
   const currentTabIndex = createMemo(() => {
-    const tabs = view.tabs();
-    const current = tabs.findIndex(
+    const availableTabs = tabs();
+    const current = availableTabs.findIndex(
       (tab) => tab.value === collection.state.activeTab
     );
     if (current >= 0) return current;
@@ -275,38 +279,39 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   });
 
   const cycleTab = (offset: number) => {
-    const tabs = view.tabs();
-    if (tabs.length <= 1) return false;
-    const next = (currentTabIndex() + offset + tabs.length) % tabs.length;
-    const tab = tabs[next];
+    const availableTabs = tabs();
+    if (availableTabs.length <= 1) return false;
+    const next =
+      (currentTabIndex() + offset + availableTabs.length) %
+      availableTabs.length;
+    const tab = availableTabs[next];
     if (!tab) return false;
-    return view.applyTabPreset(tab.value);
+    return applyTabPreset(tab.value);
   };
 
-  // J/K intentionally survive the rendered list. The split owns this group
-  // and replaces it when another Soup list mounts.
-  const persistentScope = options.scopeId ?? panel.splitHotkeyScope;
-  const persistentHotkeys = createHotkeyGroup();
+  const hotkeys = createHotkeyGroup();
+
+  // Keep J/K scoped to the mounted Soup view until navigation ownership has
+  // a dedicated solution outside the split-panel context.
+  const navigationScope = panel.splitHotkeyScope;
   registerHotkey({
     hotkey: 'j',
     hotkeyToken: TOKENS.entity.step.end,
-    scopeId: persistentScope,
+    scopeId: navigationScope,
     description: 'Down',
     condition: canNavigate,
     keyDownHandler: () => navigate(1),
     hide: true,
-  }).withGroup(persistentHotkeys);
+  });
   registerHotkey({
     hotkey: 'k',
     hotkeyToken: TOKENS.entity.step.start,
-    scopeId: persistentScope,
+    scopeId: navigationScope,
     description: 'Up',
     condition: canNavigate,
     keyDownHandler: () => navigate(-1),
     hide: true,
-  }).withGroup(persistentHotkeys);
-
-  const hotkeys = createHotkeyGroup();
+  });
 
   for (let index = 0; index < NUMBER_TAB_HOTKEYS.length; index++) {
     const hotkey = NUMBER_TAB_HOTKEYS[index];
@@ -316,11 +321,11 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
       hotkeyToken: TOKENS.soup.tabs[hotkey],
       scopeId: options.listScopeId,
       description: `Switch to tab ${hotkey}`,
-      condition: () => view.tabs().length > index,
+      condition: () => tabs().length > index,
       keyDownHandler: () => {
-        const tab = view.tabs()[index];
+        const tab = tabs()[index];
         if (!tab) return false;
-        return view.applyTabPreset(tab.value);
+        return applyTabPreset(tab.value);
       },
       hide: true,
     }).withGroup(hotkeys);
@@ -331,7 +336,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     hotkeyToken: TOKENS.soup.tabs.next,
     scopeId: options.listScopeId,
     description: 'Next tab',
-    condition: () => view.tabs().length > 1,
+    condition: () => tabs().length > 1,
     keyDownHandler: (event) => {
       event?.preventDefault();
       return cycleTab(1);
@@ -344,7 +349,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     hotkeyToken: TOKENS.soup.tabs.prev,
     scopeId: options.listScopeId,
     description: 'Previous tab',
-    condition: () => view.tabs().length > 1,
+    condition: () => tabs().length > 1,
     keyDownHandler: (event) => {
       event?.preventDefault();
       return cycleTab(-1);
@@ -357,9 +362,9 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     hotkeyToken: TOKENS.soup.sort,
     scopeId: options.listScopeId,
     description: 'Open sort menu',
-    condition: view.sortVisible,
+    condition: sortVisible,
     keyDownHandler: () => {
-      view.setSortOpen(true);
+      setSortOpen(true);
       return true;
     },
   }).withGroup(hotkeys);
@@ -550,7 +555,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
         return true;
       }
       if (item?.kind !== 'entity') return false;
-      if (!view.previewVisible()) {
+      if (!previewVisible()) {
         return activateCurrent({ reason: 'keyboard' }) !== undefined;
       }
 

@@ -4,7 +4,7 @@ import { SortDropdown } from '@app/features/next-soup/soup-view/filters-bar/sort
 import type { GroupOptionId } from '@app/features/next-soup/soup-view/group-options';
 import type { SystemSortOption } from '@app/features/next-soup/soup-view/sort-options';
 import { SoupViewCreateButton } from '@app/features/next-soup/soup-view/soup-view-create-button';
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleHeaderItem';
 import {
   SplitHeaderLeft,
@@ -28,7 +28,7 @@ import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
 import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-solid';
 import { Button, cn, Layer, Tooltip } from '@ui';
 import { createSignal, onCleanup, Show } from 'solid-js';
-import { useSoupView } from '../context';
+
 import { SoupActiveFacets } from '../filters/soup-active-facets';
 import { SoupSearchbar } from '../filters/soup-searchbar';
 import { UnifiedFilterDropdown } from '../filters/unified-filter-dropdown';
@@ -46,11 +46,27 @@ import {
 } from './soup-view-options';
 
 export function SoupViewHeader() {
-  const collection = useSoupCollection();
-  const viewState = useSoupView();
+  const {
+    applyTabPreset,
+    collection,
+    defaultTab,
+    focusSearch,
+    openSearch,
+    previewOpen,
+    previewPaneVisible,
+    searchOpen,
+    setPreviewOpen,
+    setSearchOpen,
+    setSortOpen,
+    setViewMode,
+    sortOpen,
+    tabs,
+    view,
+    viewMode,
+    viewName,
+  } = useSoupView();
   const panel = useSplitPanelOrThrow();
   const breakpoints = createSplitBreakpoints({ wide: 640 });
-  const view = viewState.view;
   const isNewInbox = useIsNewInbox();
   const [groupOpen, setGroupOpen] = createSignal(false);
   const [searchCollapsed, setSearchCollapsed] = createSignal(false);
@@ -69,12 +85,12 @@ export function SoupViewHeader() {
     description: 'Search',
     runWithInputFocused: true,
     keyDownHandler: () => {
-      if (viewState.searchOpen()) {
-        viewState.focusSearch(true);
+      if (searchOpen()) {
+        focusSearch(true);
       } else if (isMobile() || searchCollapsed()) {
-        viewState.openSearch(true);
+        openSearch(true);
       } else {
-        viewState.focusSearch(true);
+        focusSearch(true);
       }
       return true;
     },
@@ -88,7 +104,7 @@ export function SoupViewHeader() {
     registrationType: 'add',
     description: 'Toggle preview',
     keyDownHandler: () => {
-      viewState.setPreviewOpen((open) => !open);
+      setPreviewOpen((open) => !open);
       return true;
     },
   });
@@ -98,36 +114,32 @@ export function SoupViewHeader() {
     view() === 'companies' ? (
       <TabsInset
         list={COMPANY_MODE_TABS}
-        value={viewState.viewMode()}
+        value={viewMode()}
         defaultValue="board"
-        onChange={(value) =>
-          viewState.setViewMode(value === 'list' ? 'list' : 'board')
-        }
+        onChange={(value) => setViewMode(value === 'list' ? 'list' : 'board')}
       />
     ) : (
       <TabsInset
-        list={viewState.tabs()}
+        list={tabs()}
         value={collection.state.activeTab}
-        defaultValue={viewState.defaultTab()}
-        onChange={viewState.applyTabPreset}
+        defaultValue={defaultTab()}
+        onChange={applyTabPreset}
       />
     );
   const collapsedTabs = () =>
     view() === 'companies' ? (
       <TabsInsetDropdown
         list={COMPANY_MODE_TABS}
-        value={viewState.viewMode()}
+        value={viewMode()}
         defaultValue="board"
-        onChange={(value) =>
-          viewState.setViewMode(value === 'list' ? 'list' : 'board')
-        }
+        onChange={(value) => setViewMode(value === 'list' ? 'list' : 'board')}
       />
     ) : (
       <TabsInsetDropdown
-        list={viewState.tabs()}
+        list={tabs()}
         value={collection.state.activeTab}
-        defaultValue={viewState.defaultTab()}
-        onChange={viewState.applyTabPreset}
+        defaultValue={defaultTab()}
+        onChange={applyTabPreset}
       />
     );
 
@@ -135,16 +147,14 @@ export function SoupViewHeader() {
     <div
       class={cn(
         'flex w-full shrink-0 flex-col',
-        !isMobile() &&
-          viewState.previewPaneVisible() &&
-          'border-b-px border-edge-muted'
+        !isMobile() && previewPaneVisible() && 'border-b-px border-edge-muted'
       )}
     >
       <SplitHeaderLeft>
         <div class="flex h-full min-w-0 items-center gap-3">
-          <Show when={!isMobile() && !viewState.searchOpen()}>
+          <Show when={!isMobile() && !searchOpen()}>
             <div class="flex shrink-0 items-center gap-1">
-              <span class="text-sm font-semibold">{viewState.viewName()}</span>
+              <span class="text-sm font-semibold">{viewName()}</span>
               <Show when={docsUrl()}>
                 {(url) => (
                   <Tooltip label="View documentation">
@@ -163,8 +173,7 @@ export function SoupViewHeader() {
           </Show>
           <Show
             when={
-              !viewState.searchOpen() &&
-              (view() === 'companies' || viewState.tabs().length > 0)
+              !searchOpen() && (view() === 'companies' || tabs().length > 0)
             }
           >
             <CollapsibleHeaderItem
@@ -175,7 +184,7 @@ export function SoupViewHeader() {
               collapsed={collapsedTabs}
             />
           </Show>
-          <Show when={!viewState.searchOpen() && view() === 'mail'}>
+          <Show when={!searchOpen() && view() === 'mail'}>
             <CollapsibleHeaderItem
               id="inbox"
               priority={3}
@@ -189,7 +198,7 @@ export function SoupViewHeader() {
       <Show when={!isMobile()}>
         <SplitHeaderRight>
           <Show
-            when={viewState.searchOpen()}
+            when={searchOpen()}
             fallback={
               <>
                 <Show when={view() !== 'search'}>
@@ -221,7 +230,7 @@ export function SoupViewHeader() {
                             depth={2}
                             class="bg-surface"
                             label="Search"
-                            onClick={() => viewState.openSearch()}
+                            onClick={() => openSearch()}
                           >
                             <SearchIcon />
                           </Button>
@@ -247,7 +256,7 @@ export function SoupViewHeader() {
                 <SoupSearchbar
                   variant="secondary"
                   autoFocus
-                  onDismiss={() => viewState.setSearchOpen(false)}
+                  onDismiss={() => setSearchOpen(false)}
                 />
               </div>
             </Layer>
@@ -269,8 +278,8 @@ export function SoupViewHeader() {
                   collection.setState('sort', [{ id, reversed: false }])
                 }
                 options={soupSortOptions(view())}
-                open={viewState.sortOpen()}
-                onOpenChange={viewState.setSortOpen}
+                open={sortOpen()}
+                onOpenChange={setSortOpen}
               />
             </Show>
             <Show when={soupGroupOptions(view()).length > 0}>
@@ -298,14 +307,14 @@ export function SoupViewHeader() {
             label={breakpoints.wide() ? 'Preview' : 'No space for preview'}
           >
             <Button
-              onClick={() => viewState.setPreviewOpen((open) => !open)}
+              onClick={() => setPreviewOpen((open) => !open)}
               variant="base"
               size="sm"
               depth={2}
               class="bg-surface"
               disabled={!breakpoints.wide()}
             >
-              {viewState.previewOpen() ? <EyeSlashIcon /> : <EyeIcon />}
+              {previewOpen() ? <EyeSlashIcon /> : <EyeIcon />}
               <span>Preview</span>
             </Button>
           </Tooltip>

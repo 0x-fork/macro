@@ -1,14 +1,14 @@
 import { SearchableMultiSelectInline } from '@app/features/next-soup/soup-view/filters-bar/searchable-multi-select';
 import type { GroupOptionId } from '@app/features/next-soup/soup-view/group-options';
 import type { SystemSortOption } from '@app/features/next-soup/soup-view/sort-options';
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import CheckIcon from '@phosphor/check.svg';
 import SlidersIcon from '@phosphor/sliders-horizontal.svg';
 import XIcon from '@phosphor/x.svg';
 import { Button } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
-import { useSoupView } from '../context';
+
 import {
   clearFacetControlRefinements,
   isFacetControlRefinement,
@@ -45,11 +45,10 @@ const DrawerRow = (props: {
 );
 
 export function SoupMobileFilterDrawer() {
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const { activePresetFacets, collection, sortVisible, view } = useSoupView();
   const controls = useSoupFacetControls();
-  const sortOptions = () => soupSortOptions(view.view());
-  const groupOptions = () => soupGroupOptions(view.view());
+  const sortOptions = () => soupSortOptions(view());
+  const groupOptions = () => soupGroupOptions(view());
   const activeSort = () =>
     (collection.state.sort[0]?.id as SystemSortOption | undefined) ??
     'updated_at';
@@ -57,10 +56,10 @@ export function SoupMobileFilterDrawer() {
     (collection.state.groupBy as GroupOptionId | undefined) ?? 'none';
   const activeControls = () =>
     controls().filter((control) =>
-      isFacetControlRefinement(control, view.activePresetFacets())
+      isFacetControlRefinement(control, activePresetFacets())
     );
   const visible = () =>
-    controls().length > 0 || view.sortVisible() || groupOptions().length > 0;
+    controls().length > 0 || sortVisible() || groupOptions().length > 0;
 
   const toggleOption = (
     control: ReturnType<typeof controls>[number],
@@ -118,7 +117,7 @@ export function SoupMobileFilterDrawer() {
                     onClick={() =>
                       clearFacetControlRefinements(
                         controls(),
-                        view.activePresetFacets()
+                        activePresetFacets()
                       )
                     }
                   >
@@ -129,7 +128,7 @@ export function SoupMobileFilterDrawer() {
               </div>
 
               <div class="flex-1 overflow-y-auto pb-4 scrollbar-hidden">
-                <Show when={view.sortVisible()}>
+                <Show when={sortVisible()}>
                   <MobileDrawer.Label id="soup-mobile-sort-label">
                     Sort
                   </MobileDrawer.Label>

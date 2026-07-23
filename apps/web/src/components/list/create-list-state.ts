@@ -1,5 +1,14 @@
-import { type Accessor, createMemo, createSignal } from 'solid-js';
+import {
+  type Accessor,
+  createMemo,
+  createRenderEffect,
+  createSignal,
+  on,
+} from 'solid-js';
 import { createSelectionState, type Identifiable } from './selection-state';
+import type { ListDataSource } from './types';
+
+const EMPTY_ITEMS: readonly Identifiable[] = [];
 
 export type ListNavigationResult<T> = { item: T; index: number } | undefined;
 
@@ -57,7 +66,7 @@ export type ListActivateOptions = {
 };
 
 export type CreateListStateOptions<T extends Identifiable> = {
-  initialItems?: readonly T[];
+  dataSource?: ListDataSource<T>;
   /** Whether keyboard navigation may land on an item. Defaults to always. */
   isNavigable?: (item: T) => boolean;
   /** Whether an item may participate in selection. Defaults to always. */
@@ -107,7 +116,7 @@ export const createListState = <T extends Identifiable>(
   options: CreateListStateOptions<T> = {}
 ) => {
   const {
-    initialItems = [],
+    dataSource: initialDataSource,
     isNavigable = () => true,
     isSelectable = () => true,
     wrapNavigation = false,
@@ -116,9 +125,14 @@ export const createListState = <T extends Identifiable>(
     onActivate,
   } = options;
 
-  const [items, setItemsInternal] = createSignal<readonly T[]>(initialItems);
-  const [focusedIndex, setFocusedIndex] = createSignal(-1);
-  let lastFocusedItemId: string | undefined;
+  const [dataSource, setDataSourceInternal] = createSignal<
+    ListDataSource<T> | undefined
+  >(initialDataSource);
+
+  const items = (): readonly T[] =>
+    dataSource()?.items() ?? (EMPTY_ITEMS as readonly T[]);
+
+  const [focusedIdInternal, setFocusedIdInternal] = createSignal<string>();
 
   const selection = createSelectionState<T>();
 
@@ -132,6 +146,13 @@ export const createListState = <T extends Identifiable>(
 
     return { item, index };
   };
+
+  const indexOf = (id: string) => items().findIndex((item) => item.id === id);
+
+  const focusedIndex = createMemo(() => {
+    const id = focusedIdInternal();
+    return id === undefined ? -1 : indexOf(id);
+  });
 
   const currentFocusResult = (): ListNavigationResult<T> =>
     resultAt(focusedIndex());
@@ -152,17 +173,17 @@ export const createListState = <T extends Identifiable>(
   ) => {
     const previous = currentFocusResult();
     const current = index < 0 ? undefined : resultAt(index);
+
     const changed =
       previous?.index !== current?.index ||
       previous?.item.id !== current?.item.id;
 
-    setFocusedIndex(index);
-    lastFocusedItemId = current ? (itemId ?? current.item.id) : undefined;
+    setFocusedIdInternal(current ? (itemId ?? current.item.id) : undefined);
 
-    if (changed) notifyFocus(current, previous, reason);
+    if (!changed) return;
+
+    notifyFocus(current, previous, reason);
   };
-
-  const indexOf = (id: string) => items().findIndex((item) => item.id === id);
 
   const focusedItem = createMemo(() => currentFocusResult()?.item);
 
@@ -303,48 +324,64 @@ export const createListState = <T extends Identifiable>(
     }
   };
 
-  const setItems = (nextItems: readonly T[]) => {
-    const previous = currentFocusResult();
+  const setDataSource = (next: ListDataSource<T> | undefined) => {
+    if (dataSource() === next) return;
 
-    setItemsInternal(nextItems);
-
-    const selected = selection.selected();
-
-    if (selected.length) {
-      // Refresh selected payloads when the source replaces an item object while
-      // retaining its id. Selections that are temporarily absent remain selected
-      // so consumers can decide when filters/search should clear them.
-      const nextById = new Map(nextItems.map((item) => [item.id, item]));
-
-      let selectionChanged = false;
-      const reconciledSelection = selected.map((item) => {
-        const next = nextById.get(item.id);
-        if (next && next !== item) {
-          selectionChanged = true;
-          return next;
-        }
-        return item;
-      });
-
-      if (selectionChanged) selection.set(reconciledSelection);
-    }
-
-    // Keep focus pinned to the same item across list updates.
-    if (!lastFocusedItemId) return;
-
-    const nextIndex = nextItems.findIndex(
-      (item) => item.id === lastFocusedItemId
-    );
-
-    if (nextIndex < 0) {
-      setFocusedIndex(-1);
-      lastFocusedItemId = undefined;
-      notifyFocus(undefined, previous, 'items');
-      return;
-    }
-
-    setFocusedIndex(nextIndex);
+    selection.clear();
+    commitFocus(-1, undefined, 'items');
+    setDataSourceInternal(() => next);
   };
+
+  createRenderEffect(
+    on(items, (nextItems, previousItems = EMPTY_ITEMS as readonly T[]) => {
+      if (import.meta.env.DEV) {
+        const ids = new Set<string>();
+        for (const item of nextItems) {
+          if (ids.has(item.id)) {
+            throw new Error(
+              `List data source emitted duplicate item id: ${item.id}`
+            );
+          }
+          ids.add(item.id);
+        }
+      }
+
+      const selected = selection.selected();
+
+      if (selected.length) {
+        // Refresh selected payloads when the source replaces an item object
+        // while retaining its id. Temporarily absent selections remain selected
+        // so consumers can decide when filters/search should clear them.
+        const nextById = new Map(nextItems.map((item) => [item.id, item]));
+
+        let selectionChanged = false;
+        const reconciledSelection = selected.map((item) => {
+          const next = nextById.get(item.id);
+          if (next && next !== item) {
+            selectionChanged = true;
+            return next;
+          }
+          return item;
+        });
+
+        if (selectionChanged) selection.set(reconciledSelection);
+      }
+
+      const focusedId = focusedIdInternal();
+      if (focusedId === undefined) return;
+      if (nextItems.some((item) => item.id === focusedId)) return;
+
+      const previousIndex = previousItems.findIndex(
+        (item) => item.id === focusedId
+      );
+      const previous =
+        previousIndex < 0
+          ? undefined
+          : { item: previousItems[previousIndex], index: previousIndex };
+      setFocusedIdInternal(undefined);
+      notifyFocus(undefined, previous, 'items');
+    })
+  );
 
   const findNextIndex = (startIndex: number, offset: number) => {
     const allItems = items();
@@ -460,9 +497,10 @@ export const createListState = <T extends Identifiable>(
   };
 
   return {
+    dataSource,
+    setDataSource,
     items: {
       all: items as Accessor<readonly T[]>,
-      set: setItems,
       count: () => items().length,
       get: (id: string) => items().find((item) => item.id === id),
       at: itemAt,

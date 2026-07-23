@@ -1,6 +1,6 @@
 import { LIST_VIEW_DOCS_URL } from '@app/constants/docs-links';
 import { runCreateAction } from '@app/features/command/Launcher';
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useAddInboxFlow, useEmailLinksStatus } from '@core/email-link';
 import EmptyStateAiGraphic from '@design/empty-state-ai.svg';
@@ -17,7 +17,7 @@ import PlusIcon from '@phosphor/plus.svg';
 import { useCurrentTeamQuery, useIsTeamAdmin } from '@queries/team/teams';
 import { EmptyStatePanel } from '@ui';
 import { Match, Switch } from 'solid-js';
-import { useSoupView } from '../context';
+
 import {
   clearFacetRefinements,
   hasFacetRefinements,
@@ -62,9 +62,7 @@ export function SoupCompaniesErrorState(props: { onRetry?: () => void }) {
 }
 
 export function SoupEmptyState() {
-  const collection = useSoupCollection();
-  const viewState = useSoupView();
-  const view = viewState.view;
+  const { activePresetFacets, collection, view } = useSoupView();
   const teamQuery = useCurrentTeamQuery();
   const isTeamAdmin = useIsTeamAdmin();
   const { openSettings } = useSettingsState();
@@ -99,9 +97,7 @@ export function SoupEmptyState() {
           />
         )}
       </Match>
-      <Match
-        when={hasFacetRefinements(collection, viewState.activePresetFacets())}
-      >
+      <Match when={hasFacetRefinements(collection, activePresetFacets())}>
         <EmptyStatePanel
           centered
           graphic={EmptyStateNoSearchGraphic}
@@ -110,7 +106,7 @@ export function SoupEmptyState() {
           primaryAction={{
             label: 'Clear filters',
             onClick: () =>
-              clearFacetRefinements(collection, viewState.activePresetFacets()),
+              clearFacetRefinements(collection, activePresetFacets()),
           }}
           documentationUrl={docsUrl()}
         />

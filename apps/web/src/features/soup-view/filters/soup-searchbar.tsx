@@ -1,4 +1,4 @@
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
@@ -19,7 +19,6 @@ import {
   onMount,
   Show,
 } from 'solid-js';
-import { useSoupView } from '../context';
 
 type SearchbarVariant = 'filled' | 'secondary';
 
@@ -40,8 +39,11 @@ const variantStyles: Record<SearchbarVariant, string> = {
 
 /** Original Soup search editor ported to the facet-native collection state. */
 export function SoupSearchbar(props: SoupSearchbarProps) {
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const {
+    collection,
+    searchControl: registeredSearchControl,
+    setSearchControl,
+  } = useSoupView();
   const panel = useSplitPanelOrThrow();
   const persistedSearchText = panel.handle.currentEntryState()?.['search.text'];
   const initialEditorValue =
@@ -127,11 +129,11 @@ export function SoupSearchbar(props: SoupSearchbarProps) {
     },
   };
 
-  onMount(() => view.setSearchControl(searchControl));
+  onMount(() => setSearchControl(searchControl));
   onCleanup(() => {
     collection.setState('searchPaused', false);
-    if (view.searchControl() === searchControl)
-      view.setSearchControl(undefined);
+    if (registeredSearchControl() === searchControl)
+      setSearchControl(undefined);
   });
 
   return (

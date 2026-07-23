@@ -1,7 +1,7 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import { TaskListEntity } from '@app/features/next-soup/soup-view/views/tasks/TaskListEntity';
-import { SoupCollectionProvider, type SoupRow } from '@app/features/soup-list';
+import type { SoupRow } from '@app/features/soup-list';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -36,9 +36,9 @@ import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../components/soup-view-header';
 import { SoupViewProvider, useSoupView } from '../../context';
 import { useSoupNotificationInvalidators } from '../../use-soup-notification-invalidators';
+import { createSoupList } from '../create-soup-list';
 import { SoupEntityList } from '../soup-entity-list';
 import { SoupViewRoot } from '../soup-view-root';
-import { useSoupViewSetup } from '../use-soup-view-setup';
 
 export type TasksListViewProps = {
   viewName?: string;
@@ -46,18 +46,18 @@ export type TasksListViewProps = {
 
 function TasksListViewContent() {
   const panel = useSplitPanelOrThrow();
-  const view = useSoupView();
+  const { previewPaneVisible, previewVisible, viewName } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
-  useSplitDisplayName(view.viewName);
+  useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   createEffect(() => {
-    const visible = view.previewPaneVisible();
+    const visible = previewPaneVisible();
     const [current, setCurrent] = panel.previewState;
     if (current() !== visible) setCurrent(visible);
   });
@@ -74,7 +74,7 @@ function TasksListViewContent() {
       value={{
         ...panel,
         halfSplitState: () =>
-          view.previewVisible() ? { side: 'left', percentage: 30 } : undefined,
+          previewVisible() ? { side: 'left', percentage: 30 } : undefined,
       }}
     >
       <SoupFileDropzone>
@@ -92,7 +92,7 @@ function TasksListViewContent() {
               <Resize.Panel
                 id="soup-list"
                 minSize={300}
-                maxSize={view.previewPaneVisible() ? 440 : undefined}
+                maxSize={previewPaneVisible() ? 440 : undefined}
               >
                 <div
                   ref={setListContent}
@@ -178,18 +178,17 @@ function TasksListViewContent() {
 }
 
 export function TasksListView(props: TasksListViewProps) {
-  const setup = useSoupViewSetup({ view: 'tasks' });
+  const setup = createSoupList({ view: 'tasks' });
 
   return (
-    <SoupCollectionProvider value={setup.collection}>
-      <List.Root
-        dataSource={setup.collection.dataSource}
-        state={setup.listState}
+    <List.Root state={setup.list}>
+      <SoupViewProvider
+        soup={setup}
+        view="tasks"
+        viewName={props.viewName ?? 'Tasks'}
       >
-        <SoupViewProvider view="tasks" viewName={props.viewName ?? 'Tasks'}>
-          <TasksListViewContent />
-        </SoupViewProvider>
-      </List.Root>
-    </SoupCollectionProvider>
+        <TasksListViewContent />
+      </SoupViewProvider>
+    </List.Root>
   );
 }

@@ -3,10 +3,10 @@ import {
   type TabbedListView,
   VIEW_TAB_LISTS,
 } from '@app/features/next-soup/soup-view/soup-view-tabs';
-import {
-  type FacetSelection,
-  type SoupCollectionStore,
-  useSoupCollection,
+import type {
+  FacetSelection,
+  SoupCollection,
+  SoupCollectionStore,
 } from '@app/features/soup-list';
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
 import { createSplitBreakpoints } from '@components/app/split-layout/create-split-breakpoints';
@@ -36,6 +36,7 @@ import {
 import { createStore, produce } from 'solid-js/store';
 import { z } from 'zod';
 
+import type { SoupList } from './list-views/create-soup-list';
 import {
   getViewPreset,
   type PresetContext,
@@ -132,6 +133,7 @@ export type SoupSearchControl = {
 export type SoupEntityCollapse = (entityId: string) => Promise<void>;
 
 export type SoupViewContextValue = {
+  collection: SoupCollection;
   view: Accessor<ListView>;
   viewName: Accessor<string>;
   newInboxOverride: Accessor<boolean | undefined>;
@@ -180,6 +182,7 @@ const SoupViewContext = createContext<SoupViewContextValue>();
 
 export function SoupViewProvider(
   props: ParentProps<{
+    soup: SoupList;
     view: ListView;
     viewName: string;
     newInboxOverride?: boolean;
@@ -187,7 +190,7 @@ export function SoupViewProvider(
     initialPreviewOpen?: boolean;
   }>
 ) {
-  const collection = useSoupCollection();
+  const collection = props.soup.collection;
   const panel = useSplitPanelOrThrow();
 
   const userId = useUserId();
@@ -394,6 +397,7 @@ export function SoupViewProvider(
       collection.facets.has('status', 'not-done'));
 
   const value = {
+    collection,
     view: () => props.view,
     viewName: () => props.viewName,
     newInboxOverride: () => props.newInboxOverride,

@@ -85,7 +85,7 @@ function SoupActiveFacetChip(props: {
 }
 
 export function SoupActiveFacets() {
-  const baseline = useSoupView().activePresetFacets;
+  const { activePresetFacets: baseline } = useSoupView();
   const controls = useSoupFacetControls();
   const active = () =>
     controls().filter((control) =>

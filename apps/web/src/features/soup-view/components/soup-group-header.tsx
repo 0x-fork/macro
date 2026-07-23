@@ -1,5 +1,5 @@
 import type { SoupGroupHeaderRow } from '@app/features/soup-list';
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useDealStages } from '@companies/crm/deal-stages';
 import { CrmStageIcon } from '@companies/crm/StageIcon';
 import { UserIcon } from '@core/component/UserIcon';
@@ -28,7 +28,7 @@ export function SoupGroupHeader(props: {
   item: SoupGroupHeaderRow;
   focused: boolean;
 }) {
-  const collection = useSoupCollection();
+  const { collection } = useSoupView();
   const dealStages = useDealStages();
   const field = collection.groupByField;
   const expanded = () =>

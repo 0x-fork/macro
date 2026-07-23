@@ -4,12 +4,11 @@ import {
   createUniqueId,
   on,
   type ParentProps,
-  Suspense,
   useContext,
 } from 'solid-js';
 import { createListState, type ListState } from './create-list-state';
 import type { Identifiable } from './selection-state';
-import type { ListDataSource, ListDataSourceItem } from './types';
+import type { ListDataSource } from './types';
 
 export type ListContextValue<TItem extends Identifiable = Identifiable> = {
   id: string;
@@ -19,66 +18,40 @@ export type ListContextValue<TItem extends Identifiable = Identifiable> = {
 
 const ListContext = createContext<ListContextValue<Identifiable>>();
 
-export type ListRootProps<TSource extends ListDataSource<Identifiable>> =
-  ParentProps<{
-    dataSource: TSource;
-    state?: ListState<ListDataSourceItem<TSource>>;
-  }>;
+export type ListRootProps<TItem extends Identifiable> = ParentProps<{
+  dataSource?: ListDataSource<TItem>;
+  state?: ListState<TItem>;
+}>;
 
-function SyncDataSourceItems<TItem extends Identifiable>(props: {
-  dataSource: ListDataSource<TItem>;
-  state: ListState<TItem>;
-}) {
+export function ListRoot<TItem extends Identifiable = Identifiable>(
+  props: ListRootProps<TItem>
+) {
+  // The state is intentionally stable for the lifetime of this provider.
+  // Reactive changes belong inside the registered data source's accessors.
+  const state =
+    props.state ?? createListState<TItem>({ dataSource: props.dataSource });
+
   createRenderEffect(
     on(
-      () => props.dataSource.items(),
-      (sourceItems) => {
-        const items = sourceItems;
-
-        if (import.meta.env.DEV) {
-          const ids = new Set<string>();
-          for (const item of items) {
-            if (ids.has(item.id)) {
-              throw new Error(
-                `List data source emitted duplicate item id: ${item.id}`
-              );
-            }
-            ids.add(item.id);
-          }
-        }
-
-        props.state.items.set(items);
+      () => props.dataSource,
+      (dataSource) => {
+        if (dataSource) state.setDataSource(dataSource);
       }
     )
   );
 
-  return null;
-}
-
-export function ListRoot<TSource extends ListDataSource<Identifiable>>(
-  props: ListRootProps<TSource>
-) {
-  type TItem = ListDataSourceItem<TSource>;
-
-  // The state is intentionally stable for the lifetime of this provider.
-  // Reactive changes belong inside the data source's accessors.
-  const state = props.state ?? createListState<TItem>();
-
   const value: ListContextValue<Identifiable> = {
     id: createUniqueId(),
     get dataSource() {
-      return props.dataSource;
+      const dataSource = state.dataSource();
+      if (!dataSource) throw new Error('List has no registered data source');
+      return dataSource;
     },
     state: state as ListState<Identifiable>,
   };
 
   return (
-    <ListContext.Provider value={value}>
-      {props.children}
-      <Suspense>
-        <SyncDataSourceItems dataSource={props.dataSource} state={state} />
-      </Suspense>
-    </ListContext.Provider>
+    <ListContext.Provider value={value}>{props.children}</ListContext.Provider>
   );
 }
 

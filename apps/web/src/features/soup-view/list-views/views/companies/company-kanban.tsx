@@ -1,9 +1,6 @@
 import { useList } from '@app/components/list';
-import {
-  getSoupRowEntities,
-  type SoupRow,
-  useSoupCollection,
-} from '@app/features/soup-list';
+import { getSoupRowEntities, type SoupRow } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useDealStages } from '@companies/crm/deal-stages';
 import { CrmStageIcon } from '@companies/crm/StageIcon';
 import {
@@ -41,7 +38,7 @@ const BOARD_PADDING_X = 24;
 export function CompanyKanban(props: {
   onEntityClick: (entity: EntityData, event: MouseEvent) => void;
 }) {
-  const collection = useSoupCollection();
+  const { collection } = useSoupView();
   const { dataSource } = useList<SoupRow>();
   const dealStages = useDealStages();
   const permissions = useCrmPermissions();

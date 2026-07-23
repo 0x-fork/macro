@@ -9,7 +9,7 @@ import {
   TASK_GRID_TEMPLATE_AREAS_WIDE,
   TASK_GRID_TEMPLATE_COLUMNS_WIDE,
 } from '@app/features/next-soup/soup-view/views/tasks/task-grid-template';
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useCrmDisplayOptions } from '@companies/crm/display-options';
 import { useListLayout } from '@entity/composed/list-entity/shared';
 import StatusInProgress from '@icon/square-task-in-progress-circle.svg';
@@ -18,7 +18,7 @@ import ArrowDownIcon from '@phosphor/arrow-down.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { cn, Tooltip } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
-import { useSoupView } from '../context';
+
 import { nextHeaderSort } from './sort-state';
 
 const HEADER_ICON_CLASS = 'size-3 @max-[840px]/u-list:size-4 text-ink-muted';
@@ -33,7 +33,7 @@ const TASK_SORTS: Partial<Record<string, SystemSortOption>> = {
 };
 
 function useHeaderSort() {
-  const collection = useSoupCollection();
+  const { collection } = useSoupView();
   const active = () => collection.state.sort[0];
   const toggle = (id: SystemSortOption) => {
     collection.setState('sort', [nextHeaderSort(active(), id)]);
@@ -217,14 +217,14 @@ function CompanyListHeader() {
 
 export function SoupListHeader() {
   const layout = useListLayout();
-  const view = useSoupView();
+  const { view, viewMode } = useSoupView();
   const wide = () => layout?.isWide() ?? true;
   return (
     <Show when={wide()}>
-      <Show when={view.view() === 'tasks'}>
+      <Show when={view() === 'tasks'}>
         <TaskListHeader />
       </Show>
-      <Show when={view.view() === 'companies' && view.viewMode() === 'list'}>
+      <Show when={view() === 'companies' && viewMode() === 'list'}>
         <CompanyListHeader />
       </Show>
     </Show>

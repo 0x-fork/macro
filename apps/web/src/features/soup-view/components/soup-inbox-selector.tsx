@@ -1,6 +1,6 @@
 import { openAddInboxDialog } from '@app/features/inbox/AddInboxDialog';
 import { SearchableMultiSelect } from '@app/features/next-soup/soup-view/filters-bar/searchable-multi-select';
-import { useSoupCollection } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { inboxIconProps } from '@core/component/inboxIcon';
 import { UserIcon } from '@core/component/UserIcon';
@@ -21,7 +21,7 @@ import {
 } from '../filters/inbox-selection';
 
 export function SoupInboxSelector(props: { compact?: boolean }) {
-  const collection = useSoupCollection();
+  const { collection } = useSoupView();
   const linksQuery = useEmailLinksQuery();
   const multiInboxFlag = useFeatureFlag('enable-multi-inbox', {
     enabledOverride: ENABLE_MULTI_INBOX_OVERRIDE,

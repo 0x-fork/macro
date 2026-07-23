@@ -1,8 +1,8 @@
 import { TAGGABLE_LIST_VIEWS } from '@app/constants/list-views';
-import { useSoupCollection } from '@app/features/soup-list';
 import type { FacetId } from '@app/features/soup-list/facets';
 import { NO_ASSIGNEE, NO_STAGE } from '@app/features/soup-list/facets/base';
 import { isSearchTaggableType } from '@app/features/soup-list/search-type-capabilities';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useDealStages } from '@companies/crm/deal-stages';
 import { CrmStageIcon } from '@companies/crm/StageIcon';
@@ -24,7 +24,7 @@ import { useEmailLinksQuery } from '@queries/email/link';
 import { useTagsQuery } from '@queries/properties/tags';
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import { createEffect, createMemo, type JSX } from 'solid-js';
-import { useSoupView } from '../context';
+
 import {
   createSearchFacetController,
   type SoupSearchType,
@@ -67,8 +67,7 @@ const option = (
 ): FilterOption => ({ id, label, icon });
 
 export function useSoupFacetControls() {
-  const collection = useSoupCollection();
-  const view = useSoupView().view;
+  const { collection, view } = useSoupView();
   const searchFacetController =
     view() === 'search'
       ? createSearchFacetController(collection.facets)

@@ -9,8 +9,8 @@ import {
   isSoupRowVisible,
   type SoupEntityRow,
   type SoupRow,
-  useSoupCollection,
 } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import {
   useGlobalBlockOrchestrator,
   useGlobalNotificationSource,
@@ -51,7 +51,7 @@ import {
 import { SoupGroupHeader } from '../components/soup-group-header';
 import { SoupListHeader } from '../components/soup-list-headers';
 import { SoupMobileActionDrawerManager } from '../components/soup-mobile-action-drawer';
-import { useSoupView } from '../context';
+
 import { useSoupViewEntryState } from '../use-soup-view-entry-state';
 import { useSoupViewHotkeys } from '../use-soup-view-hotkeys';
 import { useIsNewInbox } from '../utils';
@@ -96,8 +96,8 @@ type SoupEntityListProps = {
 export function SoupEntityList(props: SoupEntityListProps) {
   const panel = useSplitPanelOrThrow();
   const orchestrator = useGlobalBlockOrchestrator();
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const { collapseEntity, collection, previewEntityId, setPreviewEntity } =
+    useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
@@ -162,9 +162,9 @@ export function SoupEntityList(props: SoupEntityListProps) {
     const entity = entityFromRow(listState.focus.item());
     if (entity) {
       focusHasResolved = true;
-      view.setPreviewEntity(entity);
-    } else if (focusHasResolved || view.previewEntityId() === undefined) {
-      view.setPreviewEntity(undefined);
+      setPreviewEntity(entity);
+    } else if (focusHasResolved || previewEntityId() === undefined) {
+      setPreviewEntity(undefined);
     }
   });
   const { restoredListState, persistedPreviewEntity } = useSoupViewEntryState({
@@ -300,8 +300,8 @@ export function SoupEntityList(props: SoupEntityListProps) {
     const item = swipeEntity(id);
     if (item?.kind !== 'entity') return;
     void markDone.executeWithList([item.entity], listState, undefined, {
-      collapseEntity: view.collapseEntity.shouldCollapse()
-        ? view.collapseEntity.callback()
+      collapseEntity: collapseEntity.shouldCollapse()
+        ? collapseEntity.callback()
         : undefined,
     });
   };
@@ -315,7 +315,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
               container={viewport}
               canSwipeLeft={canMarkDone}
               onSwipeLeft={executeMarkDone}
-              setCollapseEntity={view.collapseEntity.set}
+              setCollapseEntity={collapseEntity.set}
             >
               <div class="@container/u-list unified-list-root no-select-children relative flex size-full min-h-0 min-w-0 flex-col">
                 <SoupListHeader />

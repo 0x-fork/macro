@@ -1,7 +1,8 @@
 import { useList } from '@app/components/list';
 import { isListViewID } from '@app/constants/list-views';
 import { getChannelEntityTarget } from '@app/features/next-soup/utils';
-import { type SoupRow, useSoupCollection } from '@app/features/soup-list';
+import type { SoupRow } from '@app/features/soup-list';
+import { useSoupView } from '@app/features/soup-view/context';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
@@ -17,7 +18,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import { type EntityData, isNonMemberChannelEntity } from '@entity';
 import { useSetCompanyHiddenMutation } from '@queries/crm/companies';
 import type { Component, JSX } from 'solid-js';
-import { useSoupView } from '../context';
+
 import { useIsNewInbox } from '../utils';
 import {
   makeBlockSenderAction,
@@ -89,8 +90,7 @@ export function createSoupEntityActions() {
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
   const hiddenMutation = useSetCompanyHiddenMutation();
-  const collection = useSoupCollection();
-  const view = useSoupView();
+  const { collapseEntity, collection, view } = useSoupView();
   const panel = useSplitPanelOrThrow();
   const isNewInbox = useIsNewInbox();
   const { state: list } = useList<SoupRow>();
@@ -129,7 +129,7 @@ export function createSoupEntityActions() {
   ) => {
     const entities = [...sourceEntities];
     const activeTab = collection.state.activeTab;
-    const activeListView = view.view();
+    const activeListView = view();
     const viewedProjectId = viewedProjectIdFromContent(panel.handle.content());
     const openTagPicker = context.editTags;
     const canExecuteAll = (canExecute: (entity: EntityData) => boolean) =>
@@ -160,8 +160,8 @@ export function createSoupEntityActions() {
         hotkeyToken: TOKENS.entity.action.markDone,
         onClick: () =>
           markDone.executeWithList(entities, list, undefined, {
-            collapseEntity: view.collapseEntity.shouldCollapse()
-              ? view.collapseEntity.callback()
+            collapseEntity: collapseEntity.shouldCollapse()
+              ? collapseEntity.callback()
               : undefined,
           }),
       });

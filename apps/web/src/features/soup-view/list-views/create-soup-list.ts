@@ -1,5 +1,5 @@
-import { createListState } from '@app/components/list';
 import type { ListView } from '@app/constants/list-views';
+import { useSoup } from '@app/features/next-soup/soup-context';
 import {
   createSoupCollection,
   isSoupRowVisible,
@@ -17,7 +17,7 @@ import { createSoupCollectionPersistence } from '../soup-collection-persistence'
 import { getViewPreset, type PresetContext } from '../soup-view-presets';
 import { useIsNewInbox } from '../utils';
 
-export type SoupViewSetupOptions = {
+export type CreateSoupListOptions = {
   view: ListView;
   initialState?: SoupCollectionInitialState;
   additionalEntities?: Accessor<EntityData[]>;
@@ -25,8 +25,9 @@ export type SoupViewSetupOptions = {
   restoreCollection?: boolean;
 };
 
-/** Creates the shared Soup collection and generic List state for one view. */
-export function useSoupViewSetup(options: SoupViewSetupOptions) {
+/** Configures the split-owned Soup List for one collection-backed view. */
+export function createSoupList(options: CreateSoupListOptions) {
+  const soup = useSoup();
   const panel = useSplitPanelOrThrow();
   const userId = useUserId();
   const isTeamAdmin = useIsTeamAdmin();
@@ -79,11 +80,15 @@ export function useSoupViewSetup(options: SoupViewSetupOptions) {
 
   const isVisible = (row: SoupRow) =>
     isSoupRowVisible(row, collection.collapsedGroups.isExpanded);
-  const listState = createListState<SoupRow>({
+
+  soup.configure({
+    dataSource: collection.dataSource,
     isNavigable: (row) => row.kind !== 'section-header' && isVisible(row),
     isSelectable: (row) => row.kind === 'entity' && isVisible(row),
     suppressFocus: () => isTouchDevice(),
   });
 
-  return { collection, listState };
+  return { collection, list: soup.list };
 }
+
+export type SoupList = ReturnType<typeof createSoupList>;

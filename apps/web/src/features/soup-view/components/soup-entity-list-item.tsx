@@ -107,7 +107,7 @@ export function SoupEntityListItem(props: {
 }) {
   const panel = useSplitPanelOrThrow();
   const orchestrator = useGlobalBlockOrchestrator();
-  const view = useSoupView();
+  const { previewOpen, previewPaneVisible, view } = useSoupView();
   const mobileActionDrawer = useMaybeSoupMobileActionDrawer();
   const { state: listState } = useList<SoupRow>();
   const [touchPressed, setTouchPressed] = createSignal(false);
@@ -178,7 +178,7 @@ export function SoupEntityListItem(props: {
 
     void openEntityInSplitFromUnifiedList(entity, {
       splitHandle: panel.handle,
-      referredFrom: view.view(),
+      referredFrom: view(),
       location,
       openInNewSplit:
         metadata.openInNewSplit ?? metadata.event?.shiftKey ?? false,
@@ -232,7 +232,7 @@ export function SoupEntityListItem(props: {
               {
                 item: props.item,
                 state,
-                previewPaneVisible: view.previewPaneVisible,
+                previewPaneVisible,
                 activate: open,
               },
               event
@@ -252,7 +252,7 @@ export function SoupEntityListItem(props: {
               ref={container}
               class="size-full"
               onMouseMove={() => {
-                if (isKeypressActive() || view.previewOpen() || !hoverFocus())
+                if (isKeypressActive() || previewOpen() || !hoverFocus())
                   return;
                 state.focus({ reason: 'hover' });
               }}
