@@ -15,6 +15,7 @@ use axum::{
     body::Body,
     http::{Request, StatusCode, header},
 };
+use entity_access::domain::models::TeamRole;
 use entity_access::domain::{
     models::{
         AccessError, AccessLevel, BotId, Entity, EntityAccessReceipt, EntityPermission, EntityType,
@@ -218,7 +219,7 @@ impl EntityAccessService for TestAccessService {
         _user_id: Option<&MacroUserId<Lowercase<'_>>>,
         _entity_id: &str,
         _entity_type: EntityType,
-    ) -> Result<(EntityPermission, uuid::Uuid), AccessError> {
+    ) -> Result<(EntityPermission, uuid::Uuid, TeamRole), AccessError> {
         unimplemented!("channels test mock does not support CRM entity access")
     }
 
