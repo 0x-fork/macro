@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use ai_tools::{
     NoOpCallRtcClient, NoOpConnectionService, NoOpNotificationIngress, NoOpScheduleContext,
-    NoOpSnsEndpointManager, ToolNotificationQueue, ToolServiceContext,
+    NoOpSnsEndpointManager, ToolImportToolContext, ToolNotificationQueue, ToolServiceContext,
 };
 use anyhow::Context;
 use channels::{
@@ -327,6 +327,7 @@ async fn build_tool_context(
         email_tool_context,
         call_tool_context,
         notification_tool_context,
+        import_tool_context: ToolImportToolContext::unwired(),
         chat_tool_context,
         channel_tool_context: ai_tools::build_channel_tool_context(
             db.clone(),
@@ -373,6 +374,11 @@ async fn build_auth_proxy(
     .await
     .context("failed to load Google client secret")?;
 
+    let fusionauth_public_url = config
+        .fusionauth_public_url
+        .value()
+        .unwrap_or(config.fusionauth_base_url.as_ref())
+        .to_owned();
     let fusionauth_client = fusionauth::FusionAuthClient::new(
         config.fusionauth_tenant_id.as_ref().to_owned(),
         fusionauth_api_key.as_ref().to_owned(),
@@ -382,7 +388,8 @@ async fn build_auth_proxy(
         mcp_oauth_redirect_uri,
         config.google_client_id.as_ref().to_owned(),
         google_client_secret.as_ref().to_owned(),
-    );
+    )
+    .with_public_url(fusionauth_public_url);
 
     let auth_provider = FusionAuthOAuthProvider::new(fusionauth_client)
         .await

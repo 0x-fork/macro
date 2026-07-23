@@ -21,6 +21,7 @@ import { InboxSelector } from '@app/features/next-soup/soup-view/filters-bar/inb
 import { SoupFiltersBar } from '@app/features/next-soup/soup-view/filters-bar/soup-filters-bar';
 import { SoupSearchbar } from '@app/features/next-soup/soup-view/filters-bar/soup-view-search-bar';
 import { useFilterRefinements } from '@app/features/next-soup/soup-view/filters-bar/use-filter-refinements';
+import { NonMemberChannelPreview } from '@app/features/next-soup/soup-view/non-member-channel-preview';
 import { MaybeSoupEntityActionDrawerManager } from '@app/features/next-soup/soup-view/SoupEntityActionDrawerManager';
 import { SoupSectionHeader } from '@app/features/next-soup/soup-view/section-header';
 import { SoupEntityContextMenu } from '@app/features/next-soup/soup-view/soup-entity-context-menu';
@@ -102,6 +103,7 @@ import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
 import {
   type EntityData,
+  isNonMemberChannelEntity,
   ListEntity,
   ListLayoutProvider,
   type ProjectEntity,
@@ -143,7 +145,6 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
-import { useSearchTagsFlag } from './filters-bar/search/search-tags-flag';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';
@@ -359,23 +360,6 @@ export const SoupView = (props: SoupViewProps) => {
     | boolean
     | undefined;
 
-  const searchTags = useSearchTagsFlag();
-
-  // The search view must not initialize with tag filters while the rollout
-  // flag is off. Raw readers (soup AST body, search request, WS insert guard)
-  // consume queryFilters directly, so restored or param-provided tag filters
-  // have to be stripped at the source, not scrubbed after the fact.
-  const stripGatedTagFilters = (
-    query: Query | undefined
-  ): Query | undefined => {
-    if (contentId !== 'search' || searchTags()) return query;
-    if (!query?.include?.tagFilters?.length) return query;
-    const include = { ...query.include };
-    delete include.tagFilters;
-    delete include.tagFilterMode;
-    return { ...query, include };
-  };
-
   const persistedFilters = entryState?.['search.filters'] as Query | undefined;
 
   const persistedPredicates = entryState?.['search.predicates'] as
@@ -437,11 +421,9 @@ export const SoupView = (props: SoupViewProps) => {
       );
 
       soupView.initialize({
-        initialQuery: stripGatedTagFilters(
-          initialCrmView
-            ? (initialCrmView.filters as Query | undefined)
-            : (persistedFilters ?? props.initialFilters)
-        ),
+        initialQuery: initialCrmView
+          ? (initialCrmView.filters as Query | undefined)
+          : (persistedFilters ?? props.initialFilters),
         initialClientFilters: initialCrmView
           ? (initialCrmView.clientFilters ?? {})
           : (persistedPredicates ?? props.initialClientFilters),
@@ -701,20 +683,20 @@ export const SoupView = (props: SoupViewProps) => {
             <SplitHeaderRight>
               <Show
                 when={
-                  !narrowSearchExpanded() && isComponentListView('companies')
-                }
-              >
-                <CompanyViewsMenu />
-                <CompanyDisplayMenu />
-              </Show>
-              <Show
-                when={
                   !narrowSearchExpanded() &&
                   !isComponentListView('search') &&
                   props.showCreateButton !== false
                 }
               >
                 <SoupViewCreateButton />
+              </Show>
+              <Show
+                when={
+                  !narrowSearchExpanded() && isComponentListView('companies')
+                }
+              >
+                <CompanyViewsMenu />
+                <CompanyDisplayMenu />
               </Show>
               <Show when={narrowSearchExpanded()}>
                 <Layer depth={2}>
@@ -866,8 +848,13 @@ const SoupViewListContent = (props: SoupViewListProps) => {
     return isListViewID(id) ? id : undefined;
   });
 
-  const { paneVisible, previewVisible, previewOpen, selectedEntity } =
-    usePreviewPaneVisiblity();
+  const {
+    paneVisible,
+    previewVisible,
+    previewOpen,
+    selectedEntity,
+    nonMemberChannelEntity,
+  } = usePreviewPaneVisiblity();
 
   const focusFirstEntity = () => {
     const allRows = rows();
@@ -1041,6 +1028,10 @@ const SoupViewListContent = (props: SoupViewListProps) => {
     const entity = (
       type === 'entity' ? args.entity : args.projectEntity
     ) as EntityData;
+
+    // Channels the viewer hasn't joined can't be read: no preview, no
+    // navigation — the row's Join button is the only affordance.
+    if (isNonMemberChannelEntity(entity)) return;
 
     // FIXME: this never gets called because we have overrides
     if (event.metaKey || event.ctrlKey) {
@@ -1671,16 +1662,25 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                 <Show
                   when={selectedEntity()}
                   fallback={
-                    <EmptyStatePanel
-                      graphic={EmptyStatePreviewIcon}
-                      title="Nothing selected"
-                      description={
-                        isNewInboxEnabled()
-                          ? 'Select an item from your inbox to preview it here.'
-                          : 'Select an item from the list to preview it here'
+                    <Show
+                      when={nonMemberChannelEntity()}
+                      fallback={
+                        <EmptyStatePanel
+                          graphic={EmptyStatePreviewIcon}
+                          title="Nothing selected"
+                          description={
+                            isNewInboxEnabled()
+                              ? 'Select an item from your inbox to preview it here.'
+                              : 'Select an item from the list to preview it here'
+                          }
+                          centered
+                        />
                       }
-                      centered
-                    />
+                    >
+                      {(channel) => (
+                        <NonMemberChannelPreview entity={channel()} />
+                      )}
+                    </Show>
                   }
                 >
                   {(entity) => (

@@ -48,6 +48,20 @@ export const isListViewID = (id: string | null | undefined): id is ListView => {
   return LIST_VIEWS.includes(id as 'inbox');
 };
 
+/**
+ * List views whose entities are taggable, so their filter bar surfaces the tag
+ * filter. Mirrors TAGGABLE_ENTITY_TYPES (document/task/thread/project/chat/
+ * call). Channels, companies, and the mixed inbox are omitted.
+ */
+export const TAGGABLE_LIST_VIEWS: ReadonlySet<ListView> = new Set<ListView>([
+  'documents',
+  'tasks',
+  'mail',
+  'folders',
+  'agents',
+  'calls',
+]);
+
 export const soupItemMatchesListView = (
   item: SoupApiItem,
   view: ListView | undefined
@@ -69,8 +83,3 @@ export const soupItemMatchesListView = (
     .with('inbox', 'search', undefined, () => true)
     .with('companies', () => item.tag === 'crmCompany')
     .exhaustive();
-
-export {
-  entityMatchesTagFilter,
-  soupItemMatchesTagFilter,
-} from '@queries/soup/tag-filter';

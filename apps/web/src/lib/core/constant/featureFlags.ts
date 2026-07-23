@@ -341,6 +341,13 @@ export const ENABLE_UNIFIED_LIST_AI_INPUT = resolveFeatureFlag(
   true
 );
 
+// Inline AI editing: the floating document AI edit pill and the AI editing
+// tool in the selection formatting menu. Gated by PostHog; use the reactive
+// `useFeatureFlag(INLINE_AI_EDITING_FLAG, { enabledOverride: INLINE_AI_EDITING_OVERRIDE })`.
+export const INLINE_AI_EDITING_FLAG = 'inline-ai-editing';
+export const INLINE_AI_EDITING_OVERRIDE =
+  resolveFeatureFlag('INLINE_AI_EDITING', DEV_MODE_ENV) || undefined;
+
 export const ENABLE_EMAIL_SCHEDULED_SEND = resolveFeatureFlag(
   'ENABLE_EMAIL_SCHEDULED_SEND',
   true
@@ -523,18 +530,6 @@ export function ENABLE_NEW_INBOX() {
   return analytics.posthog.isFeatureEnabled(ENABLE_NEW_INBOX_FLAG) ?? false;
 }
 
-export const ENABLE_TAGS_FE_FLAG = 'enable-tags-fe';
-export const ENABLE_TAGS_FE_OVERRIDE =
-  resolveFeatureFlag('ENABLE_TAGS_FE', DEV_MODE_ENV) || undefined;
-
-// Narrow rollout gate for the search-view tag surfaces (facet row + row
-// chips), layered on top of enable-tags-fe. PostHog-controlled per
-// environment with a dev-mode default. Override with
-// VITE_ENABLE_TAGS_SEARCH_FE.
-export const ENABLE_TAGS_SEARCH_FE_FLAG = 'enable-tags-search-fe';
-export const ENABLE_TAGS_SEARCH_FE_OVERRIDE =
-  resolveFeatureFlag('ENABLE_TAGS_SEARCH_FE', DEV_MODE_ENV) || undefined;
-
 // Channel mode where replying and editing do not happen inline, but in a single unified input instead.
 export const UNIFIED_CHANNEL_INPUT = resolveFeatureFlag(
   'UNIFIED_CHANNEL_INPUT',
@@ -546,3 +541,11 @@ export const UNIFIED_CHANNEL_INPUT = resolveFeatureFlag(
 export const BOT_MANAGEMENT_FLAG = 'bot-management';
 export const BOT_MANAGEMENT_OVERRIDE =
   resolveFeatureFlag('BOT_MANAGEMENT', DEV_MODE_ENV) || undefined;
+
+// New split-screen onboarding (/setup): connect tools on the left, pick
+// what to import on the right. Dev-mode default; override with
+// VITE_ENABLE_NEW_ONBOARDING_V3.
+export const ENABLE_NEW_ONBOARDING_V3 = resolveFeatureFlag(
+  'ENABLE_NEW_ONBOARDING_V3',
+  DEV_MODE_ENV
+);
