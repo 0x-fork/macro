@@ -179,8 +179,13 @@ function SplitCloseButton() {
     return isOnlySplit && isNotUnifiedList ? 'Return to list' : 'Close';
   });
 
+  // A Viewer has no close affordance or close hotkey: it closes with its
+  // Controller, when its Preview Pair dissolves (external navigation or the
+  // Controller leaving its list view), or via the preview toggle.
+  const isPreviewViewer = () => context.handle.isViewerSplit();
+
   return (
-    <Show when={layout.manager.splits().length > 1}>
+    <Show when={layout.manager.splits().length > 1 && !isPreviewViewer()}>
       <Button
         class="p-1 rounded-lg"
         label={label()}
@@ -374,10 +379,18 @@ function SplitHeaderContextMenu(props: ParentProps) {
             disabled={!hasOtherSplits()}
             onClick={() => {
               const currentSplitId = panel.handle.id;
+              // A Preview Pair is one unit: keep the current split's partner so
+              // closing "other" splits from a Viewer doesn't strand it by
+              // removing its Controller (or vice versa).
+              const partnerId =
+                layout.manager.controllerOf(currentSplitId) ??
+                layout.manager.viewerOf(currentSplitId);
+              const kept = new Set([currentSplitId, partnerId]);
+
               const otherSplitIds = layout.manager
                 .splits()
                 .map((split) => split.id)
-                .filter((id) => id !== currentSplitId);
+                .filter((id) => !kept.has(id));
 
               for (const splitId of otherSplitIds) {
                 layout.manager.removeSplit(splitId);
