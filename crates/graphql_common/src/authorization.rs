@@ -21,6 +21,10 @@ where
     MacroAuthorizationState<Auth>: FromRef<St>,
     St: Clone + Send + Sync + 'static,
 {
+    if let Some(user_id) = ctx.data_opt::<MacroUserIdStr<'static>>() {
+        return Ok(user_id.clone());
+    }
+
     let Cached(authorization) =
         extract_part::<Cached<OptionalMacroAuthorizationExtractor<Auth>>, St>(ctx).await?;
 

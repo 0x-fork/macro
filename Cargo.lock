@@ -2897,6 +2897,7 @@ dependencies = [
  "rootcause",
  "serde",
  "soup",
+ "soup_realtime",
  "tokio",
  "uuid",
  "workspace-hack",
@@ -4317,6 +4318,7 @@ dependencies = [
  "serde",
  "serde_json",
  "soup",
+ "soup_realtime",
  "sqlx",
  "sqs_client",
  "sqs_worker",
@@ -6063,6 +6065,7 @@ name = "graphql_soup"
 version = "0.1.0"
 dependencies = [
  "async-graphql",
+ "async-stream",
  "axum",
  "axum-extra",
  "chrono",
@@ -6070,6 +6073,7 @@ dependencies = [
  "email",
  "entity_access",
  "filter_ast",
+ "futures",
  "graphql_common",
  "item_filters",
  "macro_authorization",
@@ -6082,6 +6086,7 @@ dependencies = [
  "serde",
  "serde_json",
  "soup",
+ "soup_realtime",
  "uuid",
  "workspace-hack",
 ]
@@ -13467,6 +13472,7 @@ dependencies = [
 name = "soup_realtime"
 version = "0.1.0"
 dependencies = [
+ "broadcast",
  "chrono",
  "documents",
  "entity_access",
