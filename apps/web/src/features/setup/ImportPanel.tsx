@@ -6,6 +6,7 @@ import {
   useRetryGatherMutation,
 } from '@queries/import';
 import { createMemo, For, Show } from 'solid-js';
+import { SetupGraphic } from './SetupGraphic';
 import { SourceImportCard } from './SourceImportCard';
 import {
   type SkippedSources,
@@ -66,9 +67,9 @@ export function ImportPanel(props: {
       <Show
         when={anyVisible()}
         fallback={
-          <p class="text-sm text-ink-extra-muted">
-            Connect a tool on the left to see what you can bring over.
-          </p>
+          <div class="flex min-h-0 flex-1 items-center justify-center">
+            <SetupGraphic class="size-full max-h-[46rem] max-w-4xl" />
+          </div>
         }
       >
         <div class="flex flex-col gap-4">

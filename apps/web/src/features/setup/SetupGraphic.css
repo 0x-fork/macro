@@ -1,0 +1,165 @@
+/*
+ * Styles for the /setup empty-state isometric scene (SetupGraphic.tsx).
+ *
+ * Class names (.st0–.st15) come straight from the Illustrator export so the
+ * SVG body can stay verbatim; every selector is scoped under .setup-graphic
+ * to keep them out of the global namespace. Two theme adaptations on top of
+ * the export:
+ *  - all #000 strokes/fills are currentColor (the svg sets text-ink), so the
+ *    linework reads in both light and dark themes
+ *  - the pastel block silhouettes share one fill: the surface color
+ *    lightened a touch
+ */
+.setup-graphic {
+  --setup-silhouette: oklch(from var(--color-surface) calc(l + 0.035) c h);
+}
+
+.setup-graphic :is(.st0, .st1, .st2, .st3, .st4, .st5, .st6, .st7, .st8) {
+  stroke-linecap: round;
+}
+
+.setup-graphic
+  :is(.st0, .st1, .st2, .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10, .st11) {
+  stroke: currentColor;
+  stroke-width: 2px;
+}
+
+.setup-graphic :is(.st0, .st1, .st2, .st4, .st5, .st6, .st9) {
+  fill: none;
+}
+
+.setup-graphic :is(.st0, .st1, .st4, .st6, .st9, .st10, .st11) {
+  stroke-miterlimit: 10;
+}
+
+.setup-graphic :is(.st1, .st4, .st5, .st12) {
+  opacity: 0.4;
+}
+
+.setup-graphic :is(.st2, .st3, .st5, .st7, .st8) {
+  stroke-linejoin: round;
+}
+
+/* Card silhouettes. */
+.setup-graphic :is(.st3, .st7, .st8, .st10, .st11) {
+  fill: var(--setup-silhouette);
+}
+
+.setup-graphic :is(.st4, .st6) {
+  stroke-dasharray: 6;
+}
+
+/* Left-face shading on all three blocks. The Illustrator export had the
+   middle/back cards' shading polygons at opacity 0 (a stale hidden state);
+   they're reclassed to .st13 to match the front card's visible shading.
+   Always black (not currentColor) so the faces darken like shadow in both
+   themes; dark surfaces need a stronger shadow to register at all. */
+.setup-graphic .st13 {
+  fill: #000;
+  opacity: 0.1;
+}
+
+html[data-theme-light='false'] .setup-graphic .st13 {
+  opacity: 0.3;
+}
+
+/* LED halo: a soft filled accent disc behind each inset that breathes
+   (expands and contracts) once lit. Hidden (opacity 0) at rest; the
+   illuminate pass drives its scale + opacity via WAAPI. transform-box/-origin
+   make the scale grow about its own center. */
+.setup-graphic .led-halo {
+  fill: var(--color-accent);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* LED spark: a small fully-white specular dot in the inset's upper-left,
+   suggesting the bulb's light source. Faded in with the illuminate pass. */
+.setup-graphic .led-spark {
+  fill: #fff;
+  opacity: 0;
+}
+
+/* Dashed connector tethers from modules to block features. Authored in
+   viewBox space (unscaled), so a 1.3 stroke matches the scaled block linework;
+   kept subtle like the scene's other construction lines. */
+.setup-graphic .connector {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-dasharray: 6;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+/* Modules gently bob up and down. The bob lives on a wrapper (.module-bob) so
+   it composes with the module's own `place` transform rather than overriding
+   that presentation attribute. Each module is offset in phase (--module-phase,
+   which inherits down to its rings) so they don't move in unison. */
+.setup-graphic .module-bob {
+  animation: module-bob 4.5s ease-in-out infinite;
+  animation-delay: var(--module-phase, 0s);
+}
+
+/* Dashed orbit rings grow and shrink about their own centers, with the dashes
+   traveling along the path. (The stroke scales with the graphic; the ±3%
+   breathe is too small to read as a width change.) */
+.setup-graphic .module :is(.st4, .st6) {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    module-ring 4.5s ease-in-out infinite,
+    module-ring-dash 3s linear infinite;
+  animation-delay: var(--module-phase, 0s);
+}
+
+.setup-graphic .modules > .module-bob:nth-child(1) {
+  --module-phase: 0s;
+}
+.setup-graphic .modules > .module-bob:nth-child(2) {
+  --module-phase: -1.1s;
+}
+.setup-graphic .modules > .module-bob:nth-child(3) {
+  --module-phase: -2.2s;
+}
+.setup-graphic .modules > .module-bob:nth-child(4) {
+  --module-phase: -3.3s;
+}
+.setup-graphic .modules > .module-bob:nth-child(5) {
+  --module-phase: -2.5s;
+}
+
+@keyframes module-bob {
+  0%,
+  100% {
+    transform: translateY(4px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes module-ring {
+  0%,
+  100% {
+    transform: scale(0.97);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+@keyframes module-ring-dash {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-graphic .module-bob,
+  .setup-graphic .module :is(.st4, .st6) {
+    animation: none;
+  }
+}
+
