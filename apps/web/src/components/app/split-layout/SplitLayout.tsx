@@ -177,13 +177,15 @@ function createSplitFocusTracker(props: {
       return;
 
     // look for a child to return focus to.
+    // preventScroll: returning focus (e.g. after a sidebar action) must not
+    // scroll the split's content to wherever its last-focused child sits.
     const child = lastFocusedChildBySplitId.get(id);
     if (child && child.isConnected) {
-      child.focus();
+      child.focus({ preventScroll: true });
       return;
     }
 
-    splitPanelRef.focus();
+    splitPanelRef.focus({ preventScroll: true });
   };
 
   const activateFocusedSplit = (element: Element) => {

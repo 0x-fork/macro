@@ -3,6 +3,7 @@
  * programmatically focused by element.focus() api.
  */
 import { mergeRegister } from '@lexical/utils';
+import { SKIP_SCROLL_INTO_VIEW_TAG } from '@macro-inc/lexical-core/constants';
 import type { LexicalEditor } from 'lexical';
 import { registerRootEventListener } from '../shared';
 
@@ -29,7 +30,16 @@ export function restoreFocusPlugin() {
       registerRootEventListener(editor, 'focusin', (e) => {
         if (clickFlag) return;
         e.preventDefault();
-        editor.focus(undefined, { defaultSelection: 'rootStart' });
+        // A programmatic refocus (e.g. focus restoration when the command
+        // menu or another overlay closes) must not move the viewport: restore
+        // the selection with scroll-into-view suppressed so a caret parked at
+        // the top of the document doesn't yank a scrolled-down reader back up.
+        editor.update(
+          () => {
+            editor.focus(undefined, { defaultSelection: 'rootStart' });
+          },
+          { tag: SKIP_SCROLL_INTO_VIEW_TAG }
+        );
       })
     );
   };

@@ -76,7 +76,9 @@ function focusLast(element: Element) {
 
     if (element instanceof HTMLElement) {
       if (element.isConnected) {
-        element.focus();
+        // preventScroll: returning focus after a menu closes must not scroll
+        // the previously focused element (e.g. a doc's title) back into view.
+        element.focus({ preventScroll: true });
       } else {
         // This only works for restoring previously focused entity in UnifiedList, this a workaround previous focused Entity nodes being removed from the dom and focusing to body
         // attributeToSelector still doesn't guarentee node is unique for all cases
@@ -85,7 +87,7 @@ function focusLast(element: Element) {
         const fallbackElement = document.querySelector(selector) as HTMLElement;
 
         if (fallbackElement instanceof HTMLElement) {
-          fallbackElement.focus();
+          fallbackElement.focus({ preventScroll: true });
         }
       }
     }
