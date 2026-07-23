@@ -35,7 +35,7 @@ import {
   isWithNotification,
 } from '@entity';
 import { openSingleStackNotification } from '@notifications';
-import { type Accessor, onCleanup } from 'solid-js';
+import { type Accessor, createMemo, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import { useEntityActionHotkeys } from './actions/use-entity-action-hotkeys';
 import { useSoupView } from './context';
@@ -265,14 +265,14 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     return activation;
   };
 
-  const currentTabIndex = () => {
+  const currentTabIndex = createMemo(() => {
     const tabs = view.tabs();
     const current = tabs.findIndex(
       (tab) => tab.value === collection.state.activeTab
     );
     if (current >= 0) return current;
     return 0;
-  };
+  });
 
   const cycleTab = (offset: number) => {
     const tabs = view.tabs();

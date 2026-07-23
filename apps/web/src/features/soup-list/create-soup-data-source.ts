@@ -148,7 +148,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     controls,
     enabled: () => enabled() && !searchSource.active(),
     additionalEntities: options.additionalEntities,
-    limit: options.limit,
+    request,
     transformEntities,
   });
 
@@ -225,9 +225,17 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     return flatSource;
   };
 
+  const activeItems = createMemo<SoupRow[]>((previous) => {
+    const source = activeSource();
+    const next = [...source.items()];
+    if (next.length > 0) return next;
+    if (!source.isLoading() && !source.isFetching()) return next;
+    return previous;
+  }, []);
+
   const dataSource = {
-    items: () => activeSource().items(),
-    isLoading: () => activeSource().isLoading(),
+    items: activeItems,
+    isLoading: createMemo(() => activeSource().isLoading()),
     isFetching: () => activeSource().isFetching(),
     error: () => activeSource().error(),
     hasMore: () => activeSource().hasMore(),

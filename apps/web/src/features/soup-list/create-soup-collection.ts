@@ -5,7 +5,6 @@ import type { Accessor } from 'solid-js';
 import type {
   CreateSoupCollectionStateOptions,
   SoupCollectionControls,
-  SoupCollectionState,
 } from './create-soup-collection-state';
 import { createSoupCollectionState } from './create-soup-collection-state';
 import { createSoupDataSource } from './create-soup-data-source';
@@ -28,7 +27,7 @@ export type CreateSoupCollectionOptions = CreateSoupCollectionStateOptions & {
 export function createSoupCollection(
   options: CreateSoupCollectionOptions
 ): SoupCollection {
-  const state: SoupCollectionState = createSoupCollectionState({
+  const state = createSoupCollectionState({
     facets: options.facets ?? ALL_FACETS,
     sortConfigs: options.sortConfigs ?? SORT_CONFIGS,
     persistence: options.persistence,

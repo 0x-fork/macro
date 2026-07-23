@@ -44,5 +44,5 @@ export function ListItemBinding<TItem extends Identifiable = Identifiable>(
     toggleSelected: () => listState.selection.toggle(props.item),
   };
 
-  return props.children(state);
+  return <>{props.children(state)}</>;
 }

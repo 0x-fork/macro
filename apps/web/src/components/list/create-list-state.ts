@@ -308,21 +308,26 @@ export const createListState = <T extends Identifiable>(
 
     setItemsInternal(nextItems);
 
-    // Refresh selected payloads when the source replaces an item object while
-    // retaining its id. Selections that are temporarily absent remain selected
-    // so consumers can decide when filters/search should clear them.
-    const nextById = new Map(nextItems.map((item) => [item.id, item]));
     const selected = selection.selected();
-    let selectionChanged = false;
-    const reconciledSelection = selected.map((item) => {
-      const next = nextById.get(item.id);
-      if (next && next !== item) {
-        selectionChanged = true;
-        return next;
-      }
-      return item;
-    });
-    if (selectionChanged) selection.set(reconciledSelection);
+
+    if (selected.length) {
+      // Refresh selected payloads when the source replaces an item object while
+      // retaining its id. Selections that are temporarily absent remain selected
+      // so consumers can decide when filters/search should clear them.
+      const nextById = new Map(nextItems.map((item) => [item.id, item]));
+
+      let selectionChanged = false;
+      const reconciledSelection = selected.map((item) => {
+        const next = nextById.get(item.id);
+        if (next && next !== item) {
+          selectionChanged = true;
+          return next;
+        }
+        return item;
+      });
+
+      if (selectionChanged) selection.set(reconciledSelection);
+    }
 
     // Keep focus pinned to the same item across list updates.
     if (!lastFocusedItemId) return;

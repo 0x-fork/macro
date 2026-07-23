@@ -4,7 +4,7 @@ import {
   ENABLE_NEW_INBOX_FLAG,
   ENABLE_NEW_INBOX_OVERRIDE,
 } from '@core/constant/featureFlags';
-import type { Accessor } from 'solid-js';
+import { createMemo, type Accessor } from 'solid-js';
 import { useMaybeSoupView } from './context';
 
 export function showSoupSort(view: ListView, isNewInbox: boolean) {
@@ -34,5 +34,7 @@ export function useIsNewInbox(options?: {
     );
   }
 
-  return () => view() === 'inbox' && (override?.() ?? flag().enabled);
+  return createMemo(
+    () => view() === 'inbox' && (override?.() ?? flag().enabled)
+  );
 }

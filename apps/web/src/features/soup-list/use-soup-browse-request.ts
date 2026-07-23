@@ -65,17 +65,19 @@ export function useSoupBrowseRequest(options: {
   const tagMode = (): 'any' | 'all' =>
     controls.facets.has('tag_mode', 'all') ? 'all' : 'any';
 
-  const facetContext = (): FacetCtx => ({
-    userId: userId(),
-    notificationSource,
-    assignees: controls.facets.getSelected('assignee'),
-    tagDefs: tagDefinitions(),
-    tagMode: tagMode(),
-    resolveCompanyStage: (entity) =>
-      dealStages.resolveStage(
-        entity as Parameters<typeof dealStages.resolveStage>[0]
-      ),
-  });
+  const facetContext = createMemo(
+    (): FacetCtx => ({
+      userId: userId(),
+      notificationSource,
+      assignees: controls.facets.getSelected('assignee'),
+      tagDefs: tagDefinitions(),
+      tagMode: tagMode(),
+      resolveCompanyStage: (entity) =>
+        dealStages.resolveStage(
+          entity as Parameters<typeof dealStages.resolveStage>[0]
+        ),
+    })
+  );
 
   const soupBody = createMemo(
     (): SoupAstBody => ({

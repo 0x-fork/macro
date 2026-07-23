@@ -222,7 +222,7 @@ export function SoupEntityListItem(props: {
           focused: state.focused,
           selected: state.selected,
           pressed: touchPressed,
-          highlighted: () => state.focused() || touchPressed(),
+          highlighted: createMemo(() => state.focused() || touchPressed()),
           onChecked: setItemSelected,
           onClick: (event) =>
             handleSoupEntityClick(

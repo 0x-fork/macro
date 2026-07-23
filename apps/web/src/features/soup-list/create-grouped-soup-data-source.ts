@@ -22,7 +22,7 @@ import type { TransformSoupEntitiesOptions } from './transform-soup-entities';
 import type { SoupRow } from './types';
 import { useReactiveSoupDataSource } from './use-reactive-soup-data-source';
 import { useRestSoupDataSource } from './use-rest-soup-data-source';
-import { useSoupBrowseRequest } from './use-soup-browse-request';
+import type { useSoupBrowseRequest } from './use-soup-browse-request';
 
 export type CreateGroupedSoupDataSourceOptions<
   TEntity extends EntityData = EntityData,
@@ -30,7 +30,14 @@ export type CreateGroupedSoupDataSourceOptions<
   controls: SoupCollectionControls;
   enabled: Accessor<boolean>;
   additionalEntities?: Accessor<EntityData[]>;
-  limit?: Accessor<number>;
+  request: Pick<
+    ReturnType<typeof useSoupBrowseRequest>,
+    | 'dealStages'
+    | 'soupBody'
+    | 'soupParams'
+    | 'matchesActiveFilters'
+    | 'showSupportedForeignEntities'
+  >;
   transformEntities: (
     entities: readonly EntityData[],
     options?: TransformSoupEntitiesOptions
@@ -72,11 +79,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     soupParams,
     matchesActiveFilters,
     showSupportedForeignEntities,
-  } = useSoupBrowseRequest({
-    controls,
-    enabled: options.enabled,
-    limit: options.limit,
-  });
+  } = options.request;
 
   const graphqlSoup = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
     enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,

@@ -5,6 +5,7 @@ import {
 } from '@app/features/next-soup/soup-view/soup-view-tabs';
 import {
   type FacetSelection,
+  type SoupCollectionStore,
   useSoupCollection,
 } from '@app/features/soup-list';
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
@@ -24,6 +25,7 @@ import {
   type Accessor,
   batch,
   createContext,
+  createMemo,
   createRenderEffect,
   createSignal,
   type JSX,
@@ -31,7 +33,7 @@ import {
   type Setter,
   useContext,
 } from 'solid-js';
-import { createStore } from 'solid-js/store';
+import { createStore, produce } from 'solid-js/store';
 import { z } from 'zod';
 
 import {
@@ -197,11 +199,13 @@ export function SoupViewProvider(
     override: () => props.newInboxOverride,
   });
 
-  const presetContext = (): PresetContext => ({
-    userId: userId(),
-    isTeamAdmin: isTeamAdmin(),
-    isNewInbox: isNewInbox(),
-  });
+  const presetContext = createMemo(
+    (): PresetContext => ({
+      userId: userId(),
+      isTeamAdmin: isTeamAdmin(),
+      isNewInbox: isNewInbox(),
+    })
+  );
 
   const tabbedView = (): TabbedListView | undefined =>
     props.view in VIEW_TAB_LISTS ? (props.view as TabbedListView) : undefined;
@@ -211,19 +215,23 @@ export function SoupViewProvider(
     return view ? VIEW_TAB_LISTS[view] : [];
   };
 
-  const defaultTab = () => VIEW_TAB_PRESETS[props.view]?.default;
+  const defaultTab = createMemo(() => VIEW_TAB_PRESETS[props.view]?.default);
+
   if (!collection.state.activeTab && defaultTab()) {
     collection.setState('activeTab', defaultTab());
   }
 
-  const activePresetFacets = () =>
-    getViewPreset(
-      props.view,
-      collection.state.activeTab ?? defaultTab(),
-      presetContext()
-    )?.initialFacets ?? {};
+  const activePresetFacets = createMemo(
+    () =>
+      getViewPreset(
+        props.view,
+        collection.state.activeTab ?? defaultTab(),
+        presetContext()
+      )?.initialFacets ?? {}
+  );
 
   const replacePresetFacets = (
+    selection: FacetSelection,
     previous: FacetSelection,
     next: FacetSelection
   ) => {
@@ -231,14 +239,19 @@ export function SoupViewProvider(
 
     for (const facetId of facetIds) {
       const remove = new Set(previous[facetId] ?? []);
-      const retained = collection.facets
-        .getSelected(facetId)
-        .filter((id) => !remove.has(id));
-
-      collection.facets.set(facetId, [
+      const retained = (selection[facetId] ?? []).filter(
+        (id) => !remove.has(id)
+      );
+      const optionIds = [
         ...retained,
         ...(next[facetId] ?? []).filter((id) => !retained.includes(id)),
-      ]);
+      ];
+
+      if (optionIds.length === 0) {
+        delete selection[facetId];
+        continue;
+      }
+      selection[facetId] = optionIds;
     }
   };
 
@@ -246,6 +259,8 @@ export function SoupViewProvider(
     getViewPreset(props.view, tabId, presetContext()) !== undefined;
 
   const applyTabPreset = (tabId: string) => {
+    if (collection.state.activeTab === tabId) return true;
+
     const preset = getViewPreset(props.view, tabId, presetContext());
     if (!preset) return false;
 
@@ -256,17 +271,19 @@ export function SoupViewProvider(
     );
 
     batch(() => {
-      replacePresetFacets(
-        currentPreset?.initialFacets ?? {},
-        preset.initialFacets ?? {}
-      );
       collection.facets.setExtraFacets(preset.facets ?? []);
-      collection.setState({
-        activeTab: tabId,
-        emailView: preset.emailView,
-        groupBy: preset.groupBy,
-        collapsedGroups: [],
-      });
+      collection.setState(
+        produce((state: SoupCollectionStore) => {
+          replacePresetFacets(
+            state.facets,
+            currentPreset?.initialFacets ?? {},
+            preset.initialFacets ?? {}
+          );
+          state.activeTab = tabId;
+          state.emailView = preset.emailView;
+          state.groupBy = preset.groupBy;
+        })
+      );
     });
 
     return true;
@@ -279,6 +296,7 @@ export function SoupViewProvider(
   const restoredViewState = parseSoupViewState(
     panel.handle.currentEntryState()
   );
+
   const hasPersistedPreviewState =
     restoredViewState?.previewOpen !== undefined ||
     restoredViewState?.previewEntityId !== undefined;
@@ -286,8 +304,10 @@ export function SoupViewProvider(
     panel,
     props.initialViewMode === undefined
   );
+
   let previewDefaultResolved =
     props.initialPreviewOpen !== undefined || hasPersistedPreviewState;
+
   const [state, setState] = makePersistedState(
     createStore<SoupViewState>({
       viewMode:
@@ -300,6 +320,7 @@ export function SoupViewProvider(
   );
 
   const viewMode = () => state.viewMode;
+
   const setViewMode: Setter<SoupViewMode> = (next) => {
     const value = typeof next === 'function' ? next(state.viewMode) : next;
     setState('viewMode', value);

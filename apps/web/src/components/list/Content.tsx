@@ -1,6 +1,7 @@
 import {
   type Accessor,
   createContext,
+  createMemo,
   type JSX,
   Show,
   useContext,
@@ -25,7 +26,7 @@ export function ListContent(props: ListContentProps) {
 const useListContentState = () => {
   const { dataSource } = useList();
   const forceEmpty = useContext(ListContentContext);
-  const hasItems = () => dataSource.items().length > 0;
+  const hasItems = createMemo(() => dataSource.items().length > 0);
   const error = () => dataSource.error();
   const loading = () => dataSource.isLoading();
   return { forceEmpty, hasItems, error, loading };

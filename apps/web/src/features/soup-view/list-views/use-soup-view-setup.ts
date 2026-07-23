@@ -12,7 +12,7 @@ import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { EntityData } from '@entity';
 import { useIsTeamAdmin } from '@queries/team/teams';
-import { type Accessor, createEffect } from 'solid-js';
+import type { Accessor } from 'solid-js';
 import { createSoupCollectionPersistence } from '../soup-collection-persistence';
 import { getViewPreset, type PresetContext } from '../soup-view-presets';
 import { useIsNewInbox } from '../utils';
@@ -75,20 +75,6 @@ export function useSoupViewSetup(options: SoupViewSetupOptions) {
       restoreEntryState: options.restoreCollection,
       restorePreferences: initialState.sort === undefined,
     }),
-  });
-
-  createEffect(() => {
-    const preset = getViewPreset(
-      options.view,
-      collection.state.activeTab,
-      presetContext()
-    );
-
-    collection.facets.setExtraFacets([
-      ...(preset?.facets ?? []),
-      ...(initialState.extraFacets ?? []),
-    ]);
-    collection.setState('emailView', preset?.emailView);
   });
 
   const isVisible = (row: SoupRow) =>

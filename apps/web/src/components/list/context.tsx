@@ -33,7 +33,7 @@ function SyncDataSourceItems<TItem extends Identifiable>(props: {
     on(
       () => props.dataSource.items(),
       (sourceItems) => {
-        const items = sourceItems.slice();
+        const items = sourceItems;
 
         if (import.meta.env.DEV) {
           const ids = new Set<string>();

@@ -60,11 +60,9 @@ export type SoupCollapsedGroups = {
   expandAll: () => void;
 };
 
-type SoupCollectionMutableState = Omit<SoupCollectionStore, 'facets'>;
-
 export type SoupCollectionControls = {
   state: Store<SoupCollectionStore>;
-  setState: SetStoreFunction<SoupCollectionMutableState>;
+  setState: SetStoreFunction<SoupCollectionStore>;
   facets: SoupFacets;
   groupByField: Accessor<GroupByField | undefined>;
   collapsedGroups: SoupCollapsedGroups;
@@ -118,10 +116,10 @@ export function createSoupCollectionState(
   const [extraFacets, setExtraFacets] = createSignal<
     readonly Facet<FacetCtx>[]
   >(initialState.extraFacets ?? []);
-  const activeFacetDefinitions = (): readonly Facet<FacetCtx>[] => [
+  const activeFacetDefinitions = createMemo<readonly Facet<FacetCtx>[]>(() => [
     ...facetDefinitions,
     ...extraFacets(),
-  ];
+  ]);
 
   const sortConfigs: Record<
     string,
@@ -153,7 +151,7 @@ export function createSoupCollectionState(
   const [state, setStore] = options.persistence
     ? makePersistedState(rawStore, options.persistence)
     : rawStore;
-  const setState = setStore as SetStoreFunction<SoupCollectionMutableState>;
+  const setState = setStore;
 
   const facets: SoupFacets = {
     has: (facetId, optionId) =>

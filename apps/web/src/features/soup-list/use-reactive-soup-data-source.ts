@@ -8,6 +8,10 @@ import type { ApiSoupParams } from './use-soup-browse-request';
 const REACTIVE_SETTLED_NO_DATA_ERROR = new Error(
   'Reactive Soup request settled without data'
 );
+const DISABLED_REQUEST = {
+  params: { limit: 0, sort_method: 'created_at' } satisfies ApiSoupParams,
+  body: {} satisfies SoupAstBody,
+};
 
 /** Exposes the reactive GraphQL query as an entity list data source. */
 export function useReactiveSoupDataSource(options: {
@@ -17,7 +21,10 @@ export function useReactiveSoupDataSource(options: {
   showSupportedForeignEntities: Accessor<boolean>;
 }) {
   const query = useReactiveSoupAstItemsQuery(
-    () => ({ params: options.params(), body: options.body() }),
+    () => {
+      if (!options.enabled()) return DISABLED_REQUEST;
+      return { params: options.params(), body: options.body() };
+    },
     () => ({
       enabled: options.enabled(),
       showSupportedForeignEntities: options.showSupportedForeignEntities(),

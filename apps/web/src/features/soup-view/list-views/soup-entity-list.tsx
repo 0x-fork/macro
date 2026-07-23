@@ -203,36 +203,41 @@ export function SoupEntityList(props: SoupEntityListProps) {
   };
 
   let initialFocusApplied = false;
-  createEffect(() => {
-    const count = listState.items.count();
-    if (
-      !active() ||
-      initialFocusApplied ||
-      count === 0 ||
-      dataSource.isLoading()
+  createEffect(
+    on(
+      [() => listState.items.all(), active, () => dataSource.isLoading()],
+      () => {
+        if (
+          !active() ||
+          initialFocusApplied ||
+          listState.items.count() === 0 ||
+          dataSource.isLoading()
+        ) {
+          return;
+        }
+
+        initialFocusApplied = true;
+        if (restoredListState?.focus) {
+          const restored = restoreFocus(restoredListState.focus);
+          if (restored) scrollTo(restored.index);
+          return;
+        }
+        if (persistedPreviewEntity) {
+          const previewRow = listState.items
+            .all()
+            .find(
+              (row) =>
+                row.kind === 'entity' &&
+                row.entity.id === persistedPreviewEntity
+            );
+          const restored = restoreFocus(previewRow?.id);
+          if (restored) scrollTo(restored.index);
+          return;
+        }
+        focusFirstEntity();
+      }
     )
-      return;
-    initialFocusApplied = true;
-    queueMicrotask(() => {
-      if (restoredListState?.focus) {
-        const restored = restoreFocus(restoredListState.focus);
-        if (restored) scrollTo(restored.index);
-        return;
-      }
-      if (persistedPreviewEntity) {
-        const previewRow = listState.items
-          .all()
-          .find(
-            (row) =>
-              row.kind === 'entity' && row.entity.id === persistedPreviewEntity
-          );
-        const restored = restoreFocus(previewRow?.id);
-        if (restored) scrollTo(restored.index);
-        return;
-      }
-      focusFirstEntity();
-    });
-  });
+  );
 
   const [focusResetPending, setFocusResetPending] = createSignal(false);
   createEffect(
@@ -250,18 +255,23 @@ export function SoupEntityList(props: SoupEntityListProps) {
       { defer: true }
     )
   );
-  createEffect(() => {
-    if (!focusResetPending()) return;
-    listState.items.all();
-    if (dataSource.isLoading() || dataSource.isFetching()) return;
+  createEffect(
+    on(
+      [
+        focusResetPending,
+        () => listState.items.all(),
+        () => dataSource.isLoading(),
+        () => dataSource.isFetching(),
+      ],
+      () => {
+        if (!focusResetPending()) return;
+        if (dataSource.isLoading() || dataSource.isFetching()) return;
 
-    queueMicrotask(() => {
-      if (!focusResetPending()) return;
-      if (dataSource.isLoading() || dataSource.isFetching()) return;
-      setFocusResetPending(false);
-      focusFirstEntity();
-    });
-  });
+        setFocusResetPending(false);
+        focusFirstEntity();
+      }
+    )
+  );
 
   const swipeEntity = (id: string) =>
     listState.items

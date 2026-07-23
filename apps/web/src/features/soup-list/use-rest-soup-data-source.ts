@@ -9,6 +9,13 @@ import type { SoupApiItem } from '@service-storage/generated/schemas';
 import type { Accessor } from 'solid-js';
 import type { ApiSoupParams } from './use-soup-browse-request';
 
+const DISABLED_REQUEST = {
+  params: { limit: 0, sort_method: 'created_at' } satisfies ApiSoupParams,
+  body: {} satisfies SoupAstBody,
+  groupBy: undefined,
+  transport: undefined,
+};
+
 /** Exposes the paginated REST query as an entity list data source. */
 export function useRestSoupDataSource(options: {
   enabled: Accessor<boolean>;
@@ -21,12 +28,15 @@ export function useRestSoupDataSource(options: {
 }) {
   const queryClient = useQueryClient();
   const query = useSoupAstItemsQuery(
-    () => ({
-      params: options.params(),
-      body: options.body(),
-      groupBy: options.groupBy(),
-      transport: options.transport?.(),
-    }),
+    () => {
+      if (!options.enabled()) return DISABLED_REQUEST;
+      return {
+        params: options.params(),
+        body: options.body(),
+        groupBy: options.groupBy(),
+        transport: options.transport?.(),
+      };
+    },
     () => ({
       enabled: options.enabled(),
       showSupportedForeignEntities: options.showSupportedForeignEntities(),
