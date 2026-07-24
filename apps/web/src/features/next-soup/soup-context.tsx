@@ -4,7 +4,7 @@ import {
   type ListFocusAttempt,
   type ListState,
 } from '@app/components/list';
-import type { SoupRow } from '@app/features/soup-list';
+import type { SoupRow } from '@app/features/soup';
 import {
   createContext,
   createSignal,
