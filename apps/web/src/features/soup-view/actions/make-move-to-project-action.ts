@@ -1,11 +1,9 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import { restoreSoupFocus } from '@app/features/next-soup/utils';
-import { useMaybePreviewPanel } from '@components/app/PreviewPanel';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
 import {
   findAdjacentEntityItem,
-  findEntityItem,
   type SoupActionListState,
 } from './list-action-state';
 
@@ -33,17 +31,20 @@ export const makeMoveToProjectAction = () => {
     });
   };
 
-  const previewPanel = useMaybePreviewPanel();
-
   const executeWithList = async (
     entities: EntityData[],
     list: SoupActionListState
   ) => {
+    const focusedItemId = list.focus.id();
+    const focusedItem = focusedItemId
+      ? list.items.get(focusedItemId)
+      : undefined;
+    const focusedEntityId =
+      focusedItem?.kind === 'entity' ? focusedItem.entity.id : undefined;
     const nextItem = findAdjacentEntityItem(
       list,
       new Set(entities.map((entity) => entity.id))
     );
-    const inPreview = previewPanel !== undefined;
 
     openBulkEditModal({
       view: 'moveToProject',
@@ -58,15 +59,13 @@ export const makeMoveToProjectAction = () => {
             ? `Moved ${entities.length} items`
             : 'Moved to folder'
         );
-        restoreSoupFocus(nextItem?.entity.id, inPreview);
+        restoreSoupFocus(nextItem?.entity.id);
       },
       onCancel: () => {
-        const firstEntity = entities[0];
-        const firstItem = firstEntity
-          ? findEntityItem(list, firstEntity.id)
-          : undefined;
-        if (firstItem) list.focus.set(firstItem.id);
-        restoreSoupFocus(firstEntity?.id, inPreview);
+        if (focusedItemId && list.items.get(focusedItemId)) {
+          list.focus.set(focusedItemId);
+        }
+        restoreSoupFocus(focusedEntityId ?? entities[0]?.id);
       },
     });
   };

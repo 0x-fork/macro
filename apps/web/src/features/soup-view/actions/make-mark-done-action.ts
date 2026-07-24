@@ -4,11 +4,11 @@ import {
   executeMarkEntitiesDone,
   executeMarkEntitiesUndone,
   type MarkEntitiesDoneContext,
+  openEntityInSplitFromUnifiedList,
   resolveMarkEntitiesDoneVariables,
   restoreSoupFocus,
 } from '@app/features/next-soup/utils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { useMaybePreviewPanel } from '@components/app/PreviewPanel';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';
 import {
@@ -37,6 +37,10 @@ export const canExecuteMarkDoneOnView = (view: ListView, tabId: string) => {
   return VALID_MARK_DONE_LIST_VIEWS.includes(`${view}-${tabId}`);
 };
 
+/** Done emails can coexist with active rows in Mail's All tab. */
+const isMarkDoneTarget = (entity: EntityData) =>
+  !(entity.type === 'email' && entity.done === true);
+
 type MakeMarkDoneOptions = {
   userId?: () => string | undefined;
   notificationSource: () => NotificationSource;
@@ -45,6 +49,8 @@ type MakeMarkDoneOptions = {
   hotkeyGroup?: HotkeyGroup;
   /** Overrides route-derived New Inbox detection for isolated view hosts. */
   isNewInbox?: Accessor<boolean>;
+  /** Canonical source view used when advancing an engaged Preview Pair. */
+  listView?: Accessor<ListView>;
 };
 
 type MarkDoneVariables = {
@@ -58,9 +64,14 @@ type MarkDoneVariables = {
   /** Receives the undo handle once the mark-done is pushed onto the undo
    *  stack, so callers (e.g. undo-send) can reverse it programmatically. */
   onUndoHandle?: (handle: UndoHandle) => void;
+  /** Navigates back to the marked entity when undo reverses list navigation. */
+  navigateBack?: () => void;
 };
 
-type MarkDoneExecuteOpts = Pick<MarkDoneVariables, 'silent' | 'onUndoHandle'>;
+type MarkDoneExecuteOpts = Pick<
+  MarkDoneVariables,
+  'silent' | 'onUndoHandle' | 'navigateBack'
+>;
 
 type MarkDoneExecuteWithListOpts = MarkDoneExecuteOpts & {
   nextEntityId?: string;
@@ -90,8 +101,6 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
         splitPanel?.handle.referredFrom() === 'inbox'));
 
   const { notificationSource, hotkeyGroup } = options;
-  const previewPanel = useMaybePreviewPanel();
-  const inPreview = previewPanel !== undefined;
 
   const mutation = useUndoableMutation<
     void,
@@ -174,7 +183,8 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
         onUndone: () => {
           if (toastId !== undefined) toast.dismiss(toastId);
           variables.restoreFocus?.();
-          restoreSoupFocus(firstEntityId, inPreview);
+          restoreSoupFocus(firstEntityId);
+          variables.navigateBack?.();
         },
         onRedone: showToast,
       };
@@ -207,18 +217,22 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     restoreFocus?: () => void,
     opts?: MarkDoneExecuteOpts
   ) => {
+    const targets = entities.filter(isMarkDoneTarget);
+    if (targets.length === 0) return;
+
     const { emailIds, notificationIds } = resolveMarkEntitiesDoneVariables({
-      entities,
+      entities: targets,
       notificationSource: notificationSource(),
       scopeChannelNotificationsToEntity: scopeChannelNotificationsToEntity(),
     });
     await mutation.mutateAsync({
-      entities,
+      entities: targets,
       emailIds,
       notificationIds,
       restoreFocus,
       silent: opts?.silent,
       onUndoHandle: opts?.onUndoHandle,
+      navigateBack: opts?.navigateBack,
     });
   };
 
@@ -228,8 +242,11 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
     onNavigate?: (entity: EntityData) => void,
     opts?: MarkDoneExecuteWithListOpts
   ) => {
+    const targets = entities.filter(isMarkDoneTarget);
+    if (targets.length === 0) return;
+
     const focusedIdBeforeMarkDone = list.focus.id();
-    const markedEntityIds = new Set(entities.map((entity) => entity.id));
+    const markedEntityIds = new Set(targets.map((entity) => entity.id));
     const adjacentItem = (direction: 1 | -1) => {
       let previousCandidateIndex: number | undefined;
 
@@ -266,7 +283,7 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
 
     if (opts?.collapseEntity) {
       await Promise.all(
-        entities.map((entity) => opts.collapseEntity?.(entity.id))
+        targets.map((entity) => opts.collapseEntity?.(entity.id))
       );
     }
 
@@ -278,10 +295,27 @@ export const makeMarkDoneAction = (options: MakeMarkDoneOptions) => {
 
     if (nextItem) {
       const focused = list.focus.set(nextItem.id);
-      if (focused) onNavigate?.(nextItem.entity);
+      if (focused) {
+        const controller = splitPanel?.handle;
+        if (controller?.isControllerSplit()) {
+          void openEntityInSplitFromUnifiedList(nextItem.entity, {
+            splitHandle: controller,
+            mergeHistory: true,
+            referredFrom: options.listView?.(),
+          });
+        }
+        onNavigate?.(nextItem.entity);
+      }
     }
 
-    await execute(entities, restoreFocus, opts);
+    const firstEntity = targets[0];
+    const navigateBack =
+      opts?.navigateBack ??
+      (nextItem && onNavigate && firstEntity
+        ? () => onNavigate(firstEntity)
+        : undefined);
+
+    await execute(targets, restoreFocus, { ...opts, navigateBack });
   };
 
   return { canExecute, execute, executeWithList };

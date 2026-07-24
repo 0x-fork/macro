@@ -6,25 +6,29 @@ import type {
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { CommandState } from '@app/features/command/state';
 import { useSoup } from '@app/features/next-soup/soup-context';
-import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
+import { previewContentMatchesEntity } from '@app/features/next-soup/soup-view/preview-content-row';
+import {
+  isDuplicatePreviewEntityOpen,
+  notifyDuplicateContentOpen,
+  openEntityInSplitFromUnifiedList,
+} from '@app/features/next-soup/utils';
 import type { SoupEntityRow, SoupRow } from '@app/features/soup-list';
 import { useSoupView } from '@app/features/soup-view/context';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
+import type {
+  SplitContent,
+  SplitEvent,
+  SplitEventPayload,
+} from '@components/app/split-layout/layoutManager';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { entityIdSelector } from '@core/dom-selectors';
 import {
   createHotkeyGroup,
   registerHotkey as registerBaseHotkey,
 } from '@core/hotkey/hotkeys';
-import { activeScope, hotkeyScopeTree } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
-import {
-  getHotkeyCommand,
-  getScopeElement,
-  isScopeInActiveBranch,
-  runCommand,
-} from '@core/hotkey/utils';
+import { isScopeInActiveBranch } from '@core/hotkey/utils';
 import {
   type EntityData,
   filterNotDoneNotifications,
@@ -32,7 +36,8 @@ import {
   isWithNotification,
 } from '@entity';
 import { openSingleStackNotification } from '@notifications';
-import { type Accessor, createMemo, onCleanup } from 'solid-js';
+import { debounce } from '@solid-primitives/scheduled';
+import { type Accessor, createEffect, createMemo, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import { useEntityActionHotkeys } from './actions/use-entity-action-hotkeys';
 
@@ -68,15 +73,8 @@ const entityFromRow = (row: SoupRow | undefined): EntityData | undefined => {
 /** Owns Soup keyboard commands and their mounted/persistent lifetimes. */
 export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   const panel = useSplitPanelOrThrow();
-  const {
-    applyTabPreset,
-    collection,
-    previewVisible,
-    setSortOpen,
-    sortVisible,
-    tabs,
-    view,
-  } = useSoupView();
+  const { applyTabPreset, collection, setSortOpen, sortVisible, tabs, view } =
+    useSoupView();
   const analytics = useAnalytics();
   const listState = useSoup().list;
   const enabled = () => options.enabled?.() ?? true;
@@ -96,6 +94,61 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     });
   const scrollTo = (index: number) =>
     options.virtualizer()?.scrollToIndex(index, { align: 'nearest' });
+
+  const openInViewerDebounced = debounce((entity: EntityData) => {
+    void openEntityInSplitFromUnifiedList(entity, {
+      splitHandle: panel.handle,
+      referredFrom: view(),
+      mergeHistory: true,
+    });
+  }, 150);
+  onCleanup(() => openInViewerDebounced.clear());
+
+  const rowForPreviewContent = (content: SplitContent) => {
+    const focused = listState.focus.item();
+    if (
+      focused?.kind === 'entity' &&
+      previewContentMatchesEntity(content, focused.entity)
+    ) {
+      return focused;
+    }
+
+    return listState.items
+      .all()
+      .find(
+        (row) =>
+          row.kind === 'entity' &&
+          previewContentMatchesEntity(content, row.entity)
+      );
+  };
+
+  createEffect(() => {
+    const viewerId = panel.handle.viewerId();
+    if (!viewerId) return;
+    const viewer = globalSplitManager()?.getSplit(viewerId);
+    if (!viewer) return;
+
+    const syncFocus = (
+      payload: SplitEventPayload[SplitEvent.ContentChange]
+    ) => {
+      if (
+        payload.cause !== 'history-back' &&
+        payload.cause !== 'history-forward'
+      ) {
+        return;
+      }
+      const row = rowForPreviewContent(payload.newContent);
+      if (!row) return;
+      const result = listState.navigate.toId(row.id, {
+        reason: 'restore',
+        force: true,
+      });
+      if (result) scrollTo(result.index);
+    };
+
+    viewer.registerContentChangeListener(syncFocus);
+    onCleanup(() => viewer.unregisterContentChangeListener(syncFocus));
+  });
 
   const fetchMore = async () => {
     const dataSource = listState.dataSource();
@@ -124,6 +177,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     const direction = offset < 0 ? -1 : 1;
     let index = listState.focus.index();
     if (index < 0) index = direction > 0 ? -1 : rows.length;
+    let skippedDuplicate = false;
 
     for (
       index += direction;
@@ -133,8 +187,40 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
       const row = rows[index];
       if (row?.kind !== 'entity') continue;
       if (!listState.selection.isSelectable(row)) continue;
+      if (
+        panel.handle.isControllerSplit() &&
+        isDuplicatePreviewEntityOpen(row.entity, panel.handle)
+      ) {
+        skippedDuplicate = true;
+        continue;
+      }
+      if (skippedDuplicate) notifyDuplicateContentOpen();
       return listState.navigate.toIndex(index, { reason: 'keyboard' });
     }
+
+    if (skippedDuplicate) notifyDuplicateContentOpen();
+  };
+
+  const navigateVisibleList = (offset: number) => {
+    const initialIndex = listState.focus.index();
+    let skippedDuplicate = false;
+
+    for (let attempts = 1; attempts <= listState.items.count(); attempts++) {
+      const next = listState.navigate.peekOffset(offset * attempts);
+      if (!next || next.index === initialIndex) break;
+      if (
+        panel.handle.isControllerSplit() &&
+        next.item.kind === 'entity' &&
+        isDuplicatePreviewEntityOpen(next.item.entity, panel.handle)
+      ) {
+        skippedDuplicate = true;
+        continue;
+      }
+      if (skippedDuplicate) notifyDuplicateContentOpen();
+      return listState.navigate.toIndex(next.index, { reason: 'keyboard' });
+    }
+
+    if (skippedDuplicate) notifyDuplicateContentOpen();
   };
 
   const navigate = (offset: number) => {
@@ -143,7 +229,7 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     const listVisible = options.root()?.isConnected === true;
     let next: ListNavigationResult<SoupRow>;
     if (listVisible) {
-      next = listState.navigate.by(offset, { reason: 'keyboard' });
+      next = navigateVisibleList(offset);
     } else {
       next = navigateToAdjacentEntity(offset);
     }
@@ -155,12 +241,16 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     scrollTo(next.index);
     options.onNavigate?.(next.item, next.index);
 
-    if (next.item.kind === 'entity' && !listVisible) {
-      void openEntityInSplitFromUnifiedList(next.item.entity, {
-        splitHandle: panel.handle,
-        referredFrom: view(),
-        mergeHistory: true,
-      });
+    if (next.item.kind === 'entity') {
+      if (panel.handle.isControllerSplit()) {
+        openInViewerDebounced(next.item.entity);
+      } else if (!listVisible) {
+        void openEntityInSplitFromUnifiedList(next.item.entity, {
+          splitHandle: panel.handle,
+          referredFrom: view(),
+          mergeHistory: true,
+        });
+      }
     }
 
     if (offset > 0 && next.index >= count - 1 - LOAD_MORE_DISTANCE_FROM_END) {
@@ -548,35 +638,13 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
     hotkey: 'cmd+enter',
     scopeId: options.listScopeId,
     description: 'Focus preview',
+    condition: () => panel.handle.isControllerSplit(),
     keyDownHandler: () => {
-      const item = listState.focus.item();
-      if (item?.kind === 'load-more') {
-        void item.loadMore();
-        return true;
-      }
-      if (item?.kind !== 'entity') return false;
-      if (!previewVisible()) {
-        return activateCurrent({ reason: 'keyboard' }) !== undefined;
-      }
-
-      const block = document.getElementById(`block-${item.entity.id}`);
-      if (!block) return false;
-      block.setAttribute('data-allow-focus-in-preview', '');
-      block.focus();
-
-      const currentScope = activeScope();
-      if (!currentScope) return true;
-      const scope = hotkeyScopeTree.get(currentScope);
-      if (scope?.type !== 'dom') return true;
-      const scopeElement = getScopeElement(currentScope);
-      const blockScope = scopeElement?.closest(
-        `[id="block-${item.entity.id}"]`
-      );
-      if (!(blockScope instanceof HTMLElement)) return true;
-      const blockScopeId = blockScope.dataset.hotkeyScope;
-      if (!blockScopeId) return true;
-      const enterCommand = getHotkeyCommand(blockScopeId, 'enter');
-      if (enterCommand) runCommand(enterCommand);
+      const manager = globalSplitManager();
+      const viewerId = panel.handle.viewerId();
+      if (!viewerId || !manager) return false;
+      manager.activateSplit(viewerId);
+      manager.returnFocus();
       return true;
     },
     displayPriority: 4,

@@ -99,6 +99,7 @@ export function createSoupEntityActions() {
     userId,
     notificationSource: () => notificationSource,
     isNewInbox,
+    listView: view,
   });
   const markRead = makeMarkReadAction();
   const markUnread = makeMarkUnreadAction();

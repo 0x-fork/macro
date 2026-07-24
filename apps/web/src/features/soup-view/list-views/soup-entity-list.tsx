@@ -1,7 +1,6 @@
 import { List, type ListActivation, useList } from '@app/components/list';
 import type { ListView } from '@app/constants/list-views';
 import {
-  navigateChannelEntityToTarget,
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
@@ -11,16 +10,12 @@ import {
   type SoupRow,
 } from '@app/features/soup-list';
 import { useSoupView } from '@app/features/soup-view/context';
-import {
-  useGlobalBlockOrchestrator,
-  useGlobalNotificationSource,
-} from '@components/app/GlobalAppState';
+import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { SwipableRowProvider } from '@components/app/mobile/SwipableRow';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { useUserId } from '@core/context/user';
 import {
-  type EntityData,
   isNonMemberChannelEntity,
   isSearchEntity,
   ListEntityMetadataQueryProvider,
@@ -62,13 +57,7 @@ type SoupActivationMetadata = {
   event?: MouseEvent | PointerEvent;
   location?: SearchLocation;
   project?: ProjectEntity;
-  navigateChannelTarget?: boolean;
   openInNewSplit?: boolean;
-};
-
-const entityFromRow = (row: SoupRow | undefined): EntityData | undefined => {
-  if (row?.kind !== 'entity') return;
-  return row.entity;
 };
 
 type SoupEntityListProps = {
@@ -95,9 +84,7 @@ type SoupEntityListProps = {
 
 export function SoupEntityList(props: SoupEntityListProps) {
   const panel = useSplitPanelOrThrow();
-  const orchestrator = useGlobalBlockOrchestrator();
-  const { collapseEntity, collection, previewEntityId, setPreviewEntity } =
-    useSoupView();
+  const { collapseEntity, collection } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
@@ -105,6 +92,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
     userId,
     notificationSource: () => notificationSource,
     isNewInbox: useIsNewInbox(),
+    listView: () => props.view,
   });
   const active = () => props.active?.() ?? true;
   const isVisible = (row: SoupRow) =>
@@ -117,7 +105,8 @@ export function SoupEntityList(props: SoupEntityListProps) {
   const activateRow = (activation: ListActivation<SoupRow>) => {
     if (
       activation.item.kind === 'entity' &&
-      isNonMemberChannelEntity(activation.item.entity)
+      isNonMemberChannelEntity(activation.item.entity) &&
+      !panel.handle.isControllerSplit()
     ) {
       return;
     }
@@ -128,11 +117,6 @@ export function SoupEntityList(props: SoupEntityListProps) {
     const metadata = (activation.metadata ?? {}) as SoupActivationMetadata;
     const entity = metadata.project ?? activation.item.entity;
 
-    if (metadata.navigateChannelTarget) {
-      void navigateChannelEntityToTarget(entity, orchestrator);
-      return;
-    }
-
     let location = metadata.location;
     if (!location && isSearchEntity(entity)) {
       const hits = entity.search.contentHitData;
@@ -140,7 +124,9 @@ export function SoupEntityList(props: SoupEntityListProps) {
     }
 
     if (metadata.event?.metaKey || metadata.event?.ctrlKey) {
-      openEntityInNewTab({ entity, location });
+      if (!isNonMemberChannelEntity(entity)) {
+        openEntityInNewTab({ entity, location });
+      }
       return;
     }
 
@@ -156,20 +142,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
 
-  let focusHasResolved = false;
-  createEffect(() => {
-    if (!active()) return;
-    const entity = entityFromRow(listState.focus.item());
-    if (entity) {
-      focusHasResolved = true;
-      setPreviewEntity(entity);
-    } else if (focusHasResolved || previewEntityId() === undefined) {
-      setPreviewEntity(undefined);
-    }
-  });
-  const { restoredListState, persistedPreviewEntity } = useSoupViewEntryState({
-    virtualizer,
-  });
+  const { restoredListState } = useSoupViewEntryState({ virtualizer });
 
   const { scrollTo } = useSoupViewHotkeys({
     listScopeId: props.scopeId ?? panel.splitHotkeyScope,
@@ -177,7 +150,6 @@ export function SoupEntityList(props: SoupEntityListProps) {
     root: props.root,
     virtualizer,
     activate: activateRow,
-    enabled: active,
     canNavigate: () => props.canNavigate?.() ?? true,
     onNavigate: props.onNavigate,
   });
@@ -227,18 +199,6 @@ export function SoupEntityList(props: SoupEntityListProps) {
         initialFocusApplied = true;
         if (restoredListState?.focus) {
           const restored = restoreFocus(restoredListState.focus);
-          if (restored) scrollTo(restored.index);
-          return;
-        }
-        if (persistedPreviewEntity) {
-          const previewRow = listState.items
-            .all()
-            .find(
-              (row) =>
-                row.kind === 'entity' &&
-                row.entity.id === persistedPreviewEntity
-            );
-          const restored = restoreFocus(previewRow?.id);
           if (restored) scrollTo(restored.index);
           return;
         }

@@ -4,6 +4,7 @@ import { CompanyListEntity } from '@app/features/next-soup/soup-view/views/compa
 import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
+  preventDuplicatePreviewEntityOpen,
 } from '@app/features/next-soup/utils';
 import {
   getSoupRowEntities,
@@ -13,31 +14,29 @@ import {
 import { useSoupView } from '@app/features/soup-view/context';
 import { useCrmUnavailable } from '@companies/crm/team-crm-config';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
-import { SplitPanelContext } from '@components/app/split-layout/context';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useSplitDisplayName } from '@components/app/split-layout/use-split-display-name';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
-import { Resize } from '@core/component/Resize';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
-import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
 import Spinner from '@phosphor/spinner.svg';
 import { useIsTeamAdmin } from '@queries/team/teams';
-import { EmptyStatePanel } from '@ui';
 import {
   batch,
   createEffect,
   createMemo,
   createSignal,
   Match,
-  onCleanup,
   onMount,
   Show,
   Suspense,
   Switch,
 } from 'solid-js';
-import { findEntityItem } from '../../../actions/list-action-state';
+import {
+  findEntityItem,
+  getSelectedEntities,
+} from '../../../actions/list-action-state';
 import {
   SoupCompaniesErrorState,
   SoupEmptyState,
@@ -48,7 +47,6 @@ import {
 } from '../../../components/soup-entity-list-item';
 import { SoupFileDropzone } from '../../../components/soup-file-dropzone';
 import { SoupMobileControls } from '../../../components/soup-mobile-controls';
-import { SoupPreviewPane } from '../../../components/soup-preview-pane';
 import { SoupSelectionToolbar } from '../../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../../components/soup-view-header';
 import { SoupViewProvider } from '../../../context';
@@ -65,7 +63,6 @@ import {
   resolveInitialCompanyView,
 } from './company-view-config';
 import { CrmDefaultViewLoader } from './crm-default-view';
-import { useCompanyBoardPreviewRestoration } from './use-company-board-preview-restoration';
 
 export type CompaniesListViewProps = {
   viewName?: string;
@@ -110,31 +107,15 @@ function CompaniesListViewContent() {
     collection,
     defaultTab,
     isTabAvailable,
-    previewEntity,
-    previewEntityId,
-    previewPaneVisible,
-    previewVisible,
-    setPreviewEntity,
     viewMode,
     viewName,
   } = useSoupView();
   const crmUnavailable = useCrmUnavailable();
   const boardActive = () => viewMode() === 'board';
-  const companyPreviewPaneVisible = () =>
-    !crmUnavailable() && previewPaneVisible();
-  const companyPreviewVisible = () => !crmUnavailable() && previewVisible();
-  const previewId = previewEntityId();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
-
-  useCompanyBoardPreviewRestoration({
-    enabled: boardActive,
-    persistedEntityId: previewId,
-    previewEntity: previewEntity,
-    setPreviewEntity: setPreviewEntity,
-  });
 
   createEffect(() => {
     const activeTab = collection.state.activeTab;
@@ -157,30 +138,11 @@ function CompaniesListViewContent() {
   useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
-  createEffect(() => {
-    const visible = companyPreviewPaneVisible();
-    const [current, setCurrent] = panel.previewState;
-    if (current() !== visible) setCurrent(visible);
-  });
-  onCleanup(() => panel.previewState[1](false));
-
-  const selectedEntities = createMemo(() =>
-    listState.selection
-      .selected()
-      .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
-  );
+  const selectedEntities = createMemo(() => getSelectedEntities(listState));
   const boardEntityCount = () => getSoupRowEntities(dataSource.items()).length;
 
   return (
-    <SplitPanelContext.Provider
-      value={{
-        ...panel,
-        halfSplitState: () =>
-          companyPreviewVisible()
-            ? { side: 'left', percentage: 30 }
-            : undefined,
-      }}
-    >
+    <>
       <SoupFileDropzone>
         <SoupViewRoot
           ref={(element) => {
@@ -191,165 +153,135 @@ function CompaniesListViewContent() {
         >
           <SoupViewHeader />
           <SoupMobileControls />
-          <div class="relative grow min-h-0 min-w-0 flex max-sm:flex-col">
-            <Resize.Zone direction="horizontal" gutter={0}>
-              <Resize.Panel
-                id={boardActive() ? 'company-kanban' : 'soup-list'}
-                minSize={boardActive() ? 200 : 300}
-                maxSize={
-                  !boardActive() && companyPreviewPaneVisible()
-                    ? 440
-                    : undefined
-                }
-              >
-                <div
-                  ref={setListContent}
-                  class="relative flex size-full min-h-0 min-w-0 flex-col"
-                >
-                  <List.Content forceEmpty={crmUnavailable()}>
-                    <Show when={!boardActive()}>
-                      <List.Items>
-                        <SoupEntityList
-                          view="companies"
-                          root={root}
-                          listScopeId={listScopeId}
-                          viewportRef={setViewport}
-                          active={() => !boardActive()}
-                        >
-                          {(item) => (
-                            <SoupEntityListItem item={item}>
-                              {(scope) => (
-                                <CompanyListEntity
-                                  entity={scope.item().entity}
-                                  highlighted={scope.highlighted()}
-                                  checked={scope.selected()}
-                                  entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
-                                  onChecked={scope.onChecked}
-                                  onClick={scope.onClick}
-                                  onProjectClick={scope.onProjectClick}
-                                  onContentHitClick={scope.onContentHitClick}
-                                />
-                              )}
-                            </SoupEntityListItem>
-                          )}
-                        </SoupEntityList>
-                      </List.Items>
-                      <List.Error>
-                        {() => (
-                          <div class="size-full min-h-0">
-                            <Show
-                              when={crmUnavailable()}
-                              fallback={
-                                <SoupCompaniesErrorState
-                                  onRetry={dataSource.refresh}
-                                />
-                              }
-                            >
-                              <SoupEmptyState />
-                            </Show>
-                          </div>
-                        )}
-                      </List.Error>
-                      <List.Loading>
-                        <div class="flex size-full items-center justify-center">
-                          <Spinner class="size-4 animate-spin" />
-                        </div>
-                      </List.Loading>
-                      <List.Empty>
-                        <div class="size-full min-h-0">
-                          <SoupEmptyState />
-                        </div>
-                      </List.Empty>
-                    </Show>
-                  </List.Content>
-
-                  <Show when={!boardActive()}>
-                    <CustomScrollbar scrollContainer={viewport} />
-                    <PullToRefresh
-                      scrollContainer={() =>
-                        dataSource.items().length > 0
-                          ? viewport()
-                          : listContent()
-                      }
-                      onRefresh={dataSource.refresh}
-                    />
-                    <Show when={selectedEntities().length > 0}>
-                      <SoupSelectionToolbar
-                        selected={selectedEntities()}
-                        onClose={listState.selection.clear}
-                        onClear={() => {
-                          listState.selection.clear();
-                          root()?.focus();
-                        }}
-                      />
-                    </Show>
-                  </Show>
-
-                  <Show when={boardActive()}>
-                    <Switch>
-                      <Match when={crmUnavailable()}>
-                        <SoupEmptyState />
-                      </Match>
-                      <Match
-                        when={dataSource.error() && boardEntityCount() === 0}
-                      >
-                        <SoupCompaniesErrorState onRetry={dataSource.refresh} />
-                      </Match>
-                      <Match when={dataSource.isLoading()}>
-                        <div class="flex size-full items-center justify-center">
-                          <Spinner class="size-4 animate-spin" />
-                        </div>
-                      </Match>
-                      <Match when={boardEntityCount() === 0}>
-                        <SoupEmptyState />
-                      </Match>
-                      <Match when={true}>
-                        <CompanyKanban
-                          onEntityClick={(entity, event) => {
-                            const item = findEntityItem(listState, entity.id);
-                            if (item) {
-                              listState.navigate.toId(item.id, {
-                                reason: 'pointer',
-                                force: true,
-                              });
-                            }
-                            if (companyPreviewPaneVisible()) {
-                              setPreviewEntity(entity);
-                              return;
-                            }
-                            if (event.metaKey || event.ctrlKey) {
-                              openEntityInNewTab({ entity });
-                              return;
-                            }
-                            void openEntityInSplitFromUnifiedList(entity, {
-                              splitHandle: panel.handle,
-                              referredFrom: 'companies',
-                              openInNewSplit: event.shiftKey,
-                            });
-                          }}
-                        />
-                      </Match>
-                    </Switch>
-                  </Show>
-                </div>
-              </Resize.Panel>
-              <Show when={!crmUnavailable()}>
-                <SoupPreviewPane
+          <div
+            ref={setListContent}
+            class="relative flex grow min-h-0 min-w-0 flex-col"
+          >
+            <List.Content forceEmpty={crmUnavailable()}>
+              <List.Items>
+                <SoupEntityList
+                  view="companies"
                   root={root}
-                  minSize={boardActive() ? 500 : 0}
-                  empty={
-                    boardActive() ? (
-                      <EmptyStatePanel
-                        graphic={EmptyStatePreviewIcon}
-                        title="Nothing selected"
-                        description="Select a card from the board to preview it here"
-                        centered
-                      />
-                    ) : undefined
-                  }
+                  listScopeId={listScopeId}
+                  viewportRef={setViewport}
+                  active={() => !boardActive()}
+                >
+                  {(item) => (
+                    <SoupEntityListItem item={item}>
+                      {(scope) => (
+                        <CompanyListEntity
+                          entity={scope.item().entity}
+                          highlighted={scope.highlighted()}
+                          checked={scope.selected()}
+                          entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
+                          onChecked={scope.onChecked}
+                          onClick={scope.onClick}
+                          onProjectClick={scope.onProjectClick}
+                          onContentHitClick={scope.onContentHitClick}
+                        />
+                      )}
+                    </SoupEntityListItem>
+                  )}
+                </SoupEntityList>
+              </List.Items>
+              <Show when={!boardActive()}>
+                <List.Error>
+                  {() => (
+                    <div class="size-full min-h-0">
+                      <Show
+                        when={crmUnavailable()}
+                        fallback={
+                          <SoupCompaniesErrorState
+                            onRetry={dataSource.refresh}
+                          />
+                        }
+                      >
+                        <SoupEmptyState />
+                      </Show>
+                    </div>
+                  )}
+                </List.Error>
+                <List.Loading>
+                  <div class="flex size-full items-center justify-center">
+                    <Spinner class="size-4 animate-spin" />
+                  </div>
+                </List.Loading>
+                <List.Empty>
+                  <div class="size-full min-h-0">
+                    <SoupEmptyState />
+                  </div>
+                </List.Empty>
+              </Show>
+            </List.Content>
+
+            <Show when={!boardActive()}>
+              <CustomScrollbar scrollContainer={viewport} />
+              <PullToRefresh
+                scrollContainer={() =>
+                  dataSource.items().length > 0 ? viewport() : listContent()
+                }
+                onRefresh={dataSource.refresh}
+              />
+              <Show when={selectedEntities().length > 0}>
+                <SoupSelectionToolbar
+                  selected={selectedEntities()}
+                  onClose={listState.selection.clear}
+                  onClear={() => {
+                    listState.selection.clear();
+                    root()?.focus();
+                  }}
                 />
               </Show>
-            </Resize.Zone>
+            </Show>
+
+            <Show when={boardActive()}>
+              <Switch>
+                <Match when={crmUnavailable()}>
+                  <SoupEmptyState />
+                </Match>
+                <Match when={dataSource.error() && boardEntityCount() === 0}>
+                  <SoupCompaniesErrorState onRetry={dataSource.refresh} />
+                </Match>
+                <Match when={dataSource.isLoading()}>
+                  <div class="flex size-full items-center justify-center">
+                    <Spinner class="size-4 animate-spin" />
+                  </div>
+                </Match>
+                <Match when={boardEntityCount() === 0}>
+                  <SoupEmptyState />
+                </Match>
+                <Match when={true}>
+                  <CompanyKanban
+                    onEntityClick={(entity, event) => {
+                      if (
+                        !event.shiftKey &&
+                        panel.handle.isControllerSplit() &&
+                        preventDuplicatePreviewEntityOpen(entity, panel.handle)
+                      ) {
+                        return;
+                      }
+
+                      const item = findEntityItem(listState, entity.id);
+                      if (item) {
+                        listState.navigate.toId(item.id, {
+                          reason: 'pointer',
+                          force: true,
+                        });
+                      }
+                      if (event.metaKey || event.ctrlKey) {
+                        openEntityInNewTab({ entity });
+                        return;
+                      }
+                      void openEntityInSplitFromUnifiedList(entity, {
+                        splitHandle: panel.handle,
+                        referredFrom: 'companies',
+                        openInNewSplit: event.shiftKey,
+                      });
+                    }}
+                  />
+                </Match>
+              </Switch>
+            </Show>
           </div>
         </SoupViewRoot>
       </SoupFileDropzone>
@@ -365,7 +297,7 @@ function CompaniesListViewContent() {
           <SoupChatInput />
         </Show>
       </Suspense>
-    </SplitPanelContext.Provider>
+    </>
   );
 }
 

@@ -30,7 +30,10 @@ import {
   makeSetCompanyPropertyAction,
   makeShareAction,
 } from './index';
-import type { SoupActionListState } from './list-action-state';
+import {
+  getSelectedEntities,
+  type SoupActionListState,
+} from './list-action-state';
 import {
   canExecuteMarkDoneOnView,
   makeMarkDoneAction,
@@ -63,6 +66,7 @@ export const useEntityActionHotkeys = (
     notificationSource: () => notificationSource,
     hotkeyGroup: group,
     isNewInbox: useIsNewInbox(),
+    listView: options.activeListView,
   });
   const markRead = makeMarkReadAction();
   const markUnread = makeMarkUnreadAction();
@@ -87,9 +91,7 @@ export const useEntityActionHotkeys = (
   const setCompanyPropertyAction = makeSetCompanyPropertyAction();
 
   const getEntitiesForAction = (): EntityData[] => {
-    const selected = list.selection
-      .selected()
-      .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []));
+    const selected = getSelectedEntities(list);
     if (selected.length > 0) return selected;
 
     const focused = list.focus.item();
@@ -105,7 +107,7 @@ export const useEntityActionHotkeys = (
   };
 
   const openNextEntity = (entity: EntityData) => {
-    if (!splitHandle) return;
+    if (!splitHandle || splitHandle.isControllerSplit()) return;
     const handleContent = splitHandle.content().type;
     if (handleContent === 'component' || handleContent === 'project') return;
     openEntityInSplitFromUnifiedList(entity, {

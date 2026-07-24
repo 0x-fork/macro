@@ -9,24 +9,20 @@ import type {
   SoupCollectionStore,
 } from '@app/features/soup-list';
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
-import { createSplitBreakpoints } from '@components/app/split-layout/create-split-breakpoints';
 import type { EntryState } from '@components/app/split-layout/layoutManager';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useUserId } from '@core/context/user';
 import { isModality } from '@core/mobile/inputModality';
-import { isMobile } from '@core/mobile/isMobile';
 import {
   makePersistedState,
   type PersistenceStorage,
 } from '@core/state/persistence';
-import type { EntityData } from '@entity';
 import { useIsTeamAdmin } from '@queries/team/teams';
 import {
   type Accessor,
   batch,
   createContext,
   createMemo,
-  createRenderEffect,
   createSignal,
   type JSX,
   type ParentProps,
@@ -44,34 +40,25 @@ import {
 } from './soup-view-presets';
 import { showSoupSort, useIsNewInbox } from './utils';
 
-const WIDE_SPLIT_PANEL_BREAKPOINT = 640;
 const SOUP_VIEW_STATE_ENTRY_KEY = 'soup.viewState';
 
 export type SoupViewMode = 'list' | 'board';
 type SoupViewState = {
   viewMode: SoupViewMode;
-  previewEntityId: string | undefined;
-  previewOpen: boolean;
 };
 
 const persistedStateSchema = z.object({
   viewMode: z.enum(['list', 'board']).optional(),
-  previewEntityId: z.string().optional(),
-  previewOpen: z.boolean().optional(),
 });
 
 const legacyStateSchema = z
   .object({
     'soup.viewMode': z.enum(['list', 'board']).optional(),
-    'soup.preview': z.string().optional(),
-    'soup.previewOpen': z.boolean().optional(),
   })
   .transform((state) => ({
     viewMode: state['soup.viewMode'],
-    previewEntityId: state['soup.preview'],
-    previewOpen: state['soup.previewOpen'],
   }))
-  .refine((state) => Object.values(state).some((value) => value !== undefined));
+  .refine((state) => state.viewMode !== undefined);
 
 const parseSoupViewState = (entryState: EntryState | undefined) => {
   if (!entryState) return undefined;
@@ -95,10 +82,6 @@ const restoreSoupViewState = (
       restoreViewMode && restored.viewMode
         ? restored.viewMode
         : current.viewMode,
-    previewEntityId: restored.previewEntityId,
-    previewOpen:
-      restored.previewOpen ??
-      (restored.previewEntityId !== undefined ? true : current.previewOpen),
   };
 };
 
@@ -147,19 +130,6 @@ export type SoupViewContextValue = {
   viewMode: Accessor<SoupViewMode>;
   setViewMode: Setter<SoupViewMode>;
 
-  previewEntity: Accessor<EntityData | undefined>;
-  previewEntityId: Accessor<string | undefined>;
-  setPreviewEntity: (
-    next:
-      | EntityData
-      | undefined
-      | ((previous: EntityData | undefined) => EntityData | undefined)
-  ) => EntityData | undefined;
-  previewOpen: Accessor<boolean>;
-  setPreviewOpen: Setter<boolean>;
-  previewPaneVisible: Accessor<boolean>;
-  previewVisible: Accessor<boolean>;
-
   searchControl: Accessor<SoupSearchControl | undefined>;
   setSearchControl: Setter<SoupSearchControl | undefined>;
   searchOpen: Accessor<boolean>;
@@ -187,7 +157,6 @@ export function SoupViewProvider(
     viewName: string;
     newInboxOverride?: boolean;
     initialViewMode?: SoupViewMode;
-    initialPreviewOpen?: boolean;
   }>
 ) {
   const collection = props.soup.collection;
@@ -292,32 +261,16 @@ export function SoupViewProvider(
     return true;
   };
 
-  const breakpoints = createSplitBreakpoints({
-    wide: WIDE_SPLIT_PANEL_BREAKPOINT,
-  });
-
-  const restoredViewState = parseSoupViewState(
-    panel.handle.currentEntryState()
-  );
-
-  const hasPersistedPreviewState =
-    restoredViewState?.previewOpen !== undefined ||
-    restoredViewState?.previewEntityId !== undefined;
   const stateStorage = createSoupViewStateStorage(
     panel,
     props.initialViewMode === undefined
   );
-
-  let previewDefaultResolved =
-    props.initialPreviewOpen !== undefined || hasPersistedPreviewState;
 
   const [state, setState] = makePersistedState(
     createStore<SoupViewState>({
       viewMode:
         props.initialViewMode ??
         (props.view === 'companies' ? 'board' : 'list'),
-      previewEntityId: undefined,
-      previewOpen: props.initialPreviewOpen ?? false,
     }),
     { storage: stateStorage }
   );
@@ -329,48 +282,6 @@ export function SoupViewProvider(
     setState('viewMode', value);
     return value;
   };
-
-  const [previewEntity, setPreviewEntitySignal] = createSignal<EntityData>();
-
-  const previewEntityId = () => state.previewEntityId;
-
-  const setPreviewEntity = (
-    next:
-      | EntityData
-      | undefined
-      | ((previous: EntityData | undefined) => EntityData | undefined)
-  ) => {
-    const entity = typeof next === 'function' ? next(previewEntity()) : next;
-    setPreviewEntitySignal(() => entity);
-    setState('previewEntityId', entity?.id);
-    return entity;
-  };
-
-  const previewOpen = () => state.previewOpen;
-
-  const setPreviewOpen: Setter<boolean> = (next) => {
-    const value = typeof next === 'function' ? next(state.previewOpen) : next;
-    setState('previewOpen', value);
-    return value;
-  };
-
-  createRenderEffect(() => {
-    if (previewDefaultResolved || !isNewInbox()) return;
-    previewDefaultResolved = true;
-    setPreviewOpen(true);
-  });
-
-  const hasPreviewableEntity = () =>
-    collection.dataSource.items().some((item) => item.kind === 'entity');
-
-  const previewPaneVisible = () =>
-    !isMobile() &&
-    breakpoints.wide() &&
-    previewOpen() &&
-    hasPreviewableEntity();
-
-  const previewVisible = () =>
-    previewPaneVisible() && previewEntity() !== undefined;
 
   const [searchControl, setSearchControl] = createSignal<SoupSearchControl>();
   const [searchOpen, setSearchOpen] = createSignal(false);
@@ -410,14 +321,6 @@ export function SoupViewProvider(
 
     viewMode,
     setViewMode,
-
-    previewEntity,
-    previewEntityId,
-    setPreviewEntity,
-    previewOpen,
-    setPreviewOpen,
-    previewPaneVisible,
-    previewVisible,
 
     searchControl,
     setSearchControl,

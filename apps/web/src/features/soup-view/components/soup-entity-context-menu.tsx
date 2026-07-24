@@ -28,6 +28,7 @@ const tagEntityType = (entity: EntityData): EntityType | undefined => {
   if (entity.type === 'email') return EntityType.THREAD;
   if (entity.type === 'project') return EntityType.PROJECT;
   if (entity.type === 'chat') return EntityType.CHAT;
+  if (entity.type === 'call') return EntityType.CALL_RECORD;
 };
 
 function RowTagPicker(props: {

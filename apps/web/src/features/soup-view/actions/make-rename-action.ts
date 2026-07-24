@@ -1,6 +1,5 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import { restoreSoupFocus } from '@app/features/next-soup/utils';
-import { useMaybePreviewPanel } from '@components/app/PreviewPanel';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
 import type { SoupActionListState } from './list-action-state';
@@ -39,15 +38,12 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
     });
   };
 
-  const previewPanel = useMaybePreviewPanel();
-
   const executeWithList = async (
     entities: EntityData[],
     list: SoupActionListState
   ) => {
     const firstEntity = entities[0];
     const focusedItemId = list.focus.id();
-    const inPreview = previewPanel !== undefined;
 
     openBulkEditModal({
       view: 'rename',
@@ -59,13 +55,13 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
         if (focusedItemId && list.items.get(focusedItemId)) {
           list.focus.set(focusedItemId);
         }
-        restoreSoupFocus(firstEntity?.id, inPreview);
+        restoreSoupFocus(firstEntity?.id);
       },
       onCancel: () => {
         if (focusedItemId && list.items.get(focusedItemId)) {
           list.focus.set(focusedItemId);
         }
-        restoreSoupFocus(firstEntity?.id, inPreview);
+        restoreSoupFocus(firstEntity?.id);
       },
     });
   };

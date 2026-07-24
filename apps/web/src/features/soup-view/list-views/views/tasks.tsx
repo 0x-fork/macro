@@ -3,24 +3,14 @@ import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import { TaskListEntity } from '@app/features/next-soup/soup-view/views/tasks/TaskListEntity';
 import type { SoupRow } from '@app/features/soup-list';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
-import { SplitPanelContext } from '@components/app/split-layout/context';
-import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useSplitDisplayName } from '@components/app/split-layout/use-split-display-name';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
-import { Resize } from '@core/component/Resize';
 import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import Spinner from '@phosphor/spinner.svg';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-  Show,
-  Suspense,
-} from 'solid-js';
+import { createMemo, createSignal, onMount, Show, Suspense } from 'solid-js';
+import { getSelectedEntities } from '../../actions/list-action-state';
 import {
   SoupEmptyState,
   SoupErrorState,
@@ -31,7 +21,6 @@ import {
 } from '../../components/soup-entity-list-item';
 import { SoupFileDropzone } from '../../components/soup-file-dropzone';
 import { SoupMobileControls } from '../../components/soup-mobile-controls';
-import { SoupPreviewPane } from '../../components/soup-preview-pane';
 import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../components/soup-view-header';
 import { SoupViewProvider, useSoupView } from '../../context';
@@ -45,8 +34,7 @@ export type TasksListViewProps = {
 };
 
 function TasksListViewContent() {
-  const panel = useSplitPanelOrThrow();
-  const { previewPaneVisible, previewVisible, viewName } = useSoupView();
+  const { viewName } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
@@ -56,27 +44,10 @@ function TasksListViewContent() {
   useSplitDisplayName(viewName);
   useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
-  createEffect(() => {
-    const visible = previewPaneVisible();
-    const [current, setCurrent] = panel.previewState;
-    if (current() !== visible) setCurrent(visible);
-  });
-  onCleanup(() => panel.previewState[1](false));
-
-  const selectedEntities = createMemo(() =>
-    listState.selection
-      .selected()
-      .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
-  );
+  const selectedEntities = createMemo(() => getSelectedEntities(listState));
 
   return (
-    <SplitPanelContext.Provider
-      value={{
-        ...panel,
-        halfSplitState: () =>
-          previewVisible() ? { side: 'left', percentage: 30 } : undefined,
-      }}
-    >
+    <>
       <SoupFileDropzone>
         <SoupViewRoot
           ref={(element) => {
@@ -87,83 +58,72 @@ function TasksListViewContent() {
         >
           <SoupViewHeader />
           <SoupMobileControls />
-          <div class="relative grow min-h-0 min-w-0 flex max-sm:flex-col">
-            <Resize.Zone direction="horizontal" gutter={0}>
-              <Resize.Panel
-                id="soup-list"
-                minSize={300}
-                maxSize={previewPaneVisible() ? 440 : undefined}
-              >
-                <div
-                  ref={setListContent}
-                  class="relative flex size-full min-h-0 min-w-0 flex-col"
+          <div
+            ref={setListContent}
+            class="relative flex grow min-h-0 min-w-0 flex-col"
+          >
+            <List.Content>
+              <List.Items>
+                <SoupEntityList
+                  view="tasks"
+                  root={root}
+                  listScopeId={listScopeId}
+                  viewportRef={setViewport}
                 >
-                  <List.Content>
-                    <List.Items>
-                      <SoupEntityList
-                        view="tasks"
-                        root={root}
-                        listScopeId={listScopeId}
-                        viewportRef={setViewport}
-                      >
-                        {(item) => (
-                          <SoupEntityListItem item={item}>
-                            {(scope) => (
-                              <TaskListEntity
-                                entity={scope.item().entity}
-                                highlighted={scope.highlighted()}
-                                checked={scope.selected()}
-                                entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
-                                onChecked={scope.onChecked}
-                                onClick={scope.onClick}
-                                onProjectClick={scope.onProjectClick}
-                                onContentHitClick={scope.onContentHitClick}
-                              />
-                            )}
-                          </SoupEntityListItem>
-                        )}
-                      </SoupEntityList>
-                    </List.Items>
-                    <List.Error>
-                      {() => (
-                        <div class="size-full min-h-0">
-                          <SoupErrorState />
-                        </div>
+                  {(item) => (
+                    <SoupEntityListItem item={item}>
+                      {(scope) => (
+                        <TaskListEntity
+                          entity={scope.item().entity}
+                          highlighted={scope.highlighted()}
+                          checked={scope.selected()}
+                          entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
+                          onChecked={scope.onChecked}
+                          onClick={scope.onClick}
+                          onProjectClick={scope.onProjectClick}
+                          onContentHitClick={scope.onContentHitClick}
+                        />
                       )}
-                    </List.Error>
-                    <List.Loading>
-                      <div class="flex size-full items-center justify-center">
-                        <Spinner class="size-4 animate-spin" />
-                      </div>
-                    </List.Loading>
-                    <List.Empty>
-                      <div class="size-full min-h-0">
-                        <SoupEmptyState />
-                      </div>
-                    </List.Empty>
-                  </List.Content>
-
-                  <CustomScrollbar scrollContainer={viewport} />
-                  <PullToRefresh
-                    scrollContainer={() =>
-                      dataSource.items().length > 0 ? viewport() : listContent()
-                    }
-                    onRefresh={dataSource.refresh}
-                  />
-                  <Show when={selectedEntities().length > 0}>
-                    <SoupSelectionToolbar
-                      selected={selectedEntities()}
-                      onClose={listState.selection.clear}
-                      onClear={() => {
-                        listState.selection.clear();
-                        root()?.focus();
-                      }}
-                    />
-                  </Show>
+                    </SoupEntityListItem>
+                  )}
+                </SoupEntityList>
+              </List.Items>
+              <List.Error>
+                {() => (
+                  <div class="size-full min-h-0">
+                    <SoupErrorState />
+                  </div>
+                )}
+              </List.Error>
+              <List.Loading>
+                <div class="flex size-full items-center justify-center">
+                  <Spinner class="size-4 animate-spin" />
                 </div>
-              </Resize.Panel>
-              <SoupPreviewPane root={root} />
-            </Resize.Zone>
+              </List.Loading>
+              <List.Empty>
+                <div class="size-full min-h-0">
+                  <SoupEmptyState />
+                </div>
+              </List.Empty>
+            </List.Content>
+
+            <CustomScrollbar scrollContainer={viewport} />
+            <PullToRefresh
+              scrollContainer={() =>
+                dataSource.items().length > 0 ? viewport() : listContent()
+              }
+              onRefresh={dataSource.refresh}
+            />
+            <Show when={selectedEntities().length > 0}>
+              <SoupSelectionToolbar
+                selected={selectedEntities()}
+                onClose={listState.selection.clear}
+                onClear={() => {
+                  listState.selection.clear();
+                  root()?.focus();
+                }}
+              />
+            </Show>
           </div>
         </SoupViewRoot>
       </SoupFileDropzone>
@@ -173,7 +133,7 @@ function TasksListViewContent() {
           <SoupChatInput />
         </Show>
       </Suspense>
-    </SplitPanelContext.Provider>
+    </>
   );
 }
 

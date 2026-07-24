@@ -1,11 +1,14 @@
 import { LIST_VIEW_DOCS_URL } from '@app/constants/docs-links';
+import { useSoup } from '@app/features/next-soup/soup-context';
 import { GroupDropdown } from '@app/features/next-soup/soup-view/filters-bar/group-dropdown';
 import { SortDropdown } from '@app/features/next-soup/soup-view/filters-bar/sort-dropdown';
 import type { GroupOptionId } from '@app/features/next-soup/soup-view/group-options';
 import type { SystemSortOption } from '@app/features/next-soup/soup-view/sort-options';
 import { SoupViewCreateButton } from '@app/features/next-soup/soup-view/soup-view-create-button';
+import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { useSoupView } from '@app/features/soup-view/context';
 import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleHeaderItem';
+import { PreviewButton } from '@components/app/split-layout/components/PreviewButton';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -14,7 +17,6 @@ import {
   SplitToolbarLeft,
   SplitToolbarRight,
 } from '@components/app/split-layout/components/SplitToolbar';
-import { createSplitBreakpoints } from '@components/app/split-layout/create-split-breakpoints';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { TabsInset } from '@core/component/TabsInset';
 import { TabsInsetDropdown } from '@core/component/TabsInsetDropdown';
@@ -24,10 +26,14 @@ import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
 import InfoIcon from '@phosphor/info.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
-import EyeIcon from '@phosphor-icons/core/regular/eye.svg?component-solid';
-import EyeSlashIcon from '@phosphor-icons/core/regular/eye-slash.svg?component-solid';
-import { Button, cn, Layer, Tooltip } from '@ui';
-import { createSignal, onCleanup, Show } from 'solid-js';
+import { Button, Layer, Tooltip } from '@ui';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+  Show,
+} from 'solid-js';
 
 import { SoupActiveFacets } from '../filters/soup-active-facets';
 import { SoupSearchbar } from '../filters/soup-searchbar';
@@ -52,10 +58,7 @@ export function SoupViewHeader() {
     defaultTab,
     focusSearch,
     openSearch,
-    previewOpen,
-    previewPaneVisible,
     searchOpen,
-    setPreviewOpen,
     setSearchOpen,
     setSortOpen,
     setViewMode,
@@ -66,7 +69,7 @@ export function SoupViewHeader() {
     viewName,
   } = useSoupView();
   const panel = useSplitPanelOrThrow();
-  const breakpoints = createSplitBreakpoints({ wide: 640 });
+  const soup = useSoup();
   const isNewInbox = useIsNewInbox();
   const [groupOpen, setGroupOpen] = createSignal(false);
   const [searchCollapsed, setSearchCollapsed] = createSignal(false);
@@ -97,18 +100,35 @@ export function SoupViewHeader() {
   });
   onCleanup(searchHotkey.dispose);
 
-  const previewHotkey = registerHotkey({
-    hotkey: 'space',
-    hotkeyToken: TOKENS.unifiedList.togglePreview,
-    scopeId: panel.splitHotkeyScope,
-    registrationType: 'add',
-    description: 'Toggle preview',
-    keyDownHandler: () => {
-      setPreviewOpen((open) => !open);
-      return true;
-    },
+  const hasPreviewItems = createMemo(() =>
+    collection.dataSource.items().some((row) => row.kind === 'entity')
+  );
+  const openFocusedEntityInPreview = () => {
+    const row = soup.list.focus.item();
+    if (row?.kind !== 'entity') return;
+    void openEntityInSplitFromUnifiedList(row.entity, {
+      splitHandle: panel.handle,
+      referredFrom: view(),
+    });
+  };
+
+  createEffect(() => {
+    if (collection.dataSource.isLoading() || hasPreviewItems()) return;
+    if (panel.handle.isControllerSplit()) panel.handle.disengagePreview();
   });
-  onCleanup(previewHotkey.dispose);
+
+  let initialInboxPreviewResolved = false;
+  createEffect(() => {
+    if (initialInboxPreviewResolved || collection.dataSource.isLoading()) {
+      return;
+    }
+    initialInboxPreviewResolved = true;
+    if (view() !== 'inbox') return;
+    if (panel.handle.lastNavigationCause() !== 'fresh') return;
+    if (panel.handle.isViewerSplit() || !hasPreviewItems()) return;
+    panel.handle.engagePreview();
+    if (panel.handle.isControllerSplit()) openFocusedEntityInPreview();
+  });
 
   const expandedTabs = () =>
     view() === 'companies' ? (
@@ -144,12 +164,7 @@ export function SoupViewHeader() {
     );
 
   return (
-    <div
-      class={cn(
-        'flex w-full shrink-0 flex-col',
-        !isMobile() && previewPaneVisible() && 'border-b-px border-edge-muted'
-      )}
-    >
+    <div class="flex w-full shrink-0 flex-col">
       <SplitHeaderLeft>
         <div class="flex h-full min-w-0 items-center gap-3">
           <Show when={!isMobile() && !searchOpen()}>
@@ -300,24 +315,11 @@ export function SoupViewHeader() {
           </div>
         </SplitToolbarLeft>
         <SplitToolbarRight>
-          <Tooltip
-            hotkey={
-              breakpoints.wide() ? TOKENS.unifiedList.togglePreview : undefined
-            }
-            label={breakpoints.wide() ? 'Preview' : 'No space for preview'}
-          >
-            <Button
-              onClick={() => setPreviewOpen((open) => !open)}
-              variant="base"
-              size="sm"
-              depth={2}
-              class="bg-surface"
-              disabled={!breakpoints.wide()}
-            >
-              {previewOpen() ? <EyeSlashIcon /> : <EyeIcon />}
-              <span>Preview</span>
-            </Button>
-          </Tooltip>
+          <PreviewButton
+            disabled={!hasPreviewItems()}
+            disabledLabel="No items to preview"
+            onEngage={openFocusedEntityInPreview}
+          />
         </SplitToolbarRight>
       </Show>
 

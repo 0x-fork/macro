@@ -1,5 +1,4 @@
 import { restoreSoupFocus } from '@app/features/next-soup/utils';
-import { useMaybePreviewPanel } from '@components/app/PreviewPanel';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
 import { createBulkRemoveFromProjectDssEntityMutation } from '@entity';
@@ -32,8 +31,6 @@ export const makeRemoveFromProjectAction = () => {
     return true;
   };
 
-  const previewPanel = useMaybePreviewPanel();
-
   const executeWithList = async (
     entities: EntityData[],
     list: SoupActionListState
@@ -43,7 +40,6 @@ export const makeRemoveFromProjectAction = () => {
       list,
       new Set(entities.map((entity) => entity.id))
     );
-    const inPreview = previewPanel !== undefined;
 
     const success = await execute(entities);
     // Rolled back on failure; keep selection and focus for a retry
@@ -53,7 +49,7 @@ export const makeRemoveFromProjectAction = () => {
     if (nextItem) {
       list.focus.set(nextItem.id);
     }
-    restoreSoupFocus(nextItem?.entity.id, inPreview);
+    restoreSoupFocus(nextItem?.entity.id);
   };
 
   return { canExecute, execute, executeWithList };

@@ -1,16 +1,10 @@
+import { List, type ListActivation, useList } from '@app/components/list';
 import {
-  List,
-  type ListActivation,
-  type ListItemState,
-  useList,
-} from '@app/components/list';
-import {
-  navigateChannelEntityToTarget,
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
+  preventDuplicatePreviewEntityOpen,
 } from '@app/features/next-soup/utils';
 import type { SoupEntityRow, SoupRow } from '@app/features/soup-list';
-import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
 import { useLongPress } from '@components/app/mobile/use-long-press';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { hapticImpact } from '@core/mobile/haptics';
@@ -32,6 +26,7 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
+import { getSelectedEntities } from '../actions/list-action-state';
 import { actionTargets } from '../actions/soup-entity-action-model';
 import { useSoupView } from '../context';
 import { SoupEntityContextMenu } from './soup-entity-context-menu';
@@ -64,38 +59,9 @@ type SoupActivationMetadata = {
   event?: MouseEvent | PointerEvent;
   location?: SearchLocation;
   project?: ProjectEntity;
-  navigateChannelTarget?: boolean;
   openInNewSplit?: boolean;
+  focus?: () => void;
 };
-
-type SoupEntityClickDependencies = {
-  item: Accessor<SoupEntityRow>;
-  state: ListItemState;
-  previewPaneVisible: Accessor<boolean>;
-  activate: (metadata: SoupActivationMetadata) => void;
-};
-
-export function handleSoupEntityClick(
-  dependencies: SoupEntityClickDependencies,
-  event: MouseEvent
-) {
-  if (dependencies.previewPaneVisible()) {
-    const alreadyFocused = dependencies.state.focused();
-    dependencies.state.focus({ reason: 'pointer' });
-    const type = dependencies.item().entity.type;
-    if (
-      alreadyFocused &&
-      (type === 'channel' ||
-        type === 'channel_message' ||
-        type === 'channel_thread')
-    ) {
-      dependencies.activate({ event, navigateChannelTarget: true });
-    }
-    return;
-  }
-  dependencies.state.focus({ reason: 'pointer' });
-  dependencies.activate({ event });
-}
 
 const selectionAnchors = new WeakMap<object, number>();
 
@@ -106,8 +72,7 @@ export function SoupEntityListItem(props: {
   onActivate?: (activation: ListActivation<SoupRow>) => void;
 }) {
   const panel = useSplitPanelOrThrow();
-  const orchestrator = useGlobalBlockOrchestrator();
-  const { previewOpen, previewPaneVisible, view } = useSoupView();
+  const { view } = useSoupView();
   const mobileActionDrawer = useMaybeSoupMobileActionDrawer();
   const { state: listState } = useList<SoupRow>();
   const [touchPressed, setTouchPressed] = createSignal(false);
@@ -116,11 +81,7 @@ export function SoupEntityListItem(props: {
     typeof props.hoverFocus === 'function'
       ? props.hoverFocus()
       : (props.hoverFocus ?? true);
-  const selectedEntities = createMemo(() =>
-    listState.selection
-      .selected()
-      .flatMap((item) => (item.kind === 'entity' ? [item.entity] : []))
-  );
+  const selectedEntities = createMemo(() => getSelectedEntities(listState));
 
   createEffect(() => {
     if (listState.selection.count() === 0) selectionAnchors.delete(listState);
@@ -149,8 +110,29 @@ export function SoupEntityListItem(props: {
 
   const open = (metadata: SoupActivationMetadata) => {
     const item = props.item();
-    if (isNonMemberChannelEntity(item.entity)) return;
+    if (
+      isNonMemberChannelEntity(item.entity) &&
+      !panel.handle.isControllerSplit()
+    ) {
+      return;
+    }
 
+    const entity = metadata.project ?? item.entity;
+    const openInNewSplit =
+      metadata.openInNewSplit ?? metadata.event?.shiftKey ?? false;
+    const openInNewTab =
+      metadata.event?.metaKey === true || metadata.event?.ctrlKey === true;
+    if (
+      !metadata.project &&
+      !openInNewTab &&
+      !openInNewSplit &&
+      panel.handle.isControllerSplit() &&
+      preventDuplicatePreviewEntityOpen(entity, panel.handle)
+    ) {
+      return;
+    }
+
+    if (!openInNewTab && !openInNewSplit) metadata.focus?.();
     const activation: ListActivation<SoupRow> = {
       item,
       index: index(),
@@ -158,12 +140,6 @@ export function SoupEntityListItem(props: {
       metadata,
     };
     props.onActivate?.(activation);
-    const entity = metadata.project ?? item.entity;
-
-    if (metadata.navigateChannelTarget) {
-      void navigateChannelEntityToTarget(entity, orchestrator);
-      return;
-    }
 
     let location = metadata.location;
     if (!location && isSearchEntity(entity)) {
@@ -171,8 +147,10 @@ export function SoupEntityListItem(props: {
       if (hits?.length === 1) location = hits[0]?.location;
     }
 
-    if (metadata.event?.metaKey || metadata.event?.ctrlKey) {
-      openEntityInNewTab({ entity, location });
+    if (openInNewTab) {
+      if (!isNonMemberChannelEntity(entity)) {
+        openEntityInNewTab({ entity, location });
+      }
       return;
     }
 
@@ -180,8 +158,7 @@ export function SoupEntityListItem(props: {
       splitHandle: panel.handle,
       referredFrom: view(),
       location,
-      openInNewSplit:
-        metadata.openInNewSplit ?? metadata.event?.shiftKey ?? false,
+      openInNewSplit,
     });
   };
 
@@ -228,17 +205,17 @@ export function SoupEntityListItem(props: {
           highlighted: createMemo(() => state.focused() || touchPressed()),
           onChecked: setItemSelected,
           onClick: (event) =>
-            handleSoupEntityClick(
-              {
-                item: props.item,
-                state,
-                previewPaneVisible,
-                activate: open,
-              },
-              event
-            ),
+            open({
+              event,
+              focus: () => state.focus({ reason: 'pointer' }),
+            }),
           onProjectClick: (project, event) => open({ event, project }),
-          onContentHitClick: (event, location) => open({ event, location }),
+          onContentHitClick: (event, location) =>
+            open({
+              event,
+              location,
+              focus: () => state.focus({ reason: 'pointer' }),
+            }),
         };
 
         return (
@@ -252,7 +229,11 @@ export function SoupEntityListItem(props: {
               ref={container}
               class="size-full"
               onMouseMove={() => {
-                if (isKeypressActive() || previewOpen() || !hoverFocus())
+                if (
+                  isKeypressActive() ||
+                  panel.handle.isControllerSplit() ||
+                  !hoverFocus()
+                )
                   return;
                 state.focus({ reason: 'hover' });
               }}

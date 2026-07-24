@@ -1,8 +1,23 @@
 import type { ListState } from '@app/components/list';
 import type { SoupEntityRow, SoupRow } from '@app/features/soup-list';
+import type { EntityData } from '@entity';
 
 /** List capabilities needed by replacement Soup entity actions. */
 export type SoupActionListState = ListState<SoupRow>;
+
+/** Canonical action targets; duplicate rendered occurrences act once. */
+export const getSelectedEntities = (
+  list: SoupActionListState
+): EntityData[] => {
+  const entities: EntityData[] = [];
+  const entityIds = new Set<string>();
+  for (const item of list.selection.selected()) {
+    if (item.kind !== 'entity' || entityIds.has(item.entity.id)) continue;
+    entityIds.add(item.entity.id);
+    entities.push(item.entity);
+  }
+  return entities;
+};
 
 export const findEntityItem = (
   list: SoupActionListState,

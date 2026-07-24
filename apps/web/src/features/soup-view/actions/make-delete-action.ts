@@ -1,14 +1,12 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import { restoreSoupFocus, trashEmails } from '@app/features/next-soup/utils';
 import { globalSplitManager } from '@app/signal/splitLayout';
-import { useMaybePreviewPanel } from '@components/app/PreviewPanel';
 import { globalRemoveFromSplitHistory } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
 import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
 import {
   findAdjacentEntityItem,
-  findEntityItem,
   type SoupActionListState,
 } from './list-action-state';
 
@@ -51,17 +49,20 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
     });
   };
 
-  const previewPanel = useMaybePreviewPanel();
-
   const executeWithList = async (
     entities: EntityData[],
     list: SoupActionListState
   ) => {
+    const focusedItemId = list.focus.id();
+    const focusedItem = focusedItemId
+      ? list.items.get(focusedItemId)
+      : undefined;
+    const focusedEntityId =
+      focusedItem?.kind === 'entity' ? focusedItem.entity.id : undefined;
     const nextItem = findAdjacentEntityItem(
       list,
       new Set(entities.map((entity) => entity.id))
     );
-    const inPreview = previewPanel !== undefined;
 
     const emailEntities = entities.filter((entity) => entity.type === 'email');
     const nonEmailEntities = entities.filter(
@@ -71,7 +72,7 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
     const focusNext = () => {
       list.selection.clear();
       if (nextItem) list.focus.set(nextItem.id);
-      restoreSoupFocus(nextItem?.entity.id, inPreview);
+      restoreSoupFocus(nextItem?.entity.id);
     };
 
     const trashEmailEntities = () => {
@@ -137,12 +138,10 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
           else focusNext();
         },
         onCancel: () => {
-          const firstEntity = nonEmailEntities[0];
-          const firstItem = firstEntity
-            ? findEntityItem(list, firstEntity.id)
-            : undefined;
-          if (firstItem) list.focus.set(firstItem.id);
-          restoreSoupFocus(firstEntity?.id, inPreview);
+          if (focusedItemId && list.items.get(focusedItemId)) {
+            list.focus.set(focusedItemId);
+          }
+          restoreSoupFocus(focusedEntityId ?? nonEmailEntities[0]?.id);
         },
       });
     } else if (emailEntities.length > 0) {

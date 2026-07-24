@@ -558,9 +558,17 @@ export const createListState = <T extends Identifiable>(
         const current = focusedIndex();
         if (offset === 0) return currentFocusResult();
         if (current === -1) {
-          return offset > 0
-            ? resultAt(findFocusableIndex(0, 1))
-            : resultAt(findFocusableIndex(items().length - 1, -1));
+          const direction = offset > 0 ? 1 : -1;
+          let cursor = direction > 0 ? 0 : items().length - 1;
+          let nextIndex = -1;
+
+          for (let step = 0; step < Math.abs(offset); step++) {
+            nextIndex = findFocusableIndex(cursor, direction);
+            if (nextIndex < 0) return;
+            cursor = nextIndex + direction;
+          }
+
+          return resultAt(nextIndex);
         }
 
         const nextIndex = findNextIndex(current, offset);
