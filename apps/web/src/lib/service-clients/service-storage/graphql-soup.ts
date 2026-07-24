@@ -402,6 +402,7 @@ export function mapGraphqlSoupItem(item: GraphqlSoupItem): SoupApiItem {
             providerId: entity.providerId ?? undefined,
             ownerId: entity.ownerId,
             inboxVisible: entity.inboxVisible,
+            hasInboundMessage: entity.hasInboundMessage,
             name: entity.emailName ?? undefined,
             snippet: entity.snippet ?? undefined,
             senderEmail: entity.senderEmail ?? undefined,

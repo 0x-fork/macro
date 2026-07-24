@@ -30,6 +30,7 @@ import {
 } from '@notifications';
 import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-clockwise.svg?component-solid';
 import { queryClient } from '@queries/client';
+import { isEmailThreadDone } from '@queries/email/done';
 import { emailKeys } from '@queries/email/keys';
 import { useNonPrimaryEmailLinkIdHeader } from '@queries/email/link';
 import {
@@ -484,7 +485,12 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
 
   const isThreadDone = () => {
     const thread = threadQuery.data;
-    return thread ? !thread.inbox_visible : false;
+    return thread
+      ? isEmailThreadDone({
+          inboxVisible: thread.inbox_visible,
+          hasInboundMessage: thread.has_inbound_message,
+        })
+      : false;
   };
 
   // Resolve a thread's soup representation for the mark-done / mark-not-done
@@ -500,7 +506,9 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
     const thread = threadQuery.data;
     if (!thread?.db_id) return false;
 
-    if (thread.inbox_visible) return false;
+    // Only a thread that is actually done can be undone; a sent-only thread
+    // would otherwise be unarchived into the inbox.
+    if (!isThreadDone()) return false;
 
     // Mark-not-done issues the /archived request itself (plus notification
     // and soup-cache restore), so the path below skips archiveMutation and
@@ -584,7 +592,9 @@ export function EmailProvider(props: FlowProps<{ threadID: string }>) {
 
     if (!thread?.db_id) return false;
 
-    if (!thread.inbox_visible) return false;
+    // Anything not already done can be marked done, including a sent-only
+    // thread the user wants out of their unified list.
+    if (isThreadDone()) return false;
 
     // Mark done issues the /archived request itself (with undo support), so
     // the paths below skip archiveMutation and only mirror its thread-cache

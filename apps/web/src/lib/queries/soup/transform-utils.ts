@@ -28,6 +28,7 @@ import type {
   SearchData,
   WithSearch,
 } from '@entity';
+import { isEmailThreadDone } from '@queries/email/done';
 import type {
   CallRecordSearchResult,
   ChannelSearchResult,
@@ -677,7 +678,7 @@ export const mapApiSoupItemToEntity = (
         senderEmail: item.data.senderEmail ?? undefined,
         senderName: item.data.senderName ?? undefined,
         snippet: item.data.snippet ?? undefined,
-        done: !item.data.inboxVisible,
+        done: isEmailThreadDone(item.data),
         type: 'email',
         name: item.data.name || 'Email Thread',
         frecencyScore: item.frecency_score,

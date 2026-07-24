@@ -76,6 +76,7 @@ fragment SoupItemFields on GraphqlSoupItem {
 						providerId
 						ownerId
 						inboxVisible
+						hasInboundMessage
 						linkId
 						emailName: name
 						snippet

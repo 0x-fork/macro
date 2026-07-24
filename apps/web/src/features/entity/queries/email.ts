@@ -1,5 +1,6 @@
 /** Email queries adapted to the entity data model. */
 import type { SafeFetchInit } from '@core/util/safeFetch';
+import { isEmailThreadDone } from '@queries/email/done';
 import { emailClient } from '@service-email/client';
 import type { PreviewViewStandardLabel } from '@service-email/generated/schemas';
 import type { PreviewsInboxCursorParams } from '@service-email/generated/schemas/previewsInboxCursorParams';
@@ -95,7 +96,7 @@ export function createEmailsInfiniteQuery(
               viewedAt: email.viewedAt,
               snippet: email.snippet ?? undefined,
               isImportant: email.isImportant ?? false,
-              done: !email.inboxVisible,
+              done: isEmailThreadDone(email),
               participants,
               senderEmail: email.senderEmail ?? undefined,
               senderName: email.senderName ?? email.senderEmail ?? undefined,
