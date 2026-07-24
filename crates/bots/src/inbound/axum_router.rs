@@ -6,7 +6,7 @@ mod tests;
 use crate::domain::{
     models::{
         AddChannelBotRequest, Bot, BotChannel, BotId, BotToken, CreateBotRequest,
-        CreateBotTokenRequest, CreateBotTokenResponse, PatchBotRequest,
+        CreateBotResponse, CreateBotTokenRequest, CreateBotTokenResponse, PatchBotRequest,
     },
     ports::{BotError, BotService},
 };
@@ -183,12 +183,12 @@ async fn create_bot_handler<
     State(state): State<BotsRouterState<S, Svc, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     Json(req): Json<CreateBotRequest>,
-) -> Result<(StatusCode, Json<Bot>), BotsHandlerErr> {
-    let bot = state
+) -> Result<(StatusCode, Json<CreateBotResponse>), BotsHandlerErr> {
+    let response = state
         .service
         .create_bot(authorization.authorization.user.macro_user_id, req)
         .await?;
-    Ok((StatusCode::CREATED, Json(bot)))
+    Ok((StatusCode::CREATED, Json(response)))
 }
 
 async fn list_bots_handler<

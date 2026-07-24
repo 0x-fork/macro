@@ -311,8 +311,13 @@ pub(crate) type DssChannelsState =
     ChannelsRouterState<DssChannelService, EntityAccessService, AuthorizationService>;
 
 /// Type alias for the bots service wired into DSS.
-pub(crate) type DssBotService =
-    BotServiceImpl<PgBotsRepo, MacroEventBrokerService<KafkaEventPublisher>>;
+pub(crate) type DssBotService = BotServiceImpl<
+    PgBotsRepo,
+    MacroEventBrokerService<KafkaEventPublisher>,
+    crate::service::agent_webhook_provisioner::WebhookServiceAgentWebhookProvisioner<
+        DssWebhookService,
+    >,
+>;
 
 /// Type alias for the bots router state.
 pub(crate) type DssBotsState =

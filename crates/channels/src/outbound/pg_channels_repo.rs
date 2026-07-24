@@ -2160,6 +2160,35 @@ impl ChannelRepo for PgChannelsRepo {
     }
 
     #[tracing::instrument(err, skip(self))]
+    async fn get_message_by_id(
+        &self,
+        message_id: Uuid,
+    ) -> Result<Option<MutatedMessage>, Self::Err> {
+        let row = sqlx::query_as!(
+            MutatedMessageRow,
+            r#"
+            SELECT
+                id,
+                channel_id,
+                thread_id,
+                sender_id,
+                triggered_by_user_id,
+                content,
+                created_at,
+                updated_at,
+                edited_at::timestamptz AS "edited_at?",
+                deleted_at::timestamptz AS "deleted_at?"
+            FROM comms_messages
+            WHERE id = $1
+            "#,
+            message_id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .context("unable to load message")?;
+        row.map(mutated_message_from_row).transpose()
+    }
+
     async fn get_messages_with_context(
         &self,
         channel_id: Uuid,

@@ -8,7 +8,6 @@ members = [
   "crates/bot_id",
   "crates/bots",
   "crates/broadcast",
-  "crates/channel_bots",
   "crates/client/cache-core",
   "crates/client/cache-idb",
   "crates/client/cache-sqlite",

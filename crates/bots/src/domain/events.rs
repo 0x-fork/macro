@@ -15,6 +15,32 @@ use uuid::Uuid;
 
 use super::models::{BotId, BotKind, BotOwner};
 
+/// Metadata for [`BotTopicEvent::Mentioned`].
+///
+/// Derived from a `mention.message_sent` event on the `macro.mentions` topic
+/// when the mentioned bot is an external agent subscribed to the
+/// `channel.bot-mentioned` event. The owner identifies the workspace whose
+/// webhooks are eligible to receive the delivery.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BotMentionedMetadata {
+    /// Identifier of the mentioned bot.
+    pub bot_id: BotId,
+    /// User or team that owns the bot.
+    pub owner: BotOwner,
+    /// Channel containing the mentioning message.
+    pub channel_id: Uuid,
+    /// Message that mentioned the bot.
+    pub message_id: Uuid,
+    /// Thread the message belongs to, when it is a thread reply.
+    pub thread_id: Option<Uuid>,
+    /// User who authored the mentioning message.
+    pub mentioned_by: MacroUserIdStr<'static>,
+    /// Content of the mentioning message.
+    pub content: String,
+    /// Creation timestamp of the mentioning message.
+    pub mentioned_at: DateTime<Utc>,
+}
+
 /// Metadata for [`BotTopicEvent::Created`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BotCreatedMetadata {
@@ -85,6 +111,9 @@ pub enum BotTopicEvent {
     /// A bot was soft-deleted.
     #[serde(rename = "bot.deleted")]
     Deleted(BotDeletedMetadata),
+    /// An external agent bot was `@`-mentioned in a channel message.
+    #[serde(rename = "channel.bot-mentioned")]
+    Mentioned(BotMentionedMetadata),
 }
 
 impl TopicEvent for BotTopicEvent {
@@ -118,6 +147,12 @@ impl BotMacroEvent {
     pub fn deleted(metadata: BotDeletedMetadata) -> Self {
         let key = metadata.bot_id.to_string();
         Self::new(key, BotTopicEvent::Deleted(metadata))
+    }
+
+    /// Build a mentioned event keyed by the mentioned bot id.
+    pub fn mentioned(metadata: BotMentionedMetadata) -> Self {
+        let key = metadata.bot_id.to_string();
+        Self::new(key, BotTopicEvent::Mentioned(metadata))
     }
 
     fn new(key: String, event: BotTopicEvent) -> Self {

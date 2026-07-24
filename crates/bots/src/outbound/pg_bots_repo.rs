@@ -5,9 +5,9 @@ mod tests;
 
 use crate::domain::{
     models::{
-        AuthenticatedBot, Bot, BotChannel, BotChannelType, BotId, BotKind, BotOwner, BotToken,
-        BotTokenCandidate, CreateBotRequest, CreateBotTokenRequest, CreateChannelScopedBotRequest,
-        PatchBotRequest,
+        AgentConfig, AuthenticatedBot, Bot, BotChannel, BotChannelType, BotEventKind, BotId,
+        BotKind, BotOwner, BotToken, BotTokenCandidate, BotType, CreateBotRequest,
+        CreateBotTokenRequest, CreateChannelScopedBotRequest, PatchBotRequest,
     },
     ports::BotRepo,
 };
@@ -45,6 +45,10 @@ fn owner_columns(owner: BotOwner) -> (Option<String>, Option<Uuid>) {
 struct BotRow {
     id: Uuid,
     kind: String,
+    bot_type: String,
+    agent_mode: Option<String>,
+    agent_events: Option<Vec<String>>,
+    agent_webhook_id: Option<String>,
     owner_user_id: Option<String>,
     team_id: Option<Uuid>,
     name: String,
@@ -65,6 +69,37 @@ impl TryFrom<BotRow> for Bot {
             .kind
             .parse()
             .map_err(|err: String| anyhow::anyhow!(err))?;
+        let bot_type = row
+            .bot_type
+            .parse::<BotType>()
+            .map_err(|err| anyhow::anyhow!(err))?;
+        let agent = match bot_type {
+            BotType::Standard => None,
+            BotType::Agent => {
+                let mode = row
+                    .agent_mode
+                    .as_deref()
+                    .context("agent bot row has no agent_mode")?
+                    .parse()
+                    .map_err(|err: String| anyhow::anyhow!(err))?;
+                let events = row
+                    .agent_events
+                    .as_deref()
+                    .context("agent bot row has no agent_events")?
+                    .iter()
+                    .map(|event| {
+                        event
+                            .parse::<BotEventKind>()
+                            .map_err(|err| anyhow::anyhow!(err))
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+                Some(AgentConfig {
+                    mode,
+                    events,
+                    webhook_id: row.agent_webhook_id,
+                })
+            }
+        };
         let owner = match (row.owner_user_id, row.team_id) {
             (Some(user_id), None) => Some(BotOwner::User { user_id }),
             (None, Some(team_id)) => Some(BotOwner::Team { team_id }),
@@ -74,6 +109,8 @@ impl TryFrom<BotRow> for Bot {
         Ok(Self {
             id: BotId::new_from_uuid(row.id),
             kind,
+            bot_type,
+            agent,
             owner,
             name: row.name,
             handle: row.handle,
@@ -195,22 +232,41 @@ impl BotRepo for PgBotsRepo {
 
     async fn create_owned_bot(
         &self,
+        bot_id: BotId,
         owner: BotOwner,
         created_by: MacroUserIdStr<'static>,
         req: CreateBotRequest,
+        agent: Option<AgentConfig>,
     ) -> Result<Bot, Self::Err> {
-        let bot_id = BotId::new_from_uuid(macro_uuid::generate_uuid_v7());
         let (owner_user_id, team_id) = owner_columns(owner);
+        let bot_type = match agent {
+            Some(_) => BotType::Agent,
+            None => BotType::Standard,
+        };
+        let agent_mode = agent.as_ref().map(|agent| agent.mode.as_str());
+        let agent_events: Option<Vec<String>> = agent.as_ref().map(|agent| {
+            agent
+                .events
+                .iter()
+                .map(|event| event.as_str().to_string())
+                .collect()
+        });
+        let agent_webhook_id = agent.as_ref().and_then(|agent| agent.webhook_id.clone());
         let row = sqlx::query_as!(
             BotRow,
             r#"
             INSERT INTO bots (
-                id, kind, owner_user_id, team_id, name, handle, description, avatar_url, created_by
+                id, kind, bot_type, agent_mode, agent_events, agent_webhook_id,
+                owner_user_id, team_id, name, handle, description, avatar_url, created_by
             )
-            VALUES ($1, 'owned', $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, 'owned', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING
                 id,
                 kind,
+                bot_type,
+                agent_mode,
+                agent_events,
+                agent_webhook_id,
                 owner_user_id,
                 team_id,
                 name,
@@ -223,6 +279,10 @@ impl BotRepo for PgBotsRepo {
                 deleted_at
             "#,
             bot_id.as_uuid(),
+            bot_type.as_str(),
+            agent_mode,
+            agent_events.as_deref(),
+            agent_webhook_id,
             owner_user_id,
             team_id,
             req.name,
@@ -265,6 +325,10 @@ impl BotRepo for PgBotsRepo {
             RETURNING
                 id,
                 kind,
+                bot_type,
+                agent_mode,
+                agent_events,
+                agent_webhook_id,
                 owner_user_id,
                 team_id,
                 name,
@@ -339,6 +403,10 @@ impl BotRepo for PgBotsRepo {
             SELECT
                 id,
                 kind,
+                bot_type,
+                agent_mode,
+                agent_events,
+                agent_webhook_id,
                 owner_user_id,
                 team_id,
                 name,
@@ -375,6 +443,10 @@ impl BotRepo for PgBotsRepo {
             SELECT
                 id,
                 kind,
+                bot_type,
+                agent_mode,
+                agent_events,
+                agent_webhook_id,
                 owner_user_id,
                 team_id,
                 name,
@@ -487,6 +559,10 @@ impl BotRepo for PgBotsRepo {
             RETURNING
                 id,
                 kind,
+                bot_type,
+                agent_mode,
+                agent_events,
+                agent_webhook_id,
                 owner_user_id,
                 team_id,
                 name,
@@ -615,6 +691,10 @@ impl BotRepo for PgBotsRepo {
             SELECT
                 b.id,
                 b.kind,
+                b.bot_type,
+                b.agent_mode,
+                b.agent_events,
+                b.agent_webhook_id,
                 b.owner_user_id,
                 b.team_id,
                 b.name,

@@ -433,6 +433,13 @@ impl ChannelRepo for FakeMutationRepo {
         Ok(vec![])
     }
 
+    async fn get_message_by_id(
+        &self,
+        _message_id: Uuid,
+    ) -> Result<Option<MutatedMessage>, Self::Err> {
+        Ok(None)
+    }
+
     async fn get_attachment_references(
         &self,
         _entity_type: &str,

@@ -26,6 +26,7 @@ inbound = [
   "rate_limit/axum",
 ]
 ingestion = [
+  "dep:bots",
   "dep:channels",
   "dep:documents",
   "dep:entity_access",
@@ -52,6 +53,7 @@ worker = ["dep:tokio", "ports"]
 anyhow = { workspace = true }
 axum = { workspace = true, optional = true }
 axum-extra = { workspace = true, optional = true }
+bots = { path = "../bots", default-features = false, optional = true }
 channels = { path = "../channels", default-features = false, optional = true }
 chrono = { workspace = true }
 documents = { path = "../documents", default-features = false, optional = true }

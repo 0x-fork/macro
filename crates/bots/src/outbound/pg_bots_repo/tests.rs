@@ -1,11 +1,12 @@
 use super::*;
 use crate::domain::{
     models::{
-        BotChannelType, CreateBotRequest, CreateBotTokenRequest, CreateChannelScopedBotRequest,
-        PatchBotRequest,
+        AgentMode, BotChannelType, BotEventKind, BotType, CreateAgentConfigRequest,
+        CreateBotRequest, CreateBotTokenRequest, CreateChannelScopedBotRequest, PatchBotRequest,
     },
     ports::{BotError, BotService},
     service::BotServiceImpl,
+    test_support::{FAKE_AGENT_WEBHOOK_ID, FakeAgentWebhookProvisioner},
 };
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use macro_event_broker::{EventBrokerError, MacroEvent, MacroEventBroker, NoopMacroEventBroker};
@@ -30,6 +31,7 @@ fn create_req(handle: &str) -> CreateBotRequest {
         handle: handle.to_string(),
         description: Some("Posts alarm notifications".to_string()),
         avatar_url: None,
+        agent: None,
     }
 }
 
@@ -45,8 +47,14 @@ fn create_channel_scoped_req(handle: &str) -> CreateChannelScopedBotRequest {
     }
 }
 
-fn service(pool: &PgPool) -> BotServiceImpl<PgBotsRepo, NoopMacroEventBroker> {
-    BotServiceImpl::new(PgBotsRepo::new(pool.clone()), NoopMacroEventBroker)
+fn service(
+    pool: &PgPool,
+) -> BotServiceImpl<PgBotsRepo, NoopMacroEventBroker, FakeAgentWebhookProvisioner> {
+    BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        FakeAgentWebhookProvisioner::default(),
+    )
 }
 
 #[derive(Clone, Debug)]
@@ -105,8 +113,12 @@ impl MacroEventBroker for RecordingEventBroker {
 fn recording_service(
     pool: &PgPool,
     broker: RecordingEventBroker,
-) -> BotServiceImpl<PgBotsRepo, RecordingEventBroker> {
-    BotServiceImpl::new(PgBotsRepo::new(pool.clone()), broker)
+) -> BotServiceImpl<PgBotsRepo, RecordingEventBroker, FakeAgentWebhookProvisioner> {
+    BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        broker,
+        FakeAgentWebhookProvisioner::default(),
+    )
 }
 
 fn assert_event(event: &PublishedEvent, bot_id: BotId, event_type: &str, metadata: Value) {
@@ -316,7 +328,8 @@ async fn create_user_owned_bot_records_user_owner(pool: PgPool) -> anyhow::Resul
 
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("datadog"))
-        .await?;
+        .await?
+        .bot;
 
     assert_eq!(bot.kind, BotKind::Owned);
     assert_eq!(
@@ -343,7 +356,7 @@ async fn create_team_owned_bot_requires_team_admin_or_owner(pool: PgPool) -> any
         let mut req = create_req(handle);
         req.team_id = Some(team_id);
 
-        let bot = service.create_bot(user_id(creator), req).await?;
+        let bot = service.create_bot(user_id(creator), req).await?.bot;
         assert_eq!(bot.owner, Some(BotOwner::Team { team_id }));
     }
 
@@ -402,7 +415,8 @@ async fn add_remove_channel_bot_requires_bot_usability_and_soft_removes(
 
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("ops-alerts"))
-        .await?;
+        .await?
+        .bot;
 
     let err = service
         .add_bot_to_channel(user_id(USER_OTHER), channel_id, bot.id)
@@ -469,10 +483,12 @@ async fn list_bot_channels_requires_manageable_bot_and_returns_only_active_chann
 
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("channel-list"))
-        .await?;
+        .await?
+        .bot;
     let empty_bot = service
         .create_bot(user_id(USER_OWNER), create_req("empty-channel-list"))
-        .await?;
+        .await?
+        .bot;
 
     let err = service
         .list_bot_channels(user_id(USER_OTHER), bot.id)
@@ -639,7 +655,8 @@ async fn revoke_token_prevents_future_authentication(pool: PgPool) -> anyhow::Re
     let service = service(&pool);
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("pagerduty"))
-        .await?;
+        .await?
+        .bot;
 
     let created = service
         .create_token(
@@ -676,7 +693,8 @@ async fn list_tokens_returns_raw_token_for_manageable_bot(pool: PgPool) -> anyho
     let service = service(&pool);
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("listed-token"))
-        .await?;
+        .await?
+        .bot;
 
     let created = service
         .create_token(
@@ -710,7 +728,8 @@ async fn authenticate_channel_token_accepts_migrated_uuid_token(
 
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("migrated-uuid-token"))
-        .await?;
+        .await?
+        .bot;
     service
         .add_bot_to_channel(user_id(USER_OWNER), channel_id, bot.id)
         .await?;
@@ -747,7 +766,8 @@ async fn lifecycle_creation_publishes_exact_sanitized_events(pool: PgPool) -> an
     let service = recording_service(&pool, broker.clone());
     let user_bot = service
         .create_bot(user_id(USER_OWNER), create_req("event-user"))
-        .await?;
+        .await?
+        .bot;
 
     let team_id = Uuid::new_v4();
     insert_team_user(&pool, team_id, TEAM_ADMIN, "admin").await?;
@@ -755,7 +775,8 @@ async fn lifecycle_creation_publishes_exact_sanitized_events(pool: PgPool) -> an
     team_request.team_id = Some(team_id);
     let team_bot = service
         .create_bot(user_id(TEAM_ADMIN), team_request)
-        .await?;
+        .await?
+        .bot;
 
     let channel_id = Uuid::new_v4();
     insert_channel(&pool, channel_id).await?;
@@ -839,7 +860,8 @@ async fn patch_and_delete_publish_requested_fields_and_team_owner(
     create_request.team_id = Some(team_id);
     let bot = service
         .create_bot(user_id(TEAM_ADMIN), create_request)
-        .await?;
+        .await?
+        .bot;
     broker.clear();
 
     let patch_request = PatchBotRequest {
@@ -898,7 +920,8 @@ async fn non_lifecycle_and_failed_operations_do_not_publish(pool: PgPool) -> any
     insert_channel(&pool, channel_id).await?;
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("event-exclusions"))
-        .await?;
+        .await?
+        .bot;
     broker.clear();
 
     service.list_bots(user_id(USER_OWNER)).await?;
@@ -980,7 +1003,8 @@ async fn scheduling_failures_do_not_change_successful_mutations(
 
     let bot = service
         .create_bot(user_id(USER_OWNER), create_req("event-schedule-failure"))
-        .await?;
+        .await?
+        .bot;
     let patched = service
         .patch_bot(
             user_id(USER_OWNER),
@@ -996,5 +1020,220 @@ async fn scheduling_failures_do_not_change_successful_mutations(
     assert_eq!(patched.name, "Still succeeds");
     service.delete_bot(user_id(USER_OWNER), bot.id).await?;
 
+    Ok(())
+}
+
+fn agent_req(handle: &str, mode: AgentMode, webhook_url: Option<&str>) -> CreateBotRequest {
+    CreateBotRequest {
+        team_id: None,
+        name: "Helper".to_string(),
+        handle: handle.to_string(),
+        description: None,
+        avatar_url: None,
+        agent: Some(CreateAgentConfigRequest {
+            mode,
+            events: vec![BotEventKind::ChannelBotMentioned],
+            webhook_url: webhook_url.map(str::to_string),
+        }),
+    }
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn create_macro_agent_bot_persists_agent_config(pool: PgPool) -> anyhow::Result<()> {
+    let provisioner = FakeAgentWebhookProvisioner::default();
+    let service = BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        provisioner.clone(),
+    );
+
+    let response = service
+        .create_bot(
+            user_id(USER_OWNER),
+            agent_req("macro-agent", AgentMode::Macro, None),
+        )
+        .await?;
+
+    assert!(response.agent_webhook.is_none());
+    assert!(provisioner.provisioned.lock().unwrap().is_empty());
+    let agent = response.bot.agent.clone().expect("agent config");
+    assert_eq!(response.bot.bot_type, BotType::Agent);
+    assert_eq!(agent.mode, AgentMode::Macro);
+    assert_eq!(agent.events, vec![BotEventKind::ChannelBotMentioned]);
+    assert_eq!(agent.webhook_id, None);
+
+    // The persisted row round-trips the config.
+    let fetched = service
+        .get_bot(user_id(USER_OWNER), response.bot.id)
+        .await?;
+    assert_eq!(fetched.agent, Some(agent));
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn create_external_agent_bot_provisions_webhook(pool: PgPool) -> anyhow::Result<()> {
+    let provisioner = FakeAgentWebhookProvisioner::default();
+    let service = BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        provisioner.clone(),
+    );
+
+    // The provisioned webhook row must exist before the bot row references it.
+    insert_webhook_stub(&pool).await?;
+
+    let response = service
+        .create_bot(
+            user_id(USER_OWNER),
+            agent_req(
+                "external-agent",
+                AgentMode::External,
+                Some("https://example.com/hooks/agent"),
+            ),
+        )
+        .await?;
+
+    let agent_webhook = response.agent_webhook.expect("provisioned webhook");
+    assert_eq!(agent_webhook.signing_secret, "whsec_test");
+    assert_eq!(
+        agent_webhook.endpoint_url,
+        "https://example.com/hooks/agent"
+    );
+
+    let agent = response.bot.agent.clone().expect("agent config");
+    assert_eq!(agent.mode, AgentMode::External);
+    assert_eq!(
+        agent.webhook_id.as_deref(),
+        Some(agent_webhook.webhook_id.as_str())
+    );
+
+    let provisioned = provisioner.provisioned.lock().unwrap().clone();
+    assert_eq!(provisioned.len(), 1);
+    assert_eq!(provisioned[0].bot_id, response.bot.id);
+    assert_eq!(
+        provisioned[0].endpoint_url,
+        "https://example.com/hooks/agent"
+    );
+    Ok(())
+}
+
+/// Insert the webhook row the fake provisioner reports, satisfying the
+/// `bots.agent_webhook_id` foreign key.
+async fn insert_webhook_stub(pool: &PgPool) -> anyhow::Result<()> {
+    sqlx::query(
+        r#"
+        INSERT INTO webhook (
+            id, workspace_id, name, endpoint_url, signing_secret, filters, created_by_user_id
+        )
+        VALUES ($1, $2, 'Helper', 'https://example.com/hooks/agent', 'whsec_test', '[]'::jsonb, $2)
+        "#,
+    )
+    .bind(FAKE_AGENT_WEBHOOK_ID)
+    .bind(USER_OWNER)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn create_agent_bot_validates_configuration(pool: PgPool) -> anyhow::Result<()> {
+    let service = service(&pool);
+
+    // External agents require a webhook URL.
+    let err = service
+        .create_bot(
+            user_id(USER_OWNER),
+            agent_req("external-missing-url", AgentMode::External, None),
+        )
+        .await
+        .expect_err("external agent without webhook_url must fail");
+    assert!(matches!(err, BotError::BadRequest(_)));
+
+    // Macro agents must not carry a webhook URL.
+    let err = service
+        .create_bot(
+            user_id(USER_OWNER),
+            agent_req(
+                "macro-with-url",
+                AgentMode::Macro,
+                Some("https://example.com/hooks/agent"),
+            ),
+        )
+        .await
+        .expect_err("macro agent with webhook_url must fail");
+    assert!(matches!(err, BotError::BadRequest(_)));
+
+    // Agents must subscribe to at least one event.
+    let mut request = agent_req("no-events", AgentMode::Macro, None);
+    request.agent.as_mut().expect("agent config").events = Vec::new();
+    let err = service
+        .create_bot(user_id(USER_OWNER), request)
+        .await
+        .expect_err("agent without events must fail");
+    assert!(matches!(err, BotError::BadRequest(_)));
+
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn external_agent_provisioning_failure_creates_no_bot(pool: PgPool) -> anyhow::Result<()> {
+    let service = BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        FakeAgentWebhookProvisioner::failing(),
+    );
+
+    let err = service
+        .create_bot(
+            user_id(USER_OWNER),
+            agent_req(
+                "rejected-endpoint",
+                AgentMode::External,
+                Some("https://rejected.example.com"),
+            ),
+        )
+        .await
+        .expect_err("rejected endpoint must fail creation");
+    assert!(matches!(err, BotError::BadRequest(_)));
+
+    assert!(service.list_bots(user_id(USER_OWNER)).await?.is_empty());
+    Ok(())
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn delete_external_agent_removes_provisioned_webhook(pool: PgPool) -> anyhow::Result<()> {
+    let provisioner = FakeAgentWebhookProvisioner::default();
+    let service = BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        provisioner.clone(),
+    );
+    insert_webhook_stub(&pool).await?;
+
+    let response = service
+        .create_bot(
+            user_id(USER_OWNER),
+            agent_req(
+                "deleted-agent",
+                AgentMode::External,
+                Some("https://example.com/hooks/agent"),
+            ),
+        )
+        .await?;
+    let webhook_id = response
+        .bot
+        .agent
+        .as_ref()
+        .and_then(|agent| agent.webhook_id.clone())
+        .expect("webhook id");
+
+    service
+        .delete_bot(user_id(USER_OWNER), response.bot.id)
+        .await?;
+
+    assert_eq!(
+        provisioner.removed.lock().unwrap().clone(),
+        vec![webhook_id]
+    );
     Ok(())
 }

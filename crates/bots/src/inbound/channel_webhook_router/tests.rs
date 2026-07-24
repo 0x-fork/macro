@@ -1,7 +1,7 @@
 use super::*;
 use crate::domain::models::{
     AuthenticatedBot, Bot, BotChannel, BotKind, BotOwner, BotToken, CreateBotRequest,
-    CreateBotTokenRequest, CreateBotTokenResponse, PatchBotRequest,
+    CreateBotResponse, CreateBotTokenRequest, CreateBotTokenResponse, PatchBotRequest,
 };
 use axum::{
     Router,
@@ -155,7 +155,7 @@ impl BotService for TestBotService {
         &self,
         _caller: MacroUserIdStr<'static>,
         _req: CreateBotRequest,
-    ) -> Result<Bot, BotError> {
+    ) -> Result<CreateBotResponse, BotError> {
         unimplemented!()
     }
 
@@ -674,6 +674,8 @@ fn scoped_bot_response(bot_id: BotId) -> CreateChannelScopedBotResponse {
         bot: Bot {
             id: bot_id,
             kind: BotKind::Owned,
+            bot_type: crate::domain::models::BotType::Standard,
+            agent: None,
             owner: Some(BotOwner::User {
                 user_id: "macro|bot-admin@example.com".to_string(),
             }),

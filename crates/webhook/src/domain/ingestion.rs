@@ -13,6 +13,8 @@ use crate::domain::{
     models::{NormalizedWebhookEvent, WebhookEventQueueMessage},
     ports::{WebhookEventEnqueuer, WebhookRepo, WebhookWorkspaceResolver},
 };
+use bots::domain::events::BotTopicEvent;
+use bots::domain::models::BotOwner;
 use channels::domain::broker_events::ChannelTopicEvent;
 use chrono::Utc;
 use documents::domain::events::DocumentTopicEvent;
@@ -29,6 +31,7 @@ use uuid::Uuid;
 const DOCUMENT_ENTITY_TYPE: &str = "document";
 const CHANNEL_ENTITY_TYPE: &str = "channel";
 const WEBHOOK_ENTITY_TYPE: &str = "webhook";
+const BOT_ENTITY_TYPE: &str = "bot";
 
 /// Webhook event ingestion error.
 #[derive(Debug, thiserror::Error)]
@@ -97,6 +100,12 @@ pub trait WebhookEventIngestionService: Clone + Send + Sync + 'static {
     fn ingest_webhook_event(
         &self,
         event: Event<WebhookTopicEvent>,
+    ) -> impl Future<Output = Result<(), WebhookEventIngestionError>> + Send;
+
+    /// Ingest one `macro.bots` event envelope.
+    fn ingest_bot_event(
+        &self,
+        event: Event<BotTopicEvent>,
     ) -> impl Future<Output = Result<(), WebhookEventIngestionError>> + Send;
 }
 
@@ -338,6 +347,37 @@ fn normalized_webhook_event(
     Ok((normalized, workspace_id.clone()))
 }
 
+/// Normalize a `macro.bots` event for webhook delivery.
+///
+/// Only `channel.bot-mentioned` is deliverable; bot lifecycle events return
+/// `None` and are skipped. Delivery uses a strict owner-workspace rule: the
+/// mentioned bot's owner (carried in the event) is the sole matching
+/// workspace, mirroring webhook lifecycle events.
+fn normalized_bot_event(
+    event: &Event<BotTopicEvent>,
+) -> Result<Option<(NormalizedWebhookEvent, String)>, WebhookEventIngestionError> {
+    let BotTopicEvent::Mentioned(metadata) = &event.event else {
+        return Ok(None);
+    };
+
+    let entity_id = metadata.bot_id.to_string();
+    let workspace_id = match &metadata.owner {
+        BotOwner::User { user_id } => user_id.clone(),
+        BotOwner::Team { team_id } => team_id.to_string(),
+    };
+
+    let broker_envelope = serde_json::to_value(event)?;
+    let normalized = normalized_event(
+        event.event_id,
+        event.schema_version,
+        "channel.bot-mentioned",
+        BOT_ENTITY_TYPE,
+        &entity_id,
+        broker_envelope,
+    );
+    Ok(Some((normalized, workspace_id)))
+}
+
 fn normalized_event(
     event_id: Uuid,
     schema_version: u8,
@@ -390,6 +430,17 @@ where
         event: Event<WebhookTopicEvent>,
     ) -> Result<(), WebhookEventIngestionError> {
         let (event, workspace_id) = normalized_webhook_event(&event)?;
+        self.match_and_enqueue(event, vec![workspace_id]).await
+    }
+
+    #[tracing::instrument(skip(self, event), fields(event_id = %event.event_id), err)]
+    async fn ingest_bot_event(
+        &self,
+        event: Event<BotTopicEvent>,
+    ) -> Result<(), WebhookEventIngestionError> {
+        let Some((event, workspace_id)) = normalized_bot_event(&event)? else {
+            return Ok(());
+        };
         self.match_and_enqueue(event, vec![workspace_id]).await
     }
 }

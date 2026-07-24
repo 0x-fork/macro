@@ -46,14 +46,13 @@ axum = { workspace = true, features = [
 ] }
 axum-extra = { workspace = true }
 base64 = { workspace = true }
-bots = { path = "../../crates/bots" }
+bots = { path = "../../crates/bots", features = ["agent"] }
 bytes = { workspace = true }
 bzip2 = { workspace = true, default-features = false, features = [
   "libbz2-rs-sys",
 ] }
 cal = { path = "../../crates/cal", features = ["axum", "outbound"] }
 call = { path = "../../crates/call" }
-channel_bots = { path = "../../crates/channel_bots" }
 channels = { path = "../../crates/channels", features = [
   "inbound",
   "outbound",

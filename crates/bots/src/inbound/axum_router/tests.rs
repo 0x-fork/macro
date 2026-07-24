@@ -3,6 +3,7 @@ use crate::domain::models::{
     AuthenticatedBot, BotChannel, BotChannelType, CreateChannelScopedBotRequest,
     CreateChannelScopedBotResponse,
 };
+use crate::domain::test_support::FakeAgentWebhookProvisioner;
 use crate::{domain::service::BotServiceImpl, outbound::pg_bots_repo::PgBotsRepo};
 use axum::{
     body::Body,
@@ -78,7 +79,7 @@ impl BotService for TestBotService {
         &self,
         _caller: MacroUserIdStr<'static>,
         _req: CreateBotRequest,
-    ) -> Result<Bot, BotError> {
+    ) -> Result<CreateBotResponse, BotError> {
         unimplemented!()
     }
 
@@ -363,7 +364,11 @@ fn router(service: TestBotService, role: EntityParticipantRole) -> Router {
 }
 
 fn real_router(pool: PgPool, user_id: &str) -> Router {
-    let bot_service = BotServiceImpl::new(PgBotsRepo::new(pool.clone()), NoopMacroEventBroker);
+    let bot_service = BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        FakeAgentWebhookProvisioner::default(),
+    );
     let access_service = EntityAccessServiceImpl::new(PgAccessRepository::new(pool));
     let bearer_token = user_id.to_string();
     bots_router(BotsRouterState::new(
@@ -672,7 +677,11 @@ async fn bot_owner_can_list_and_remove_bot_channels_via_bot_routes(
     insert_user(&pool, CHANNEL_ADMIN_ID).await?;
     insert_private_channel_with_admin(&pool, channel_id, CHANNEL_ADMIN_ID).await?;
 
-    let bot_service = BotServiceImpl::new(PgBotsRepo::new(pool.clone()), NoopMacroEventBroker);
+    let bot_service = BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        FakeAgentWebhookProvisioner::default(),
+    );
     let bot = bot_service
         .create_bot(
             macro_user_id(BOT_OWNER_ID),
@@ -682,9 +691,11 @@ async fn bot_owner_can_list_and_remove_bot_channels_via_bot_routes(
                 handle: "bot-route-alerts".to_string(),
                 description: Some("Posts alarm notifications".to_string()),
                 avatar_url: None,
+                agent: None,
             },
         )
-        .await?;
+        .await?
+        .bot;
 
     bot_service
         .add_bot_to_channel(macro_user_id(BOT_OWNER_ID), channel_id, bot.id)
@@ -758,7 +769,11 @@ async fn channel_admin_can_add_and_remove_owned_bot_via_http(pool: PgPool) -> an
     insert_user(&pool, ADMIN_USER_ID).await?;
     insert_private_channel_with_admin(&pool, channel_id, ADMIN_USER_ID).await?;
 
-    let bot_service = BotServiceImpl::new(PgBotsRepo::new(pool.clone()), NoopMacroEventBroker);
+    let bot_service = BotServiceImpl::new(
+        PgBotsRepo::new(pool.clone()),
+        NoopMacroEventBroker,
+        FakeAgentWebhookProvisioner::default(),
+    );
     let bot = bot_service
         .create_bot(
             macro_user_id(ADMIN_USER_ID),
@@ -768,9 +783,11 @@ async fn channel_admin_can_add_and_remove_owned_bot_via_http(pool: PgPool) -> an
                 handle: "datadog-alerts".to_string(),
                 description: Some("Posts alarm notifications".to_string()),
                 avatar_url: None,
+                agent: None,
             },
         )
-        .await?;
+        .await?
+        .bot;
 
     let bot_principal_id = bot.id.into_storage_id().to_string();
     let router = real_router(pool.clone(), ADMIN_USER_ID);

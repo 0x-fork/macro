@@ -726,78 +726,6 @@ async fn bot_participant_is_never_a_notification_recipient() {
 }
 
 #[tokio::test]
-async fn user_message_with_bot_mention_enqueues_bot_trigger() {
-    let channel_id = Uuid::new_v4();
-    let message_id = Uuid::new_v4();
-    let sender = user("sender@example.com");
-    let recipient = user("recipient@example.com");
-    let (bot_trigger_sender, mut bot_trigger_receiver) = tokio::sync::mpsc::unbounded_channel();
-    let service = ChannelSideEffectService::new(
-        FakeContext::default(),
-        FakeRealtime::default(),
-        FakeNotifications::default(),
-        FakeSearch::default(),
-        FakeContacts::default(),
-    )
-    .with_bot_trigger_sender(bot_trigger_sender);
-    let now = Utc::now();
-
-    service
-        .handle(ChannelEvent::MessagePosted {
-            channel_id,
-            metadata: ChannelMetadata {
-                channel_type: ChannelType::Private,
-                channel_name: "Project".to_string(),
-            },
-            participants: vec![
-                ChannelParticipant {
-                    channel_id,
-                    user_id: sender.as_ref().to_string(),
-                    role: ParticipantRole::Member,
-                    joined_at: now,
-                    left_at: None,
-                },
-                ChannelParticipant {
-                    channel_id,
-                    user_id: recipient.as_ref().to_string(),
-                    role: ParticipantRole::Member,
-                    joined_at: now,
-                    left_at: None,
-                },
-            ],
-            message: MutatedMessage {
-                id: message_id,
-                channel_id,
-                thread_id: None,
-                sender_id: Sender::new_from_user(sender),
-                triggered_by: None,
-                content: "@macro help".to_string(),
-                created_at: now,
-                updated_at: now,
-                edited_at: None,
-                deleted_at: None,
-            },
-            mentions: vec![SimpleMention {
-                entity_type: "user".to_string(),
-                entity_id: bot_id::MACRO_AI_BOT_ID.into_storage_id().to_string(),
-            }],
-            has_attachments: false,
-            attachments: Vec::new(),
-            nonce: None,
-            notification_policy: PostMessageNotificationPolicy::Default,
-        })
-        .await;
-
-    let trigger = bot_trigger_receiver
-        .try_recv()
-        .expect("expected bot trigger");
-    assert_eq!(trigger.channel_id, channel_id);
-    assert_eq!(trigger.message.id, message_id);
-    assert_eq!(trigger.bot_ids, vec![bot_id::MACRO_AI_BOT_ID]);
-    assert!(bot_trigger_receiver.try_recv().is_err());
-}
-
-#[tokio::test]
 async fn document_mentions_notify_participants_except_sender() {
     let channel_id = Uuid::new_v4();
     let message_id = Uuid::new_v4();
@@ -977,39 +905,6 @@ fn mention(entity_type: &str, entity_id: &str) -> SimpleMention {
         entity_type: entity_type.to_string(),
         entity_id: entity_id.to_string(),
     }
-}
-
-#[test]
-fn bot_mentions_recognize_bot_and_macro_ai_user_tags() {
-    let macro_ai = bot_id::MACRO_AI_BOT_ID.into_storage_id().to_string();
-    let other_bot = BotId::new_from_uuid(Uuid::new_v4());
-    let other_bot_principal = other_bot.into_storage_id().to_string();
-    let mentions = vec![
-        // Macro AI surfaced through the user-mention UI.
-        mention("user", &macro_ai),
-        // Duplicate bot mentions are dispatched once.
-        mention("user", &macro_ai),
-        // A real user mention is ignored.
-        mention("user", "macro|teo@macro.com"),
-        // An explicitly bot-tagged mention.
-        mention(BOT_MENTION_ENTITY_TYPE, &other_bot_principal),
-        mention(BOT_MENTION_ENTITY_TYPE, &other_bot_principal),
-    ];
-
-    let bots = bot_mention_ids(&mentions);
-    assert_eq!(bots, vec![bot_id::MACRO_AI_BOT_ID, other_bot]);
-}
-
-#[test]
-fn bot_mentions_reject_bare_uuid_ids() {
-    // Bare UUIDs are a legacy encoding; producers must send `bot|<uuid>`
-    // and historical content is normalized by migration.
-    let mentions = vec![
-        mention("user", &bot_id::MACRO_AI_BOT_ID.as_uuid().to_string()),
-        mention(BOT_MENTION_ENTITY_TYPE, &Uuid::new_v4().to_string()),
-    ];
-
-    assert!(bot_mention_ids(&mentions).is_empty());
 }
 
 #[test]
@@ -1426,6 +1321,12 @@ fn mention_broker_events_map_message_posted_mentions() {
             deleted_at: None,
         },
         mentions: vec![
+            SimpleMention {
+                entity_type: "bot".to_string(),
+                entity_id: "bot-1".to_string(),
+            },
+            // Duplicate mentions publish a single event so consumers (e.g.
+            // agent bots) are not double-triggered.
             SimpleMention {
                 entity_type: "bot".to_string(),
                 entity_id: "bot-1".to_string(),

@@ -185,6 +185,12 @@ pub trait ChannelRepo: Send + Sync + 'static {
         after: i64,
     ) -> impl Future<Output = Result<Vec<ChannelContextMessage>, Self::Err>> + Send;
 
+    /// Fetch a message by id, regardless of channel.
+    fn get_message_by_id(
+        &self,
+        message_id: Uuid,
+    ) -> impl Future<Output = Result<Option<MutatedMessage>, Self::Err>> + Send;
+
     /// Fetch attachment references for an entity, scoped to channels the user belongs to.
     fn get_attachment_references(
         &self,
@@ -587,6 +593,15 @@ pub trait ChannelService: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Vec<ChannelContextMessage>, ChannelMessagesErr>> + Send {
         let _ = (channel_id, before, after);
         async move { Err(ChannelMessagesErr::MessageNotFound(message_id)) }
+    }
+
+    /// Fetch a message by id, regardless of channel.
+    fn get_message_by_id(
+        &self,
+        message_id: Uuid,
+    ) -> impl Future<Output = Result<Option<MutatedMessage>, ChannelMessagesErr>> + Send {
+        let _ = message_id;
+        async move { Ok(None) }
     }
 
     /// Fetch attachment references for an entity visible to a user.

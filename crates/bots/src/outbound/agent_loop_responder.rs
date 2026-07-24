@@ -1,4 +1,4 @@
-//! In-process agent-loop adapter for channel bot responses.
+//! In-process agent-loop adapter for Macro-mode agent bot responses.
 
 use std::sync::Arc;
 
@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use macro_user_id::user_id::MacroUserIdStr;
 
-use crate::domain::ports::AgentResponder;
+use crate::domain::agent::AgentResponder;
 
 /// [`AgentResponder`] backed by the in-process agent loop and AI toolset.
 pub struct AgentLoopResponder {

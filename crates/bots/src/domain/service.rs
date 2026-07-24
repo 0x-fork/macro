@@ -3,11 +3,15 @@
 use super::{
     events::{BotCreatedMetadata, BotDeletedMetadata, BotMacroEvent, BotUpdatedMetadata},
     models::{
-        AuthenticatedBot, Bot, BotChannel, BotId, BotKind, BotOwner, BotToken, BotTokenCandidate,
-        CreateBotRequest, CreateBotTokenRequest, CreateChannelScopedBotRequest,
+        AgentConfig, AgentMode, AuthenticatedBot, Bot, BotChannel, BotEventKind, BotId, BotKind,
+        BotOwner, BotToken, BotTokenCandidate, CreateAgentConfigRequest, CreateBotRequest,
+        CreateBotResponse, CreateBotTokenRequest, CreateChannelScopedBotRequest,
         CreateChannelScopedBotResponse, PatchBotRequest,
     },
-    ports::{BotError, BotRepo, BotService},
+    ports::{
+        AgentWebhookError, AgentWebhookProvisioner, BotError, BotRepo, BotService,
+        ProvisionAgentWebhookRequest,
+    },
     tokens,
 };
 use chrono::{DateTime, Utc};
@@ -17,15 +21,20 @@ use uuid::Uuid;
 
 /// Bot service implementation.
 #[derive(Debug, Clone)]
-pub struct BotServiceImpl<R, B> {
+pub struct BotServiceImpl<R, B, P> {
     repo: R,
     event_broker: B,
+    agent_webhooks: P,
 }
 
-impl<R, B> BotServiceImpl<R, B> {
+impl<R, B, P> BotServiceImpl<R, B, P> {
     /// Create a bot service.
-    pub fn new(repo: R, event_broker: B) -> Self {
-        Self { repo, event_broker }
+    pub fn new(repo: R, event_broker: B, agent_webhooks: P) -> Self {
+        Self {
+            repo,
+            event_broker,
+            agent_webhooks,
+        }
     }
 }
 
@@ -43,6 +52,43 @@ fn validate_handle(handle: &str) -> Result<(), BotError> {
     Ok(())
 }
 
+/// Validate an agent configuration request and normalize it into the config
+/// persisted with the bot. The webhook id for an external agent is attached
+/// after provisioning.
+fn validate_agent_config(agent: &CreateAgentConfigRequest) -> Result<AgentConfig, BotError> {
+    let mut events: Vec<BotEventKind> = Vec::new();
+    for event in &agent.events {
+        if !events.contains(event) {
+            events.push(*event);
+        }
+    }
+    if events.is_empty() {
+        return Err(BotError::BadRequest(
+            "agent bots must subscribe to at least one event".to_string(),
+        ));
+    }
+
+    match agent.mode {
+        AgentMode::External if agent.webhook_url.is_none() => {
+            return Err(BotError::BadRequest(
+                "external agents require a webhook_url".to_string(),
+            ));
+        }
+        AgentMode::Macro if agent.webhook_url.is_some() => {
+            return Err(BotError::BadRequest(
+                "macro agents do not accept a webhook_url".to_string(),
+            ));
+        }
+        _ => {}
+    }
+
+    Ok(AgentConfig {
+        mode: agent.mode,
+        events,
+        webhook_id: None,
+    })
+}
+
 fn token_candidate_is_valid(candidate: &BotTokenCandidate, now: &DateTime<Utc>) -> bool {
     candidate.token.revoked_at.is_none()
         && candidate
@@ -57,10 +103,11 @@ struct ValidatedBotToken {
     token_id: Uuid,
 }
 
-impl<R, B> BotServiceImpl<R, B>
+impl<R, B, P> BotServiceImpl<R, B, P>
 where
     R: BotRepo,
     B: MacroEventBroker,
+    P: AgentWebhookProvisioner,
 {
     fn publish_bot_event(&self, event: &BotMacroEvent) {
         drop(self.event_broker.send_event(event).inspect_err(|error| {
@@ -150,25 +197,85 @@ where
     }
 }
 
-impl<R, B> BotService for BotServiceImpl<R, B>
+impl<R, B, P> BotService for BotServiceImpl<R, B, P>
 where
     R: BotRepo,
     B: MacroEventBroker + Clone,
+    P: AgentWebhookProvisioner,
 {
     async fn create_bot(
         &self,
         caller: MacroUserIdStr<'static>,
         req: CreateBotRequest,
-    ) -> Result<Bot, BotError> {
+    ) -> Result<CreateBotResponse, BotError> {
         validate_handle(&req.handle)?;
         let owner = self.owner_for_request(caller.clone(), req.team_id).await?;
         let created_by_user_id = caller.clone();
+        let mut agent = req.agent.as_ref().map(validate_agent_config).transpose()?;
 
-        let bot = self
+        // The id is generated up front so an external agent's webhook can be
+        // provisioned filtered to it before the bot row exists.
+        let bot_id = BotId::new_from_uuid(macro_uuid::generate_uuid_v7());
+        let mut agent_webhook = None;
+        if let Some(config) = &mut agent
+            && config.mode == AgentMode::External
+        {
+            // Guaranteed by validate_agent_config; re-checked to avoid a panic
+            // path.
+            let Some(endpoint_url) = req
+                .agent
+                .as_ref()
+                .and_then(|agent| agent.webhook_url.clone())
+            else {
+                return Err(BotError::BadRequest(
+                    "external agents require a webhook_url".to_string(),
+                ));
+            };
+            let webhook = self
+                .agent_webhooks
+                .provision(
+                    caller.clone(),
+                    ProvisionAgentWebhookRequest {
+                        owner: owner.clone(),
+                        bot_id,
+                        bot_name: req.name.clone(),
+                        endpoint_url,
+                    },
+                )
+                .await
+                .map_err(|err| match err {
+                    AgentWebhookError::InvalidEndpoint(message) => BotError::BadRequest(message),
+                    AgentWebhookError::Other(error) => BotError::Repo(error),
+                })?;
+            config.webhook_id = Some(webhook.webhook_id.clone());
+            agent_webhook = Some(webhook);
+        }
+
+        let created = self
             .repo
-            .create_owned_bot(owner, caller, req)
-            .await
-            .map_err(|err| BotError::Repo(err.into()))?;
+            .create_owned_bot(bot_id, owner, caller.clone(), req, agent)
+            .await;
+        let bot = match created {
+            Ok(bot) => bot,
+            Err(err) => {
+                // Best-effort compensation: don't leave an orphaned webhook
+                // behind when the bot row could not be created.
+                if let Some(webhook) = &agent_webhook {
+                    let _ = self
+                        .agent_webhooks
+                        .remove(caller, webhook.webhook_id.clone())
+                        .await
+                        .inspect_err(|error| {
+                            tracing::error!(
+                                error=?error,
+                                webhook_id = %webhook.webhook_id,
+                                "failed to remove agent webhook after bot creation failure"
+                            );
+                        });
+                }
+                return Err(BotError::Repo(err.into()));
+            }
+        };
 
         self.publish_bot_event(&BotMacroEvent::created(BotCreatedMetadata {
             bot_id: bot.id,
@@ -183,7 +290,7 @@ where
             created_at: bot.created_at,
         }));
 
-        Ok(bot)
+        Ok(CreateBotResponse { bot, agent_webhook })
     }
 
     async fn create_channel_scoped_bot(
@@ -286,6 +393,27 @@ where
             .map_err(|err| BotError::Repo(err.into()))?
         {
             return Err(BotError::NotFound("bot not found".to_string()));
+        }
+
+        // Best-effort: retire the external agent's delivery webhook with the
+        // bot. A failure leaves an inert webhook behind (its only producer is
+        // the now-deleted bot) and must not fail the deletion.
+        if let Some(webhook_id) = bot
+            .agent
+            .as_ref()
+            .and_then(|agent| agent.webhook_id.clone())
+        {
+            let _ = self
+                .agent_webhooks
+                .remove(caller.clone(), webhook_id.clone())
+                .await
+                .inspect_err(|error| {
+                    tracing::error!(
+                        error=?error,
+                        %webhook_id,
+                        "failed to remove agent webhook for deleted bot"
+                    );
+                });
         }
 
         self.publish_bot_event(&BotMacroEvent::deleted(BotDeletedMetadata {

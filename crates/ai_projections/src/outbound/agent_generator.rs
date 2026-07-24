@@ -1,9 +1,10 @@
 //! In-process agent-loop adapter that materializes ai projection results using
 //! the shared AI toolset.
 //!
-//! Mirrors `channel_bots::outbound::AgentLoopResponder`: it runs the projection
-//! prompt through the same agent loop and toolset used by channel bots and the
-//! document storage service, attributing usage to [`AiFeature::AiProjection`].
+//! Mirrors `bots::outbound::agent_loop_responder::AgentLoopResponder`: it runs
+//! the projection prompt through the same agent loop and toolset used by agent
+//! bots and the document storage service, attributing usage to
+//! [`AiFeature::AiProjection`].
 //!
 //! When the projection defines an `output_schema`, generation is two-phase
 //! (mirroring the `/structured-completion` endpoint): the agent loop first

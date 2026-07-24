@@ -3,6 +3,7 @@ use crate::domain::{
     events::{WebhookDeletedMetadata, WebhookTopicEvent},
     ingestion::WebhookEventIngestionError,
 };
+use bots::domain::events::BotTopicEvent;
 use channel_sender::ChannelSender;
 use channels::domain::broker_events::{ChannelDeletedMetadata, ChannelTopicEvent};
 use documents::domain::events::{DocumentDeletedMetadata, DocumentTopicEvent};
@@ -62,7 +63,12 @@ fn declared_webhook_event() -> DeclaredMacroEvent {
 fn subscribes_to_all_ingestion_topics() {
     assert_eq!(
         DeclaredMacroEvent::topics(),
-        ["macro.documents", "macro.channels", "macro.webhooks"]
+        [
+            "macro.documents",
+            "macro.channels",
+            "macro.webhooks",
+            "macro.bots"
+        ]
     );
 }
 
@@ -75,7 +81,9 @@ fn decodes_document_events() {
 
     match decoded {
         DeclaredMacroEvent::DocumentMacroEvent(decoded) => assert_eq!(decoded.event(), &event),
-        DeclaredMacroEvent::ChannelMacroEvent(_) | DeclaredMacroEvent::WebhookMacroEvent(_) => {
+        DeclaredMacroEvent::ChannelMacroEvent(_)
+        | DeclaredMacroEvent::WebhookMacroEvent(_)
+        | DeclaredMacroEvent::BotMacroEvent(_) => {
             panic!("decoded into the wrong topic variant")
         }
     }
@@ -94,7 +102,9 @@ fn decodes_channel_events() {
 
     match decoded {
         DeclaredMacroEvent::ChannelMacroEvent(decoded) => assert_eq!(decoded.event(), &event),
-        DeclaredMacroEvent::DocumentMacroEvent(_) | DeclaredMacroEvent::WebhookMacroEvent(_) => {
+        DeclaredMacroEvent::DocumentMacroEvent(_)
+        | DeclaredMacroEvent::WebhookMacroEvent(_)
+        | DeclaredMacroEvent::BotMacroEvent(_) => {
             panic!("decoded into the wrong topic variant")
         }
     }
@@ -109,7 +119,9 @@ fn decodes_webhook_events() {
 
     match decoded {
         DeclaredMacroEvent::WebhookMacroEvent(decoded) => assert_eq!(decoded.event(), &event),
-        DeclaredMacroEvent::DocumentMacroEvent(_) | DeclaredMacroEvent::ChannelMacroEvent(_) => {
+        DeclaredMacroEvent::DocumentMacroEvent(_)
+        | DeclaredMacroEvent::ChannelMacroEvent(_)
+        | DeclaredMacroEvent::BotMacroEvent(_) => {
             panic!("decoded into the wrong topic variant")
         }
     }
@@ -172,6 +184,13 @@ impl WebhookEventIngestionService for FlakyIngestionService {
     async fn ingest_channel_event(
         &self,
         _event: Event<ChannelTopicEvent>,
+    ) -> Result<(), WebhookEventIngestionError> {
+        Ok(())
+    }
+
+    async fn ingest_bot_event(
+        &self,
+        _event: Event<BotTopicEvent>,
     ) -> Result<(), WebhookEventIngestionError> {
         Ok(())
     }

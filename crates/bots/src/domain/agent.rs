@@ -1,18 +1,51 @@
-//! Domain service for built-in channel bots.
+//! In-process Macro agent handler for agent bot mentions.
+//!
+//! Owns the behavior of [`crate::domain::models::AgentMode::Macro`] agent
+//! bots: build a bounded conversational prompt around the mentioning message,
+//! post an immediate "thinking" reply, run the agent loop, then replace the
+//! "thinking" message with the final answer.
+
+#[cfg(test)]
+mod test;
 
 use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::sync::Arc;
 
 use channels::domain::models::{
-    ParticipantRole, PatchMessageNotificationPolicy, PatchMessageRequest,
+    MutatedMessage, ParticipantRole, PatchMessageNotificationPolicy, PatchMessageRequest,
     PostMessageNotificationPolicy, PostMessageRequest, Sender,
 };
 use channels::domain::ports::{ChannelMutationErr, ChannelService};
+use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
-use super::models::BotEvent;
-use super::ports::AgentResponder;
+use super::models::BotId;
+
+/// Produces an agent response for a prompt on behalf of a user.
+#[async_trait::async_trait]
+pub trait AgentResponder: Send + Sync {
+    /// Produce a response to `prompt`, attributed to `user_id`.
+    async fn respond(&self, user_id: &str, prompt: String) -> anyhow::Result<String>;
+}
+
+/// A bot mention delivered to the in-process Macro agent handler.
+#[derive(Debug, Clone)]
+pub struct BotMentionEvent {
+    /// The mentioned bot, which the reply is posted as.
+    pub bot_id: BotId,
+    /// Handle of the mentioned bot, used in the prompt text.
+    pub bot_handle: String,
+    /// Channel the mention occurred in.
+    pub channel_id: Uuid,
+    /// The user-authored message that mentioned the bot.
+    pub message: MutatedMessage,
+    /// Thread the bot should reply in. For a top-level message this is the
+    /// message id; for a reply it is the existing thread id.
+    pub reply_thread_id: Uuid,
+    /// The user who mentioned the bot.
+    pub requesting_user: MacroUserIdStr<'static>,
+}
 
 /// How many channel messages to include around the trigger.
 ///
@@ -65,7 +98,7 @@ struct PromptLine {
 
 /// The triggering message rendered from the event itself, used when the
 /// trigger is missing from fetched context (e.g. a fetch failed).
-fn trigger_line(event: &BotEvent) -> PromptLine {
+fn trigger_line(event: &BotMentionEvent) -> PromptLine {
     PromptLine {
         sender: sender_label(event.requesting_user.as_ref()),
         content: event.message.content.trim().to_string(),
@@ -87,28 +120,28 @@ fn append_block(prompt: &mut String, tag: &str, instruction: &str, lines: &[Prom
     let _ = writeln!(prompt, "</{tag}>");
 }
 
-/// Message Macro posts immediately, then replaces with its answer.
+/// Message the agent posts immediately, then replaces with its answer.
 ///
 /// Rendered by the channel markdown as the existing pulsing AwaitNode.
 const THINKING_MESSAGE: &str = r#"<m-await>{"text":"Macro is thinking…","inline":true}</m-await>"#;
 const EMPTY_RESPONSE_FALLBACK: &str = "I wasn't able to come up with a response.";
 const ERROR_FALLBACK: &str = "Sorry — I ran into an error while responding.";
 
-/// In-process handler for the Macro AI system bot.
+/// In-process handler for Macro-mode agent bots.
 ///
 /// Posts an immediate "thinking" reply in a thread, runs the agent loop, then
-/// edits that same message with the final answer.
-pub struct MacroAiHandler<C, R> {
+/// edits that same message with the final answer, acting as the mentioned bot.
+pub struct MacroAgentHandler<C, R> {
     channels: Arc<C>,
     responder: Arc<R>,
 }
 
-impl<C, R> MacroAiHandler<C, R>
+impl<C, R> MacroAgentHandler<C, R>
 where
     C: ChannelService,
     R: AgentResponder,
 {
-    /// Create a Macro AI handler.
+    /// Create a Macro agent handler.
     pub fn new(channels: Arc<C>, responder: Arc<R>) -> Self {
         Self {
             channels,
@@ -122,7 +155,7 @@ where
     /// the thread so they can be excluded from the channel background.
     async fn thread_lines(
         &self,
-        event: &BotEvent,
+        event: &BotMentionEvent,
         parent_id: Uuid,
     ) -> (Vec<PromptLine>, HashSet<Uuid>) {
         let mut thread_ids = HashSet::from([parent_id, event.message.id]);
@@ -177,8 +210,9 @@ where
     /// labeled background block. For a top-level mention, the chronological
     /// channel slice is the primary context. In both cases the triggering
     /// message is marked inline rather than repeated at the end.
-    async fn build_prompt(&self, event: &BotEvent) -> String {
+    async fn build_prompt(&self, event: &BotMentionEvent) -> String {
         let mentioner = sender_label(event.requesting_user.as_ref());
+        let handle = &event.bot_handle;
         let trigger_id = event.message.id;
 
         let nearby = self
@@ -197,7 +231,7 @@ where
         if let Some(parent_id) = event.message.thread_id {
             let _ = writeln!(
                 prompt,
-                "{mentioner} mentioned you (@macro) in a channel thread."
+                "{mentioner} mentioned you (@{handle}) in a channel thread."
             );
             let (thread, thread_ids) = self.thread_lines(event, parent_id).await;
             append_block(&mut prompt, "thread", THREAD_INSTRUCTION, &thread);
@@ -223,7 +257,10 @@ where
                 &background,
             );
         } else {
-            let _ = writeln!(prompt, "{mentioner} mentioned you (@macro) in a channel.");
+            let _ = writeln!(
+                prompt,
+                "{mentioner} mentioned you (@{handle}) in a channel."
+            );
             let mut lines: Vec<PromptLine> = nearby
                 .iter()
                 .filter(|message| {
@@ -250,10 +287,14 @@ where
         prompt
     }
 
-    /// React to a Macro AI mention.
-    #[tracing::instrument(skip(self, event), fields(channel_id = %event.channel_id), err)]
-    pub(crate) async fn handle(&self, event: &BotEvent) -> anyhow::Result<()> {
-        let actor = Sender::new_from_bot(bot_id::MACRO_AI_BOT_ID);
+    /// React to an agent bot mention.
+    #[tracing::instrument(
+        skip(self, event),
+        fields(channel_id = %event.channel_id, bot_id = %event.bot_id),
+        err
+    )]
+    pub async fn handle(&self, event: &BotMentionEvent) -> anyhow::Result<()> {
+        let actor = Sender::new_from_bot(event.bot_id);
 
         // 1. Gather conversational context (before posting, so our own
         //    "thinking" message is not included).
@@ -287,7 +328,7 @@ where
             Ok(text) if !text.trim().is_empty() => text,
             Ok(_) => EMPTY_RESPONSE_FALLBACK.to_string(),
             Err(err) => {
-                tracing::error!(error=?err, "macro ai responder failed");
+                tracing::error!(error=?err, "macro agent responder failed");
                 ERROR_FALLBACK.to_string()
             }
         };
@@ -322,6 +363,3 @@ where
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

@@ -4,6 +4,7 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
+import type { BotAgent } from './botAgent';
 import type { BotAvatarUrl } from './botAvatarUrl';
 import type { BotCreatedBy } from './botCreatedBy';
 import type { BotDeletedAt } from './botDeletedAt';
@@ -11,13 +12,17 @@ import type { BotDescription } from './botDescription';
 import type { BotId } from './botId';
 import type { BotKind } from './botKind';
 import type { BotOwnerProperty } from './botOwnerProperty';
+import type { BotType } from './botType';
 
 /**
  * Bot row.
  */
 export interface Bot {
+  agent?: BotAgent;
   /** Optional avatar URL. */
   avatar_url?: BotAvatarUrl;
+  /** Bot type. */
+  bot_type: BotType;
   /** Creation timestamp. */
   created_at: string;
   /** User that created this bot. */

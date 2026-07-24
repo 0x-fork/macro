@@ -69,6 +69,8 @@ import {
   type CloudStorageItemType,
   CloudStorageItemType as CloudStorageItemTypeMap,
 } from './generated/schemas/cloudStorageItemType';
+import type { CreateAgentConfigRequest as CreateAgentConfig } from './generated/schemas/createAgentConfigRequest';
+import type { CreateBotResponse } from './generated/schemas/createBotResponse';
 import type { CreateChannelRequest } from './generated/schemas/createChannelRequest';
 import type { CreateChannelResponse } from './generated/schemas/createChannelResponse';
 import type { CreateChannelScopedBotRequest } from './generated/schemas/createChannelScopedBotRequest';
@@ -271,12 +273,23 @@ export type TaskSimilaritySearchResponse = {
 type WithBotId = { bot_id: string };
 type WithChannelId = { channel_id: string };
 
+export type { AgentConfig } from './generated/schemas/agentConfig';
+export type { AgentMode } from './generated/schemas/agentMode';
+export type { AgentWebhook } from './generated/schemas/agentWebhook';
+export type { BotEventKind } from './generated/schemas/botEventKind';
+export type { BotType } from './generated/schemas/botType';
+export type { CreateAgentConfig, CreateBotResponse };
+
+/** Alias kept for UI call sites; the generated `Bot` now carries the agent fields. */
+export type BotWithAgent = Bot;
+
 type CreateBotRequest = {
   team_id?: string;
   name: string;
   handle: string;
   description?: string;
   avatar_url?: string;
+  agent?: CreateAgentConfig;
 };
 
 type PatchBotRequest = {
@@ -532,7 +545,7 @@ export const storageServiceClient = {
 
   async createBot(args: CreateBotRequest) {
     return (
-      await dssFetch<Bot>(`/bots`, {
+      await dssFetch<CreateBotResponse>(`/bots`, {
         method: 'POST',
         body: JSON.stringify(args),
       })

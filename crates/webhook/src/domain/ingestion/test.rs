@@ -1175,3 +1175,119 @@ async fn entity_access_internal_error_is_transient() {
     ));
     assert!(error.is_transient());
 }
+
+fn bot_mentioned_event(owner: bots::domain::models::BotOwner) -> (Event<BotTopicEvent>, BotId) {
+    let bot_id = BotId::new_from_uuid(Uuid::from_u128(0x4242));
+    let event = Event::new(BotTopicEvent::Mentioned(
+        bots::domain::events::BotMentionedMetadata {
+            bot_id,
+            owner,
+            channel_id: Uuid::from_u128(0x1010),
+            message_id: Uuid::from_u128(0x2020),
+            thread_id: None,
+            mentioned_by: user_id("macro|mentioner@example.com"),
+            content: "@helper summarize this".to_string(),
+            mentioned_at: timestamp(),
+        },
+    ));
+    (event, bot_id)
+}
+
+#[tokio::test]
+async fn bot_mentioned_event_matches_the_owner_team_workspace_strictly() {
+    let team_id = Uuid::parse_str(TEAM_WORKSPACE_ID).expect("valid team id");
+    let (event, bot_id) = bot_mentioned_event(bots::domain::models::BotOwner::Team { team_id });
+    let expected_envelope = serde_json::to_value(&event).expect("serializable event");
+    let access = MockAccessService::with_users(Vec::new());
+    let repository = MockRepository::new(
+        Vec::new(),
+        vec![webhook("wh_agent_match", TEAM_WORKSPACE_ID)],
+    );
+    let enqueuer = MockEnqueuer::default();
+    let service = service(access.clone(), repository.clone(), enqueuer.clone());
+
+    service
+        .ingest_bot_event(event)
+        .await
+        .expect("bot mention ingestion succeeds");
+
+    // Strict owner-workspace rule: no entity-access resolution, no workspace
+    // expansion.
+    assert!(lock(&access.calls).is_empty());
+    let repository_state = lock(&repository.state);
+    assert!(repository_state.workspace_calls.is_empty());
+    assert_eq!(
+        repository_state.match_calls,
+        vec![MatchCall {
+            workspace_ids: vec![TEAM_WORKSPACE_ID.to_string()],
+            event_name: "channel.bot-mentioned".to_string(),
+            entity_id: bot_id.to_string(),
+        }]
+    );
+    drop(repository_state);
+
+    let enqueuer_state = lock(&enqueuer.state);
+    assert_eq!(enqueuer_state.attempted_messages.len(), 1);
+    let message = &enqueuer_state.attempted_messages[0];
+    assert_eq!(message.webhook_id, "wh_agent_match");
+    assert_eq!(message.event.event_name, "channel.bot-mentioned");
+    assert_eq!(message.event.entity_type, "bot");
+    assert_eq!(message.event.entity_id, bot_id.to_string());
+    assert_eq!(message.event.broker_envelope, expected_envelope);
+}
+
+#[tokio::test]
+async fn bot_mentioned_event_matches_the_owner_personal_workspace() {
+    let (event, _) = bot_mentioned_event(bots::domain::models::BotOwner::User {
+        user_id: PERSONAL_WORKSPACE_ID.to_string(),
+    });
+    let access = MockAccessService::with_users(Vec::new());
+    let repository = MockRepository::new(Vec::new(), Vec::new());
+    let enqueuer = MockEnqueuer::default();
+    let service = service(access, repository.clone(), enqueuer.clone());
+
+    service
+        .ingest_bot_event(event)
+        .await
+        .expect("bot mention ingestion succeeds");
+
+    let repository_state = lock(&repository.state);
+    assert_eq!(repository_state.match_calls.len(), 1);
+    assert_eq!(
+        repository_state.match_calls[0].workspace_ids,
+        vec![PERSONAL_WORKSPACE_ID.to_string()]
+    );
+}
+
+#[tokio::test]
+async fn bot_lifecycle_events_are_not_webhook_deliverable() {
+    let access = MockAccessService::with_users(vec![user_id(PERSONAL_WORKSPACE_ID)]);
+    let repository = MockRepository::new(
+        vec![PERSONAL_WORKSPACE_ID.to_string()],
+        vec![webhook("wh_match", PERSONAL_WORKSPACE_ID)],
+    );
+    let enqueuer = MockEnqueuer::default();
+    let service = service(access.clone(), repository.clone(), enqueuer.clone());
+
+    let event = Event::new(BotTopicEvent::Deleted(
+        bots::domain::events::BotDeletedMetadata {
+            bot_id: BotId::new_from_uuid(Uuid::from_u128(0x4242)),
+            owner: bots::domain::models::BotOwner::User {
+                user_id: PERSONAL_WORKSPACE_ID.to_string(),
+            },
+            actor_user_id: user_id("macro|deleter@example.com"),
+        },
+    ));
+
+    service
+        .ingest_bot_event(event)
+        .await
+        .expect("lifecycle events are skipped");
+
+    assert!(lock(&access.calls).is_empty());
+    let repository_state = lock(&repository.state);
+    assert!(repository_state.workspace_calls.is_empty());
+    assert!(repository_state.match_calls.is_empty());
+    drop(repository_state);
+    assert!(lock(&enqueuer.state).attempted_messages.is_empty());
+}

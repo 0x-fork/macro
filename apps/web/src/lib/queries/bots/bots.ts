@@ -1,6 +1,9 @@
 import { throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
-import { storageServiceClient } from '@service-storage/client';
+import {
+  type CreateAgentConfig,
+  storageServiceClient,
+} from '@service-storage/client';
 import type { Bot } from '@service-storage/generated/schemas/bot';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import { channelKeys } from '../channel/keys';
@@ -12,6 +15,7 @@ type CreateBotParams = {
   handle: string;
   name: string;
   teamId?: string;
+  agent?: CreateAgentConfig;
 };
 
 type CreateBotTokenParams = {
@@ -52,6 +56,8 @@ export function invalidateBots() {
 export function useCreateBotMutation() {
   return useMutation(() => ({
     gcTime: 0,
+    // Resolves to `CreateBotResponse` ({ bot, agent_webhook? }) — the endpoint
+    // no longer returns the created `Bot` directly.
     mutationFn: async (vars: CreateBotParams) =>
       await throwOnErr(() =>
         storageServiceClient.createBot({
@@ -60,9 +66,16 @@ export function useCreateBotMutation() {
           handle: vars.handle,
           name: vars.name,
           team_id: vars.teamId,
+          agent: vars.agent,
         })
       ),
-    onSuccess: invalidateBots,
+    onSuccess: async (response) => {
+      queryClient.setQueryData(
+        botKeys.detail(response.bot.id).queryKey,
+        response.bot
+      );
+      await invalidateBots();
+    },
     onError: (error) => console.error('failed to create bot', error),
   }));
 }

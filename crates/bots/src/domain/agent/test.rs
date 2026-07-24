@@ -16,10 +16,6 @@ use models_pagination::{CreatedAt, Query};
 use uuid::Uuid;
 
 use super::*;
-use crate::domain::{
-    models::{BotEvent, BotTrigger},
-    ports::AgentResponder,
-};
 
 struct TestChannelService {
     around_args: Mutex<Option<(Uuid, Uuid, i64, i64)>>,
@@ -320,9 +316,10 @@ fn mention_event(
     thread_id: Option<Uuid>,
     sender_email: &str,
     content: &str,
-) -> BotEvent {
-    BotEvent {
-        trigger: BotTrigger::Mention,
+) -> BotMentionEvent {
+    BotMentionEvent {
+        bot_id: bot_id::MACRO_AI_BOT_ID,
+        bot_handle: bot_id::MACRO_AI_HANDLE.to_string(),
         channel_id,
         message: MutatedMessage {
             id: trigger_id,
@@ -345,7 +342,7 @@ fn mention_event(
 async fn handle_patches_thinking_message_with_reply() {
     let channel_id = Uuid::new_v4();
     let channels = Arc::new(MutationChannelService::new(false));
-    let handler = MacroAiHandler::new(channels.clone(), Arc::new(FixedResponder("the answer")));
+    let handler = MacroAgentHandler::new(channels.clone(), Arc::new(FixedResponder("the answer")));
 
     handler
         .handle(&mention_event(
@@ -376,7 +373,7 @@ async fn handle_patches_thinking_message_with_reply() {
 async fn handle_drops_reply_when_thinking_message_was_deleted() {
     let channel_id = Uuid::new_v4();
     let channels = Arc::new(MutationChannelService::new(true));
-    let handler = MacroAiHandler::new(channels.clone(), Arc::new(FixedResponder("the answer")));
+    let handler = MacroAgentHandler::new(channels.clone(), Arc::new(FixedResponder("the answer")));
 
     handler
         .handle(&mention_event(
@@ -412,7 +409,7 @@ async fn top_level_prompt_marks_trigger_inline_in_channel_context() {
         ],
         thread_replies: Vec::new(),
     });
-    let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
+    let handler = MacroAgentHandler::new(channels.clone(), Arc::new(TestResponder));
     let event = mention_event(
         channel_id,
         trigger_id,
@@ -482,7 +479,7 @@ async fn thread_prompt_puts_thread_first_and_demotes_channel_noise() {
             "@macro can you make a task out of this?",
         )],
     });
-    let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
+    let handler = MacroAgentHandler::new(channels.clone(), Arc::new(TestResponder));
     let event = mention_event(
         channel_id,
         trigger_id,
@@ -546,7 +543,7 @@ async fn thread_prompt_includes_trigger_when_reply_fetch_fails_to_return_it() {
         )],
         thread_replies: Vec::new(),
     });
-    let handler = MacroAiHandler::new(channels.clone(), Arc::new(TestResponder));
+    let handler = MacroAgentHandler::new(channels.clone(), Arc::new(TestResponder));
     let event = mention_event(
         channel_id,
         trigger_id,
@@ -559,4 +556,29 @@ async fn thread_prompt_includes_trigger_when_reply_fetch_fails_to_return_it() {
 
     assert!(prompt.contains("peter: parent message"));
     assert!(prompt.contains("austin [this message mentioned you]: @macro help with this"));
+}
+
+#[tokio::test]
+async fn prompt_uses_the_mentioned_bots_handle() {
+    let channel_id = Uuid::new_v4();
+    let trigger_id = Uuid::new_v4();
+    let channels = Arc::new(TestChannelService {
+        around_args: Mutex::new(None),
+        around_messages: Vec::new(),
+        thread_replies: Vec::new(),
+    });
+    let handler = MacroAgentHandler::new(channels, Arc::new(TestResponder));
+    let mut event = mention_event(
+        channel_id,
+        trigger_id,
+        None,
+        "teo@example.com",
+        "@helper help",
+    );
+    event.bot_id = BotId::new_from_uuid(Uuid::new_v4());
+    event.bot_handle = "helper".to_string();
+
+    let prompt = handler.build_prompt(&event).await;
+
+    assert!(prompt.contains("mentioned you (@helper) in a channel."));
 }

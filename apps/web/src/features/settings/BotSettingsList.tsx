@@ -1,3 +1,4 @@
+import { agentBadgeLabel } from '@channel/Bots/agent';
 import { BotAvatar } from '@channel/Bots/BotAvatar';
 import { LoadingSpinner } from '@core/component/LoadingSpinner';
 import BotIcon from '@icon/wide-bot.svg';
@@ -37,6 +38,13 @@ function BotSettingsRow(props: { bot: Bot; onOpen: (botId: string) => void }) {
           <span class="truncate text-xs text-ink-extra-muted">
             @{props.bot.handle}
           </span>
+          <Show when={agentBadgeLabel(props.bot)}>
+            {(badge) => (
+              <span class="shrink-0 rounded-md bg-accent-bg px-1.5 py-0.5 text-xs font-medium text-accent">
+                {badge()}
+              </span>
+            )}
+          </Show>
         </div>
         <div class="mt-0.5 truncate text-xs text-ink-muted">
           {props.bot.description || channelSummary()}

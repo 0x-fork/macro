@@ -10,6 +10,7 @@ use crate::{
         CalEventTypeContentNamesKey, CalWebhookSecretKey, MetaAccessToken, MetaPixelId,
         MetaTestEventCode,
     },
+    service::agent_webhook_provisioner::WebhookServiceAgentWebhookProvisioner,
     service::s3::S3,
 };
 use analytics_client::{AnalyticsClient, AnalyticsClientConfig, MetaConfig};
@@ -270,9 +271,6 @@ async fn main() -> anyhow::Result<()> {
         KafkaEventPublisher::new(config.kafka_brokers.as_ref())
             .context("failed to create kafka event publisher")?,
     );
-    let bots_repo = PgBotsRepo::new(db.clone());
-    let bots_service = BotServiceImpl::new(bots_repo, macro_event_broker.clone());
-
     let authorization_service: AuthorizationService = MacroAuthorizationServiceImpl::new(
         MacroAuthJwtValidator::new(jwt_validation_args.clone()),
         InternalAuthConfig {
@@ -695,9 +693,18 @@ async fn main() -> anyhow::Result<()> {
         },
     };
     let webhook_state = webhook::inbound::axum_router::WebhookRouterState::new(
-        webhook_service,
+        webhook_service.clone(),
         webhook_rate_limiter,
         authorization_state.clone(),
+    );
+
+    // External agent bots deliver through webhooks provisioned over the
+    // webhook management service.
+    let bots_repo = PgBotsRepo::new(db.clone());
+    let bots_service = BotServiceImpl::new(
+        bots_repo.clone(),
+        macro_event_broker.clone(),
+        WebhookServiceAgentWebhookProvisioner::new(webhook_service),
     );
 
     let webhook_ingestion_service =
@@ -793,7 +800,6 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(PgTaskMatchRepo::new(db.clone())),
     ));
     let channels_repo = PgChannelsRepo::new(db.clone());
-    let (bot_trigger_sender, bot_trigger_receiver) = tokio::sync::mpsc::unbounded_channel();
 
     let channel_side_effects = ChannelSideEffectService::new(
         PgChannelSideEffectContext::new(db.clone()),
@@ -802,7 +808,6 @@ async fn main() -> anyhow::Result<()> {
         SqsChannelSearchIndexer::new(sqs_client.clone()),
         ContactsChannelDispatcher::new(contacts_ingress.clone()),
     )
-    .with_bot_trigger_sender(bot_trigger_sender)
     .with_macro_event_broker(macro_event_broker.clone());
 
     let channels_service = Arc::new(
@@ -816,9 +821,12 @@ async fn main() -> anyhow::Result<()> {
         )),
     );
 
-    // Wire Macro AI to react to mentions. The router posts replies through the
-    // channel service we just built and runs the agent loop in-process with the
-    // same pre-configured toolset used by other AI hosts.
+    // Wire agent bots to react to mentions from the `macro.mentions` Kafka
+    // topic. Macro-mode agents (including the system Macro bot) post replies
+    // through the channel service we just built and run the agent loop
+    // in-process with the same pre-configured toolset used by other AI hosts;
+    // external agents publish derived `channel.bot-mentioned` events that
+    // webhook ingestion delivers to their provisioned webhooks.
     let mut macro_agent_tool_context = ai_tools::build_tool_service_context_from_env(db.clone())
         .await
         .context("failed to build Macro agent tool context")?;
@@ -832,14 +840,40 @@ async fn main() -> anyhow::Result<()> {
             lexical_client.clone(),
         );
     let macro_agent_tools = ai_tools::all_tools();
-    let bot_trigger_router = channel_bots::inbound::BotTriggerRouter::new(
+    let macro_agent_handler = Arc::new(bots::domain::agent::MacroAgentHandler::new(
         channels_service.clone(),
-        Arc::new(channel_bots::outbound::AgentLoopResponder::new(
-            macro_agent_tool_context,
-            macro_agent_tools,
-        )),
+        Arc::new(
+            bots::outbound::agent_loop_responder::AgentLoopResponder::new(
+                macro_agent_tool_context,
+                macro_agent_tools,
+            ),
+        ),
+    ));
+    let bot_mention_trigger_service = bots::domain::triggers::BotMentionTriggerService::new(
+        macro_agent_handler,
+        channels_service.clone(),
+        bots_repo.clone(),
+        macro_event_broker.clone(),
     );
-    bot_trigger_router.spawn(bot_trigger_receiver);
+    let bot_mention_brokers = config.kafka_brokers.as_ref().to_string();
+    tokio::spawn(async move {
+        loop {
+            tracing::info!("starting bot mention consumer");
+            let result = bots::inbound::mention_consumer::run_bot_mention_consumer(
+                &bot_mention_brokers,
+                bot_mention_trigger_service.clone(),
+                std::future::pending::<()>(),
+            )
+            .await;
+            match result {
+                Ok(()) => tracing::error!("bot mention consumer exited unexpectedly"),
+                Err(error) => {
+                    tracing::error!(error = ?error, "bot mention consumer exited unexpectedly");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        }
+    });
 
     let channel_bot_webhook_state =
         bots::inbound::channel_webhook_router::ChannelBotWebhookRouterState::new(

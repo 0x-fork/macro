@@ -6,8 +6,8 @@ use crate::domain::{
         ChannelMessage, ChannelMessageFilters, ChannelMetadata, ChannelParticipant, ChannelPreview,
         ChannelPreviewData, ChannelType, CreateEntityMentionOptions, DeleteMessageQuery,
         EntityMention, GetOrCreateAction, GetOrCreateChannelResponse, GetOrCreateDmRequest,
-        GetOrCreatePrivateRequest, MessagePageDirection, NewChannelAttachment, ParticipantRole,
-        PatchChannelRequest, PatchMessageNotificationPolicy, PatchMessageRequest,
+        GetOrCreatePrivateRequest, MessagePageDirection, MutatedMessage, NewChannelAttachment,
+        ParticipantRole, PatchChannelRequest, PatchMessageNotificationPolicy, PatchMessageRequest,
         PostMessageRequest, PostMessageResponse, PostReactionRequest, PostTypingRequest,
         ReactionAction, ReferencedShareItem, RemoveParticipantsRequest, ResolvedChannelMessage,
         Sender, SimpleMention, ThreadInfo, ThreadReply, ThreadReplyRow, TopLevelMessageRow,
@@ -1613,6 +1613,17 @@ where
     }
 
     #[tracing::instrument(err, skip(self))]
+    async fn get_message_by_id(
+        &self,
+        message_id: Uuid,
+    ) -> Result<Option<MutatedMessage>, ChannelMessagesErr> {
+        self.repo
+            .get_message_by_id(message_id)
+            .await
+            .map_err(anyhow::Error::from)
+            .map_err(ChannelMessagesErr::Repo)
+    }
+
     async fn get_message_context(
         &self,
         channel_id: Uuid,

@@ -76,7 +76,8 @@ bookkeeping (including success/failure timestamp updates) do not produce them.
 ## Event ingestion and matching
 
 The `webhook-event-ingestion` Kafka consumer reads `macro.documents`,
-`macro.channels`, and `macro.webhooks`. It supports these event names:
+`macro.channels`, `macro.webhooks`, and `macro.bots`. It supports these event
+names:
 
 - Documents: `document.created`, `document.updated`, `document.deleted`, and
   `document.copied`.
@@ -87,6 +88,10 @@ The `webhook-event-ingestion` Kafka consumer reads `macro.documents`,
   `channel.participant_removed`.
 - Webhooks: `webhook.created`, `webhook.updated`, `webhook.deleted`, and
   `webhook.validated`.
+- Bots: `channel.bot-mentioned` — derived from `macro.mentions` events by the
+  bots crate's `bot-agent-triggers` consumer when an external agent bot is
+  `@`-mentioned in a channel message. Bot lifecycle events (`bot.created`,
+  `bot.updated`, `bot.deleted`) are ignored by ingestion.
 
 For document and channel events, ingestion asks `EntityAccessService` for the
 people who currently have access to the entity. The matching workspace set
@@ -99,6 +104,13 @@ Webhook events use `entity_type = "webhook"` and take the event metadata's
 rule: ingestion does not perform an entity-access lookup or personal/team
 workspace expansion, and actor membership does not make another workspace
 eligible.
+
+Bot-mentioned events use `entity_type = "bot"` and follow the same strict
+owner-workspace rule: the mentioned bot's owner (the user ID for user-owned
+bots, the team ID for team-owned bots), carried in the event metadata, is the
+sole matching workspace. External agent bots are provisioned a webhook in the
+owner workspace filtered to `channel.bot-mentioned` and the bot's ID at
+creation.
 
 A webhook matches only when it is active, valid, not soft-deleted, owned by an
 eligible workspace, and has one filter element that matches both the exact
@@ -126,7 +138,7 @@ channel event, IDs mean `channel_id`. This includes message, attachment, and
 participant events: their message, attachment, and participant IDs are not used
 for webhook filtering. For webhook events, IDs mean the subject `webhook_id`;
 an absent or `null` `ids` field matches every webhook ID in the strict owner
-workspace.
+workspace. For bot events, IDs mean the mentioned bot's UUID.
 
 The matching query stores filters in the `webhook.filters` `JSONB NOT NULL`
 column, protected by the `webhook_filters_is_array` constraint. It uses the

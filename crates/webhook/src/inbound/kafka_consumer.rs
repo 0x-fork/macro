@@ -23,6 +23,7 @@ mod test;
 
 use crate::domain::{events::WebhookMacroEvent, ingestion::WebhookEventIngestionService};
 use anyhow::Context as _;
+use bots::domain::events::BotMacroEvent;
 use channels::domain::broker_events::ChannelMacroEvent;
 use documents::domain::events::DocumentMacroEvent;
 use kafka_util::{GroupName, KafkaEventConsumer};
@@ -50,6 +51,7 @@ macro_event_broker::declare_topics!(
     DeclaredMacroEvent: DocumentMacroEvent,
     ChannelMacroEvent,
     WebhookMacroEvent,
+    BotMacroEvent,
 );
 
 /// Maximum in-process ingestion attempts per event before the consumer bails
@@ -104,6 +106,9 @@ async fn ingest_with_retry<S: WebhookEventIngestionService>(
             }
             DeclaredMacroEvent::WebhookMacroEvent(event) => {
                 service.ingest_webhook_event(event.event().clone()).await
+            }
+            DeclaredMacroEvent::BotMacroEvent(event) => {
+                service.ingest_bot_event(event.event().clone()).await
             }
         };
         match result {

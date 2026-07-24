@@ -1,0 +1,116 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE bots\n            SET name = COALESCE($2, name),\n                handle = COALESCE($3, handle),\n                description = COALESCE($4, description),\n                avatar_url = COALESCE($5, avatar_url),\n                updated_at = now()\n            WHERE id = $1\n              AND deleted_at IS NULL\n            RETURNING\n                id,\n                kind,\n                bot_type,\n                agent_mode,\n                agent_events,\n                agent_webhook_id,\n                owner_user_id,\n                team_id,\n                name,\n                handle,\n                description,\n                avatar_url,\n                created_by,\n                created_at,\n                updated_at,\n                deleted_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "bot_type",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "agent_mode",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "agent_events",
+        "type_info": "TextArray"
+      },
+      {
+        "ordinal": 5,
+        "name": "agent_webhook_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "owner_user_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "team_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 8,
+        "name": "name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "handle",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "avatar_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "created_by",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "deleted_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "cea645f31fbd51b853604a5ed9c78e7a7b2720ed5975a78f0b7e655caf1846af"
+}

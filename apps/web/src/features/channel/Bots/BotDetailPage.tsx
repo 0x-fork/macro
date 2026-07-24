@@ -9,9 +9,11 @@ import {
   useUpdateBotMutation,
 } from '@queries/bots/bots';
 import { useSyncBotChannelsMutation } from '@queries/channel/channel-bots';
+import type { BotWithAgent } from '@service-storage/client';
 import { Button } from '@ui';
 import { createEffect, createMemo, createSignal, on, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
+import { agentBadgeLabel, agentModeLabel, BOT_EVENT_LABELS } from './agent';
 import { BotAvatar } from './BotAvatar';
 import { BotDeleteDialog } from './BotDeleteDialog';
 import { BotDetailActions } from './BotDetailActions';
@@ -65,6 +67,23 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
     )
   );
 
+  // Read-only agent info (bot_type/agent aren't part of the generated Bot
+  // schema yet, so widen instead of casting).
+  const agentInfo = createMemo(() => {
+    const bot: BotWithAgent | undefined = botQuery.data;
+    if (!bot || bot.bot_type !== 'agent') return undefined;
+    const events = bot.agent?.events ?? [];
+    return {
+      badge: agentBadgeLabel(bot),
+      mode: agentModeLabel(bot.agent?.mode),
+      isExternal: bot.agent?.mode === 'external',
+      eventLabels:
+        events.map((event) => BOT_EVENT_LABELS[event]).join(', ') ||
+        BOT_EVENT_LABELS['channel.bot-mentioned'],
+      webhookId: bot.agent?.webhook_id ?? undefined,
+    };
+  });
+
   const assignedChannels = createMemo(() => {
     const channelsById = channelsContext.channelsById();
     return (botChannelsQuery.data ?? []).map((channel) => ({
@@ -99,7 +118,9 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
   };
 
   const save = async () => {
-    const parsed = validateBotForm(form);
+    // Agent settings are read-only here and the endpoint URL is never
+    // returned by the API, so only the editable profile fields are validated.
+    const parsed = validateBotForm({ ...form, botType: 'standard' });
     if (!parsed.success) {
       setErrors(parsed.errors);
       return;
@@ -200,9 +221,18 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
                     size="lg"
                   />
                   <div class="min-w-0">
-                    <h1 class="truncate text-lg font-semibold tracking-[-0.01em]">
-                      {form.name || bot().name}
-                    </h1>
+                    <div class="flex min-w-0 items-center gap-2">
+                      <h1 class="truncate text-lg font-semibold tracking-[-0.01em]">
+                        {form.name || bot().name}
+                      </h1>
+                      <Show when={agentInfo()?.badge}>
+                        {(badge) => (
+                          <span class="shrink-0 rounded-md bg-accent-bg px-1.5 py-0.5 text-xs font-medium text-accent">
+                            {badge()}
+                          </span>
+                        )}
+                      </Show>
+                    </div>
                     <p class="mt-0.5 truncate text-sm text-ink-muted">
                       @{form.handle || bot().handle}
                     </p>
@@ -238,6 +268,42 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
                     }
                   />
                 </BotFormSection>
+
+                <Show when={agentInfo()}>
+                  {(info) => (
+                    <BotFormSection
+                      title="Agent"
+                      description="How this agent is triggered."
+                    >
+                      <dl class="flex flex-col gap-3">
+                        <div class="flex items-baseline justify-between gap-3">
+                          <dt class="text-xs font-medium text-ink-muted">
+                            Mode
+                          </dt>
+                          <dd class="text-sm">{info().mode}</dd>
+                        </div>
+                        <div class="flex items-baseline justify-between gap-3">
+                          <dt class="text-xs font-medium text-ink-muted">
+                            Events
+                          </dt>
+                          <dd class="text-sm">{info().eventLabels}</dd>
+                        </div>
+                        <Show when={info().isExternal && info().webhookId}>
+                          {(webhookId) => (
+                            <div class="flex items-baseline justify-between gap-3">
+                              <dt class="shrink-0 text-xs font-medium text-ink-muted">
+                                Webhook ID
+                              </dt>
+                              <dd class="truncate font-mono text-xs">
+                                {webhookId()}
+                              </dd>
+                            </div>
+                          )}
+                        </Show>
+                      </dl>
+                    </BotFormSection>
+                  )}
+                </Show>
 
                 <BotFormSection
                   title="Channels"

@@ -499,9 +499,17 @@ use utoipa::OpenApi;
             PostActivityRequest,
 
             // Bots
+            bots::domain::models::AgentConfig,
+            bots::domain::models::AgentMode,
+            bots::domain::models::AgentWebhook,
             bots::domain::models::Bot,
+            bots::domain::models::BotEventKind,
             bots::domain::models::BotKind,
             bots::domain::models::BotOwner,
+            bots::domain::models::BotType,
+            bots::domain::models::CreateAgentConfigRequest,
+            bots::domain::models::CreateBotRequest,
+            bots::domain::models::CreateBotResponse,
             bots::domain::models::BotToken,
             bots::domain::models::BotChannel,
             bots::domain::models::BotChannelType,

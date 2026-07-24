@@ -24,48 +24,10 @@ use bot_id::BotIdStr;
 use macro_event_broker::{MacroEventBroker, NoopMacroEventBroker};
 use macro_user_id::{cowlike::CowLike, user_id::MacroUserIdStr};
 use std::collections::HashSet;
-use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
 /// Entity type used by message mentions that target a bot.
 pub const BOT_MENTION_ENTITY_TYPE: &str = "bot";
-
-/// A trigger derived from a channel message that mentions one or more bots.
-#[derive(Debug, Clone)]
-pub struct ChannelBotTrigger {
-    /// Channel containing the triggering message.
-    pub channel_id: Uuid,
-    /// The user-authored message that mentioned the bot(s).
-    pub message: MutatedMessage,
-    /// Bots mentioned in the message.
-    pub bot_ids: Vec<BotId>,
-}
-
-/// Sender for bot triggers derived from channel messages.
-pub type ChannelBotTriggerSender = UnboundedSender<ChannelBotTrigger>;
-
-/// Collect the bot ids mentioned in a message.
-///
-/// Bot mentions normally arrive tagged `bot`, but Macro AI is surfaced through
-/// the user-mention UI, so a `user` mention whose id is exactly the Macro AI
-/// bot is recognized as a bot mention too.
-///
-/// Ids must be in the canonical `bot|<uuid>` principal form; bare UUIDs are
-/// rejected (historical bare-UUID content is normalized by migration).
-fn bot_mention_ids(mentions: &[SimpleMention]) -> Vec<BotId> {
-    let mut seen = HashSet::new();
-    mentions
-        .iter()
-        .filter_map(|mention| match mention.entity_type.as_str() {
-            BOT_MENTION_ENTITY_TYPE => mention_bot_id(&mention.entity_id),
-            "user" => {
-                mention_bot_id(&mention.entity_id).filter(|id| *id == bot_id::MACRO_AI_BOT_ID)
-            }
-            _ => None,
-        })
-        .filter(|id| seen.insert(*id))
-        .collect()
-}
 
 /// Parse a mention entity id in the canonical `bot|<uuid>` principal form.
 fn mention_bot_id(entity_id: &str) -> Option<BotId> {
@@ -301,7 +263,6 @@ pub struct ChannelSideEffectService<C, R, N, S, K, B = NoopMacroEventBroker> {
     notifications: N,
     search: S,
     contacts: K,
-    bot_triggers: Option<ChannelBotTriggerSender>,
     macro_event_broker: B,
 }
 
@@ -339,19 +300,12 @@ impl<C, R, N, S, K> ChannelSideEffectService<C, R, N, S, K> {
             notifications,
             search,
             contacts,
-            bot_triggers: None,
             macro_event_broker: NoopMacroEventBroker,
         }
     }
 }
 
 impl<C, R, N, S, K, B> ChannelSideEffectService<C, R, N, S, K, B> {
-    /// Configure a sender for bot triggers derived from channel messages.
-    pub fn with_bot_trigger_sender(mut self, bot_triggers: ChannelBotTriggerSender) -> Self {
-        self.bot_triggers = Some(bot_triggers);
-        self
-    }
-
     /// Configure a macro event broker to publish channel events to.
     pub fn with_macro_event_broker<B2: MacroEventBroker>(
         self,
@@ -363,42 +317,7 @@ impl<C, R, N, S, K, B> ChannelSideEffectService<C, R, N, S, K, B> {
             notifications: self.notifications,
             search: self.search,
             contacts: self.contacts,
-            bot_triggers: self.bot_triggers,
             macro_event_broker,
-        }
-    }
-
-    /// Dispatch bot triggers for any bots mentioned in a user-authored message.
-    fn dispatch_bot_triggers(
-        &self,
-        channel_id: Uuid,
-        message: &MutatedMessage,
-        mentions: &[SimpleMention],
-    ) {
-        // Only user-authored messages can trigger bots; this prevents bots
-        // (including Macro AI) from triggering each other in a loop.
-        if message.sender_id.as_user().is_none() {
-            return;
-        }
-        let bot_ids = bot_mention_ids(mentions);
-        if bot_ids.is_empty() {
-            return;
-        }
-
-        if let Some(bot_triggers) = &self.bot_triggers
-            && bot_triggers
-                .send(ChannelBotTrigger {
-                    channel_id,
-                    message: message.clone(),
-                    bot_ids,
-                })
-                .is_err()
-        {
-            tracing::warn!(
-                channel_id = %channel_id,
-                message_id = %message.id,
-                "unable to enqueue channel bot trigger; receiver was dropped"
-            );
         }
     }
 }
@@ -673,7 +592,6 @@ where
         }
 
         self.search.index_message(channel_id, message.id).await;
-        self.dispatch_bot_triggers(channel_id, &message, &mentions);
         if notification_policy == PostMessageNotificationPolicy::Default {
             self.send_message_posted_notifications(PostedMessageNotificationInputs {
                 channel_id,
@@ -1406,21 +1324,28 @@ fn mention_broker_events_for_event(event: &ChannelEvent) -> Vec<MentionMacroEven
     match event {
         ChannelEvent::MessagePosted {
             message, mentions, ..
-        } => mentions
-            .iter()
-            .map(|mention| {
-                MentionMacroEvent::message_sent(MentionMetadata {
-                    source: EntityRef {
-                        id: message.id.to_string(),
-                        kind: "message".to_string(),
-                    },
-                    mentioned: EntityRef {
-                        id: mention.entity_id.clone(),
-                        kind: mention.entity_type.clone(),
-                    },
+        } => {
+            // A message mentioning the same entity twice publishes one event:
+            // duplicates carry no information and would double-trigger
+            // consumers (e.g. agent bots reacting to their own mentions).
+            let mut seen = HashSet::new();
+            mentions
+                .iter()
+                .filter(|mention| seen.insert((&mention.entity_type, &mention.entity_id)))
+                .map(|mention| {
+                    MentionMacroEvent::message_sent(MentionMetadata {
+                        source: EntityRef {
+                            id: message.id.to_string(),
+                            kind: "message".to_string(),
+                        },
+                        mentioned: EntityRef {
+                            id: mention.entity_id.clone(),
+                            kind: mention.entity_type.clone(),
+                        },
+                    })
                 })
-            })
-            .collect(),
+                .collect()
+        }
         ChannelEvent::EntityMentionCreated { mention } => {
             vec![MentionMacroEvent::created(mention.into())]
         }
