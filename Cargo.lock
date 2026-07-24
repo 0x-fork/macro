@@ -5800,6 +5800,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "generic_email_domains"
+version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
+
+[[package]]
 name = "gethostname"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10090,6 +10097,7 @@ dependencies = [
  "anyhow",
  "axum",
  "chrono",
+ "generic_email_domains",
  "import",
  "macro_authorization",
  "macro_user_id",
@@ -14226,6 +14234,7 @@ dependencies = [
  "chrono",
  "contacts",
  "entity_access",
+ "generic_email_domains",
  "macro_authorization",
  "macro_db_migrator",
  "macro_event_broker",
