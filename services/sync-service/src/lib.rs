@@ -1,6 +1,7 @@
 mod ai_peer;
 mod auth;
 mod cf_worker;
+mod comment_marks;
 mod constants;
 mod d1;
 mod dss_internal;

@@ -4,6 +4,7 @@ use wasm_bindgen::JsValue;
 use worker::{Env, Error, Headers, Method, Request, RequestInit, Response, Result, Stub};
 
 use crate::{
+    comment_marks,
     constants::header_names::{AUTHORIZATION, MACRO_INTERNAL_AUTH_KEY_HEADER_KEY},
     durable_object::{CopyDocumentRequest, GetSnapshotRequest, response, status_codes},
     error::ResultExt,
@@ -99,8 +100,16 @@ pub async fn copy_handler(env: Env, mut req: Request, document_id: &str) -> Resu
             return Ok(response(ss_res.status_code()));
         }
 
+        // Comment threads are never copied when a document is duplicated (see
+        // `crates/documents`), so any inline comment/mark wrapper left in the
+        // copied snapshot would render as a highlight with no comment behind
+        // it. Strip those wrappers here, before the new document is ever
+        // initialized with this content.
+        let source_snapshot = ss_res.bytes().await?;
+        let stripped_snapshot = comment_marks::strip_orphaned_marks(&source_snapshot)?;
+
         let snapshot_body = InitializeFromSnapshotRequest {
-            snapshot: bebop::SliceWrapper::Raw(&ss_res.bytes().await?),
+            snapshot: bebop::SliceWrapper::Raw(&stripped_snapshot),
         };
         let mut buf = Vec::with_capacity(snapshot_body.serialized_size());
         _ = snapshot_body
