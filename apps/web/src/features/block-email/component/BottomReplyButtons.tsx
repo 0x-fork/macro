@@ -9,7 +9,7 @@ import CheckIcon from '@phosphor/check.svg';
 import CheckBoldIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
 import type { ApiMessage } from '@service-email/generated/schemas';
 import { createCallback } from '@solid-primitives/rootless';
-import { Button, cn } from '@ui';
+import { Button, cn, Hotkey } from '@ui';
 import { type Component, Show } from 'solid-js';
 import type { ReplyType } from '../util/replyType';
 import { useEmailContext } from './EmailContext';
@@ -42,6 +42,28 @@ function ReplyActionButton(props: {
         <span>{props.label}</span>
       </Show>
     </Button>
+  );
+}
+
+function ReplyHint(props: {
+  shortcut: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      class="group flex items-center gap-1.5 rounded-md text-sm text-ink-placeholder hover:text-ink-muted"
+      onClick={props.onClick}
+    >
+      <Hotkey
+        shortcut={props.shortcut}
+        theme="subtle"
+        lowercase
+        class="group-hover:border-ink-muted group-hover:text-ink-muted"
+      />
+      <span>{props.label}</span>
+    </button>
   );
 }
 
@@ -82,20 +104,26 @@ export function BottomReplyButtons(props: { lastMessage: ApiMessage }) {
     <Show
       when={isMobile()}
       fallback={
-        <div class="flex w-full items-center pt-4">
-          <button
-            type="button"
-            class="flex min-w-0 flex-1 items-center gap-2 rounded-md text-left text-sm text-ink-placeholder hover:text-ink-muted"
-            onClick={open('reply-all')}
-          >
-            <UserIcon
-              {...currentUserIconProps()}
-              size="md"
-              showTooltip={false}
-              suppressClick
+        <div class="flex w-full items-center gap-3 pt-4">
+          <UserIcon
+            {...currentUserIconProps()}
+            size="md"
+            showTooltip={false}
+            suppressClick
+          />
+          <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <ReplyHint shortcut="r" label="Reply" onClick={open('reply')} />
+            <ReplyHint
+              shortcut="enter"
+              label="Reply all"
+              onClick={open('reply-all')}
             />
-            <span class="truncate">Reply...</span>
-          </button>
+            <ReplyHint
+              shortcut="f"
+              label="Forward"
+              onClick={open('forward')}
+            />
+          </div>
         </div>
       }
     >

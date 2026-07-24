@@ -1275,6 +1275,19 @@ export function BaseInput(props: {
         hotkeyToken: TOKENS.email.cancelReply,
         displayPriority: 8,
       });
+
+      registerHotkey({
+        hotkey: ['shift+cmd+d', 'shift+cmd+,'],
+        scopeId: composeHotkeyScope,
+        description: 'Delete draft',
+        keyDownHandler: () => {
+          void deleteDraftAndReset();
+          return true;
+        },
+        runWithInputFocused: true,
+        hotkeyToken: TOKENS.email.deleteDraft,
+        displayPriority: 7,
+      });
     }
   });
 

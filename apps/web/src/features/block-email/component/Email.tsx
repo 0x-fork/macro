@@ -511,7 +511,7 @@ function EmailContent(props: EmailViewProps) {
 
   onMount(() => {
     registerEmailHotkeys(scopeId(), {
-      replyToFocusedMessage: () => openHotkeyTarget('reply-all'),
+      replyToFocusedMessage: () => openHotkeyTarget('reply'),
       forwardFocusedMessage: () => openHotkeyTarget('forward'),
       blockSender: context.blockSender,
       markDone: context.archiveThread,
