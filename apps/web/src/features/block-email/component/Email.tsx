@@ -599,6 +599,15 @@ function EmailContent(props: EmailViewProps) {
         }
       }
 
+      // The last-message composer is tracked by bottomReplyOpen rather than
+      // replyingToMessageId, so it survives the checks above once it has lost
+      // focus. Dismiss it before considering navigation, or Escape would leave
+      // an open composer behind as it left the thread.
+      if (context.messages.bottomReplyOpen()) {
+        context.messages.setBottomReplyOpen(false);
+        return true;
+      }
+
       // Nothing left to dismiss within the thread: in the fullscreen view,
       // Escape mirrors the split's Back button and navigates back to soup.
       const handle = splitPanel?.handle;

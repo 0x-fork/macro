@@ -118,11 +118,7 @@ export function BottomReplyButtons(props: { lastMessage: ApiMessage }) {
               label="Reply all"
               onClick={open('reply-all')}
             />
-            <ReplyHint
-              shortcut="f"
-              label="Forward"
-              onClick={open('forward')}
-            />
+            <ReplyHint shortcut="f" label="Forward" onClick={open('forward')} />
           </div>
         </div>
       }

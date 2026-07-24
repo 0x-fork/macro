@@ -131,11 +131,11 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
+import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import {
   SOUP_LIST_STATE_ENTRY_KEY,
   type SoupListEntryState,
 } from './soup-list-entry-state';
-import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupPreviewAvailability } from './use-soup-preview-availability';
 import { useSoupViewHotkeys } from './use-soup-view-hotkeys';

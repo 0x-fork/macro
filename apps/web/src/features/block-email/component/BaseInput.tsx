@@ -1139,6 +1139,9 @@ export function BaseInput(props: {
   };
 
   const deleteDraftAndReset = async () => {
+    // Single-flight: deletion is destructive and reachable from a hotkey, so a
+    // held key must not issue concurrent deletes for the same draft.
+    if (pendingDeletion) return;
     // Block any save scheduled by resetState's side effects (sync form.reset
     // callDirty + async editor onChange listener). When clearDraftState() has
     // a setShowReply, the BaseInput unmounts and the flag goes away with it;
@@ -1159,6 +1162,11 @@ export function BaseInput(props: {
       resetState();
       form().setReplyAppended(false);
       clearDraftState();
+    } catch (e) {
+      // The draft still exists server-side, so leave the composer intact
+      // rather than resetting it and hiding content that wasn't deleted.
+      logger.error(new Error('Failed to delete draft', { cause: e }));
+      toast.failure('Failed to delete draft');
     } finally {
       // Yield past any sync/microtask save scheduling triggered by resetState,
       // then cancel the resulting timer and re-enable autosave. Runs on both
