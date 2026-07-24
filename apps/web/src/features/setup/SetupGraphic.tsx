@@ -1,136 +1,95 @@
-import { For, onCleanup, onMount } from 'solid-js';
+import { For, onCleanup, onMount, Show } from 'solid-js';
+import { Module, type ModuleLogo, type ModuleState } from './Module';
+import { MODULE_LOGOS } from './moduleLogos';
 import './SetupGraphic.css';
 
 /**
- * The isometric tile shared by every module — the floating tag from the
- * Illustrator `module` template (dashed orbit rings, body, face ellipse, and
- * the small arc details), minus its logo. Drawn at the template's original
- * coordinates; each module places it by transforming the wrapping group.
+ * A "downloading" pulse: an accent glow segment that travels along a connector
+ * from the module to the card, on repeat. Built from a short dash swept with
+ * stroke-dashoffset (WAAPI, so a Suspense re-attach can't restart it). Rendered
+ * in the same layer as its connector, so it's occluded by the cards the same
+ * way. The connector `d` runs module→card, so the pulse flows that direction.
  */
-function ModuleTile() {
-  return (
-    <>
-      <path
-        class="st4"
-        d="M367.2,58.7c0,19.4-16.8,41.9-37.5,50.2-20.7,8.3-37.5-.8-37.5-20.2s16.8-41.9,37.5-50.2c20.7-8.3,37.5.8,37.5,20.2Z"
-      />
-      <path
-        class="st6"
-        d="M409.5,71.5c0,30.9-26.7,66.6-59.6,79.8-32.9,13.2-59.6-1.2-59.6-32.2s26.7-66.6,59.6-79.8c32.9-13.2,59.6,1.2,59.6,32.2Z"
-      />
-      <path
-        class="st10"
-        d="M396.2,227.8c8.7,1.1,18.7-.2,29.4-4.5,31.5-12.6,57.4-45.9,59.7-75.9h0s.3-5.7.3-5.7l-.3-5.5-.9-5.2-3.8-13.3-2.1-4.8-2.7-4.3-3.3-3.8-42.1-39.9-3.8-3.3-4.3-2.7-4.7-2.1-5.1-1.5-8.3-1.9-5.1-.8-5.4-.2-5.6.4-5.8,1-5.9,1.5-6,2.1-6,2.7-5.9,3.2-5.8,3.7-5.6,4.1-5.4,4.6-5.1,4.9-4.8,5.3-4.4,5.5-4,5.8-3.6,5.9-3.1,6-2.6,6.1-2,6.1-1.4,6-.9,5.9-.3,5.7.3,5.5.9,5.2,3.8,13.3,2.1,4.8,2.7,4.3,3.3,3.8,42.1,39.9,3.8,3.3,4.3,2.7,4.7,2.1,5.1,1.5,8.3,1.9,5.1.8"
-      />
-      <path
-        class="st9"
-        d="M478.6,147.8c0,26.5-22.9,57.2-51.1,68.5-28.2,11.3-51.1-1.1-51.1-27.6s22.9-57.2,51.1-68.5,51.1,1.1,51.1,27.6Z"
-      />
-      <path class="st1" d="M326.9,143.4c1.9-7.8,5.1-15.7,9.3-23.2" />
-      <path class="st1" d="M331.6,149.1c1.9-7.8,5.1-15.7,9.3-23.2" />
-      <path class="st1" d="M337,155c1.9-7.8,5.1-15.7,9.3-23.2" />
-    </>
-  );
+function DownloadPulse(props: { d: string }) {
+  let path: SVGPathElement | undefined;
+  let animation: Animation | undefined;
+  onCleanup(() => animation?.cancel());
+  onMount(() => {
+    if (!path) return;
+    const total = path.getTotalLength();
+    const segment = 70; // length of the bright streak
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // One bright dash, gap = full path (so only one is on the wire at a time);
+    // sweeping the whole period runs it start→end and loops seamlessly.
+    path.setAttribute('stroke-dasharray', `${segment} ${total}`);
+    animation = path.animate(
+      [
+        { strokeDashoffset: '0' },
+        { strokeDashoffset: `${-(segment + total)}` },
+      ],
+      {
+        duration: Math.round((segment + total) * 3),
+        iterations: Number.POSITIVE_INFINITY,
+        easing: 'linear',
+      }
+    );
+  });
+  return <path ref={path} class="download-pulse" d={props.d} />;
 }
 
 /**
- * Places a flat 24×24 brand logo onto a module's face, matching the isometric
- * perspective of the template's hand-drawn Linear mark. Derived from the
- * "side wall" plane (rotate/shear 21.79°, 81% vertical scale) and verified by
- * overlaying it on that reference; centers a 24-unit logo on the template
- * face at (427.5, 168.3), scaled ~3×.
- */
-const LOGO_FACE_TRANSFORM = 'matrix(2.784 -1.113 0 2.619 394.09 150.228)';
-
-/**
- * Linear's hand-drawn mark is a touch larger than the flat logos placed via
- * {@link LOGO_FACE_TRANSFORM}, so shrink it about the face center to match
- * their visual footprint.
- */
-const LINEAR_LOGO_TRANSFORM =
-  'translate(427.5 168.3) scale(0.8) translate(-427.5 -168.3)';
-
-/**
- * The four connectable tools as modules hovering around the blocks. `logo`
- * is a flat 24×24 brand mark placed via {@link LOGO_FACE_TRANSFORM}; Linear
- * instead keeps the template's hand-drawn mark (`handLogo`, already in
- * perspective). `place` positions and scales the module about the face
- * center. Positions are a first pass, meant to be tuned.
- */
-const MODULES: {
-  name: string;
-  place: string;
-  handLogo?: string;
-  logo?: string;
-  logoPaths?: string[];
-}[] = [
-  {
-    name: 'Linear',
-    place: 'translate(140 235) scale(0.667) translate(-447.5 -168.3)',
-    handLogo:
-      'M394.8,155.1c8.1-12.2,20-22.1,32.6-27.1,23.7-9.5,43,.9,43,23.2,0,12.2-5.8,25.5-15,36.6l-60.6-32.7h0ZM391,161.5l59.2,32c-1.9,1.9-3.8,3.6-5.9,5.3l-56.4-30.4c.9-2.3,1.9-4.6,3.1-6.8h0ZM385.6,175.5l51.9,28c-2.5,1.6-5.2,3-7.9,4.2l-45.2-24.4c.1-2.5.5-5.2,1.2-7.8ZM385,192.1l35.1,19c-18,4.3-32.1-3.3-35.1-19h0Z',
-  },
-  {
-    // Google's mark is four closed segments; filled with currentColor they
-    // read as a solid monochrome G like the other logos.
-    name: 'Google',
-    place: 'translate(300 150) scale(0.667) translate(-447.5 -188.3)',
-    logoPaths: [
-      'm12.361 10.57v3.9663h4.6219c-0.4078 0.80304-1.004 1.4955-1.7375 2.0182l3.1612 2.5282c2.0047-1.8044 3.1501-4.3737 3.1519-7.0704v-0.72113c0-0.39827-0.32296-0.72113-0.72138-0.72113z',
-      'm6.4089 12.012a5.5531 5.5512 0 0 1 0.33738-1.8936l-3.1977-2.5572a9.505 9.5024 0 0 0 0 8.9014l3.1977-2.5572a5.5531 5.5512 0 0 1-0.33738-1.8936z',
-      'm12 6.4232a5.5538 5.5519 0 0 1 3.2881 1.0786l2.9289-2.7325a9.5329 9.5294 0 0 0-14.668 2.7918l3.1977 2.5572a5.595 5.5932 0 0 1 5.2532-3.6952z',
-      'm18.399 19.077-3.1528-2.5214a5.5868 5.585 0 0 1-8.5006-2.6502l-3.1977 2.5572a9.5539 9.5504 0 0 0 14.851 2.6144z',
-    ],
-  },
-  {
-    name: 'GitHub',
-    place: 'translate(405 100) scale(0.667) translate(-447.5 -208.3)',
-    logo: 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12',
-  },
-  {
-    name: 'Notion',
-    place: 'translate(625 168) scale(0.667) translate(-507.5 -168.3)',
-    logo: 'M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z',
-  },
-  {
-    name: 'Slack',
-    place: 'translate(800 248) scale(0.667) translate(-427.5 -168.3)',
-    logo: 'M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z',
-  },
-];
-
-/**
- * Dashed connector paths tethering each module to a feature on a block. Each
- * routes along the isometric axes: a vertical drop from the module (started up
- * inside the tile so the module's bob never opens a gap at the join), then a
- * single ground-axis segment into the target. Linear and GitHub reach front
- * features perpendicular to the face along the cards' short (width) axis.
+ * The fixed module positions around the blocks. Each slot is pure geometry —
+ * where the module sits (`place`, about its face center) and the dashed tether
+ * to a block feature (`connector`) — independent of which logo lands on it.
  *
- * `layer` places the path in the draw order: `front` over all cards; `back`
- * behind all cards; `mid` between the back and middle cards (behind the
- * middle card but in front of the back card). Authored in viewBox space (as a
- * sibling of the differently-scaled blocks and modules), so the coordinates
- * are absolute — the `mid` group counters the blocks transform to stay so.
+ * A connector's `layer` sets its draw order: `front` over all cards; `back`
+ * behind all cards; `mid` between the back and middle cards. Coordinates are
+ * absolute viewBox units (modules/connectors are siblings of the scaled
+ * blocks), so the `mid` group counters the blocks transform to stay so.
  */
-const CONNECTORS: {
-  name: string;
-  d: string;
-  layer: 'front' | 'mid' | 'back';
-}[] = [
-  {
-    name: 'Linear',
-    d: 'M106.7 257.4 L106.7 544.1 L228.7 495.4',
-    layer: 'front',
+const SLOTS = {
+  Linear: {
+    place: 'translate(140 235) scale(0.667) translate(-447.5 -168.3)',
+    connector: { d: 'M106.7 257.4 L106.7 544.1 L228.7 495.4', layer: 'front' },
   },
-  {
-    name: 'GitHub',
-    d: 'M371.7 90.6 L371.7 579.9 L429.5 556.8',
-    layer: 'front',
+  Google: {
+    place: 'translate(300 150) scale(0.667) translate(-447.5 -188.3)',
+    connector: { d: 'M266.7 153.3 L266.7 340 L374.6 442.3', layer: 'back' },
   },
-  { name: 'Google', d: 'M266.7 153.3 L266.7 340 L374.6 442.3', layer: 'back' },
-  { name: 'Notion', d: 'M551.7 191.1 L551.7 441 L489.8 465.7', layer: 'mid' },
-  { name: 'Slack', d: 'M780 266.8 L780 431.7 L694.8 465.7', layer: 'back' },
-];
+  GitHub: {
+    place: 'translate(405 100) scale(0.667) translate(-447.5 -208.3)',
+    connector: { d: 'M371.7 90.6 L371.7 579.9 L429.5 556.8', layer: 'front' },
+  },
+  Notion: {
+    place: 'translate(625 168) scale(0.667) translate(-507.5 -168.3)',
+    connector: { d: 'M551.7 191.1 L551.7 441 L489.8 465.7', layer: 'mid' },
+  },
+  Slack: {
+    place: 'translate(800 248) scale(0.667) translate(-427.5 -168.3)',
+    connector: { d: 'M780 266.8 L780 431.7 L694.8 465.7', layer: 'back' },
+  },
+} satisfies Record<
+  string,
+  { place: string; connector: { d: string; layer: 'front' | 'mid' | 'back' } }
+>;
+
+type SlotName = keyof typeof SLOTS;
+
+/** One module to render: which {@link SLOTS slot} it fills, its logo, whether
+ *  to draw its connector (default true), and its activity `state` (default
+ *  'idle'). `downloading` runs the connector pulse; `linked` hides the
+ *  connector. */
+export type ModuleConfig = {
+  slot: SlotName;
+  logo: ModuleLogo;
+  connector?: boolean;
+  state?: ModuleState;
+};
+
+/** Default: every slot, brand logo matching the slot, connectors on. */
+const DEFAULT_MODULES: ModuleConfig[] = (Object.keys(SLOTS) as SlotName[]).map(
+  (slot) => ({ slot, logo: MODULE_LOGOS[slot] })
+);
 
 /**
  * Undoes the `.blocks` transform, so a connector placed among the blocks'
@@ -143,15 +102,39 @@ const INVERSE_BLOCKS_TRANSFORM =
 /**
  * The isometric empty-state scene for `/setup`: the Macro logo re-imagined as
  * three technical isometric blocks (`front_card`, `middle_card`, `back_card`),
- * with a hovering {@link MODULES module} per connectable tool. Inlined (rather
- * than imported as an asset) so animation can target the named groups.
+ * with hovering modules around it. Inlined (rather than imported as an asset)
+ * so animation can target the named groups.
+ *
+ * Pass `modules` to choose which {@link SLOTS slots} appear and which logo each
+ * carries (and whether to draw each tether); omit it for all five slots with
+ * their brand logos. Each connector follows its module.
  *
  * The back card's front section (`animating_card`) slides out and back once on
  * mount; clicking the graphic replays it. When it settles, the inset LED
  * indicators illuminate bottom-to-top and hold a faint pulsing glow with a
  * breathing halo; a fresh slide darkens them until it settles again.
  */
-export function SetupGraphic(props: { class?: string }) {
+export function SetupGraphic(props: {
+  class?: string;
+  modules?: ModuleConfig[];
+}) {
+  const modules = () => props.modules ?? DEFAULT_MODULES;
+  // Connectors follow their modules: one per shown module whose connector
+  // isn't disabled and isn't in the `linked` state (which hides it), carrying
+  // the slot's tether geometry + draw layer, plus whether its pulse is running.
+  const connectorsIn = (layer: 'front' | 'mid' | 'back') =>
+    modules()
+      .filter(
+        (m) =>
+          m.connector !== false &&
+          m.state !== 'linked' &&
+          SLOTS[m.slot].connector.layer === layer
+      )
+      .map((m) => ({
+        ...SLOTS[m.slot].connector,
+        downloading: m.state === 'downloading',
+      }));
+
   let svg: SVGSVGElement | undefined;
   let animatingCard: SVGGElement | undefined;
   let slideAnimation: Animation | undefined;
@@ -358,7 +341,13 @@ export function SetupGraphic(props: { class?: string }) {
   return (
     <svg
       ref={svg}
-      viewBox="0 0 889.4 774.2"
+      // Framed tightly to the actual content (modules + blocks + connectors),
+      // not the original artboard: the top module's rings sit above the old
+      // y=0 and were clipped, and the artboard left ~140 units of dead space
+      // below the blocks. The padding absorbs the modules' bob/breathe. `meet`
+      // then always shows the whole scene, and the tighter frame keeps the
+      // modules near the top edge and the blocks near the bottom.
+      viewBox="20 -28 833 676"
       fill="currentColor"
       class={`setup-graphic text-ink cursor-pointer ${props.class ?? ''}`}
       onClick={playSlide}
@@ -367,8 +356,15 @@ export function SetupGraphic(props: { class?: string }) {
       <g class="scene">
         {/* Tethers that sit behind every card. */}
         <g class="connectors">
-          <For each={CONNECTORS.filter((c) => c.layer === 'back')}>
-            {(connector) => <path class="connector" d={connector.d} />}
+          <For each={connectorsIn('back')}>
+            {(connector) => (
+              <>
+                <path class="connector" d={connector.d} />
+                <Show when={connector.downloading}>
+                  <DownloadPulse d={connector.d} />
+                </Show>
+              </>
+            )}
           </For>
         </g>
         {/* The block assembly, shrunk to 2/3 about its center so the modules
@@ -581,8 +577,15 @@ export function SetupGraphic(props: { class?: string }) {
               Counter-transformed so their absolute coords survive being
               nested in the scaled blocks group. */}
           <g class="connectors" transform={INVERSE_BLOCKS_TRANSFORM}>
-            <For each={CONNECTORS.filter((c) => c.layer === 'mid')}>
-              {(connector) => <path class="connector" d={connector.d} />}
+            <For each={connectorsIn('mid')}>
+              {(connector) => (
+                <>
+                  <path class="connector" d={connector.d} />
+                  <Show when={connector.downloading}>
+                    <DownloadPulse d={connector.d} />
+                  </Show>
+                </>
+              )}
             </For>
           </g>
           <g id="middle_card">
@@ -719,34 +722,28 @@ export function SetupGraphic(props: { class?: string }) {
         </g>
         {/* Tethers to front features draw over the cards. */}
         <g class="connectors">
-          <For each={CONNECTORS.filter((c) => c.layer === 'front')}>
-            {(connector) => <path class="connector" d={connector.d} />}
+          <For each={connectorsIn('front')}>
+            {(connector) => (
+              <>
+                <path class="connector" d={connector.d} />
+                <Show when={connector.downloading}>
+                  <DownloadPulse d={connector.d} />
+                </Show>
+              </>
+            )}
           </For>
         </g>
-        {/* Modules: one hovering tile per connectable tool. */}
+        {/* Modules: the configured slots, phase-offset so they don't bob in
+            unison. */}
         <g class="modules">
-          <For each={MODULES}>
-            {(module) => (
-              // Bob layer sits outside the positioned .module: a CSS transform
-              // on .module would override its `place` presentation attribute.
-              <g class="module-bob">
-                <g class="module" transform={module.place}>
-                  <ModuleTile />
-                  {module.handLogo ? (
-                    <g transform={LINEAR_LOGO_TRANSFORM}>
-                      <path d={module.handLogo} />
-                    </g>
-                  ) : module.logoPaths ? (
-                    <g transform={LOGO_FACE_TRANSFORM}>
-                      <For each={module.logoPaths}>{(d) => <path d={d} />}</For>
-                    </g>
-                  ) : (
-                    <g transform={LOGO_FACE_TRANSFORM}>
-                      <path d={module.logo} />
-                    </g>
-                  )}
-                </g>
-              </g>
+          <For each={modules()}>
+            {(module, index) => (
+              <Module
+                place={SLOTS[module.slot].place}
+                logo={module.logo}
+                state={module.state}
+                phaseMs={-index() * 1100}
+              />
             )}
           </For>
         </g>

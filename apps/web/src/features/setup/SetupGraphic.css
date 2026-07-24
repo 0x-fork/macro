@@ -93,73 +93,47 @@ html[data-theme-light='false'] .setup-graphic .st13 {
   opacity: 0.55;
 }
 
-/* Modules gently bob up and down. The bob lives on a wrapper (.module-bob) so
-   it composes with the module's own `place` transform rather than overriding
-   that presentation attribute. Each module is offset in phase (--module-phase,
-   which inherits down to its rings) so they don't move in unison. */
-.setup-graphic .module-bob {
-  animation: module-bob 4.5s ease-in-out infinite;
-  animation-delay: var(--module-phase, 0s);
+/* "Downloading" pulse: a clean accent segment travelling along a connector
+   (the dash + stroke-dashoffset are set by DownloadPulse), with just a hint of
+   glow so it stays crisp. */
+.setup-graphic .download-pulse {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px var(--color-accent));
 }
 
-/* Dashed orbit rings grow and shrink about their own centers, with the dashes
-   traveling along the path. (The stroke scales with the graphic; the ±3%
-   breathe is too small to read as a width change.) */
+/* Ambient module motion — the bob, the orbit rings' breathe, and their dash
+   travel — is driven imperatively with WAAPI (see SetupGraphic.tsx), not CSS:
+   the page's Suspense boundary re-attaches this subtree when a query above it
+   re-suspends, which restarts CSS animations (a visible pop) but leaves WAAPI
+   animations running. These properties are the origin for the rings' WAAPI
+   scale; transform-box/-origin apply regardless of how `transform` is set. */
 .setup-graphic .module :is(.st4, .st6) {
   transform-box: fill-box;
   transform-origin: center;
-  animation:
-    module-ring 4.5s ease-in-out infinite,
-    module-ring-dash 3s linear infinite;
-  animation-delay: var(--module-phase, 0s);
 }
 
-.setup-graphic .modules > .module-bob:nth-child(1) {
-  --module-phase: 0s;
+/* Accent "acceleration" shaft behind the module, revealed on click (driven by
+   WAAPI). Non-interactive; gradient goes opaque accent at the module to
+   transparent up-left along the −D axis. The inner group carries the animated
+   opacity and the width scale (scaleY about its own center). */
+.setup-graphic .module-shaft {
+  pointer-events: none;
 }
-.setup-graphic .modules > .module-bob:nth-child(2) {
-  --module-phase: -1.1s;
+.setup-graphic .module-shaft-scale {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
 }
-.setup-graphic .modules > .module-bob:nth-child(3) {
-  --module-phase: -2.2s;
+.setup-graphic .module-shaft-hot {
+  stop-color: var(--color-accent);
+  stop-opacity: 0.85;
 }
-.setup-graphic .modules > .module-bob:nth-child(4) {
-  --module-phase: -3.3s;
-}
-.setup-graphic .modules > .module-bob:nth-child(5) {
-  --module-phase: -2.5s;
-}
-
-@keyframes module-bob {
-  0%,
-  100% {
-    transform: translateY(4px);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-@keyframes module-ring {
-  0%,
-  100% {
-    transform: scale(0.97);
-  }
-  50% {
-    transform: scale(1.03);
-  }
-}
-
-@keyframes module-ring-dash {
-  to {
-    stroke-dashoffset: -12;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .setup-graphic .module-bob,
-  .setup-graphic .module :is(.st4, .st6) {
-    animation: none;
-  }
+.setup-graphic .module-shaft-cold {
+  stop-color: var(--color-accent);
+  stop-opacity: 0;
 }
 
