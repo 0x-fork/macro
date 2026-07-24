@@ -555,11 +555,21 @@ function EmailContent(props: EmailViewProps) {
     hide: true,
   });
 
+  // Whether the thread fills the pane (a normal navigation) rather than
+  // sitting as the Viewer of a Preview Pair beside the soup list. Only then
+  // does Escape act as "back to soup" — in a Preview Pair the list is already
+  // visible next to the thread.
+  const isFullscreenEmail = () => {
+    const handle = splitPanel?.handle;
+    return !!handle && !handle.isViewerSplit();
+  };
+
   registerScopeSignalHotkey(scopeId, {
     hotkey: 'escape',
     description: 'Collapse message',
     keyDownHandler: () => {
-      // Skip if focus is in an editable area (compose input handles its own Escape)
+      // Skip if focus is in an editable area (compose input handles its own
+      // Escape, unfocusing the reply input first).
       const activeEl = document.activeElement;
       if (
         activeEl?.tagName === 'INPUT' ||
@@ -570,23 +580,33 @@ function EmailContent(props: EmailViewProps) {
       }
 
       const focusedId = context.messages.focusedID();
-      if (!focusedId) return false;
 
-      // If there's an active reply, just clear it (don't collapse the message)
-      if (context.messages.replyingToMessageId() === focusedId) {
-        context.messages.setReplyingToMessageId(undefined);
+      if (focusedId) {
+        // If there's an active reply, just clear it (don't collapse the message)
+        if (context.messages.replyingToMessageId() === focusedId) {
+          context.messages.setReplyingToMessageId(undefined);
+          return true;
+        }
+
+        // If message is expanded and not the last message, collapse it
+        if (context.messages.isBodyExpanded(focusedId)) {
+          const messages = context.messages.list();
+          const lastMessage = messages[messages.length - 1];
+          if (lastMessage?.db_id !== focusedId) {
+            context.messages.setExpandedBodyId(focusedId, false);
+            return true;
+          }
+        }
+      }
+
+      // Nothing left to dismiss within the thread: in the fullscreen view,
+      // Escape mirrors the split's Back button and navigates back to soup.
+      const handle = splitPanel?.handle;
+      if (handle && isFullscreenEmail() && handle.canGoBack()) {
+        handle.goBack();
         return true;
       }
 
-      // If message is expanded and not the last message, collapse it
-      if (context.messages.isBodyExpanded(focusedId)) {
-        const messages = context.messages.list();
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage?.db_id !== focusedId) {
-          context.messages.setExpandedBodyId(focusedId, false);
-          return true;
-        }
-      }
       return false;
     },
     hotkeyToken: TOKENS.email.cancelReply,
