@@ -158,6 +158,7 @@ impl AsyncTool<SearchToolContext> for NameSearch {
             search_on: models_search::SearchOn::Name,
             include_crm: false,
             collapse: None,
+            sort: models_search::SearchSort::default(),
         });
         let channel_request = include_channels.then(|| ChannelNameSearchRequest {
             query: self.name.to_owned(),

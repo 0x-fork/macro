@@ -22,9 +22,16 @@ import {
 import type {
   EntityFilters,
   PropertyFilter,
+  SearchSort,
   UnifiedSearchRequest,
 } from '@service-search/generated/models';
-import { type Accessor, createMemo, on, type Setter } from 'solid-js';
+import {
+  type Accessor,
+  createMemo,
+  createSignal,
+  on,
+  type Setter,
+} from 'solid-js';
 
 // A fully-quoted term searches exactly, not as a prefix. Quotes stay in the
 // query so the backend tokenizer still groups a quoted phrase.
@@ -240,6 +247,11 @@ export const createSearchState = ({
 
   const trimmedSearchText = createMemo(() => searchText().trim());
 
+  // How to order results returned by the backend search request. Defaults to
+  // 'updated_at' to preserve existing behavior; 'relevancy' is an opt-in
+  // alternative surfaced via a sort control in the search view.
+  const [searchSort, setSearchSort] = createSignal<SearchSort>('updated_at');
+
   const debouncedSearchForLocal = debouncedDependent(
     trimmedSearchText,
     LOCAL_FUZZY_SEARCH_DEBOUNCE_MS
@@ -279,6 +291,7 @@ export const createSearchState = ({
           match_type: matchType,
           query,
           filters: baseFilters,
+          sort: searchSort(),
         };
       }
 
@@ -297,6 +310,7 @@ export const createSearchState = ({
           ...baseFilters,
           crm_company_filters: { hidden: state.include.crmCompanyHidden },
         },
+        sort: searchSort(),
       };
     }
   );
@@ -413,5 +427,7 @@ export const createSearchState = ({
     searchQuery,
     isSearchServiceLoading,
     isLocalSearchSettling,
+    searchSort,
+    setSearchSort,
   };
 };

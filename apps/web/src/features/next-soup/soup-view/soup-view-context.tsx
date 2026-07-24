@@ -80,6 +80,7 @@ import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { soupKeys } from '@queries/soup/keys';
 import { useReactiveSoupAstItemsQuery } from '@queries/soup/reactive-items';
 import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
+import type { SearchSort } from '@service-search/generated/models';
 import type { SoupApiItem, SoupPage } from '@service-storage/generated/schemas';
 import { makePersisted } from '@solid-primitives/storage';
 import type { InfiniteData } from '@tanstack/solid-query';
@@ -157,6 +158,8 @@ interface SoupViewContextValues {
   rows: Accessor<SoupRow[]>;
   isSearchServiceLoading: Accessor<boolean>;
   isLocalSearchSettling: Accessor<boolean>;
+  searchSort: Accessor<SearchSort>;
+  setSearchSort: Setter<SearchSort>;
   queryFilters: QueryStore;
   restorePersistedQueryFilters: (tabId: string) => boolean;
   restorePersistedPredicates: (tabId: string) => boolean;
@@ -1501,6 +1504,8 @@ export const SoupViewContextProvider: FlowComponent<
     featuredIds: search.featuredIds,
     isSearchServiceLoading: search.isSearchServiceLoading,
     isLocalSearchSettling: search.isLocalSearchSettling,
+    searchSort: search.searchSort,
+    setSearchSort: search.setSearchSort,
     queryFilters,
     restorePersistedQueryFilters,
     restorePersistedPredicates,

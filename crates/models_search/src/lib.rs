@@ -32,6 +32,38 @@ pub enum SearchOn {
     NameContent,
 }
 
+/// How to order unified search results.
+///
+/// `UpdatedAt` (the default) matches existing behavior: relevance scores
+/// aren't comparable across the different entity-type indices (documents,
+/// chats, emails, ...) merged into one unified result set, so recency is
+/// the ordering already used to make a cross-type result list meaningful.
+/// `Relevancy` is an opt-in alternative that orders by each hit's
+/// OpenSearch match score instead, for callers that only care about best
+/// match (typically when the result set is filtered to a single entity
+/// type).
+#[derive(
+    Serialize,
+    Deserialize,
+    Debug,
+    ToSchema,
+    Copy,
+    Clone,
+    EnumString,
+    Display,
+    JsonSchema,
+    Default,
+    Eq,
+    PartialEq,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum SearchSort {
+    #[default]
+    UpdatedAt,
+    Relevancy,
+}
+
 #[derive(
     Serialize, Deserialize, Debug, ToSchema, Copy, Clone, EnumString, Display, PartialEq, JsonSchema,
 )]

@@ -8,7 +8,7 @@ use crate::document::DocumentSearchResponseItemWithMetadata;
 use crate::email::EmailSearchResponseItemWithMetadata;
 use crate::project::ProjectSearchResponseItemWithMetadata;
 use crate::{
-    MatchType, SearchOn, call_record::SimpleCallRecordSearchResponseBaseItem,
+    MatchType, SearchOn, SearchSort, call_record::SimpleCallRecordSearchResponseBaseItem,
     channel::SimpleChannelSearchReponseBaseItem, chat::SimpleChatSearchResponseBaseItem,
     document::SimpleDocumentSearchResponseBaseItem, email::SimpleEmailSearchResponseBaseItem,
     project::SimpleProjectSearchResponseBaseItem,
@@ -95,6 +95,12 @@ pub struct UnifiedSearchRequest {
 
     #[schemars(skip)]
     pub collapse: Option<bool>,
+
+    /// How to order results. Defaults to `updated_at` (most-recently-updated
+    /// first), matching existing behavior. `relevancy` orders by each
+    /// result's search match score instead.
+    #[serde(default)]
+    pub sort: SearchSort,
 }
 
 /// Whether a [FileAssociation] is indexed by the search processing service.
@@ -240,6 +246,41 @@ impl UnifiedSearchResponseItem {
             Self::Project(item) => item.metadata.as_ref().map(|m| m.updated_at),
             Self::Call(item) => item.metadata.as_ref().map(|m| m.updated_at),
             Self::Company(item) => Some(item.updated_at),
+        }
+    }
+
+    /// Get the best (highest) relevance score for each item, for use by
+    /// [`SearchSort::Relevancy`]. Entity types that surface content matches
+    /// as a list of nested per-hit results (documents, chats, emails,
+    /// projects, calls, channel content) report the maximum score among
+    /// those hits. Name-only matches carry their score directly on the
+    /// item. Returns `None` when no score is available (e.g. CRM company
+    /// matches, which aren't scored).
+    pub fn score(&self) -> Option<f64> {
+        fn max_score<'a>(scores: impl Iterator<Item = &'a Option<f64>>) -> Option<f64> {
+            scores
+                .filter_map(|s| *s)
+                .fold(None, |acc, s| Some(acc.map_or(s, |a: f64| a.max(s))))
+        }
+
+        match self {
+            Self::Document(item) => {
+                max_score(item.extra.document_search_results.iter().map(|r| &r.score))
+            }
+            Self::Chat(item) => max_score(item.extra.chat_search_results.iter().map(|r| &r.score)),
+            Self::Email(item) => max_score(
+                item.extra
+                    .email_message_search_results
+                    .iter()
+                    .map(|r| &r.score),
+            ),
+            Self::ChannelMessage(item) => item.score,
+            Self::Channel(item) => item.score,
+            Self::Project(item) => {
+                max_score(item.extra.project_search_results.iter().map(|r| &r.score))
+            }
+            Self::Call(item) => max_score(item.extra.call_search_results.iter().map(|r| &r.score)),
+            Self::Company(_) => None,
         }
     }
 }

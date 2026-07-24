@@ -56,7 +56,15 @@ export function SoupFiltersBar(props: {
           <Show
             when={!isSearchView() && !isTagView()}
             fallback={
-              <Show when={isTagView()} fallback={<SearchFiltersRow />}>
+              <Show
+                when={isTagView()}
+                fallback={
+                  <>
+                    <SoupViewContextSort />
+                    <SearchFiltersRow />
+                  </>
+                }
+              >
                 <Show when={!isNewInbox()}>
                   <SoupViewContextSort />
                 </Show>

@@ -8,6 +8,7 @@
 import type { EntityFilters } from './entityFilters';
 import type { MatchType } from './matchType';
 import type { SearchOn } from './searchOn';
+import type { SearchSort } from './searchSort';
 import type { UnifiedSearchRequestCollapse } from './unifiedSearchRequestCollapse';
 
 export interface UnifiedSearchRequest {
@@ -25,4 +26,6 @@ index, so it is searched only under Name / NameContent. */
   query: string;
   /** Fields to search on (Name, Content, NameContent). Defaults to Content */
   search_on?: SearchOn;
+  /** How to order results. Defaults to `updated_at` (most-recently-updated first), matching existing behavior. `relevancy` orders by each result's search match score instead. */
+  sort?: SearchSort;
 }

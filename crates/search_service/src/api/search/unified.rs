@@ -13,6 +13,7 @@ use axum::{
 };
 use macro_authorization::{MacroAuthorizationExtractor, UserOrInternal};
 use model::response::ErrorResponse;
+use models_search::SearchSort;
 use models_search::unified::{
     UnifiedSearchRequest, UnifiedSearchResponse, UnifiedSearchResponseItem,
 };
@@ -44,12 +45,14 @@ pub async fn handler(
     extract::Json(req): extract::Json<UnifiedSearchRequest>,
 ) -> Result<Json<UnifiedSearchResponse>, SearchError> {
     let user_context = &authorization.authorization.user.user_context;
+    let sort = req.sort;
 
     tracing::info!(
         user_id = user_context.user_id,
         query = ?req.query,
         search_on = ?req.search_on,
         include_crm = req.include_crm,
+        sort = ?sort,
         "unified_search"
     );
 
@@ -146,7 +149,7 @@ pub async fn handler(
         results.extend(enriched_call_record_results);
         results.extend(enriched_crm_results);
 
-        sort_unified_search_results(results)
+        sort_unified_search_results(results, sort)
     };
 
     Ok(Json(UnifiedSearchResponse {
@@ -155,17 +158,29 @@ pub async fn handler(
     }))
 }
 
-/// Sorts the unified results
-/// This method is so we can more easily test sorting
+/// Sorts the unified results according to the requested [`SearchSort`].
+/// This method is so we can more easily test sorting.
+///
+/// Note this only reorders the page of results already fetched; the
+/// underlying OpenSearch query and cursor pagination are always anchored on
+/// `updated_at` (see `opensearch_client::search::unified::build_unified_search_request`)
+/// so that paging stays correct regardless of the requested display order.
 fn sort_unified_search_results(
     mut results: Vec<UnifiedSearchResponseItem>,
+    sort: SearchSort,
 ) -> Vec<UnifiedSearchResponseItem> {
-    // Sort the results by their updated_at
-    results.sort_by(|a, b| {
-        b.updated_at()
-            .partial_cmp(&a.updated_at())
-            .unwrap_or(Ordering::Equal)
-    });
+    match sort {
+        SearchSort::UpdatedAt => {
+            results.sort_by(|a, b| {
+                b.updated_at()
+                    .partial_cmp(&a.updated_at())
+                    .unwrap_or(Ordering::Equal)
+            });
+        }
+        SearchSort::Relevancy => {
+            results.sort_by(|a, b| b.score().partial_cmp(&a.score()).unwrap_or(Ordering::Equal));
+        }
+    }
 
     results
 }

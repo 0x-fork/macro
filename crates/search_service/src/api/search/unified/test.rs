@@ -1,11 +1,12 @@
 use super::*;
 use chrono::DateTime;
 use models_search::{
-    SearchHighlight,
+    SearchHighlight, SearchSort,
     channel::ChannelMessageSearchResponseItem,
     chat::{ChatMetadata, ChatSearchResponseItem, ChatSearchResponseItemWithMetadata},
     document::{
         DocumentMetadata, DocumentSearchResponseItem, DocumentSearchResponseItemWithMetadata,
+        DocumentSearchResult,
     },
     email::{EmailSearchResponseItem, EmailSearchResponseItemWithMetadata},
     project::{ProjectMetadata, ProjectSearchResponseItem, ProjectSearchResponseItemWithMetadata},
@@ -155,7 +156,7 @@ fn test_sort_unified_search_results() {
         doc_id,     // 1000 - oldest
     ];
 
-    let results = sort_unified_search_results(results);
+    let results = sort_unified_search_results(results, SearchSort::UpdatedAt);
 
     assert_eq!(
         results.iter().map(|r| r.entity_id()).collect::<Vec<Uuid>>(),
@@ -208,7 +209,7 @@ fn test_channel_messages_interleave_by_own_recency() {
         }),
     ];
 
-    let results = sort_unified_search_results(results);
+    let results = sort_unified_search_results(results, SearchSort::UpdatedAt);
 
     let message_id = |item: &UnifiedSearchResponseItem| match item {
         UnifiedSearchResponseItem::ChannelMessage(m) => Some(m.message_id),
@@ -219,4 +220,55 @@ fn test_channel_messages_interleave_by_own_recency() {
     assert_eq!(message_id(&results[0]), Some(newer_msg));
     assert_eq!(results[1].entity_id(), doc_id);
     assert_eq!(message_id(&results[2]), Some(older_msg));
+}
+
+fn document_with_score(id: Uuid, updated_at: i64, score: Option<f64>) -> UnifiedSearchResponseItem {
+    UnifiedSearchResponseItem::Document(DocumentSearchResponseItemWithMetadata {
+        properties: None,
+        metadata: Some(DocumentMetadata {
+            created_at: DateTime::from_timestamp(updated_at, 0).unwrap(),
+            updated_at: DateTime::from_timestamp(updated_at, 0).unwrap(),
+            viewed_at: None,
+            project_id: None,
+            deleted_at: None,
+        }),
+        extra: DocumentSearchResponseItem {
+            id,
+            name: "Document".to_string(),
+            owner_id: "owner1".to_string(),
+            document_id: id,
+            document_name: "Document".to_string(),
+            file_type: Some("pdf".to_string()),
+            sub_type: None,
+            document_search_results: vec![DocumentSearchResult {
+                node_id: None,
+                highlight: SearchHighlight::default(),
+                raw_content: None,
+                score,
+            }],
+        },
+    })
+}
+
+#[test]
+fn test_sort_unified_search_results_by_relevancy() {
+    // Recency order (by `updated_at`, oldest first here) is the inverse of
+    // match-score order, so a passing assertion on score order can only be
+    // explained by the Relevancy branch, not an accidental UpdatedAt fallback.
+    let low_score_id = Uuid::new_v4();
+    let high_score_id = Uuid::new_v4();
+    let no_score_id = Uuid::new_v4();
+
+    let results: Vec<UnifiedSearchResponseItem> = vec![
+        document_with_score(low_score_id, 3000, Some(1.0)),
+        document_with_score(high_score_id, 1000, Some(9.0)),
+        document_with_score(no_score_id, 2000, None),
+    ];
+
+    let results = sort_unified_search_results(results, SearchSort::Relevancy);
+
+    assert_eq!(
+        results.iter().map(|r| r.entity_id()).collect::<Vec<Uuid>>(),
+        vec![high_score_id, low_score_id, no_score_id]
+    );
 }

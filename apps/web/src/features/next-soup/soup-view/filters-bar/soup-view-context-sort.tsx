@@ -1,4 +1,5 @@
 import type { ListView } from '@app/constants/list-views';
+import { SearchSortDropdown } from '@app/features/next-soup/soup-view/filters-bar/search/search-sort-dropdown';
 import { SortDropdown } from '@app/features/next-soup/soup-view/filters-bar/sort-dropdown';
 import {
   CHANNEL_SORT_OPTIONS,
@@ -78,6 +79,9 @@ export const SoupViewContextSort = () => {
       </Match>
       <Match when={component() === 'tag'}>
         <FilesSort {...openProps()} />
+      </Match>
+      <Match when={isComponentListView('search')}>
+        <SearchSortDropdown {...openProps()} />
       </Match>
     </Switch>
   );

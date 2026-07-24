@@ -137,6 +137,7 @@ impl AsyncTool<SearchToolContext> for ContentSearch {
             search_on: models_search::SearchOn::Content,
             include_crm: false,
             collapse: None,
+            sort: models_search::SearchSort::default(),
         };
 
         let response = search_context

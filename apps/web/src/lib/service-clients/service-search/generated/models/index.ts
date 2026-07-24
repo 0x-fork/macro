@@ -208,6 +208,7 @@ export * from './searchHighlightSender';
 export * from './searchHighlightUserId';
 export * from './searchOn';
 export * from './searchResponse';
+export * from './searchSort';
 export * from './sharedEmailFilter';
 export * from './simpleCallRecordSearchResponseBaseItemHumanReadableTimestamp';
 export * from './simpleCallRecordSearchResponseBaseItemHumanReadableTimestampChannelName';
