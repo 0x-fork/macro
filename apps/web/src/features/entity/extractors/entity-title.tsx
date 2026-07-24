@@ -2,7 +2,15 @@ import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/S
 import { unifiedListMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import { blockNameToDefaultFile } from '@core/constant/allBlocks';
 import { formatDocumentName } from '@service-storage/util/filename';
-import { type JSX, Show } from 'solid-js';
+import { createElementSize } from '@solid-primitives/resize-observer';
+import { Tooltip } from '@ui';
+import {
+  type Accessor,
+  createEffect,
+  createSignal,
+  type JSX,
+  Show,
+} from 'solid-js';
 import { match } from 'ts-pattern';
 import { type EntityData, isGithubPrEntity } from '../types/entity';
 import { isSearchEntity } from '../types/search';
@@ -47,6 +55,27 @@ function extractSearchHighlight(entity: EntityData): string | undefined {
   return entity.search.nameHighlight ?? undefined;
 }
 
+/**
+ * Tracks whether the rendered element's text is visually clipped
+ * (`scrollWidth` exceeds `clientWidth`), re-checking whenever the element's
+ * own box size changes.
+ */
+function useIsTruncated(ref: Accessor<HTMLElement | undefined>) {
+  const size = createElementSize(ref);
+  const [truncated, setTruncated] = createSignal(false);
+
+  createEffect(() => {
+    // Track size so we re-measure whenever the element (or its container)
+    // resizes.
+    void size.width;
+    void size.height;
+    const el = ref();
+    setTruncated(!!el && el.scrollWidth > el.clientWidth);
+  });
+
+  return truncated;
+}
+
 export function EntityTitle(props: { entity: EntityData }) {
   const titleData = () => {
     const searchHighlight = extractSearchHighlight(props.entity);
@@ -63,16 +92,34 @@ export function EntityTitle(props: { entity: EntityData }) {
     };
   };
 
+  const [titleRef, setTitleRef] = createSignal<HTMLElement>();
+  const isTruncated = useIsTruncated(titleRef);
+  // The tooltip re-uses the rendered element's own text, so it stays correct
+  // for markdown/highlighted titles without re-deriving a plain-text label.
+  const tooltipLabel = () => titleRef()?.textContent?.trim() ?? '';
+
   return (
-    <Show
-      when={titleData().isMarkdown}
-      fallback={<span class="truncate">{titleData().text}</span>}
+    <Tooltip
+      as="span"
+      class="min-w-0 truncate"
+      label={tooltipLabel()}
+      disabled={!isTruncated()}
     >
-      <StaticMarkdown
-        markdown={titleData().text as string}
-        theme={unifiedListMarkdownTheme}
-        singleLine={true}
-      />
-    </Show>
+      <Show
+        when={titleData().isMarkdown}
+        fallback={
+          <span ref={setTitleRef} class="truncate">
+            {titleData().text}
+          </span>
+        }
+      >
+        <StaticMarkdown
+          markdown={titleData().text as string}
+          theme={unifiedListMarkdownTheme}
+          singleLine={true}
+          rootRef={setTitleRef}
+        />
+      </Show>
+    </Tooltip>
   );
 }
