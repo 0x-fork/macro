@@ -830,6 +830,7 @@ export function Channel(props: ChannelProps) {
                             placeholder: 'Message channel',
                           }}
                           participants={participants.users}
+                          channelId={() => props.channelId}
                           attachmentTracker={attachmentTracker}
                           persistenceKey={makeInputValuePersistenceKey({
                             channelId: props.channelId,

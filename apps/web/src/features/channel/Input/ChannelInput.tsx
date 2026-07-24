@@ -21,6 +21,7 @@ import {
   uploadFile,
 } from '@core/util/upload';
 import type { EntityData } from '@entity';
+import { useChannelBotsQuery } from '@queries/channel/channel-bots';
 import { isIOS } from '@solid-primitives/platform';
 import { CollapsedInput, cn, Surface } from '@ui';
 import { $getRoot } from 'lexical';
@@ -32,7 +33,11 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { isMacroAiId, macroAiMentionUser } from '../macroAi';
+import {
+  agentBotMentionUsers,
+  isMacroAiId,
+  macroAiMentionUser,
+} from '../macroAi';
 import { CHANNEL_FILE_PICKER_ACCEPT } from './accepted-file-types';
 import { createInputAttachmentTracker } from './attachment-tracker';
 import { createConfiguredChannelMarkdownEditor } from './configured-markdown-editor';
@@ -65,6 +70,11 @@ export type ChannelInputProps = InputCallbacks & {
   persistenceKey?: InputPersistenceKey;
   attachmentTracker?: InputAttachmentTracker;
   participants?: Accessor<IUser[]>;
+  /**
+   * Channel this input posts into. When set, the channel's agent bots are
+   * offered in the `@`-mention typeahead alongside participants.
+   */
+  channelId?: Accessor<string | undefined>;
   onReady?: (handle: InputHandle) => void;
   children?: JSX.Element;
   /** Whether to auto-focus the input on mount. Defaults to `!isMobile()`. */
@@ -230,13 +240,17 @@ export function ChannelInput(props: ChannelInputProps) {
     queueMicrotask(() => focusEditorNow());
   };
 
-  // Macro AI is mentionable in every channel. It is surfaced through the same
-  // `@`-mention typeahead as participants and re-tagged as a bot at send time.
+  // Macro AI is mentionable in every channel, and the channel's agent bots
+  // are mentionable wherever a channel id is known. Both are surfaced through
+  // the same `@`-mention typeahead as participants and re-tagged as bot
+  // mentions at send time.
+  const channelBots = useChannelBotsQuery(() => props.channelId?.() ?? '');
   const mentionUsers: Accessor<IUser[]> = () => {
     const base = props.participants?.() ?? [];
-    return base.some((user) => isMacroAiId(user.id))
+    const withMacro = base.some((user) => isMacroAiId(user.id))
       ? base
       : [macroAiMentionUser(), ...base];
+    return [...agentBotMentionUsers(channelBots.data ?? []), ...withMacro];
   };
 
   const markdownEditor = createConfiguredChannelMarkdownEditor({

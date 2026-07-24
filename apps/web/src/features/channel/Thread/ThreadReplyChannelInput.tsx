@@ -105,6 +105,7 @@ export function ThreadReplyChannelInput(props: ThreadReplyChannelInputProps) {
       collapsible={props.collapsible}
       autofocus={false}
       participants={participants.users}
+      channelId={() => props.channelId}
       attachmentTracker={tracker}
       persistenceKey={makeInputValuePersistenceKey({
         channelId: props.channelId,

@@ -69,3 +69,41 @@ describe('buildPostMessageRequest — @here expansion', () => {
     expect(result.mentions).toEqual([]);
   });
 });
+
+describe('buildPostMessageRequest — bot re-tagging', () => {
+  it('re-tags bot-principal mentions as bot mentions', () => {
+    const result = buildPostMessageRequest({
+      snapshot: snap([
+        {
+          itemType: 'user',
+          itemId: 'bot|11111111-2222-4333-8444-555555555555',
+        },
+        { itemType: 'user', itemId: 'macro|alice@example.com' },
+      ]),
+      participantIds: [],
+    });
+
+    expect(result.mentions).toEqual([
+      {
+        entity_type: 'bot',
+        entity_id: 'bot|11111111-2222-4333-8444-555555555555',
+      },
+      { entity_type: 'user', entity_id: 'macro|alice@example.com' },
+    ]);
+  });
+
+  it('does not fan bots into @here expansion', () => {
+    // Participant ids never contain bot principals (the participants endpoint
+    // filters them), but guard the expansion contract anyway.
+    const result = buildPostMessageRequest({
+      snapshot: snap([
+        { itemType: 'group', itemId: 'here', groupAlias: 'here' },
+      ]),
+      participantIds: ['user-a'],
+    });
+
+    expect(result.mentions).toEqual([
+      { entity_type: 'user', entity_id: 'user-a' },
+    ]);
+  });
+});

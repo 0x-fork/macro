@@ -1,10 +1,10 @@
+import { isBotMentionId } from '@core/component/LexicalMarkdown/component/menu/MentionsMenu/utils/botMention';
 import type { ItemMention } from '@core/component/LexicalMarkdown/plugins';
 import { STATIC_IMAGE, STATIC_VIDEO } from '@core/store/cacheChannelInput';
 import type { NewChannelAttachment as NewAttachment } from '@service-storage/generated/schemas/newChannelAttachment';
 import type { PostMessageRequest } from '@service-storage/generated/schemas/postMessageRequest';
 import type { SimpleMention } from '@service-storage/generated/schemas/simpleMention';
 import { match } from 'ts-pattern';
-import { isMacroAiId } from '../macroAi';
 import type { InputAttachmentData, InputSnapshot } from './types';
 
 export function attachmentEntityType(
@@ -59,10 +59,11 @@ export function expandMentions(
     } else if (mention.itemType === 'user') {
       if (seenUserIds.has(mention.itemId)) continue;
       seenUserIds.add(mention.itemId);
-      // Macro AI rides the user-mention machinery in the editor but is a bot;
-      // re-tag it so the backend dispatches a bot trigger.
+      // Bots (Macro AI and channel agent bots) ride the user-mention
+      // machinery in the editor; re-tag them so the backend dispatches a bot
+      // trigger.
       result.push({
-        entity_type: isMacroAiId(mention.itemId) ? 'bot' : 'user',
+        entity_type: isBotMentionId(mention.itemId) ? 'bot' : 'user',
         entity_id: mention.itemId,
       });
     } else {

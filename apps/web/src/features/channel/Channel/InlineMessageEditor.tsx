@@ -63,6 +63,7 @@ export function MessageEditorContent(props: MessageEditorContentProps) {
         autofocus={props.autofocus}
         attachmentTracker={attachmentTracker}
         participants={props.participants}
+        channelId={() => props.channelId}
         markdownNamespace={`edit-message-${props.channelId}-${props.message.id}`}
         onReady={props.onReady}
         onChange={(nextSnapshot) =>

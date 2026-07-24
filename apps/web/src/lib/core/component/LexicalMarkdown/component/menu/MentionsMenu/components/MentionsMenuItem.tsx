@@ -1,5 +1,6 @@
 import { EntityIcon } from '@core/component/EntityIcon';
 import { UserIcon } from '@core/component/UserIcon';
+import { isMacroAgentId } from '@core/constant/macroAgent';
 import type { ChannelEntity } from '@entity';
 import ClockIcon from '@phosphor/clock.svg';
 import EmailIcon from '@phosphor/envelope.svg';
@@ -44,8 +45,22 @@ export function MentionsMenuItem(props: {
 
   const icon = () => {
     switch (props.item.kind) {
-      case 'user':
+      case 'user': {
+        // Non-Macro bots have no Macro id to resolve a profile from; use the
+        // email-only variant so initials derive from the bot handle instead
+        // of a generic fallback. Macro keeps the id path (it renders the
+        // Macro logo).
+        if (isBotMentionItem(props.item) && !isMacroAgentId(props.item.id)) {
+          return (
+            <UserIcon
+              email={props.item.data.email}
+              size="sm"
+              isDeleted={false}
+            />
+          );
+        }
         return <UserIcon id={props.item.id} size="sm" isDeleted={false} />;
+      }
 
       case 'group':
         return <UsersIcon class="size-4 text-ink-muted" />;

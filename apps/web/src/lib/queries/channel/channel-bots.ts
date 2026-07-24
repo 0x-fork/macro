@@ -36,6 +36,8 @@ export function useChannelBotsQuery(channelId: () => string) {
           channel_id: channelId(),
         })
       ),
+    // Callers without a channel (e.g. inputs outside a channel) pass ''.
+    enabled: channelId() !== '',
   }));
 }
 
