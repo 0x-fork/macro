@@ -1,21 +1,17 @@
-import { LINEAR_LOGO_TRANSFORM, type ModuleLogo } from './Module';
+import type { ModuleLogo } from './Module';
 
 /**
  * Brand marks for the connectable tools, ready to drop onto a module face via
  * {@link Module}. Each is one or more path `d` strings filled with
- * `currentColor`; a `transform` override is only needed for a mark already
- * drawn in the face's perspective (Linear's hand-drawn logo).
+ * `currentColor` and placed with the flat-logo face transform.
  *
  * Shared between the setup scene and the graphics preview so the paths live in
  * one place.
  */
 export const MODULE_LOGOS = {
-  // Hand-drawn mark, already in perspective — placed with the shrink-only
-  // transform rather than the flat-logo face transform.
   Linear: {
-    transform: LINEAR_LOGO_TRANSFORM,
     paths: [
-      'M394.8,155.1c8.1-12.2,20-22.1,32.6-27.1,23.7-9.5,43,.9,43,23.2,0,12.2-5.8,25.5-15,36.6l-60.6-32.7h0ZM391,161.5l59.2,32c-1.9,1.9-3.8,3.6-5.9,5.3l-56.4-30.4c.9-2.3,1.9-4.6,3.1-6.8h0ZM385.6,175.5l51.9,28c-2.5,1.6-5.2,3-7.9,4.2l-45.2-24.4c.1-2.5.5-5.2,1.2-7.8ZM385,192.1l35.1,19c-18,4.3-32.1-3.3-35.1-19h0Z',
+      'M2.886 4.18A11.982 11.982 0 0 1 11.99 0C18.624 0 24 5.376 24 12.009c0 3.64-1.62 6.903-4.18 9.105L2.887 4.18ZM1.817 5.626l16.556 16.556c-.524.33-1.075.62-1.65.866L.951 7.277c.247-.575.537-1.126.866-1.65ZM.322 9.163l14.515 14.515c-.71.172-1.443.282-2.195.322L0 11.358a12 12 0 0 1 .322-2.195Zm-.17 4.862 9.823 9.824a12.02 12.02 0 0 1-9.824-9.824Z',
     ],
   },
   // Four closed segments; filled with currentColor they read as a solid

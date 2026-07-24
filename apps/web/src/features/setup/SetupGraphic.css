@@ -1,66 +1,106 @@
 /*
  * Styles for the /setup empty-state isometric scene (SetupGraphic.tsx).
- *
- * Class names (.st0–.st15) come straight from the Illustrator export so the
- * SVG body can stay verbatim; every selector is scoped under .setup-graphic
- * to keep them out of the global namespace. Two theme adaptations on top of
- * the export:
- *  - all #000 strokes/fills are currentColor (the svg sets text-ink), so the
- *    linework reads in both light and dark themes
- *  - the pastel block silhouettes share one fill: the surface color
- *    lightened a touch
  */
 .setup-graphic {
   --setup-silhouette: oklch(from var(--color-surface) calc(l + 0.035) c h);
 }
 
-.setup-graphic :is(.st0, .st1, .st2, .st3, .st4, .st5, .st6, .st7, .st8) {
+.setup-graphic :is(.arc, .vent, .edge, .card-mid, .ring-small, .guide, .ring-large, .card-back, .card-front) {
   stroke-linecap: round;
 }
 
 .setup-graphic
-  :is(.st0, .st1, .st2, .st3, .st4, .st5, .st6, .st7, .st8, .st9, .st10, .st11) {
+  :is(.arc, .vent, .edge, .card-mid, .ring-small, .guide, .ring-large, .card-back, .card-front, .hairline, .panel, .knob) {
   stroke: currentColor;
   stroke-width: 2px;
 }
 
-.setup-graphic :is(.st0, .st1, .st2, .st4, .st5, .st6, .st9) {
+.setup-graphic :is(.arc, .vent, .edge, .ring-small, .guide, .ring-large, .hairline) {
   fill: none;
 }
 
-.setup-graphic :is(.st0, .st1, .st4, .st6, .st9, .st10, .st11) {
+.setup-graphic :is(.arc, .vent, .ring-small, .ring-large, .hairline, .panel, .knob) {
   stroke-miterlimit: 10;
 }
 
-.setup-graphic :is(.st1, .st4, .st5, .st12) {
+.setup-graphic :is(.vent, .ring-small, .guide, .dot) {
   opacity: 0.4;
 }
 
-.setup-graphic :is(.st2, .st3, .st5, .st7, .st8) {
+.setup-graphic :is(.edge, .card-mid, .guide, .card-back, .card-front) {
   stroke-linejoin: round;
 }
 
 /* Card silhouettes. */
-.setup-graphic :is(.st3, .st7, .st8, .st10, .st11) {
+.setup-graphic :is(.card-mid, .card-back, .card-front, .panel, .knob) {
   fill: var(--setup-silhouette);
+  transition: fill 700ms ease;
 }
 
-.setup-graphic :is(.st4, .st6) {
+.setup-graphic :is(.ring-small, .ring-large) {
   stroke-dasharray: 6;
 }
 
-/* Left-face shading on all three blocks. The Illustrator export had the
-   middle/back cards' shading polygons at opacity 0 (a stale hidden state);
-   they're reclassed to .st13 to match the front card's visible shading.
+/* Left-face shading on all three blocks.
    Always black (not currentColor) so the faces darken like shadow in both
    themes; dark surfaces need a stronger shadow to register at all. */
-.setup-graphic .st13 {
+.setup-graphic .shade {
   fill: #000;
   opacity: 0.1;
+  transition: opacity 700ms ease;
 }
 
-html[data-theme-light='false'] .setup-graphic .st13 {
+html[data-theme-light='false'] .setup-graphic .shade {
   opacity: 0.3;
+}
+
+/* The "powered up" finale — a composite-level final state (the `poweredUp`
+   prop toggles .powered on the root), independent of any module's `linked`
+   state. The hovering modules fade out and the three cards fill in: their
+   linework (currentColor, so a color change on .blocks carries the strokes and
+   currentColor fills) and silhouette fills turn accent, and the left-face
+   shading fades away — leaving a solid accent Macro mark. Plain transitions,
+   not keyframe animations, so a Suspense re-attach renders the end state
+   rather than replaying it. (The white LED sparks are hidden here too, but the
+   real guarantee is JS: SetupGraphic cancels the LED WAAPI animations when
+   powering up, since a running animation would otherwise beat this CSS.) */
+.setup-graphic .blocks {
+  transition: color 700ms ease;
+}
+.setup-graphic :is(.modules, .connectors) {
+  transition: opacity 700ms ease;
+}
+/* The modules fade out, and their tethers go with them. */
+.setup-graphic.powered :is(.modules, .connectors) {
+  opacity: 0;
+  pointer-events: none;
+}
+.setup-graphic.powered .blocks {
+  color: var(--color-accent);
+}
+/* Scoped to .blocks: `.panel`/`.knob` are also used by the module bodies, and
+   those should only fade out — never fill accent. */
+.setup-graphic.powered
+  .blocks
+  :is(.card-mid, .card-back, .card-front, .panel, .knob) {
+  fill: var(--color-accent);
+}
+.setup-graphic.powered .led-spark {
+  opacity: 0;
+}
+.setup-graphic.powered .shade,
+/* out-specificity the dark-theme .shade opacity rule above */
+html[data-theme-light='false'] .setup-graphic.powered .shade {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-graphic .blocks,
+  .setup-graphic .modules,
+  .setup-graphic :is(.card-mid, .card-back, .card-front, .panel, .knob),
+  .setup-graphic .shade {
+    transition: none;
+  }
 }
 
 /* LED halo: a soft filled accent disc behind each inset that breathes
@@ -105,34 +145,59 @@ html[data-theme-light='false'] .setup-graphic .st13 {
   filter: drop-shadow(0 0 1px var(--color-accent));
 }
 
+/* "Downloading" logo pulse: the module's currentColor logo eases between ink
+   and accent. Unlike the module's other motion (WAAPI, to survive a Suspense
+   re-attach), this is CSS so it pulses to a *live* var(--color-accent): the
+   brand accent is applied after mount, and a WAAPI keyframe would bake the
+   pre-theme fallback color instead. A re-attach at worst restarts the pulse
+   from ink — a negligible blip for a slow color fade. Toggled by the
+   `logo-downloading` class (set in Module for the downloading state). */
+@keyframes setup-logo-download {
+  0%,
+  100% {
+    color: var(--color-ink);
+  }
+  50% {
+    color: var(--color-accent);
+  }
+}
+.setup-graphic .logo-downloading {
+  animation: setup-logo-download 1600ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .setup-graphic .logo-downloading {
+    animation: none;
+  }
+}
+
 /* Ambient module motion — the bob, the orbit rings' breathe, and their dash
    travel — is driven imperatively with WAAPI (see SetupGraphic.tsx), not CSS:
    the page's Suspense boundary re-attaches this subtree when a query above it
    re-suspends, which restarts CSS animations (a visible pop) but leaves WAAPI
    animations running. These properties are the origin for the rings' WAAPI
    scale; transform-box/-origin apply regardless of how `transform` is set. */
-.setup-graphic .module :is(.st4, .st6) {
+.setup-graphic .module :is(.ring-small, .ring-large) {
   transform-box: fill-box;
   transform-origin: center;
 }
 
-/* Accent "acceleration" shaft behind the module, revealed on click (driven by
+/* Accent "acceleration" jet trail behind the module, revealed on click (driven by
    WAAPI). Non-interactive; gradient goes opaque accent at the module to
    transparent up-left along the −D axis. The inner group carries the animated
    opacity and the width scale (scaleY about its own center). */
-.setup-graphic .module-shaft {
+.setup-graphic .module-jet-trail {
   pointer-events: none;
 }
-.setup-graphic .module-shaft-scale {
+.setup-graphic .module-jet-trail-scale {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
 }
-.setup-graphic .module-shaft-hot {
+.setup-graphic .module-jet-trail-hot {
   stop-color: var(--color-accent);
   stop-opacity: 0.85;
 }
-.setup-graphic .module-shaft-cold {
+.setup-graphic .module-jet-trail-cold {
   stop-color: var(--color-accent);
   stop-opacity: 0;
 }
