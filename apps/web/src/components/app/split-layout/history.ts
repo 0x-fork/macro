@@ -15,6 +15,13 @@ export type History<T extends object> = {
    * (e.g. captured per-entry state) before navigating away.
    */
   replaceCurrent: (next: T) => void;
+  /**
+   * Replace the item at `index` in-place without changing the current index or
+   * truncating anything. Used to write through state that belongs to an entry
+   * other than the current one (e.g. a list entry whose owning component has
+   * already unmounted). No-op if `index` is out of bounds.
+   */
+  replaceAt: (index: number, next: T) => void;
   remove: (predicate: (item: T) => boolean) => T | null;
 };
 
@@ -65,14 +72,17 @@ export function createHistory<T extends object>(): History<T> {
     });
   };
 
-  const replaceCurrent = (next: T) => {
-    const i = index();
+  const replaceAt = (i: number, next: T) => {
     if (i < 0 || i >= items().length) return;
     setItems((prev) => {
       const copy = prev.slice();
       copy[i] = next;
       return copy;
     });
+  };
+
+  const replaceCurrent = (next: T) => {
+    replaceAt(index(), next);
   };
 
   const fork = (next: T) => {
@@ -141,6 +151,7 @@ export function createHistory<T extends object>(): History<T> {
     push,
     merge,
     replaceCurrent,
+    replaceAt,
     forward,
     canGoBack,
     canGoForward,

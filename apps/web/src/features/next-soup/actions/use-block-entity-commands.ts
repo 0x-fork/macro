@@ -1,4 +1,5 @@
 import { useMaybeSoup } from '@app/features/next-soup/soup-context';
+import { rememberSoupListFocus } from '@app/features/next-soup/soup-view/soup-list-entry-state';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { useAllProperties } from '@app/features/property/editor/hooks/useAllProperties';
 import { openPropertyEditor } from '@app/features/property/editor/state/propertyEditor';
@@ -114,6 +115,13 @@ export const useBlockEntityCommands = () => {
     markDone.executeWithSoup([selectedRow.original], soup, (nextEntity) => {
       const splitHandle = splitPanel?.handle;
       if (!splitHandle) return;
+      // Keep the originating list's history entry on the item we advance to,
+      // so going back lands where triaging ended up.
+      rememberSoupListFocus({
+        splitHandle,
+        listViewId: splitHandle.referredFrom() ?? undefined,
+        entityId: nextEntity.id,
+      });
       void openEntityInSplitFromUnifiedList(nextEntity, {
         splitHandle,
         mergeHistory: true,

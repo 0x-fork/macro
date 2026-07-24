@@ -20,6 +20,7 @@ import { type Accessor, createEffect, createMemo, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { SoupState } from '../create-soup-state';
 import { previewContentMatchesEntity } from './preview-content-row';
+import { rememberSoupListFocus } from './soup-list-entry-state';
 
 type UseSoupNavigationHotkeysOptions = {
   scopeId: string;
@@ -79,6 +80,15 @@ export const useSoupNavigationHotkeys = (
     const handleContent = splitHandle.content().type;
 
     if (handleContent === 'component' || handleContent === 'project') return;
+
+    // Scanning the list from inside an entity that fills the split: the list is
+    // unmounted, so point its history entry at the row we're landing on. Back
+    // (or Escape) then returns to the current item, not the one we entered on.
+    rememberSoupListFocus({
+      splitHandle,
+      listViewId: navigationReferredFrom(),
+      entityId: entity.id,
+    });
 
     openEntityInSplitFromUnifiedList(entity, {
       splitHandle,

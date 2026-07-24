@@ -1,5 +1,6 @@
 import { isListViewID } from '@app/constants/list-views';
 import { canExecuteMarkDoneOnView } from '@app/features/next-soup/actions/make-mark-done-action';
+import { rememberSoupListFocus } from '@app/features/next-soup/soup-view/soup-list-entry-state';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { useAllProperties } from '@app/features/property/editor/hooks/useAllProperties';
 import { openPropertyEditor } from '@app/features/property/editor/state/propertyEditor';
@@ -118,6 +119,14 @@ export const useEntityActionHotkeys = (
     if (splitHandle.isControllerSplit()) return;
     const handleContent = splitHandle.content().type;
     if (handleContent === 'component' || handleContent === 'project') return;
+    // The list is unmounted behind this entity, so its history entry has to
+    // follow the item we advance to — otherwise Back returns to the item the
+    // user originally opened rather than where triaging left them.
+    rememberSoupListFocus({
+      splitHandle,
+      listViewId: splitHandle.referredFrom() ?? undefined,
+      entityId: entity.id,
+    });
     openEntityInSplitFromUnifiedList(entity, {
       splitHandle,
       mergeHistory: true,

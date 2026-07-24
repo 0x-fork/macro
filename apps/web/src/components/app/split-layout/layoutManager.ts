@@ -529,6 +529,22 @@ export type SplitHandle<TMeta extends ComponentMeta = ComponentMeta> = {
    * Returns `undefined` if no state has been captured.
    */
   currentEntryState: () => EntryState | undefined;
+  /**
+   * Merge `value` into the `state` blob of the newest history entry at or
+   * before the current index that satisfies `match`, leaving the history index
+   * untouched.
+   *
+   * Captors only ever write to the *current* entry, and only while their owning
+   * component is mounted. This is the escape hatch for state that keeps moving
+   * after that component unmounts — e.g. list focus driven by j/k while an
+   * entity opened from that list fills the split — so returning to the entry
+   * restores where the user actually ended up.
+   */
+  patchEntryState: (
+    key: string,
+    value: unknown,
+    match: (content: SplitContent) => boolean
+  ) => void;
   /** Whether preview mode can engage on this split (room for a viewer). */
   canEngagePreview: () => boolean;
   /** Engage preview mode on this split (see SplitManager.engagePreviewMode). */
@@ -699,6 +715,39 @@ export function createSplitLayout(
       if (i < 0) return s;
       return s.with(i, { ...s[i], content: next });
     });
+  }
+
+  function patchEntryStateFor(
+    split: SplitState,
+    key: string,
+    value: unknown,
+    match: (content: SplitContent) => boolean
+  ): void {
+    const items = split.history.items;
+    const currentIdx = split.history.index;
+    if (currentIdx < 0) return;
+
+    for (let i = Math.min(currentIdx, items.length - 1); i >= 0; i--) {
+      const item = items[i];
+      if (!match(item)) continue;
+
+      const next = {
+        ...item,
+        state: { ...(item.state ?? {}), [key]: value },
+      } as SplitContent;
+      split.history.replaceAt(i, next);
+
+      // The current entry is mirrored onto SplitState.content, so live readers
+      // (currentEntryState) stay in sync when the match is the current entry.
+      if (i === currentIdx) {
+        setState('splits', (s) => {
+          const idx = s.findIndex((x) => x.id === split.id);
+          if (idx < 0) return s;
+          return s.with(idx, { ...s[idx], content: next });
+        });
+      }
+      return;
+    }
   }
 
   const DEFAULT_SPLIT_CONTENT = defaultSplitContent ?? {
@@ -1152,6 +1201,11 @@ export function createSplitLayout(
         // state (mirrored from history into split.content on capture).
         const c = live.content as { state?: EntryState };
         return c.state;
+      },
+      patchEntryState: (key, value, match) => {
+        const live = s();
+        if (!live) return;
+        patchEntryStateFor(live, key, value, match);
       },
       canEngagePreview: () => canEngagePreview(currentSplit.id),
       engagePreview: () => engagePreviewMode(currentSplit.id),

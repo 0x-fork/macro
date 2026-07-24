@@ -1,5 +1,6 @@
 import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
 import { useSoup } from '@app/features/next-soup/soup-context';
+import { rememberSoupListFocus } from '@app/features/next-soup/soup-view/soup-list-entry-state';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { useSidebarCollapse } from '@components/app/sidebarVisibility';
 import type { BlockName } from '@core/block';
@@ -247,6 +248,14 @@ function SoupNavigationButtons() {
   const navigate = (offset: number) => {
     const next = soup.navigate.by(offset);
     if (!next) return;
+
+    // Same write-through as j/k: the list is unmounted behind this entity, so
+    // its history entry has to follow the row we're moving to.
+    rememberSoupListFocus({
+      splitHandle: context.handle,
+      listViewId: navigationReferredFrom(),
+      entityId: next.row.original.id,
+    });
 
     void openEntityInSplitFromUnifiedList(next.row.original, {
       splitHandle: context.handle,

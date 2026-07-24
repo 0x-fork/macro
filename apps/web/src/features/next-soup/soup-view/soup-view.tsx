@@ -131,6 +131,10 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
+import {
+  SOUP_LIST_STATE_ENTRY_KEY,
+  type SoupListEntryState,
+} from './soup-list-entry-state';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
 import { useSoupNavigationHotkeys } from './use-soup-navigation-hotkeys';
 import { useSoupPreviewAvailability } from './use-soup-preview-availability';
@@ -290,13 +294,6 @@ const useSoupNotificationInvalidators = () => {
       invalidateEntityNotifications(notification.entity_id);
     }
   );
-};
-
-const SOUP_LIST_STATE_ENTRY_KEY = 'soup.listState';
-type SoupListEntryState = {
-  focus: string | undefined;
-  virtualCache?: CacheSnapshot;
-  scrollOffset?: number;
 };
 
 interface SoupViewProps {
@@ -1190,7 +1187,19 @@ const SoupViewListContent = (props: SoupViewListProps) => {
       const handle = virtualizerHandle();
       if (!handle) return;
 
-      handle.scrollTo(cached.scrollOffset ?? 0);
+      if (cached.scrollOffset !== undefined) {
+        handle.scrollTo(cached.scrollOffset);
+      } else {
+        // No captured offset: focus moved while this list was unmounted (j/k
+        // scanning from inside an entity), so the old offset no longer frames
+        // it. Bring the focused row into view instead of jumping to the top.
+        const focusIndex = soup.focus.index();
+        if (focusIndex >= 0) {
+          handle.scrollToIndex(focusIndex, { align: 'nearest' });
+        } else {
+          handle.scrollTo(0);
+        }
+      }
       restored = true;
       registerFocusEffects(false);
       return;

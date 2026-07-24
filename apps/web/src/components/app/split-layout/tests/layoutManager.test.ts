@@ -159,6 +159,60 @@ describe('layoutManager', () => {
         dispose();
       });
     });
+
+    it('patches a back entry so scanning survives a mergeHistory replace', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+
+        // Open an entity from the list, then scan to the next one the way j/k
+        // does: update the list entry, then merge the entity entry in place.
+        split.replace({ next: { type: 'email', id: 'thread-a' } });
+        split.patchEntryState(
+          'soup.listState',
+          { focus: 'thread-b' },
+          (content) => content.type === 'component' && content.id === 'inbox'
+        );
+        split.replace({
+          next: { type: 'email', id: 'thread-b' },
+          mergeHistory: true,
+        });
+
+        expect(split.history()[0].state).toEqual({
+          'soup.listState': { focus: 'thread-b' },
+        });
+
+        // Going back lands on the list with the scanned-to row remembered.
+        split.goBack();
+        expect(split.content()).toMatchObject({
+          type: 'component',
+          id: 'inbox',
+        });
+        expect(split.currentEntryState()).toEqual({
+          'soup.listState': { focus: 'thread-b' },
+        });
+
+        dispose();
+      });
+    });
+
+    it('leaves entry state untouched when no entry matches', () => {
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'inbox' },
+        ]);
+
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        split.patchEntryState('soup.listState', { focus: 'x' }, () => false);
+
+        expect(split.currentEntryState()).toBeUndefined();
+
+        dispose();
+      });
+    });
   });
 
   describe('split history', () => {

@@ -118,4 +118,48 @@ describe('createHistory', () => {
       expect(history.canGoForward()).toBe(true);
     });
   });
+
+  describe('replaceAt', () => {
+    it('should replace an earlier item without moving the index', () => {
+      const history = createHistory<{ value: string }>();
+      history.push({ value: 'list' });
+      history.push({ value: 'entity' });
+
+      history.replaceAt(0, { value: 'list-updated' });
+
+      expect(history.items).toEqual([
+        { value: 'list-updated' },
+        { value: 'entity' },
+      ]);
+      expect(history.index).toBe(1);
+    });
+
+    it('should survive a merge of the current entry', () => {
+      const history = createHistory<{ value: string }>();
+      history.push({ value: 'list' });
+      history.push({ value: 'entity-a' });
+
+      // Scanning j/k from inside an entity: the list entry is updated, then
+      // the current entry is merged in place.
+      history.replaceAt(0, { value: 'list-focus-b' });
+      history.merge({ value: 'entity-b' });
+
+      expect(history.items).toEqual([
+        { value: 'list-focus-b' },
+        { value: 'entity-b' },
+      ]);
+      expect(history.back()).toEqual({ value: 'list-focus-b' });
+    });
+
+    it('should ignore out-of-bounds indices', () => {
+      const history = createHistory<{ value: string }>();
+      history.push({ value: 'first' });
+
+      history.replaceAt(-1, { value: 'nope' });
+      history.replaceAt(5, { value: 'nope' });
+
+      expect(history.items).toEqual([{ value: 'first' }]);
+      expect(history.index).toBe(0);
+    });
+  });
 });
