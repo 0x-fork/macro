@@ -3539,6 +3539,7 @@
           "db_id",
           "link_id",
           "inbox_visible",
+          "has_inbound_message",
           "is_read",
           "access_level",
           "created_at",
@@ -3556,6 +3557,10 @@
           "db_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "has_inbound_message": {
+            "type": "boolean",
+            "description": "Whether the thread has at least one inbound (received) message."
           },
           "inbox_visible": {
             "type": "boolean"
@@ -3638,6 +3643,7 @@
           "id",
           "ownerId",
           "inboxVisible",
+          "hasInboundMessage",
           "isRead",
           "isDraft",
           "isImportant",
@@ -3654,6 +3660,10 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "hasInboundMessage": {
+            "type": "boolean",
+            "description": "Whether the thread has at least one inbound (received) message."
           },
           "inboxVisible": {
             "type": "boolean"

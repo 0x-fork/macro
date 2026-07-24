@@ -19,6 +19,8 @@ import type { SoupEmailThreadPreviewViewedAt } from './soupEmailThreadPreviewVie
 export interface SoupEmailThreadPreview {
   /** Timestamp when the thread was created. */
   createdAt: string;
+  /** Whether the thread has at least one inbound (received) message. */
+  hasInboundMessage: boolean;
   /** Thread id. */
   id: string;
   /** Whether the thread should appear in the inbox. */

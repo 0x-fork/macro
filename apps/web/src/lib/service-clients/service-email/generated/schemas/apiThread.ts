@@ -19,6 +19,8 @@ export interface ApiThread {
   access_level: AccessLevel;
   created_at: string;
   db_id: string;
+  /** Whether the thread has at least one inbound (received) message. */
+  has_inbound_message: boolean;
   inbox_visible: boolean;
   is_read: boolean;
   latest_inbound_message_ts?: ApiThreadLatestInboundMessageTs;

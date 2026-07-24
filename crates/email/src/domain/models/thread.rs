@@ -13,6 +13,10 @@ pub struct ThreadRow {
     pub link_id: uuid::Uuid,
     /// Whether the thread is visible in the inbox.
     pub inbox_visible: bool,
+    /// Whether the thread has at least one inbound (received) message.
+    /// Label-independent, so it survives archiving: a done thread has it set,
+    /// a sent-only thread does not, and both have `inbox_visible == false`.
+    pub has_inbound_message: bool,
     /// Whether the thread has been read.
     pub is_read: bool,
     /// Timestamp of the latest inbound message.

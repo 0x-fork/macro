@@ -80,6 +80,10 @@ pub struct EmailThreadPreview {
     pub provider_id: Option<String>,
     pub owner_id: MacroUserIdStr<'static>,
     pub inbox_visible: bool,
+    /// Whether the thread has at least one inbound (received) message.
+    /// Label-independent, so a done thread has it set and a sent-only thread
+    /// does not, even though both have `inbox_visible == false`.
+    pub has_inbound_message: bool,
     pub is_read: bool,
     pub is_draft: bool,
     pub is_important: bool,

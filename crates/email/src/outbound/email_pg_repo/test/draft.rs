@@ -598,6 +598,7 @@ async fn test_insert_draft_message_with_new_thread(pool: Pool<Postgres>) -> anyh
         provider_id: None,
         link_id,
         inbox_visible: true,
+        has_inbound_message: false,
         is_read: true,
         latest_inbound_message_ts: None,
         latest_outbound_message_ts: None,

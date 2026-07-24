@@ -14,7 +14,8 @@ pub(super) async fn thread_by_id(
     let row: Option<DbThreadRow> = sqlx::query_as!(
         DbThreadRow,
         r#"
-        SELECT t.id, t.provider_id, t.link_id, t.inbox_visible, t.is_read,
+        SELECT t.id, t.provider_id, t.link_id, t.inbox_visible,
+               t.has_inbound_message, t.is_read,
                t.latest_inbound_message_ts, t.latest_outbound_message_ts,
                t.latest_non_spam_message_ts, t.created_at, t.updated_at,
                t.project_id
@@ -151,10 +152,11 @@ pub(super) async fn insert_thread(
 ) -> Result<Uuid, sqlx::Error> {
     let result = sqlx::query!(
         r#"
-        INSERT INTO email_threads (id, provider_id, link_id, inbox_visible, is_read,
+        INSERT INTO email_threads (id, provider_id, link_id, inbox_visible,
+                             has_inbound_message, is_read,
                              latest_inbound_message_ts, latest_outbound_message_ts,
                              latest_non_spam_message_ts)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (link_id, provider_id) WHERE provider_id IS NOT NULL DO UPDATE
         SET
             latest_inbound_message_ts = EXCLUDED.latest_inbound_message_ts,
@@ -165,6 +167,7 @@ pub(super) async fn insert_thread(
         thread.provider_id,
         link_id,
         thread.inbox_visible,
+        thread.has_inbound_message,
         thread.is_read,
         thread.latest_inbound_message_ts,
         thread.latest_outbound_message_ts,
@@ -204,10 +207,13 @@ fn is_macro_draft(msg: &MessageMetadata) -> bool {
 }
 
 fn is_inbound(msg: &MessageMetadata) -> bool {
-    if !msg.labels.iter().any(|l| l == system_labels::INBOX) {
-        return false;
-    }
+    msg.labels.iter().any(|l| l == system_labels::INBOX) && is_inbound_origin(msg)
+}
 
+/// Whether the message came from someone else (or from the user to themselves),
+/// ignoring labels. Unlike [`is_inbound`] this survives archiving, so it can
+/// tell a thread the user marked done apart from a sent-only thread.
+fn is_inbound_origin(msg: &MessageMetadata) -> bool {
     if !(msg.is_draft || msg.is_sent) {
         return true;
     }
@@ -348,6 +354,10 @@ pub(super) async fn update_thread_metadata(
         (has_inbox && !has_sent) || is_macro_draft(message)
     });
 
+    // label-independent counterpart of inbox_visible: whether anything in the
+    // thread was ever received, so the FE can tell done from sent-only
+    let has_inbound_message = messages.iter().any(is_inbound_origin);
+
     // if any message in the thread is unread, the thread is considered unread in the FE
     let is_read = !messages.iter().any(|message| !message.is_read);
 
@@ -391,6 +401,7 @@ pub(super) async fn update_thread_metadata(
         thread_db_id,
         link_id,
         inbox_visible,
+        has_inbound_message,
         is_read,
         latest_inbound_or_draft_ts,
         latest_outbound_message_ts,
@@ -521,6 +532,7 @@ async fn update_db_thread_metadata(
     thread_id: Uuid,
     link_id: Uuid,
     inbox_visible: bool,
+    has_inbound_message: bool,
     is_read: bool,
     latest_inbound_message_ts: Option<chrono::DateTime<Utc>>,
     latest_outbound_message_ts: Option<chrono::DateTime<Utc>>,
@@ -531,16 +543,18 @@ async fn update_db_thread_metadata(
         UPDATE email_threads
         SET
             inbox_visible = $1,
-            is_read = $2,
-            latest_inbound_message_ts = $3,
-            latest_outbound_message_ts = $4,
-            latest_non_spam_message_ts = $5,
+            has_inbound_message = $2,
+            is_read = $3,
+            latest_inbound_message_ts = $4,
+            latest_outbound_message_ts = $5,
+            latest_non_spam_message_ts = $6,
             updated_at = NOW()
         WHERE
-            id = $6 AND
-            link_id = $7
+            id = $7 AND
+            link_id = $8
         "#,
         inbox_visible,
+        has_inbound_message,
         is_read,
         latest_inbound_message_ts,
         latest_outbound_message_ts,

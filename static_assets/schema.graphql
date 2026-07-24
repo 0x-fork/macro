@@ -2084,6 +2084,10 @@ type GraphqlSoupEmailThread {
 	"""
 	inboxVisible: Boolean!
 	"""
+	Whether the thread has at least one inbound (received) message.
+	"""
+	hasInboundMessage: Boolean!
+	"""
 	The identifier of the link.
 	"""
 	linkId: ID

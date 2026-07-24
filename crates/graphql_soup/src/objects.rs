@@ -618,6 +618,11 @@ where
         self.0.thread.inbox_visible
     }
 
+    /// Whether the thread has at least one inbound (received) message.
+    async fn has_inbound_message(&self) -> bool {
+        self.0.thread.has_inbound_message
+    }
+
     /// The identifier of the link.
     async fn link_id(&self) -> Option<ID> {
         self.0

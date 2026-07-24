@@ -4,7 +4,9 @@ mod test;
 use crate::messages::get::fetch_messages_metadata;
 
 use chrono::{DateTime, Utc};
-use models_email::email::service::message::{is_inbound, is_outbound, is_spam_or_trash};
+use models_email::email::service::message::{
+    is_inbound, is_inbound_origin, is_outbound, is_spam_or_trash,
+};
 use models_email::service;
 use models_email::service::message::is_macro_draft;
 use sqlx::types::Uuid;
@@ -17,6 +19,7 @@ async fn update_db_thread_metadata(
     thread_id: Uuid,
     link_id: Uuid,
     inbox_visible: bool,
+    has_inbound_message: bool,
     is_read: bool,
     latest_inbound_message_ts: Option<DateTime<Utc>>,
     latest_outbound_message_ts: Option<DateTime<Utc>>,
@@ -27,16 +30,18 @@ async fn update_db_thread_metadata(
         UPDATE email_threads
         SET
             inbox_visible = $1,
-            is_read = $2,
-            latest_inbound_message_ts = $3,
-            latest_outbound_message_ts = $4,
-            latest_non_spam_message_ts = $5,
+            has_inbound_message = $2,
+            is_read = $3,
+            latest_inbound_message_ts = $4,
+            latest_outbound_message_ts = $5,
+            latest_non_spam_message_ts = $6,
             updated_at = NOW()
         WHERE
-            id = $6 AND
-            link_id = $7
+            id = $7 AND
+            link_id = $8
         "#,
         inbox_visible,
+        has_inbound_message,
         is_read,
         latest_inbound_message_ts,
         latest_outbound_message_ts,
@@ -305,6 +310,10 @@ pub async fn update_thread_metadata(
         (has_inbox && !has_sent) || is_macro_draft(message)
     });
 
+    // label-independent counterpart of inbox_visible: whether anything in the
+    // thread was ever received, so the FE can tell done from sent-only
+    let has_inbound_message = messages.iter().any(is_inbound_origin);
+
     // if any message in the thread is unread, the thread is considered unread in the FE
     let is_read = !messages.iter().any(|message| !message.is_read);
 
@@ -348,6 +357,7 @@ pub async fn update_thread_metadata(
         thread_db_id,
         link_id,
         inbox_visible,
+        has_inbound_message,
         is_read,
         latest_inbound_or_draft_ts,
         latest_outbound_message_ts,

@@ -33,6 +33,8 @@ pub struct ApiThread {
     pub provider_id: Option<String>,
     pub link_id: Uuid,
     pub inbox_visible: bool,
+    /// Whether the thread has at least one inbound (received) message.
+    pub has_inbound_message: bool,
     pub is_read: bool,
     pub access_level: AccessLevel,
     pub latest_inbound_message_ts: Option<DateTime<Utc>>,
@@ -51,6 +53,7 @@ impl ApiThread {
             provider_id: t.row.provider_id,
             link_id: t.row.link_id,
             inbox_visible: t.row.inbox_visible,
+            has_inbound_message: t.row.has_inbound_message,
             is_read: t.row.is_read,
             access_level,
             latest_inbound_message_ts: t.row.latest_inbound_message_ts,

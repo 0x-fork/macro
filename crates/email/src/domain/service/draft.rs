@@ -327,6 +327,8 @@ where
             provider_id: None,
             link_id,
             inbox_visible: false,
+            // a thread the user is composing has nothing received in it yet
+            has_inbound_message: false,
             is_read: true,
             latest_inbound_message_ts: None,
             latest_outbound_message_ts: None,

@@ -14,6 +14,8 @@ import type { ApiThreadPreviewCursorInnerViewedAt } from './apiThreadPreviewCurs
 
 export interface ApiThreadPreviewCursorInner {
   createdAt: string;
+  /** Whether the thread has at least one inbound (received) message. */
+  hasInboundMessage: boolean;
   id: string;
   inboxVisible: boolean;
   isDraft: boolean;

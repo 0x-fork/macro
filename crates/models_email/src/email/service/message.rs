@@ -196,7 +196,15 @@ pub fn is_inbound(msg: &Message) -> bool {
         return false;
     }
 
-    // if it's not a draft, it's not sent by us, and it has an inbox label, it's a valid inbound message
+    is_inbound_origin(msg)
+}
+
+/// determine if a message was received rather than written by the user,
+/// ignoring labels - for `email_threads.has_inbound_message`. Unlike
+/// [`is_inbound`] this survives archiving, so a done thread stays
+/// distinguishable from a thread that only ever held the user's own messages.
+pub fn is_inbound_origin(msg: &Message) -> bool {
+    // if it's not a draft and it's not sent by us, it's a received message
     if !(msg.is_draft || msg.is_sent) {
         return true;
     }

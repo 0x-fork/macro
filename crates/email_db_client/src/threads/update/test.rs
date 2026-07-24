@@ -250,3 +250,84 @@ async fn update_thread_metadata_syncs_signal_flag(pool: Pool<Postgres>) -> anyho
     assert!(!fetch_signal(&pool, SIG_THREAD_STALE_PROMO).await?);
     Ok(())
 }
+
+// -- has_inbound_message -----------------------------------------------------
+
+const INB_LINK: &str = "00000000-0000-0000-0000-000000000e01";
+const INB_THREAD_SENT_ONLY: &str = "00000000-0000-0000-0000-00000000e201";
+const INB_THREAD_ARCHIVED_RECEIVED: &str = "00000000-0000-0000-0000-00000000e202";
+const INB_THREAD_SELF_SENT: &str = "00000000-0000-0000-0000-00000000e203";
+
+async fn fetch_inbound(pool: &Pool<Postgres>, thread_id: &str) -> anyhow::Result<(bool, bool)> {
+    let row = sqlx::query!(
+        "SELECT has_inbound_message, inbox_visible FROM email_threads WHERE id = $1",
+        Uuid::parse_str(thread_id)?
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok((row.has_inbound_message, row.inbox_visible))
+}
+
+async fn recompute(pool: &Pool<Postgres>, thread_id: &str) -> anyhow::Result<()> {
+    let mut conn = pool.acquire().await?;
+    update_thread_metadata(
+        &mut conn,
+        Uuid::parse_str(thread_id)?,
+        Uuid::parse_str(INB_LINK)?,
+    )
+    .await
+}
+
+// A thread the user only ever sent from has no inbound message, so it is not
+// done even though it is not in the inbox either.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("thread_has_inbound_message"))
+)]
+async fn metadata_clears_inbound_flag_for_sent_only_thread(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    recompute(&pool, INB_THREAD_SENT_ONLY).await?;
+
+    assert_eq!(
+        fetch_inbound(&pool, INB_THREAD_SENT_ONLY).await?,
+        (false, false)
+    );
+    Ok(())
+}
+
+// A received message keeps the flag set once the INBOX label is gone, which is
+// what separates a done thread from a sent-only one.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("thread_has_inbound_message"))
+)]
+async fn metadata_sets_inbound_flag_for_archived_received_thread(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    recompute(&pool, INB_THREAD_ARCHIVED_RECEIVED).await?;
+
+    assert_eq!(
+        fetch_inbound(&pool, INB_THREAD_ARCHIVED_RECEIVED).await?,
+        (true, false)
+    );
+    Ok(())
+}
+
+// Mail the user sent to themselves counts as inbound.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("thread_has_inbound_message"))
+)]
+async fn metadata_sets_inbound_flag_for_self_sent_thread(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    recompute(&pool, INB_THREAD_SELF_SENT).await?;
+
+    assert_eq!(
+        fetch_inbound(&pool, INB_THREAD_SELF_SENT).await?,
+        (true, false)
+    );
+    Ok(())
+}

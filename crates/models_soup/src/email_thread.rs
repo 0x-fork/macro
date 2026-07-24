@@ -130,6 +130,8 @@ pub struct SoupEmailThreadPreview {
     pub owner_id: MacroUserIdStr<'static>,
     /// Whether the thread should appear in the inbox.
     pub inbox_visible: bool,
+    /// Whether the thread has at least one inbound (received) message.
+    pub has_inbound_message: bool,
     /// Whether the thread has been read.
     pub is_read: bool,
     /// Whether the thread contains a draft.

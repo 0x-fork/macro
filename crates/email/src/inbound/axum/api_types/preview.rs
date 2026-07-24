@@ -43,6 +43,8 @@ pub struct ApiThreadPreviewCursorInner {
     #[cfg_attr(feature = "ai_schema", schemars(with = "String"))]
     owner_id: MacroUserIdStr<'static>,
     inbox_visible: bool,
+    /// Whether the thread has at least one inbound (received) message.
+    has_inbound_message: bool,
     is_read: bool,
     is_draft: bool,
     is_important: bool,
