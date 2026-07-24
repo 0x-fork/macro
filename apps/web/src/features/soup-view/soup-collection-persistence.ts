@@ -1,5 +1,9 @@
 import type { ListView } from '@app/constants/list-views';
-import type { SoupCollectionStore } from '@app/features/soup-list';
+import type {
+  FacetSelection,
+  SoupCollectionStore,
+  SoupEmailView,
+} from '@app/features/soup-list';
 import { deserializeFacets } from '@app/features/soup-list/facet-store';
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
 import type { EntryState } from '@components/app/split-layout/layoutManager';
@@ -45,6 +49,61 @@ const sortSchema = z
 const facetSelectionSchema = z.record(z.string(), z.array(z.string()));
 const emailViewSchema = z.enum(['inbox', 'drafts', 'sent', 'all']);
 
+const filterPreferenceSchema = z.object({
+  version: z.literal(1),
+  activeTab: z.string(),
+  tabs: z.record(z.string(), facetSelectionSchema),
+});
+
+type SoupFilterPreference = z.infer<typeof filterPreferenceSchema>;
+
+type PersistedTabDefaults = {
+  groupBy?: string;
+  emailView?: SoupEmailView;
+};
+
+const filterPreferenceKey = (view: ListView) =>
+  `macro:pref:soup:${view}:filters:v1`;
+
+const cloneFacetSelection = (selection: FacetSelection): FacetSelection =>
+  Object.fromEntries(
+    Object.keys(selection)
+      .sort()
+      .map((id) => [id, [...(selection[id] ?? [])]])
+  );
+
+const readSoupFilterPreference = (
+  view: ListView
+): SoupFilterPreference | undefined => {
+  try {
+    const raw = localStorage.getItem(filterPreferenceKey(view));
+    if (!raw) return undefined;
+    const result = filterPreferenceSchema.safeParse(JSON.parse(raw));
+    return result.success ? result.data : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const writeSoupFilterPreference = (
+  view: ListView,
+  preference: SoupFilterPreference
+) => {
+  try {
+    localStorage.setItem(filterPreferenceKey(view), JSON.stringify(preference));
+  } catch {
+    // Collection state remains canonical when local storage is unavailable.
+  }
+};
+
+export const readPersistedTabFacets = (
+  view: ListView,
+  tab: string
+): FacetSelection | undefined => {
+  const facets = readSoupFilterPreference(view)?.tabs[tab];
+  return facets ? cloneFacetSelection(facets) : undefined;
+};
+
 const entryStateSchema = z.object({
   facets: facetSelectionSchema.optional(),
   sort: sortSchema.optional(),
@@ -81,6 +140,8 @@ type SoupCollectionPersistenceOptions = {
   view: ListView;
   restoreEntryState?: boolean;
   restorePreferences?: boolean;
+  restoreFilterPreferences?: boolean;
+  resolveTabDefaults: (tab: string) => PersistedTabDefaults | undefined;
 };
 
 type SoupEntryStateStorageOptions<T> = {
@@ -166,6 +227,70 @@ const restoreLegacyEntrySlice = (
   return result.success ? restoreEntrySlice(current, result.data) : undefined;
 };
 
+const filterPreferenceStorage = (options: {
+  view: ListView;
+  restorePreference: boolean;
+  resolveTabDefaults: (tab: string) => PersistedTabDefaults | undefined;
+}): PersistenceStorage<SoupCollectionStore> => {
+  let previous: string | undefined;
+  const signature = (state: SoupCollectionStore) =>
+    JSON.stringify({
+      activeTab: state.activeTab,
+      facets: cloneFacetSelection(state.facets),
+    });
+
+  return {
+    restore: (current) => {
+      if (!options.restorePreference) return undefined;
+
+      const preference = readSoupFilterPreference(options.view);
+      if (!preference) return undefined;
+
+      const tab = preference.activeTab;
+      const defaults = options.resolveTabDefaults(tab);
+      const facets = preference.tabs[tab];
+      if (!defaults || !facets) return undefined;
+
+      return {
+        ...current,
+        facets: {
+          ...cloneFacetSelection(facets),
+          [options.view]: [tab],
+          channel_thread_scope: [
+            ...(facets.channel_thread_scope ??
+              current.facets.channel_thread_scope ??
+              []),
+          ],
+        },
+        activeTab: tab,
+        groupBy: defaults.groupBy,
+        emailView: defaults.emailView,
+      };
+    },
+    initialize: (current) => {
+      previous = signature(current);
+    },
+    write: (current) => {
+      const tab = current.activeTab;
+      if (!tab) return;
+
+      const serialized = signature(current);
+      if (serialized === previous) return;
+      previous = serialized;
+
+      const existing = readSoupFilterPreference(options.view);
+      writeSoupFilterPreference(options.view, {
+        version: 1,
+        activeTab: tab,
+        tabs: {
+          ...(existing?.tabs ?? {}),
+          [tab]: cloneFacetSelection(current.facets),
+        },
+      });
+    },
+  };
+};
+
 const sortPreferenceStorage = (
   view: ListView,
   restorePreference: boolean
@@ -211,6 +336,11 @@ export function createSoupCollectionPersistence(
     options.view,
     options.restorePreferences ?? true
   );
+  const filterPreference = filterPreferenceStorage({
+    view: options.view,
+    restorePreference: options.restoreFilterPreferences ?? true,
+    resolveTabDefaults: options.resolveTabDefaults,
+  });
   const entry = soupEntryStateStorage<SoupCollectionStore>({
     panel: options.panel,
     key: SOUP_COLLECTION_ENTRY_KEY,
@@ -223,5 +353,5 @@ export function createSoupCollectionPersistence(
     write: selectEntryState,
   });
 
-  return { storage: [preference, entry] };
+  return { storage: [preference, filterPreference, entry] };
 }

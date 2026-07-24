@@ -33,6 +33,7 @@ import { createStore, produce } from 'solid-js/store';
 import { z } from 'zod';
 
 import type { SoupList } from './list-views/create-soup-list';
+import { readPersistedTabFacets } from './soup-collection-persistence';
 import {
   getViewPreset,
   type PresetContext,
@@ -241,16 +242,29 @@ export function SoupViewProvider(
       collection.state.activeTab ?? defaultTab(),
       presetContext()
     );
+    const persistedFacets = readPersistedTabFacets(props.view, tabId);
 
     batch(() => {
       collection.facets.setExtraFacets(preset.facets ?? []);
       collection.setState(
         produce((state: SoupCollectionStore) => {
-          replacePresetFacets(
-            state.facets,
-            currentPreset?.initialFacets ?? {},
-            preset.initialFacets ?? {}
-          );
+          if (persistedFacets) {
+            state.facets = {
+              ...persistedFacets,
+              [props.view]: [tabId],
+              channel_thread_scope: [
+                ...(persistedFacets.channel_thread_scope ??
+                  state.facets.channel_thread_scope ??
+                  []),
+              ],
+            };
+          } else {
+            replacePresetFacets(
+              state.facets,
+              currentPreset?.initialFacets ?? {},
+              preset.initialFacets ?? {}
+            );
+          }
           state.activeTab = tabId;
           state.emailView = preset.emailView;
           state.groupBy = preset.groupBy;

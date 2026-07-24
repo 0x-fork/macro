@@ -75,6 +75,15 @@ export function createSoupList(options: CreateSoupListOptions) {
       view: options.view,
       restoreEntryState: options.restoreCollection,
       restorePreferences: initialState.sort === undefined,
+      restoreFilterPreferences: options.restoreCollection !== false,
+      resolveTabDefaults: (tab) => {
+        const preset = getViewPreset(options.view, tab, presetContext());
+        if (!preset) return undefined;
+        return {
+          groupBy: preset.groupBy,
+          emailView: preset.emailView,
+        };
+      },
     }),
   });
 
