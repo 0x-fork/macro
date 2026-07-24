@@ -414,6 +414,46 @@ pub(super) async fn update_thread_metadata(
     Ok(())
 }
 
+/// Recomputes the denormalized `email_threads.has_inbound_message` flag from
+/// the thread's messages, mirroring [`is_inbound_origin`] in SQL. Exact copy of
+/// `email_db_client::threads::update::sync_thread_inbound_flag`, for call sites
+/// that delete messages without a full metadata recompute.
+pub(super) async fn sync_thread_inbound_flag(
+    tx: &mut sqlx::PgConnection,
+    thread_db_id: Uuid,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        UPDATE email_threads t
+        SET has_inbound_message = calc.inbound
+        FROM (
+            SELECT EXISTS (
+                SELECT 1
+                FROM email_messages m
+                WHERE m.thread_id = $1
+                  AND (
+                      (NOT m.is_sent AND NOT m.is_draft)
+                      OR EXISTS (
+                          SELECT 1
+                          FROM email_message_recipients r
+                          WHERE r.message_id = m.id
+                            AND m.from_contact_id IS NOT NULL
+                            AND r.contact_id = m.from_contact_id
+                      )
+                  )
+            ) AS inbound
+        ) calc
+        WHERE t.id = $1
+          AND t.has_inbound_message IS DISTINCT FROM calc.inbound
+        "#,
+        thread_db_id
+    )
+    .execute(tx)
+    .await?;
+
+    Ok(())
+}
+
 /// Recomputes the denormalized `email_threads.is_signal` flag: true iff the
 /// thread has a non-TRASH message matching the importance heuristic. Exact
 /// copy of `email_db_client::threads::update::sync_thread_signal_flag`,

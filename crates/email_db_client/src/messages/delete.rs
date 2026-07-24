@@ -33,9 +33,12 @@ pub async fn delete_message_with_tx(
 
     // Callers that skip the metadata recompute (draft discard) still need
     // is_signal refreshed — the deleted message may have been the thread's
-    // only signal message, and macro drafts get no Gmail echo.
+    // only signal message, and macro drafts get no Gmail echo. The same goes
+    // for has_inbound_message: a draft the user addressed to themselves counts
+    // as inbound.
     if !deleted_thread && !update_thread_metadata {
         threads::update::sync_thread_signal_flag(&mut *tx, message.thread_db_id).await?;
+        threads::update::sync_thread_inbound_flag(&mut *tx, message.thread_db_id).await?;
     }
 
     if deleted_thread {

@@ -71,6 +71,11 @@ pub async fn insert_thread_and_messages(
         // must be synced here or new threads would stay noise.
         super::update::sync_thread_signal_flag(&mut tx, thread_id).await?;
 
+        // Same for has_inbound_message, which insert_thread doesn't carry:
+        // without this every freshly synced thread would look sent-only, so
+        // marking it done wouldn't stick.
+        super::update::sync_thread_inbound_flag(&mut tx, thread_id).await?;
+
         Ok(thread_id)
     }
     .await;

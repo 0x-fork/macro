@@ -331,3 +331,25 @@ async fn metadata_sets_inbound_flag_for_self_sent_thread(
     );
     Ok(())
 }
+
+// The standalone sync — used by the thread+messages insert and the draft
+// discard, which both skip the metadata recompute — must agree with it.
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("thread_has_inbound_message"))
+)]
+async fn sync_matches_metadata_recompute(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let mut conn = pool.acquire().await?;
+    for thread_id in [
+        INB_THREAD_SENT_ONLY,
+        INB_THREAD_ARCHIVED_RECEIVED,
+        INB_THREAD_SELF_SENT,
+    ] {
+        sync_thread_inbound_flag(&mut conn, Uuid::parse_str(thread_id)?).await?;
+    }
+
+    assert!(!fetch_inbound(&pool, INB_THREAD_SENT_ONLY).await?.0);
+    assert!(fetch_inbound(&pool, INB_THREAD_ARCHIVED_RECEIVED).await?.0);
+    assert!(fetch_inbound(&pool, INB_THREAD_SELF_SENT).await?.0);
+    Ok(())
+}

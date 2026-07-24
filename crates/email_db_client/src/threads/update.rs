@@ -175,6 +175,49 @@ pub async fn sync_thread_calendar_flag(
     Ok(())
 }
 
+/// Recomputes the denormalized `email_threads.has_inbound_message` flag from
+/// the thread's messages. Mirrors
+/// `models_email::email::service::message::is_inbound_origin`: a message counts
+/// as inbound unless the user wrote it, and one they addressed to themselves
+/// counts too. For call sites that insert or delete messages without a full
+/// metadata recompute.
+#[tracing::instrument(skip(tx), err)]
+pub async fn sync_thread_inbound_flag(
+    tx: &mut sqlx::PgConnection,
+    thread_db_id: Uuid,
+) -> anyhow::Result<()> {
+    sqlx::query!(
+        r#"
+        UPDATE email_threads t
+        SET has_inbound_message = calc.inbound
+        FROM (
+            SELECT EXISTS (
+                SELECT 1
+                FROM email_messages m
+                WHERE m.thread_id = $1
+                  AND (
+                      (NOT m.is_sent AND NOT m.is_draft)
+                      OR EXISTS (
+                          SELECT 1
+                          FROM email_message_recipients r
+                          WHERE r.message_id = m.id
+                            AND m.from_contact_id IS NOT NULL
+                            AND r.contact_id = m.from_contact_id
+                      )
+                  )
+            ) AS inbound
+        ) calc
+        WHERE t.id = $1
+          AND t.has_inbound_message IS DISTINCT FROM calc.inbound
+        "#,
+        thread_db_id
+    )
+    .execute(tx)
+    .await?;
+
+    Ok(())
+}
+
 /// Recomputes the denormalized `email_threads.is_signal` flag: true iff the
 /// thread has a non-TRASH message matching the importance heuristic. Mirrors
 /// the Importance(true) predicate in the email crate's dynamic query builder.

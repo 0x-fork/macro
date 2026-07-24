@@ -381,8 +381,10 @@ pub(crate) async fn delete_draft_message(
             .execute(&mut *tx)
             .await?;
     } else {
-        // The discarded draft may have been the thread's only signal message.
+        // The discarded draft may have been the thread's only signal message,
+        // and — if the user addressed it to themselves — its only inbound one.
         super::thread::sync_thread_signal_flag(&mut tx, thread_db_id).await?;
+        super::thread::sync_thread_inbound_flag(&mut tx, thread_db_id).await?;
     }
 
     tx.commit().await?;
