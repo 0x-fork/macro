@@ -1,11 +1,18 @@
 import { DEV_MODE_ENV } from '@core/constant/featureFlags';
+import IconAhrefs from '@icon/mcp-ahrefs.svg';
+import IconClay from '@icon/mcp-clay.svg';
+import IconCloudflare from '@icon/mcp-cloudflare.svg';
 import IconDatadog from '@icon/mcp-datadog.svg';
 import IconGithub from '@icon/mcp-github.svg';
 import IconGrafana from '@icon/mcp-grafana.svg';
 import IconLinear from '@icon/mcp-linear.svg';
+import IconMobbin from '@icon/mcp-mobbin.svg';
 import IconNotion from '@icon/mcp-notion.svg';
+import IconPipeboard from '@icon/mcp-pipeboard.svg';
 import IconPostHog from '@icon/mcp-posthog.svg';
+import IconProfound from '@icon/mcp-profound.svg';
 import IconSlack from '@icon/mcp-slack.svg';
+import IconStripe from '@icon/mcp-stripe.svg';
 import type { Component, JSX } from 'solid-js';
 
 export type SvgIcon = Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
@@ -51,6 +58,51 @@ export const QUICK_CONNECT_SERVERS = [
     url: 'https://mcp.grafana.com/mcp',
     icon: IconGrafana as SvgIcon,
   },
+  {
+    server_name: 'Stripe',
+    url: 'https://mcp.stripe.com',
+    icon: IconStripe as SvgIcon,
+  },
+  {
+    server_name: 'Cloudflare',
+    url: 'https://mcp.cloudflare.com/mcp',
+    icon: IconCloudflare as SvgIcon,
+  },
+  {
+    server_name: 'Cloudflare Developer Platform',
+    url: 'https://bindings.mcp.cloudflare.com/mcp',
+    icon: IconCloudflare as SvgIcon,
+  },
+  {
+    server_name: 'Ahrefs',
+    url: 'https://api.ahrefs.com/mcp/mcp',
+    icon: IconAhrefs as SvgIcon,
+  },
+  {
+    server_name: 'Clay',
+    url: 'https://api.clay.com/v3/mcp',
+    icon: IconClay as SvgIcon,
+  },
+  {
+    server_name: 'Profound',
+    url: 'https://mcp.tryprofound.com/mcp',
+    icon: IconProfound as SvgIcon,
+  },
+  {
+    server_name: 'Mobbin',
+    url: 'https://api.mobbin.com/mcp',
+    icon: IconMobbin as SvgIcon,
+  },
+  {
+    server_name: 'Pipeboard Google Ads Connector',
+    url: 'https://google-ads.mcp.pipeboard.co',
+    icon: IconPipeboard as SvgIcon,
+  },
+  {
+    server_name: 'Pipeboard Meta Ads',
+    url: 'https://meta-ads.mcp.pipeboard.co',
+    icon: IconPipeboard as SvgIcon,
+  },
 ] as const;
 
 export type QuickConnectServer = (typeof QUICK_CONNECT_SERVERS)[number];
@@ -70,6 +122,21 @@ const FEATURED_SERVER_TAGLINES: [name: string, tagline: string][] = [
   ['GitHub', 'Give the agent access to your repos, PRs, and issues.'],
   ['Datadog', 'Query metrics, logs, and monitors.'],
   ['Grafana', 'Search dashboards and query your data sources.'],
+  ['Stripe', 'Look up payments, customers, and subscriptions.'],
+  ['Cloudflare', 'Manage Workers, DNS, and other Cloudflare resources.'],
+  ['Cloudflare Developer Platform', 'Manage Workers bindings and deployments.'],
+  ['Ahrefs', 'Pull SEO, backlink, and keyword data.'],
+  ['Clay', 'Enrich and research records from your GTM data.'],
+  ['Profound', 'Track visibility in AI search and answer engines.'],
+  ['Mobbin', 'Reference real product design patterns and flows.'],
+  [
+    'Pipeboard Google Ads Connector',
+    'Manage and analyze Google Ads campaigns.',
+  ],
+  [
+    'Pipeboard Meta Ads',
+    'Manage and analyze Meta (Facebook/Instagram) ad campaigns.',
+  ],
 ];
 
 export type FeaturedMcpServer = QuickConnectServer & { tagline: string };
