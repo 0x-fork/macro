@@ -1,7 +1,7 @@
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import type { SplitContent } from '@components/app/split-layout/layoutManager';
 import type { EntityData } from '@entity';
-import { previewSourceEntityId } from '../preview-history';
+import { previewSourceEntityId } from './history';
 
 export function previewContentMatchesEntity(
   content: SplitContent,

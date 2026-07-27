@@ -1,7 +1,7 @@
-import type { GroupOptionId } from '@app/features/soup/view/components/group-options';
-import { SearchableMultiSelectInline } from '@app/features/soup/view/components/searchable-multi-select';
-import type { SystemSortOption } from '@app/features/soup/view/components/sort-options';
+import type { GroupOptionId } from '@app/features/soup/view/components/grouping/group-options';
+import type { SystemSortOption } from '@app/features/soup/view/components/sorting/sort-options';
 import { useSoupView } from '@app/features/soup/view/context';
+import { SearchableMultiSelectInline } from '@app/features/soup/view/filters/searchable-multi-select';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import CheckIcon from '@phosphor/check.svg';
 import SlidersIcon from '@phosphor/sliders-horizontal.svg';
@@ -12,9 +12,9 @@ import { For, type JSX, Show } from 'solid-js';
 import {
   clearFacetControlRefinements,
   isFacetControlRefinement,
-} from '../filters/facet-control-refinements';
-import { useSoupFacetControls } from '../filters/use-soup-facet-controls';
-import { soupGroupOptions, soupSortOptions } from './soup-view-options';
+} from '../../filters/facet-control-refinements';
+import { useSoupFacetControls } from '../../filters/use-soup-facet-controls';
+import { soupGroupOptions, soupSortOptions } from '../../soup-view-options';
 
 const DrawerRow = (props: {
   active: boolean;

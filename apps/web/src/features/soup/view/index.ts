@@ -1,4 +1,3 @@
-export { SoupEntityListItem } from './components/soup-entity-list-item';
 export type {
   SoupSearchControl,
   SoupViewContextValue,
@@ -13,6 +12,7 @@ export {
 export { createSoupList } from './primitives/create-soup-list';
 export { useIsNewInbox } from './primitives/use-is-new-inbox';
 export { SoupEntityList } from './soup-entity-list';
+export { SoupEntityListItem } from './soup-entity-list-item';
 export type { SoupViewProps } from './soup-view';
 export { SoupView } from './soup-view';
 export { SoupViewRoot } from './soup-view-root';

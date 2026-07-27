@@ -37,23 +37,23 @@ import {
   findEntityItem,
   getSelectedEntities,
 } from '../../../actions/list-action-state';
+import { SoupFileDropzone } from '../../components/actions/soup-file-dropzone';
+import { SoupSelectionToolbar } from '../../components/actions/soup-selection-toolbar';
+import { SoupMobileControls } from '../../components/mobile/soup-mobile-controls';
 import {
   SoupCompaniesErrorState,
   SoupEmptyState,
 } from '../../components/soup-empty-state';
-import {
-  SOUP_MARK_DONE_ROW_CONFIG,
-  SoupEntityListItem,
-} from '../../components/soup-entity-list-item';
-import { SoupFileDropzone } from '../../components/soup-file-dropzone';
-import { SoupMobileControls } from '../../components/soup-mobile-controls';
-import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
-import { SoupViewHeader } from '../../components/soup-view-header';
 import { SoupViewProvider } from '../../context';
 import { createSoupList } from '../../primitives/create-soup-list';
 import { hasSoupCollectionEntryState } from '../../primitives/soup-collection-persistence';
 import { useSoupNotificationInvalidators } from '../../primitives/use-soup-notification-invalidators';
 import { SoupEntityList } from '../../soup-entity-list';
+import {
+  SOUP_MARK_DONE_ROW_CONFIG,
+  SoupEntityListItem,
+} from '../../soup-entity-list-item';
+import { SoupViewHeader } from '../../soup-view-header';
 import { getViewPreset } from '../../soup-view-presets';
 import { SoupViewRoot } from '../../soup-view-root';
 import { CompanyKanban } from './company-kanban';

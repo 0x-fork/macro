@@ -1,7 +1,7 @@
 import type { EntityData } from '@entity';
 import type { NotificationSource } from '@notifications';
 import { describe, expect, it, vi } from 'vitest';
-import { notDoneFilter, unreadFilter } from './facet-predicates';
+import { notDoneFilter, unreadFilter } from './predicates';
 
 vi.mock('@entity', () => ({
   getCompanyOwnerId: vi.fn(),

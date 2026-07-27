@@ -1,4 +1,4 @@
-import { SearchableMultiSelect } from '@app/features/soup/view/components/searchable-multi-select';
+import { SearchableMultiSelect } from '@app/features/soup/view/filters/searchable-multi-select';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { Combobox } from '@kobalte/core/combobox';
 import XIcon from '@phosphor/x.svg';

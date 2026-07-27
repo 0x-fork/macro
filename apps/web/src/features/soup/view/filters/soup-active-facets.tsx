@@ -2,7 +2,7 @@ import type { FacetSelection } from '@app/features/soup/collection';
 import {
   type ConsolidatedFilter,
   ConsolidatedFilterChip,
-} from '@app/features/soup/view/components/consolidated-filter-chip';
+} from '@app/features/soup/view/filters/consolidated-filter-chip';
 import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import { Button, Dropdown, Layer } from '@ui';

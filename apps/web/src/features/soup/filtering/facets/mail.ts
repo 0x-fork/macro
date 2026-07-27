@@ -5,7 +5,7 @@ import {
   hasImageAttachmentFilter,
   hasPdfAttachmentFilter,
   noDraftsFilter,
-} from '../facet-predicates';
+} from '../predicates';
 import { facet } from './base';
 
 export const MAIL_DRAFTS = facet({

@@ -1,7 +1,7 @@
 import type {
   SortOption,
   SystemSortOption,
-} from '@app/features/soup/view/components/sort-options';
+} from '@app/features/soup/view/components/sorting/sort-options';
 import { TOKENS } from '@core/hotkey/tokens';
 import SortIcon from '@phosphor/sort-ascending.svg';
 import { Dropdown, SingleSelectCheck, Tooltip } from '@ui';

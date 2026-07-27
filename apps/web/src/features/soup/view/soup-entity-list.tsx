@@ -43,9 +43,9 @@ import {
   canExecuteMarkDoneOnView,
   makeMarkDoneAction,
 } from '../actions/make-mark-done-action';
-import { SoupGroupHeader } from './components/soup-group-header';
+import { SoupGroupHeader } from './components/grouping/soup-group-header';
+import { SoupMobileActionDrawerManager } from './components/mobile/soup-mobile-action-drawer';
 import { SoupListHeader } from './components/soup-list-headers';
-import { SoupMobileActionDrawerManager } from './components/soup-mobile-action-drawer';
 import { useIsNewInbox } from './primitives/use-is-new-inbox';
 import { useSoupViewEntryState } from './primitives/use-soup-view-entry-state';
 import { useSoupViewHotkeys } from './primitives/use-soup-view-hotkeys';

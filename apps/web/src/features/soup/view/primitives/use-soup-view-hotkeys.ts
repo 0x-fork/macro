@@ -7,13 +7,13 @@ import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { CommandState } from '@app/features/command/state';
 import { useSoup } from '@app/features/next-soup/soup-context';
 import type { SoupEntityRow, SoupRow } from '@app/features/soup/collection';
+import { previewContentMatchesEntity } from '@app/features/soup/preview/content-row';
 import {
   isDuplicatePreviewEntityOpen,
   notifyDuplicateContentOpen,
   openEntityInSplitFromUnifiedList,
 } from '@app/features/soup/utils';
 import { useSoupView } from '@app/features/soup/view/context';
-import { previewContentMatchesEntity } from '@app/features/soup/view/preview-content-row';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type {

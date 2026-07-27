@@ -1,4 +1,4 @@
-import type { SearchableOption } from '@app/features/soup/view/components/searchable-multi-select';
+import type { SearchableOption } from '@app/features/soup/view/filters/searchable-multi-select';
 import { type Accessor, createMemo, type JSX } from 'solid-js';
 import {
   type SoupFacetControl,

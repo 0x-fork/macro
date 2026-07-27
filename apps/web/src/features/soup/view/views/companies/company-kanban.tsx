@@ -26,7 +26,7 @@ import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, cn, Layer } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
-import { SoupEntityContextMenu } from '../../components/soup-entity-context-menu';
+import { SoupEntityContextMenu } from '../../components/actions/soup-entity-context-menu';
 import {
   buildCompanyBoardColumns,
   canMoveCompanyFromStage,

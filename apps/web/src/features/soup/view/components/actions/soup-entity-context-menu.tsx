@@ -16,7 +16,7 @@ import {
   For,
   Show,
 } from 'solid-js';
-import { createSoupEntityActions } from '../actions/create-soup-entity-actions';
+import { createSoupEntityActions } from '../../actions/create-soup-entity-actions';
 
 const tagEntityType = (entity: EntityData): EntityType | undefined => {
   if (entity.type === 'document') {

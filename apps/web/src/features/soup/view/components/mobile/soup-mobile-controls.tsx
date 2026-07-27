@@ -6,10 +6,10 @@ import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { Button, Layer } from '@ui';
 import { Show } from 'solid-js';
 
-import { SoupSearchbar } from '../filters/soup-searchbar';
-import { SoupSearchFacets } from '../views/search/soup-search-facets';
+import { SoupSearchbar } from '../../filters/soup-searchbar';
+import { COMPANY_MODE_TABS } from '../../soup-view-options';
+import { SoupSearchFacets } from '../../views/search/soup-search-facets';
 import { SoupMobileFilterDrawer } from './soup-mobile-filter-drawer';
-import { COMPANY_MODE_TABS } from './soup-view-options';
 
 function SoupMobileControlsContent() {
   const {

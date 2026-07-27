@@ -1,3 +1,9 @@
+import { NIL_UUID } from '../facet-store';
+import {
+  explicitNoiseFilter,
+  noiseFilter,
+  signalFilter,
+} from '../inbox-filters';
 import {
   documentFilter,
   fileFilter,
@@ -5,13 +11,7 @@ import {
   notDoneFilter,
   peopleFilter,
   teamsFilter,
-} from '../facet-predicates';
-import { NIL_UUID } from '../facet-store';
-import {
-  explicitNoiseFilter,
-  noiseFilter,
-  signalFilter,
-} from '../inbox-filters';
+} from '../predicates';
 import { facet } from './base';
 
 export const INBOX_FOCUS = facet({

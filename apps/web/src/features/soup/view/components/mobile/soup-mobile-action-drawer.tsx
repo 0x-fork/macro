@@ -14,7 +14,7 @@ import {
   useContext,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { createSoupEntityActions } from '../actions/create-soup-entity-actions';
+import { createSoupEntityActions } from '../../actions/create-soup-entity-actions';
 
 type SoupMobileActionDrawerState = {
   open: (source: EntityData, targets: readonly EntityData[]) => void;

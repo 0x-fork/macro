@@ -13,7 +13,7 @@ import {
   taskAssignedToUserFilter,
   taskFilter,
   teamsFilter,
-} from '../facet-predicates';
+} from '../predicates';
 import { facet } from './base';
 
 // Entity-type scope a view confines to (predicate-only; backend scope is in the

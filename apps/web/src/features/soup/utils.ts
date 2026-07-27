@@ -73,7 +73,7 @@ import {
 import { emailClient } from '@service-email/client';
 import { isAfter } from 'date-fns';
 import { match } from 'ts-pattern';
-import { withPreviewSourceEntityId } from './preview-history';
+import { withPreviewSourceEntityId } from './preview/history';
 
 const mergeSearchEntities = <T extends EntityData>(
   first: WithSearch<T>,

@@ -26,10 +26,10 @@ import {
   onCleanup,
   onMount,
 } from 'solid-js';
-import { getSelectedEntities } from '../../actions/list-action-state';
-import { useSoupView } from '../context';
-import { SoupEntityContextMenu } from './soup-entity-context-menu';
-import { useMaybeSoupMobileActionDrawer } from './soup-mobile-action-drawer';
+import { getSelectedEntities } from '../actions/list-action-state';
+import { SoupEntityContextMenu } from './components/actions/soup-entity-context-menu';
+import { useMaybeSoupMobileActionDrawer } from './components/mobile/soup-mobile-action-drawer';
+import { useSoupView } from './context';
 
 export const SOUP_MARK_DONE_ROW_CONFIG: EntityRowConfig = {
   swipeLeftColor: 'bg-success-surface',

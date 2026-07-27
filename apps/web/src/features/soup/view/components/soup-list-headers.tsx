@@ -1,4 +1,4 @@
-import type { SystemSortOption } from '@app/features/soup/view/components/sort-options';
+import type { SystemSortOption } from '@app/features/soup/view/components/sorting/sort-options';
 import { useSoupView } from '@app/features/soup/view/context';
 import {
   COMPANY_GRID_COLUMNS,

@@ -1,7 +1,7 @@
 import type {
   GroupOption,
   GroupOptionId,
-} from '@app/features/soup/view/components/group-options';
+} from '@app/features/soup/view/components/grouping/group-options';
 import StackSimpleIcon from '@phosphor/stack-simple.svg';
 import { Dropdown, SingleSelectCheck, Tooltip } from '@ui';
 import { type Component, For } from 'solid-js';
