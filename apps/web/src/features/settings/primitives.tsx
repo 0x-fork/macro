@@ -120,13 +120,30 @@ export function SettingsRow(props: {
   align?: 'center' | 'start';
   /** Hide the description on mobile, where the row is too cramped for it. */
   hideDescriptionOnMobile?: boolean;
+  /**
+   * Below a 520px container width, stack the control on its own row beneath
+   * the label/description instead of keeping it in a right-hand column.
+   * Requires an ancestor carrying `@container`.
+   */
+  stackOnNarrow?: boolean;
   class?: string;
 }) {
   return (
     <div
       class={cn(
-        'flex justify-between gap-4 px-6 py-3.5 min-h-[60px]',
-        props.align === 'start' ? 'items-start' : 'items-center',
+        'flex gap-4 px-6 py-3.5 min-h-[60px]',
+        props.stackOnNarrow
+          ? 'flex-col gap-1.5 @[520px]:flex-row @[520px]:justify-between @[520px]:gap-4'
+          : 'justify-between',
+        // Cross-axis alignment only makes sense once the row is horizontal, so
+        // gate it behind the container width when stacking.
+        props.align === 'start'
+          ? props.stackOnNarrow
+            ? '@[520px]:items-start'
+            : 'items-start'
+          : props.stackOnNarrow
+            ? '@[520px]:items-center'
+            : 'items-center',
         props.class
       )}
     >
@@ -144,7 +161,14 @@ export function SettingsRow(props: {
         </Show>
       </div>
       <Show when={props.children}>
-        <div class="shrink-0 flex items-center justify-end gap-2 text-right">
+        <div
+          class={cn(
+            'flex items-center gap-2',
+            props.stackOnNarrow
+              ? '@[520px]:shrink-0 @[520px]:justify-end @[520px]:text-right'
+              : 'shrink-0 justify-end text-right'
+          )}
+        >
           {props.children}
         </div>
       </Show>
