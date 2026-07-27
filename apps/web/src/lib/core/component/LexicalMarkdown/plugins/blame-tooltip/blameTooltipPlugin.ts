@@ -4,6 +4,8 @@ import { $getId } from '@macro-inc/lexical-core';
 import {
   $getNearestNodeFromDOMNode,
   $isTextNode,
+  COMMAND_PRIORITY_LOW,
+  KEY_DOWN_COMMAND,
   type LexicalEditor,
   type LexicalNode,
 } from 'lexical';
@@ -99,7 +101,17 @@ function registerBlameTooltipPlugin(
         prevRoot.removeEventListener('pointerleave', dismiss);
         prevRoot.removeEventListener('pointerdown', dismiss);
       }
-    })
+    }),
+    // Typing doesn't move or leave the pointer, so without this the tooltip
+    // from a prior hover keeps showing over text the user is actively editing.
+    editor.registerCommand(
+      KEY_DOWN_COMMAND,
+      () => {
+        dismiss();
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    )
   );
 }
 
