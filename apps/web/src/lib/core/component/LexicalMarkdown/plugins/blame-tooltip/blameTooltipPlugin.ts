@@ -5,6 +5,7 @@ import {
   $getNearestNodeFromDOMNode,
   $isTextNode,
   COMMAND_PRIORITY_LOW,
+  COMPOSITION_START_COMMAND,
   KEY_DOWN_COMMAND,
   type LexicalEditor,
   type LexicalNode,
@@ -106,6 +107,16 @@ function registerBlameTooltipPlugin(
     // from a prior hover keeps showing over text the user is actively editing.
     editor.registerCommand(
       KEY_DOWN_COMMAND,
+      () => {
+        dismiss();
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    ),
+    // Lexical skips KEY_DOWN_COMMAND while composing (IME input), so without
+    // this the tooltip can keep showing through an entire composition.
+    editor.registerCommand(
+      COMPOSITION_START_COMMAND,
       () => {
         dismiss();
         return false;
