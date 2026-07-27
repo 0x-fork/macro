@@ -6,7 +6,7 @@ import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { Button, Layer } from '@ui';
 import { Show } from 'solid-js';
 import { VIEW_TAB_LISTS } from '../../tabs';
-import { SoupSearchFacets } from '../../views/search/soup-search-facets';
+import { SoupSearchFacets } from '../../views/search/search-facets';
 import { SoupSearchbar } from '../soup-searchbar';
 import { SoupMobileFilterDrawer } from './soup-mobile-filter-drawer';
 

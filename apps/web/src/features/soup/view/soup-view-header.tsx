@@ -45,7 +45,7 @@ import {
   CompanyDisplayMenu,
   CompanyViewsMenu,
 } from './views/companies/company-views-menu';
-import { SoupSearchFacets } from './views/search/soup-search-facets';
+import { SoupSearchFacets } from './views/search/search-facets';
 
 export function SoupViewHeader(props: { sortVisible: boolean }) {
   const {

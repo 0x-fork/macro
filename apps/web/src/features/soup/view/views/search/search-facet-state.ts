@@ -79,10 +79,6 @@ export function normalizeSearchFacets(facets: Facets) {
   for (const id of ALL_SECTION_FACETS) {
     if (!activeIds.has(id)) facets.set(id, []);
   }
-  if (!isSearchTaggableType(activeType)) {
-    facets.set('tag', []);
-    facets.set('tag_mode', []);
-  }
 }
 
 export function createSearchFacetController(facets: Facets) {
