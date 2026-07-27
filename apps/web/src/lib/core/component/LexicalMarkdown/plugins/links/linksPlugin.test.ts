@@ -1,9 +1,14 @@
 import { $isAutoLinkNode } from '@lexical/link';
+import { INLINE_CODE, registerMarkdownShortcuts } from '@lexical/markdown';
 import { SupportedNodeTypes } from '@macro-inc/lexical-core/node-list';
 import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
+  $getSelection,
+  $isElementNode,
+  $isRangeSelection,
+  $isTextNode,
   createEditor,
   type LexicalEditor,
 } from 'lexical';
@@ -25,6 +30,10 @@ function createTestEditor(): LexicalEditor {
   document.body.appendChild(root);
   editor.setRootElement(root);
   linksPlugin({ autoLinkMatchMode: 'common-tlds' })(editor);
+  // Also register the real inline-code markdown shortcut (as production does
+  // via markdownShortcutsPlugin) so tests exercise the actual interaction
+  // between autolinking and the backtick shortcut, not just linksPlugin alone.
+  registerMarkdownShortcuts(editor, [INLINE_CODE]);
 
   return editor;
 }
@@ -52,6 +61,7 @@ describe('linksPlugin autolink transform', () => {
 
     editor.read(() => {
       const paragraph = $getRoot().getFirstChildOrThrow();
+      if (!$isElementNode(paragraph)) throw new Error('expected element node');
       const children = paragraph.getChildren();
       expect(children).toHaveLength(1);
       expect($isAutoLinkNode(children[0])).toBe(false);
@@ -59,38 +69,51 @@ describe('linksPlugin autolink transform', () => {
     });
   });
 
-  test('does not leave a stray autolink once the rest of the inline code is typed', () => {
+  test('does not leave a stray autolink once the rest of the inline code is typed, and the code shortcut still converts it', () => {
     const editor = createTestEditor();
-    let textKey = '';
 
     editor.update(
       () => {
         const paragraph = $createParagraphNode();
         const textNode = $createTextNode('`channel.me');
-        textKey = textNode.getKey();
         paragraph.append(textNode);
         $getRoot().clear().append(paragraph);
+        textNode.select(
+          textNode.getTextContentSize(),
+          textNode.getTextContentSize()
+        );
       },
       { discrete: true }
     );
 
-    // Continue "typing" the rest of the word and the closing backtick.
-    editor.update(
-      () => {
-        const textNode = $getRoot()
-          .getFirstChildOrThrow()
-          .getChildren()
-          .find((child) => child.getKey() === textKey);
-        textNode?.setTextContent('`channel.messages`');
-      },
-      { discrete: true }
-    );
+    // Continue "typing" the rest of the word and the closing backtick, one
+    // character at a time via the same selection.insertText() path real
+    // typing goes through — the markdown code-format shortcut keys off
+    // incremental single-character selection changes, not just final text.
+    for (const char of 'ssages`') {
+      editor.update(
+        () => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            selection.insertText(char);
+          }
+        },
+        { discrete: true }
+      );
+    }
 
     editor.read(() => {
       const paragraph = $getRoot().getFirstChildOrThrow();
+      if (!$isElementNode(paragraph)) throw new Error('expected element node');
       const children = paragraph.getChildren();
       expect(children.some((child) => $isAutoLinkNode(child))).toBe(false);
-      expect(paragraph.getTextContent()).toBe('`channel.messages`');
+      // The backtick shortcut should still be able to convert the completed
+      // span into actual inline code, since no stray AutoLinkNode is left
+      // splitting the text into separate nodes.
+      expect(paragraph.getTextContent()).toBe('channel.messages');
+      expect(
+        children.some((child) => $isTextNode(child) && child.hasFormat('code'))
+      ).toBe(true);
     });
   });
 
@@ -108,6 +131,7 @@ describe('linksPlugin autolink transform', () => {
 
     editor.read(() => {
       const paragraph = $getRoot().getFirstChildOrThrow();
+      if (!$isElementNode(paragraph)) throw new Error('expected element node');
       const children = paragraph.getChildren();
       expect(children.some((child) => $isAutoLinkNode(child))).toBe(true);
     });
