@@ -13,6 +13,7 @@ import {
   isTaskEntity,
 } from '../../types/entity';
 import { isSearchEntity } from '../../types/search';
+import { ChannelJoinButton } from './channel';
 import { EmailInboxChip } from './email';
 import { type LayoutProps, useListLayout } from './shared';
 
@@ -101,6 +102,17 @@ export function NarrowLayout(props: LayoutProps) {
         </Show>
         <Show when={isEmailEntity(props.entity) && props.entity}>
           {(entity) => <EmailInboxChip entity={entity()} class="ml-auto" />}
+        </Show>
+        <Show
+          when={
+            isChannelEntity(props.entity) &&
+            props.entity.isParticipant === false &&
+            props.entity
+          }
+        >
+          {(entity) => (
+            <ChannelJoinButton entity={entity()} class="ml-auto shrink-0" />
+          )}
         </Show>
       </Entity.Slot>
 

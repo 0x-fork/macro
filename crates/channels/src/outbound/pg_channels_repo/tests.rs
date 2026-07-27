@@ -1,17 +1,24 @@
 use crate::domain::models::{
     AttachmentEntityReference, BotId, BotSenderProfile, ChannelMessageFilters, ChannelType,
-    CreateChannelRequest, CreateEntityMentionOptions, GetThreadReplyRowsRequest,
-    MessagePageDirection, NotificationFilters, ParticipantRole,
+    CreateChannelRequest, CreateEntityMentionOptions, GetChannelsParams, GetChannelsRequest,
+    GetThreadReplyRowsRequest, MessagePageDirection, NotificationFilters, ParticipantRole,
+    PatchChannelRequest,
 };
 use crate::domain::ports::{ChannelListRepo, ChannelRepo};
 use crate::outbound::pg_channels_repo::PgChannelsRepo;
 use filter_ast::Expr;
-use item_filters::ast::{LiteralTree, channel::ChannelThreadLiteral};
+use item_filters::ast::{
+    LiteralTree,
+    channel::{ChannelLiteral, ChannelThreadLiteral},
+};
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use macro_user_id::user_id::MacroUserIdStr;
 use models_pagination::{CreatedAt, Cursor, CursorVal, Query, SimpleSortMethod};
 use sqlx::{Pool, Postgres};
-use std::{collections::HashSet, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use uuid::Uuid;
 
 const NO_FILTERS: ChannelMessageFilters = ChannelMessageFilters {
@@ -33,6 +40,7 @@ const TEAM_A_AUTO_ACTIVE: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_00000
 const TEAM_A_AUTO_LEFT: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_000000000c12);
 const TEAM_A_MANUAL: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_000000000c13);
 const TEAM_B_AUTO: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_000000000c21);
+const TEAM_OWNER_A: &str = "macro|team-owner-a@test.com";
 const MSG1: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_000000000001);
 const MSG2: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_000000000002);
 const MSG3: Uuid = Uuid::from_u128(0x00000000_0000_0000_0000_000000000003);
@@ -83,11 +91,160 @@ fn report_err(e: rootcause::Report) -> anyhow::Error {
     anyhow::anyhow!("{e:?}")
 }
 
+fn channels_params(user_id: &str, filter: LiteralTree<ChannelLiteral>) -> GetChannelsParams {
+    GetChannelsRequest {
+        macro_id: macro_user_id(user_id),
+        limit: Some(50),
+        include_frecency: false,
+        query: Query::Sort(SimpleSortMethod::UpdatedAt, filter),
+    }
+    .into_params()
+}
+
+fn channel_filter(literal: ChannelLiteral) -> LiteralTree<ChannelLiteral> {
+    Some(Arc::new(Expr::val(literal)))
+}
+
 #[sqlx::test(
     fixtures(path = "../../../fixtures", scripts("channels_repo")),
     migrator = "MACRO_DB_MIGRATIONS"
 )]
-async fn create_channel_persists_auto_join_team(pool: Pool<Postgres>) {
+async fn channel_list_flags_active_participation(pool: Pool<Postgres>) {
+    let repo = repo(pool);
+
+    // left-user actively participates in c11 and c13 (Team A) and c21 (Team B).
+    // Channels they left (c12, ch1, ch3, ch4) stay out of the unfiltered list,
+    // including c12 despite their Team A membership.
+    let channels = repo
+        .get_user_channels_with_participants(channels_params(LEFT_USER, None))
+        .await
+        .unwrap();
+
+    let ids: HashSet<Uuid> = channels.iter().map(|c| c.channel.id).collect();
+    assert_eq!(
+        ids,
+        HashSet::from([TEAM_A_AUTO_ACTIVE, TEAM_A_MANUAL, TEAM_B_AUTO])
+    );
+    assert!(channels.iter().all(|c| c.is_participant));
+    let auto_join_by_id: HashMap<_, _> = channels
+        .iter()
+        .map(|channel| (channel.channel.id, channel.channel.auto_join_team))
+        .collect();
+    assert_eq!(auto_join_by_id.get(&TEAM_A_AUTO_ACTIVE), Some(&true));
+    assert_eq!(auto_join_by_id.get(&TEAM_A_MANUAL), Some(&false));
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn channel_list_excludes_non_member_team_channels_by_default(pool: Pool<Postgres>) {
+    let repo = repo(pool);
+
+    // user-d is on Team B but never joined its channel c21: without an
+    // IsParticipant filter the list stays participant-only.
+    let channels = repo
+        .get_user_channels_with_participants(channels_params(NON_MEMBER, None))
+        .await
+        .unwrap();
+
+    assert!(channels.is_empty());
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn is_participant_filter_false_returns_non_member_team_channels(pool: Pool<Postgres>) {
+    let repo = repo(pool);
+
+    // For left-user the only Team A channel without an active membership is
+    // c12 (they left it). Active channels and other teams' channels stay out.
+    let channels = repo
+        .get_user_channels_with_participants(channels_params(
+            LEFT_USER,
+            channel_filter(ChannelLiteral::IsParticipant(false)),
+        ))
+        .await
+        .unwrap();
+
+    let ids: Vec<Uuid> = channels.iter().map(|c| c.channel.id).collect();
+    assert_eq!(ids, vec![TEAM_A_AUTO_LEFT]);
+    assert!(!channels[0].is_participant);
+    // Their own left row is not listed as a participant.
+    assert!(channels[0].participants.is_empty());
+
+    // user-d never joined Team B's channel c21: the filter surfaces it with
+    // its active participants (left-user is still an active member there).
+    let channels = repo
+        .get_user_channels_with_participants(channels_params(
+            NON_MEMBER,
+            channel_filter(ChannelLiteral::IsParticipant(false)),
+        ))
+        .await
+        .unwrap();
+
+    let ids: Vec<Uuid> = channels.iter().map(|c| c.channel.id).collect();
+    assert_eq!(ids, vec![TEAM_B_AUTO]);
+    assert!(!channels[0].is_participant);
+    assert_eq!(channels[0].participants.len(), 1);
+    assert_eq!(channels[0].participants[0].user_id, LEFT_USER);
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn is_participant_filter_true_matches_default_membership(pool: Pool<Postgres>) {
+    let repo = repo(pool);
+
+    let filtered = repo
+        .get_user_channels_with_participants(channels_params(
+            LEFT_USER,
+            channel_filter(ChannelLiteral::IsParticipant(true)),
+        ))
+        .await
+        .unwrap();
+    let unfiltered = repo
+        .get_user_channels_with_participants(channels_params(LEFT_USER, None))
+        .await
+        .unwrap();
+
+    let filtered_ids: HashSet<Uuid> = filtered.iter().map(|c| c.channel.id).collect();
+    let unfiltered_ids: HashSet<Uuid> = unfiltered.iter().map(|c| c.channel.id).collect();
+    assert_eq!(filtered_ids, unfiltered_ids);
+    assert!(filtered.iter().all(|c| c.is_participant));
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn is_participant_filter_inside_not_widens_candidates(pool: Pool<Postgres>) {
+    let repo = repo(pool);
+
+    // NOT(IsParticipant(true)) must behave like IsParticipant(false): the
+    // candidate widening walks the whole AST, not just top-level literals.
+    let channels = repo
+        .get_user_channels_with_participants(channels_params(
+            LEFT_USER,
+            Some(Arc::new(Expr::is_not(Expr::val(
+                ChannelLiteral::IsParticipant(true),
+            )))),
+        ))
+        .await
+        .unwrap();
+
+    let ids: Vec<Uuid> = channels.iter().map(|c| c.channel.id).collect();
+    assert_eq!(ids, vec![TEAM_A_AUTO_LEFT]);
+    assert!(!channels[0].is_participant);
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn create_channel_persists_auto_join_team_and_adds_current_members(pool: Pool<Postgres>) {
     let repo = repo(pool.clone());
 
     let enabled_channel_id = repo
@@ -121,21 +278,232 @@ async fn create_channel_persists_auto_join_team(pool: Pool<Postgres>) {
 
     let enabled = sqlx::query_scalar!(
         "SELECT auto_join_team FROM comms_channels WHERE id = $1",
-        enabled_channel_id,
+        enabled_channel_id.id,
     )
     .fetch_one(&pool)
     .await
     .unwrap();
     let disabled = sqlx::query_scalar!(
         "SELECT auto_join_team FROM comms_channels WHERE id = $1",
-        disabled_channel_id,
+        disabled_channel_id.id,
     )
     .fetch_one(&pool)
+    .await
+    .unwrap();
+    let enabled_participants = sqlx::query!(
+        r#"
+        SELECT user_id, role AS "role: ParticipantRole"
+        FROM comms_channel_participants
+        WHERE channel_id = $1
+        ORDER BY user_id
+        "#,
+        enabled_channel_id.id,
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    let disabled_participants = sqlx::query_scalar!(
+        r#"
+        SELECT user_id
+        FROM comms_channel_participants
+        WHERE channel_id = $1
+        ORDER BY user_id
+        "#,
+        disabled_channel_id.id,
+    )
+    .fetch_all(&pool)
     .await
     .unwrap();
 
     assert!(enabled);
     assert!(!disabled);
+    assert_eq!(
+        enabled_participants
+            .iter()
+            .map(|participant| (participant.user_id.as_str(), participant.role))
+            .collect::<Vec<_>>(),
+        vec![
+            (LEFT_USER, ParticipantRole::Member),
+            (USER_A, ParticipantRole::Owner),
+        ]
+    );
+    assert_eq!(disabled_participants, vec![USER_A]);
+    assert_eq!(
+        enabled_channel_id.participant_user_ids,
+        vec![macro_user_id(LEFT_USER), macro_user_id(USER_A)]
+    );
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn patch_channel_converts_to_team_and_updates_auto_join_members(pool: Pool<Postgres>) {
+    let repo = repo(pool.clone());
+    let user_id = macro_user_id(TEAM_OWNER_A);
+    sqlx::query!(
+        r#"
+        INSERT INTO team_user (user_id, team_id, team_role)
+        VALUES ($1, $2, 'admin'::team_role)
+        "#,
+        TEAM_OWNER_A,
+        TEAM_A,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query!(
+        r#"
+        INSERT INTO comms_channel_participants (channel_id, user_id, role)
+        VALUES ($1, $2, 'admin'::comms_participant_role)
+        "#,
+        CH1,
+        TEAM_OWNER_A,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    assert_eq!(repo.get_user_team_id(&user_id).await.unwrap(), Some(TEAM_A));
+
+    repo.patch_channel(
+        CH1,
+        TEAM_OWNER_A.to_string(),
+        Some(TEAM_A),
+        PatchChannelRequest {
+            channel_name: None,
+            convert_to_team_channel: Some(true),
+            auto_join_team: Some(true),
+        },
+    )
+    .await
+    .unwrap();
+
+    let channel = sqlx::query!(
+        r#"
+        SELECT
+            channel_type AS "channel_type: ChannelType",
+            team_id,
+            auto_join_team
+        FROM comms_channels
+        WHERE id = $1
+        "#,
+        CH1,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(channel.channel_type, ChannelType::Team);
+    assert_eq!(channel.team_id, Some(TEAM_A));
+    assert!(channel.auto_join_team);
+
+    let rejoined_team_member = sqlx::query!(
+        r#"
+        SELECT role AS "role: ParticipantRole", left_at
+        FROM comms_channel_participants
+        WHERE channel_id = $1 AND user_id = $2
+        "#,
+        CH1,
+        LEFT_USER,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rejoined_team_member.role, ParticipantRole::Member);
+    assert!(rejoined_team_member.left_at.is_none());
+
+    let participant_count = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM comms_channel_participants WHERE channel_id = $1",
+        CH1,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    repo.patch_channel(
+        CH1,
+        TEAM_OWNER_A.to_string(),
+        Some(TEAM_A),
+        PatchChannelRequest {
+            channel_name: None,
+            convert_to_team_channel: None,
+            auto_join_team: Some(false),
+        },
+    )
+    .await
+    .unwrap();
+
+    let auto_join_team = sqlx::query_scalar!(
+        "SELECT auto_join_team FROM comms_channels WHERE id = $1",
+        CH1,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let participant_count_after = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM comms_channel_participants WHERE channel_id = $1",
+        CH1,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!auto_join_team);
+    assert_eq!(participant_count_after, participant_count);
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../fixtures", scripts("channels_repo")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn patch_team_channel_converts_to_private_and_clears_team_settings(pool: Pool<Postgres>) {
+    let repo = repo(pool.clone());
+    let participant_count = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM comms_channel_participants WHERE channel_id = $1",
+        TEAM_A_AUTO_ACTIVE,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    repo.patch_channel(
+        TEAM_A_AUTO_ACTIVE,
+        LEFT_USER.to_string(),
+        None,
+        PatchChannelRequest {
+            channel_name: None,
+            convert_to_team_channel: Some(false),
+            auto_join_team: Some(true),
+        },
+    )
+    .await
+    .unwrap();
+
+    let channel = sqlx::query!(
+        r#"
+        SELECT
+            channel_type AS "channel_type: ChannelType",
+            team_id,
+            auto_join_team
+        FROM comms_channels
+        WHERE id = $1
+        "#,
+        TEAM_A_AUTO_ACTIVE,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(channel.channel_type, ChannelType::Private);
+    assert_eq!(channel.team_id, None);
+    assert!(!channel.auto_join_team);
+
+    let participant_count_after = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM comms_channel_participants WHERE channel_id = $1",
+        TEAM_A_AUTO_ACTIVE,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(participant_count_after, participant_count);
 }
 
 #[sqlx::test(
@@ -2071,18 +2439,26 @@ async fn delete_entity_mention_by_id_removes_only_targeted_row(
         .create_entity_mention(mention_opts("doc-3", "user", "user-w", None))
         .await?;
 
-    assert!(repo.delete_entity_mention_by_id(target.id).await?);
+    let deleted = repo
+        .delete_entity_mention_by_id(target.id)
+        .await?
+        .expect("deleted row should be returned");
+    assert_eq!(deleted.id, target.id);
     assert!(repo.get_entity_mention_by_id(target.id).await?.is_none());
     assert!(repo.get_entity_mention_by_id(other.id).await?.is_some());
     Ok(())
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
-async fn delete_entity_mention_by_id_returns_false_when_missing(
+async fn delete_entity_mention_by_id_returns_none_when_missing(
     pool: Pool<Postgres>,
 ) -> anyhow::Result<()> {
     let repo = repo(pool);
-    assert!(!repo.delete_entity_mention_by_id(Uuid::new_v4()).await?);
+    assert!(
+        repo.delete_entity_mention_by_id(Uuid::new_v4())
+            .await?
+            .is_none()
+    );
     Ok(())
 }
 

@@ -8,6 +8,7 @@ import {
 import { useGoToTempRedirect } from '@block-md/signal/location';
 import { mdStore } from '@block-md/signal/markdownBlockData';
 import { SidePanel } from '@components/app/side-panel';
+import { useCanAutofocusSplitContent } from '@components/app/split-layout/layoutUtils';
 import { useNavigatedFromJK } from '@components/app/useNavigatedFromJK';
 import { useBlockAliasedName, useBlockId } from '@core/block';
 import {
@@ -128,6 +129,7 @@ export function Notebook(props: {
   const md = mdStore.get;
   const history = useHistory();
   const { navigatedFromJK } = useNavigatedFromJK();
+  const canAutofocusSplitContent = useCanAutofocusSplitContent();
   const documentId = props.documentId;
   const canEdit = useCanEdit();
   const inlineAiEditing = useFeatureFlag(INLINE_AI_EDITING_FLAG, {
@@ -267,10 +269,11 @@ export function Notebook(props: {
     }
   });
 
-  // In preview mode, switching between Soup tabs was causing this createEffect to overflow the stack. We should figure out that root cause, this flag fixes it for now.
+  // Wait for the block element before claiming focus on initial mount.
   let hasRun = false;
   createEffect(() => {
     if (hasRun) return;
+    if (!canAutofocusSplitContent) return;
     if (!blockElement()) return;
     blockElement()?.focus();
     hasRun = true;
@@ -376,7 +379,9 @@ export function Notebook(props: {
             </Show>
           </div>
         </SidePanel.Section>
-        <TitleEditor autoFocusOnMount={!navigatedFromJK()} />
+        <TitleEditor
+          autoFocusOnMount={canAutofocusSplitContent && !navigatedFromJK()}
+        />
         <div class="spacer h-3" />
         <div class="mb-6 flex flex-row flex-wrap items-center gap-2 text-sm empty:hidden">
           <InlineTaskProperties />

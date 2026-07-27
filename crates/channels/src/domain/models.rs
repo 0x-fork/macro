@@ -709,6 +709,15 @@ pub struct CreateChannelRequest {
     pub participants: HashSet<MacroUserIdStr<'static>>,
 }
 
+/// Persisted channel data returned by channel creation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CreatedChannel {
+    /// Created channel id.
+    pub id: Uuid,
+    /// All active user participants added during creation.
+    pub participant_user_ids: Vec<MacroUserIdStr<'static>>,
+}
+
 /// Response containing a channel's reusable join code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "inbound", derive(utoipa::ToSchema))]
@@ -759,6 +768,13 @@ pub struct GetOrCreateChannelResponse {
 pub struct PatchChannelRequest {
     /// New channel name.
     pub channel_name: Option<String>,
+    /// Sets whether the channel is a team channel.
+    ///
+    /// `true` converts a non-team channel to a team channel, while `false`
+    /// converts a team channel to a private channel.
+    pub convert_to_team_channel: Option<bool>,
+    /// Whether team members should automatically join the channel.
+    pub auto_join_team: Option<bool>,
 }
 
 /// New attachment to add to a channel message.
@@ -783,6 +799,16 @@ pub struct SimpleMention {
     pub entity_type: String,
     /// Mentioned entity id.
     pub entity_id: String,
+}
+
+impl SimpleMention {
+    /// Construct a tracked mention of a Macro user.
+    pub fn user(user_id: &MacroUserIdStr<'_>) -> Self {
+        Self {
+            entity_type: "user".to_string(),
+            entity_id: user_id.as_ref().to_string(),
+        }
+    }
 }
 
 /// Shareable entity type referenced by a channel message.
@@ -866,6 +892,8 @@ pub enum PostMessageNotificationPolicy {
     /// Apply the normal channel notification rules.
     #[default]
     Default,
+    /// Notify tracked mentions without reply, channel-message, or channel-invite notifications.
+    MentionsOnly,
     /// Do not send notifications for this post. Realtime/search side effects still run.
     Silent,
 }
@@ -1256,6 +1284,10 @@ pub struct ChannelWithParticipants {
     pub channel: ChannelListItem,
     /// Active channel participants.
     pub participants: Vec<ChannelParticipant>,
+    /// Whether the requesting user is an active participant of the channel
+    /// (has a `comms_channel_participants` row with `left_at IS NULL`).
+    /// False for team channels of the user's teams they have not joined.
+    pub is_participant: bool,
 }
 
 /// Channel list item.
@@ -1272,6 +1304,8 @@ pub struct ChannelListItem {
     pub org_id: Option<i64>,
     /// Team id.
     pub team_id: Option<Uuid>,
+    /// Whether team members automatically join the channel.
+    pub auto_join_team: bool,
     /// Creation timestamp.
     pub created_at: DateTime<Utc>,
     /// Update timestamp.

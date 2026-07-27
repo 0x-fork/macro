@@ -55,9 +55,11 @@ local-e2e-seed:
 # `just seed-scenario apply --file seed/scenarios/team-perms.json`.
 # Add --force to drop and re-migrate the local database first (pristine world).
 # `just seed-scenario status` reports what's applied and re-prints login links.
+# Pass `--instance <name>` before the scenario subcommand to target a named
+# `run_local` stack. Omitting it targets the default `macro` instance.
 [positional-arguments]
 seed-scenario *ARGS:
-  @just tooling/seed_cli/scenario "$@"
+  @{{ xtask }} seed-scenario "$@"
 
 # Start only the services needed by the local E2E suites. Avoid unrelated
 # local services with extra env/dependency requirements blocking E2E.

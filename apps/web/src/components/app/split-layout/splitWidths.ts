@@ -21,6 +21,11 @@ const SPLIT_MIN_WIDTH_OVERRIDES: Partial<Record<ListView, number>> = {
   channels: 360,
 };
 
+/** Minimum width (px) for a list-view component split. */
+export function listViewSplitMinWidth(view: ListView): number {
+  return SPLIT_MIN_WIDTH_OVERRIDES[view] ?? DEFAULT_SPLIT_MIN_WIDTH;
+}
+
 function minWidthOverride(content: SplitContent): number | undefined {
   if (content.type !== 'component' || !isListViewID(content.id)) return;
   return SPLIT_MIN_WIDTH_OVERRIDES[content.id];

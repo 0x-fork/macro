@@ -6,13 +6,13 @@ use crate::domain::models::{
     BotSenderProfile, ChannelAttachment, ChannelAttachmentType, ChannelContextMessage, ChannelInfo,
     ChannelJoinCodeResponse, ChannelMessageFilters, ChannelMetadata, ChannelParticipant,
     ChannelPreview, ChannelPreviewRow, CountedReaction, CreateChannelRequest,
-    CreateChannelResponse, CreateEntityMentionOptions, DeleteMessageQuery, EntityMention,
-    GetOrCreateChannelResponse, GetOrCreateDmRequest, GetOrCreatePrivateRequest, MessageAttachment,
-    MessagePageDirection, MutatedAttachment, MutatedMessage, NewChannelAttachment,
-    PatchChannelRequest, PatchMessageRequest, PostMessageRequest, PostMessageResponse,
-    PostReactionRequest, PostTypingRequest, ReferencedShareItem, RemoveParticipantsRequest,
-    ResolvedChannelMessage, Sender, SimpleMention, ThreadData, ThreadReply, ThreadReplyRow,
-    TopLevelMessageRow,
+    CreateChannelResponse, CreateEntityMentionOptions, CreatedChannel, DeleteMessageQuery,
+    EntityMention, GetOrCreateChannelResponse, GetOrCreateDmRequest, GetOrCreatePrivateRequest,
+    MessageAttachment, MessagePageDirection, MutatedAttachment, MutatedMessage,
+    NewChannelAttachment, PatchChannelRequest, PatchMessageRequest, PostMessageRequest,
+    PostMessageResponse, PostReactionRequest, PostTypingRequest, ReferencedShareItem,
+    RemoveParticipantsRequest, ResolvedChannelMessage, Sender, SimpleMention, ThreadData,
+    ThreadReply, ThreadReplyRow, TopLevelMessageRow,
 };
 #[cfg(feature = "list")]
 use crate::domain::models::{
@@ -266,13 +266,19 @@ pub trait ChannelRepo: Send + Sync + 'static {
         team_id: Uuid,
     ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
 
-    /// Create a channel.
+    /// Fetch the team a user belongs to, if any.
+    fn get_user_team_id<'a>(
+        &self,
+        user_id: &MacroUserIdStr<'a>,
+    ) -> impl Future<Output = Result<Option<Uuid>, Self::Err>> + Send;
+
+    /// Create a channel and return its complete active participant set.
     fn create_channel<'a>(
         &self,
         owner_id: MacroUserIdStr<'a>,
         org_id: Option<i64>,
         req: CreateChannelRequest,
-    ) -> impl Future<Output = Result<Uuid, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<CreatedChannel, Self::Err>> + Send;
 
     /// Add or reactivate a user in every auto-join channel for a team.
     fn auto_join_by_team_id<'a>(
@@ -311,10 +317,13 @@ pub trait ChannelRepo: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<Uuid>, Self::Err>> + Send;
 
     /// Patch a channel.
+    ///
+    /// `team_id` is the channel's effective team after any requested conversion.
     fn patch_channel(
         &self,
         channel_id: Uuid,
         user_id: String,
+        team_id: Option<Uuid>,
         req: PatchChannelRequest,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
@@ -413,11 +422,11 @@ pub trait ChannelRepo: Send + Sync + 'static {
         id: Uuid,
     ) -> impl Future<Output = Result<Option<EntityMention>, Self::Err>> + Send;
 
-    /// Delete an entity mention by id. Returns whether a row was removed.
+    /// Delete an entity mention by id. Returns the deleted row, if one existed.
     fn delete_entity_mention_by_id(
         &self,
         id: Uuid,
-    ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<Option<EntityMention>, Self::Err>> + Send;
 
     /// Patch message attachment state.
     fn patch_message_attachments(

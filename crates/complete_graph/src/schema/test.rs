@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use axum::http::{Request as HttpRequest, header};
@@ -7,10 +8,11 @@ use email::domain::models::{
     UpsertEmailFilterInput,
 };
 use entity_access::domain::models::{
-    AccessError, AccessLevel, BotId, CallChannelInfo, EditAccessLevel, EntityAccessReceipt,
-    EntityPermission, EntityType, RequiredPermission, TeamRole, UserTeamInfo, ViewAccessLevel,
+    AccessError, AccessLevel, BotAccessScope, BotId, CallChannelInfo, EditAccessLevel,
+    EntityAccessReceipt, EntityPermission, EntityType, RequiredPermission, TeamRole, UserTeamInfo,
+    ViewAccessLevel,
 };
-use graphql_common::GraphqlSoupRequestParts;
+use graphql_common::GraphqlRequestParts;
 use macro_authorization::{
     INTERNAL_API_KEY_HEADER, INTERNAL_MACRO_USER_ID_HEADER, InternalIdentityClaims,
     MacroAuthorizationError, MacroAuthorizationService, MacroAuthorizationState,
@@ -30,6 +32,27 @@ use super::*;
 const VALID_USER_ID: &str = "macro|user@example.com";
 const INTERNAL_USER_ID: &str = "macro|internal@example.com";
 const VALID_INTERNAL_KEY: &str = "valid-internal-key";
+
+#[derive(Clone)]
+struct TestRealtimeSubscriptionService {
+    #[allow(clippy::type_complexity)]
+    receiver: Arc<Mutex<Option<tokio::sync::mpsc::Receiver<Arc<SoupItem<()>>>>>>,
+    subscribed_user: Arc<Mutex<Option<MacroUserIdStr<'static>>>>,
+}
+
+impl SoupRealtimeSubscriptionService for TestRealtimeSubscriptionService {
+    fn subscribe(
+        &self,
+        user_id: MacroUserIdStr<'static>,
+    ) -> tokio::sync::mpsc::Receiver<Arc<SoupItem<()>>> {
+        *self.subscribed_user.lock().expect("subscribed user lock") = Some(user_id);
+        self.receiver
+            .lock()
+            .expect("subscription receiver lock")
+            .take()
+            .expect("test subscription is opened once")
+    }
+}
 
 #[derive(Clone, Default)]
 struct CountingSoupService {
@@ -264,7 +287,6 @@ impl EmailService for CountingEmailService {
 
     async fn update_thread_labels(
         &self,
-        _access_token: &str,
         _link: &Link,
         _thread_id: Uuid,
         _label_id: Uuid,
@@ -318,6 +340,7 @@ impl EntityAccessService for CountingEntityAccessService {
     async fn generate_bot_entity_access_receipt<T: RequiredPermission>(
         &self,
         _bot_id: BotId,
+        _scope: BotAccessScope,
         _entity_id: &str,
         _entity_type: EntityType,
     ) -> Result<EntityAccessReceipt<T>, AccessError> {
@@ -367,7 +390,7 @@ impl EntityAccessService for CountingEntityAccessService {
         _user_id: Option<&MacroUserId<Lowercase<'_>>>,
         _entity_id: &str,
         _entity_type: EntityType,
-    ) -> Result<(EntityPermission, Uuid), AccessError> {
+    ) -> Result<(EntityPermission, Uuid, TeamRole), AccessError> {
         Err(AccessError::Internal)
     }
 
@@ -473,6 +496,7 @@ impl FromRef<TestState> for Arc<CountingEntityAccessService> {
 struct TestHarness {
     schema: SoupSchema<
         CountingSoupService,
+        NoOpSoupRealtimeSubscriptionService,
         CountingEmailService,
         CountingEntityAccessService,
         FakeAuthorizationService,
@@ -556,10 +580,64 @@ impl TestHarness {
         parts: axum::http::request::Parts,
     ) -> async_graphql::Response {
         let request = async_graphql::Request::new(query)
-            .data(GraphqlSoupRequestParts::new(parts))
+            .data(GraphqlRequestParts::new(parts))
             .data(self.state.clone());
         self.schema.execute(request).await
     }
+}
+
+#[tokio::test]
+async fn soup_updates_subscribes_as_the_authenticated_user() {
+    use async_graphql::futures_util::{StreamExt as _, pin_mut};
+
+    let user_id = MacroUserIdStr::parse_from_str(VALID_USER_ID).unwrap();
+    let subscribed_user = Arc::new(Mutex::new(None));
+    let (sender, receiver) = tokio::sync::mpsc::channel(1);
+    let realtime = TestRealtimeSubscriptionService {
+        receiver: Arc::new(Mutex::new(Some(receiver))),
+        subscribed_user: Arc::clone(&subscribed_user),
+    };
+    let schema: SoupSchema<
+        NoOpSoupService,
+        TestRealtimeSubscriptionService,
+        NoOpEmailService,
+        NoOpEntityAccessService,
+        SchemaOnlyAuthorizationService,
+        SchemaOnlyState,
+        NoOpEntityPropertyWriter,
+        NoOpSoupNotificationEdgeReader,
+        NoOpEntityPropertyReader,
+        NoOpSoupEmailContentEdgeReader,
+    > = build_schema_with_services(NoOpSoupService, realtime);
+    let request = async_graphql::Request::new(
+        "subscription { soupUpdates { id entityType entity { __typename ... on GraphqlSoupDocument { id name } } } }",
+    )
+    .data(user_id.clone());
+    let responses = schema.execute_stream(request);
+    pin_mut!(responses);
+
+    let document_id = Uuid::from_u128(42);
+    sender
+        .send(Arc::new(grouped_document(document_id).map_extra(|_| ())))
+        .await
+        .expect("subscription remains open");
+    let response = responses.next().await.expect("one subscription response");
+
+    assert!(response.errors.is_empty(), "{:?}", response.errors);
+    let data = response.data.into_json().expect("response data is JSON");
+    assert_eq!(data["soupUpdates"]["id"], document_id.to_string());
+    assert_eq!(data["soupUpdates"]["entityType"], "DOCUMENT");
+    assert_eq!(
+        data["soupUpdates"]["entity"]["name"],
+        format!("Document {document_id}")
+    );
+    assert_eq!(
+        subscribed_user
+            .lock()
+            .expect("subscribed user lock")
+            .as_ref(),
+        Some(&user_id)
+    );
 }
 
 #[tokio::test]

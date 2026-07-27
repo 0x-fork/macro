@@ -14,6 +14,7 @@ use crate::{
 };
 use analytics_client::{AnalyticsClient, AnalyticsClientConfig, MetaConfig};
 use anyhow::Context;
+use bots::{domain::service::BotServiceImpl, outbound::pg_bots_repo::PgBotsRepo};
 use cal::{
     domain::service::{CalConfig, CalEventMeta, CalWebhookServiceImpl},
     inbound::cal_webhook_router::CalWebhookRouterState,
@@ -77,7 +78,10 @@ use github::outbound::github_sync_client::GithubSyncClientImpl;
 use github::outbound::pg_github_sync_repo::PgGithubSyncRepo;
 use lexical_client::LexicalClient;
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
-use macro_authorization::{InternalAuthConfig, MacroAuthJwtValidator, MacroAuthorizationState};
+use macro_authorization::{
+    InternalAuthConfig, MacroAuthJwtValidator, MacroAuthorizationServiceImpl,
+    MacroAuthorizationState, PgBotAuthorizationRepo, PgBotAuthorizer,
+};
 use macro_entrypoint::MacroEntrypoint;
 use macro_env_var::maybe_env_vars;
 use macro_event_broker::{KafkaEventPublisher, MacroEventBrokerService};
@@ -86,7 +90,6 @@ use macro_service_urls::{
 };
 use macro_sha_count_client::Redis;
 use notification::domain::service::SqsNotificationIngress;
-#[cfg(feature = "graphql")]
 use notification::domain::service::{NotificationReaderService, PlatformArnConfig};
 use notification::outbound::queue::SqsQueue;
 use opensearch_client::OpensearchClient;
@@ -106,6 +109,13 @@ use secretsmanager_client::SecretManager;
 use soup::{
     domain::service::SoupImpl, inbound::axum_router::SoupRouterState,
     outbound::pg_soup_repo::PgSoupRepo,
+};
+use soup_realtime::{
+    domain::service::{SoupRealtimeConsumerService, SoupRealtimeServiceImpl},
+    outbound::{
+        entity_access::EntityAccessExpander, kafka_publisher::KafkaSoupRealtimePublisher,
+        soup_consumer::SoupTopicConsumer, soup_item_reader::SoupRepoItemReader,
+    },
 };
 use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
@@ -255,13 +265,23 @@ async fn main() -> anyhow::Result<()> {
     let jwt_validation_args =
         JwtValidationArgs::new_with_secret_manager(config.environment, &secretsmanager_client)
             .await?;
-    let authorization_state = MacroAuthorizationState::new(Arc::new(AuthorizationService::new(
+
+    let macro_event_broker = MacroEventBrokerService::new(
+        KafkaEventPublisher::new(config.kafka_brokers.as_ref())
+            .context("failed to create kafka event publisher")?,
+    );
+    let bots_repo = PgBotsRepo::new(db.clone());
+    let bots_service = BotServiceImpl::new(bots_repo, macro_event_broker.clone());
+
+    let authorization_service: AuthorizationService = MacroAuthorizationServiceImpl::new(
         MacroAuthJwtValidator::new(jwt_validation_args.clone()),
         InternalAuthConfig {
             api_key: dss_auth_key.as_ref().to_string(),
             default_user_id: Some(MACRO_INTERNAL_USER_ID.to_string()),
         },
-    )));
+        PgBotAuthorizer::new(PgBotAuthorizationRepo::new(db.clone())),
+    );
+    let authorization_state = MacroAuthorizationState::new(Arc::new(authorization_service));
 
     // Initialize OpenSearch client
     let opensearch_client = OpensearchClient::new(
@@ -314,7 +334,6 @@ async fn main() -> anyhow::Result<()> {
     let notification_ingress_service = Arc::new(SqsNotificationIngress {
         queue: ingress_queue.clone(),
     });
-    #[cfg(feature = "graphql")]
     let graphql_notification_reader: Arc<ai_tools::ToolNotificationService> =
         Arc::new(NotificationReaderService {
             repository: notification::outbound::repository::DbNotificationRepository::new(
@@ -419,11 +438,6 @@ async fn main() -> anyhow::Result<()> {
         entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
             entity_access_management::outbound::PgRepository::new(db.clone()),
         );
-
-    let macro_event_broker = MacroEventBrokerService::new(
-        KafkaEventPublisher::new(config.kafka_brokers.as_ref())
-            .context("failed to create kafka event publisher")?,
-    );
 
     let project_service = Arc::new(ProjectServiceImpl::new(
         PgProjectRepo::new(db.clone()),
@@ -779,9 +793,6 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(PgTaskMatchRepo::new(db.clone())),
     ));
     let channels_repo = PgChannelsRepo::new(db.clone());
-    let bots_repo = bots::outbound::pg_bots_repo::PgBotsRepo::new(db.clone());
-    let bots_service =
-        bots::domain::service::BotServiceImpl::new(bots_repo.clone(), macro_event_broker.clone());
     let (bot_trigger_sender, bot_trigger_receiver) = tokio::sync::mpsc::unbounded_channel();
 
     let channel_side_effects = ChannelSideEffectService::new(
@@ -811,9 +822,10 @@ async fn main() -> anyhow::Result<()> {
     let mut macro_agent_tool_context = ai_tools::build_tool_service_context_from_env(db.clone())
         .await
         .context("failed to build Macro agent tool context")?;
-    // Wire the agent's SendChannelMessage tool to the same side-effect pipeline
-    // as the HTTP API, so messages it posts fire notifications and realtime
-    // updates (the generic env builder uses a no-op dispatcher otherwise).
+    // Wire the agent's SendChannelMessage tool to this service's own
+    // side-effect pipeline so agent-posted messages share the exact instance
+    // used by the HTTP API, including the in-process bot trigger sender (the
+    // env builder wires an equivalent pipeline, but without bot triggers).
     macro_agent_tool_context.channel_tool_context =
         ai_tools::build_channel_tool_context_with_dispatcher(
             db.clone(),
@@ -848,6 +860,56 @@ async fn main() -> anyhow::Result<()> {
         foreign_entity_service_for_soup,
     ));
 
+    let soup_realtime_service = Arc::new(SoupRealtimeConsumerService::new(
+        SoupTopicConsumer::from_env(config.kafka_brokers.as_ref()).map_err(|error| {
+            anyhow::anyhow!("failed to create realtime Soup topic consumer: {error:?}")
+        })?,
+    ));
+    tokio::spawn({
+        let soup_realtime_service = Arc::clone(&soup_realtime_service);
+        async move {
+            loop {
+                let _ = soup_realtime_service.run().await.inspect_err(|error| {
+                    tracing::error!(
+                        error = ?error,
+                        "realtime Soup subscription consumer stopped"
+                    );
+                });
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+        }
+    });
+
+    tokio::spawn({
+        let brokers = config.kafka_brokers.as_ref().to_string();
+        let entity_access_service = entity_access_service.as_ref().clone();
+        let soup_pool = readonly_pool::ReadOnlyPool(readonly_db.clone());
+        let macro_event_broker = macro_event_broker.clone();
+        async move {
+            loop {
+                let fanout_service = SoupRealtimeServiceImpl::new(
+                    EntityAccessExpander::new(entity_access_service.clone()),
+                    SoupRepoItemReader::new(PgSoupRepo::new(soup_pool.clone())),
+                    KafkaSoupRealtimePublisher::new(macro_event_broker.clone()),
+                );
+                tracing::info!("starting realtime Soup document consumer");
+                let result = fanout_service
+                    .run_document_update_consumer(&brokers, std::future::pending::<()>())
+                    .await;
+                match result {
+                    Ok(()) => {
+                        tracing::error!("realtime Soup document consumer exited unexpectedly")
+                    }
+                    Err(error) => tracing::error!(
+                        error = ?error,
+                        "realtime Soup document consumer exited unexpectedly"
+                    ),
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        }
+    });
+
     let favorites_service = Arc::new(FavoritesServiceImpl::new(PgFavoritesRepo::new(db.clone())));
 
     let api_context = ApiContext {
@@ -867,9 +929,10 @@ async fn main() -> anyhow::Result<()> {
             authorization_state.clone(),
         ),
         favorites_service,
-        #[cfg(feature = "graphql")]
-        graphql_soup_schema: complete_graph::build_schema_from_arc(soup_service),
-        #[cfg(feature = "graphql")]
+        graphql_soup_schema: complete_graph::build_schema_from_arcs(
+            soup_service,
+            soup_realtime_service,
+        ),
         graphql_notification_reader,
         github_sync_service: Arc::new(github_sync_service_impl),
         foreign_entity_state,

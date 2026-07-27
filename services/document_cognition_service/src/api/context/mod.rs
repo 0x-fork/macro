@@ -60,7 +60,11 @@ pub type DcsAttachmentProvider = AttachmentProvider<
 >;
 
 /// Type alias for the message service wired to concrete DCS services.
-pub type DcsMessageService = MessageServiceImpl<PgChatRepo, DcsAttachmentProvider>;
+pub type DcsMessageService = MessageServiceImpl<
+    PgChatRepo,
+    DcsAttachmentProvider,
+    macro_event_broker::MacroEventBrokerService<macro_event_broker::KafkaEventPublisher>,
+>;
 
 #[cfg(test)]
 mod test;
@@ -95,6 +99,18 @@ pub type DcsMcpRouterState = mcp_client::inbound::McpRouterState<
     DcsAuthorizationService,
 >;
 
+/// The import pipeline service, shared between the import router, the chat
+/// toolset, and the onboarding flow.
+pub type DcsImportService = ai_tools::ToolImportService;
+
+/// The onboarding orchestrator wired to the Postgres repo, the MCP server
+/// store, and the import service.
+pub type DcsOnboardingService = onboarding::domain::service::OnboardingServiceImpl<
+    onboarding::outbound::pg_onboarding_repo::PgOnboardingRepo,
+    mcp_client::outbound::pg_server_repo::PgServerRepo,
+    DcsImportService,
+>;
+
 #[derive(Clone, FromRef)]
 pub struct ApiContext {
     pub db: PgPool,
@@ -126,6 +142,11 @@ pub struct ApiContext {
     pub message_service: Arc<DcsMessageService>,
     pub ai_stream_registry: AiStreamRegistry,
     pub mcp_state: DcsMcpRouterState,
+    pub import_service: Arc<DcsImportService>,
+    pub onboarding_service: Arc<DcsOnboardingService>,
+    /// Kafka-backed macro event broker for publishing domain events.
+    pub macro_event_broker:
+        macro_event_broker::MacroEventBrokerService<macro_event_broker::KafkaEventPublisher>,
 }
 
 impl FromRef<ApiContext>
