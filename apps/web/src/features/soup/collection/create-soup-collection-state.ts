@@ -19,8 +19,8 @@ import {
   type FacetSelection,
   serializeFacets,
   testFacets,
-} from '../filtering/facet-store';
-import type { FacetCtx } from '../filtering/facets/base';
+} from '../filters/facet-store';
+import type { FacetCtx } from '../filters/facets/base';
 import type { SortConfig } from './sort-config';
 
 export type SoupCollectionSort = {

@@ -7,7 +7,7 @@ import type {
 import {
   deserializeFacets,
   NIL_UUID,
-} from '@app/features/soup/filtering/facet-store';
+} from '@app/features/soup/filters/facet-store';
 import type { CrmViewConfig } from '@companies/crm/saved-views';
 import { batch } from 'solid-js';
 import type { SoupViewContextValue } from '../../context';

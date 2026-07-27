@@ -12,7 +12,7 @@ import {
 } from '@queries/soup/search';
 import type { UnifiedSearchRequest } from '@service-search/generated/models';
 import { type Accessor, createMemo, on, type Setter } from 'solid-js';
-import type { FacetCtx } from '../../filtering/facets';
+import type { FacetCtx } from '../../filters/facets';
 import type { SoupFacets } from '../create-soup-collection-state';
 import { buildSearchEntityFilters } from './build-soup-search-filters';
 

@@ -2,7 +2,7 @@ export type {
   Facet,
   FacetOption,
   FacetSelection,
-} from '../filtering/facet-store';
+} from '../filters/facet-store';
 export type {
   CreateSoupCollectionOptions,
   SoupCollection,

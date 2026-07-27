@@ -14,6 +14,8 @@ import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { Property, PropertyDefinitionDomain } from '@property/types';
 import { macroEntityToPropertyEntityType } from '@property/utils';
 import { onCleanup } from 'solid-js';
+import { useSoupView } from '../view/context';
+import { useIsNewInbox } from '../view/primitives/use-is-new-inbox';
 import {
   makeCopyAction,
   makeCopyBranchNameAction,
@@ -27,17 +29,15 @@ import {
   makeRenameAction,
   makeSetCompanyPropertyAction,
   makeShareAction,
-} from '../../actions';
+} from '.';
 import {
   getSelectedEntities,
   type SoupActionListState,
-} from '../../actions/list-action-state';
+} from './list-action-state';
 import {
   canExecuteMarkDoneOnView,
   makeMarkDoneAction,
-} from '../../actions/make-mark-done-action';
-import { useSoupView } from '../context';
-import { useIsNewInbox } from '../primitives/use-is-new-inbox';
+} from './make-mark-done-action';
 
 type UseEntityActionHotkeysOptions = {
   scopeId: string;

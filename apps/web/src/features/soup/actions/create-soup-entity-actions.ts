@@ -18,6 +18,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import { type EntityData, isNonMemberChannelEntity } from '@entity';
 import { useSetCompanyHiddenMutation } from '@queries/crm/companies';
 import type { Component, JSX } from 'solid-js';
+import { useIsNewInbox } from '../view/primitives/use-is-new-inbox';
 import {
   makeBlockSenderAction,
   makeCopyAction,
@@ -36,13 +37,12 @@ import {
   makeRenameAction,
   makeSetCompanyPropertyAction,
   makeShareAction,
-} from '../../actions';
-import type { SoupActionListState } from '../../actions/list-action-state';
+} from '.';
+import type { SoupActionListState } from './list-action-state';
 import {
   canExecuteMarkDoneOnView,
   makeMarkDoneAction,
-} from '../../actions/make-mark-done-action';
-import { useIsNewInbox } from '../primitives/use-is-new-inbox';
+} from './make-mark-done-action';
 
 const SIGNAL_TABS = new Set<string | undefined>([
   undefined,

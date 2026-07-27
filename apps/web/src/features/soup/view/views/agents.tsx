@@ -84,7 +84,7 @@ function AgentsEmptyState() {
 }
 
 function AgentsListViewContent() {
-  const { viewName } = useSoupView();
+  const { sortVisible, viewName } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
@@ -106,7 +106,7 @@ function AgentsListViewContent() {
           }}
           listScopeId={listScopeId}
         >
-          <SoupViewHeader />
+          <SoupViewHeader sortVisible={sortVisible()} />
           <SoupMobileControls />
 
           <div

@@ -16,7 +16,7 @@ import {
 import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
 import type { SoupApiItem } from '@service-storage/generated/schemas';
 import { type Accessor, createMemo } from 'solid-js';
-import type { FacetCtx } from '../../filtering/facets';
+import type { FacetCtx } from '../../filters/facets';
 import type { SoupCollectionControls } from '../create-soup-collection-state';
 
 const API_SORTS = new Set<ApiSortMethod>([

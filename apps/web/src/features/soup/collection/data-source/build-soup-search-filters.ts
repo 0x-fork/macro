@@ -3,11 +3,11 @@ import type {
   EntityFilters,
   PropertyFilter,
 } from '@service-search/generated/models';
-import type { FacetSelection } from '../../filtering/facet-store';
-import { NIL_UUID } from '../../filtering/facet-store';
-import { NO_ASSIGNEE } from '../../filtering/facets/base';
-import { DOCUMENT_SEARCH_FILE_TYPES } from '../../filtering/facets/documents';
-import { isSearchTaggableType } from '../../filtering/search-type-capabilities';
+import type { FacetSelection } from '../../filters/facet-store';
+import { NIL_UUID } from '../../filters/facet-store';
+import { NO_ASSIGNEE } from '../../filters/facets/base';
+import { DOCUMENT_SEARCH_FILE_TYPES } from '../../filters/facets/documents';
+import { isSearchTaggableType } from '../../filters/search-type-capabilities';
 
 type SearchTypeValue =
   | 'all'

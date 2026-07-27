@@ -1,7 +1,7 @@
 import type { ListView } from '@app/constants/list-views';
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
-import { ALL_FACETS } from '../filtering/facets';
+import { ALL_FACETS } from '../filters/facets';
 import type {
   CreateSoupCollectionStateOptions,
   SoupCollectionControls,

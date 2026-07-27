@@ -21,7 +21,7 @@ import { Match, Switch } from 'solid-js';
 import {
   clearFacetRefinements,
   hasFacetRefinements,
-} from '../filters/facet-refinements';
+} from './filters/facet-refinements';
 
 export function SoupErrorState() {
   return (

@@ -31,7 +31,7 @@ export type TasksListViewProps = {
 };
 
 function TasksListViewContent() {
-  const { viewName } = useSoupView();
+  const { sortVisible, viewName } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
@@ -53,7 +53,7 @@ function TasksListViewContent() {
           }}
           listScopeId={listScopeId}
         >
-          <SoupViewHeader />
+          <SoupViewHeader sortVisible={sortVisible()} />
           <SoupMobileControls />
           <div
             ref={setListContent}

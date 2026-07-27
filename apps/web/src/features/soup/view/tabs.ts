@@ -13,7 +13,7 @@ export type TabbedListView = Extract<
   | 'folders'
 >;
 
-export const VIEW_TAB_LISTS: Record<TabbedListView, TabItem[]> = {
+export const VIEW_TAB_LISTS: Record<TabbedListView | 'companies', TabItem[]> = {
   inbox: [
     { value: 'signal', label: 'Signal' },
     { value: 'noise', label: 'Noise' },
@@ -59,5 +59,9 @@ export const VIEW_TAB_LISTS: Record<TabbedListView, TabItem[]> = {
   folders: [
     { value: 'owned', label: 'Owned' },
     { value: 'all', label: 'All' },
+  ],
+  companies: [
+    { value: 'board', label: 'Board' },
+    { value: 'list', label: 'List' },
   ],
 };

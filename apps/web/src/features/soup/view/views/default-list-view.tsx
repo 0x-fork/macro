@@ -58,7 +58,7 @@ export function SoupViewImplementation(props: DefaultListViewProps) {
 }
 
 export function DefaultListViewContent() {
-  const { view, viewName } = useSoupView();
+  const { sortVisible, view, viewName } = useSoupView();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
@@ -80,7 +80,7 @@ export function DefaultListViewContent() {
           }}
           listScopeId={listScopeId}
         >
-          <SoupViewHeader />
+          <SoupViewHeader sortVisible={sortVisible()} />
           <SoupMobileControls />
 
           <div

@@ -39,7 +39,7 @@ import { openSingleStackNotification } from '@notifications';
 import { debounce } from '@solid-primitives/scheduled';
 import { type Accessor, createEffect, createMemo, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
-import { useEntityActionHotkeys } from '../actions/use-entity-action-hotkeys';
+import { useEntityActionHotkeys } from '../../actions/use-entity-action-hotkeys';
 
 const LOAD_MORE_DISTANCE_FROM_END = 3;
 const NUMBER_TAB_HOTKEYS = [

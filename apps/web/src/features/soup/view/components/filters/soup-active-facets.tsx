@@ -2,12 +2,12 @@ import type { FacetSelection } from '@app/features/soup/collection';
 import {
   type ConsolidatedFilter,
   ConsolidatedFilterChip,
-} from '@app/features/soup/view/filters/consolidated-filter-chip';
+} from '@app/features/soup/view/components/filters/consolidated-filter-chip';
 import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import { Button, Dropdown, Layer } from '@ui';
 import { For, Show } from 'solid-js';
-import { useSoupView } from '../context';
+import { useSoupView } from '../../context';
 import {
   clearFacetControlRefinements,
   facetControlResetValue,

@@ -1,4 +1,4 @@
-import { NIL_UUID } from '@app/features/soup/filtering/facet-store';
+import { NIL_UUID } from '@app/features/soup/filters/facet-store';
 
 export const isNoInboxesSelection = (selected: readonly string[]) =>
   selected.includes(NIL_UUID);

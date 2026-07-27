@@ -107,6 +107,7 @@ function CompaniesListViewContent() {
     collection,
     defaultTab,
     isTabAvailable,
+    sortVisible,
     viewMode,
     viewName,
   } = useSoupView();
@@ -151,7 +152,7 @@ function CompaniesListViewContent() {
           }}
           listScopeId={listScopeId}
         >
-          <SoupViewHeader />
+          <SoupViewHeader sortVisible={sortVisible()} />
           <SoupMobileControls />
           <div
             ref={setListContent}

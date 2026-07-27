@@ -1,10 +1,7 @@
 import { TAGGABLE_LIST_VIEWS } from '@app/constants/list-views';
-import type { FacetId } from '@app/features/soup/filtering/facets';
-import {
-  NO_ASSIGNEE,
-  NO_STAGE,
-} from '@app/features/soup/filtering/facets/base';
-import { isSearchTaggableType } from '@app/features/soup/filtering/search-type-capabilities';
+import type { FacetId } from '@app/features/soup/filters/facets';
+import { NO_ASSIGNEE, NO_STAGE } from '@app/features/soup/filters/facets/base';
+import { isSearchTaggableType } from '@app/features/soup/filters/search-type-capabilities';
 import { useSoupView } from '@app/features/soup/view/context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useDealStages } from '@companies/crm/deal-stages';
@@ -32,7 +29,7 @@ import {
   createSearchFacetController,
   type SoupSearchType,
   sanitizeSearchTypeAvailability,
-} from '../views/search/search-facet-state';
+} from '../../views/search/search-facet-state';
 import {
   buildContactLabel,
   type FilterOption,

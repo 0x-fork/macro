@@ -40,7 +40,6 @@ import {
   type PresetContext,
   VIEW_TAB_PRESETS,
 } from './soup-view-presets';
-import { showSoupSort } from './utils/show-soup-sort';
 
 const SOUP_VIEW_STATE_ENTRY_KEY = 'soup.viewState';
 
@@ -182,7 +181,9 @@ export function SoupViewProvider(
   );
 
   const tabbedView = (): TabbedListView | undefined =>
-    props.view in VIEW_TAB_LISTS ? (props.view as TabbedListView) : undefined;
+    props.view !== 'companies' && props.view in VIEW_TAB_LISTS
+      ? (props.view as TabbedListView)
+      : undefined;
 
   const tabs = () => {
     const view = tabbedView();
@@ -346,7 +347,11 @@ export function SoupViewProvider(
 
     sortOpen,
     setSortOpen,
-    sortVisible: () => showSoupSort(props.view, isNewInbox()),
+    sortVisible: () =>
+      props.view !== 'search' &&
+      props.view !== 'companies' &&
+      props.view !== 'calls' &&
+      !(props.view === 'inbox' && isNewInbox()),
 
     collapseEntity: {
       callback: collapseEntityCallback,

@@ -1,7 +1,7 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import type { FacetSelection, SoupRow } from '@app/features/soup/collection';
-import { NIL_UUID } from '@app/features/soup/filtering/facet-store';
+import { NIL_UUID } from '@app/features/soup/filters/facet-store';
 import { useSoupView } from '@app/features/soup/view/context';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -61,7 +61,7 @@ function SearchProgress(props: { label: string }) {
 function SearchListViewContent() {
   const { dataSource, state: listState } = useList<SoupRow>();
   const panel = useSplitPanelOrThrow();
-  const { collection, openSearch, viewName } = useSoupView();
+  const { collection, openSearch, sortVisible, viewName } = useSoupView();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const [listContent, setListContent] = createSignal<HTMLDivElement>();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
@@ -99,7 +99,7 @@ function SearchListViewContent() {
           }}
           listScopeId={listScopeId}
         >
-          <SoupViewHeader />
+          <SoupViewHeader sortVisible={sortVisible()} />
           <SoupMobileControls />
 
           <div

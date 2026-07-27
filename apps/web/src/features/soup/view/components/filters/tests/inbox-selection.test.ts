@@ -1,4 +1,4 @@
-import { NIL_UUID } from '@app/features/soup/filtering/facet-store';
+import { NIL_UUID } from '@app/features/soup/filters/facet-store';
 import { describe, expect, it } from 'vitest';
 import {
   encodeInboxSelection,

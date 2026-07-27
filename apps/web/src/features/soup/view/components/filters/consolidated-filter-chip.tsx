@@ -14,7 +14,7 @@ import {
 import {
   SearchableMultiSelect,
   type SearchableOption,
-} from './searchable-multi-select';
+} from '../searchable-multi-select';
 
 export type FilterValue = {
   id: string;

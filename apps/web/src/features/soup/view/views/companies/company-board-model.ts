@@ -1,4 +1,4 @@
-import { NO_STAGE } from '@app/features/soup/filtering/facets/base';
+import { NO_STAGE } from '@app/features/soup/filters/facets/base';
 
 export const NO_STAGE_KEY = '';
 

@@ -1,5 +1,5 @@
+import { SearchableMultiSelectInline } from '@app/features/soup/view/components/searchable-multi-select';
 import { useSoupView } from '@app/features/soup/view/context';
-import { SearchableMultiSelectInline } from '@app/features/soup/view/filters/searchable-multi-select';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -18,7 +18,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { useIsNewInbox } from '../primitives/use-is-new-inbox';
+import { useIsNewInbox } from '../../primitives/use-is-new-inbox';
 import {
   type SoupFacetControl,
   useSoupFacetControls,

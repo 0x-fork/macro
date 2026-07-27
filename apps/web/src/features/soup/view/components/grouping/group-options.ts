@@ -1,3 +1,4 @@
+import type { ListView } from '@app/constants/list-views';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 
 export type GroupOptionId =
@@ -60,6 +61,12 @@ export const COMPANY_GROUP_OPTIONS: GroupOption[] = [
   { value: `property:${SYSTEM_PROPERTY_IDS.STAGE}`, label: 'Stage' },
   { value: `property:${SYSTEM_PROPERTY_IDS.COMPANY_OWNER}`, label: 'Owner' },
 ];
+
+export const soupGroupOptions = (view: ListView): GroupOption[] => {
+  if (view === 'tasks') return TASK_GROUP_OPTIONS;
+  if (view === 'companies') return COMPANY_GROUP_OPTIONS;
+  return [];
+};
 
 export const TAG_VIEW_GROUP_OPTIONS: GroupOption[] = [
   { value: 'none', label: 'None' },

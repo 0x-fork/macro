@@ -7,8 +7,8 @@ import {
   type FacetSelection,
   NIL_UUID,
   type WhereBag,
-} from '@app/features/soup/filtering/facet-store';
-import { type FacetCtx, facet } from '@app/features/soup/filtering/facets/base';
+} from '@app/features/soup/filters/facet-store';
+import { type FacetCtx, facet } from '@app/features/soup/filters/facets/base';
 import {
   ENABLE_SNIPPETS,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,

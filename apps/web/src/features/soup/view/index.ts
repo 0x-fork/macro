@@ -16,7 +16,6 @@ export { SoupEntityListItem } from './soup-entity-list-item';
 export type { SoupViewProps } from './soup-view';
 export { SoupView } from './soup-view';
 export { SoupViewRoot } from './soup-view-root';
-export { showSoupSort } from './utils/show-soup-sort';
 export { AgentsListView, type AgentsListViewProps } from './views/agents';
 export {
   CompaniesListView,

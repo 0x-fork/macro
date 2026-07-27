@@ -5,10 +5,9 @@ import { isMobile } from '@core/mobile/isMobile';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { Button, Layer } from '@ui';
 import { Show } from 'solid-js';
-
-import { SoupSearchbar } from '../../filters/soup-searchbar';
-import { COMPANY_MODE_TABS } from '../../soup-view-options';
+import { VIEW_TAB_LISTS } from '../../tabs';
 import { SoupSearchFacets } from '../../views/search/soup-search-facets';
+import { SoupSearchbar } from '../soup-searchbar';
 import { SoupMobileFilterDrawer } from './soup-mobile-filter-drawer';
 
 function SoupMobileControlsContent() {
@@ -40,7 +39,7 @@ function SoupMobileControlsContent() {
         }
       >
         <PillTabs
-          items={COMPANY_MODE_TABS}
+          items={VIEW_TAB_LISTS.companies}
           value={viewMode()}
           onChange={(value) => setViewMode(value === 'list' ? 'list' : 'board')}
           class="pointer-events-auto"

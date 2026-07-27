@@ -1,6 +1,6 @@
 import type { SoupCollection } from '@app/features/soup/collection';
-import { NO_ASSIGNEE } from '@app/features/soup/filtering/facets/base';
-import { isSearchTaggableType } from '@app/features/soup/filtering/search-type-capabilities';
+import { NO_ASSIGNEE } from '@app/features/soup/filters/facets/base';
+import { isSearchTaggableType } from '@app/features/soup/filters/search-type-capabilities';
 import { batch } from 'solid-js';
 
 export type SoupSearchType =

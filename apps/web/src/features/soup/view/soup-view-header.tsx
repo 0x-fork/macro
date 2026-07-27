@@ -34,25 +34,20 @@ import {
   onCleanup,
   Show,
 } from 'solid-js';
-
-import { SoupActiveFacets } from './filters/soup-active-facets';
-import { SoupInboxSelector } from './filters/soup-inbox-selector';
-import { SoupSearchbar } from './filters/soup-searchbar';
-import { UnifiedFilterDropdown } from './filters/unified-filter-dropdown';
-import { useIsNewInbox } from './primitives/use-is-new-inbox';
-import {
-  COMPANY_MODE_TABS,
-  soupGroupOptions,
-  soupSortOptions,
-} from './soup-view-options';
-import { showSoupSort } from './utils/show-soup-sort';
+import { SoupActiveFacets } from './components/filters/soup-active-facets';
+import { SoupInboxSelector } from './components/filters/soup-inbox-selector';
+import { UnifiedFilterDropdown } from './components/filters/unified-filter-dropdown';
+import { soupGroupOptions } from './components/grouping/group-options';
+import { soupSortOptions } from './components/sorting/sort-options';
+import { SoupSearchbar } from './components/soup-searchbar';
+import { VIEW_TAB_LISTS } from './tabs';
 import {
   CompanyDisplayMenu,
   CompanyViewsMenu,
 } from './views/companies/company-views-menu';
 import { SoupSearchFacets } from './views/search/soup-search-facets';
 
-export function SoupViewHeader() {
+export function SoupViewHeader(props: { sortVisible: boolean }) {
   const {
     applyTabPreset,
     collection,
@@ -71,7 +66,6 @@ export function SoupViewHeader() {
   } = useSoupView();
   const panel = useSplitPanelOrThrow();
   const soup = useSoup();
-  const isNewInbox = useIsNewInbox();
   const [groupOpen, setGroupOpen] = createSignal(false);
   const [searchCollapsed, setSearchCollapsed] = createSignal(false);
   const docsUrl = () => LIST_VIEW_DOCS_URL[view()];
@@ -134,7 +128,7 @@ export function SoupViewHeader() {
   const expandedTabs = () =>
     view() === 'companies' ? (
       <TabsInset
-        list={COMPANY_MODE_TABS}
+        list={VIEW_TAB_LISTS.companies}
         value={viewMode()}
         defaultValue="board"
         onChange={(value) => setViewMode(value === 'list' ? 'list' : 'board')}
@@ -150,7 +144,7 @@ export function SoupViewHeader() {
   const collapsedTabs = () =>
     view() === 'companies' ? (
       <TabsInsetDropdown
-        list={COMPANY_MODE_TABS}
+        list={VIEW_TAB_LISTS.companies}
         value={viewMode()}
         defaultValue="board"
         onChange={(value) => setViewMode(value === 'list' ? 'list' : 'board')}
@@ -287,7 +281,7 @@ export function SoupViewHeader() {
             >
               <SoupSearchFacets />
             </Show>
-            <Show when={showSoupSort(view(), isNewInbox())}>
+            <Show when={props.sortVisible}>
               <SortDropdown
                 value={activeSort}
                 onChange={(id) =>

@@ -6,7 +6,7 @@ import {
   type SoupCollectionInitialState,
   type SoupRow,
 } from '@app/features/soup/collection';
-import { NIL_UUID } from '@app/features/soup/filtering/facet-store';
+import { NIL_UUID } from '@app/features/soup/filters/facet-store';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';

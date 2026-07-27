@@ -5,7 +5,7 @@ import type {
   SoupCollection,
   SoupRow,
 } from '@app/features/soup/collection';
-import { NIL_UUID } from '@app/features/soup/filtering/facet-store';
+import { NIL_UUID } from '@app/features/soup/filters/facet-store';
 import { useSoupView } from '@app/features/soup/view/context';
 import { InboxListEntity } from '@app/features/soup/view/views/inbox/InboxListEntity';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
@@ -81,7 +81,7 @@ const applyInboxMode = (
 };
 
 function InboxListViewContent() {
-  const { collection, viewName } = useSoupView();
+  const { collection, sortVisible, viewName } = useSoupView();
   const isNewInbox = useIsNewInbox();
   const { dataSource, state: listState } = useList<SoupRow>();
   const [root, setRoot] = createSignal<HTMLDivElement>();
@@ -104,7 +104,7 @@ function InboxListViewContent() {
           }}
           listScopeId={listScopeId}
         >
-          <SoupViewHeader />
+          <SoupViewHeader sortVisible={sortVisible()} />
           <SoupMobileControls />
           <div
             ref={setListContent}

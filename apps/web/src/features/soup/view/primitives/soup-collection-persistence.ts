@@ -4,7 +4,7 @@ import type {
   SoupCollectionStore,
   SoupEmailView,
 } from '@app/features/soup/collection';
-import { deserializeFacets } from '@app/features/soup/filtering/facet-store';
+import { deserializeFacets } from '@app/features/soup/filters/facet-store';
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
 import type { EntryState } from '@components/app/split-layout/layoutManager';
 import type {

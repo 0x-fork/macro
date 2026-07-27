@@ -1,3 +1,4 @@
+import type { ListView } from '@app/constants/list-views';
 import type { SystemSortOption } from '@app/features/soup/collection/sort-config';
 import ArrowClockwiseIcon from '@phosphor/arrow-clockwise.svg';
 import ClockIcon from '@phosphor/clock.svg';
@@ -78,3 +79,11 @@ export const CHANNEL_SORT_OPTIONS = buildSortOptions([
   'updated_at',
   'created_at',
 ]);
+
+export const soupSortOptions = (view: ListView): SortOption[] => {
+  if (view === 'tasks') return TASK_SORT_OPTIONS;
+  if (view === 'mail') return EMAIL_SORT_OPTIONS;
+  if (view === 'documents') return DOCUMENT_SORT_OPTIONS;
+  if (view === 'channels') return CHANNEL_SORT_OPTIONS;
+  return DEFAULT_SORT_OPTIONS;
+};

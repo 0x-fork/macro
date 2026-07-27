@@ -3,7 +3,7 @@ import { ENABLE_FEATURED_SEARCH_RESULTS } from '@core/constant/featureFlags';
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
 import { createMemo } from 'solid-js';
-import type { FacetCtx } from '../../filtering/facets';
+import type { FacetCtx } from '../../filters/facets';
 import type { SoupCollectionControls } from '../create-soup-collection-state';
 import { createSoupEntityRow } from '../soup-rows';
 import type { TransformSoupEntitiesOptions } from '../transform-soup-entities';

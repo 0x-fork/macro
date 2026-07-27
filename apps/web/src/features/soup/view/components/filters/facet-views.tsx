@@ -1,5 +1,5 @@
 import type { ListView } from '@app/constants/list-views';
-import type { FacetId } from '@app/features/soup/filtering/facets';
+import type { FacetId } from '@app/features/soup/filters/facets';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { PropertyValueIcon } from '@property/component/propertyValue/PropertyValueIcon';
 import { PROPERTY_OPTION_IDS } from '@property/constants';
