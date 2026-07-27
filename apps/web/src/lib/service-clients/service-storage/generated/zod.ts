@@ -8121,6 +8121,11 @@ export const getItemsSoupResponse = zod
                   createdAt: zod.iso
                     .datetime({})
                     .describe('Timestamp when the thread was created.'),
+                  hasInboundMessage: zod
+                    .boolean()
+                    .describe(
+                      'Whether the thread has at least one inbound (received) message.'
+                    ),
                   id: zod.uuid().describe('Thread id.'),
                   inboxVisible: zod
                     .boolean()
@@ -10998,6 +11003,11 @@ export const postItemsSoupResponse = zod
                   createdAt: zod.iso
                     .datetime({})
                     .describe('Timestamp when the thread was created.'),
+                  hasInboundMessage: zod
+                    .boolean()
+                    .describe(
+                      'Whether the thread has at least one inbound (received) message.'
+                    ),
                   id: zod.uuid().describe('Thread id.'),
                   inboxVisible: zod
                     .boolean()
@@ -13395,6 +13405,11 @@ export const postItemsSoupAstResponse = zod
                   createdAt: zod.iso
                     .datetime({})
                     .describe('Timestamp when the thread was created.'),
+                  hasInboundMessage: zod
+                    .boolean()
+                    .describe(
+                      'Whether the thread has at least one inbound (received) message.'
+                    ),
                   id: zod.uuid().describe('Thread id.'),
                   inboxVisible: zod
                     .boolean()
@@ -16054,6 +16069,11 @@ export const postItemsSoupAstGroupedResponse = zod
                         createdAt: zod.iso
                           .datetime({})
                           .describe('Timestamp when the thread was created.'),
+                        hasInboundMessage: zod
+                          .boolean()
+                          .describe(
+                            'Whether the thread has at least one inbound (received) message.'
+                          ),
                         id: zod.uuid().describe('Thread id.'),
                         inboxVisible: zod
                           .boolean()
@@ -18461,6 +18481,11 @@ export const postItemsSoupAstGroupedResponse = zod
                         createdAt: zod.iso
                           .datetime({})
                           .describe('Timestamp when the thread was created.'),
+                        hasInboundMessage: zod
+                          .boolean()
+                          .describe(
+                            'Whether the thread has at least one inbound (received) message.'
+                          ),
                         id: zod.uuid().describe('Thread id.'),
                         inboxVisible: zod
                           .boolean()
