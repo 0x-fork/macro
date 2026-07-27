@@ -1,15 +1,15 @@
-import type { SystemSortOption } from '@app/features/next-soup/soup-view/sort-options';
+import type { SystemSortOption } from '@app/features/soup/view/components/sort-options';
+import { useSoupView } from '@app/features/soup/view/context';
 import {
   COMPANY_GRID_COLUMNS,
   companyGridTemplateAreas,
   companyGridTemplateColumns,
-} from '@app/features/next-soup/soup-view/views/companies/company-grid-template';
+} from '@app/features/soup/view/views/companies/company-grid-template';
 import {
   TASK_GRID_COLUMNS,
   TASK_GRID_TEMPLATE_AREAS_WIDE,
   TASK_GRID_TEMPLATE_COLUMNS_WIDE,
-} from '@app/features/next-soup/soup-view/views/tasks/task-grid-template';
-import { useSoupView } from '@app/features/soup/view/context';
+} from '@app/features/soup/view/views/tasks/task-grid-template';
 import { useCrmDisplayOptions } from '@companies/crm/display-options';
 import { useListLayout } from '@entity/composed/list-entity/shared';
 import StatusInProgress from '@icon/square-task-in-progress-circle.svg';
@@ -18,8 +18,6 @@ import ArrowDownIcon from '@phosphor/arrow-down.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { cn, Tooltip } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
-
-import { nextHeaderSort } from './sort-state';
 
 const HEADER_ICON_CLASS = 'size-3 @max-[840px]/u-list:size-4 text-ink-muted';
 const TASK_ICONS: Record<string, () => JSX.Element> = {
@@ -36,7 +34,13 @@ function useHeaderSort() {
   const { collection } = useSoupView();
   const active = () => collection.state.sort[0];
   const toggle = (id: SystemSortOption) => {
-    collection.setState('sort', [nextHeaderSort(active(), id)]);
+    const current = active();
+    collection.setState('sort', [
+      {
+        id,
+        reversed: current?.id === id ? !current.reversed : false,
+      },
+    ]);
   };
   return { active, toggle };
 }

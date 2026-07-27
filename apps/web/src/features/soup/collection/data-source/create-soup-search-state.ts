@@ -1,8 +1,8 @@
-import { useSearchContext } from '@app/features/next-soup/search-context';
+import { useSearchContext } from '@app/features/soup/collection/data-source/search-context';
 import {
   createSoupFreshSearch,
   nameFuzzySearchFilter,
-} from '@app/features/next-soup/search-utils';
+} from '@app/features/soup/collection/data-source/search-utils';
 import { arrayEquals } from '@core/util/compareUtils';
 import { debouncedDependent } from '@core/util/debounce';
 import { type EntityData, isChannelEntity } from '@entity';

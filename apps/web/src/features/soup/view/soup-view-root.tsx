@@ -1,6 +1,6 @@
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import type { JSX } from 'solid-js';
-import { useSoupView } from '../context';
+import { useSoupView } from './context';
 
 type SoupViewRootProps = {
   ref: (element: HTMLDivElement) => void;

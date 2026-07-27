@@ -1,17 +1,17 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
-import { CompanyListEntity } from '@app/features/next-soup/soup-view/views/companies/CompanyListEntity';
-import {
-  openEntityInNewTab,
-  openEntityInSplitFromUnifiedList,
-  preventDuplicatePreviewEntityOpen,
-} from '@app/features/next-soup/utils';
 import {
   getSoupRowEntities,
   type SoupCollection,
   type SoupRow,
 } from '@app/features/soup/collection';
+import {
+  openEntityInNewTab,
+  openEntityInSplitFromUnifiedList,
+  preventDuplicatePreviewEntityOpen,
+} from '@app/features/soup/utils';
 import { useSoupView } from '@app/features/soup/view/context';
+import { CompanyListEntity } from '@app/features/soup/view/views/companies/CompanyListEntity';
 import { useCrmUnavailable } from '@companies/crm/team-crm-config';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -50,12 +50,12 @@ import { SoupMobileControls } from '../../components/soup-mobile-controls';
 import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../components/soup-view-header';
 import { SoupViewProvider } from '../../context';
-import { createSoupList } from '../../list/create-soup-list';
-import { SoupEntityList } from '../../list/soup-entity-list';
-import { SoupViewRoot } from '../../list/soup-view-root';
-import { hasSoupCollectionEntryState } from '../../soup-collection-persistence';
+import { createSoupList } from '../../primitives/create-soup-list';
+import { hasSoupCollectionEntryState } from '../../primitives/soup-collection-persistence';
+import { useSoupNotificationInvalidators } from '../../primitives/use-soup-notification-invalidators';
+import { SoupEntityList } from '../../soup-entity-list';
 import { getViewPreset } from '../../soup-view-presets';
-import { useSoupNotificationInvalidators } from '../../use-soup-notification-invalidators';
+import { SoupViewRoot } from '../../soup-view-root';
 import { CompanyKanban } from './company-kanban';
 import {
   type InitialSoupCompanyView,

@@ -5,16 +5,7 @@ import {
   ENABLE_NEW_INBOX_OVERRIDE,
 } from '@core/constant/featureFlags';
 import { type Accessor, createMemo } from 'solid-js';
-import { useMaybeSoupView } from './context';
-
-export function showSoupSort(view: ListView, isNewInbox: boolean) {
-  return (
-    view !== 'search' &&
-    view !== 'companies' &&
-    view !== 'calls' &&
-    !(view === 'inbox' && isNewInbox)
-  );
-}
+import { useMaybeSoupView } from '../context';
 
 /** Resolves New Inbox policy from the mounted view and feature flag. */
 export function useIsNewInbox(options?: {

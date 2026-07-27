@@ -17,7 +17,6 @@ import {
   Show,
 } from 'solid-js';
 import { createSoupEntityActions } from '../actions/create-soup-entity-actions';
-import { actionTargets } from '../actions/soup-entity-action-model';
 
 const tagEntityType = (entity: EntityData): EntityType | undefined => {
   if (entity.type === 'document') {
@@ -65,12 +64,12 @@ export const SoupEntityContextMenu: FlowComponent<{
     x: number;
     y: number;
   }>();
-  const targets = () =>
-    actionTargets({
-      entity: props.entity,
-      selected: props.selectedEntities(),
-      entityIsSelected: props.isSelected(),
-    });
+  const targets = () => {
+    const selected = props.selectedEntities();
+    return props.isSelected() && selected.length > 1
+      ? selected
+      : [props.entity];
+  };
   const actionGroups = () =>
     entityActions.buildActionGroups(targets(), {
       editTags: tagEntityType(props.entity)

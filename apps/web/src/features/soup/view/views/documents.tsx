@@ -1,11 +1,11 @@
 import { List } from '@app/components/list';
-import { registerDocumentsFilterSplit } from '@app/features/next-soup/soup-view/documents-filter-controllers';
 import { useSoupView } from '@app/features/soup/view/context';
+import { registerDocumentsFilterSplit } from '@app/features/soup/view/views/documents-filter-controllers';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { onCleanup, onMount } from 'solid-js';
 import { SoupViewProvider } from '../context';
-import { createSoupList } from '../list/create-soup-list';
-import { DefaultListViewContent } from '../list/default-list-view';
+import { createSoupList } from '../primitives/create-soup-list';
+import { DefaultListViewContent } from './default-list-view';
 
 export type DocumentsListViewProps = {
   viewName?: string;

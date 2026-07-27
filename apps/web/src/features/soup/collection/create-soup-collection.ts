@@ -1,5 +1,4 @@
 import type { ListView } from '@app/constants/list-views';
-import { SORT_CONFIGS } from '@app/features/next-soup/soup-view/sort-options';
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
 import { ALL_FACETS } from '../filtering/facets';
@@ -9,6 +8,7 @@ import type {
 } from './create-soup-collection-state';
 import { createSoupCollectionState } from './create-soup-collection-state';
 import { createSoupDataSource } from './data-source/create-soup-data-source';
+import { SORT_CONFIGS } from './sort-config';
 
 export type SoupCollection = SoupCollectionControls & {
   dataSource: ReturnType<typeof createSoupDataSource>;

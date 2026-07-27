@@ -7,7 +7,7 @@ import {
   openEntityInSplitFromUnifiedList,
   resolveMarkEntitiesDoneVariables,
   restoreSoupFocus,
-} from '@app/features/next-soup/utils';
+} from '@app/features/soup/utils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';
@@ -22,6 +22,18 @@ import ArrowCounterClockwise from '@phosphor-icons/core/regular/arrow-counter-cl
 import { type UndoHandle, useUndoableMutation } from '@queries/undo';
 import type { Accessor } from 'solid-js';
 import { findEntityItem, type SoupActionListState } from './list-action-state';
+
+const VALID_MARK_DONE_LIST_VIEWS: `${ListView}-${string}`[] = [
+  'inbox-signal',
+  'inbox-noise',
+  'mail-important',
+  'mail-all',
+  'mail-noise',
+  'mail-shared',
+];
+
+export const canExecuteMarkDoneOnView = (view: ListView, tabId: string) =>
+  VALID_MARK_DONE_LIST_VIEWS.includes(`${view}-${tabId}`);
 
 /** Done emails can coexist with active rows in Mail's All tab. */
 const isMarkDoneTarget = (entity: EntityData) =>

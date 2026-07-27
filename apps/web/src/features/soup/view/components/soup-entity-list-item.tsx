@@ -1,10 +1,10 @@
 import { List, type ListActivation, useList } from '@app/components/list';
+import type { SoupEntityRow, SoupRow } from '@app/features/soup/collection';
 import {
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
   preventDuplicatePreviewEntityOpen,
-} from '@app/features/next-soup/utils';
-import type { SoupEntityRow, SoupRow } from '@app/features/soup/collection';
+} from '@app/features/soup/utils';
 import { useLongPress } from '@components/app/mobile/use-long-press';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { hapticImpact } from '@core/mobile/haptics';
@@ -27,7 +27,6 @@ import {
   onMount,
 } from 'solid-js';
 import { getSelectedEntities } from '../../actions/list-action-state';
-import { actionTargets } from '../actions/soup-entity-action-model';
 import { useSoupView } from '../context';
 import { SoupEntityContextMenu } from './soup-entity-context-menu';
 import { useMaybeSoupMobileActionDrawer } from './soup-mobile-action-drawer';
@@ -172,13 +171,12 @@ export function SoupEntityListItem(props: {
             setItemSelected(!state.selected(), false);
             return;
           }
+          const selected = selectedEntities();
           mobileActionDrawer.open(
             props.item().entity,
-            actionTargets({
-              entity: props.item().entity,
-              selected: selectedEntities(),
-              entityIsSelected: state.selected(),
-            })
+            state.selected() && selected.length > 1
+              ? selected
+              : [props.item().entity]
           );
         };
         const { longPressHandlers, consumeLongPress } = useLongPress({

@@ -1,4 +1,4 @@
-import { restoreSoupFocus } from '@app/features/next-soup/utils';
+import { restoreSoupFocus } from '@app/features/soup/utils';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
 import {

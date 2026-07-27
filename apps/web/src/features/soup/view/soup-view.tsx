@@ -1,16 +1,16 @@
 import type { ListView } from '@app/constants/list-views';
 import type { Component } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import {
-  type DefaultListViewId,
-  type DefaultListViewProps,
-  SoupViewImplementation,
-} from './list/default-list-view';
 import { AgentsListView, type AgentsListViewProps } from './views/agents';
 import {
   CompaniesListView,
   type CompaniesListViewProps,
 } from './views/companies';
+import {
+  type DefaultListViewId,
+  type DefaultListViewProps,
+  SoupViewImplementation,
+} from './views/default-list-view';
 import {
   DocumentsListView,
   type DocumentsListViewProps,

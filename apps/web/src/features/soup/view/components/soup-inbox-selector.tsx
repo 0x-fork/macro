@@ -1,5 +1,5 @@
 import { openAddInboxDialog } from '@app/features/inbox/AddInboxDialog';
-import { SearchableMultiSelect } from '@app/features/next-soup/soup-view/filters-bar/searchable-multi-select';
+import { SearchableMultiSelect } from '@app/features/soup/view/components/searchable-multi-select';
 import { useSoupView } from '@app/features/soup/view/context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { inboxIconProps } from '@core/component/inboxIcon';

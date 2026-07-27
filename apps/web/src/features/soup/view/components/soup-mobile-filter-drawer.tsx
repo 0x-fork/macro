@@ -1,6 +1,6 @@
-import { SearchableMultiSelectInline } from '@app/features/next-soup/soup-view/filters-bar/searchable-multi-select';
-import type { GroupOptionId } from '@app/features/next-soup/soup-view/group-options';
-import type { SystemSortOption } from '@app/features/next-soup/soup-view/sort-options';
+import type { GroupOptionId } from '@app/features/soup/view/components/group-options';
+import { SearchableMultiSelectInline } from '@app/features/soup/view/components/searchable-multi-select';
+import type { SystemSortOption } from '@app/features/soup/view/components/sort-options';
 import { useSoupView } from '@app/features/soup/view/context';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import CheckIcon from '@phosphor/check.svg';

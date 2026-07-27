@@ -1,4 +1,4 @@
-import { dateBucket } from '@app/features/next-soup/soup-view/group-by-date';
+import { dateBucket } from '@app/features/soup/collection/group-by-date';
 import type { EntityData } from '@entity';
 import { COMPANY_STAGE_OPTIONS } from '@entity/utils/task-properties';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';

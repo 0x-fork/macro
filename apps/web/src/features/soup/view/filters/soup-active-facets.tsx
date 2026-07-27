@@ -1,8 +1,8 @@
+import type { FacetSelection } from '@app/features/soup/collection';
 import {
   type ConsolidatedFilter,
   ConsolidatedFilterChip,
-} from '@app/features/next-soup/soup-view/filters-bar/consolidated-filter-chip';
-import type { FacetSelection } from '@app/features/soup/collection';
+} from '@app/features/soup/view/components/consolidated-filter-chip';
 import PlusIcon from '@phosphor/plus.svg';
 import XIcon from '@phosphor/x.svg';
 import { Button, Dropdown, Layer } from '@ui';

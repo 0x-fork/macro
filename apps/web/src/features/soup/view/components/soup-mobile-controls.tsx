@@ -1,4 +1,4 @@
-import { SoupViewCreateButton } from '@app/features/next-soup/soup-view/soup-view-create-button';
+import { SoupViewCreateButton } from '@app/features/soup/view/components/soup-view-create-button';
 import { useSoupView } from '@app/features/soup/view/context';
 import { PillTabs } from '@components/app/mobile/PillTabs';
 import { isMobile } from '@core/mobile/isMobile';

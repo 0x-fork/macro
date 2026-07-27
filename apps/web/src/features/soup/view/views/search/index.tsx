@@ -35,11 +35,11 @@ import { SoupMobileControls } from '../../components/soup-mobile-controls';
 import { SoupSelectionToolbar } from '../../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../../components/soup-view-header';
 import { SoupViewProvider } from '../../context';
-import { createSoupList } from '../../list/create-soup-list';
-import { SoupEntityList } from '../../list/soup-entity-list';
-import { SoupViewRoot } from '../../list/soup-view-root';
+import { createSoupList } from '../../primitives/create-soup-list';
+import { useSoupNotificationInvalidators } from '../../primitives/use-soup-notification-invalidators';
+import { SoupEntityList } from '../../soup-entity-list';
 import { getViewPreset } from '../../soup-view-presets';
-import { useSoupNotificationInvalidators } from '../../use-soup-notification-invalidators';
+import { SoupViewRoot } from '../../soup-view-root';
 import { registerSoupSearchSplit } from './search-controllers';
 import { normalizeSearchFacets } from './search-facet-state';
 

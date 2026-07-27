@@ -6,14 +6,14 @@ import type {
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { CommandState } from '@app/features/command/state';
 import { useSoup } from '@app/features/next-soup/soup-context';
-import { previewContentMatchesEntity } from '@app/features/next-soup/soup-view/preview-content-row';
+import type { SoupEntityRow, SoupRow } from '@app/features/soup/collection';
 import {
   isDuplicatePreviewEntityOpen,
   notifyDuplicateContentOpen,
   openEntityInSplitFromUnifiedList,
-} from '@app/features/next-soup/utils';
-import type { SoupEntityRow, SoupRow } from '@app/features/soup/collection';
+} from '@app/features/soup/utils';
 import { useSoupView } from '@app/features/soup/view/context';
+import { previewContentMatchesEntity } from '@app/features/soup/view/preview-content-row';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type {
@@ -39,7 +39,7 @@ import { openSingleStackNotification } from '@notifications';
 import { debounce } from '@solid-primitives/scheduled';
 import { type Accessor, createEffect, createMemo, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
-import { useEntityActionHotkeys } from './actions/use-entity-action-hotkeys';
+import { useEntityActionHotkeys } from '../actions/use-entity-action-hotkeys';
 
 const LOAD_MORE_DISTANCE_FROM_END = 3;
 const NUMBER_TAB_HOTKEYS = [

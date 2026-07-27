@@ -1,7 +1,7 @@
 import { useList } from '@app/components/list';
 import { isListViewID } from '@app/constants/list-views';
-import { getChannelEntityTarget } from '@app/features/next-soup/utils';
 import type { SoupRow } from '@app/features/soup/collection';
+import { getChannelEntityTarget } from '@app/features/soup/utils';
 import { useSoupView } from '@app/features/soup/view/context';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
@@ -38,9 +38,11 @@ import {
   makeShareAction,
 } from '../../actions';
 import type { SoupActionListState } from '../../actions/list-action-state';
-import { makeMarkDoneAction } from '../../actions/make-mark-done-action';
-import { useIsNewInbox } from '../utils';
-import { canExecuteMarkDoneOnView } from './action-availability';
+import {
+  canExecuteMarkDoneOnView,
+  makeMarkDoneAction,
+} from '../../actions/make-mark-done-action';
+import { useIsNewInbox } from '../primitives/use-is-new-inbox';
 
 const SIGNAL_TABS = new Set<string | undefined>([
   undefined,

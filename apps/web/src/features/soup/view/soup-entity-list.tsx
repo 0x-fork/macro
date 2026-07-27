@@ -1,14 +1,14 @@
 import { List, type ListActivation, useList } from '@app/components/list';
 import type { ListView } from '@app/constants/list-views';
 import {
-  openEntityInNewTab,
-  openEntityInSplitFromUnifiedList,
-} from '@app/features/next-soup/utils';
-import {
   isSoupRowVisible,
   type SoupEntityRow,
   type SoupRow,
 } from '@app/features/soup/collection';
+import {
+  openEntityInNewTab,
+  openEntityInSplitFromUnifiedList,
+} from '@app/features/soup/utils';
 import { useSoupView } from '@app/features/soup/view/context';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { SwipableRowProvider } from '@components/app/mobile/SwipableRow';
@@ -39,15 +39,16 @@ import {
 } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
-import { makeMarkDoneAction } from '../../actions/make-mark-done-action';
-import { canExecuteMarkDoneOnView } from '../actions/action-availability';
-import { SoupGroupHeader } from '../components/soup-group-header';
-import { SoupListHeader } from '../components/soup-list-headers';
-import { SoupMobileActionDrawerManager } from '../components/soup-mobile-action-drawer';
-
-import { useSoupViewEntryState } from '../use-soup-view-entry-state';
-import { useSoupViewHotkeys } from '../use-soup-view-hotkeys';
-import { useIsNewInbox } from '../utils';
+import {
+  canExecuteMarkDoneOnView,
+  makeMarkDoneAction,
+} from '../actions/make-mark-done-action';
+import { SoupGroupHeader } from './components/soup-group-header';
+import { SoupListHeader } from './components/soup-list-headers';
+import { SoupMobileActionDrawerManager } from './components/soup-mobile-action-drawer';
+import { useIsNewInbox } from './primitives/use-is-new-inbox';
+import { useSoupViewEntryState } from './primitives/use-soup-view-entry-state';
+import { useSoupViewHotkeys } from './primitives/use-soup-view-hotkeys';
 
 const DEFAULT_OVERSCAN = 5;
 

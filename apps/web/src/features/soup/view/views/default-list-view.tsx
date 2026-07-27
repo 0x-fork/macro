@@ -21,10 +21,10 @@ import { SoupMobileControls } from '../components/soup-mobile-controls';
 import { SoupSelectionToolbar } from '../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../components/soup-view-header';
 import { SoupViewProvider, useSoupView } from '../context';
-import { useSoupNotificationInvalidators } from '../use-soup-notification-invalidators';
-import { createSoupList } from './create-soup-list';
-import { SoupEntityList } from './soup-entity-list';
-import { SoupViewRoot } from './soup-view-root';
+import { createSoupList } from '../primitives/create-soup-list';
+import { useSoupNotificationInvalidators } from '../primitives/use-soup-notification-invalidators';
+import { SoupEntityList } from '../soup-entity-list';
+import { SoupViewRoot } from '../soup-view-root';
 
 export type DefaultListViewId = 'calls' | 'channels' | 'folders' | 'mail';
 

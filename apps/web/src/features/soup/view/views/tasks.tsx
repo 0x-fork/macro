@@ -1,7 +1,7 @@
 import { List, useList } from '@app/components/list';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
-import { TaskListEntity } from '@app/features/next-soup/soup-view/views/tasks/TaskListEntity';
 import type { SoupRow } from '@app/features/soup/collection';
+import { TaskListEntity } from '@app/features/soup/view/views/tasks/TaskListEntity';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { useSplitDisplayName } from '@components/app/split-layout/use-split-display-name';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
@@ -21,10 +21,10 @@ import { SoupMobileControls } from '../components/soup-mobile-controls';
 import { SoupSelectionToolbar } from '../components/soup-selection-toolbar';
 import { SoupViewHeader } from '../components/soup-view-header';
 import { SoupViewProvider, useSoupView } from '../context';
-import { createSoupList } from '../list/create-soup-list';
-import { SoupEntityList } from '../list/soup-entity-list';
-import { SoupViewRoot } from '../list/soup-view-root';
-import { useSoupNotificationInvalidators } from '../use-soup-notification-invalidators';
+import { createSoupList } from '../primitives/create-soup-list';
+import { useSoupNotificationInvalidators } from '../primitives/use-soup-notification-invalidators';
+import { SoupEntityList } from '../soup-entity-list';
+import { SoupViewRoot } from '../soup-view-root';
 
 export type TasksListViewProps = {
   viewName?: string;

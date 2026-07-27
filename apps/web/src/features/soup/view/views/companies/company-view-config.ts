@@ -1,11 +1,13 @@
-import { defineQueryFilters } from '@app/features/next-soup/filters/filter-store';
 import type {
   FacetSelection,
   SoupCollection,
   SoupCollectionInitialState,
   SoupCollectionSort,
 } from '@app/features/soup/collection';
-import { deserializeFacets } from '@app/features/soup/filtering/facet-store';
+import {
+  deserializeFacets,
+  NIL_UUID,
+} from '@app/features/soup/filtering/facet-store';
 import type { CrmViewConfig } from '@companies/crm/saved-views';
 import { batch } from 'solid-js';
 import type { SoupViewContextValue } from '../../context';
@@ -17,6 +19,20 @@ export type SoupCompanyViewConfig = CrmViewConfig & {
 };
 
 export type InitialSoupCompanyView = SoupCompanyViewConfig;
+
+const companyQueryFilters = (hidden: boolean) => ({
+  include: {
+    crmCompanyHidden: hidden,
+    documentId: [NIL_UUID],
+    threadId: [NIL_UUID],
+    channelId: [NIL_UUID],
+    channelThreadId: [NIL_UUID],
+    chatId: [NIL_UUID],
+    folderId: [NIL_UUID],
+    callId: [NIL_UUID],
+    foreignEntityRecordId: [NIL_UUID],
+  },
+});
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
@@ -142,10 +158,7 @@ export function captureCompanyView(
   const facets = collection.facets.serialize();
   const hidden = collection.state.activeTab === 'hidden';
   const legacyPreset = {
-    filters: defineQueryFilters(
-      { include: { crmCompanyHidden: hidden } },
-      { skipTargets: ['ccf'] }
-    ),
+    filters: companyQueryFilters(hidden),
     clientFilters: {
       and: [hidden ? 'crm-company-hidden' : 'crm-company-active'],
     },

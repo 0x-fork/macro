@@ -1,11 +1,11 @@
 import { LIST_VIEW_DOCS_URL } from '@app/constants/docs-links';
 import { useSoup } from '@app/features/next-soup/soup-context';
-import { GroupDropdown } from '@app/features/next-soup/soup-view/filters-bar/group-dropdown';
-import { SortDropdown } from '@app/features/next-soup/soup-view/filters-bar/sort-dropdown';
-import type { GroupOptionId } from '@app/features/next-soup/soup-view/group-options';
-import type { SystemSortOption } from '@app/features/next-soup/soup-view/sort-options';
-import { SoupViewCreateButton } from '@app/features/next-soup/soup-view/soup-view-create-button';
-import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
+import { openEntityInSplitFromUnifiedList } from '@app/features/soup/utils';
+import { GroupDropdown } from '@app/features/soup/view/components/group-dropdown';
+import type { GroupOptionId } from '@app/features/soup/view/components/group-options';
+import { SortDropdown } from '@app/features/soup/view/components/sort-dropdown';
+import type { SystemSortOption } from '@app/features/soup/view/components/sort-options';
+import { SoupViewCreateButton } from '@app/features/soup/view/components/soup-view-create-button';
 import { useSoupView } from '@app/features/soup/view/context';
 import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleHeaderItem';
 import { PreviewButton } from '@components/app/split-layout/components/PreviewButton';
@@ -38,7 +38,8 @@ import {
 import { SoupActiveFacets } from '../filters/soup-active-facets';
 import { SoupSearchbar } from '../filters/soup-searchbar';
 import { UnifiedFilterDropdown } from '../filters/unified-filter-dropdown';
-import { showSoupSort, useIsNewInbox } from '../utils';
+import { useIsNewInbox } from '../primitives/use-is-new-inbox';
+import { showSoupSort } from '../utils/show-soup-sort';
 import {
   CompanyDisplayMenu,
   CompanyViewsMenu,

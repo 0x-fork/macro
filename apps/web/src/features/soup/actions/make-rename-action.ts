@@ -1,5 +1,5 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
-import { restoreSoupFocus } from '@app/features/next-soup/utils';
+import { restoreSoupFocus } from '@app/features/soup/utils';
 import { toast } from '@core/component/Toast/Toast';
 import type { EntityData } from '@entity';
 import type { SoupActionListState } from './list-action-state';

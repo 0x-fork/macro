@@ -3,7 +3,7 @@ import type { ListView } from '@app/constants/list-views';
 import {
   deduplicateEntities,
   scopeChannelNotificationsForEntity,
-} from '@app/features/next-soup/utils';
+} from '@app/features/soup/utils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   ENABLE_GRAPHQL_SOUP_FLAG,

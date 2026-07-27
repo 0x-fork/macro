@@ -1,5 +1,5 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
-import { restoreSoupFocus, trashEmails } from '@app/features/next-soup/utils';
+import { restoreSoupFocus, trashEmails } from '@app/features/soup/utils';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { globalRemoveFromSplitHistory } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';

@@ -13,9 +13,9 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { EntityData } from '@entity';
 import { useIsTeamAdmin } from '@queries/team/teams';
 import type { Accessor } from 'solid-js';
-import { createSoupCollectionPersistence } from '../soup-collection-persistence';
 import { getViewPreset, type PresetContext } from '../soup-view-presets';
-import { useIsNewInbox } from '../utils';
+import { createSoupCollectionPersistence } from './soup-collection-persistence';
+import { useIsNewInbox } from './use-is-new-inbox';
 
 export type CreateSoupListOptions = {
   view: ListView;

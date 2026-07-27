@@ -3,7 +3,7 @@ import {
   COMPANY_GROUP_OPTIONS,
   type GroupOption,
   TASK_GROUP_OPTIONS,
-} from '@app/features/next-soup/soup-view/group-options';
+} from '@app/features/soup/view/components/group-options';
 import {
   CHANNEL_SORT_OPTIONS,
   DEFAULT_SORT_OPTIONS,
@@ -11,7 +11,7 @@ import {
   EMAIL_SORT_OPTIONS,
   type SortOption,
   TASK_SORT_OPTIONS,
-} from '@app/features/next-soup/soup-view/sort-options';
+} from '@app/features/soup/view/components/sort-options';
 import type { SoupViewMode } from '../context';
 
 export const COMPANY_MODE_TABS: Array<{

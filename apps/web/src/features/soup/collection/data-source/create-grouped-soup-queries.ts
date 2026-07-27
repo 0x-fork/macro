@@ -1,4 +1,4 @@
-import { createInfiniteQueries } from '@app/features/next-soup/soup-view/create-infinite-queries';
+import { createInfiniteQueries } from '@app/features/soup/collection/data-source/create-infinite-queries';
 import { throwOnErr } from '@core/util/result';
 import type { EntityData } from '@entity';
 import { useQueryClient } from '@queries/client';

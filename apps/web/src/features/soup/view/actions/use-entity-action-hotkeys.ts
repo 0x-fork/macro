@@ -1,8 +1,8 @@
 import type { ListView } from '@app/constants/list-views';
-import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { useAllProperties } from '@app/features/property/editor/hooks/useAllProperties';
 import { openPropertyEditor } from '@app/features/property/editor/state/propertyEditor';
 import { isShareableEntityType } from '@app/features/sharing/global-share-modal/GlobalShareModal';
+import { openEntityInSplitFromUnifiedList } from '@app/features/soup/utils';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import type { SplitHandle } from '@components/app/split-layout/layoutManager';
 import { useUserId } from '@core/context/user';
@@ -32,10 +32,12 @@ import {
   getSelectedEntities,
   type SoupActionListState,
 } from '../../actions/list-action-state';
-import { makeMarkDoneAction } from '../../actions/make-mark-done-action';
+import {
+  canExecuteMarkDoneOnView,
+  makeMarkDoneAction,
+} from '../../actions/make-mark-done-action';
 import { useSoupView } from '../context';
-import { useIsNewInbox } from '../utils';
-import { canExecuteMarkDoneOnView } from './action-availability';
+import { useIsNewInbox } from '../primitives/use-is-new-inbox';
 
 type UseEntityActionHotkeysOptions = {
   scopeId: string;

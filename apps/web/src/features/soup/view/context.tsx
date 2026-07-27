@@ -1,13 +1,13 @@
 import type { ListView } from '@app/constants/list-views';
-import {
-  type TabbedListView,
-  VIEW_TAB_LISTS,
-} from '@app/features/next-soup/soup-view/soup-view-tabs';
 import type {
   FacetSelection,
   SoupCollection,
   SoupCollectionStore,
 } from '@app/features/soup/collection';
+import {
+  type TabbedListView,
+  VIEW_TAB_LISTS,
+} from '@app/features/soup/view/tabs';
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
 import type { EntryState } from '@components/app/split-layout/layoutManager';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -32,14 +32,15 @@ import {
 import { createStore, produce } from 'solid-js/store';
 import { z } from 'zod';
 
-import type { SoupList } from './list/create-soup-list';
-import { readPersistedTabFacets } from './soup-collection-persistence';
+import type { SoupList } from './primitives/create-soup-list';
+import { readPersistedTabFacets } from './primitives/soup-collection-persistence';
+import { useIsNewInbox } from './primitives/use-is-new-inbox';
 import {
   getViewPreset,
   type PresetContext,
   VIEW_TAB_PRESETS,
 } from './soup-view-presets';
-import { showSoupSort, useIsNewInbox } from './utils';
+import { showSoupSort } from './utils/show-soup-sort';
 
 const SOUP_VIEW_STATE_ENTRY_KEY = 'soup.viewState';
 

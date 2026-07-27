@@ -1,4 +1,3 @@
-import type { SortConfig } from '@app/features/next-soup/create-sort-state';
 import {
   makePersistedState,
   type PersistedOptions,
@@ -22,6 +21,7 @@ import {
   testFacets,
 } from '../filtering/facet-store';
 import type { FacetCtx } from '../filtering/facets/base';
+import type { SortConfig } from './sort-config';
 
 export type SoupCollectionSort = {
   id: string;
