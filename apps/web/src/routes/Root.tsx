@@ -69,6 +69,7 @@ import {
   BrowserNotificationModal,
   createNotificationSource,
   type UnifiedNotification,
+  useNotificationUpdates,
   usePlatformNotificationState,
 } from '@notifications';
 import { maybeHandlePlatformNotification } from '@notifications/notification-platform';
@@ -485,6 +486,7 @@ function ConfiguredGlobalAppStateProvider(props: ParentProps) {
     connectionGatewayWebsocket,
     onNotification
   );
+  useNotificationUpdates(notificationSource);
 
   const blockOrchestrator = createBlockOrchestrator();
   usePendingNotificationNavigationEffect(notificationSource);
