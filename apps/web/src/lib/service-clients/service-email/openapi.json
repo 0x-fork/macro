@@ -3657,13 +3657,13 @@
             "type": "string",
             "format": "date-time"
           },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
           "hasInboundMessage": {
             "type": "boolean",
             "description": "Whether the thread has at least one inbound (received) message."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
           },
           "inboxVisible": {
             "type": "boolean"
