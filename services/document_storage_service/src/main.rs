@@ -134,7 +134,6 @@ use task_dedup::{
 mod api;
 mod config;
 mod model;
-#[cfg(feature = "graphql")]
 mod outbound;
 mod service;
 
@@ -441,7 +440,6 @@ async fn main() -> anyhow::Result<()> {
             entity_access_management::outbound::PgRepository::new(db.clone()),
         );
 
-    #[cfg(feature = "graphql")]
     let chat_mutation_service =
         Arc::new(chat::domain::service::ChatServiceImpl::new_without_tools(
             chat::outbound::postgres::PgChatRepo::new(db.clone()),
@@ -923,8 +921,7 @@ async fn main() -> anyhow::Result<()> {
 
     let redis_sha_client = Arc::new(Redis::new(redis_client));
 
-    #[cfg(feature = "graphql")]
-    let graphql_entity_mutation_service: Arc<dyn entity_mutation::EntityMutationService> =
+    let graphql_entity_mutation_service =
         Arc::new(service::entity_mutation::DssEntityMutationService::new(
             document_service.clone(),
             chat_mutation_service,
@@ -963,7 +960,6 @@ async fn main() -> anyhow::Result<()> {
             soup_realtime_service,
         ),
         graphql_notification_reader,
-        #[cfg(feature = "graphql")]
         graphql_entity_mutation_service,
         github_sync_service: Arc::new(github_sync_service_impl),
         foreign_entity_state,
