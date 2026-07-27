@@ -60,7 +60,11 @@ pub type DcsAttachmentProvider = AttachmentProvider<
 >;
 
 /// Type alias for the message service wired to concrete DCS services.
-pub type DcsMessageService = MessageServiceImpl<PgChatRepo, DcsAttachmentProvider>;
+pub type DcsMessageService = MessageServiceImpl<
+    PgChatRepo,
+    DcsAttachmentProvider,
+    macro_event_broker::MacroEventBrokerService<macro_event_broker::KafkaEventPublisher>,
+>;
 
 #[cfg(test)]
 mod test;
@@ -140,6 +144,9 @@ pub struct ApiContext {
     pub mcp_state: DcsMcpRouterState,
     pub import_service: Arc<DcsImportService>,
     pub onboarding_service: Arc<DcsOnboardingService>,
+    /// Kafka-backed macro event broker for publishing domain events.
+    pub macro_event_broker:
+        macro_event_broker::MacroEventBrokerService<macro_event_broker::KafkaEventPublisher>,
 }
 
 impl FromRef<ApiContext>
