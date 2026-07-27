@@ -61,14 +61,20 @@ export interface LayoutProps {
   ) => void;
 }
 
+/** Row density applied when the narrow layout is active. */
+export type NarrowDensity = 'default' | 'compact';
+
 interface ListLayoutContextValue {
   isWide: Accessor<boolean>;
+  narrowDensity: Accessor<NarrowDensity>;
 }
 
 const ListLayoutContext = createContext<ListLayoutContextValue>();
 
 export function ListLayoutProvider(props: {
   ref: Accessor<HTMLElement | undefined>;
+  /** 'compact' renders slim ~30px narrow rows (e.g. the channels view). */
+  narrowDensity?: NarrowDensity;
   children: JSX.Element;
 }) {
   const [isWide, setIsWide] = createSignal(true);
@@ -84,7 +90,9 @@ export function ListLayoutProvider(props: {
   });
 
   return (
-    <ListLayoutContext.Provider value={{ isWide }}>
+    <ListLayoutContext.Provider
+      value={{ isWide, narrowDensity: () => props.narrowDensity ?? 'default' }}
+    >
       {props.children}
     </ListLayoutContext.Provider>
   );

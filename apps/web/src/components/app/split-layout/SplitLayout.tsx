@@ -40,6 +40,7 @@ import {
   type MobileSwipeLayout,
 } from './mobile/createMobileSwipeLayout';
 import { MobileSplitContainer } from './mobile/MobileSplitContainer';
+import { splitMinWidth, splitOpeningWidth } from './splitWidths';
 
 type SplitLayoutContainerProps = {
   pairs: string[];
@@ -369,7 +370,12 @@ export function SplitLayoutContainer(props: SplitLayoutContainerProps) {
                   <Show when={splitManager.getSplit(id)}>
                     {(handle) => (
                       <Suspense>
-                        <Resize.Panel id={id} minSize={400} index={index()}>
+                        <Resize.Panel
+                          id={id}
+                          minSize={splitMinWidth(splits()[index()]!.content)}
+                          target={splitOpeningWidth(splits()[index()]!.content)}
+                          index={index()}
+                        >
                           <SplitPanel
                             split={splits()[index()]!}
                             handle={handle()}

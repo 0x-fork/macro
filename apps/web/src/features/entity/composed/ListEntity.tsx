@@ -153,7 +153,10 @@ export function ListEntity(props: ListEntityProps) {
     splitId: useSplitPanel()?.handle?.id,
   });
 
-  const isWide = useListLayout()?.isWide ?? (() => true);
+  const listLayout = useListLayout();
+  const isWide = listLayout?.isWide ?? (() => true);
+  const compactNarrow = () =>
+    !isMobile() && !isWide() && listLayout?.narrowDensity() === 'compact';
 
   const mobileStacks = createMemo(() => {
     if (!isMobile()) return [];
@@ -203,7 +206,9 @@ export function ListEntity(props: ListEntityProps) {
       class={cn(
         'soup-list-entity rounded-lg @container/entity w-[calc(100%-0.5rem)] mr-1 relative group/narrow flex flex-col py-0.5',
         {
-          'min-h-10 mx-1': !isMobile(),
+          'mx-1': !isMobile(),
+          'min-h-10': !isMobile() && !compactNarrow(),
+          'min-h-[30px]': compactNarrow(),
           'bg-accent/8': props.checked,
           'bg-accent/16': props.checked && props.highlighted,
           'bg-hover/30':

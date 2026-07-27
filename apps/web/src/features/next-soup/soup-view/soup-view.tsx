@@ -498,15 +498,17 @@ export const SoupView = (props: SoupViewProps) => {
     });
   });
 
-  // Production resolves the new-inbox flag asynchronously, so wait for it
-  // before applying the default instead of locking in the initial false value.
+  // Channels defaults to preview on, as does the new inbox. Production
+  // resolves the new-inbox flag asynchronously, so wait for it before
+  // applying the default instead of locking in the initial false value.
   if (
     persistedPreviewOpen === undefined &&
     persistedPreviewEntity === undefined
   ) {
     let previewDefaulted = false;
     createRenderEffect(() => {
-      if (previewDefaulted || !isNewInboxEnabled()) return;
+      if (previewDefaulted) return;
+      if (contentId !== 'channels' && !isNewInboxEnabled()) return;
       previewDefaulted = true;
       soupView.setPreviewOpen(true);
     });
@@ -1354,7 +1356,12 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                       </div>
                     </Match>
                     <Match when={rows().length}>
-                      <ListLayoutProvider ref={localEntityListRef}>
+                      <ListLayoutProvider
+                        ref={localEntityListRef}
+                        narrowDensity={
+                          currentView() === 'channels' ? 'compact' : 'default'
+                        }
+                      >
                         <Show when={currentView() === 'tasks' && !isMobile()}>
                           <ResponsiveTaskListHeader class="shrink-0" />
                         </Show>

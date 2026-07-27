@@ -14,19 +14,29 @@ import {
 } from '../../types/entity';
 import { isSearchEntity } from '../../types/search';
 import { EmailInboxChip } from './email';
-import type { LayoutProps } from './shared';
+import { type LayoutProps, useListLayout } from './shared';
 
 export function NarrowLayout(props: LayoutProps) {
+  const layout = useListLayout();
+  const compact = () => layout?.narrowDensity() === 'compact';
+
   return (
     <Entity.Layout
       class="w-full gap-x-2 items-center text-sm px-2 grid"
       style={{
-        'grid-template-columns': 'auto 1fr max-content',
-        'grid-template-rows': '44px',
-        'grid-template-areas': '"indicator title timestamp"',
+        'grid-template-columns': compact()
+          ? 'auto 1fr'
+          : 'auto 1fr max-content',
+        'grid-template-rows': compact() ? '26px' : '44px',
+        'grid-template-areas': compact()
+          ? '"indicator title"'
+          : '"indicator title timestamp"',
       }}
     >
-      <Entity.Slot placement="indicator" class="relative self-start pt-3">
+      <Entity.Slot
+        placement="indicator"
+        class={cn('relative', compact() ? 'self-center' : 'self-start pt-3')}
+      >
         <Show when={!props.hideCheckbox}>
           <div
             class={cn('w-0 opacity-0 overflow-hidden', {
@@ -43,7 +53,10 @@ export function NarrowLayout(props: LayoutProps) {
 
       <Entity.Slot
         placement="title"
-        class="ph-no-capture flex items-center gap-2 truncate font-semibold"
+        class={cn(
+          'ph-no-capture flex items-center gap-2 truncate',
+          compact() ? 'font-medium text-[13px]' : 'font-semibold'
+        )}
       >
         <Show when={props.unread}>
           <UnreadIndicator active />
@@ -93,6 +106,7 @@ export function NarrowLayout(props: LayoutProps) {
 
       <Show
         when={
+          !compact() &&
           !props.hasNotifications &&
           !(isChannelEntity(props.entity) && isSearchEntity(props.entity))
         }

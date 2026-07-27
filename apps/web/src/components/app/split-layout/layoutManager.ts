@@ -28,6 +28,7 @@ import {
   resolveComponent,
 } from './componentRegistry';
 import { createHistory, type History } from './history';
+import { DEFAULT_SPLIT_MIN_WIDTH } from './splitWidths';
 
 const ENABLE_DEFAULT_ALWAYS_IN_HISTORY = false;
 
@@ -565,7 +566,7 @@ export function createSplitLayout(
   const isExcluded = (split: SplitState) => exclusionFilter?.(split) ?? false;
 
   const canAppendSplit = createMemo(
-    () => resizeContext()?.canFit({ minSize: 400 }) ?? true
+    () => resizeContext()?.canFit({ minSize: DEFAULT_SPLIT_MIN_WIDTH }) ?? true
   );
 
   const [splitNamesById, setSplitNamesById] = createStore<{
