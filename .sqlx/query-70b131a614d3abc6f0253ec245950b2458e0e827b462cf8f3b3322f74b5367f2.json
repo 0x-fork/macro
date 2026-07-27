@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE email_threads t\n        SET has_inbound_message = calc.inbound\n        FROM (\n            SELECT EXISTS (\n                SELECT 1\n                FROM email_messages m\n                WHERE m.thread_id = $1\n                  AND (\n                      (NOT m.is_sent AND NOT m.is_draft)\n                      OR EXISTS (\n                          SELECT 1\n                          FROM email_message_recipients r\n                          WHERE r.message_id = m.id\n                            AND m.from_contact_id IS NOT NULL\n                            AND r.contact_id = m.from_contact_id\n                      )\n                  )\n            ) AS inbound\n        ) calc\n        WHERE t.id = $1\n          AND t.has_inbound_message IS DISTINCT FROM calc.inbound\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "70b131a614d3abc6f0253ec245950b2458e0e827b462cf8f3b3322f74b5367f2"
+}

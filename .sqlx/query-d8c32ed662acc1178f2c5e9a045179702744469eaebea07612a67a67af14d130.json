@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT t.id, t.provider_id, t.link_id, t.inbox_visible, t.is_read,\n               t.latest_inbound_message_ts, t.latest_outbound_message_ts,\n               t.latest_non_spam_message_ts, t.created_at, t.updated_at,\n               t.project_id\n        FROM email_threads t\n        WHERE t.id = $1\n        ",
+  "query": "\n        SELECT t.id, t.provider_id, t.link_id, t.inbox_visible,\n               t.has_inbound_message, t.is_read,\n               t.latest_inbound_message_ts, t.latest_outbound_message_ts,\n               t.latest_non_spam_message_ts, t.created_at, t.updated_at,\n               t.project_id\n        FROM email_threads t\n        WHERE t.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -25,36 +25,41 @@
       },
       {
         "ordinal": 4,
-        "name": "is_read",
+        "name": "has_inbound_message",
         "type_info": "Bool"
       },
       {
         "ordinal": 5,
+        "name": "is_read",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
         "name": "latest_inbound_message_ts",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "latest_outbound_message_ts",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 7,
+        "ordinal": 8,
         "name": "latest_non_spam_message_ts",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "updated_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "project_id",
         "type_info": "Text"
       }
@@ -70,6 +75,7 @@
       false,
       false,
       false,
+      false,
       true,
       true,
       true,
@@ -78,5 +84,5 @@
       true
     ]
   },
-  "hash": "d9956cd2e52cda4f0e7c080058d33f2bbf35c99b29e7482f198d592ff435cf28"
+  "hash": "d8c32ed662acc1178f2c5e9a045179702744469eaebea07612a67a67af14d130"
 }

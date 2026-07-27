@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE email_threads t\n            SET has_inbound_message = false\n            WHERE t.link_id = $1\n              AND t.has_inbound_message\n              AND NOT EXISTS (\n                  SELECT 1\n                  FROM email_messages m\n                  WHERE m.thread_id = t.id\n                    AND (\n                        (NOT m.is_sent AND NOT m.is_draft)\n                        OR EXISTS (\n                            SELECT 1\n                            FROM email_message_recipients r\n                            WHERE r.message_id = m.id\n                              AND m.from_contact_id IS NOT NULL\n                              AND r.contact_id = m.from_contact_id\n                        )\n                    )\n              )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7544da6160a8b138b6f870f2e9918aa32ea2a9ea1b0f4fb77e4f932a579eb49f"
+}
