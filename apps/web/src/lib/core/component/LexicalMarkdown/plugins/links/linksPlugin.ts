@@ -473,6 +473,20 @@ function registerLinksPlugin(editor: LexicalEditor, props: LinkPluginProps) {
       if (textNode.hasFormat('code')) {
         return;
       }
+      // While the inline-code markdown shortcut (`` `text` ``) is still being
+      // typed, the raw backticks are present but the `code` format hasn't
+      // been applied yet (the guard above doesn't help here), so this
+      // transform still runs on every keystroke. If an in-progress prefix
+      // happens to match a common TLD (e.g. "`channel.me" while typing
+      // "`channel.messages`"), it gets wrapped into an AutoLinkNode there and
+      // then; once the rest of the word lands, the combined text no longer
+      // matches as a domain so the link is never merged/dissolved, and the
+      // markdown shortcut can no longer see one contiguous text node to
+      // convert — leaving a stray "channel.me" link plus plain text sitting
+      // inside otherwise-unformatted backticks.
+      if (textNode.getTextContent().includes('`')) {
+        return;
+      }
 
       // Avoid autolinking when any ancestor is already a link
       const insideAnyLink =
