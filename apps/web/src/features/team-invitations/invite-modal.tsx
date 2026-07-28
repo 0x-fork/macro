@@ -1,3 +1,5 @@
+import { analytics } from '@app/lib/analytics';
+import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { toast } from '@core/component/Toast/Toast';
 import { useReferralCode } from '@core/context/user';
 
@@ -18,9 +20,14 @@ function parseEmails(raw: string): string[] {
 
 const [inviteModalOpen, setInviteModalOpen] = createSignal(false);
 
-export { setInviteModalOpen };
+/** Opens the invite modal. `source` is the UI surface, for analytics. */
+export function openInviteModal(source: 'sidebar' | 'hotkey') {
+  analytics.track('invite_modal_opened', { source });
+  setInviteModalOpen(true);
+}
 
 export const InviteModal = () => {
+  const analyticsClient = useAnalytics();
   const [value, setValue] = createSignal('');
   const [copied, setCopied] = createSignal(false);
   const [sending, setSending] = createSignal(false);
@@ -36,6 +43,7 @@ export const InviteModal = () => {
     const url = referralUrl();
     if (!url) return;
     navigator.clipboard.writeText(url);
+    analyticsClient.track('invite_link_copied');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -44,18 +52,42 @@ export const InviteModal = () => {
     const emails = parseEmails(value());
     if (!emails.length) return;
     setSending(true);
+    const failedEmails: string[] = [];
     for (const email of emails) {
       const result = await authServiceClient.sendReferralInvite(email);
       if (result.isOk()) {
         contactsClient.addContact(`macro|${email.toLowerCase()}`);
+      } else {
+        failedEmails.push(email);
       }
     }
-    setValue('');
     setSending(false);
+
+    const sent = emails.length - failedEmails.length;
+    analyticsClient.track('invite_sent', {
+      sent,
+      failed: failedEmails.length,
+    });
+
+    if (failedEmails.length) {
+      // Keep the modal open with only the failed addresses so a retry
+      // doesn't re-invite the ones that already went through.
+      setValue(failedEmails.join('\n'));
+      toast.failure(
+        sent > 0
+          ? `Sent ${sent} of ${emails.length} invites — the rest failed to send`
+          : failedEmails.length === 1
+            ? 'Failed to send the invite'
+            : 'Failed to send the invites'
+      );
+      return;
+    }
+
+    setValue('');
     toast.success(
-      emails.length === 1
+      sent === 1
         ? 'Invite sent successfully'
-        : `${emails.length} invites sent successfully`
+        : `${sent} invites sent successfully`
     );
     setInviteModalOpen(false);
   };

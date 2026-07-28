@@ -15,7 +15,7 @@ import {
 import { requestSearchFocus } from '@app/features/next-soup/soup-view/search-controllers';
 import {
   InviteModal,
-  setInviteModalOpen,
+  openInviteModal,
 } from '@app/features/team-invitations/invite-modal';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
@@ -377,7 +377,7 @@ export const GoToHotkeys = () => {
     description: 'Send Invites',
     keyDownHandler: (e) => {
       e?.preventDefault();
-      setInviteModalOpen(true);
+      openInviteModal('hotkey');
       return true;
     },
   });
@@ -1288,7 +1288,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
     }
 
     addTryItem('invite', 'Invite', UsersThreeIcon, () =>
-      setInviteModalOpen(true)
+      openInviteModal('sidebar')
     );
 
     const mobile = getSettingsTabItem('Mobile App');

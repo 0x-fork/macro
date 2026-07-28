@@ -90,6 +90,17 @@ export type AppEvents = {
   subscription_cancel: Record<string, unknown>;
   subscription_success: Record<string, unknown>;
 
+  // --- Referrals & invites --------------------------------------------------
+  /** The referral invite modal was opened. `source` is the UI surface. */
+  invite_modal_opened: { source: 'sidebar' | 'hotkey' | (string & {}) };
+  /**
+   * A batch of referral invite emails was submitted. `sent`/`failed` split the
+   * batch by delivery outcome so failed sends stay visible in the funnel.
+   */
+  invite_sent: { sent: number; failed: number };
+  /** The personal referral link was copied from the invite modal. */
+  invite_link_copied: Record<string, unknown>;
+
   sidebar_click: Record<string, unknown>;
   notifications_toggled: Record<string, unknown>;
 
