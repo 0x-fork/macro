@@ -1,3 +1,4 @@
+import { analytics } from '@app/lib/analytics';
 import { createSignal } from 'solid-js';
 
 const DAILY_LIMIT = 5;
@@ -93,6 +94,9 @@ const [paywallKey, setPaywallKey] = createSignal<PaywallKey | null>(null);
 
 export const usePaywallState = () => {
   const showPaywall = (errorKey?: PaywallKey | null) => {
+    // Every paywall trigger funnels through here, so this is the one spot
+    // that can attribute impressions to the limit that raised them.
+    analytics.track('paywall_viewed', { reason: errorKey ?? 'unspecified' });
     if (errorKey) {
       setPaywallKey(errorKey);
     }

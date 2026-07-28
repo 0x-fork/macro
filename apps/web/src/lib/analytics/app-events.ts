@@ -86,6 +86,13 @@ export type AppEvents = {
     connectors_connected: string[];
   };
 
+  /**
+   * The in-app paywall dialog was shown. `reason` is the PaywallKey that
+   * triggered it (PROJECT_LIMIT, CHAT_LIMIT, ...) or 'unspecified' when
+   * opened without one. Pairs with subscription_start (which carries the
+   * same key as `errorKey`) to measure per-trigger upgrade conversion.
+   */
+  paywall_viewed: { reason: string };
   subscription_start: Record<string, unknown>;
   subscription_cancel: Record<string, unknown>;
   subscription_success: Record<string, unknown>;
