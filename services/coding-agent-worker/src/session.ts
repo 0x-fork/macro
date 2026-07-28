@@ -1,51 +1,30 @@
 import { randomUUID } from 'node:crypto'
-import type {
-  InitializeRequest,
-  NewSessionRequest,
-  NewSessionResponse,
-  PromptRequest,
-} from '@zed-industries/agent-client-protocol'
 import { env } from './env'
+import { log } from './log'
 import { DaytonaProvider } from './providers/daytona'
 import type { AcpConnection, AgentSandbox } from './interfaces'
 import { UpstreamLink } from './upstream'
 
-const ACP_PROTOCOL_VERSION = 1
-
-/** Boot sequencer + frame router. The worker is only the ACP client for the
- * boot sequence (initialize, session/new, kickoff prompt), using namespaced
- * string ids ("sys:N") so they can never collide with upstream's ids. All
- * frames — ours, upstream's, and every byte opencode emits — are relayed to
- * the upstream verbatim as tagged `acp` messages. */
+/** Frame router between the sandbox's ACP connection and the upstream link.
+ * The worker itself never speaks ACP - it neither initializes the agent nor
+ * creates a session; agent_proxy owns that handshake (and every ACP
+ * session), sent down over the same upstream link this relays into the
+ * sandbox. Every frame in either direction — upstream's, and every byte
+ * opencode emits — is relayed verbatim. */
 class SessionRouter {
   onAgentExit: () => void = () => {}
 
   private readonly writer: WritableStreamDefaultWriter<Uint8Array>
   private readonly enc = new TextEncoder()
-  private nextSysId = 1
-  private readonly pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>()
 
   constructor(
     private readonly conn: AcpConnection,
     private readonly link: UpstreamLink,
+    private readonly sessionId: string,
   ) {
     this.writer = conn.writable.getWriter()
-    link.onAcp = (frame) => this.writeToAgent(frame, { mirror: false }) // upstream sent it; no echo
+    link.onAcp = (frame) => this.writeToAgent(frame)
     void this.pump()
-  }
-
-  async boot(cwd: string, prompt: string): Promise<void> {
-    await this.sysRequest('initialize', {
-      protocolVersion: ACP_PROTOCOL_VERSION,
-      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
-    } satisfies InitializeRequest)
-    const result = (await this.sysRequest('session/new', { cwd, mcpServers: [] } satisfies NewSessionRequest)) as NewSessionResponse
-    const acpSessionId = result?.sessionId
-    if (!acpSessionId) throw new Error('session/new returned no sessionId')
-
-    // Fire the kickoff prompt; its turn completes as a relayed ACP response.
-    const kickoff: PromptRequest = { sessionId: acpSessionId, prompt: [{ type: 'text', text: prompt }] }
-    void this.sysRequest('session/prompt', kickoff).catch(() => {})
   }
 
   async close(): Promise<void> {
@@ -55,16 +34,11 @@ class SessionRouter {
     await this.conn.close()
   }
 
-  private writeToAgent(frame: unknown, opts = { mirror: true }) {
-    if (opts.mirror) this.link.acp(frame)
-    void this.writer.write(this.enc.encode(JSON.stringify(frame) + '\n'))
-  }
-
-  private sysRequest(method: string, params: unknown): Promise<unknown> {
-    const id = `sys:${this.nextSysId++}`
-    const p = new Promise<unknown>((resolve, reject) => this.pending.set(id, { resolve, reject }))
-    this.writeToAgent({ jsonrpc: '2.0', id, method, params })
-    return p
+  private writeToAgent(frame: unknown) {
+    log.debug(`[session ${this.sessionId}] -> agent`, frame)
+    void this.writer.write(this.enc.encode(JSON.stringify(frame) + '\n')).catch((error) => {
+      log.error(`[session ${this.sessionId}] write to agent failed`, error)
+    })
   }
 
   private async pump(): Promise<void> {
@@ -74,31 +48,29 @@ class SessionRouter {
     try {
       for (;;) {
         const { value, done } = await reader.read()
-        if (done) break
+        if (done) {
+          log.warn(`[session ${this.sessionId}] agent stream closed (done)`)
+          break
+        }
         buf += dec.decode(value, { stream: true })
         let nl: number
         while ((nl = buf.indexOf('\n')) >= 0) {
           const line = buf.slice(0, nl).trim()
           buf = buf.slice(nl + 1)
           if (!line) continue
-          let frame: { id?: unknown; result?: unknown; error?: unknown }
+          let frame: unknown
           try {
             frame = JSON.parse(line)
-          } catch {
+          } catch (error) {
+            log.error(`[session ${this.sessionId}] agent sent unparseable line`, { line, error })
             continue
           }
+          log.debug(`[session ${this.sessionId}] <- agent`, frame)
           this.link.acp(frame)
-          // Resolve our own boot requests; everything else is upstream's business.
-          if (typeof frame.id === 'string' && this.pending.has(frame.id) && (frame.result !== undefined || frame.error !== undefined)) {
-            const p = this.pending.get(frame.id)!
-            this.pending.delete(frame.id)
-            if (frame.error !== undefined) p.reject(frame.error)
-            else p.resolve(frame.result)
-          }
         }
       }
     } catch (error) {
-      console.error('[session] agent stream failed', error)
+      log.error(`[session ${this.sessionId}] agent stream failed`, error)
     }
     this.onAgentExit()
   }
@@ -109,9 +81,14 @@ const sessions = new Map<string, LiveSession>()
 const provider = new DaytonaProvider()
 
 /** Kick off a session: returns the id immediately; all progress streams to the
- * session-scoped upstream WebSocket as tagged system and ACP messages. */
-export function startSession(opts: { repoUrl: string; prompt: string }): string {
-  const sessionId = randomUUID()
+ * session-scoped upstream WebSocket as tagged system and ACP messages.
+ *
+ * `agentId`, when given, is agent_proxy's chat/agent id and becomes the
+ * session id verbatim (the shared runtime endpoint's `?id=` is matched
+ * against it on the other end). Without it, a fresh id is generated - the
+ * standalone dev-fixture flow doesn't have an agent_proxy chat to match. */
+export function startSession(opts: { repoUrl: string; prompt: string; agentId?: string }): string {
+  const sessionId = opts.agentId ?? randomUUID()
   void run(sessionId, opts)
   return sessionId
 }
@@ -122,6 +99,7 @@ async function run(sessionId: string, opts: { repoUrl: string; prompt: string })
   let sandbox: AgentSandbox | null = null
   try {
     link.status('booting')
+    log.info(`[session ${sessionId}] spawning sandbox`, { repoUrl: opts.repoUrl })
     sandbox = await provider.spawn({
       repoUrl: opts.repoUrl,
       envVars: {
@@ -129,16 +107,21 @@ async function run(sessionId: string, opts: { repoUrl: string; prompt: string })
         ...(env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY } : {}),
       },
     })
+    log.info(`[session ${sessionId}] sandbox up, connecting to ACP sidecar`, { sandboxId: sandbox.id })
 
     const conn = await sandbox.connect()
-    const router = new SessionRouter(conn, link)
+    log.info(`[session ${sessionId}] ACP sidecar connected, wiring session router`)
+    const router = new SessionRouter(conn, link, sessionId)
     router.onAgentExit = () => void destroySession(sessionId)
     sessions.set(sessionId, { sandbox, router, link })
 
-    await router.boot('/workspace', opts.prompt)
-    link.status('ready')
+    // Matches agent_runtime_protocol's `SystemEvent::AcpReady` wire name:
+    // agent_proxy waits for this exact event before starting the ACP
+    // `initialize`/`session/new` handshake, since only now is the sandbox's
+    // ACP connection actually wired up to receive it.
+    link.status('acp_ready')
   } catch (e) {
-    console.error('[session] boot failed', e)
+    log.error(`[session ${sessionId}] sandbox setup failed`, e)
     if (sessions.has(sessionId)) {
       await destroySession(sessionId)
     } else {
