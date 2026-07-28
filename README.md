@@ -24,8 +24,6 @@
 
 Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so you and your agents never lose context.
 
-Macro has raised $30m led by a16z. We are based in NYC.
-
 ## Stack
 
 The backend is Rust — a Cargo workspace of 167 crates behind 42 deployable services. Services are `axum` over `tokio`, talking to Postgres through `sqlx` with compile-time-checked queries. There's an `async-graphql` layer for the client, `rdkafka` for the event bus, and `lambda_runtime` for the event-driven handlers. Search runs on OpenSearch, caching on Redis, blobs on S3, connection tracking on DynamoDB.
@@ -72,7 +70,7 @@ The Cargo and Bun workspaces are both rooted at the top level. Services follow a
 
 ## Features
 
-Every block below is the same underlying entity, which is why any of them can @link to any other. Full product docs are at [docs.macro.com](https://docs.macro.com).
+Every block below is the same underlying entity, which is why any of them can @link to any other.
 
 ### Email
 
@@ -82,6 +80,8 @@ Threads are first-class entities, so you can tag them, hang custom properties of
 
 ![Macro email thread with actions, tags, and properties in the sidebar](.github/readme/email-thread.png)
 
+[Email docs &rarr;](https://docs.macro.com/product/email)
+
 ### Messages
 
 Channels and DMs for teams that spend the day in technical discussion. Threads keep side conversations from burying the main one, and GitHub checks, PRs, and deploys render inline so triage doesn't mean tab-hopping.
@@ -89,6 +89,8 @@ Channels and DMs for teams that spend the day in technical discussion. Threads k
 Because channel membership is also the permission model, @mentioning a doc in a channel shares it with everyone there — no separate sharing step to forget.
 
 ![Macro #Engineers channel with threads, mentions, and an inline GitHub check](.github/readme/messages-channel.png)
+
+[Messages docs &rarr;](https://docs.macro.com/product/channels)
 
 ### Tasks
 
@@ -100,6 +102,8 @@ Keyboard-first tasks built around the messages that created them. A bug report i
 
 ![Macro tasks list grouped by assignee, with a task detail showing its source message and linked PR](.github/readme/tasks-list.png)
 
+[Tasks docs &rarr;](https://docs.macro.com/product/tasks)
+
 ### Docs
 
 Collaborative, version-controlled, markdown-native docs, built on CRDTs so several people and several agents can edit at once. Backlinks are automatic — the References panel on any doc lists everywhere it's been mentioned, which is how a workspace turns into a navigable graph instead of a folder tree.
@@ -110,11 +114,15 @@ Checklists, tags, and properties are enough to make a doc into a plan or a spec 
 
 ![A Macro doc with checklists that @link out to tasks, messages, and other docs](.github/readme/docs-checklist.png)
 
+[Docs &rarr;](https://docs.macro.com/product/docs)
+
 ### File storage
 
 Files arrive on their own — imported from email and channels, indexed by content rather than filename, and readable in place. PDFs open in a real viewer with comments and annotations, and every file keeps a pointer back to the message it came in on.
 
 ![A PDF opened in Macro's viewer, auto-imported from an email thread (document contents blurred)](.github/readme/files-pdf-viewer.png)
+
+[File storage docs &rarr;](https://docs.macro.com/product/folders)
 
 ### CRM
 
@@ -126,6 +134,8 @@ Board and list views group by any property — stage, owner, revenue — and rec
 
 ![A Macro company record with properties, contacts, and team-wide email history](.github/readme/crm-company.png)
 
+[CRM docs &rarr;](https://docs.macro.com/product/crm)
+
 ### Agents
 
 Team-level memory is what makes the agent useful: it can see email, messages, tasks, docs, files, and calls, scoped to exactly the permissions you have. That makes it the most knowledgeable "person" at the company, and it acts rather than just answers.
@@ -134,13 +144,15 @@ Coding agents get the same access. Hand a task to Claude Code straight from the 
 
 ![A Macro task being handed off to a coding agent, with a linked branch](.github/readme/agents-task-handoff.png)
 
+[Agents docs &rarr;](https://docs.macro.com/product/agents)
+
 ### Also included
 
 Canvas is a 2D board with embedded @links, for planning that doesn't fit in a list. Calls are recorded, transcribed, and logged to team memory. Pull requests link to tasks and embed in channels. All three are documented at [docs.macro.com](https://docs.macro.com).
 
 ## How it holds together
 
-Four ideas make the blocks above behave as one system rather than ten apps in a trench coat.
+Four ideas make the blocks above behave as one system.
 
 **Everything @links, in both directions.** @mention a doc in a message and each one knows about the other. The doc's References panel shows every place it's been mentioned, so context accumulates instead of scattering — and agents traverse the same graph you do.
 
@@ -185,6 +197,8 @@ Have an idea, want to contribute, or want to work on Macro?
 - Feature requests: [contact@macro.com](mailto:contact@macro.com)
 - Contributions: see our [contribution guidelines](CONTRIBUTING.md)
 - Hiring: [teo@macro.com](mailto:teo@macro.com)
+
+Macro has raised $30m led by a16z. We are based in NYC.
 
 <a href="https://github.com/macro-inc/macro">
   <picture>
