@@ -282,6 +282,16 @@ class UnsupportedFileTypeError extends Error {
   }
 }
 
+// Compresses the underlying failure into a short label analytics can break
+// down by (error class + message head), so a spike in generic UploadErrors is
+// attributable to its cause without a local repro. File names never appear in
+// the label — the message head is the error's own text.
+function describeUploadFailure(cause?: Error | string): string {
+  if (!cause) return 'unknown';
+  if (typeof cause === 'string') return cause.slice(0, 120);
+  return `${cause.name}: ${cause.message}`.slice(0, 120);
+}
+
 class UploadError extends Error {
   public readonly originalError?: Error | string;
 
@@ -306,6 +316,7 @@ class UploadError extends Error {
     analytics.track('upload_error', {
       type: this.name,
       destination,
+      reason: describeUploadFailure(originalError),
     });
   }
 

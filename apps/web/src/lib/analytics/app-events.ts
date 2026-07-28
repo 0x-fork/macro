@@ -110,6 +110,11 @@ export type AppEvents = {
   upload_error: {
     type: string;
     destination?: 'dss' | 'static';
+    /**
+     * Compressed underlying cause (error class + message head) so generic
+     * UploadError volume can be broken down without reproducing locally.
+     */
+    reason?: string;
   };
 
   command_menu_open: { from: string };
