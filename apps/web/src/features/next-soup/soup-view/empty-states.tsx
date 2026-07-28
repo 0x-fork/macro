@@ -280,11 +280,24 @@ export function EmptyState(props: {
               }
             />
           </Match>
+          <Match when={!emailActive()}>
+            <EmptyStatePanel
+              graphic={EmptyStateCompaniesGraphic}
+              title="No customers yet"
+              description="Customers your team emails will appear here. Connect an inbox so Macro can start building your customer list."
+              primaryAction={{
+                label: 'Connect email',
+                onClick: onConnectEmail,
+              }}
+              documentationUrl={`${DOCS_BASE}/product/crm`}
+            />
+          </Match>
           <Match when={true}>
             <EmptyStatePanel
               graphic={EmptyStateCompaniesGraphic}
               title="No customers yet"
               description="Customers your team emails will appear here."
+              documentationUrl={`${DOCS_BASE}/product/crm`}
             />
           </Match>
         </Switch>
