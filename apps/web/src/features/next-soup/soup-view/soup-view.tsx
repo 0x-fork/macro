@@ -251,13 +251,6 @@ export const SoupView = (props: SoupViewProps) => {
   const panel = useSplitPanelOrThrow();
   const soupView = useSoupView();
   const isNewInboxEnabled = useIsNewInboxEnabled();
-  const hasPreviewItems = useSoupPreviewAvailability({
-    rows: soupView.rows,
-    isLoading: soupView.source.isLoading,
-    isFetching: soupView.source.isFetching,
-    isPlaceholderData: soupView.source.isPlaceholderData,
-    splitHandle: panel.handle,
-  });
   const openFocusedEntityInPreview = () => {
     const focusedRow = soup.focus.row();
     if (
@@ -271,6 +264,14 @@ export const SoupView = (props: SoupViewProps) => {
       splitHandle: panel.handle,
     });
   };
+  const hasPreviewItems = useSoupPreviewAvailability({
+    rows: soupView.rows,
+    isLoading: soupView.source.isLoading,
+    isFetching: soupView.source.isFetching,
+    isPlaceholderData: soupView.source.isPlaceholderData,
+    splitHandle: panel.handle,
+    onPreviewRestored: openFocusedEntityInPreview,
+  });
 
   const entryState = panel.handle.currentEntryState();
   const contentId = panel.handle.content().id;
@@ -398,9 +399,12 @@ export const SoupView = (props: SoupViewProps) => {
     });
   });
 
-  // Fresh preview-default views engage as soon as the layout can form a pair.
-  // useSoupPreviewAvailability owns disengagement and only closes the pair once
-  // the active query has settled with no previewable rows.
+  // Fresh preview-default views engage as soon as the layout can form a pair,
+  // without waiting for rows. useSoupPreviewAvailability owns disengagement: a
+  // settled result with no previewable rows only suspends the pair and
+  // re-engages once an entity arrives, so an initially empty view still lands
+  // in preview mode. Resolving here keeps a manual exit from being undone by
+  // later Soup updates.
   let initialPreviewResolved = false;
   createEffect(() => {
     if (initialPreviewResolved) return;
