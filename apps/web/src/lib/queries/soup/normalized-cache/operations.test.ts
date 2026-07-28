@@ -7,7 +7,25 @@ import type { SoupApiItem } from '@service-storage/generated/schemas';
 import type { SoupPage } from '@service-storage/generated/schemas/soupPage';
 import type { InfiniteData } from '@tanstack/solid-query';
 import { QueryClient } from '@tanstack/solid-query';
+import { ok } from 'neverthrow';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const serviceMocks = vi.hoisted(() => ({
+  fetchGraphqlSoup: vi.fn(),
+  getGraphqlSoupCacheHost: vi.fn<() => unknown>(() => undefined),
+  getSoupItems: vi.fn(),
+}));
+
+vi.mock('@service-storage/graphql-soup', () => ({
+  fetchGraphqlSoup: serviceMocks.fetchGraphqlSoup,
+  getGraphqlSoupCacheHost: serviceMocks.getGraphqlSoupCacheHost,
+}));
+
+vi.mock('@service-storage/client', () => ({
+  storageServiceClient: {
+    getSoupItems: serviceMocks.getSoupItems,
+  },
+}));
 
 let testQueryClient: QueryClient;
 
@@ -45,10 +63,13 @@ import { soupKeys } from '../keys';
 import {
   // biome-ignore lint/correctness/noPrivateImports: testing private export
   buildSingleEntityFilter,
+  // biome-ignore lint/correctness/noPrivateImports: testing private export
+  buildSingleEntityGraphqlInput,
   getSoupItemId,
   insertSoupEntity,
   optimisticUpdateSoupEntity,
   optimisticUpdateSoupItemUpdatedAt,
+  refetchSoupEntity,
   removeSearchEntities,
   removeSoupEntities,
   removeSoupEntitiesFromDoneFilteredQueries,
@@ -176,6 +197,10 @@ function getSearchQuery() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  serviceMocks.fetchGraphqlSoup.mockReset();
+  serviceMocks.getGraphqlSoupCacheHost.mockReset();
+  serviceMocks.getGraphqlSoupCacheHost.mockReturnValue(undefined);
+  serviceMocks.getSoupItems.mockReset();
   testQueryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -197,6 +222,78 @@ describe('getSoupItemId', () => {
 
   it('returns data.channel.id for channel tag', () => {
     expect(getSoupItemId(mockChannelItem('ch-456'))).toBe('ch-456');
+  });
+});
+
+describe('buildSingleEntityGraphqlInput', () => {
+  const NIL_ID = '00000000-0000-0000-0000-000000000000';
+
+  it('targets the requested document and excludes unrelated entity types', () => {
+    const input = buildSingleEntityGraphqlInput('document', 'document-1');
+
+    expect(input).toMatchObject({
+      initial: {
+        limit: 1,
+        expand: true,
+        filters: {
+          documentFilter: { literal: { id: 'document-1' } },
+          chatFilter: { literal: { chatId: NIL_ID } },
+          projectFilter: { literal: { projectId: NIL_ID } },
+          emailFilter: { tree: { literal: { threadId: NIL_ID } } },
+        },
+      },
+    });
+  });
+});
+
+describe('refetchSoupEntity', () => {
+  it('hydrates through GraphQL and merges the result into the legacy cache', async () => {
+    const document = mockDocumentItem('document-1');
+    serviceMocks.getGraphqlSoupCacheHost.mockReturnValue({});
+    serviceMocks.fetchGraphqlSoup.mockResolvedValue({ items: [document] });
+    seedSoupQuery(mockSoupCache([[]]));
+
+    await refetchSoupEntity('document-1', 'document');
+
+    expect(serviceMocks.fetchGraphqlSoup).toHaveBeenCalledWith(
+      buildSingleEntityGraphqlInput('document', 'document-1'),
+      { allowOfflineFallback: false }
+    );
+    expect(serviceMocks.getSoupItems).not.toHaveBeenCalled();
+    expect(getSoupItemId(getSoupQuery()!.pages[0].items[0])).toBe('document-1');
+  });
+
+  it('uses REST when the GraphQL cache is unavailable', async () => {
+    const document = mockDocumentItem('document-1');
+    serviceMocks.getSoupItems.mockResolvedValue(ok({ items: [document] }));
+    seedSoupQuery(mockSoupCache([[]]));
+
+    await refetchSoupEntity('document-1', 'document');
+
+    expect(serviceMocks.fetchGraphqlSoup).not.toHaveBeenCalled();
+    expect(serviceMocks.getSoupItems).toHaveBeenCalledWith({
+      params: {},
+      body: buildSingleEntityFilter('document', 'document-1'),
+    });
+    expect(getSoupItemId(getSoupQuery()!.pages[0].items[0])).toBe('document-1');
+  });
+
+  it('falls back to REST when GraphQL hydration fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const document = mockDocumentItem('document-1');
+    serviceMocks.getGraphqlSoupCacheHost.mockReturnValue({});
+    serviceMocks.fetchGraphqlSoup.mockRejectedValue(new Error('offline'));
+    serviceMocks.getSoupItems.mockResolvedValue(ok({ items: [document] }));
+    seedSoupQuery(mockSoupCache([[]]));
+
+    await refetchSoupEntity('document-1', 'document');
+
+    expect(serviceMocks.getSoupItems).toHaveBeenCalledWith({
+      params: {},
+      body: buildSingleEntityFilter('document', 'document-1'),
+    });
+    expect(getSoupItemId(getSoupQuery()!.pages[0].items[0])).toBe('document-1');
+    warn.mockRestore();
   });
 });
 
