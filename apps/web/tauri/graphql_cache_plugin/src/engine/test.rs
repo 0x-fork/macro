@@ -2,7 +2,7 @@ use super::*;
 use pollster::block_on;
 
 const QUERY: &str = r#"query Soup($input: SoupInput!) {
-    user { id soup(input: $input) { nextCursor hasMore items { id } } }
+    user { id soup(input: $input) { nextCursor items { __typename id } } }
 }"#;
 
 fn variables() -> Variables {
@@ -12,14 +12,13 @@ fn variables() -> Variables {
     vars
 }
 
-fn soup_data(has_more: bool) -> serde_json::Value {
+fn soup_data(has_next_page: bool) -> serde_json::Value {
     serde_json::json!({
         "user": {
             "id": "user-1",
             "soup": {
-                "nextCursor": null,
-                "hasMore": has_more,
-                "items": [{"id": "doc-1"}]
+                "nextCursor": has_next_page.then_some("cursor-1"),
+                "items": [{"__typename": "GraphqlSoupDocument", "id": "doc-1"}]
             }
         }
     })
@@ -57,6 +56,12 @@ fn read(handle: &EngineHandle, op_id: Option<&str>) -> ReadResultWire {
     .unwrap()
 }
 
+fn claim(handle: &EngineHandle) -> ClaimedMutationWire {
+    block_on(handle.claim_next_mutation("runner".to_string(), 10, 1_000))
+        .unwrap()
+        .expect("queue head")
+}
+
 #[test]
 fn write_then_read_round_trips() {
     let handle = spawn_handle();
@@ -70,6 +75,97 @@ fn write_then_read_round_trips() {
         panic!("expected hit");
     };
     assert_eq!(data, soup_data(false));
+}
+
+#[test]
+fn record_selection_returns_native_cache_entities() {
+    let handle = spawn_handle();
+    let query = r#"query Soup($input: SoupInput!) {
+        user {
+            id
+            soup(input: $input) {
+                items {
+                    __typename
+                    id
+                    ... on GraphqlSoupDocument {
+                        id name fileType createdAt updatedAt viewedAt deletedAt
+                        subType { kind isCompleted }
+                    }
+                }
+                nextCursor
+            }
+        }
+    }"#;
+    let data = serde_json::json!({
+        "user": {
+            "id": "user-1",
+            "soup": {
+                "items": [{
+                    "__typename": "GraphqlSoupDocument",
+                    "id": "doc-1",
+                    "name": "A note",
+                    "fileType": "md",
+                    "createdAt": "1970-01-01T00:00:01Z",
+                    "updatedAt": "1970-01-01T00:00:02Z",
+                    "viewedAt": "1970-01-01T00:00:03Z",
+                    "deletedAt": null,
+                    "subType": null
+                }],
+                "nextCursor": null
+            }
+        }
+    });
+    block_on(handle.write(
+        None,
+        query.to_string(),
+        Some("Soup".to_string()),
+        variables(),
+        data,
+        None,
+    ))
+    .unwrap();
+
+    let page = block_on(handle.read_records(
+        "fragment Document on GraphqlSoupDocument { id name }".to_string(),
+        "Document".to_string(),
+        None,
+        10,
+    ))
+    .unwrap();
+    assert_eq!(
+        page.records,
+        vec![serde_json::json!({"id": "doc-1", "name": "A note"})]
+    );
+    assert!(page.next_cursor.is_none());
+}
+
+#[test]
+fn query_inspection_serializes_generated_variables_and_value() {
+    let handle = spawn_handle();
+    write(&handle, None, soup_data(false), None);
+
+    let instances = block_on(handle.inspect_query(
+        QUERY.to_string(),
+        Some("Soup".to_string()),
+        vec!["user".to_string(), "soup".to_string()],
+    ))
+    .unwrap();
+    assert_eq!(instances.len(), 1);
+    assert_eq!(instances[0].variables, variables());
+    assert_eq!(
+        instances[0].value.as_ref().unwrap()["nextCursor"],
+        serde_json::Value::Null
+    );
+    assert_eq!(
+        serde_json::to_value(&instances).unwrap(),
+        serde_json::json!([{
+            "variables": {"input": {"limit": 1}},
+            "value": {
+                "nextCursor": null,
+                "items": [{"__typename": "GraphqlSoupDocument", "id": "doc-1"}]
+            }
+        }])
+    );
 }
 
 #[test]
@@ -112,6 +208,9 @@ fn optimistic_layer_commits_durably() {
         Some("Soup".to_string()),
         variables(),
         soup_data(true),
+        vec![],
+        vec![],
+        0,
     ))
     .unwrap();
     assert_eq!(optimistic.result.affected_ops, vec!["client:1".to_string()]);
@@ -122,8 +221,11 @@ fn optimistic_layer_commits_durably() {
     };
     assert_eq!(data, soup_data(true));
 
+    let claimed = claim(&handle);
     let committed = block_on(handle.commit_optimistic_write(
         optimistic.transaction_id,
+        "runner".to_string(),
+        claimed.lease_generation,
         QUERY.to_string(),
         Some("Soup".to_string()),
         variables(),
@@ -149,10 +251,19 @@ fn rollback_drops_optimistic_contribution() {
         Some("Soup".to_string()),
         variables(),
         soup_data(true),
+        vec![],
+        vec![],
+        0,
     ))
     .unwrap();
 
-    block_on(handle.rollback_optimistic_write(optimistic.transaction_id)).unwrap();
+    let claimed = claim(&handle);
+    block_on(handle.rollback_optimistic_write(
+        optimistic.transaction_id,
+        "runner".to_string(),
+        claimed.lease_generation,
+    ))
+    .unwrap();
     let ReadResultWire::Hit { data } = read(&handle, None) else {
         panic!("expected hit");
     };
@@ -180,6 +291,11 @@ fn clear_wipes_everything() {
 #[test]
 fn bad_transaction_id_is_an_error() {
     let handle = spawn_handle();
-    let error = block_on(handle.rollback_optimistic_write("not-a-number".to_string())).unwrap_err();
+    let error = block_on(handle.rollback_optimistic_write(
+        "not-a-number".to_string(),
+        "runner".to_string(),
+        "1".to_string(),
+    ))
+    .unwrap_err();
     assert!(error.contains("invalid optimistic transaction id"));
 }

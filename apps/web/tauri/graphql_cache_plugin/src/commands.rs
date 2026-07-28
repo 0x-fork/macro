@@ -9,12 +9,27 @@
 //! the exchange degrades to the network) — same contract as the browser
 //! worker's `{ok: false, error}` responses.
 
-use crate::engine::{EngineHandle, OptimisticWriteResultWire, ReadResultWire, WriteResultWire};
-use crate::{CacheState, InitializedCache, emit_ops_affected};
+use crate::engine::{
+    ClaimedMutationWire, EngineHandle, OptimisticWriteResultWire, ReadResultWire, WriteResultWire,
+};
+use crate::{
+    CacheState, InitializedCache, emit_cache_changed, emit_mutation_settled, emit_ops_affected,
+};
+use cache_core::link_patch::{OptimisticLinkPatch, QueryRevalidation};
+use cache_core::query_inspection::CachedQueryInstance;
+use cache_core::record_selection::{RecordCursor, SelectedRecordPage};
 use cache_sqlite::SqliteStorage;
+use serde::Deserialize;
 use tauri::{AppHandle, Manager, Runtime, State};
 
 type Variables = serde_json::Map<String, serde_json::Value>;
+
+fn parse_record_cursor(cursor: Option<String>) -> Result<Option<RecordCursor>, String> {
+    cursor
+        .map(|value| serde_json::from_value(serde_json::Value::String(value)))
+        .transpose()
+        .map_err(|error| error.to_string())
+}
 
 fn engine_handle(state: &State<'_, CacheState>) -> Result<EngineHandle, String> {
     state
@@ -78,6 +93,20 @@ pub async fn graphql_cache_read(
         .await
 }
 
+/// Projects normalized records through a named GraphQL fragment.
+#[tauri::command]
+pub async fn graphql_cache_read_records(
+    state: State<'_, CacheState>,
+    document: String,
+    fragment_name: String,
+    cursor: Option<String>,
+    limit: u32,
+) -> Result<SelectedRecordPage, String> {
+    engine_handle(&state)?
+        .read_records(document, fragment_name, parse_record_cursor(cursor)?, limit)
+        .await
+}
+
 /// Normalizes and stores a network response; broadcasts affected operations
 /// to every webview.
 #[tauri::command]
@@ -102,12 +131,12 @@ pub async fn graphql_cache_write<R: Runtime>(
         )
         .await?;
     emit_ops_affected(&app, &result.affected_ops, &result.changed);
+    emit_cache_changed(&app);
     Ok(result)
 }
 
-/// Installs an in-memory optimistic layer from a mutation's optimistic
-/// response. The one engine is shared by all webviews (SharedWorker
-/// semantics), so visible changes are broadcast too.
+/// Durably queues a mutation and its optimistic response. The one engine is
+/// shared by all webviews, so visible changes are broadcast too.
 #[tauri::command]
 pub async fn graphql_cache_begin_optimistic_write<R: Runtime>(
     app: AppHandle<R>,
@@ -117,6 +146,9 @@ pub async fn graphql_cache_begin_optimistic_write<R: Runtime>(
     operation_name: Option<String>,
     variables: Option<Variables>,
     data: serde_json::Value,
+    link_patches: Option<Vec<OptimisticLinkPatch>>,
+    revalidations: Option<Vec<QueryRevalidation>>,
+    created_at_ms: i64,
 ) -> Result<OptimisticWriteResultWire, String> {
     let result = engine_handle(&state)?
         .begin_optimistic_write(
@@ -125,27 +157,93 @@ pub async fn graphql_cache_begin_optimistic_write<R: Runtime>(
             operation_name,
             variables.unwrap_or_default(),
             data,
+            link_patches.unwrap_or_default(),
+            revalidations.unwrap_or_default(),
+            created_at_ms,
         )
         .await?;
     emit_ops_affected(&app, &result.result.affected_ops, &result.result.changed);
+    emit_cache_changed(&app);
     Ok(result)
 }
 
-/// Atomically replaces a pending optimistic layer with the real network
-/// response and flushes contiguous settled layers durably.
+/// One field-only response-key path segment for query inspection.
+#[derive(Debug, Deserialize)]
+pub struct InspectionPathSegment {
+    /// Generated GraphQL response key (alias when present).
+    pub field: String,
+}
+
+/// Enumerates cached variants of one generated query field.
+#[tauri::command]
+pub async fn graphql_cache_inspect_query(
+    state: State<'_, CacheState>,
+    query: String,
+    operation_name: Option<String>,
+    path: Vec<InspectionPathSegment>,
+) -> Result<Vec<CachedQueryInstance>, String> {
+    engine_handle(&state)?
+        .inspect_query(
+            query,
+            operation_name,
+            path.into_iter().map(|segment| segment.field).collect(),
+        )
+        .await
+}
+
+/// Claims the oldest runnable queued mutation.
+#[tauri::command]
+pub async fn graphql_cache_claim_next_mutation(
+    state: State<'_, CacheState>,
+    owner: String,
+    now_ms: i64,
+    lease_expires_at_ms: i64,
+) -> Result<Option<ClaimedMutationWire>, String> {
+    engine_handle(&state)?
+        .claim_next_mutation(owner, now_ms, lease_expires_at_ms)
+        .await
+}
+
+/// Retains a retryable queued mutation and releases its lease.
+#[tauri::command]
+pub async fn graphql_cache_defer_optimistic_write(
+    state: State<'_, CacheState>,
+    transaction_id: String,
+    lease_owner: String,
+    lease_generation: String,
+    next_attempt_at_ms: i64,
+    error: String,
+) -> Result<(), String> {
+    engine_handle(&state)?
+        .defer_optimistic_write(
+            transaction_id,
+            lease_owner,
+            lease_generation,
+            next_attempt_at_ms,
+            error,
+        )
+        .await
+}
+
+/// Atomically replaces a claimed optimistic layer with the real response.
 #[tauri::command]
 pub async fn graphql_cache_commit_optimistic_write<R: Runtime>(
     app: AppHandle<R>,
     state: State<'_, CacheState>,
     transaction_id: String,
+    lease_owner: String,
+    lease_generation: String,
     query: String,
     operation_name: Option<String>,
     variables: Option<Variables>,
     data: serde_json::Value,
 ) -> Result<WriteResultWire, String> {
+    let settlement_transaction_id = transaction_id.clone();
     let result = engine_handle(&state)?
         .commit_optimistic_write(
             transaction_id,
+            lease_owner,
+            lease_generation,
             query,
             operation_name,
             variables.unwrap_or_default(),
@@ -153,20 +251,33 @@ pub async fn graphql_cache_commit_optimistic_write<R: Runtime>(
         )
         .await?;
     emit_ops_affected(&app, &result.affected_ops, &result.changed);
+    emit_cache_changed(&app);
+    emit_mutation_settled(&app, settlement_transaction_id, "committed", None);
     Ok(result)
 }
 
-/// Drops a pending optimistic layer's contribution (mutation failed).
+/// Permanently fails a claimed mutation and drops its optimistic layer.
 #[tauri::command]
 pub async fn graphql_cache_rollback_optimistic_write<R: Runtime>(
     app: AppHandle<R>,
     state: State<'_, CacheState>,
     transaction_id: String,
+    lease_owner: String,
+    lease_generation: String,
+    error: String,
 ) -> Result<WriteResultWire, String> {
+    let settlement_transaction_id = transaction_id.clone();
     let result = engine_handle(&state)?
-        .rollback_optimistic_write(transaction_id)
+        .rollback_optimistic_write(transaction_id, lease_owner, lease_generation)
         .await?;
     emit_ops_affected(&app, &result.affected_ops, &result.changed);
+    emit_cache_changed(&app);
+    emit_mutation_settled(
+        &app,
+        settlement_transaction_id,
+        "permanently-failed",
+        Some(error),
+    );
     Ok(result)
 }
 
@@ -179,6 +290,20 @@ pub async fn graphql_cache_invalidate<R: Runtime>(
     keys: Vec<String>,
 ) -> Result<Vec<String>, String> {
     let affected = engine_handle(&state)?.invalidate(keys.clone()).await?;
+    emit_ops_affected(&app, &affected, &keys);
+    emit_cache_changed(&app);
+    Ok(affected)
+}
+
+/// Deletes stale durable records after a server mutation returns only entity
+/// references and broadcasts the affected registered operations.
+#[tauri::command]
+pub async fn graphql_cache_delete_records<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, CacheState>,
+    keys: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let affected = engine_handle(&state)?.delete_records(keys.clone()).await?;
     emit_ops_affected(&app, &affected, &keys);
     Ok(affected)
 }
@@ -194,6 +319,11 @@ pub async fn graphql_cache_teardown(
 
 /// Wipes all cached state (logout).
 #[tauri::command]
-pub async fn graphql_cache_clear(state: State<'_, CacheState>) -> Result<(), String> {
-    engine_handle(&state)?.clear().await
+pub async fn graphql_cache_clear<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, CacheState>,
+) -> Result<(), String> {
+    engine_handle(&state)?.clear().await?;
+    emit_cache_changed(&app);
+    Ok(())
 }

@@ -3,13 +3,18 @@ query Soup($input: SoupInput!) {
 		id
 		soup(input: $input) {
 			items {
-				id
-				entityType
-				frecencyScore
-				entity {
-					__typename
+				...SoupItemFields
+			}
+			nextCursor
+		}
+	}
+}
+
+fragment SoupItemFields on GraphqlSoupEntity {
+	__typename
+	...SoupEntityCoreFields
+	frecencyScore
 					... on GraphqlSoupDocument {
-						id
 						documentName: name
 						ownerId
 						fileType
@@ -19,18 +24,16 @@ query Soup($input: SoupInput!) {
 						viewedAt
 						deletedAt
 						subType {
-							kind
-							isCompleted
+							__typename
+							... on GraphqlTaskSubType {
+								isCompleted
+							}
 						}
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupChat {
-						id
 						chatName: name
 						ownerId
 						projectId
@@ -42,12 +45,8 @@ query Soup($input: SoupInput!) {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupProject {
-						id
 						projectName: name
 						ownerId
 						parentId
@@ -58,12 +57,8 @@ query Soup($input: SoupInput!) {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupEmailThread {
-						id
 						providerId
 						ownerId
 						inboxVisible
@@ -111,12 +106,53 @@ query Soup($input: SoupInput!) {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
+						latestContentMessage {
+							__typename
+							id
+							threadId
+							linkId
+							subject
+							snippet
+							internalDateTs
+							sentAt
+							isRead
+							isStarred
+							isSent
+							hasAttachments
+							from {
+								email
+								name
+								photoUrl
+							}
+							to {
+								email
+								name
+								photoUrl
+							}
+							cc {
+								email
+								name
+								photoUrl
+							}
+							bcc {
+								email
+								name
+								photoUrl
+							}
+							labels {
+								providerLabelId
+								name
+							}
+							bodyParsed
+							bodyText
+							bodyHtmlSanitized
+							bodyMacro
+							bodyReplyless
+							createdAt
+							updatedAt
 						}
 					}
 					... on GraphqlSoupChannel {
-						id
 						channelName: name
 						channelType
 						ownerId
@@ -126,6 +162,7 @@ query Soup($input: SoupInput!) {
 						updatedAt
 						viewedAt
 						interactedAt
+						isParticipant
 						participants {
 							channelId
 							userId
@@ -139,12 +176,8 @@ query Soup($input: SoupInput!) {
 						latestNonThreadMessage {
 							...SoupChannelMessageFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
-					... on GraphqlSoupChannelThread {
-						id
+					... on GraphqlSoupChannelMessage {
 						channelId
 						senderId
 						content
@@ -152,12 +185,8 @@ query Soup($input: SoupInput!) {
 						updatedAt
 						effectiveUpdatedAt
 						replyCount
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupCall {
-						id
 						channelId
 						channelName
 						createdBy
@@ -177,12 +206,8 @@ query Soup($input: SoupInput!) {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupCrmCompany {
-						id
 						crmTeamId: teamId
 						crmCompanyName: name
 						description
@@ -195,28 +220,25 @@ query Soup($input: SoupInput!) {
 						properties {
 							...SoupPropertyFields
 						}
-						notifications {
-							...SoupNotificationFields
-						}
 					}
 					... on GraphqlSoupForeignEntity {
-						id
 						foreignEntityId
 						foreignEntitySource
 						storedForId
 						storedForAuthEntity
-						metadata
+						sourceMetadata
 						createdAt
 						updatedAt
-						notifications {
-							...SoupNotificationFields
-						}
 					}
-				}
-			}
-			nextCursor
-			hasMore
-		}
+}
+
+fragment SoupEntityCoreFields on GraphqlSoupEntity {
+	id
+	entityType
+	displayName
+	isFavorited
+	notifications {
+		...SoupNotificationFields
 	}
 }
 
@@ -259,8 +281,9 @@ fragment SoupPropertyFields on GraphqlProperty {
 	}
 }
 
-fragment SoupChannelMessageFields on GraphqlSoupChannelMessage {
-	id
+fragment SoupChannelMessageFields on GraphqlSoupChannelMessagePreview {
+	messageId
+	channelId
 	threadId
 	senderId
 	content
