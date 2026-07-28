@@ -1,3 +1,4 @@
+import { analytics } from '@app/lib/analytics';
 import { ENABLE_SEARCH_SERVICE } from '@core/constant/featureFlags';
 import { useChannelsContext } from '@core/context/channels';
 import { throwOnErr } from '@core/util/result';
@@ -62,7 +63,7 @@ export const useSearchSoupQuery = (
     queryKey: soupKeys.search({ params: args().params, body: request() })
       .queryKey,
     queryFn: async (ctx) => {
-      return throwOnErr(
+      const page = await throwOnErr(
         async () =>
           await searchClient.search(
             {
@@ -72,6 +73,20 @@ export const useSearchSoupQuery = (
             { signal: ctx.signal }
           )
       );
+      // First page only: one event per executed (debounced) search, never
+      // for pagination. Cache hits don't reach the queryFn, so re-running
+      // an identical query doesn't re-fire either. Entity pickers and the
+      // mentions menu search on 'name' — only 'name_content' is a
+      // user-facing search.
+      if (!ctx.pageParam.cursor && request().search_on === 'name_content') {
+        analytics.track('search_performed', {
+          scope: 'unified',
+          queryLength: request().query.length,
+          resultCount: page.results.length,
+          hasMore: !!page.next_cursor,
+        });
+      }
+      return page;
     },
     initialPageParam: {
       cursor: null as string | null,
@@ -142,7 +157,7 @@ export const useSearchChannelQuery = (
   return useInfiniteQuery(() => ({
     queryKey: ['search-channel', args().params, request()] as const,
     queryFn: async (ctx) => {
-      return throwOnErr(
+      const page = await throwOnErr(
         async () =>
           await searchClient.searchChannel(
             {
@@ -152,6 +167,15 @@ export const useSearchChannelQuery = (
             { signal: ctx.signal }
           )
       );
+      if (!ctx.pageParam.cursor) {
+        analytics.track('search_performed', {
+          scope: 'channel',
+          queryLength: request().query?.length ?? 0,
+          resultCount: page.results.length,
+          hasMore: !!page.next_cursor,
+        });
+      }
+      return page;
     },
     initialPageParam: {
       cursor: null as string | null,

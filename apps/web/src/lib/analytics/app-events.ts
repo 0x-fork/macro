@@ -112,6 +112,21 @@ export type AppEvents = {
     destination?: 'dss' | 'static';
   };
 
+  // --- Search ----------------------------------------------------------------
+  /**
+   * A search-service request completed (first page only, so pagination
+   * doesn't re-fire it). Fired at the query layer so every search surface is
+   * covered without per-surface instrumentation. `scope` distinguishes
+   * unified search from the in-channel find bar; `resultCount` of 0 is the
+   * zero-results signal.
+   */
+  search_performed: {
+    scope: 'unified' | 'channel';
+    queryLength: number;
+    resultCount: number;
+    hasMore: boolean;
+  };
+
   command_menu_open: { from: string };
   command_menu_use: { itemType: string };
   create_menu_open: { from: string };
