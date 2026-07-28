@@ -35,6 +35,8 @@ export type AppEvents = {
   login_from_onboarding: Record<string, unknown>;
   mobile_web_welcome_viewed: Record<string, unknown>;
   mobile_web_signup_sent_viewed: Record<string, unknown>;
+  /** The App Store install link was tapped. `source` is the UI surface. */
+  app_store_click: { source: 'mobile_web_signup_sent' | (string & {}) };
 
   // --- Interactive tutorial (optional; decoupled from acquisition) ---------
   tutorial_started: { isFirstTime: boolean };

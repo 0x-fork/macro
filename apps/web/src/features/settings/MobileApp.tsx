@@ -1,3 +1,4 @@
+import { APP_STORE_URL } from '@core/constant/appLinks';
 import AppStoreQr from '@design/app-store.svg';
 import { SettingsCard, SettingsPage } from './primitives';
 
@@ -14,7 +15,7 @@ export function MobileApp() {
             Download on the
             <br />
             <a
-              href="https://apps.apple.com/us/app/macro-app/id6743133649"
+              href={APP_STORE_URL}
               rel="noopener noreferrer"
               class="text-accent hover:underline"
               target="_blank"

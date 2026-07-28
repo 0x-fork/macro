@@ -1,9 +1,11 @@
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { MOBILE_WEB_SIGNUP_LEAD_VALUE } from '@app/lib/analytics/leadValues';
 import { PcNoiseGrid } from '@core/component/PcNoiseGrid';
+import { APP_STORE_URL } from '@core/constant/appLinks';
 import { getWebOrigin } from '@core/util/webOrigin';
 import LogoIcon from '@icon/macro-logo.svg';
-import { onMount } from 'solid-js';
+import { isIOS } from '@solid-primitives/platform';
+import { onMount, Show } from 'solid-js';
 
 type Props = {
   /** Email submitted on the prior step — used as the Google conversion `transaction_id` for dedup. */
@@ -58,15 +60,45 @@ export default function MobileWebSignupSent(props: Props) {
           Macro experience.
         </p>
 
-        <button
-          type="button"
-          onClick={() => {
-            window.location.href = getWebOrigin();
-          }}
-          class="w-full px-3 py-2.5 text-lg font-bold rounded-xs bg-accent text-surface border-none mt-16"
+        <Show
+          when={isIOS}
+          fallback={
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = getWebOrigin();
+              }}
+              class="w-full px-3 py-2.5 text-lg font-bold rounded-xs bg-accent text-surface border-none mt-16"
+            >
+              Back to Home
+            </button>
+          }
         >
-          Back to Home
-        </button>
+          <p class="text-base text-ink/60">
+            Or start right away with the iPhone app.
+          </p>
+          <a
+            href={APP_STORE_URL}
+            rel="noopener noreferrer"
+            onClick={() =>
+              analytics.track('app_store_click', {
+                source: 'mobile_web_signup_sent',
+              })
+            }
+            class="w-full px-3 py-2.5 text-lg font-bold rounded-xs bg-accent text-surface text-center mt-16"
+          >
+            Download the iOS app
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = getWebOrigin();
+            }}
+            class="w-full px-3 py-2.5 text-lg rounded-xs bg-transparent text-ink/50 ring ring-edge-muted border-none"
+          >
+            Back to Home
+          </button>
+        </Show>
       </div>
     </div>
   );
