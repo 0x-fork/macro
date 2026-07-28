@@ -5073,6 +5073,17 @@ export const getDocumentByTeamSlugResponse = zod.object({
 });
 
 /**
+ * @summary Resolves the current user's starter documents.
+ */
+export const handlerResponse = zod
+  .object({
+    how_to_guide_id: zod
+      .string()
+      .describe('Id of the user\'s \"Macro how to guide\".'),
+  })
+  .describe('The deterministic starter document ids for the current user.');
+
+/**
  * Returns document metadata, user access level, and view location.
  * @summary Handler for `GET /documents/{document_id}`.
  */

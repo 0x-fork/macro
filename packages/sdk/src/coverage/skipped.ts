@@ -253,6 +253,7 @@ export const storageExcluded = [
   'getRingStatus',
   'getUserDocumentViewLocation',
   'getViewsHandler',
+  'handler',
   'healthHandler',
   'ingestTranscript',
   'initializeUserDocuments',

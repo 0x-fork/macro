@@ -1,3 +1,4 @@
+import { AFTER_SETUP_ROUTE, DEFAULT_ROUTE } from '@app/constants/defaultRoute';
 import { createOnboardingCheckoutSession } from '@app/features/onboarding/use-onboarding-checkout';
 import type { PaidPlanTier } from '@app/features/paywall/plans';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
@@ -14,8 +15,8 @@ import { FLOW_NEXT_STORAGE_KEY, FLOW_STEP_STORAGE_KEY } from './shared';
 /**
  * The "leave onboarding" workflow: mark onboarding + the legacy tutorial
  * complete, then land in the app (the preserved `?next=` deep link, or
- * home). Imports never block the exit; auto-import keeps landing rows
- * server-side.
+ * the Getting Started checklist). Imports never block the exit;
+ * auto-import keeps landing rows server-side.
  */
 export function createFlowFinish(options?: {
   /** Extra analytics context stamped onto `onboarding_v4_completed`. */
@@ -41,11 +42,14 @@ export function createFlowFinish(options?: {
     });
   };
 
-  // Same-app relative paths only.
+  // Same-app relative paths only. A `next` at the default route is not a
+  // real deep link — fall through to the Getting Started checklist.
   const sanitizeNext = (value: unknown): string | undefined =>
     typeof value === 'string' &&
     value.startsWith('/') &&
-    !value.startsWith('//')
+    !value.startsWith('//') &&
+    !value.includes('\\') &&
+    !value.startsWith(DEFAULT_ROUTE)
       ? value
       : undefined;
 
@@ -59,7 +63,7 @@ export function createFlowFinish(options?: {
   const afterTarget = () =>
     sanitizeNext(searchParams.next) ??
     sanitizeNext(sessionStorage.getItem(FLOW_NEXT_STORAGE_KEY)) ??
-    '/';
+    AFTER_SETUP_ROUTE;
 
   /**
    * Mark the flow complete and verify it stuck: NewOnboardingRedirect keys

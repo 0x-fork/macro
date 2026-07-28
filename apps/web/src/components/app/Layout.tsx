@@ -1,3 +1,4 @@
+import { DEFAULT_ROUTE } from '@app/constants/defaultRoute';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import Banner from '@app/features/auth/banner/Banner';
 import { GithubReauthenticationPrompt } from '@app/features/auth/GithubReauthenticationPrompt';
@@ -304,12 +305,14 @@ function NewOnboardingRedirect() {
     }
     if (AUTH_URLS.includes(location.pathname)) return;
     // Preserve the deep link the user arrived on (a shared doc, an invite):
-    // the flow carries it as ?next and its finish() returns there instead of
-    // home. Base-relative so navigate() can resolve it against the router.
+    // /setup carries it as ?next and its finish() returns there instead of
+    // the post-setup landing. Base-relative so navigate() can resolve it
+    // against the router.
     const target =
       location.pathname.slice(ROUTER_BASE_CONCAT.length - 1) + location.search;
+    const isGenericEntry = target === '/' || target.startsWith(DEFAULT_ROUTE);
     navigate(
-      target === '/'
+      isGenericEntry
         ? '/onboarding'
         : `/onboarding?next=${encodeURIComponent(target)}`,
       { replace: true }

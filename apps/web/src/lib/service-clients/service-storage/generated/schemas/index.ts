@@ -1004,6 +1004,7 @@ export * from './soupThreadInfo';
 export * from './soupThreadInfoLatestReplyAt';
 export * from './soupThreadReply';
 export * from './soupThreadReplyEditedAt';
+export * from './starterDocumentsResponse';
 export * from './string';
 export * from './successResponse';
 export * from './syncServiceVersionID';
