@@ -63,6 +63,7 @@ import { licenseChannel } from '@core/util/licenseUpdateBroadcastChannel';
 import { isTauri } from '@core/util/platform';
 import { thrownResultErrorHasCode } from '@core/util/result';
 import { transformShortIdInUrlPathname } from '@core/util/url';
+import EmptyStateNoSearchMatchGraphic from '@design/empty-state-no-search-match.svg';
 import { EntityProvider } from '@entity';
 import { MaybeTauriProvider } from '@macro/tauri';
 import { TauriRouteListener } from '@macro/tauri/TauriProvider';
@@ -97,6 +98,7 @@ import {
   Router,
   type RouterProps,
   useLocation,
+  useNavigate,
   useSearchParams,
 } from '@solidjs/router';
 import {
@@ -105,7 +107,7 @@ import {
   resolveActiveThemeId,
   systemThemeEffect,
 } from '@theme/utils/themeUtils';
-import { Button } from '@ui';
+import { Button, EmptyStatePanel } from '@ui';
 import { detect } from 'detect-browser';
 import {
   createEffect,
@@ -291,10 +293,52 @@ function BasePathComponent() {
   );
 }
 
+/**
+ * Wildcard fallback for URLs no route matches. Two causes are possible: the
+ * running bundle predates the link's route (version skew right after a
+ * deploy), or the link is genuinely wrong or stale. Reload once to rule out
+ * skew — a fresh bundle that knows the route renders it and never lands back
+ * here — then show a real 404 instead of silently bouncing to the app root
+ * and losing the attempted URL.
+ */
 function NotFound() {
   if (isNativeMobilePlatform()) return <Navigate href={DEFAULT_ROUTE} />;
-  window.location.href = window.location.origin;
-  return '';
+
+  const reloadedKey = `not-found-reloaded:${window.location.pathname}`;
+  if (!sessionStorage.getItem(reloadedKey)) {
+    sessionStorage.setItem(reloadedKey, 'true');
+    window.location.reload();
+    return '';
+  }
+  return <RouteNotFoundScreen />;
+}
+
+function RouteNotFoundScreen() {
+  const analytics = useAnalytics();
+  const navigate = useNavigate();
+  const path = window.location.pathname;
+
+  onMount(() => {
+    analytics.track('route_not_found', { path });
+  });
+
+  return (
+    <EmptyStatePanel
+      centered
+      graphic={EmptyStateNoSearchMatchGraphic}
+      title="Page not found"
+      description={
+        <>
+          Nothing lives at <code class="text-ink">{path}</code> — the link may
+          be stale, or its content may have moved.
+        </>
+      }
+      primaryAction={{
+        label: 'Back to Macro',
+        onClick: () => navigate(DEFAULT_ROUTE),
+      }}
+    />
+  );
 }
 
 const { EmailCallback, CALLBACK_PATH, EmailLinkCallback, LINK_CALLBACK_PATH } =

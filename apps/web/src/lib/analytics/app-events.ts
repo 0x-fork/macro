@@ -112,6 +112,13 @@ export type AppEvents = {
     destination?: 'dss' | 'static';
   };
 
+  /**
+   * The SPA wildcard route rendered a 404 screen: the URL stayed unmatched
+   * even after the one-shot reload that rules out bundle version skew.
+   * Volume here means stale or broken links are circulating.
+   */
+  route_not_found: { path: string };
+
   command_menu_open: { from: string };
   command_menu_use: { itemType: string };
   create_menu_open: { from: string };
