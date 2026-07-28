@@ -29,18 +29,90 @@ Macro has raised $30m led by a16z. We are based in NYC.
 
 ## Features
 
-Full documentation lives at [docs.macro.com](https://docs.macro.com):
- 
-- **[Email](https://docs.macro.com/product/email):** the fastest, smartest email client. The best of Superhuman, Gmail, and Outlook in one keyboard-first inbox. Multi-account, unified, with shared inboxes.
-- **[Messages](https://docs.macro.com/product/channels):** team chat built for focused deep work. Channels and DMs for focused technical discussions.
-- **[Tasks](https://docs.macro.com/product/tasks):** keyboard-first tasks built around chat messages that agents can close. Nothing stranded elsewhere.
-- **[Docs](https://docs.macro.com/product/docs):** collaborative, version-controlled, markdown-native docs built for agents. Real-time and built on CRDTs.
-- **[Canvas](https://docs.macro.com/product/canvas):** 2D board with embedded @links to tasks, files, and emails.
-- **[Agents](https://docs.macro.com/product/agents):** unified team-level memory, the most knowledgeable "person" at your company. Takes action on your behalf.
-- **[Calls](https://docs.macro.com/product/calls):** recorded, transcribed, and logged to team memory.
-- **[File storage](https://docs.macro.com/product/folders):** auto-imported from email and channels, fully searchable.
-- **[Pull requests](https://docs.macro.com/integrations/github):** linked to tasks, embeddable in channels, available to agents.
-- **[CRM](https://docs.macro.com/product/crm):** contact objects, custom properties, email sync, enrichment.
+Full documentation lives at [docs.macro.com](https://docs.macro.com). Every block below is the same object under the hood, so anything can be @linked to anything else.
+
+### [Email](https://docs.macro.com/product/email)
+
+The fastest, smartest email client — the best of Superhuman, Gmail, and Outlook in one keyboard-first inbox. Multi-account and unified, with shared inboxes for support@ and sales@ so a thread is never trapped in one person's mailbox.
+
+- Turn any thread into a task or a doc without leaving the inbox.
+- Tag and add custom properties to threads, then filter on them like a database.
+- Ask Macro to draft, summarize, or dig up the last time you talked to someone.
+- Attachments are auto-imported to file storage and indexed for search.
+
+![Macro email thread with actions, tags, and properties in the sidebar](.github/readme/email-thread.png)
+
+### [Messages](https://docs.macro.com/product/channels)
+
+Team chat built for focused deep work. Channels and DMs where technical discussion actually stays readable, with threads that don't bury the main conversation.
+
+- @link a doc, task, PR, or email into a message and both sides remember it.
+- Channel membership *is* the permission model — join a channel, gain access to everything mentioned in it.
+- GitHub checks, PRs, and deploys render inline, so you triage without tab-hopping.
+- Jump straight into a [call](https://docs.macro.com/product/calls) from any channel.
+
+![Macro #Engineers channel with threads, mentions, and an inline GitHub check](.github/readme/messages-channel.png)
+
+### [Tasks](https://docs.macro.com/product/tasks)
+
+Keyboard-first tasks built around the messages that created them. A bug report in a channel becomes a task in one keystroke, keeping the original conversation attached — no re-explaining the context in a tracker that lives somewhere else.
+
+- Sort, group, and filter by assignee, status, priority, or any custom property.
+- Linked pull requests show live status and diff size on the task itself.
+- Agents can pick up, work, and close tasks alongside your team.
+
+![Macro tasks list grouped by assignee, with a task detail showing its source message and linked PR](.github/readme/tasks-list.png)
+
+### [Docs](https://docs.macro.com/product/docs)
+
+Collaborative, version-controlled, markdown-native docs built for agents. Real-time editing on CRDTs, so two people and two agents can write at once without stepping on each other.
+
+- Backlinks are automatic: the References panel shows every place a doc is mentioned.
+- Checklists, tags, and properties turn a doc into a lightweight plan or spec.
+- "Edit with AI" and "Ask Macro" work against the doc *and* everything it links to.
+- Full history, so you can see what changed and who (or what) changed it.
+
+![A PRD in Macro with tags, assignees, properties, and references](.github/readme/docs-prd.png)
+
+![A Macro doc with checklists that @link out to tasks, messages, and other docs](.github/readme/docs-checklist.png)
+
+### [File storage](https://docs.macro.com/product/folders)
+
+Files auto-imported from email and channels, fully searchable, and readable in place. PDFs open in a real viewer with annotations and comments — no download, no "which version was this again?".
+
+- Every file keeps a pointer back to the email or message it arrived on.
+- Full-text search across contents, not just filenames.
+- Comment and annotate inline; agents can read the contents too.
+
+![A PDF opened in Macro's viewer, auto-imported from an email thread (document contents blurred)](.github/readme/files-pdf-viewer.png)
+
+### [CRM](https://docs.macro.com/product/crm)
+
+Contact and company objects with custom properties, email sync, and enrichment. Because email already lives in Macro, the pipeline updates itself instead of asking your team to log activity.
+
+- Board and list views grouped by any property — stage, owner, revenue.
+- Every company record shows the whole team's email and calendar history, not just yours.
+- Contacts, threads, docs, and tasks all @link to the record.
+
+![Macro CRM board grouped by pipeline stage](.github/readme/crm-board.png)
+
+![A Macro company record with properties, contacts, and team-wide email history](.github/readme/crm-company.png)
+
+### [Agents](https://docs.macro.com/product/agents)
+
+Unified team-level memory makes Macro's agent the most knowledgeable "person" at your company — and it takes action on your behalf, not just answers questions.
+
+- Hand a task to a coding agent ([Claude Code](https://docs.macro.com/AI/mcp/overview) and friends) straight from the task view; it opens a branch and reports back.
+- Agents see email, messages, tasks, docs, files, and calls — scoped to the same permissions you have.
+- Connect your own MCP clients and let them read and write your workspace.
+
+![A Macro task being handed off to a coding agent, with a linked branch](.github/readme/agents-task-handoff.png)
+
+### Also included
+
+- **[Canvas](https://docs.macro.com/product/canvas):** 2D board with embedded @links to tasks, files, and emails, for planning that doesn't fit in a list.
+- **[Calls](https://docs.macro.com/product/calls):** recorded, transcribed, and logged to team memory, so decisions made on a call are searchable afterwards.
+- **[Pull requests](https://docs.macro.com/integrations/github):** linked to tasks, embeddable in channels, and available to agents.
 
   
 ### A few ideas make the blocks work as one system:
