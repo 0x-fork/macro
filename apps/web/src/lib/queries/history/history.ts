@@ -213,6 +213,9 @@ export function useUpsertToHistoryMutation(
             queryClient.invalidateQueries({
               queryKey: historyQueryOptions.queryKey,
             });
+            queryClient.invalidateQueries({
+              queryKey: historyKeys.all.queryKey,
+            });
           },
         },
         callbacks

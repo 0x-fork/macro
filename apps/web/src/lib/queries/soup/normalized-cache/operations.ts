@@ -1,11 +1,22 @@
+import {
+  compileToAst,
+  defineQueryFilters,
+  queryStateFrom,
+  type Query as SoupFilterQuery,
+} from '@app/features/next-soup/filters/filter-store';
 import { QUERY_FILTERS_BASE } from '@app/features/next-soup/filters/query-filters';
 
 import type { UnifiedSearchResponseItem } from '@service-search/generated/models';
+import { storageServiceClient } from '@service-storage/client';
 import type {
   PostSoupRequest,
   SoupApiItem,
 } from '@service-storage/generated/schemas';
 import type { SoupPage } from '@service-storage/generated/schemas/soupPage';
+import {
+  fetchGraphqlSoup,
+  getGraphqlSoupCacheHost,
+} from '@service-storage/graphql-soup';
 import {
   type InfiniteData,
   partialMatchKey,
@@ -15,6 +26,7 @@ import {
 import { isAfter } from 'date-fns';
 import { match } from 'ts-pattern';
 import { queryClient } from '../../client';
+import { makeGraphqlSoupInput } from '../graphql-ast';
 import type { SoupApiItemFilter, SoupAstItemsPage } from '../items';
 import { soupKeys } from '../keys';
 import {
@@ -492,23 +504,66 @@ export function removeSearchEntities(entityIds: Set<string>): SoupTransaction {
   };
 }
 
-/**
- * Fetch a single entity from the server and merge it into the cache.
- * If the entity is already cached, updates it via normy (deep-merge).
- * If it's new, prepends it to the first page of every active soup list query.
- */
-export async function refetchSoupEntity(
+function singleEntityQuery(
+  entityType: SoupEntityTag,
+  entityId: string
+): SoupFilterQuery {
+  const include: SoupFilterQuery['include'] = match(entityType)
+    .with('document', () => ({ documentId: [entityId] }))
+    .with('chat', () => ({ chatId: [entityId] }))
+    .with('channel', () => ({ channelId: [entityId] }))
+    .with('project', () => ({ folderId: [entityId] }))
+    .with('emailThread', () => ({ threadId: [entityId] }))
+    .with('call', () => ({ callId: [entityId] }))
+    .with('crmCompany', () => ({ crmCompanyId: [entityId] }))
+    .with('foreignEntity', () => ({ foreignEntityRecordId: [entityId] }))
+    .with('channelThread', () => ({ channelThreadId: [entityId] }))
+    .exhaustive();
+
+  return defineQueryFilters({ include });
+}
+
+/** @private */
+export function buildSingleEntityGraphqlInput(
+  entityType: SoupEntityTag,
+  entityId: string
+) {
+  return makeGraphqlSoupInput({
+    params: { limit: 1 },
+    body: compileToAst(queryStateFrom(singleEntityQuery(entityType, entityId))),
+  });
+}
+
+async function fetchSingleEntityPage(
   entityId: string,
   entityType: SoupEntityTag,
   options?: { includeRoot?: boolean }
-): Promise<void> {
-  const { storageServiceClient } = await import('@service-storage/client');
+): Promise<SoupPage | undefined> {
+  if (getGraphqlSoupCacheHost()) {
+    try {
+      const page = await fetchGraphqlSoup(
+        buildSingleEntityGraphqlInput(entityType, entityId),
+        { allowOfflineFallback: false }
+      );
+      if (page.items.some((item) => getSoupItemId(item) === entityId)) {
+        return page;
+      }
 
-  const filter = buildSingleEntityFilter(entityType, entityId, options);
+      console.warn(
+        '[normalized-cache] operations: GraphQL response did not include requested soup item; falling back to REST',
+        { entityId, entityType }
+      );
+    } catch (error) {
+      console.warn(
+        '[normalized-cache] operations: failed to hydrate individual soup item through GraphQL; falling back to REST',
+        { entityId, entityType, error }
+      );
+    }
+  }
 
   const result = await storageServiceClient.getSoupItems({
     params: {},
-    body: filter,
+    body: buildSingleEntityFilter(entityType, entityId, options),
   });
 
   if (result.isErr()) {
@@ -519,11 +574,27 @@ export async function refetchSoupEntity(
     return;
   }
 
-  const page = result.value;
-  if (!page.items.length) return;
+  return result.value;
+}
+
+/**
+ * Fetch a single entity from the server and merge it into the cache.
+ * When the GraphQL cache is active, the GraphQL response hydrates it and the
+ * mapped Soup page is also merged into the legacy normy cache. If GraphQL is
+ * unavailable or does not return the entity, the request falls back to REST.
+ */
+export async function refetchSoupEntity(
+  entityId: string,
+  entityType: SoupEntityTag,
+  options?: { includeRoot?: boolean }
+): Promise<void> {
+  const page = await fetchSingleEntityPage(entityId, entityType, options);
+  if (!page?.items.length) return;
 
   for (const item of page.items) {
     const itemId = getSoupItemId(item);
+    if (itemId !== entityId) continue;
+
     if (hasSoupEntity(itemId)) {
       optimisticUpdateSoupEntity(item);
     } else {
