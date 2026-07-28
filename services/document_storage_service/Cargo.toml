@@ -57,6 +57,7 @@ channel_bots = { path = "../../crates/channel_bots" }
 channels = { path = "../../crates/channels", features = [
   "entity_mutation",
   "inbound",
+  "list",
   "outbound",
 ] }
 chat = { path = "../../crates/chat", default-features = false, features = [
