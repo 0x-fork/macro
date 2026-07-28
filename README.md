@@ -186,6 +186,15 @@ Have an idea, want to contribute, or want to work on Macro?
 - Contributions: see our [contribution guidelines](CONTRIBUTING.md)
 - Hiring: [teo@macro.com](mailto:teo@macro.com)
 
+<a href="https://github.com/macro-inc/macro">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/star-history-dark.svg" />
+    <img alt="Star history for macro-inc/macro, from launch to 672 stars" src=".github/readme/star-history-light.svg" width="100%" />
+  </picture>
+</a>
+
+If Macro is useful to you, starring the repo helps other people find it.
+
 <div align="center">
   <a target="_blank" href="https://macro.com/app">
     <img width="2195" height="721" alt="Frame 12" src="https://github.com/user-attachments/assets/61b846b0-0a61-4a65-9f7b-0e605e209d12" />
