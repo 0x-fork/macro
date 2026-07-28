@@ -13,6 +13,11 @@ export type ChatSendInput = {
   content: string;
   model: Model;
   attachments: Attachment[];
+  /**
+   * Skills attached via a `/<skillname>` slash command. Injected into the
+   * AI system prompt rather than sent as a message attachment.
+   */
+  skills?: Attachment[];
   toolset: ToolSet;
   metaKey?: boolean;
 };
@@ -29,6 +34,7 @@ export function useSendChatMessage() {
     model,
     chatId,
     attachments,
+    skills = [],
     toolset,
   }: ChatSendInput & { chatId?: string }): Promise<SendChatMessageResult> {
     // Append the dynamic-UI (displayResults) JSON schema so the model knows the
@@ -42,6 +48,7 @@ export function useSendChatMessage() {
       model: model ?? DEFAULT_MODEL,
       chat_id: chatId,
       attachments: attachments.length > 0 ? attachments : undefined,
+      skills: skills.length > 0 ? skills : undefined,
       toolset,
       additional_instructions: merged,
     });

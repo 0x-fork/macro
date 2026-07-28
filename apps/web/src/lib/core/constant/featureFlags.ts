@@ -449,6 +449,22 @@ export function ENABLE_SNIPPETS(): boolean {
   return analytics.posthog.isFeatureEnabled(ENABLE_SNIPPETS_FLAG) ?? false;
 }
 
+// Skills: reusable AI-instruction markdown documents attachable to an AI chat
+// input via a `/<skillname>` slash command, and the `create` menu entry.
+// PostHog-gated with a dev-mode default; override with VITE_ENABLE_SKILLS.
+export const ENABLE_SKILLS_FLAG = 'enable-skills';
+export const ENABLE_SKILLS_OVERRIDE =
+  resolveFeatureFlag('ENABLE_SKILLS', DEV_MODE_ENV) || undefined;
+
+/** Non-reactive check for imperative call sites (e.g. editor key handlers). */
+export function ENABLE_SKILLS(): boolean {
+  if (ENABLE_SKILLS_OVERRIDE !== undefined) {
+    return ENABLE_SKILLS_OVERRIDE;
+  }
+
+  return analytics.posthog.isFeatureEnabled(ENABLE_SKILLS_FLAG) ?? false;
+}
+
 export const ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG =
   'enable-supported-soup-foreign-entities';
 export const ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE = DEV_MODE_ENV

@@ -282,7 +282,11 @@ export const SearchToolResponse = z.object({
                 sub_type: z
                   .union([
                     z.any().superRefine((x, ctx) => {
-                      const schemas = [z.literal('task'), z.literal('snippet')];
+                      const schemas = [
+                        z.literal('task'),
+                        z.literal('snippet'),
+                        z.literal('skill'),
+                      ];
                       const errors = schemas.reduce<z.ZodError[]>(
                         (errors, schema) =>
                           ((result) =>
@@ -2880,7 +2884,11 @@ export const ReadMetadataResponse = z.object({
     subType: z
       .union([
         z.any().superRefine((x, ctx) => {
-          const schemas = [z.literal('task'), z.literal('snippet')];
+          const schemas = [
+            z.literal('task'),
+            z.literal('snippet'),
+            z.literal('skill'),
+          ];
           const errors = schemas.reduce<z.ZodError[]>(
             (errors, schema) =>
               ((result) => (result.error ? [...errors, result.error] : errors))(
@@ -2918,6 +2926,14 @@ export const RenameDocumentResponse = z.object({
   documentId: z.string().uuid(),
   message: z.string(),
   success: z.boolean(),
+});
+
+export const SearchSkills = z.object({
+  query: z.union([z.string(), z.null()]).optional(),
+});
+
+export const SearchSkillsResponse = z.object({
+  skills: z.array(z.object({ document_id: z.string(), name: z.string() })),
 });
 
 export const SearchTools = z.object({ query: z.string() });

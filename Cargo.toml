@@ -44,6 +44,7 @@ members = [
   "crates/prompt",
   "crates/properties_service",
   "crates/search_service",
+  "crates/skill",
   "crates/soup_realtime",
   "crates/task_dedup",
   "crates/unfurl",

@@ -3208,6 +3208,13 @@
             "type": "string",
             "description": "The model to respond with (`provider/model` id)"
           },
+          "skills": {
+            "type": ["array", "null"],
+            "items": {
+              "$ref": "#/components/schemas/Entity"
+            },
+            "description": "Skills attached via a `/<skillname>` slash command. Their content is\ninjected into the system prompt rather than shown as a message\nattachment."
+          },
           "toolset": {
             "$ref": "#/components/schemas/ToolSet",
             "description": "Which toolset to use. Defaults to `all`"
@@ -3774,6 +3781,13 @@
               "model": {
                 "type": "string",
                 "description": "the chat model to respond with (`provider/model` id)"
+              },
+              "skills": {
+                "type": ["array", "null"],
+                "items": {
+                  "$ref": "#/components/schemas/Entity"
+                },
+                "description": "Skills attached via a `/<skillname>` slash command. Their content is\ninjected into the system prompt rather than shown as a message\nattachment."
               },
               "stream_id": {
                 "type": "string",

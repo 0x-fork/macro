@@ -29,7 +29,7 @@ chat = { path = "../../crates/chat", features = ["ai_tools", "outbound"] }
 connection_gateway_client = { path = "../../crates/connection_gateway_client" }
 crm = { path = "../../crates/crm" }
 database_env_vars = { path = "../../crates/database_env_vars" }
-documents = { path = "../../crates/documents", features = ["ai_tools"] }
+documents = { path = "../../crates/documents", features = ["ai_tools", "attachment"] }
 doppler-config = { workspace = true }
 email = { path = "../../crates/email", features = ["outbound"] }
 email_service_client = { path = "../../crates/email_service_client" }
@@ -61,6 +61,7 @@ rmcp = { workspace = true, features = ["transport-streamable-http-server"] }
 search_service_client = { path = "../../crates/search_service_client" }
 secretsmanager_client = { path = "../../crates/secretsmanager_client" }
 serde_json = { workspace = true }
+skill = { path = "../../crates/skill" }
 soup = { path = "../../crates/soup", features = ["outbound"] }
 sqlx = { workspace = true }
 sqs_client = { path = "../../crates/sqs_client", default-features = false, features = [

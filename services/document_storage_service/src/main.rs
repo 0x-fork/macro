@@ -993,6 +993,21 @@ async fn main() -> anyhow::Result<()> {
             )),
         ));
 
+    let skill_state = skill::inbound::axum_router::SkillRouterState {
+        service: Arc::new(skill::domain::service::SkillCreator::new(
+            documents_hex::domain::create::DocumentCreator::new(
+                document_service.clone(),
+                documents_hex::outbound::markdown_init::LexicalSyncMarkdownInitializer::new(
+                    lexical_client.as_ref().clone(),
+                    sync_service_client.as_ref().clone(),
+                ),
+                documents_hex::outbound::document_bytes_upload::ReqwestDocumentBytesUploader::default(),
+            ),
+        )),
+        access_service: entity_access_service.clone(),
+        authorization_state: authorization_state.clone(),
+    };
+
     let api_context = ApiContext {
         contacts_ingress: contacts_ingress.clone(),
         soup_router_state: SoupRouterState::from_arc(
@@ -1057,6 +1072,7 @@ async fn main() -> anyhow::Result<()> {
             ),
             document_permission_jwt_secret: config.document_permission_jwt.as_ref().to_string(),
         },
+        skill_state,
         config: Arc::new(config),
         channels_state: ChannelsRouterState::from_arc(
             channels_service,

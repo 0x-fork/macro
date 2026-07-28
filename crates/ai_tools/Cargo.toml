@@ -31,7 +31,7 @@ contacts = { path = "../contacts", default-features = false, features = [
   "outbound",
 ] }
 crm = { path = "../crm" }
-documents = { path = "../documents", features = ["ai_tools"] }
+documents = { path = "../documents", features = ["ai_tools", "attachment"] }
 email = { path = "../email", features = ["ai_schema", "ai_tools", "axum", "outbound"] }
 email_service_client = { path = "../email_service_client" }
 entity_access = { path = "../entity_access" }
@@ -72,6 +72,7 @@ search_service_client = { path = "../search_service_client" }
 serde.workspace = true
 serde_json.workspace = true
 properties = { path = "../properties", features = ["ai_tools"] }
+skill = { path = "../skill", features = ["ai_tools", "outbound"] }
 soup = { path = "../soup", features = ["ai_tools", "outbound"] }
 sqs_client = { path = "../sqs_client", default-features = false, features = ["email", "gmail", "search"] }
 teams = { path = "../teams", default-features = false, features = ["ai_tools", "outbound"] }

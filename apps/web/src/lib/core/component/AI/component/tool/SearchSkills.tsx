@@ -1,0 +1,37 @@
+import WideBot from '@icon/wide-bot.svg';
+import { Show } from 'solid-js';
+import { BaseTool } from './BaseTool';
+import { createToolRenderer } from './ToolRenderer';
+
+const handler = createToolRenderer({
+  name: 'SearchSkills',
+  render: (ctx) => {
+    const count = () => ctx.response?.data.skills.length ?? 0;
+    const countText = () => {
+      if (count() === 0) return 'No skills found';
+      if (count() === 1) return '1 skill found';
+      return `${count()} skills found`;
+    };
+
+    return (
+      <BaseTool icon={WideBot} renderContext={ctx.renderContext} type="call">
+        <div class="flex min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden">
+          <span class="min-w-0 truncate">
+            <Show when={ctx.tool.data.query} fallback="Searched skills">
+              {(query) => (
+                <>
+                  Searched skills for <span class="text-ink">{query()}</span>
+                </>
+              )}
+            </Show>
+          </span>
+          <Show when={ctx.response}>
+            <span class="shrink-0 text-ink-extra-muted">{countText()}</span>
+          </Show>
+        </div>
+      </BaseTool>
+    );
+  },
+});
+
+export const searchSkillsHandler = handler;

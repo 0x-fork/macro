@@ -354,6 +354,17 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         },
     );
 
+    let skill_tool_context = ai_tools::ToolSkillToolContext::new(Arc::new(
+        skill::domain::service::SkillServiceImpl::new(
+            skill::outbound::postgres::PgSkillRepo::new(db.clone()),
+            documents::inbound::attachment::DocumentAttachmentService::new(
+                document_tool_context.service.clone(),
+                document_tool_context.entity_access_service.clone(),
+                document_tool_context.lexical_client.clone(),
+            ),
+        ),
+    ));
+
     let tool_context = ToolServiceContext {
         email_service_client: Arc::new(EmailServiceClientExternal::new(
             email_service_client.url().to_owned(),
@@ -362,6 +373,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         soup_service,
         email_service: email_service_for_tools,
         document_tool_context,
+        skill_tool_context,
         properties_tool_context,
         email_tool_context,
         call_tool_context,

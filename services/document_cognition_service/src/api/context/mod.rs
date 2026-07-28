@@ -68,6 +68,15 @@ pub type DcsEventBroker = macro_event_broker::MacroEventBrokerService<
 /// Type alias for the message service wired to concrete DCS services.
 pub type DcsMessageService = MessageServiceImpl<PgChatRepo, DcsAttachmentProvider, DcsEventBroker>;
 
+/// Type alias for the skill query service (list/search/resolve) wired to
+/// concrete DCS services. Skills always resolve as `EntityType::Document`,
+/// so this uses the document attachment service directly rather than the
+/// full multi-type [`DcsAttachmentProvider`].
+pub type DcsSkillService = skill::domain::service::SkillServiceImpl<
+    skill::outbound::postgres::PgSkillRepo,
+    DocumentAttachmentService<ToolDocumentService, ToolEntityAccessService>,
+>;
+
 #[cfg(test)]
 mod test;
 #[cfg(test)]
@@ -142,6 +151,7 @@ pub struct ApiContext {
     pub all_tools_prompt: Arc<dyn std::fmt::Display + Send + Sync>,
     pub entity_access_service: Arc<DcsEntityAccessService>,
     pub message_service: Arc<DcsMessageService>,
+    pub skill_service: Arc<DcsSkillService>,
     pub ai_stream_registry: AiStreamRegistry,
     pub mcp_state: DcsMcpRouterState,
     pub import_service: Arc<DcsImportService>,

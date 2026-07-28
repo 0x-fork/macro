@@ -36,6 +36,11 @@ pub struct SendChatMessagePayload {
     /// Use citation prompt
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<Entity<'static>>>,
+    /// Skills attached via a `/<skillname>` slash command. Their content is
+    /// injected into the system prompt rather than shown as a message
+    /// attachment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skills: Option<Vec<Entity<'static>>>,
     /// Which toolset to use. Defaults to `all`
     #[serde(default)]
     pub toolset: ToolSet,

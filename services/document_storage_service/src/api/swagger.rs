@@ -191,6 +191,9 @@ use utoipa::OpenApi;
         instructions::create_instructions::create_instructions_handler,
         instructions::get_instructions::get_instructions_handler,
 
+        // skill
+        skill::inbound::axum_router::create_skill::create_skill_handler,
+
         // user_document_view_location
         user_document_view_location::get_user_document_view_location::handler,
         user_document_view_location::upsert_user_document_view_location::handler,
@@ -362,6 +365,8 @@ use utoipa::OpenApi;
             documents_hex::domain::models::CreateTaskResponse,
             documents_hex::domain::models::CreateSnippetRequest,
             documents_hex::domain::models::CreateSnippetResponse,
+            skill::inbound::axum_router::create_skill::CreateSkillRequest,
+            skill::inbound::axum_router::create_skill::CreateSkillResponse,
             documents_hex::domain::models::DocumentTeamShareResponse,
             documents_hex::domain::models::SetDocumentTeamShareRequest,
             documents_hex::domain::models::PropertyInput,

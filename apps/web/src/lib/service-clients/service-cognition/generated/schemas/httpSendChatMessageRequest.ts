@@ -7,6 +7,7 @@
 import type { HttpSendChatMessageRequestAdditionalInstructions } from './httpSendChatMessageRequestAdditionalInstructions';
 import type { HttpSendChatMessageRequestAttachments } from './httpSendChatMessageRequestAttachments';
 import type { HttpSendChatMessageRequestChatId } from './httpSendChatMessageRequestChatId';
+import type { HttpSendChatMessageRequestSkills } from './httpSendChatMessageRequestSkills';
 import type { ToolSet } from './toolSet';
 
 /**
@@ -24,6 +25,10 @@ export interface HttpSendChatMessageRequest {
   content: string;
   /** The model to respond with (`provider/model` id) */
   model: string;
+  /** Skills attached via a `/<skillname>` slash command. Their content is
+injected into the system prompt rather than shown as a message
+attachment. */
+  skills?: HttpSendChatMessageRequestSkills;
   /** Which toolset to use. Defaults to `all` */
   toolset?: ToolSet;
 }

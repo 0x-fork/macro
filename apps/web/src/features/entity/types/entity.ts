@@ -150,8 +150,8 @@ export type ChatEntity = EntityBase & {
   properties?: SoupProperty[];
 };
 
-/** Named sub types - 'task' and 'snippet' */
-export type NamedSubType = 'task' | 'snippet';
+/** Named sub types - 'task', 'snippet', and 'skill' */
+export type NamedSubType = 'task' | 'snippet' | 'skill';
 
 /** SubType for documents - tasks and snippets */
 export type SubType = {
@@ -178,6 +178,13 @@ export type SnippetEntity = EntityBase & {
   type: 'document';
   fileType: 'md';
   subType: { type: 'snippet' };
+  projectId?: string;
+};
+
+export type SkillEntity = EntityBase & {
+  type: 'document';
+  fileType: 'md';
+  subType: { type: 'skill' };
   projectId?: string;
 };
 
@@ -306,6 +313,7 @@ export type EntityData =
   | DocumentEntity
   | TaskEntity
   | SnippetEntity
+  | SkillEntity
   | EmailEntity
   | ProjectEntity
   | CallEntity
@@ -356,6 +364,14 @@ export const isSnippetEntity = (
     entity.type === 'document' &&
     entity.fileType === 'md' &&
     entity.subType?.type === 'snippet'
+  );
+};
+
+export const isSkillEntity = (entity: EntityData): entity is SkillEntity => {
+  return (
+    entity.type === 'document' &&
+    entity.fileType === 'md' &&
+    entity.subType?.type === 'skill'
   );
 };
 

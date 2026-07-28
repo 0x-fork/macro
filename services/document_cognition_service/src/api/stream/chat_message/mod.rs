@@ -36,6 +36,7 @@ use model_entity::{Entity, EntityType};
 use models_permissions::share_permission::SharePermissionV2;
 use models_permissions::share_permission::access_level::AccessLevel;
 use serde::{Deserialize, Serialize};
+use skill::domain::ports::SkillQueryService;
 use std::fmt;
 use std::sync::Arc;
 use stream::domain::{StreamId, StreamRepoExt};
@@ -83,6 +84,11 @@ pub struct HttpSendChatMessageRequest {
     /// Attachments for the message
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attachments: Option<Vec<Entity<'static>>>,
+    /// Skills attached via a `/<skillname>` slash command. Their content is
+    /// injected into the system prompt rather than shown as a message
+    /// attachment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skills: Option<Vec<Entity<'static>>>,
     /// Which toolset to use. Defaults to `all`
     #[serde(default)]
     pub toolset: ToolSet,
@@ -244,6 +250,7 @@ async fn send_chat_message_inner(
         model: model.clone(),
         additional_instructions: request.additional_instructions.clone(),
         attachments: request.attachments.clone(),
+        skills: request.skills.clone(),
         toolset: request.toolset.clone(),
         jwt: JwtPayload {
             token: jwt_token.clone(),
@@ -293,6 +300,30 @@ async fn send_chat_message_inner(
         .ok()
         .flatten();
 
+    // Resolve any skills attached via a `/<skillname>` slash command into
+    // system-prompt content (as opposed to attachments, which become part of
+    // the message body).
+    let resolved_skills: Vec<prompt::skills::ResolvedSkill> = match payload.skills.as_deref() {
+        Some(skills) if !skills.is_empty() => {
+            let skill_ids: Vec<String> = skills
+                .iter()
+                .map(|entity| entity.entity_id.to_string())
+                .collect();
+            ctx.skill_service
+                .resolve_skills(&user_id, &skill_ids)
+                .await
+                .inspect_err(|e| tracing::error!(error=?e, "failed to resolve skills"))
+                .unwrap_or_default()
+                .into_iter()
+                .map(|resolved| prompt::skills::ResolvedSkill {
+                    name: resolved.name,
+                    content: resolved.content,
+                })
+                .collect()
+        }
+        _ => vec![],
+    };
+
     // Build the chat messages
     let tools_prompt = choose_tools_prompt(&payload, &*ctx.all_tools_prompt);
     let ai_request = build_chat_messages(&chat, &payload, all_resolved_parts).map_err(|err| {
@@ -329,6 +360,10 @@ async fn send_chat_message_inner(
             prompt.push_str("\n\n<user_memory>\n");
             prompt.push_str(memory);
             prompt.push_str("\n</user_memory>");
+        }
+        if let Some(skills_section) = prompt::skills::render(&resolved_skills) {
+            prompt.push_str("\n\n");
+            prompt.push_str(&skills_section);
         }
         prompt
     };

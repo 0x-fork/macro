@@ -720,6 +720,20 @@ pub type ToolChatService = ChatServiceImpl<PgChatRepo, (), ToolEntityAccessManag
 /// Type alias for the chat tool context
 pub type ToolChatToolContext = ChatToolContext<ToolChatService, ToolEntityAccessService>;
 
+/// Type alias for the skill query service (list/search/resolve) used by AI
+/// tools. Skills always resolve as `EntityType::Document`, so this uses the
+/// document attachment service directly rather than a multi-type provider.
+pub type ToolSkillService = skill::domain::service::SkillServiceImpl<
+    skill::outbound::postgres::PgSkillRepo,
+    documents::inbound::attachment::DocumentAttachmentService<
+        ToolDocumentService,
+        ToolEntityAccessService,
+    >,
+>;
+
+/// Type alias for the skill tool context.
+pub type ToolSkillToolContext = skill::inbound::toolset::SkillToolContext<ToolSkillService>;
+
 /// Creates the Macro entities the import pipeline's fixed mapping calls for
 /// (linear → task, notion → md, slack → channel), reusing the same document
 /// creator and channel service the other AI tools run on. Task system
@@ -1039,6 +1053,7 @@ pub struct ToolServiceContext {
     pub soup_service: Arc<ToolSoupService>,
     pub email_service: Arc<ToolEmailService>,
     pub document_tool_context: ToolDocumentToolContext,
+    pub skill_tool_context: ToolSkillToolContext,
     pub properties_tool_context: ToolPropertiesToolContext,
     pub email_tool_context: ToolEmailToolContext,
     pub call_tool_context: ToolCallToolContext,

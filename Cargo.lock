@@ -237,6 +237,7 @@ dependencies = [
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "skill",
  "soup",
  "sqlx",
  "sqs_client",
@@ -4204,6 +4205,7 @@ dependencies = [
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "skill",
  "soup",
  "sqlx",
  "sqs_client",
@@ -4336,6 +4338,7 @@ dependencies = [
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "skill",
  "soup",
  "soup_realtime",
  "sqlx",
@@ -8892,6 +8895,7 @@ dependencies = [
  "search_service_client",
  "secretsmanager_client",
  "serde_json",
+ "skill",
  "soup",
  "sqlx",
  "sqs_client",
@@ -13452,6 +13456,33 @@ checksum = "16d69225bde7a69b235da73377861095455d298f2b970996eec25ddbb42b3d1e"
 dependencies = [
  "bitmaps",
  "typenum",
+]
+
+[[package]]
+name = "skill"
+version = "0.1.0"
+dependencies = [
+ "ai_toolset",
+ "async-trait",
+ "attachment",
+ "axum",
+ "documents",
+ "entity_access",
+ "macro_authorization",
+ "macro_user_id",
+ "model-entity",
+ "model-error-response",
+ "models_permissions",
+ "non_empty",
+ "rootcause",
+ "schemars 1.2.1",
+ "serde",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tracing",
+ "utoipa",
+ "uuid",
+ "workspace-hack",
 ]
 
 [[package]]

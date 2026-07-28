@@ -134,6 +134,10 @@ fn api_router(state: ApiContext) -> Router {
             ]),
         )
         .nest("/instructions", instructions::router())
+        .nest(
+            "/skill",
+            skill::inbound::axum_router::skill_router(state.skill_state.clone()),
+        )
         .nest("/items", items_router(state.clone()))
         .nest(
             "/threads",

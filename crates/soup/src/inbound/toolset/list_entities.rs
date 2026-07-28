@@ -223,6 +223,7 @@ impl EntityItem {
                     match sub_type {
                         SoupDocumentSubType::Task { .. } => "task",
                         SoupDocumentSubType::Snippet {} => "snippet",
+                        SoupDocumentSubType::Skill {} => "skill",
                     }
                     .to_string()
                 }),

@@ -13,6 +13,7 @@ import { isImageAttachment } from '@core/component/AI/util/attachment';
 import { insertChatAttachmentMention } from '@core/component/AI/util/chatAttachmentMention';
 import type { EditorConfigBuilder } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
+import { createMenuOperations } from '@core/component/LexicalMarkdown/shared/inlineMenu';
 import { toast } from '@core/component/Toast/Toast';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
@@ -30,6 +31,8 @@ import { Button, cn, Surface, SendButton as UiSendButton } from '@ui';
 import { createEffect, createMemo, createSignal, Show } from 'solid-js';
 import { AttachmentList } from './Attachment';
 import { ChatAttachMenu } from './ChatAttachMenu';
+import { SkillSlashMenu } from './skillSlash/SkillSlashMenu';
+import { skillSlashPlugin } from './skillSlash/skillSlashPlugin';
 import { useAiDataConsentGate } from './useAiDataConsent';
 
 /**
@@ -61,6 +64,7 @@ export function ChatInput(props: ChatInputComponentProps) {
   const input = useChatInputContext();
   const uploadQueue = input.uploadQueue;
   const attachments = input.attachments;
+  const skills = input.skills;
   const model = input.model;
   const generating = input.isGenerating;
   const { showPaywall } = usePaywallState();
@@ -126,6 +130,7 @@ export function ChatInput(props: ChatInputComponentProps) {
   const [showAttachMenu, setShowAttachMenu] = createSignal(false);
   const [attachMenuAnchorRef, setAttachMenuAnchorRef] =
     createSignal<HTMLDivElement>();
+  const skillSlashMenu = createMenuOperations();
   const [markdownText, setMarkdownText] = createSignal('');
   const [_isFocused, setIsFocused] = createSignal(false);
 
@@ -181,16 +186,19 @@ export function ChatInput(props: ChatInputComponentProps) {
         content: markdownText(),
         model: opts?.modelOverride ?? model(),
         attachments: attachments.attached(),
+        skills: skills.attached(),
         toolset: toolsetSignal[0](),
         metaKey: opts?.metaKey,
       };
       props.editor.controls.clear();
       attachments.setAttached([]);
+      skills.setAttached([]);
       props.onSend(sendInput);
     }
   );
 
   props.editor
+    .use(skillSlashPlugin({ menu: skillSlashMenu }))
     .withFilePaste({
       onPasteFilesAndDirs: (files, directories) => {
         if (directories.length > 0) {
@@ -312,6 +320,11 @@ export function ChatInput(props: ChatInputComponentProps) {
           <Show when={!isTallVariant()}>
             <Attachments />
           </Show>
+
+          <SkillSlashMenu
+            editor={props.editor.controls.getLexical()}
+            menu={skillSlashMenu}
+          />
 
           <Show when={showAttachMenu()}>
             <ChatAttachMenu

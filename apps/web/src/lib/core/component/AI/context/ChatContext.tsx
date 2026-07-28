@@ -24,6 +24,12 @@ type ChatInputState = {
   isGenerating: Accessor<boolean>;
   setIsGenerating: (generating: boolean) => void;
   attachments: Attachments;
+  /**
+   * Skills attached via a `/<skillname>` slash command. Kept separate from
+   * `attachments` — skill content is injected into the AI system prompt
+   * rather than shown as a message attachment.
+   */
+  skills: Attachments;
   uploadQueue: UploadQueue;
   /**
    * Draft text requested by something outside the input (e.g. an example card
@@ -51,6 +57,7 @@ export function ChatInputProvider(
   );
 
   const attachments = useAttachments(props.initialAttachments);
+  const skills = useAttachments();
   const uploadQueue = useUploadAttachment();
 
   const [pendingDraft, setPendingDraft] = createSignal<string | null>(null);
@@ -63,6 +70,7 @@ export function ChatInputProvider(
         isGenerating,
         setIsGenerating,
         attachments,
+        skills,
         uploadQueue,
         pendingDraft,
         setPendingDraft,

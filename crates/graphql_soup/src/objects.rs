@@ -457,6 +457,13 @@ pub struct GraphqlSnippetSubType {
     nothing: bool,
 }
 
+/// represents the skill subtype fields
+#[derive(SimpleObject)]
+pub struct GraphqlSkillSubType {
+    /// this object has nothing as a field but we need at least 1 field
+    nothing: bool,
+}
+
 /// GraphQL representation of the soup document sub type.
 #[derive(Union)]
 pub enum GraphqlSoupDocumentSubType {
@@ -464,6 +471,8 @@ pub enum GraphqlSoupDocumentSubType {
     Task(GraphqlTaskSubType),
     /// the sub type is a snippet
     Snippet(GraphqlSnippetSubType),
+    /// the sub type is a skill
+    Skill(GraphqlSkillSubType),
 }
 
 impl GraphqlSoupDocumentSubType {
@@ -476,6 +485,7 @@ impl GraphqlSoupDocumentSubType {
             SoupDocumentSubType::Snippet {} => {
                 Self::Snippet(GraphqlSnippetSubType { nothing: false })
             }
+            SoupDocumentSubType::Skill {} => Self::Skill(GraphqlSkillSubType { nothing: false }),
         }
     }
 }

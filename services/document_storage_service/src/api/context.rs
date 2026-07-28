@@ -273,6 +273,21 @@ pub(crate) type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJw
 pub(crate) type DocumentsState =
     DocumentRouterState<DocumentService, EntityAccessService, AuthorizationService>;
 
+/// Concrete skill creation service wired into DSS, backed by the same
+/// document-creation lifecycle as `documents_state.creator`.
+pub(crate) type SkillCreationService = skill::domain::service::SkillCreator<
+    std::sync::Arc<DocumentService>,
+    documents_hex::outbound::markdown_init::LexicalSyncMarkdownInitializer,
+    documents_hex::outbound::document_bytes_upload::ReqwestDocumentBytesUploader,
+>;
+
+/// Type alias for the skill router state.
+pub(crate) type SkillState = skill::inbound::axum_router::SkillRouterState<
+    SkillCreationService,
+    EntityAccessService,
+    AuthorizationService,
+>;
+
 /// Concrete project service wired into DSS.
 pub(crate) type ProjectService = ProjectServiceImpl<
     PgProjectRepo,
@@ -465,6 +480,7 @@ pub(crate) struct ApiContext {
     pub channel_list_state: DssChannelListState,
     pub entity_access_service: Arc<EntityAccessService>,
     pub documents_state: DocumentsState,
+    pub skill_state: SkillState,
     pub projects_state: ProjectsState,
     pub channels_state: DssChannelsState,
     pub bots_state: DssBotsState,

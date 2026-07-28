@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT d.id as \"document_id!\", d.name as \"name!\"\n            FROM \"Document\" d\n            JOIN document_sub_type dt ON dt.document_id = d.id AND dt.sub_type = 'skill'\n            WHERE d.owner = $1 AND d.\"deletedAt\" IS NULL\n            ORDER BY d.\"updatedAt\" DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "document_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "name!",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "829924f19cc7ea1467e129ab3c234a9532aae565a709a2c5e119d5b0f9b31199"
+}

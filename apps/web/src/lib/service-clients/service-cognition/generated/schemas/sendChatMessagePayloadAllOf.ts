@@ -6,6 +6,7 @@
  */
 import type { SendChatMessagePayloadAllOfAdditionalInstructions } from './sendChatMessagePayloadAllOfAdditionalInstructions';
 import type { SendChatMessagePayloadAllOfAttachments } from './sendChatMessagePayloadAllOfAttachments';
+import type { SendChatMessagePayloadAllOfSkills } from './sendChatMessagePayloadAllOfSkills';
 import type { ToolSet } from './toolSet';
 
 export type SendChatMessagePayloadAllOf = {
@@ -19,6 +20,10 @@ export type SendChatMessagePayloadAllOf = {
   content: string;
   /** the chat model to respond with (`provider/model` id) */
   model: string;
+  /** Skills attached via a `/<skillname>` slash command. Their content is
+injected into the system prompt rather than shown as a message
+attachment. */
+  skills?: SendChatMessagePayloadAllOfSkills;
   /** Stream ID for tracking the response */
   stream_id: string;
   /** Which toolset to use. Defaults to `all` */

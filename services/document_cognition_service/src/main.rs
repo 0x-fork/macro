@@ -364,6 +364,15 @@ async fn main() -> anyhow::Result<()> {
         .with_event_broker(macro_event_broker.clone()),
     );
 
+    let skill_service = Arc::new(skill::domain::service::SkillServiceImpl::new(
+        skill::outbound::postgres::PgSkillRepo::new(db.clone()),
+        documents::inbound::attachment::DocumentAttachmentService::new(
+            document_tool_context.service.clone(),
+            document_tool_context.entity_access_service.clone(),
+            document_tool_context.lexical_client.clone(),
+        ),
+    ));
+
     tracing::info!("initialized attachment provider");
 
     let email_service_client_external = Arc::new(EmailServiceClientExternal::new(
@@ -490,6 +499,7 @@ async fn main() -> anyhow::Result<()> {
         soup_service: soup_service.clone(),
         email_service: email_service_for_tools.clone(),
         document_tool_context: document_tool_context.clone(),
+        skill_tool_context: ai_tools::ToolSkillToolContext::new(skill_service.clone()),
         properties_tool_context: properties_tool_context.clone(),
         email_tool_context: email_tool_context.clone(),
         call_tool_context: call_tool_context.clone(),
@@ -658,6 +668,7 @@ async fn main() -> anyhow::Result<()> {
         all_tools_prompt,
         entity_access_service,
         message_service,
+        skill_service,
         ai_stream_registry: service::ai_stream_registry::AiStreamRegistry::new(
             redis_client.clone(),
         ),

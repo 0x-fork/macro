@@ -5,6 +5,8 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
 import { getIconConfig } from '@core/component/EntityIcon';
 import {
+  ENABLE_SKILLS_FLAG,
+  ENABLE_SKILLS_OVERRIDE,
   ENABLE_SNIPPETS_FLAG,
   ENABLE_SNIPPETS_OVERRIDE,
 } from '@core/constant/featureFlags';
@@ -28,10 +30,15 @@ export const SidebarCreateMenu = (props: {
   const snippetsFlag = useFeatureFlag(ENABLE_SNIPPETS_FLAG, {
     enabledOverride: ENABLE_SNIPPETS_OVERRIDE,
   });
+  const skillsFlag = useFeatureFlag(ENABLE_SKILLS_FLAG, {
+    enabledOverride: ENABLE_SKILLS_OVERRIDE,
+  });
 
   const blocks = createMemo(() =>
     CREATABLE_BLOCKS.filter(
-      (block) => block.blockName !== 'snippet' || snippetsFlag().enabled
+      (block) =>
+        (block.blockName !== 'snippet' || snippetsFlag().enabled) &&
+        (block.blockName !== 'skill' || skillsFlag().enabled)
     )
   );
 

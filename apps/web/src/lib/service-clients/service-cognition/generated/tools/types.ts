@@ -178,7 +178,7 @@ export type DocumentContentState = 'unknown' | 'pending' | 'ready';
  * The document sub type enum represents all values of document sub types.
  * These values should match the `document_sub_type_value` table in macrodb.
  */
-export type DocumentSubType = 'task' | 'snippet';
+export type DocumentSubType = 'task' | 'snippet' | 'skill';
 export type EmailPreset = 'signal';
 /**
  * Item returned by the list entities AI tool.
@@ -3302,6 +3302,39 @@ export interface RenameDocumentResponse {
    * Whether the rename succeeded.
    */
   success: boolean;
+}
+/**
+ * Search the user's skills (reusable AI-instruction documents). Omit `query` to list all skills.
+ */
+export interface SearchSkills {
+  /**
+   * Optional search text to filter skills by name.
+   */
+  query?: string | null;
+}
+/**
+ * Response for the [`SearchSkills`] tool.
+ */
+export interface SearchSkillsResponse {
+  /**
+   * The matching skills.
+   */
+  skills: Skill[];
+}
+/**
+ * A skill — a reusable markdown document of AI instructions that can be
+ * attached to an AI chat input via a `/<skillname>` slash command and
+ * injected into the AI system prompt.
+ */
+export interface Skill {
+  /**
+   * The skill's document id.
+   */
+  document_id: string;
+  /**
+   * The skill's display name.
+   */
+  name: string;
 }
 export interface SearchToolResponse {
   results: TaggedSearchResult[];

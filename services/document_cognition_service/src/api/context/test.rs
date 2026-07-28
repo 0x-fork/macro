@@ -348,6 +348,16 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         soup_service: soup_service.clone(),
         email_service: email_service_for_tools.clone(),
         document_tool_context: document_tool_context.clone(),
+        skill_tool_context: ai_tools::ToolSkillToolContext::new(Arc::new(
+            skill::domain::service::SkillServiceImpl::new(
+                skill::outbound::postgres::PgSkillRepo::new(pool.clone()),
+                documents::inbound::attachment::DocumentAttachmentService::new(
+                    document_tool_context.service.clone(),
+                    document_tool_context.entity_access_service.clone(),
+                    document_tool_context.lexical_client.clone(),
+                ),
+            ),
+        )),
         properties_tool_context: properties_tool_context.clone(),
         email_tool_context: email_tool_context.clone(),
         call_tool_context: call_tool_context.clone(),
@@ -522,6 +532,14 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
             )
             .with_event_broker(macro_event_broker.clone()),
         ),
+        skill_service: Arc::new(skill::domain::service::SkillServiceImpl::new(
+            skill::outbound::postgres::PgSkillRepo::new(pool.clone()),
+            documents::inbound::attachment::DocumentAttachmentService::new(
+                document_tool_context.service.clone(),
+                document_tool_context.entity_access_service.clone(),
+                document_tool_context.lexical_client.clone(),
+            ),
+        )),
         ai_stream_registry: crate::service::ai_stream_registry::AiStreamRegistry::new(Arc::new(
             redis::Client::open("redis://127.0.0.1:6379/").expect("valid redis url"),
         )),

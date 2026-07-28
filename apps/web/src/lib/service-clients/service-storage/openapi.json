@@ -9549,6 +9549,73 @@
         }
       }
     },
+    "/skill/create_skill": {
+      "post": {
+        "tags": ["skill"],
+        "summary": "Creates a skill document with initialized markdown content in one\nbackend-owned lifecycle. Skills are created personal; team sharing is\ntoggled separately via `PUT /documents/{document_id}/team_share`.",
+        "operationId": "create_skill_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSkillRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Response for creating a skill.",
+                  "required": ["documentId"],
+                  "properties": {
+                    "documentId": {
+                      "type": "string",
+                      "description": "The document ID of the created skill."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sync_service/wakeup": {
       "post": {
         "tags": ["sync_service"],
@@ -11452,6 +11519,17 @@
                 "enum": ["snippet"]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "A skill document — reusable AI instructions",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["skill"]
+              }
+            }
           }
         ],
         "description": "Sub type of a document with associated properties encoded in each variant.\nThis ensures type-safety: task properties only exist when the document is a task."
@@ -13200,6 +13278,37 @@
           }
         }
       },
+      "CreateSkillRequest": {
+        "type": "object",
+        "description": "Request body for creating a skill — a reusable markdown document of AI\ninstructions that can be attached to an AI chat input via a\n`/<skillname>` slash command and injected into the AI system prompt.",
+        "required": ["skillName"],
+        "properties": {
+          "markdown": {
+            "type": ["string", "null"],
+            "description": "Markdown source text. Defaults to an empty skill document."
+          },
+          "projectId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Optional project ID to associate the skill with."
+          },
+          "skillName": {
+            "type": "string",
+            "description": "The name of the skill."
+          }
+        }
+      },
+      "CreateSkillResponse": {
+        "type": "object",
+        "description": "Response for creating a skill.",
+        "required": ["documentId"],
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "The document ID of the created skill."
+          }
+        }
+      },
       "CreateSnippetRequest": {
         "type": "object",
         "description": "Request body for creating a snippet — a reusable markdown document that can\nbe inserted into any markdown area.",
@@ -14455,6 +14564,17 @@
                 "enum": ["snippet"]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "A skill document — reusable AI instructions",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["skill"]
+              }
+            }
           }
         ],
         "description": "The sub type of a document preview with associated properties.\nTask-related properties are encoded within the variant to ensure valid states."
@@ -14591,7 +14711,7 @@
       "DocumentSubType": {
         "type": "string",
         "description": "The document sub type enum represents all values of document sub types.\nThese values should match the `document_sub_type_value` table in macrodb.",
-        "enum": ["task", "snippet"]
+        "enum": ["task", "snippet", "skill"]
       },
       "DocumentTeamShareResponse": {
         "type": "object",
@@ -19478,6 +19598,17 @@
               "type": {
                 "type": "string",
                 "enum": ["snippet"]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A skill document — reusable AI instructions",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["skill"]
               }
             }
           }

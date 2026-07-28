@@ -157,10 +157,25 @@ function ChatInner(props: {
   const { getAttachmentFromMention } = useGetChatAttachmentInfo();
   const editor = buildChatEditor().withMentions({
     onCreate: (mention) => {
+      // Skills are tracked separately from attachments — their content is
+      // injected into the AI system prompt rather than the message body.
+      if (mention.blockName === 'skill') {
+        input.skills.addAttachment({
+          entity_id: mention.itemId,
+          entity_type: 'document',
+        });
+        return;
+      }
       const attachment = getAttachmentFromMention(mention);
       if (attachment) input.attachments.addAttachment(attachment);
     },
-    onRemove: (mention) => input.attachments.removeAttachment(mention.itemId),
+    onRemove: (mention) => {
+      if (mention.blockName === 'skill') {
+        input.skills.removeAttachment(mention.itemId);
+        return;
+      }
+      input.attachments.removeAttachment(mention.itemId);
+    },
     block: 'chat',
     showOpenTabs: true,
   });

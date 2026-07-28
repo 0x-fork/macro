@@ -10,7 +10,11 @@ const [globalAttachableHistory, setGlobalAttachableHistory] = createSignal<
   HistoryItem[]
 >([]);
 
-export { globalAttachableHistory };
+const [globalSkillHistory, setGlobalSkillHistory] = createSignal<HistoryItem[]>(
+  []
+);
+
+export { globalAttachableHistory, globalSkillHistory };
 
 // ---- Init component (mount once at app root) ----
 
@@ -24,8 +28,18 @@ function GlobalAttachmentsInner() {
     });
   });
 
+  const skillHistory = createMemo(() => {
+    return (historyQuery.data ?? []).filter(
+      (item) => getItemBlockName(item, true) === 'skill'
+    );
+  });
+
   createEffect(() => {
     setGlobalAttachableHistory(attachableHistory());
+  });
+
+  createEffect(() => {
+    setGlobalSkillHistory(skillHistory());
   });
 
   return null;

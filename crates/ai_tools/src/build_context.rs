@@ -377,12 +377,24 @@ pub async fn build_tool_service_context_from_env(
 
     let anthropic_tool_context = build_anthropic_tool_context();
 
+    let skill_tool_context = skill::inbound::toolset::SkillToolContext::new(Arc::new(
+        skill::domain::service::SkillServiceImpl::new(
+            skill::outbound::postgres::PgSkillRepo::new(pool.clone()),
+            documents::inbound::attachment::DocumentAttachmentService::new(
+                document_tool_context.service.clone(),
+                document_tool_context.entity_access_service.clone(),
+                document_tool_context.lexical_client.clone(),
+            ),
+        ),
+    ));
+
     Ok(ToolServiceContext {
         search_service_client: search_client,
         email_service_client: email_ext_client,
         soup_service,
         email_service: email_service_for_tools,
         document_tool_context,
+        skill_tool_context,
         properties_tool_context,
         email_tool_context,
         call_tool_context,

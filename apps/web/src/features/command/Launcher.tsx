@@ -8,6 +8,8 @@ import { CHAT_INPUT_TEXT_AREA_ID } from '@core/component/AI/component/input/Chat
 import { getIconConfig } from '@core/component/EntityIcon';
 import {
   ENABLE_ANIMATED_ICONS,
+  ENABLE_SKILLS_FLAG,
+  ENABLE_SKILLS_OVERRIDE,
   ENABLE_SNIPPETS_FLAG,
   ENABLE_SNIPPETS_OVERRIDE,
 } from '@core/constant/featureFlags';
@@ -26,9 +28,11 @@ import {
   createChat,
   createCodeFileFromText,
   createMarkdownFile,
+  createSkill,
   createSnippet,
 } from '@core/util/create';
 import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
+import WideBot from '@icon/wide-bot.svg';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import WideChannel from '@icon/wide-channel.svg';
 import { AnimatedChatIcon } from '@icon/wide-chat';
@@ -103,7 +107,7 @@ const createBlock = async (spec: {
   // If we are creating a new markdown document "from scratch" then we can let
   // them instantly start editing
   const createMdParams =
-    blockName === 'md' || blockName === 'snippet'
+    blockName === 'md' || blockName === 'snippet' || blockName === 'skill'
       ? { optimisticSnapshot: await getMarkdownGoldenBytes() }
       : undefined;
 
@@ -210,6 +214,19 @@ export function runCreateAction(
         loading: true,
         createFn: () =>
           createSnippet({
+            title: '',
+            content: '',
+            source,
+          }),
+        shouldInsert,
+      });
+      return;
+    case 'skill':
+      createBlock({
+        blockName: 'skill',
+        loading: true,
+        createFn: () =>
+          createSkill({
             title: '',
             content: '',
             source,
@@ -363,6 +380,19 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkey: 's' as const,
     keyDownHandler: () => {
       runCreateAction('snippet', { shouldInsert: pressedKeys().has('shift') });
+      return true;
+    },
+  },
+  {
+    label: 'Skill',
+    icon: WideBot,
+    description: 'Create skill',
+    keywords: ['new', 'make', 'add', 'ai'],
+    blockName: 'skill',
+    hotkeyToken: TOKENS.create.skill,
+    altHotkeyToken: TOKENS.create.skillNewSplit,
+    keyDownHandler: () => {
+      runCreateAction('skill', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -552,9 +582,14 @@ export const LauncherInner = (props: LauncherInnerProps) => {
   const snippetsFlag = useFeatureFlag(ENABLE_SNIPPETS_FLAG, {
     enabledOverride: ENABLE_SNIPPETS_OVERRIDE,
   });
+  const skillsFlag = useFeatureFlag(ENABLE_SKILLS_FLAG, {
+    enabledOverride: ENABLE_SKILLS_OVERRIDE,
+  });
   const blocks = () =>
     (props.blocks ?? CREATABLE_BLOCKS).filter(
-      (block) => block.blockName !== 'snippet' || snippetsFlag().enabled
+      (block) =>
+        (block.blockName !== 'snippet' || snippetsFlag().enabled) &&
+        (block.blockName !== 'skill' || skillsFlag().enabled)
     );
   const [attachHotkeys, launcherScope] = useHotkeyDOMScope('create-menu', true);
 
