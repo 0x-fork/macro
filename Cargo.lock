@@ -6055,6 +6055,7 @@ dependencies = [
  "models_properties",
  "rootcause",
  "tokio",
+ "tracing",
  "uuid",
  "workspace-hack",
 ]
@@ -6079,14 +6080,15 @@ name = "graphql_entity_mutation"
 version = "0.1.0"
 dependencies = [
  "async-graphql",
- "cowlike",
  "entity_mutation",
  "graphql_common",
  "graphql_permission",
+ "graphql_soup",
  "macro_user_id",
  "model-entity",
  "models_permissions",
  "tokio",
+ "uuid",
  "workspace-hack",
 ]
 
