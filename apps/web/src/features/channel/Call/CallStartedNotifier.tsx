@@ -1,6 +1,4 @@
-import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import { useChannelsContext } from '@core/context/channels';
-import { useUserId } from '@core/context/user';
 import { usePlatformNotificationState } from '@notifications';
 import { DefaultUserNameResolver } from '@notifications/notification-resolvers';
 import {
@@ -8,26 +6,9 @@ import {
   setActiveCallEndedCache,
   setActiveCallStartedCache,
 } from '@queries/call/call';
-import { createConnectionWebsocketEffect } from '@service-connection/websocket';
 import { useCallContext } from './CallContext';
+import { createCallEventsEffect } from './call-events';
 import { joinChannelCall } from './join-channel-call';
-
-type CallStartedPayload = {
-  channel_id?: string;
-  call_id?: string;
-  created_by?: string | null;
-};
-
-type CallEndedPayload = {
-  channel_id?: string;
-  call_id?: string;
-};
-
-type CallAnsweredPayload = {
-  channel_id?: string;
-  call_id?: string;
-  user_id?: string | null;
-};
 
 const RING_VOLUME = 0.11;
 const RING_NOTE_DURATION_S = 0.09;
@@ -40,9 +21,12 @@ const RING_CHIME_FREQUENCIES_HZ = [
 ];
 // Phone-style cadence: re-ring every few seconds while the call is incoming.
 const RING_INTERVAL_MS = 4_000;
-// Stop ringing after this long if the user neither answers nor dismisses, so
-// a missed call doesn't keep noise-making forever.
-const MAX_RING_DURATION_MS = 30_000;
+/**
+ * Stop ringing after this long if the user neither answers nor dismisses, so
+ * a missed call doesn't keep noise-making forever. Shared with the incoming
+ * call store so its auto-dismiss stays in lockstep with the ringer.
+ */
+export const MAX_RING_DURATION_MS = 30_000;
 
 type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
 type RingSound = { durationMs: number; stop: () => void };
@@ -188,25 +172,6 @@ function startRingingLoop(
   return { stop };
 }
 
-function safeJsonParse(s: string): unknown {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
-  }
-}
-
-function parsePayload(raw: unknown): CallStartedPayload | null {
-  const obj =
-    typeof raw === 'string'
-      ? safeJsonParse(raw)
-      : typeof raw === 'object'
-        ? raw
-        : null;
-  if (!obj || typeof obj !== 'object') return null;
-  return obj as CallStartedPayload;
-}
-
 /**
  * Listens for `call_started` websocket events broadcast to channel members
  * and surfaces a browser notification + ring tone for the recipients.
@@ -224,68 +189,45 @@ function parsePayload(raw: unknown): CallStartedPayload | null {
  */
 export function CallStartedNotifier() {
   const callCtx = useCallContext();
-  const userId = useUserId();
   const channelsCtx = useChannelsContext();
   const notif = usePlatformNotificationState();
 
-  createConnectionWebsocketEffect((data) => {
-    if (!ENABLE_CALLS()) return;
-
-    const payload = parsePayload(data.data);
-    if (!payload) return;
-
-    if (data.type === 'call_ended') {
-      const { channel_id: channelId, call_id: callId } =
-        payload as CallEndedPayload;
-      if (!channelId || !callId) return;
-
+  createCallEventsEffect({
+    onCallEnded: ({ channelId, callId }) => {
       stopCallRinger(callId);
       setActiveCallEndedCache({ channelId, callId });
       void invalidateActiveCallQueries();
-      return;
-    }
+    },
 
-    if (data.type === 'call_answered') {
-      const { call_id: callId, user_id: answeredBy } =
-        payload as CallAnsweredPayload;
-      if (!callId) return;
-      // Sent only to the answering user's connections, but guard anyway.
-      if (answeredBy && answeredBy !== userId()) return;
-
+    onCallAnswered: ({ callId }) => {
       stopCallRinger(callId);
       closeCallNotification(callId);
-      return;
-    }
+    },
 
-    if (data.type !== 'call_started') return;
+    onCallStarted: ({ channelId, callId, createdBy, isFromSelf }) => {
+      const createdAt = new Date().toISOString();
+      setActiveCallStartedCache({
+        channelId,
+        callId,
+        createdAt,
+        createdBy: createdBy ?? '',
+      });
+      void invalidateActiveCallQueries();
 
-    const {
-      channel_id: channelId,
-      call_id: callId,
-      created_by: createdBy,
-    } = payload;
-    if (!channelId || !callId) return;
+      // The cache above is updated for every call, including our own; only the
+      // ring and the toast are skipped when we're already in it or started it.
+      if (callCtx.activeCallId() === callId) return;
+      if (isFromSelf) return;
 
-    const createdAt = new Date().toISOString();
-    setActiveCallStartedCache({
-      channelId,
-      callId,
-      createdAt,
-      createdBy: createdBy ?? '',
-    });
-    void invalidateActiveCallQueries();
-
-    if (callCtx.activeCallId() === callId) return;
-    if (createdBy && createdBy === userId()) return;
-
-    void emitCallStartedNotification({
-      channelId,
-      callId,
-      createdBy: createdBy ?? null,
-      channelName: channelsCtx.channelsById()[channelId]?.name ?? undefined,
-      notif,
-      isJoined: () => callCtx.activeCallId() === callId,
-    });
+      void emitCallStartedNotification({
+        channelId,
+        callId,
+        createdBy,
+        channelName: channelsCtx.channelsById()[channelId]?.name ?? undefined,
+        notif,
+        isJoined: () => callCtx.activeCallId() === callId,
+      });
+    },
   });
 
   return null;
