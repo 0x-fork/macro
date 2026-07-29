@@ -143,26 +143,48 @@ describe('arcPath', () => {
 });
 
 describe('computeRadialGeometry', () => {
-  const cfg = {
-    deadZoneRadius: 32,
-    ringThickness: 56,
-    ringGap: 6,
-    twoRings: false,
-  };
+  const base = { deadZoneRadius: 40, radius: 120, ringGap: 24 };
 
-  it('builds a single ring with no outer band', () => {
-    const g = computeRadialGeometry(cfg);
-    expect(g.inner).toEqual({ innerR: 38, outerR: 94, midR: 66 });
-    expect(g.outer).toBeNull();
-    expect(g.split).toBe(Number.POSITIVE_INFINITY);
-    expect(g.outerRadius).toBe(94);
+  it('keeps single-ring labels on the boundary (no gap to apply)', () => {
+    const g = computeRadialGeometry({
+      ...base,
+      hasInner: false,
+      hasOuter: true,
+    });
+    expect(g.radius).toBe(120);
+    expect(g.innerLabelRadius).toBe(120);
+    expect(g.outerLabelRadius).toBe(120);
+    expect(g.outerRadius).toBe(120);
   });
 
-  it('builds two rings with a split between them', () => {
-    const g = computeRadialGeometry({ ...cfg, twoRings: true });
-    expect(g.outer).toEqual({ innerR: 100, outerR: 156, midR: 128 });
-    expect(g.split).toBe(97); // midpoint of inner.outerR (94) and outer.innerR (100)
-    expect(g.outerRadius).toBe(156);
+  it('splits the gap to either side of the boundary for two rings', () => {
+    const g = computeRadialGeometry({
+      ...base,
+      hasInner: true,
+      hasOuter: true,
+    });
+    expect(g.split).toBe(120); // aim boundary stays at radius
+    expect(g.innerLabelRadius).toBe(108); // radius − ringGap/2
+    expect(g.outerLabelRadius).toBe(132); // radius + ringGap/2
+    expect(g.outerRadius).toBe(132); // wrapper reaches the outer labels
+  });
+
+  it('routes everything past the dead zone to the outer ring when outer-only', () => {
+    const g = computeRadialGeometry({
+      ...base,
+      hasInner: false,
+      hasOuter: true,
+    });
+    expect(g.split).toBe(40); // = deadZoneRadius → always outer
+  });
+
+  it('routes everything to the inner ring when inner-only', () => {
+    const g = computeRadialGeometry({
+      ...base,
+      hasInner: true,
+      hasOuter: false,
+    });
+    expect(g.split).toBe(Number.POSITIVE_INFINITY);
   });
 });
 

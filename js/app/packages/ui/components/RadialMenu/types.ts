@@ -21,7 +21,7 @@ export interface RadialMenuItem {
    * built with `span('N', 'W')`. Slots may be listed in any rotational order.
    */
   slots: Direction[];
-  /** Which ring the item lives on. Defaults to `'inner'`. */
+  /** Which ring the item lives on. Defaults to `'outer'`. */
   ring?: Ring;
   /** Text label rendered at the item's centroid. */
   label?: string;
@@ -65,9 +65,16 @@ export interface RadialMenuProps {
   onClose?: () => void;
   /** Dead-zone radius in px. Defaults to 40. */
   deadZoneRadius?: number;
-  /** Radial thickness of each ring band in px. Defaults to 96. */
-  ringThickness?: number;
-  /** Gap between the dead zone and rings in px. Defaults to 8. */
+  /**
+   * Boundary radius in px. Outer-ring labels sit outside it, inner-ring labels
+   * inside it, and it's the aim threshold between the two rings. Defaults to 120
+   * for a single ring and 180 for a two-ring menu.
+   */
+  radius?: number;
+  /**
+   * Total padding in px between the inner and outer label rings (split evenly to
+   * either side of the boundary). Two-ring menus only. Defaults to 24.
+   */
   ringGap?: number;
   /** Minimum gap kept between the menu and the viewport edge. Defaults to 8. */
   viewportMargin?: number;

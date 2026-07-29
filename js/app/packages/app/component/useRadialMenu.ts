@@ -2,6 +2,7 @@ import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import type { ValidHotkey } from '@core/hotkey/types';
 import type { RadialMenuItem, RadialMenuMode } from '@ui';
 import { type Accessor, createSignal, onCleanup, onMount } from 'solid-js';
+import { useRadialMenuGroup } from './radialMenuGroup';
 
 export interface UseRadialMenuConfig {
   /** Menu items — each item's `hotkey` is registered in the command scope. */
@@ -11,8 +12,14 @@ export interface UseRadialMenuConfig {
   /** Command-palette description for the trigger hotkey. */
   triggerDescription?: string;
   /**
-   * Element whose focus activates the trigger's hotkey scope. Omit to register
-   * the trigger on the global scope (always active).
+   * Existing hotkey scope to register the trigger in (e.g. from `useHotkeyDOMScope`).
+   * Use this to host several menus in one scope. Takes precedence over `element`;
+   * the caller owns the scope (this hook won't create or remove it).
+   */
+  scopeId?: string;
+  /**
+   * Element whose focus activates a hotkey scope created for the trigger. Used only
+   * when `scopeId` is omitted. Omit both to register on the global scope.
    */
   element?: Accessor<Element | undefined>;
 }
@@ -48,7 +55,15 @@ export interface RadialMenuController {
 export function useRadialMenu(
   config: UseRadialMenuConfig
 ): RadialMenuController {
-  const [open, setOpen] = createSignal(false);
+  // Open state is owned by a shared group so only one radial menu is open at a time;
+  // `open` is derived as "am I the active menu?". Opening this menu atomically closes
+  // any other.
+  const group = useRadialMenuGroup();
+  const id = Symbol('radial-menu');
+  const open = () => group.isOpen(id);
+  const setOpen = (v: boolean) => (v ? group.open(id) : group.close(id));
+  onCleanup(() => group.close(id));
+
   const [anchor, setAnchor] = createSignal({ x: 0, y: 0 });
   const [mode, setMode] = createSignal<RadialMenuMode>('toggle');
 
@@ -75,9 +90,10 @@ export function useRadialMenu(
     setOpen(false);
   };
 
-  // Trigger lives in a DOM scope (focus-scoped to `element`) or the global scope.
-  let scopeId = 'global';
-  if (config.element) {
+  // Trigger scope: a caller-owned `scopeId`, else a DOM scope created for `element`,
+  // else the global scope.
+  let scopeId = config.scopeId ?? 'global';
+  if (!config.scopeId && config.element) {
     const [attachScope, domScopeId] = useHotkeyDOMScope('radial-menu');
     scopeId = domScopeId;
     onMount(() => {

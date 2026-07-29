@@ -23,13 +23,16 @@ import {
 import type { RadialMenuItem, RadialMenuProps } from './types';
 
 const DEFAULT_DEAD_ZONE = 40;
-const DEFAULT_RING_THICKNESS = 96;
-const DEFAULT_RING_GAP = 8;
+const DEFAULT_RADIUS = 120;
+/** Two-ring menus get a larger default radius to fit both label rings. */
+const DEFAULT_TWO_RING_RADIUS = 180;
+/** Default total padding (px) between the inner and outer label rings. */
+const DEFAULT_RING_GAP = 24;
 const DEFAULT_VIEWPORT_MARGIN = 8;
 /** Padding around the ring so labels never touch the wrapper edge. */
 const WRAPPER_PADDING = 10;
 
-const ringOf = (item: RadialMenuItem): Ring => item.ring ?? 'inner';
+const ringOf = (item: RadialMenuItem): Ring => item.ring ?? 'outer';
 
 export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
   const [pointer, setPointer] = createSignal({ x: props.x, y: props.y });
@@ -38,18 +41,24 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
     height: window.innerHeight,
   });
 
-  const twoRings = createMemo(() =>
-    props.items.some((item) => item.ring === 'outer')
+  const hasInner = createMemo(() =>
+    props.items.some((item) => ringOf(item) === 'inner')
+  );
+  const hasOuter = createMemo(() =>
+    props.items.some((item) => ringOf(item) === 'outer')
   );
 
-  const geo = createMemo(() =>
-    computeRadialGeometry({
+  const geo = createMemo(() => {
+    const twoRings = hasInner() && hasOuter();
+    return computeRadialGeometry({
       deadZoneRadius: props.deadZoneRadius ?? DEFAULT_DEAD_ZONE,
-      ringThickness: props.ringThickness ?? DEFAULT_RING_THICKNESS,
+      radius:
+        props.radius ?? (twoRings ? DEFAULT_TWO_RING_RADIUS : DEFAULT_RADIUS),
       ringGap: props.ringGap ?? DEFAULT_RING_GAP,
-      twoRings: twoRings(),
-    })
-  );
+      hasInner: hasInner(),
+      hasOuter: hasOuter(),
+    });
+  });
 
   const size = createMemo(() => 2 * geo().outerRadius + 2 * WRAPPER_PADDING);
   const center = createMemo(() => size() / 2);
@@ -97,40 +106,62 @@ export const RadialMenu = (props: RadialMenuProps): JSX.Element => {
   // hold-release — so no per-change effect/callback round-trip is needed.
   props.activeItemRef?.(activeItem);
 
-  // Horizontal anchoring of a label box, by the bearing of its slice. West slices
-  // (NW/W/SW) anchor their right edge to the radius point, east slices (NE/E/SE)
-  // their left edge, and the N/S slices are centered.
-  type LabelAlign = 'center' | 'east' | 'west';
-  const alignForBearing = (bearing: number): LabelAlign => {
+  // Which edge of a label box sits on the radius anchor, so the box extends to the
+  // correct side of the boundary. All labels anchor on the same `radius` circle:
+  // outer-ring labels extend outward, inner-ring labels inward.
+  // - Horizontal: pure N/S → centered; otherwise the east/west edge flips by ring
+  //   (outer extends outward, inner inward).
+  // - Vertical: only pure N/S flip (so inner/outer don't overlap at top/bottom);
+  //   everything else stays vertically centered.
+  type LabelAlign = {
+    h: 'left' | 'center' | 'right';
+    v: 'top' | 'center' | 'bottom';
+  };
+  const alignFor = (bearing: number, ring: Ring): LabelAlign => {
     const b = normalizeAngle(bearing);
-    if (b === 0 || b === 180) return 'center';
-    return b < 180 ? 'east' : 'west';
+
+    let h: LabelAlign['h'] = 'center';
+    if (b !== 0 && b !== 180) {
+      const east = b < 180; // NE / E / SE
+      // Outer: east → left edge at anchor (extends right/out), west → right edge.
+      // Inner: reversed (extends toward center).
+      h =
+        ring === 'outer' ? (east ? 'left' : 'right') : east ? 'right' : 'left';
+    }
+
+    let v: LabelAlign['v'] = 'center';
+    if (b === 0) {
+      // North: outer extends up (bottom edge at anchor), inner extends down.
+      v = ring === 'outer' ? 'bottom' : 'top';
+    } else if (b === 180) {
+      // South: outer extends down (top edge at anchor), inner extends up.
+      v = ring === 'outer' ? 'top' : 'bottom';
+    }
+
+    return { h, v };
   };
 
   /** One positioned rectangular label per item (replaces the pie wedges). */
   const labelCells = createMemo(() => {
     const c = center();
     const g = geo();
-    return props.items
-      .map((item) => {
-        const ring = ringOf(item);
-        const b = ring === 'outer' ? g.outer : g.inner;
-        if (!b) return null;
-        const arc = slotArc(item.slots);
-        return {
-          item,
-          anchor: pointOnCircle(c, c, b.midR, arc.midBearing),
-          align: alignForBearing(arc.midBearing),
-        };
-      })
-      .filter((cell): cell is NonNullable<typeof cell> => cell !== null);
+    return props.items.map((item) => {
+      const ring = ringOf(item);
+      const r = ring === 'outer' ? g.outerLabelRadius : g.innerLabelRadius;
+      const arc = slotArc(item.slots);
+      return {
+        item,
+        anchor: pointOnCircle(c, c, r, arc.midBearing),
+        align: alignFor(arc.midBearing, ring),
+      };
+    });
   });
 
-  // x/y translate so the chosen edge sits on the radius anchor point; always
-  // vertically centered.
-  const transformFor = (align: LabelAlign): string => {
-    const x = align === 'center' ? '-50%' : align === 'west' ? '-100%' : '0';
-    return `translate(${x}, -50%)`;
+  // Translate the box so its chosen edge sits on the anchor point.
+  const transformFor = ({ h, v }: LabelAlign): string => {
+    const tx = h === 'center' ? '-50%' : h === 'right' ? '-100%' : '0';
+    const ty = v === 'center' ? '-50%' : v === 'bottom' ? '-100%' : '0';
+    return `translate(${tx}, ${ty})`;
   };
 
   const close = () => {

@@ -220,65 +220,66 @@ export const arcPath = ({
 
 export interface RadialGeometryConfig {
   deadZoneRadius: number;
-  ringThickness: number;
+  /** Boundary radius: outer-ring labels sit outside it, inner-ring labels inside. */
+  radius: number;
+  /** Total padding (px) between the inner and outer label rings (two-ring only). */
   ringGap: number;
-  twoRings: boolean;
-}
-
-export interface RingBand {
-  innerR: number;
-  outerR: number;
-  midR: number;
+  hasInner: boolean;
+  hasOuter: boolean;
 }
 
 export interface RadialGeometry {
   deadZoneRadius: number;
-  inner: RingBand;
-  outer: RingBand | null;
-  /** Distance boundary between inner and outer ring (Infinity if single ring). */
+  /** Anchor circle / inner–outer boundary (also the aim midpoint). */
+  radius: number;
+  /** Distance threshold for aim: `< split` → inner ring, otherwise outer. */
   split: number;
-  /** Overall outer radius of the menu. */
+  /** Anchor radius for inner-ring labels (boundary minus half the gap). */
+  innerLabelRadius: number;
+  /** Anchor radius for outer-ring labels (boundary plus half the gap). */
+  outerLabelRadius: number;
+  /** Overall outer radius used for wrapper sizing. */
   outerRadius: number;
 }
 
-const band = (innerR: number, outerR: number): RingBand => ({
-  innerR,
-  outerR,
-  midR: (innerR + outerR) / 2,
-});
-
-/** Compute the radii bands for one or two rings from a config. */
+/**
+ * Compute the radial layout from a single boundary `radius`. Labels straddle the
+ * radius (outer outside, inner inside); the aim `split` depends on which rings are
+ * populated:
+ * - both rings → split at `radius`
+ * - inner only → everything past the dead zone is inner (`Infinity`)
+ * - outer only (the default single-ring case) → everything past the dead zone is
+ *   outer (`deadZoneRadius`)
+ *
+ * For two-ring menus the label rings are pushed `ringGap / 2` to either side of the
+ * boundary so they don't sit back-to-back; single-ring menus apply no gap (nothing
+ * to separate from), keeping labels on the boundary.
+ */
 export const computeRadialGeometry = ({
   deadZoneRadius,
-  ringThickness,
+  radius,
   ringGap,
-  twoRings,
+  hasInner,
+  hasOuter,
 }: RadialGeometryConfig): RadialGeometry => {
-  const inner = band(
-    deadZoneRadius + ringGap,
-    deadZoneRadius + ringGap + ringThickness
-  );
+  const twoRings = hasInner && hasOuter;
+  const split = twoRings
+    ? radius
+    : hasInner
+      ? Number.POSITIVE_INFINITY
+      : deadZoneRadius;
 
-  if (!twoRings) {
-    return {
-      deadZoneRadius,
-      inner,
-      outer: null,
-      split: Number.POSITIVE_INFINITY,
-      outerRadius: inner.outerR,
-    };
-  }
+  const halfGap = twoRings ? ringGap / 2 : 0;
+  const innerLabelRadius = radius - halfGap;
+  const outerLabelRadius = radius + halfGap;
 
-  const outer = band(
-    inner.outerR + ringGap,
-    inner.outerR + ringGap + ringThickness
-  );
   return {
     deadZoneRadius,
-    inner,
-    outer,
-    split: (inner.outerR + outer.innerR) / 2,
-    outerRadius: outer.outerR,
+    radius,
+    split,
+    innerLabelRadius,
+    outerLabelRadius,
+    outerRadius: outerLabelRadius,
   };
 };
 
