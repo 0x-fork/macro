@@ -165,3 +165,23 @@ export const ownedEntityFilter = config({
     },
   }),
 });
+
+/**
+ * Docs, tasks, and agents the user created — the "my work" half of the
+ * inbox Default tab (the `inbox` filter is its signal half; the two combine
+ * as or-predicates). Scoped to documents and chats on purpose so channels
+ * or calls the user happens to own don't ride along.
+ */
+export const myWorkFilter = config({
+  id: 'my-work',
+  predicate: (e, ctx) =>
+    (e.type === 'document' || e.type === 'chat') &&
+    ctx.userId !== undefined &&
+    e.ownerId === ctx.userId,
+  query: (ctx) => ({
+    include: {
+      documentOwnerId: [ctx.userId ?? ''],
+      chatOwnerId: [ctx.userId ?? ''],
+    },
+  }),
+});

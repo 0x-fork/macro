@@ -625,7 +625,12 @@ export const UnifiedFilterDropdown = (
       typeof filter.query === 'function' ? filter.query(ctx) : filter.query;
 
     if (currentView() === 'inbox' && isInboxTypeFilterId(optionId)) {
-      const baseQuery = getViewPreset('inbox', activeTab())?.filters;
+      // User context so the ctx-dependent Default tab resolves to its own
+      // base query instead of falling back to Signal's.
+      const baseQuery = getViewPreset('inbox', activeTab(), {
+        userId: userId(),
+        isTeamAdmin: false,
+      })?.filters;
 
       if (!baseQuery) {
         return;

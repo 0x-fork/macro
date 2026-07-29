@@ -159,7 +159,13 @@ registerComponent(
   'inbox',
   withAuth(() => {
     usePageViewTracking('inbox');
-    const preset = getViewPreset('inbox');
+    const user = useUserContext();
+    // The Default tab scopes docs/agents to the user, so the preset needs
+    // user context (same pattern as the Agents view).
+    const preset = getViewPreset('inbox', undefined, {
+      userId: user.userId(),
+      isTeamAdmin: false,
+    });
     return (
       <SoupView
         viewName="Inbox"

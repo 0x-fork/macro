@@ -40,6 +40,7 @@ export type TabbedListView = Extract<
 /** Tab definitions for each list view. */
 export const VIEW_TAB_LISTS: Record<TabbedListView, TabItem[]> = {
   inbox: [
+    { value: 'default', label: 'Default' },
     { value: 'signal', label: 'Signal' },
     { value: 'noise', label: 'Noise' },
     { value: 'all', label: 'All' },

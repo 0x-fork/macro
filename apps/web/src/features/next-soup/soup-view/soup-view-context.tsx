@@ -231,6 +231,14 @@ const [persistedActiveTabs, setPersistedActiveTabs] = makePersisted(
   { name: 'soup-view-active-tabs' }
 );
 
+// One-time migration: 'signal' was the inbox default before the Default tab
+// existed, so a persisted 'signal' is almost always the old default rather
+// than a choice. Clear it so the new default applies; re-selecting Signal
+// persists it again.
+if (persistedActiveTabs().inbox === 'signal') {
+  setPersistedActiveTabs(({ inbox: _inbox, ...rest }) => rest);
+}
+
 const isQueryState = (value: unknown): value is QueryState =>
   typeof value === 'object' &&
   value !== null &&

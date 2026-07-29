@@ -123,8 +123,57 @@ const getInboxNoiseFilters = () =>
 
 export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
   inbox: {
-    default: 'signal',
+    default: 'default',
     tabs: {
+      /**
+       * The date-grouped "everything I care about" feed: the signal inbox
+       * (important emails, channel activity, notification-bearing items)
+       * plus every doc, task, and agent the user created — without noise
+       * emails or the rest of the team's work. Server-side each entity type
+       * fetches a superset (docs: mine OR carrying one of my not-done
+       * notifications; chats: all reachable); the `inbox`/`my-work`
+       * or-predicates narrow rows client-side, and gate live websocket
+       * inserts the same way so new items surface at the top of Today.
+       */
+      default: (ctx) => {
+        if (!ctx.userId) return undefined;
+        return {
+          filters: defineQueryFilters({
+            include: {
+              // The signal inbox half: important, not-done inbox emails…
+              emailDone: false,
+              emailImportance: true,
+              emailShared: 'exclude',
+              // …signal channels, threads, folders, and foreign entities.
+              channelDone: false,
+              channelIsParticipant: [true],
+              channelThreadDone: false,
+              folderDone: false,
+              foreignEntitySource: ['github_pull_request'],
+              foreignEntityDone: false,
+              foreignEntityIncludesMe: true,
+            },
+            exclude: {
+              // Opt every reachable chat in; the or-predicates keep mine
+              // and any carrying my not-done notifications.
+              chatId: [NIL_UUID],
+              ...getDisabledSnippetSubtypeExclude(),
+            },
+            // Docs and tasks: created by me, or carrying one of my
+            // not-done notifications (the signal half).
+            documentWhere: {
+              op: 'or',
+              clauses: [
+                { include: { documentOwnerId: [ctx.userId] } },
+                { include: { documentDone: false } },
+              ],
+            },
+            emailView: 'inbox',
+          }),
+          clientFilters: { or: ['inbox', 'my-work'] },
+          groupBy: 'date',
+        };
+      },
       signal: () => ({
         filters: getInboxSignalFilters(),
         clientFilters: { and: ['inbox'] },
