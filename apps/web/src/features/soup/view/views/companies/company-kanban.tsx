@@ -13,6 +13,7 @@ import {
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { UserIcon } from '@core/component/UserIcon';
 import {
+  type CrmCompanyEntity,
   Entity,
   type EntityData,
   formatTimestamp,
@@ -22,10 +23,11 @@ import {
 import CircleDashedIcon from '@phosphor/circle-dashed.svg';
 import Spinner from '@phosphor/spinner.svg';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
+import { getSoupEntityById } from '@queries/soup/normalized-cache';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, cn, Layer } from '@ui';
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, Show } from 'solid-js';
 import { SoupEntityContextMenu } from '../../components/actions/soup-entity-context-menu';
 import {
   buildCompanyBoardColumns,
@@ -46,21 +48,75 @@ export function CompanyKanban(props: {
   const dealStages = useDealStages();
   const permissions = useCrmPermissions();
   const closedStages = useClosedStageIds(dealStages.stages);
-  const save = useBulkSaveEntityPropertiesMutation();
+  const [stageOverrides, setStageOverrides] = createSignal<
+    ReadonlyMap<string, string>
+  >(new Map());
+
+  const setStageOverride = (entityId: string, stage: string) => {
+    setStageOverrides((current) => new Map(current).set(entityId, stage));
+  };
+
+  const clearStageOverride = (entityId: string, stage?: string) => {
+    setStageOverrides((current) => {
+      if (stage !== undefined && current.get(entityId) !== stage)
+        return current;
+      if (!current.has(entityId)) return current;
+      const next = new Map(current);
+      next.delete(entityId);
+      return next;
+    });
+  };
+
+  const save = useBulkSaveEntityPropertiesMutation({
+    onError: (_error, variables) => {
+      for (const item of variables.properties) {
+        if (item.apiValues.valueType !== 'SELECT_STRING') continue;
+        const stage = item.apiValues.values?.[0] ?? NO_STAGE_KEY;
+        clearStageOverride(item.entityId, stage);
+      }
+    },
+  });
   const [draggedId, setDraggedId] = createSignal<string>();
   const [dropTarget, setDropTarget] = createSignal<string>();
   const [scroll, setScroll] = createSignal<HTMLDivElement>();
 
-  const companies = () =>
-    getSoupRowEntities(dataSource.items()).filter(isCrmCompanyEntity);
+  const companies = createMemo(() =>
+    getSoupRowEntities(dataSource.items())
+      .filter(isCrmCompanyEntity)
+      .map((entity) => {
+        if (entity.properties) return entity;
+        const cached = getSoupEntityById(entity.id);
+        return cached?.tag === 'crmCompany'
+          ? { ...entity, properties: cached.data.properties }
+          : entity;
+      })
+  );
   type Company = ReturnType<typeof companies>[number];
+  const effectiveStage = (company: CrmCompanyEntity) =>
+    stageOverrides().get(company.id) ??
+    dealStages.resolveStage(company) ??
+    NO_STAGE_KEY;
+
+  createEffect(() => {
+    const overrides = stageOverrides();
+    if (overrides.size === 0) return;
+    for (const company of companies()) {
+      const override = overrides.get(company.id);
+      if (
+        override !== undefined &&
+        (dealStages.resolveStage(company) ?? NO_STAGE_KEY) === override
+      ) {
+        clearStageOverride(company.id);
+      }
+    }
+  });
   const columns = createMemo(() =>
     buildCompanyBoardColumns<Company>({
       activeStages: dealStages.stages(),
       filterStages: dealStages.filterStages(),
       selectedStageIds: collection.facets.getSelected('company_stage'),
       entities: companies(),
-      resolveStage: dealStages.resolveStage,
+      resolveStage: effectiveStage,
     })
   );
 
@@ -91,9 +147,10 @@ export function CompanyKanban(props: {
   const moveToStage = (entityId: string, stage: string) => {
     const entity = companies().find((company) => company.id === entityId);
     if (!entity) return;
-    const previous = dealStages.resolveStage(entity) ?? NO_STAGE_KEY;
+    const previous = effectiveStage(entity);
     if (previous === stage || !canDragFrom(previous)) return;
 
+    setStageOverride(entityId, stage);
     save.mutate({
       properties: [
         {

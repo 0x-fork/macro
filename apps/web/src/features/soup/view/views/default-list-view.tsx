@@ -17,7 +17,6 @@ import { SoupMobileControls } from '../components/mobile/soup-mobile-controls';
 import { SoupEmptyState, SoupErrorState } from '../components/soup-empty-state';
 import { SoupViewProvider, useSoupView } from '../context';
 import { createSoupList } from '../primitives/create-soup-list';
-import { useSoupNotificationInvalidators } from '../primitives/use-soup-notification-invalidators';
 import { SoupEntityList } from '../soup-entity-list';
 import {
   SOUP_MARK_DONE_ROW_CONFIG,
@@ -66,7 +65,6 @@ export function DefaultListViewContent() {
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
   useSplitDisplayName(viewName);
-  useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   const selectedEntities = createMemo(() => getSelectedEntities(listState));
 

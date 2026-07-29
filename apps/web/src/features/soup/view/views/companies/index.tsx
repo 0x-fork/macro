@@ -47,7 +47,6 @@ import {
 import { SoupViewProvider } from '../../context';
 import { createSoupList } from '../../primitives/create-soup-list';
 import { hasSoupCollectionEntryState } from '../../primitives/soup-collection-persistence';
-import { useSoupNotificationInvalidators } from '../../primitives/use-soup-notification-invalidators';
 import { SoupEntityList } from '../../soup-entity-list';
 import {
   SOUP_MARK_DONE_ROW_CONFIG,
@@ -137,7 +136,6 @@ function CompaniesListViewContent() {
   });
 
   useSplitDisplayName(viewName);
-  useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   const selectedEntities = createMemo(() => getSelectedEntities(listState));
   const boardEntityCount = () => getSoupRowEntities(dataSource.items()).length;

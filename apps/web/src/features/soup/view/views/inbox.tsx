@@ -35,7 +35,6 @@ import { SoupEmptyState, SoupErrorState } from '../components/soup-empty-state';
 import { SoupViewProvider } from '../context';
 import { createSoupList } from '../primitives/create-soup-list';
 import { useIsNewInbox } from '../primitives/use-is-new-inbox';
-import { useSoupNotificationInvalidators } from '../primitives/use-soup-notification-invalidators';
 import { SoupEntityList } from '../soup-entity-list';
 import {
   SOUP_MARK_DONE_ROW_CONFIG,
@@ -90,7 +89,6 @@ function InboxListViewContent() {
   const [attachHotkeys, listScopeId] = useHotkeyDOMScope('soup-view');
 
   useSplitDisplayName(viewName);
-  useSoupNotificationInvalidators();
   onMount(() => root()?.focus());
   const selectedEntities = createMemo(() => getSelectedEntities(listState));
 
