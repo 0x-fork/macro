@@ -231,19 +231,42 @@ const [persistedActiveTabs, setPersistedActiveTabs] = makePersisted(
   { name: 'soup-view-active-tabs' }
 );
 
-// One-time migration: 'signal' was the inbox default before the Default tab
-// existed, so a persisted 'signal' is almost always the old default rather
-// than a choice. Clear it so the new default applies; re-selecting Signal
-// persists it again.
-if (persistedActiveTabs().inbox === 'signal') {
-  setPersistedActiveTabs(({ inbox: _inbox, ...rest }) => rest);
-}
-
 const isQueryState = (value: unknown): value is QueryState =>
   typeof value === 'object' &&
   value !== null &&
   'include' in value &&
   'exclude' in value;
+
+// One-time migration for the Default inbox tab's introduction:
+// - 'signal' was the inbox default before, so a persisted 'signal' is almost
+//   always the old default rather than a choice. Clear it so the new default
+//   applies; re-selecting Signal persists it again.
+// - Builds before the Default preset stabilized could persist the Signal
+//   base query (and its predicates) under the new 'default' tab key, which
+//   would silently shadow the preset's much wider base query. Drop that
+//   saved state once.
+const [inboxDefaultTabMigrated, setInboxDefaultTabMigrated] = makePersisted(
+  createSignal(false),
+  { name: 'soup-inbox-default-tab-migrated' }
+);
+if (!inboxDefaultTabMigrated()) {
+  setInboxDefaultTabMigrated(true);
+  if (persistedActiveTabs().inbox === 'signal') {
+    setPersistedActiveTabs(({ inbox: _inbox, ...rest }) => rest);
+  }
+  setPersistedQueryFilters((prev) => {
+    const inbox = prev.inbox;
+    if (!inbox || isQueryState(inbox) || !('default' in inbox)) return prev;
+    const { default: _default, ...rest } = inbox;
+    return { ...prev, inbox: rest };
+  });
+  setPersistedPredicates((prev) => {
+    const inbox = prev.inbox;
+    if (!inbox || !('default' in inbox)) return prev;
+    const { default: _default, ...rest } = inbox;
+    return { ...prev, inbox: rest };
+  });
+}
 
 const persistedQueryFor = (
   view: ListView,
@@ -252,8 +275,14 @@ const persistedQueryFor = (
   const saved = persistedQueryFilters()[view];
   if (!saved) return;
 
-  // Migrate the previous per-view shape by using it as the first restored tab.
-  return isQueryState(saved) ? saved : saved[tabId];
+  // Migrate the previous per-view shape by using it as the first restored
+  // tab — except onto the inbox Default tab, which postdates that shape:
+  // restoring a legacy (signal-era) query there would silently shadow the
+  // Default preset's much wider base query.
+  if (isQueryState(saved)) {
+    return tabId === 'default' ? undefined : saved;
+  }
+  return saved[tabId];
 };
 
 const persistedPredicatesFor = (
