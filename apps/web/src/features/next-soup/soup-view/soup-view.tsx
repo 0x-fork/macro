@@ -1,4 +1,3 @@
-import { LIST_VIEW_DOCS_URL } from '@app/constants/docs-links';
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import {
@@ -63,10 +62,7 @@ import { CrmStageIcon } from '@companies/crm/StageIcon';
 import type { CrmViewConfig } from '@companies/crm/saved-views';
 import { useCrmUnavailable } from '@companies/crm/team-crm-config';
 import { UserSettingsWidget } from '@components/app/app-sidebar/settings-widget';
-import {
-  GlobalCreateButton,
-  GlobalSearchButton,
-} from '@components/app/app-sidebar/sidebar';
+import { GlobalCreateButton } from '@components/app/app-sidebar/sidebar';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { FloatRegion } from '@components/app/mobile/float-regions/FloatRegion';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
@@ -89,7 +85,6 @@ import {
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
-import { openExternalUrl } from '@core/util/url';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import {
   type EntityData,
@@ -104,7 +99,6 @@ import SearchIcon from '@icon/macro-magnifying-glass.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ChevronRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
-import InfoIcon from '@phosphor/info.svg';
 import Spinner from '@phosphor/spinner.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { debounce } from '@solid-primitives/scheduled';
@@ -211,7 +205,6 @@ const MobileTabLoadingBar = () => (
 );
 
 const SOUP_LIST_STATE_ENTRY_KEY = 'soup.listState';
-const DEFAULT_PREVIEW_VIEWS = new Set(['inbox', 'channels']);
 const CONDENSED_NARROW_LIST_VIEWS: ReadonlySet<ListView> = new Set([
   'channels',
 ]);
@@ -267,7 +260,10 @@ export const SoupView = (props: SoupViewProps) => {
       splitHandle: panel.handle,
     });
   };
-  const hasPreviewItems = useSoupPreviewAvailability({
+  // Suspends the pair while a settled result has nothing to preview and
+  // re-engages once an entity arrives (the return value fed the old Preview
+  // toggle's disabled state; engagement is unconditional now).
+  useSoupPreviewAvailability({
     rows: soupView.rows,
     isLoading: soupView.source.isLoading,
     isFetching: soupView.source.isFetching,
@@ -302,10 +298,6 @@ export const SoupView = (props: SoupViewProps) => {
     `macro:pref:soup:${contentId}:sort`,
     { default: [] }
   );
-  const [previewOpenPreference, setPreviewOpenPreference] =
-    usePreference<boolean>(`macro:pref:soup:${contentId}:preview-open`, {
-      default: true,
-    });
 
   // Shared CRM view opened via a `?crmView=` link — only honored on the
   // Customers view; its pieces win over persisted/preset values in init.
@@ -402,19 +394,16 @@ export const SoupView = (props: SoupViewProps) => {
     });
   });
 
-  // Fresh preview-default views engage as soon as the layout can form a pair,
-  // without waiting for rows. useSoupPreviewAvailability owns disengagement: a
-  // settled result with no previewable rows only suspends the pair and
-  // re-engages once an entity arrives, so an initially empty view still lands
-  // in preview mode. Resolving here keeps a manual exit from being undone by
-  // later Soup updates.
+  // List views always open with the preview pair engaged — the toolbar's
+  // Preview toggle is gone. Fresh entries engage as soon as the layout can
+  // form a pair, without waiting for rows. useSoupPreviewAvailability owns
+  // disengagement: a settled result with no previewable rows only suspends
+  // the pair and re-engages once an entity arrives, so an initially empty
+  // view still lands in preview mode. Resolving here keeps a manual exit
+  // from being undone by later Soup updates.
   let initialPreviewResolved = false;
   createEffect(() => {
     if (initialPreviewResolved) return;
-    if (!DEFAULT_PREVIEW_VIEWS.has(contentId) || !previewOpenPreference()) {
-      initialPreviewResolved = true;
-      return;
-    }
     if (
       panel.handle.lastNavigationCause() !== 'fresh' ||
       panel.handle.isViewerSplit()
@@ -490,11 +479,6 @@ export const SoupView = (props: SoupViewProps) => {
     return id && isListViewID(id) ? id : undefined;
   });
 
-  const docsUrl = createMemo(() => {
-    const view = activeListView();
-    return view ? LIST_VIEW_DOCS_URL[view] : undefined;
-  });
-
   const isBoardMode = createMemo(
     () => activeListView() === 'companies' && soupView.viewMode() === 'board'
   );
@@ -540,23 +524,6 @@ export const SoupView = (props: SoupViewProps) => {
               'flex-1 min-w-0': narrowSearchExpanded(),
             })}
           >
-            <Show when={!isMobile() && !narrowSearchExpanded()}>
-              <div class="flex items-center gap-1">
-                <span class="text-sm font-semibold">{props.viewName}</span>
-                <Show when={docsUrl()}>
-                  {(url) => (
-                    <Button
-                      variant="ghost"
-                      class="p-0.5 rounded-sm text-ink-extra-muted hover:text-ink-muted @max-[380px]/split-header:hidden"
-                      label="View documentation"
-                      onClick={() => openExternalUrl(url())}
-                    >
-                      <InfoIcon class="size-3.5" />
-                    </Button>
-                  )}
-                </Show>
-              </div>
-            </Show>
             <Show
               when={!narrowSearchExpanded() && !isComponentListView('search')}
             >
@@ -652,21 +619,12 @@ export const SoupView = (props: SoupViewProps) => {
               </Show>
             </Show>
             <div class="flex shrink-0 items-center gap-0.5 ml-1">
-              <GlobalSearchButton />
               <GlobalCreateButton />
             </div>
           </SplitHeaderRight>
         </Show>
       </div>
-      <SoupFiltersBar
-        variant={props.filterBarVariant}
-        hasPreviewItems={hasPreviewItems()}
-        onPreviewEngage={openFocusedEntityInPreview}
-        onPreviewOpenChange={(open) => {
-          if (DEFAULT_PREVIEW_VIEWS.has(contentId))
-            setPreviewOpenPreference(open);
-        }}
-      />
+      <SoupFiltersBar variant={props.filterBarVariant} />
       <Show when={applyDefaultCrmView}>
         <CrmDefaultViewLoader />
       </Show>

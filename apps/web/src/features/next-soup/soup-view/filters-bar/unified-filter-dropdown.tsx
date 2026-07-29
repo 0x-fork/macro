@@ -32,7 +32,6 @@ import {
   ENABLE_NEW_INBOX_OVERRIDE,
 } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
-import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { idToDisplayName } from '@core/user/util';
 import CaretRightIcon from '@phosphor/caret-right.svg';
@@ -535,15 +534,12 @@ const ReadStatusSubmenu = (props: {
   );
 };
 
-export const UnifiedFilterDropdown = (
-  props: UnifiedFilterDropdownProps = {}
-) => {
-  const [internalOpen, setInternalOpen] = createSignal(false);
-  const open = () => props.open?.() ?? internalOpen();
-  const setOpen = (v: boolean) => {
-    setInternalOpen(v);
-    props.onOpenChange?.(v);
-  };
+/**
+ * All state behind the filter menu — the active view's categories, the
+ * predicate/query toggling, and the tasks/companies/tags submenu wiring —
+ * shared by the standalone dropdown and the master-dropdown filter section.
+ */
+const useUnifiedFilterState = () => {
   const panel = useSplitPanelOrThrow();
   const {
     soup,
@@ -828,16 +824,229 @@ export const UnifiedFilterDropdown = (
     return tagFilter.hasTags() && !!view && TAGGABLE_LIST_VIEWS.has(view);
   };
 
-  registerHotkey({
-    hotkey: 'f',
-    scopeId: panel.splitHotkeyScope,
-    description: 'Open filter menu',
-    hotkeyToken: TOKENS.soup.filter,
-    keyDownHandler: () => {
-      setOpen(true);
-      return true;
-    },
-  });
+  const hasFilters = () =>
+    categories().length > 0 ||
+    isTasksView() ||
+    isCompaniesView() ||
+    isNewInbox() ||
+    showTagsFilter();
+
+  return {
+    hasFilters,
+    categories,
+    isNewInbox,
+    readFilter,
+    setReadFilter,
+    isOptionActive,
+    toggleFilter,
+    isTasksView,
+    isCompaniesView,
+    assigneeOptions,
+    assigneeFilter,
+    handleAssigneeChange,
+    stageOptions,
+    effectiveStageFilter,
+    handleStageChange,
+    ownerOptions,
+    ownerFilter,
+    handleOwnerChange,
+    tagFilter,
+    showTagsFilter,
+  };
+};
+
+type UnifiedFilterState = ReturnType<typeof useUnifiedFilterState>;
+
+/**
+ * The filter menu's group — read status, the view's filter categories,
+ * assignee/stage/owner submenus, and tags. Renders nothing when the current
+ * view has no filters. Must live inside a `Dropdown.Content`.
+ */
+const FilterMenuGroup = (props: {
+  state: UnifiedFilterState;
+  label?: string;
+}) => {
+  const {
+    categories,
+    isNewInbox,
+    readFilter,
+    setReadFilter,
+    isOptionActive,
+    toggleFilter,
+    isTasksView,
+    isCompaniesView,
+    assigneeOptions,
+    assigneeFilter,
+    handleAssigneeChange,
+    stageOptions,
+    effectiveStageFilter,
+    handleStageChange,
+    ownerOptions,
+    ownerFilter,
+    handleOwnerChange,
+    tagFilter,
+    showTagsFilter,
+  } = props.state;
+
+  return (
+    <Show when={props.state.hasFilters()}>
+      <Dropdown.Group>
+        <Show when={props.label}>
+          {(label) => <Dropdown.GroupLabel>{label()}</Dropdown.GroupLabel>}
+        </Show>
+        <Show when={isNewInbox()}>
+          <ReadStatusSubmenu value={readFilter()} onChange={setReadFilter} />
+        </Show>
+        <Show
+          when={
+            categories().length === 1 &&
+            !isTasksView() &&
+            !isCompaniesView() &&
+            !isNewInbox()
+          }
+          fallback={
+            <>
+              <For each={categories()}>
+                {(category) => (
+                  <Dropdown.Sub>
+                    <Dropdown.SubTrigger>
+                      <span class="text-ink">{category.label}</span>
+                      <CaretRightIcon class="size-3 text-ink-muted" />
+                    </Dropdown.SubTrigger>
+
+                    <Dropdown.SubContent>
+                      <Dropdown.Group>
+                        <For each={category.options}>
+                          {(option) => {
+                            const active = () => isOptionActive(option.id);
+                            return (
+                              <Dropdown.Item
+                                onSelect={() => toggleFilter(option.id)}
+                                closeOnSelect={!category.multiple}
+                              >
+                                <TypeIndicator active={active()} />
+
+                                <Show when={option.icon}>
+                                  {(icon) => (
+                                    <span class="size-4 flex items-center justify-center shrink-0">
+                                      {icon()()}
+                                    </span>
+                                  )}
+                                </Show>
+
+                                <span
+                                  class={cn(
+                                    'flex-1 truncate',
+                                    active() ? 'text-ink' : 'text-ink-muted'
+                                  )}
+                                >
+                                  {option.label}
+                                </span>
+                              </Dropdown.Item>
+                            );
+                          }}
+                        </For>
+                      </Dropdown.Group>
+                    </Dropdown.SubContent>
+                  </Dropdown.Sub>
+                )}
+              </For>
+
+              {/* Assignee filter for tasks view */}
+              <Show when={isTasksView()}>
+                <SearchableFilterSubmenu
+                  label="Assignee"
+                  options={assigneeOptions}
+                  activeIds={assigneeFilter}
+                  onChange={handleAssigneeChange}
+                  placeholder="Search assignees..."
+                />
+              </Show>
+
+              {/* Stage + Owner filters for the Customers view */}
+              <Show when={isCompaniesView()}>
+                <SearchableFilterSubmenu
+                  label="Stage"
+                  options={stageOptions}
+                  activeIds={effectiveStageFilter}
+                  onChange={handleStageChange}
+                  placeholder="Filter stages..."
+                  preserveOrder
+                />
+                <SearchableFilterSubmenu
+                  label="Owner"
+                  options={ownerOptions}
+                  activeIds={ownerFilter}
+                  onChange={handleOwnerChange}
+                  placeholder="Search owners..."
+                />
+              </Show>
+            </>
+          }
+        >
+          {/* Single category: render options directly */}
+          <For each={categories()[0]!.options}>
+            {(option) => {
+              const active = () => isOptionActive(option.id);
+              return (
+                <Dropdown.Item
+                  onSelect={() => toggleFilter(option.id)}
+                  closeOnSelect={!categories()[0]!.multiple}
+                >
+                  <TypeIndicator active={active()} />
+
+                  <Show when={option.icon}>
+                    {(icon) => (
+                      <span class="size-4 flex items-center justify-center shrink-0">
+                        {icon()()}
+                      </span>
+                    )}
+                  </Show>
+
+                  <span
+                    class={cn(
+                      'flex-1 truncate',
+                      active() ? 'text-ink' : 'text-ink-muted'
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                </Dropdown.Item>
+              );
+            }}
+          </For>
+        </Show>
+
+        <Show when={showTagsFilter()}>
+          <SearchableFilterSubmenu
+            label="Tags"
+            options={tagFilter.options}
+            activeIds={tagFilter.activeIds}
+            onChange={tagFilter.onChange}
+            placeholder="Filter by tag..."
+          />
+        </Show>
+      </Dropdown.Group>
+    </Show>
+  );
+};
+
+/** Filter section for embedding in another dropdown (the view switcher). */
+export const UnifiedFilterMenuItems = (props: { label?: string }) => {
+  const state = useUnifiedFilterState();
+  return <FilterMenuGroup state={state} label={props.label} />;
+};
+
+export const UnifiedFilterDropdown = (
+  props: UnifiedFilterDropdownProps = {}
+) => {
+  const [internalOpen, setInternalOpen] = createSignal(false);
+  const open = () => props.open?.() ?? internalOpen();
+  const setOpen = (v: boolean) => {
+    setInternalOpen(v);
+    props.onOpenChange?.(v);
+  };
+  const state = useUnifiedFilterState();
 
   // Capture anchor position when menu opens to prevent jumping when chips are added
   const [anchorRect, setAnchorRect] = createSignal<DOMRect | null>(null);
@@ -865,15 +1074,7 @@ export const UnifiedFilterDropdown = (
   };
 
   return (
-    <Show
-      when={
-        categories().length > 0 ||
-        isTasksView() ||
-        isCompaniesView() ||
-        isNewInbox() ||
-        showTagsFilter()
-      }
-    >
+    <Show when={state.hasFilters()}>
       <Dropdown
         open={open()}
         onOpenChange={handleOpenChange}
@@ -894,143 +1095,7 @@ export const UnifiedFilterDropdown = (
         </Show>
 
         <Dropdown.Content class="shadow-menu">
-          <Dropdown.Group>
-            <Show when={isNewInbox()}>
-              <ReadStatusSubmenu
-                value={readFilter()}
-                onChange={setReadFilter}
-              />
-            </Show>
-            <Show
-              when={
-                categories().length === 1 &&
-                !isTasksView() &&
-                !isCompaniesView() &&
-                !isNewInbox()
-              }
-              fallback={
-                <>
-                  <For each={categories()}>
-                    {(category) => (
-                      <Dropdown.Sub>
-                        <Dropdown.SubTrigger>
-                          <span class="text-ink">{category.label}</span>
-                          <CaretRightIcon class="size-3 text-ink-muted" />
-                        </Dropdown.SubTrigger>
-
-                        <Dropdown.SubContent>
-                          <Dropdown.Group>
-                            <For each={category.options}>
-                              {(option) => {
-                                const active = () => isOptionActive(option.id);
-                                return (
-                                  <Dropdown.Item
-                                    onSelect={() => toggleFilter(option.id)}
-                                    closeOnSelect={!category.multiple}
-                                  >
-                                    <TypeIndicator active={active()} />
-
-                                    <Show when={option.icon}>
-                                      {(icon) => (
-                                        <span class="size-4 flex items-center justify-center shrink-0">
-                                          {icon()()}
-                                        </span>
-                                      )}
-                                    </Show>
-
-                                    <span
-                                      class={cn(
-                                        'flex-1 truncate',
-                                        active() ? 'text-ink' : 'text-ink-muted'
-                                      )}
-                                    >
-                                      {option.label}
-                                    </span>
-                                  </Dropdown.Item>
-                                );
-                              }}
-                            </For>
-                          </Dropdown.Group>
-                        </Dropdown.SubContent>
-                      </Dropdown.Sub>
-                    )}
-                  </For>
-
-                  {/* Assignee filter for tasks view */}
-                  <Show when={isTasksView()}>
-                    <SearchableFilterSubmenu
-                      label="Assignee"
-                      options={assigneeOptions}
-                      activeIds={assigneeFilter}
-                      onChange={handleAssigneeChange}
-                      placeholder="Search assignees..."
-                    />
-                  </Show>
-
-                  {/* Stage + Owner filters for the Customers view */}
-                  <Show when={isCompaniesView()}>
-                    <SearchableFilterSubmenu
-                      label="Stage"
-                      options={stageOptions}
-                      activeIds={effectiveStageFilter}
-                      onChange={handleStageChange}
-                      placeholder="Filter stages..."
-                      preserveOrder
-                    />
-                    <SearchableFilterSubmenu
-                      label="Owner"
-                      options={ownerOptions}
-                      activeIds={ownerFilter}
-                      onChange={handleOwnerChange}
-                      placeholder="Search owners..."
-                    />
-                  </Show>
-                </>
-              }
-            >
-              {/* Single category: render options directly */}
-              <For each={categories()[0]!.options}>
-                {(option) => {
-                  const active = () => isOptionActive(option.id);
-                  return (
-                    <Dropdown.Item
-                      onSelect={() => toggleFilter(option.id)}
-                      closeOnSelect={!categories()[0]!.multiple}
-                    >
-                      <TypeIndicator active={active()} />
-
-                      <Show when={option.icon}>
-                        {(icon) => (
-                          <span class="size-4 flex items-center justify-center shrink-0">
-                            {icon()()}
-                          </span>
-                        )}
-                      </Show>
-
-                      <span
-                        class={cn(
-                          'flex-1 truncate',
-                          active() ? 'text-ink' : 'text-ink-muted'
-                        )}
-                      >
-                        {option.label}
-                      </span>
-                    </Dropdown.Item>
-                  );
-                }}
-              </For>
-            </Show>
-
-            <Show when={showTagsFilter()}>
-              <SearchableFilterSubmenu
-                label="Tags"
-                options={tagFilter.options}
-                activeIds={tagFilter.activeIds}
-                onChange={tagFilter.onChange}
-                placeholder="Filter by tag..."
-              />
-            </Show>
-          </Dropdown.Group>
+          <FilterMenuGroup state={state} />
         </Dropdown.Content>
       </Dropdown>
     </Show>

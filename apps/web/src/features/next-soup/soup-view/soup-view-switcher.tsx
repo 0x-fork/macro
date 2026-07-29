@@ -1,6 +1,25 @@
 import { isListViewID, type ListView } from '@app/constants/list-views';
 import { VIEW_TAB_PRESETS } from '@app/features/next-soup/sidebar/soup-filter-presets';
 import {
+  TypeIndicator,
+  UnifiedFilterMenuItems,
+} from '@app/features/next-soup/soup-view/filters-bar/unified-filter-dropdown';
+import {
+  COMPANY_GROUP_OPTIONS,
+  type GroupOption,
+  type GroupOptionId,
+  TASK_GROUP_OPTIONS,
+} from '@app/features/next-soup/soup-view/group-options';
+import {
+  CHANNEL_SORT_OPTIONS,
+  DEFAULT_SORT_OPTIONS,
+  DOCUMENT_SORT_OPTIONS,
+  EMAIL_SORT_OPTIONS,
+  type SortOption,
+  type SystemSortOption,
+  TASK_SORT_OPTIONS,
+} from '@app/features/next-soup/soup-view/sort-options';
+import {
   type SoupViewMode,
   useSoupView,
 } from '@app/features/next-soup/soup-view/soup-view-context';
@@ -10,8 +29,10 @@ import {
   useApplyPreset,
   VIEW_TAB_LISTS,
 } from '@app/features/next-soup/soup-view/soup-view-tabs';
+import { useIsNewInboxEnabled } from '@app/features/next-soup/soup-view/use-is-new-inbox-enabled';
 import { registerViewSwitcher } from '@app/features/next-soup/soup-view/view-switcher-controllers';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   buildSidebarLinks,
@@ -19,14 +40,18 @@ import {
 } from '@components/app/app-sidebar/sidebar';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import type { TabItem } from '@core/component/Tabs';
+import { ENABLE_SOUP_GROUP_BY_OVERRIDE } from '@core/constant/featureFlags';
+import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import CaretDown from '@phosphor/caret-down.svg';
+import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import { cn, Dropdown, Hotkey, Layer } from '@ui';
 import {
   createMemo,
   createSignal,
   For,
+  type JSX,
   onCleanup,
   onMount,
   Show,
@@ -46,20 +71,75 @@ const VIEW_SWITCHER_ORDER: readonly ListView[] = [
 ];
 
 /**
- * The list panel's combined tab + view dropdown, replacing the old segmented
- * tabs (Signal/Noise/All) and the app sidebar's view links. The top section
- * holds the current view's tabs; the "Views" section below switches the panel
- * to another list view in place — a Preview Pair stays engaged, its Viewer
- * returning to the placeholder.
+ * Single-select submenu for the sort/group controls, matching the filter
+ * menu's checkbox rows.
+ */
+const OptionSubmenu = (props: {
+  label: string;
+  options: readonly {
+    value: string;
+    label: string;
+    icon?: () => JSX.Element;
+  }[];
+  value: string;
+  onChange: (value: string) => void;
+}) => (
+  <Dropdown.Sub>
+    <Dropdown.SubTrigger>
+      <span class="text-ink">{props.label}</span>
+      <CaretRightIcon class="size-3 text-ink-muted" />
+    </Dropdown.SubTrigger>
+    <Dropdown.SubContent>
+      <Dropdown.Group>
+        <For each={props.options}>
+          {(option) => {
+            const active = () => props.value === option.value;
+            return (
+              <Dropdown.Item
+                onSelect={() => props.onChange(option.value)}
+                closeOnSelect
+              >
+                <TypeIndicator active={active()} />
+                <Show when={option.icon}>
+                  {(icon) => (
+                    <span class="size-4 flex items-center justify-center shrink-0">
+                      {icon()()}
+                    </span>
+                  )}
+                </Show>
+                <span
+                  class={cn(
+                    'flex-1 truncate',
+                    active() ? 'text-ink' : 'text-ink-muted'
+                  )}
+                >
+                  {option.label}
+                </span>
+              </Dropdown.Item>
+            );
+          }}
+        </For>
+      </Dropdown.Group>
+    </Dropdown.SubContent>
+  </Dropdown.Sub>
+);
+
+/**
+ * The list panel's master dropdown: the current view's tabs on top, then the
+ * filter section (formerly the toolbar's Filter dropdown), sort/group
+ * controls, and a "Views" section that switches the panel to another list
+ * view in place — a Preview Pair stays engaged, its Viewer returning to the
+ * placeholder.
  *
  * Registers a per-split open controller so the `g v` shortcut can pop the
- * menu (see view-switcher-controllers).
+ * menu (see view-switcher-controllers); `f` and `s` open it too, replacing
+ * the old toolbar's filter/sort hotkeys.
  */
 export const SoupViewSwitcher = () => {
   const analytics = useAnalytics();
   const panel = useSplitPanelOrThrow();
   const { applyTabPreset } = useApplyPreset();
-  const { activeTab, viewMode, setViewMode } = useSoupView();
+  const { soup, activeTab, viewMode, setViewMode } = useSoupView();
   const [open, setOpen] = createSignal(false);
 
   const view = createMemo<ListView | undefined>(() => {
@@ -73,6 +153,79 @@ export const SoupViewSwitcher = () => {
       open: () => setOpen(true),
     });
     onCleanup(dispose);
+  });
+
+  // Sort options per view (the new inbox pins sort to updated_at).
+  const isNewInbox = useIsNewInboxEnabled();
+  const sortOptions = createMemo((): SortOption[] | undefined => {
+    switch (view()) {
+      case 'inbox':
+        return isNewInbox() ? undefined : DEFAULT_SORT_OPTIONS;
+      case 'agents':
+      case 'folders':
+        return DEFAULT_SORT_OPTIONS;
+      case 'mail':
+        return EMAIL_SORT_OPTIONS;
+      case 'documents':
+        return DOCUMENT_SORT_OPTIONS;
+      case 'tasks':
+        return TASK_SORT_OPTIONS;
+      case 'channels':
+        return CHANNEL_SORT_OPTIONS;
+      default:
+        return undefined;
+    }
+  });
+  const activeSort = () => soup.sort.active()[0]?.id ?? 'updated_at';
+  const selectSort = (value: string) => {
+    soup.sort.setAll([value as SystemSortOption]);
+  };
+
+  // Group-by options (flag-gated, tasks and the Customers list only — the
+  // board is inherently grouped by stage columns).
+  const groupByEnabled = useFeatureFlag('enable-soup-group-by', {
+    enabledOverride: ENABLE_SOUP_GROUP_BY_OVERRIDE,
+  });
+  const groupOptions = createMemo((): GroupOption[] | undefined => {
+    if (!groupByEnabled().enabled) return undefined;
+    const v = view();
+    if (v === 'tasks') return TASK_GROUP_OPTIONS;
+    if (v === 'companies' && viewMode() === 'list')
+      return COMPANY_GROUP_OPTIONS;
+    return undefined;
+  });
+  const activeGroup = () => soup.grouping.activeGroupId() ?? 'none';
+  const selectGroup = (value: string) => {
+    if (value === 'none') {
+      soup.grouping.setActiveGroupId(undefined);
+      return;
+    }
+    soup.grouping.setActiveGroupId(value as GroupOptionId);
+    soup.grouping.expandAll();
+  };
+
+  // The toolbar's filter/sort dropdowns folded into this menu; their
+  // hotkeys now open it.
+  registerHotkey({
+    hotkey: 'f',
+    scopeId: panel.splitHotkeyScope,
+    description: 'Open filter menu',
+    hotkeyToken: TOKENS.soup.filter,
+    keyDownHandler: () => {
+      setOpen(true);
+      return true;
+    },
+  });
+  registerHotkey({
+    hotkey: 's',
+    scopeId: panel.splitHotkeyScope,
+    description: 'Open sort menu',
+    hotkeyToken: TOKENS.soup.sort,
+    condition: () => sortOptions() !== undefined,
+    keyDownHandler: () => {
+      setOpen(true);
+      return true;
+    },
   });
 
   // The Customers view swaps filter tabs for its board/list mode switch.
@@ -168,6 +321,32 @@ export const SoupViewSwitcher = () => {
                 );
               }}
             </For>
+          </Dropdown.Group>
+        </Show>
+        <UnifiedFilterMenuItems label="Filter" />
+        <Show when={sortOptions() || groupOptions()}>
+          <Dropdown.Group>
+            <Dropdown.GroupLabel>Display</Dropdown.GroupLabel>
+            <Show when={sortOptions()}>
+              {(options) => (
+                <OptionSubmenu
+                  label="Sort"
+                  options={options()}
+                  value={activeSort()}
+                  onChange={selectSort}
+                />
+              )}
+            </Show>
+            <Show when={groupOptions()}>
+              {(options) => (
+                <OptionSubmenu
+                  label="Group"
+                  options={options()}
+                  value={activeGroup()}
+                  onChange={selectGroup}
+                />
+              )}
+            </Show>
           </Dropdown.Group>
         </Show>
         <Dropdown.Group>

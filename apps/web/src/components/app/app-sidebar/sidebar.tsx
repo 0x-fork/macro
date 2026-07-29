@@ -14,7 +14,6 @@ import {
   InviteModal,
   setInviteModalOpen,
 } from '@app/features/team-invitations/invite-modal';
-import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useSplitLayout } from '@components/app/split-layout/layout';
@@ -44,9 +43,7 @@ import { AnimatedStarIcon } from '@icon/wide-star';
 import { AnimatedTaskIcon } from '@icon/wide-task';
 import CompassIcon from '@phosphor/compass.svg';
 import HomeIcon from '@phosphor/house.svg';
-import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import { debounce } from '@solid-primitives/scheduled';
-import { Button } from '@ui';
 import {
   type Component,
   createEffect,
@@ -515,58 +512,6 @@ export const GoToHotkeys = () => {
   });
 
   return <InviteModal />;
-};
-
-/**
- * Icon button that jumps to the Search view (focusing its search bar), or
- * focuses the bar in place when the split already shows Search. Formerly the
- * app sidebar's header search button; now lives in the list panel header.
- */
-export const GlobalSearchButton = () => {
-  const analytics = useAnalytics();
-  const layout = useSplitLayout();
-
-  const openSearch = (event: MouseEvent) => {
-    analytics.track('sidebar_click', { view: 'search' });
-    let currentContentHandle = globalSplitManager()?.activeSplit();
-    const content = currentContentHandle?.content();
-
-    if (
-      currentContentHandle &&
-      content?.type === 'component' &&
-      content.id === 'search'
-    ) {
-      requestSearchFocus(currentContentHandle.id);
-      globalSplitManager()?.returnFocus();
-      return;
-    }
-
-    currentContentHandle = navigateToSidebarView({
-      viewId: 'search',
-      shiftKey: event.shiftKey,
-      activeSplit: currentContentHandle,
-      openWithSplit: layout.openWithSplit,
-      referredFrom: 'sidebar',
-    });
-    if (currentContentHandle) requestSearchFocus(currentContentHandle.id);
-    globalSplitManager()?.returnFocus();
-  };
-
-  return (
-    <Button
-      size="icon-sm"
-      class="[&_svg]:size-4!"
-      label="Search"
-      hotkey={TOKENS.sidebar.goTo.search}
-      onMouseDown={(e) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-      }}
-      onClick={openSearch}
-    >
-      <MagnifyingGlassIcon />
-    </Button>
-  );
 };
 
 /**
