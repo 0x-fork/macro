@@ -20,11 +20,9 @@ import {
 import { PillTabs } from '@components/app/mobile/PillTabs';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import type { TabItem } from '@core/component/Tabs';
-import { TabsInset } from '@core/component/TabsInset';
-import { TabsInsetDropdown } from '@core/component/TabsInsetDropdown';
 import { useUserContext } from '@core/context/user';
 import { useIsTeamAdmin } from '@queries/team/teams';
-import { batch, createMemo, For, Match, Show, Switch } from 'solid-js';
+import { batch, createMemo, For, Match, Switch } from 'solid-js';
 
 /** Views that have tab definitions. Shared between VIEW_TAB_LISTS and VIEW_TAB_PRESETS. */
 export type TabbedListView = Extract<
@@ -229,105 +227,11 @@ export const useApplyPreset = () => {
   return { applyTabPreset };
 };
 
-export const SoupViewTabs = () => {
-  const listView = useCurrentListView();
-
-  return (
-    <Switch>
-      <Match when={listView() === 'companies'}>
-        <CompanyModeTabs />
-      </Match>
-      <For each={Object.keys(VIEW_TAB_LISTS) as TabbedListView[]}>
-        {(v) => (
-          <Match when={listView() === v}>
-            <ViewTabs view={v} />
-          </Match>
-        )}
-      </For>
-    </Switch>
-  );
-};
-
 /** The Customers view swaps filter tabs for a board/list mode switch. */
-const COMPANY_MODE_TABS: TabItem[] = [
+export const COMPANY_MODE_TABS: TabItem[] = [
   { value: 'board', label: 'Board' },
   { value: 'list', label: 'List' },
 ];
-
-const CompanyModeTabs = () => {
-  const { viewMode, setViewMode } = useSoupView();
-
-  return (
-    <TabsInset
-      list={COMPANY_MODE_TABS}
-      value={viewMode()}
-      defaultValue="board"
-      onChange={(value) => setViewMode(value as SoupViewMode)}
-    />
-  );
-};
-
-const ViewTabs = (props: { view: TabbedListView }) => {
-  const { applyTabPreset } = useApplyPreset();
-  const { activeTab } = useSoupView();
-
-  return (
-    <TabsInset
-      list={VIEW_TAB_LISTS[props.view]}
-      value={activeTab()}
-      defaultValue={VIEW_TAB_PRESETS[props.view].default}
-      onChange={(value) => applyTabPreset(props.view, value)}
-    />
-  );
-};
-
-/** Compact dropdown variant of tabs, used when the header is too narrow for the full segmented control. */
-export const CollapsedSoupViewTabs = () => {
-  const listView = useCurrentListView();
-  const { applyTabPreset } = useApplyPreset();
-  const { activeTab, viewMode, setViewMode } = useSoupView();
-
-  const view = createMemo(() => {
-    const v = listView();
-    return v && v in VIEW_TAB_LISTS ? (v as TabbedListView) : undefined;
-  });
-
-  const list = createMemo(() => {
-    const v = view();
-    return v ? VIEW_TAB_LISTS[v] : [];
-  });
-
-  const defaultValue = createMemo(() => {
-    const v = view();
-    return v ? VIEW_TAB_PRESETS[v].default : undefined;
-  });
-
-  return (
-    <Show
-      when={listView() !== 'companies'}
-      fallback={
-        <TabsInsetDropdown
-          list={COMPANY_MODE_TABS}
-          value={viewMode()}
-          defaultValue="board"
-          onChange={(value) => setViewMode(value as SoupViewMode)}
-        />
-      }
-    >
-      <TabsInsetDropdown
-        list={list()}
-        value={activeTab()}
-        defaultValue={defaultValue()}
-        onChange={(value) => {
-          const v = view();
-          if (v) {
-            applyTabPreset(v, value);
-          }
-        }}
-      />
-    </Show>
-  );
-};
 
 export const MobileSoupViewTabs = () => {
   const listView = useCurrentListView();

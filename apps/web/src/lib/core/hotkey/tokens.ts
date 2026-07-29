@@ -80,7 +80,6 @@ export const TOKENS = {
     createCommand: 'global.createCommand',
     commandMenu: 'global.commandMenu',
     toggleBigChat: 'global.toggleBigChat',
-    toggleSidebar: 'global.toggleSidebar',
     instructions: 'global.instructions',
     searchMenu: 'global.searchMenu',
     toggleSettings: 'global.toggleSettings',
@@ -93,6 +92,7 @@ export const TOKENS = {
   // sidebar navigation
   sidebar: {
     goToLeader: 'sidebar.goToLeader',
+    viewSwitcher: 'sidebar.viewSwitcher',
     goTo: {
       home: 'sidebar.goTo.home',
       gettingStarted: 'sidebar.goTo.gettingStarted',

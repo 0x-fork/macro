@@ -32,17 +32,8 @@ import { AutomationComposer } from '@block-automation/component';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { InCallPanel } from '@channel/Call/InCallPanel';
 import { CreateChannelModal } from '@channel/CreateChannelModal';
-import {
-  AppSidebar,
-  GoToHotkeys,
-  type SidebarState,
-} from '@components/app/app-sidebar/sidebar';
+import { GoToHotkeys } from '@components/app/app-sidebar/sidebar';
 import { registerMailtoComposerHandler } from '@components/app/mailtoComposerHandler';
-import {
-  isSidebarVisible,
-  SidebarCollapseContext,
-  SidebarVisibilityContext,
-} from '@components/app/sidebarVisibility';
 import { useIsAuthenticated } from '@core/auth';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isSoloSettings } from '@core/constant/SettingsState';
@@ -52,7 +43,6 @@ import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { virtualKeyboardVisible } from '@core/mobile/virtualKeyboard';
 import { updateCookie } from '@core/util/cookies';
 import { useUserInfoQuery } from '@queries/auth/user-info';
-import { makePersisted } from '@solid-primitives/storage';
 import {
   type RouteSectionProps,
   useLocation,
@@ -94,37 +84,8 @@ const AUTH_URLS = [
   `${ROUTER_BASE_CONCAT}team-invite`,
 ];
 
-const [sidebarState, setSidebarState] = makePersisted(
-  createSignal<SidebarState>(!isMobile() ? 'expanded' : 'hidden'),
-  {
-    name: 'sidebar-state',
-  }
-);
-
 export function Layout(props: RouteSectionProps) {
-  const isAuthenticated = useIsAuthenticated();
-  const location = useLocation();
-  const sidebarVisible = createMemo(
-    () =>
-      !isMobile() &&
-      isAuthenticated() === true &&
-      !AUTH_URLS.includes(location.pathname) &&
-      // Settings-as-the-sole-split has its own tab nav — hide app chrome.
-      !isSoloSettings()
-  );
-
-  return (
-    <SidebarVisibilityContext.Provider value={sidebarVisible}>
-      <SidebarCollapseContext.Provider
-        value={{
-          isCollapsed: () => sidebarVisible() && sidebarState() === 'slim',
-          expand: () => setSidebarState('expanded'),
-        }}
-      >
-        <LayoutInner {...props} />
-      </SidebarCollapseContext.Provider>
-    </SidebarVisibilityContext.Provider>
-  );
+  return <LayoutInner {...props} />;
 }
 
 function DraggableCallWidget(props: {
@@ -323,51 +284,22 @@ function LayoutInner(props: RouteSectionProps) {
   const isAuthenticated = useIsAuthenticated();
   const { paywallOpen, showPaywall } = usePaywallState();
   const location = useLocation();
-  const [sidebarOverlayOpen, setSidebarOverlayOpen] = createSignal(false);
-  const [sidebarOverlayTriggerHovered, setSidebarOverlayTriggerHovered] =
-    createSignal(false);
   const callCtx = useCallContextOptional();
   const incomingCallWidgetVisible = useIncomingCallWidgetVisible();
-  const sidebarCollapsed = createMemo(
-    () => isSidebarVisible() && sidebarState() === 'slim'
+  // The removed app sidebar's visibility gate, now gating the floating
+  // desktop chrome (call widgets) that used to dock inside it.
+  const desktopChromeVisible = createMemo(
+    () =>
+      !isMobile() &&
+      isAuthenticated() === true &&
+      !AUTH_URLS.includes(location.pathname) &&
+      // Settings-as-the-sole-split has its own tab nav — hide app chrome.
+      !isSoloSettings()
   );
   const activeCallWidgetVisible = createMemo(
     () =>
-      isSidebarVisible() &&
-      sidebarState() === 'slim' &&
-      !!callCtx?.isInCall() &&
-      !callCtx?.isCallPage()
+      desktopChromeVisible() && !!callCtx?.isInCall() && !callCtx?.isCallPage()
   );
-  let sidebarOverlayCloseTimer: ReturnType<typeof setTimeout> | undefined;
-
-  const clearSidebarOverlayCloseTimer = () => {
-    if (sidebarOverlayCloseTimer === undefined) return;
-    clearTimeout(sidebarOverlayCloseTimer);
-    sidebarOverlayCloseTimer = undefined;
-  };
-
-  const setSidebarOverlayOpenGuarded = (open: boolean) => {
-    clearSidebarOverlayCloseTimer();
-    if (open) {
-      setSidebarOverlayOpen(true);
-      return;
-    }
-
-    sidebarOverlayCloseTimer = setTimeout(() => {
-      sidebarOverlayCloseTimer = undefined;
-      if (!sidebarOverlayTriggerHovered()) setSidebarOverlayOpen(false);
-    }, 120);
-  };
-
-  createEffect(() => {
-    if (!sidebarCollapsed()) {
-      clearSidebarOverlayCloseTimer();
-      setSidebarOverlayTriggerHovered(false);
-      setSidebarOverlayOpen(false);
-    }
-  });
-
-  onCleanup(clearSidebarOverlayCloseTimer);
 
   useAppSquishHandlers();
 
@@ -454,49 +386,14 @@ function LayoutInner(props: RouteSectionProps) {
         <Paywall />
       </Show>
       <div class="max-h-full grow flex">
-        {/* The provider spans the sidebar too so its favorites can register
-            sortables with the same drag-drop context as the entity drags. */}
         <ItemDndProvider>
-          <Show when={isSidebarVisible()}>
-            <AppSidebar
-              sidebarState={sidebarState()}
-              overlayOpen={sidebarOverlayOpen()}
-              onOverlayOpenChange={setSidebarOverlayOpenGuarded}
-              onOpenChange={(open) => {
-                if (!open) {
-                  setSidebarState(isMobile() ? 'hidden' : 'slim');
-                  return;
-                }
-
-                setSidebarState('expanded');
-              }}
-            />
-          </Show>
-          <Show when={sidebarCollapsed()}>
-            <div
-              class="fixed left-0 inset-y-0 z-modal-content w-[8px]"
-              onPointerEnter={() => {
-                setSidebarOverlayTriggerHovered(true);
-                setSidebarOverlayOpenGuarded(true);
-              }}
-              onPointerLeave={() => {
-                setSidebarOverlayTriggerHovered(false);
-                setSidebarOverlayOpenGuarded(false);
-              }}
-            />
-          </Show>
-
           <div class="flex-1 w-full min-h-0 font-sans text-ink caret-accent">
             {props.children}
           </div>
         </ItemDndProvider>
       </div>
       <CollapsedSidebarIncomingCallWidget
-        visible={
-          isSidebarVisible() &&
-          sidebarState() === 'slim' &&
-          incomingCallWidgetVisible()
-        }
+        visible={desktopChromeVisible() && incomingCallWidgetVisible()}
         activeCallWidgetVisible={activeCallWidgetVisible()}
       />
       <CollapsedSidebarCallWidget visible={activeCallWidgetVisible()} />

@@ -20,6 +20,7 @@ import { Dynamic } from 'solid-js/web';
 export const SidebarCreateMenu = (props: {
   isSlim: () => boolean;
   variant?: 'row' | 'icon';
+  placement?: 'right-start' | 'bottom-end';
   onMenuOpenChange?: (open: boolean) => void;
 }) => {
   const analytics = useAnalytics();
@@ -82,7 +83,7 @@ export const SidebarCreateMenu = (props: {
     <Dropdown
       open={open()}
       onOpenChange={handleOpenChange}
-      placement="right-start"
+      placement={props.placement ?? 'right-start'}
       gutter={8}
     >
       <Show

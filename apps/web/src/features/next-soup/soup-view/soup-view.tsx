@@ -32,10 +32,9 @@ import { SoupRowMetadataProvider } from '@app/features/next-soup/soup-view/soup-
 import { useSoupView } from '@app/features/next-soup/soup-view/soup-view-context';
 import { SoupViewCreateButton } from '@app/features/next-soup/soup-view/soup-view-create-button';
 import { SoupViewFileDropzone } from '@app/features/next-soup/soup-view/soup-view-file-dropzone';
+import { SoupViewSwitcher } from '@app/features/next-soup/soup-view/soup-view-switcher';
 import {
-  CollapsedSoupViewTabs,
   MobileSoupViewTabs,
-  SoupViewTabs,
   useApplyPreset,
 } from '@app/features/next-soup/soup-view/soup-view-tabs';
 import { useIsNewInboxEnabled } from '@app/features/next-soup/soup-view/use-is-new-inbox-enabled';
@@ -63,6 +62,11 @@ import { useDealStages } from '@companies/crm/deal-stages';
 import { CrmStageIcon } from '@companies/crm/StageIcon';
 import type { CrmViewConfig } from '@companies/crm/saved-views';
 import { useCrmUnavailable } from '@companies/crm/team-crm-config';
+import { UserSettingsWidget } from '@components/app/app-sidebar/settings-widget';
+import {
+  GlobalCreateButton,
+  GlobalSearchButton,
+} from '@components/app/app-sidebar/sidebar';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { FloatRegion } from '@components/app/mobile/float-regions/FloatRegion';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
@@ -219,7 +223,6 @@ type SoupListEntryState = {
 
 interface SoupViewProps {
   viewName: string;
-  customTabs?: JSX.Element;
   filterBarVariant?: 'default' | 'tag';
   showCreateButton?: boolean;
   initialClientFilters?: SetPredicatesInput<string>;
@@ -558,15 +561,7 @@ export const SoupView = (props: SoupViewProps) => {
               when={!narrowSearchExpanded() && !isComponentListView('search')}
             >
               <Show when={!isMobile()}>
-                <CollapsibleHeaderItem
-                  id="tabs"
-                  priority={1}
-                  expanded={() => props.customTabs ?? <SoupViewTabs />}
-                  collapsed={() =>
-                    props.customTabs ?? <CollapsedSoupViewTabs />
-                  }
-                  containerClass="h-full"
-                />
+                <SoupViewSwitcher />
               </Show>
             </Show>
             <Show
@@ -656,6 +651,10 @@ export const SoupView = (props: SoupViewProps) => {
                 />
               </Show>
             </Show>
+            <div class="flex shrink-0 items-center gap-0.5 ml-1">
+              <GlobalSearchButton />
+              <GlobalCreateButton />
+            </div>
           </SplitHeaderRight>
         </Show>
       </div>
@@ -697,6 +696,13 @@ export const SoupView = (props: SoupViewProps) => {
           <SoupChatInput />
         </Show>
       </Suspense>
+      {/* With the app sidebar gone, the list panel carries the user/settings
+          dropdown at its bottom edge. */}
+      <Show when={!isMobile()}>
+        <div class="shrink-0 border-t border-edge-muted px-1.5 py-1">
+          <UserSettingsWidget />
+        </div>
+      </Show>
     </div>
   );
 };
