@@ -35,6 +35,15 @@ fn websocket_services_use_a_matcher() {
     assert!(caddy.contains("handle_path /auth/* {"));
 }
 
+/// The analytics-proxy worker is reached through the single origin at `/i/*`
+/// (PostHog and OTLP traces/logs), un-stripped, on its own :8098 port.
+#[test]
+fn analytics_proxy_route_is_present() {
+    let caddy = caddyfile(Mode::Local, false);
+    assert!(caddy.contains("handle /i/* {"));
+    assert!(caddy.contains("reverse_proxy analytics-proxy:8098"));
+}
+
 #[test]
 fn document_content_services_are_available_through_the_proxy() {
     let caddy = caddyfile(Mode::Local, false);

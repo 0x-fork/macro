@@ -8,7 +8,8 @@ import {
   type SafeFetchInit,
   safeFetch,
 } from '@core/util/safeFetch';
-import { logger } from '@observability';
+import { Telemetry } from '@macro-inc/observability';
+
 import { makePersisted } from '@solid-primitives/storage';
 import { err, ok } from 'neverthrow';
 import { createSignal } from 'solid-js';
@@ -124,7 +125,7 @@ async function getAccessToken(): Promise<string | null> {
           return null;
         }
       } catch (error) {
-        logger.error('Error refreshing access token', { error });
+        Telemetry.error('Error refreshing access token', { error });
         return null;
       } finally {
         // Clear the ongoing refresh promise so future calls can start a new refresh
@@ -336,7 +337,7 @@ export const authServiceClient = {
   async macroApiToken() {
     const accessToken = await getAccessToken();
     if (!accessToken) {
-      logger.warn('No access token found, fetching with cookies');
+      Telemetry.warn('No access token found, fetching with cookies');
       return authApiFetch<MacroApiTokenResponse>('/jwt/macro_api_token');
     }
 
