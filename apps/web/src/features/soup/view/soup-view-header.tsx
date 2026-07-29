@@ -7,6 +7,7 @@ import { SortDropdown } from '@app/features/soup/view/components/sorting/sort-dr
 import type { SystemSortOption } from '@app/features/soup/view/components/sorting/sort-options';
 import { SoupViewCreateButton } from '@app/features/soup/view/components/soup-view-create-button';
 import { useSoupView } from '@app/features/soup/view/context';
+import { usePreference } from '@app/preferences/use-preference';
 import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleHeaderItem';
 import { PreviewButton } from '@components/app/split-layout/components/PreviewButton';
 import {
@@ -27,25 +28,22 @@ import { openExternalUrl } from '@core/util/url';
 import InfoIcon from '@phosphor/info.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import { Button, Layer, Tooltip } from '@ui';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  Show,
-} from 'solid-js';
+import { createEffect, createSignal, onCleanup, Show } from 'solid-js';
 import { SoupActiveFacets } from './components/filters/soup-active-facets';
 import { SoupInboxSelector } from './components/filters/soup-inbox-selector';
 import { UnifiedFilterDropdown } from './components/filters/unified-filter-dropdown';
 import { soupGroupOptions } from './components/grouping/group-options';
 import { soupSortOptions } from './components/sorting/sort-options';
 import { SoupSearchbar } from './components/soup-searchbar';
+import { useSoupPreviewAvailability } from './primitives/use-soup-preview-availability';
 import { VIEW_TAB_LISTS } from './tabs';
 import {
   CompanyDisplayMenu,
   CompanyViewsMenu,
 } from './views/companies/company-views-menu';
 import { SoupSearchFacets } from './views/search/search-facets';
+
+const DEFAULT_PREVIEW_VIEWS = new Set(['inbox', 'channels']);
 
 export function SoupViewHeader(props: { sortVisible: boolean }) {
   const {
@@ -66,6 +64,11 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
   } = useSoupView();
   const panel = useSplitPanelOrThrow();
   const soup = useSoup();
+  const contentId = panel.handle.content().id;
+  const [previewOpenPreference, setPreviewOpenPreference] =
+    usePreference<boolean>(`macro:pref:soup:${contentId}:preview-open`, {
+      default: true,
+    });
   const [groupOpen, setGroupOpen] = createSignal(false);
   const [searchCollapsed, setSearchCollapsed] = createSignal(false);
   const docsUrl = () => LIST_VIEW_DOCS_URL[view()];
@@ -95,9 +98,6 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
   });
   onCleanup(searchHotkey.dispose);
 
-  const hasPreviewItems = createMemo(() =>
-    collection.dataSource.items().some((row) => row.kind === 'entity')
-  );
   const openFocusedEntityInPreview = () => {
     const row = soup.list.focus.item();
     if (row?.kind !== 'entity') return;
@@ -107,22 +107,33 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
     });
   };
 
-  createEffect(() => {
-    if (collection.dataSource.isLoading() || hasPreviewItems()) return;
-    if (panel.handle.isControllerSplit()) panel.handle.disengagePreview();
+  const hasPreviewItems = useSoupPreviewAvailability({
+    rows: collection.dataSource.items,
+    isLoading: collection.dataSource.isLoading,
+    isFetching: collection.dataSource.isFetching,
+    splitHandle: panel.handle,
+    onPreviewRestored: openFocusedEntityInPreview,
   });
 
-  let initialInboxPreviewResolved = false;
+  let initialPreviewResolved = false;
   createEffect(() => {
-    if (initialInboxPreviewResolved || collection.dataSource.isLoading()) {
+    if (initialPreviewResolved) return;
+    if (!DEFAULT_PREVIEW_VIEWS.has(view()) || !previewOpenPreference()) {
+      initialPreviewResolved = true;
       return;
     }
-    initialInboxPreviewResolved = true;
-    if (view() !== 'inbox') return;
-    if (panel.handle.lastNavigationCause() !== 'fresh') return;
-    if (panel.handle.isViewerSplit() || !hasPreviewItems()) return;
+    if (
+      panel.handle.lastNavigationCause() !== 'fresh' ||
+      panel.handle.isViewerSplit()
+    ) {
+      initialPreviewResolved = true;
+      return;
+    }
+    if (!panel.handle.canEngagePreview()) return;
+
+    soup.list.focus.clear();
     panel.handle.engagePreview();
-    if (panel.handle.isControllerSplit()) openFocusedEntityInPreview();
+    if (panel.handle.isControllerSplit()) initialPreviewResolved = true;
   });
 
   const expandedTabs = () =>
@@ -170,7 +181,7 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
                   <Tooltip label="View documentation">
                     <Button
                       variant="ghost"
-                      class="rounded-sm p-0.5 text-ink-extra-muted hover:text-ink-muted"
+                      class="rounded-sm p-0.5 text-ink-extra-muted hover:text-ink-muted @max-[380px]/split-header:hidden"
                       label="View documentation"
                       onClick={() => openExternalUrl(url())}
                     >
@@ -314,6 +325,11 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
             disabled={!hasPreviewItems()}
             disabledLabel="No items to preview"
             onEngage={openFocusedEntityInPreview}
+            onOpenChange={(open) => {
+              if (DEFAULT_PREVIEW_VIEWS.has(view())) {
+                setPreviewOpenPreference(open);
+              }
+            }}
           />
         </SplitToolbarRight>
       </Show>

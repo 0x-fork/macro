@@ -28,6 +28,7 @@ import {
   makeDeleteAction,
   makeFavoriteAction,
   makeHideCompanyAction,
+  makeMarkNotDoneAction,
   makeMarkReadAction,
   makeMarkSenderNoiseAction,
   makeMarkSenderSignalAction,
@@ -100,6 +101,9 @@ export function createSoupEntityActions() {
     isNewInbox,
     listView: view,
   });
+  const markNotDone = makeMarkNotDoneAction({
+    notificationSource: () => notificationSource,
+  });
   const markRead = makeMarkReadAction();
   const markUnread = makeMarkUnreadAction();
 
@@ -151,20 +155,28 @@ export function createSoupEntityActions() {
     if (
       activeTab &&
       isListViewID(activeListView) &&
-      canExecuteMarkDoneOnView(activeListView, activeTab) &&
-      canExecuteAll(markDone.canExecute)
+      canExecuteMarkDoneOnView(activeListView, activeTab)
     ) {
-      topItems.push({
-        id: 'mark-done',
-        label: 'Mark Done',
-        hotkeyToken: TOKENS.entity.action.markDone,
-        onClick: () =>
-          markDone.executeWithList(entities, list, undefined, {
-            collapseEntity: collapseEntity.shouldCollapse()
-              ? collapseEntity.callback()
-              : undefined,
-          }),
-      });
+      if (canExecuteAll(markNotDone.canExecute)) {
+        topItems.push({
+          id: 'mark-not-done',
+          label: 'Mark Not Done',
+          hotkeyToken: TOKENS.entity.action.markNotDone,
+          onClick: handle(markNotDone.executeWithList),
+        });
+      } else if (canExecuteAll(markDone.canExecute)) {
+        topItems.push({
+          id: 'mark-done',
+          label: 'Mark Done',
+          hotkeyToken: TOKENS.entity.action.markDone,
+          onClick: () =>
+            markDone.executeWithList(entities, list, undefined, {
+              collapseEntity: collapseEntity.shouldCollapse()
+                ? collapseEntity.callback()
+                : undefined,
+            }),
+        });
+      }
     }
 
     if (canExecuteAll(markUnread.canExecute)) {

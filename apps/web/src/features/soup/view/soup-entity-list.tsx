@@ -20,6 +20,7 @@ import {
   isSearchEntity,
   ListEntityMetadataQueryProvider,
   ListLayoutProvider,
+  type NarrowLayoutVariant,
   type ProjectEntity,
   type SearchLocation,
 } from '@entity';
@@ -100,6 +101,8 @@ export function SoupEntityList(props: SoupEntityListProps) {
     typeof props.autoFocusFirstEntity === 'function'
       ? props.autoFocusFirstEntity()
       : (props.autoFocusFirstEntity ?? true);
+  const narrowLayout = (): NarrowLayoutVariant =>
+    props.view === 'channels' ? 'condensed' : 'standard';
 
   const activateRow = (activation: ListActivation<SoupRow>) => {
     if (
@@ -154,8 +157,14 @@ export function SoupEntityList(props: SoupEntityListProps) {
   });
 
   const focusFirstEntity = () => {
-    if (!active() || !autoFocusFirstEntity() || listState.items.count() === 0)
+    if (
+      panel.handle.isControllerSplit() ||
+      !active() ||
+      !autoFocusFirstEntity() ||
+      listState.items.count() === 0
+    ) {
       return;
+    }
     const firstEntity = listState.items
       .all()
       .find((row) => listState.selection.isSelectable(row));
@@ -196,6 +205,10 @@ export function SoupEntityList(props: SoupEntityListProps) {
         }
 
         initialFocusApplied = true;
+        if (panel.handle.isControllerSplit()) {
+          listState.focus.clear();
+          return;
+        }
         if (restoredListState?.focus) {
           const restored = restoreFocus(restoredListState.focus);
           if (restored) scrollTo(restored.index);
@@ -269,7 +282,7 @@ export function SoupEntityList(props: SoupEntityListProps) {
     <Show when={active()}>
       <ListEntityMetadataQueryProvider>
         <SoupMobileActionDrawerManager>
-          <ListLayoutProvider ref={viewport}>
+          <ListLayoutProvider ref={viewport} narrowLayout={narrowLayout()}>
             <SwipableRowProvider
               container={viewport}
               canSwipeLeft={canMarkDone}

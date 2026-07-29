@@ -16,7 +16,7 @@ export function SoupViewRoot(props: SoupViewRootProps) {
   return (
     <div
       ref={props.ref}
-      class="size-full min-h-0 min-w-0 flex flex-col no-select-children"
+      class="@container size-full min-h-0 min-w-0 flex flex-col no-select-children"
       tabIndex={-1}
       data-soup-view
       data-list-view={view()}
