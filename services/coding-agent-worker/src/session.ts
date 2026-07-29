@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { Macro } from '@macro/sdk'
 import { env } from './env'
 import { log } from './log'
 import { DaytonaProvider } from './providers/daytona'
@@ -93,11 +94,19 @@ export function startSession(opts: { repoUrl: string; prompt: string; agentId?: 
   return sessionId
 }
 
-async function run(sessionId: string, opts: { repoUrl: string; prompt: string }): Promise<void> {
+async function run(
+  sessionId: string,
+  opts: { repoUrl: string; prompt: string; agentId?: string },
+): Promise<void> {
   const link = new UpstreamLink(env.UPSTREAM_WS_URL, sessionId)
-
   let sandbox: AgentSandbox | null = null
   try {
+    // The kickoff prompt goes to agent_proxy's HTTP API, not the
+    // websocket: the proxy durably queues it and delivers it as the
+    // session's first `session/prompt` once this runtime's ACP session is
+    // bootstrapped. Posted before the sandbox exists on purpose - the
+    // queue is exactly what makes that safe.
+    if (opts.agentId) await postInitialPrompt(opts.agentId, opts.prompt)
     link.status('booting')
     log.info(`[session ${sessionId}] spawning sandbox`, { repoUrl: opts.repoUrl })
     sandbox = await provider.spawn({
@@ -130,6 +139,26 @@ async function run(sessionId: string, opts: { repoUrl: string; prompt: string })
       link.close()
     }
   }
+}
+
+/** agent_proxy's HTTP base URL, derived from the upstream WS URL (they
+ * are the same service): `ws(s)://host/...` -> `http(s)://host`. */
+function agentProxyHttpUrl(): string {
+  const url = new URL(env.UPSTREAM_WS_URL)
+  url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:'
+  url.pathname = ''
+  url.search = ''
+  return url.toString().replace(/\/$/, '')
+}
+
+/** Post the session's kickoff prompt to agent_proxy through the Macro SDK. */
+async function postInitialPrompt(agentId: string, prompt: string): Promise<void> {
+  const macro = new Macro({
+    env: env.MACRO_ENV as 'local' | 'dev' | 'prod',
+    hosts: { 'agent-proxy': agentProxyHttpUrl() },
+  })
+  await macro.agents.byId(agentId).prompt(prompt)
+  log.info(`[session ${agentId}] kickoff prompt posted to agent proxy`)
 }
 
 export async function destroySession(id: string): Promise<boolean> {

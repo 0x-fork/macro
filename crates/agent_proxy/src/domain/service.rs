@@ -6,7 +6,7 @@ mod test;
 use crate::domain::models::{
     AgentProxyErr, CreateAgentArgs, GetAgentResponse, PatchAgentArgs, Result,
 };
-use crate::domain::ports::{ClientNotifier, RuntimeProvisioner, RuntimeSessions};
+use crate::domain::ports::{ClientNotifier, PendingMessage, PendingMessages, RuntimeSessions};
 use crate::domain::translate::{TurnAccumulator, content_blocks_text, translate_session_update};
 use agent::types::{ChatMessageContent, Role};
 use agent_client_protocol::schema::ProtocolVersion;
@@ -64,6 +64,18 @@ fn acp_request(
         .map_err(|e| AgentProxyErr::Unknown(anyhow::anyhow!(e)))
 }
 
+/// Parse and validate a `session/prompt` request's params, so a malformed
+/// prompt fails with a 400 for the caller regardless of when delivery to a
+/// runtime happens.
+fn parse_prompt_request(method: &str, params: &Option<RawJsonRpcParams>) -> Result<PromptRequest> {
+    let params = params
+        .clone()
+        .map(RawJsonRpcParams::into_value)
+        .unwrap_or(serde_json::Value::Null);
+    PromptRequest::parse_message(method, &params)
+        .map_err(|e| AgentProxyErr::BadRequest(format!("invalid prompt request: {e}")))
+}
+
 /// Service trait for the agent proxy use cases.
 ///
 /// Handlers and the runtime listener depend on this trait rather than the
@@ -105,14 +117,6 @@ pub trait AgentProxyService: Send + Sync + 'static {
         agent_id: Uuid,
     ) -> impl Future<Output = Result<()>> + Send;
 
-    /// Provision a fresh dial-in endpoint for an external agent's runtime.
-    /// Requires edit access.
-    fn provision_runtime_connection(
-        &self,
-        user_id: MacroUserIdStr<'static>,
-        agent_id: Uuid,
-    ) -> impl Future<Output = Result<String>> + Send;
-
     /// Start a runtime's ACP session once it reports readiness: negotiates
     /// `initialize` then creates a session via `session/new`, recording the
     /// resulting ACP session id so `post_acp` can stamp it onto every message
@@ -120,10 +124,19 @@ pub trait AgentProxyService: Send + Sync + 'static {
     /// after its `SystemEvent::AcpReady` event arrives (not merely on
     /// connect: the runtime's hosted agent process may not exist yet at that
     /// point), and before any user traffic can be forwarded to it.
+    ///
+    /// Once the ACP session exists, any messages `post_acp` queued while the
+    /// session had no ready runtime are flushed into it, oldest first.
     fn handle_agent_connected(&self, session_id: Uuid) -> impl Future<Output = Result<()>> + Send;
 
     /// Forward one user-posted ACP message to the runtime hosting the
     /// session, persisting prompts as user chat messages.
+    ///
+    /// If the session exists but has no ready runtime (none connected, or
+    /// its ACP bootstrap hasn't completed), the message is durably queued
+    /// instead and delivered by [`Self::handle_agent_connected`] once a
+    /// runtime's ACP session is ready; prompts are persisted as user chat
+    /// messages at queue time.
     fn post_acp(
         &self,
         user_id: MacroUserIdStr<'static>,
@@ -139,7 +152,8 @@ pub trait AgentProxyService: Send + Sync + 'static {
     ) -> impl Future<Output = Result<()>> + Send;
 
     /// Handle one runtime lifecycle event for `session_id`. Every accepted
-    /// connection is dedicated to one session (see [`RuntimeProvisioner`]),
+    /// connection is dedicated to one session (see
+    /// [`crate::outbound::shared_runtime_connections::SharedRuntimeConnections`]),
     /// so — unlike the wire protocol's events, which carry no identifier of
     /// their own — the caller always knows which session an event belongs to.
     fn handle_system_event(
@@ -180,11 +194,11 @@ impl SessionTurn {
 ///
 /// `R` is the chat persistence adapter (both [`ChatRepo`] and
 /// [`MessageRepo`], e.g. `chat::outbound::postgres::PgChatRepo`).
-pub struct AgentProxyServiceImpl<R, Sessions, Notifier, Provisioner> {
+pub struct AgentProxyServiceImpl<R, Sessions, Notifier, Queue> {
     repo: R,
     sessions: Sessions,
     notifier: Notifier,
-    provisioner: Provisioner,
+    queue: Queue,
     /// Live-chat-stream sink, shared with `document_cognition_service` (same
     /// `ChatStream` wire shape, same Redis-durable-stream pipeline) so the
     /// frontend's existing chat renderer picks up external-agent turns with
@@ -200,20 +214,20 @@ pub struct AgentProxyServiceImpl<R, Sessions, Notifier, Provisioner> {
     acp_bootstrap: Mutex<HashMap<Uuid, oneshot::Sender<std::result::Result<String, String>>>>,
 }
 
-impl<R, Sessions, Notifier, Provisioner> AgentProxyServiceImpl<R, Sessions, Notifier, Provisioner> {
+impl<R, Sessions, Notifier, Queue> AgentProxyServiceImpl<R, Sessions, Notifier, Queue> {
     /// Create a new service from its ports.
     pub fn new(
         repo: R,
         sessions: Sessions,
         notifier: Notifier,
-        provisioner: Provisioner,
+        queue: Queue,
         streams: Arc<dyn StreamRepo>,
     ) -> Self {
         Self {
             repo,
             sessions,
             notifier,
-            provisioner,
+            queue,
             streams,
             turns: Mutex::new(HashMap::new()),
             acp_sessions: Mutex::new(HashMap::new()),
@@ -222,12 +236,12 @@ impl<R, Sessions, Notifier, Provisioner> AgentProxyServiceImpl<R, Sessions, Noti
     }
 }
 
-impl<R, Sessions, Notifier, Provisioner> AgentProxyServiceImpl<R, Sessions, Notifier, Provisioner>
+impl<R, Sessions, Notifier, Queue> AgentProxyServiceImpl<R, Sessions, Notifier, Queue>
 where
     R: ChatRepo + MessageRepo,
     Sessions: RuntimeSessions,
     Notifier: ClientNotifier,
-    Provisioner: RuntimeProvisioner,
+    Queue: PendingMessages,
 {
     /// Require at least `level` access for `user_id` on the agent chat.
     async fn require_access(
@@ -413,6 +427,16 @@ where
             .ok_or(AgentProxyErr::AcpSessionNotReady)
     }
 
+    /// Whether the session's ACP bootstrap has completed and its ACP
+    /// session id is live - i.e. whether `post_acp` can deliver immediately
+    /// rather than queue. Cleared again by `handle_agent_detached`.
+    fn has_acp_session(&self, session_id: Uuid) -> bool {
+        self.acp_sessions
+            .lock()
+            .expect("acp sessions mutex poisoned")
+            .contains_key(&session_id)
+    }
+
     /// Stamp the runtime's live ACP session id onto a request or
     /// notification's `sessionId` param, overwriting whatever the caller
     /// supplied, so callers never need to know the ACP-level id themselves.
@@ -456,6 +480,80 @@ where
         })
     }
 
+    /// Persist a `session/prompt` as a user chat message, then forward its
+    /// already-built JSON-RPC request to the runtime, rolling the persisted
+    /// message's pending-turn bookkeeping back if the send fails (the
+    /// runtime vanished between the check and the send: the prompt never
+    /// reached an agent, so no response will ever end this turn).
+    async fn store_and_forward_prompt(
+        &self,
+        session_id: Uuid,
+        request_id: RequestId,
+        prompt: PromptRequest,
+        message: RawJsonRpcMessage,
+    ) -> Result<()> {
+        self.store_prompt(session_id, request_id.clone(), prompt)
+            .await?;
+        self.send_to_runtime(session_id, message).inspect_err(|_| {
+            self.take_pending_prompt(session_id, &request_id);
+        })
+    }
+
+    /// Re-record a queued prompt's request id as awaiting a response. The
+    /// enqueue already did this, but a detach since then discards turn
+    /// state, so the flush re-pushes (deduped) to guarantee the prompt's
+    /// response still ends the turn.
+    fn push_pending_prompt(&self, session_id: Uuid, request_id: RequestId) {
+        let mut turns = self.turns.lock().expect("turns mutex poisoned");
+        let turn = turns.entry(session_id).or_insert_with(SessionTurn::new);
+        if !turn.pending_prompts.contains(&request_id) {
+            turn.pending_prompts.push(request_id);
+        }
+    }
+
+    /// Deliver every message queued while the session had no ready runtime,
+    /// oldest first. Stops at the first send failure, leaving that row and
+    /// everything after it queued for the next connection's flush (a failed
+    /// send means this runtime is on its way out, so forcing the rest
+    /// through is pointless); prompt bookkeeping pushed above is rolled back
+    /// for the failed message so it is re-pushed by that later flush.
+    async fn flush_pending(&self, session_id: Uuid) -> Result<()> {
+        let pending = self
+            .queue
+            .list(session_id)
+            .await
+            .map_err(AgentProxyErr::Unknown)?;
+        for PendingMessage { id, message } in pending {
+            let message = self.attach_acp_session_id(session_id, message)?;
+            let prompt_id = match &message {
+                RawJsonRpcMessage::Request(request)
+                    if PromptRequest::matches_method(request.method.as_ref()) =>
+                {
+                    Some(request.id.clone())
+                }
+                _ => None,
+            };
+            if let Some(request_id) = &prompt_id {
+                self.push_pending_prompt(session_id, request_id.clone());
+            }
+            if let Err(e) = self.send_to_runtime(session_id, message) {
+                if let Some(request_id) = prompt_id {
+                    self.take_pending_prompt(session_id, &request_id);
+                }
+                tracing::warn!(error=?e, %session_id, "failed to deliver queued message; keeping it queued");
+                break;
+            }
+            self.queue
+                .delete(id)
+                .await
+                .inspect_err(|e| {
+                    tracing::error!(error=?e, %session_id, "failed to delete delivered queued message")
+                })
+                .ok();
+        }
+        Ok(())
+    }
+
     /// Resolve an in-flight `session/new` bootstrap from its response,
     /// delivering the created ACP session id (or a failure reason) to
     /// whichever `handle_agent_connected` call is waiting on it. A no-op if
@@ -485,13 +583,13 @@ where
     }
 }
 
-impl<R, Sessions, Notifier, Provisioner> AgentProxyService
-    for AgentProxyServiceImpl<R, Sessions, Notifier, Provisioner>
+impl<R, Sessions, Notifier, Queue> AgentProxyService
+    for AgentProxyServiceImpl<R, Sessions, Notifier, Queue>
 where
     R: ChatRepo + MessageRepo,
     Sessions: RuntimeSessions,
     Notifier: ClientNotifier,
-    Provisioner: RuntimeProvisioner,
+    Queue: PendingMessages,
 {
     #[tracing::instrument(err, skip(self, args), fields(name = %args.name))]
     async fn create_agent(
@@ -583,26 +681,6 @@ where
     }
 
     #[tracing::instrument(err, skip(self))]
-    async fn provision_runtime_connection(
-        &self,
-        user_id: MacroUserIdStr<'static>,
-        agent_id: Uuid,
-    ) -> Result<String> {
-        self.require_access(user_id, agent_id, AccessLevel::Edit)
-            .await?;
-        let kind = self.repo.get_agent_kind(&agent_id.to_string()).await?;
-        if kind != ChatAgentKind::External {
-            return Err(AgentProxyErr::BadRequest(
-                "session is not an external agent".to_string(),
-            ));
-        }
-        self.provisioner
-            .provision(agent_id)
-            .await
-            .map_err(AgentProxyErr::Unknown)
-    }
-
-    #[tracing::instrument(err, skip(self))]
     async fn handle_agent_connected(&self, session_id: Uuid) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.acp_bootstrap
@@ -644,6 +722,13 @@ where
             .expect("acp sessions mutex poisoned")
             .insert(session_id, acp_session_id.clone());
         tracing::info!(%session_id, acp_session_id, "ACP session ready");
+
+        // The session is ready from this line on: anything posted while it
+        // was not - e.g. the prompt a caller supplied when launching the
+        // runtime, posted through the HTTP API before the runtime even
+        // existed - is delivered now, oldest first.
+        self.flush_pending(session_id).await?;
+
         Ok(())
     }
 
@@ -664,6 +749,29 @@ where
                 "session is not an external agent".to_string(),
             ));
         }
+        // Ready means a runtime has completed its ACP bootstrap: only then
+        // is there a live ACP session id to stamp and something to deliver
+        // to. A session that exists but is not ready buffers the message
+        // durably instead of erroring - `handle_agent_connected` flushes the
+        // queue, oldest first, once a runtime's ACP session is ready.
+        // Prompts are validated and persisted as user chat messages now, so
+        // a malformed prompt still 400s and the user's message lands in
+        // history immediately rather than whenever some runtime shows up.
+        if !self.has_acp_session(session_id) {
+            if let RawJsonRpcMessage::Request(request) = &message
+                && PromptRequest::matches_method(request.method.as_ref())
+            {
+                let prompt = parse_prompt_request(request.method.as_ref(), &request.params)?;
+                self.store_prompt(session_id, request.id.clone(), prompt)
+                    .await?;
+            }
+            self.queue
+                .enqueue(session_id, message)
+                .await
+                .map_err(AgentProxyErr::Unknown)?;
+            return Ok(());
+        }
+
         // Fail fast before persisting anything when no runtime is attached;
         // the send below still guards against a disconnect racing this check.
         if !self.sessions.is_connected(session_id) {
@@ -674,30 +782,17 @@ where
         // callers only ever need to know the Macro session id.
         let message = self.attach_acp_session_id(session_id, message)?;
 
-        let mut pending_prompt = None;
         if let RawJsonRpcMessage::Request(request) = &message
             && PromptRequest::matches_method(request.method.as_ref())
         {
-            let params = request
-                .params
-                .clone()
-                .map(RawJsonRpcParams::into_value)
-                .unwrap_or(serde_json::Value::Null);
-            let prompt = PromptRequest::parse_message(request.method.as_ref(), &params)
-                .map_err(|e| AgentProxyErr::BadRequest(format!("invalid prompt request: {e}")))?;
-            self.store_prompt(session_id, request.id.clone(), prompt)
-                .await?;
-            pending_prompt = Some(request.id.clone());
+            let prompt = parse_prompt_request(request.method.as_ref(), &request.params)?;
+            let request_id = request.id.clone();
+            return self
+                .store_and_forward_prompt(session_id, request_id, prompt, message)
+                .await;
         }
 
-        self.send_to_runtime(session_id, message).inspect_err(|_| {
-            // The runtime vanished between the check and the send: the
-            // prompt never reached an agent, so no response will ever end
-            // this turn — take the pending ID back.
-            if let Some(request_id) = &pending_prompt {
-                self.take_pending_prompt(session_id, request_id);
-            }
-        })
+        self.send_to_runtime(session_id, message)
     }
 
     #[tracing::instrument(err, skip(self, message))]

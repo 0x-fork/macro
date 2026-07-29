@@ -1,8 +1,8 @@
 //! Agent runtime connection driver.
 //!
 //! `agent_runtime_protocol` hosts exactly one agent execution per physical
-//! connection and carries no session identifier on the wire (see
-//! [`crate::domain::ports::RuntimeProvisioner`]). Correlating an accepted
+//! connection and carries no session identifier on the wire. Correlating an
+//! accepted
 //! connection to a chat/session id is therefore established out of band, by
 //! the adapter that accepts the connection:
 //! [`crate::outbound::shared_runtime_connections::SharedRuntimeConnections`]

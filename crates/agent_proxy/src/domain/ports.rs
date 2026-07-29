@@ -83,26 +83,60 @@ pub trait ClientNotifier: Send + Sync + 'static {
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
-/// Provisions a fresh dial-in endpoint for one session's external agent
-/// runtime to connect to.
-///
-/// `agent_runtime_protocol` deliberately carries no session identifier on the
-/// wire: a connection hosts exactly one agent execution, so there is no
-/// routing table to look one up in. Correlating a connection to a session is
-/// therefore this port's job, not the wire protocol's: each session gets its
-/// own dedicated listener, so whichever connection arrives on it is
-/// unambiguously that session's runtime.
-pub trait RuntimeProvisioner: Send + Sync + 'static {
-    /// Bind a listener dedicated to `session_id` and return the `ws://` URL
-    /// its runtime should dial. Resolves once the listener is bound; the
-    /// connection it eventually accepts (if any) is delivered separately
-    /// (see the composition root, which drives accepted connections into the
-    /// domain service).
-    fn provision(&self, session_id: Uuid) -> impl Future<Output = anyhow::Result<String>> + Send;
+/// One queued ACP message, in drain order.
+#[derive(Debug, Clone)]
+pub struct PendingMessage {
+    /// The queue row's id, needed to delete it after delivery.
+    pub id: Uuid,
+    /// The raw ACP JSON-RPC message exactly as the caller posted it.
+    pub message: RawJsonRpcMessage,
 }
 
-impl<T: RuntimeProvisioner> RuntimeProvisioner for std::sync::Arc<T> {
-    fn provision(&self, session_id: Uuid) -> impl Future<Output = anyhow::Result<String>> + Send {
-        T::provision(self, session_id)
+/// Durably queues ACP messages posted to a session whose runtime is not
+/// ready to receive them yet (no runtime connected, or the ACP bootstrap
+/// hasn't completed).
+///
+/// The queue is drained oldest-first by
+/// [`crate::domain::service::AgentProxyService::handle_agent_connected`]
+/// once the session's ACP bootstrap completes, each row deleted as it is
+/// delivered. Rows are only ever deleted on successful delivery, so a
+/// message posted before any runtime exists survives disconnects and
+/// restarts until some runtime finally receives it.
+pub trait PendingMessages: Send + Sync + 'static {
+    /// Append one raw ACP message to the session's queue.
+    fn enqueue(
+        &self,
+        session_id: Uuid,
+        message: RawJsonRpcMessage,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+    /// Every queued message for the session, oldest first.
+    fn list(
+        &self,
+        session_id: Uuid,
+    ) -> impl Future<Output = anyhow::Result<Vec<PendingMessage>>> + Send;
+
+    /// Remove a queued message after successful delivery.
+    fn delete(&self, id: Uuid) -> impl Future<Output = anyhow::Result<()>> + Send;
+}
+
+impl<T: PendingMessages> PendingMessages for std::sync::Arc<T> {
+    fn enqueue(
+        &self,
+        session_id: Uuid,
+        message: RawJsonRpcMessage,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send {
+        T::enqueue(self, session_id, message)
+    }
+
+    fn list(
+        &self,
+        session_id: Uuid,
+    ) -> impl Future<Output = anyhow::Result<Vec<PendingMessage>>> + Send {
+        T::list(self, session_id)
+    }
+
+    fn delete(&self, id: Uuid) -> impl Future<Output = anyhow::Result<()>> + Send {
+        T::delete(self, id)
     }
 }

@@ -1,25 +1,24 @@
 //! A mock agent runtime for testing the agent proxy end-to-end.
 //!
-//! Plays the container side of the agent runtime protocol: it asks the proxy
-//! for a dial-in URL, dials it, announces itself, spools up Claude Code
-//! (Zed's ACP adapter, via `npx`) as the agent process, and bridges the
-//! agent's ACP traffic over the runtime connection.
+//! Plays the container side of the agent runtime protocol: it dials the
+//! proxy's shared runtime WebSocket endpoint, announces itself, spools up
+//! Claude Code (Zed's ACP adapter, via `npx`) as the agent process, and
+//! bridges the agent's ACP traffic over the runtime connection.
 //!
 //! `agent_runtime_protocol` hosts exactly one agent execution per connection
-//! and carries no session identifier on the wire, so this bin calls the
-//! proxy's HTTP API to confirm it's allowed to attach a runtime, then dials
-//! the shared runtime endpoint it returns with `?id=<agent_id>` appended -
-//! that query parameter is what tells the proxy which session this
-//! connection belongs to.
+//! and carries no session identifier on the wire, so this bin dials the
+//! shared runtime endpoint with `?id=<agent_id>` appended - that query
+//! parameter is what tells the proxy which session this connection belongs
+//! to.
 //!
 //! Prerequisites:
 //!
 //! - Node.js and `npx` installed;
 //! - `ANTHROPIC_API_KEY` available to this process (the crate `.env` is
 //!   loaded automatically);
-//! - a running `agent_proxy_service`. This bin calls the local stack's HTTP
-//!   API (`http://127.0.0.1:8091` by default) to provision a connection;
-//!   pass `--http-url` to point elsewhere.
+//! - a running `agent_proxy_service`. This bin dials the local stack's
+//!   shared runtime endpoint (`ws://127.0.0.1:8091` by default); pass
+//!   `--proxy-url` to point elsewhere.
 //!
 //! Test recipe (ports assume the crate `.env`: HTTP 8091):
 //!
@@ -32,15 +31,16 @@
 //!   -H 'x-internal-auth-key: local' -H 'x-internal-macro-user-id: macro|you@macro.com' \
 //!   -d '{"name": "test coding agent", "kind": "External"}'
 //!
-//! # 3. hand that id to this runtime; it provisions a connection and starts
-//! #    Claude Code for the session
-//! cargo run -p agent_proxy --bin mock_runtime -- \
-//!   --user-id macro|you@macro.com --agent-id <id>
+//! # 3. hand that id to this runtime; it dials the proxy's shared runtime
+//! #    endpoint and starts Claude Code for the session
+//! cargo run -p agent_proxy --bin mock_runtime -- --agent-id <id>
 //!
-//! # 4. drive the session with raw ACP messages through the proxy
+//! # 4. prompt the session through the proxy (safe before step 3 too: the
+//! #    proxy queues the prompt until the runtime's ACP session is ready,
+//! #    and stamps the live ACP session id onto the empty placeholder)
 //! curl -X POST localhost:8091/sessions/<id>/acp -H 'content-type: application/json' \
 //!   -H 'x-internal-auth-key: local' -H 'x-internal-macro-user-id: macro|you@macro.com' \
-//!   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}'
+//!   -d '{"jsonrpc":"2.0","id":1,"method":"session/prompt","params":{"sessionId":"","prompt":[{"type":"text","text":"say hi"}]}}'
 //! ```
 //!
 //! Agent responses stream back to clients through the connection gateway;
@@ -54,8 +54,8 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use macro_uuid::Uuid;
 
-/// The local stack's HTTP API for the agent proxy.
-const LOCAL_STACK_HTTP_URL: &str = "http://127.0.0.1:8091";
+/// The local stack's shared runtime WebSocket endpoint on the agent proxy.
+const LOCAL_STACK_WS_URL: &str = "ws://127.0.0.1:8091";
 
 /// Zed's Claude Code ACP adapter, pinned to match the protocol crate's
 /// `mock_container` example.
@@ -75,24 +75,14 @@ const CLAUDE_SESSION_VARS: &[&str] = &[
     "CLAUDE_PID",
 ];
 
-/// Mock agent runtime: provisions a connection from the agent proxy and runs
-/// Claude Code as the agent for one session.
+/// Mock agent runtime: dials the agent proxy's shared runtime endpoint and
+/// runs Claude Code as the agent for one session.
 #[derive(Debug, Parser)]
 struct Args {
-    /// Base URL of the agent proxy's HTTP API, used to provision the runtime
-    /// connection. Defaults to the local stack's HTTP port.
-    #[arg(long, default_value = LOCAL_STACK_HTTP_URL)]
-    http_url: String,
-
-    /// Internal auth key sent as `x-internal-auth-key` when provisioning the
-    /// connection. Defaults to the local stack's internal key.
-    #[arg(long, default_value = "local")]
-    internal_auth_key: String,
-
-    /// Macro user ID sent as `x-internal-macro-user-id` when provisioning the
-    /// connection. Must have at least edit access to the agent.
-    #[arg(long)]
-    user_id: String,
+    /// Base `ws://` URL of the agent proxy; the runtime dials
+    /// `{proxy_url}/runtime?id=<agent_id>`. Defaults to the local stack.
+    #[arg(long, default_value = LOCAL_STACK_WS_URL)]
+    proxy_url: String,
 
     /// The agent (chat entity) UUID this runtime hosts. Must be an existing
     /// chat created with kind `External`.
@@ -103,35 +93,6 @@ struct Args {
     /// adapter with npx).
     #[arg(long = "agent-command", num_args = 1.., allow_hyphen_values = true)]
     agent_command: Option<Vec<String>>,
-}
-
-/// Response body of `POST /agents/{agent_id}/runtime-connection`.
-#[derive(Debug, serde::Deserialize)]
-struct ProvisionRuntimeConnectionResponse {
-    url: String,
-}
-
-/// Ask the agent proxy to provision a dial-in URL dedicated to `agent_id`.
-async fn provision_runtime_connection(
-    http_url: &str,
-    internal_auth_key: &str,
-    user_id: &str,
-    agent_id: Uuid,
-) -> Result<String> {
-    let client = reqwest::Client::new();
-    let response = client
-        .post(format!("{http_url}/agents/{agent_id}/runtime-connection"))
-        .header("x-internal-auth-key", internal_auth_key)
-        .header("x-internal-macro-user-id", user_id)
-        .send()
-        .await
-        .context("failed to reach agent proxy to provision a runtime connection")?
-        .error_for_status()
-        .context("agent proxy refused to provision a runtime connection")?
-        .json::<ProvisionRuntimeConnectionResponse>()
-        .await
-        .context("agent proxy returned an unexpected provisioning response")?;
-    Ok(response.url)
 }
 
 /// Interpose on an ACP channel, logging every message in both directions
@@ -211,17 +172,9 @@ async fn main() -> Result<()> {
         .chain(agent_command)
         .collect();
 
-    tracing::info!(%agent_id, http_url = %args.http_url, "provisioning runtime connection");
-    let base_url = provision_runtime_connection(
-        &args.http_url,
-        &args.internal_auth_key,
-        &args.user_id,
-        args.agent_id,
-    )
-    .await?;
     // The shared runtime endpoint is the same for every session; the query
     // parameter is what tells agent_proxy which one this connection is.
-    let url = format!("{base_url}?id={}", args.agent_id);
+    let url = format!("{}/runtime?id={}", args.proxy_url, args.agent_id);
 
     tracing::info!(%url, "connecting to agent proxy");
     let (stream, _response) = tokio_tungstenite::connect_async(&url)

@@ -2,17 +2,19 @@
 #
 # Typical flow:
 #   just create-agent                 # -> {"id":"<AGENT_ID>"}
-#   just mock-runtime <AGENT_ID>      # leave running; spawns Claude Code
-#   just initialize <AGENT_ID>
-#   just new-session <AGENT_ID>       # ACP sessionId arrives via the connection gateway
-#   just prompt <AGENT_ID> <ACP_SESSION> "say hi"
+#   just prompt <AGENT_ID> "say hi"   # safe now: queued until a runtime is ready
+#   just mock-runtime <AGENT_ID>      # leave running; spawns Claude Code, flushes the queue
 #   just get-agent <AGENT_ID>         # persisted conversation
 #
-# Every ACP post returns 202; agent replies stream to the connection gateway.
-# 409 = no runtime connected, 400 = not an External chat / bad JSON-RPC,
-# 403/404 = wrong agent id or no access for the header user.
+# The proxy owns the ACP handshake: once a runtime reports `acp_ready` it
+# sends `initialize` + `session/new` itself, then flushes anything queued
+# while the session had no ready runtime. Every ACP post returns 202;
+# agent replies stream to the connection gateway.
+# 400 = not an External chat / bad JSON-RPC, 403/404 = wrong agent id or no
+# access for the header user, 409 = runtime vanished mid-send.
 
 host := env('AGENT_PROXY_URL', 'http://localhost:8091')
+ws_host := env('AGENT_PROXY_WS_URL', 'ws://localhost:8091')
 auth_key := env('INTERNAL_API_KEY', 'local')
 user_id := env('LOCAL_USER_ID', 'macro|eric.hayes+bartsimpson@macro.com')
 
@@ -34,20 +36,13 @@ create-agent name='test coding agent':
 # Run the mock runtime hosting Claude Code for the session (leave running)
 mock-runtime agent_id:
     cargo run -p agent_proxy --bin mock_runtime -- \
-        --http-url '{{ host }}' --internal-auth-key '{{ auth_key }}' --user-id '{{ user_id }}' \
-        --agent-id '{{ agent_id }}'
+        --proxy-url '{{ ws_host }}' --agent-id '{{ agent_id }}'
 
-# ACP handshake step 1
-initialize agent_id:
-    {{ curl }} -X POST {{ host }}/sessions/{{ agent_id }}/acp -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1}}'
-
-# ACP handshake step 2; the response (with the ACP sessionId) streams to the gateway
-new-session agent_id cwd='/tmp':
-    {{ curl }} -X POST {{ host }}/sessions/{{ agent_id }}/acp -d '{"jsonrpc":"2.0","id":2,"method":"session/new","params":{"cwd":"{{ cwd }}","mcpServers":[]}}'
-
-# Prompt the agent (acp_session = sessionId from the session/new response)
-prompt agent_id acp_session text id='3':
-    {{ curl }} -X POST {{ host }}/sessions/{{ agent_id }}/acp -d '{"jsonrpc":"2.0","id":{{ id }},"method":"session/prompt","params":{"sessionId":"{{ acp_session }}","prompt":[{"type":"text","text":"{{ text }}"}]}}'
+# Prompt the agent. The proxy stamps the live ACP session id itself, and
+# queues the prompt durably if no runtime is ready yet - safe to run before
+# `mock-runtime`.
+prompt agent_id text id='3':
+    {{ curl }} -X POST {{ host }}/sessions/{{ agent_id }}/acp -d '{"jsonrpc":"2.0","id":{{ id }},"method":"session/prompt","params":{"sessionId":"","prompt":[{"type":"text","text":"{{ text }}"}]}}'
 
 # Forward one raw ACP JSON-RPC message verbatim
 send agent_id message:

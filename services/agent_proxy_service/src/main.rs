@@ -1,8 +1,8 @@
 //! Composition root for the agent proxy service.
 //!
-//! Runs the user-facing HTTP API (agent CRUD, provisioning runtime
-//! connections, and posting ACP messages to sessions) alongside a single
-//! shared runtime WebSocket endpoint
+//! Runs the user-facing HTTP API (agent CRUD and posting ACP messages to
+//! sessions) on the same router and
+//! port as a shared runtime WebSocket endpoint
 //! ([`agent_proxy::outbound::shared_runtime_connections::SharedRuntimeConnections`])
 //! that every external agent's runtime dials into, disambiguated by an
 //! `?id=` query parameter; accepted connections are drained and driven into
@@ -18,6 +18,7 @@ use agent_proxy::domain::service::AgentProxyServiceImpl;
 use agent_proxy::inbound::http::{AgentProxyRouterState, agent_proxy_router, health};
 use agent_proxy::inbound::runtime::RuntimeConnectionDriver;
 use agent_proxy::outbound::gateway::GatewayNotifier;
+use agent_proxy::outbound::pending_messages::PgPendingMessages;
 use agent_proxy::outbound::runtime_registry::SessionRegistry;
 use agent_proxy::outbound::shared_runtime_connections::SharedRuntimeConnections;
 use agent_proxy::swagger::ApiDoc;
@@ -70,18 +71,14 @@ async fn main() -> Result<()> {
     // an `?id=` query parameter; accepted connections are handed to the
     // driver below over `incoming`.
     let (incoming_tx, incoming_rx) = tokio::sync::mpsc::unbounded_channel();
-    let runtime_connections = Arc::new(SharedRuntimeConnections::new(
-        config.runtime_advertise_host,
-        config.runtime_port,
-        incoming_tx,
-    ));
+    let runtime_connections = Arc::new(SharedRuntimeConnections::new(incoming_tx));
 
     let registry = Arc::new(SessionRegistry::new());
     let service = Arc::new(AgentProxyServiceImpl::new(
         PgChatRepo::new(db.clone()),
         Arc::clone(&registry),
         GatewayNotifier::new(gateway_client),
-        Arc::clone(&runtime_connections),
+        PgPendingMessages::new(db.clone()),
         stream_repo,
     ));
 
@@ -90,15 +87,6 @@ async fn main() -> Result<()> {
         Arc::clone(&service),
     ));
     tokio::spawn(connection_driver.run(incoming_rx));
-
-    let runtime_addr = format!("0.0.0.0:{}", config.runtime_port);
-    let runtime_listener = tokio::net::TcpListener::bind(&runtime_addr)
-        .await
-        .context("failed to bind shared runtime listener")?;
-    tracing::info!("shared runtime endpoint listening on {runtime_addr}");
-    tokio::spawn(async move {
-        let _ = axum::serve(runtime_listener, runtime_connections.into_router()).await;
-    });
 
     // User-facing HTTP API.
     let secretsmanager_client = secretsmanager_client::SecretsManager::new(
@@ -125,6 +113,7 @@ async fn main() -> Result<()> {
         .route("/health", axum::routing::get(health))
         .merge(SwaggerUi::new("/docs").url("/api-doc/openapi.json", ApiDoc::openapi()))
         .merge(agent_proxy_router::<_, _, ()>(state))
+        .merge(runtime_connections.into_router())
         .layer(macro_cors::cors_layer());
 
     let addr = format!("0.0.0.0:{}", config.port);

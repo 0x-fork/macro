@@ -138,6 +138,15 @@ impl ChatRepo for FakeRepo {
         unimplemented!()
     }
 
+    async fn update_interim_message_content(
+        &self,
+        _chat_id: &str,
+        _message_id: &str,
+        _content: &ChatMessageContent,
+    ) -> ChatResult<()> {
+        unimplemented!()
+    }
+
     async fn store_resolved_message(
         &self,
         _message_id: &str,
@@ -161,7 +170,7 @@ impl MessageRepo for FakeRepo {
         Ok(format!("msg-{}", stored.len()))
     }
 
-    async fn delete(&self, _message_id: &str) -> ChatResult<()> {
+    async fn delete(&self, _message_id: &str) -> ChatResult<String> {
         unimplemented!()
     }
 
@@ -271,14 +280,26 @@ impl ClientNotifier for FakeNotifier {
 }
 
 #[derive(Clone, Default)]
-struct FakeProvisioner {
-    provisioned: Arc<StdMutex<Vec<Uuid>>>,
+struct FakeQueue {
+    pending: Arc<StdMutex<Vec<PendingMessage>>>,
 }
 
-impl RuntimeProvisioner for FakeProvisioner {
-    async fn provision(&self, session_id: Uuid) -> anyhow::Result<String> {
-        self.provisioned.lock().unwrap().push(session_id);
-        Ok(format!("ws://fake/{session_id}"))
+impl PendingMessages for FakeQueue {
+    async fn enqueue(&self, _session_id: Uuid, message: RawJsonRpcMessage) -> anyhow::Result<()> {
+        self.pending.lock().unwrap().push(PendingMessage {
+            id: macro_uuid::generate_uuid_v7(),
+            message,
+        });
+        Ok(())
+    }
+
+    async fn list(&self, _session_id: Uuid) -> anyhow::Result<Vec<PendingMessage>> {
+        Ok(self.pending.lock().unwrap().clone())
+    }
+
+    async fn delete(&self, id: Uuid) -> anyhow::Result<()> {
+        self.pending.lock().unwrap().retain(|p| p.id != id);
+        Ok(())
     }
 }
 
@@ -328,11 +349,11 @@ impl StreamRepo for FakeStreamRepo {
 }
 
 struct Harness {
-    service: AgentProxyServiceImpl<FakeRepo, FakeSessions, FakeNotifier, FakeProvisioner>,
+    service: AgentProxyServiceImpl<FakeRepo, FakeSessions, FakeNotifier, FakeQueue>,
     repo: FakeRepo,
     sessions: FakeSessions,
     notifier: FakeNotifier,
-    provisioner: FakeProvisioner,
+    queue: FakeQueue,
     streams: FakeStreamRepo,
 }
 
@@ -340,13 +361,13 @@ fn harness(kind: ChatAgentKind, access: AccessLevel) -> Harness {
     let repo = FakeRepo::new(kind, access);
     let sessions = FakeSessions::default();
     let notifier = FakeNotifier::default();
-    let provisioner = FakeProvisioner::default();
+    let queue = FakeQueue::default();
     let streams = FakeStreamRepo::default();
     let service = AgentProxyServiceImpl::new(
         repo.clone(),
         sessions.clone(),
         notifier.clone(),
-        provisioner.clone(),
+        queue.clone(),
         Arc::new(streams.clone()),
     );
     // Most tests exercise turn/prompt semantics, not the ACP bootstrap
@@ -361,7 +382,7 @@ fn harness(kind: ChatAgentKind, access: AccessLevel) -> Harness {
         repo,
         sessions,
         notifier,
-        provisioner,
+        queue,
         streams,
     }
 }
@@ -424,46 +445,6 @@ async fn post_prompt_persists_user_message_and_forwards() {
         ChatStream::ChatUserMessage { content, chat_id, .. }
             if content == "fix the bug" && *chat_id == session().to_string()
     ));
-}
-
-#[tokio::test]
-async fn provision_runtime_connection_returns_provisioner_url() {
-    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
-
-    let url = h
-        .service
-        .provision_runtime_connection(user_id(), session())
-        .await
-        .unwrap();
-
-    assert_eq!(url, format!("ws://fake/{}", session()));
-    assert_eq!(*h.provisioner.provisioned.lock().unwrap(), vec![session()]);
-}
-
-#[tokio::test]
-async fn provision_runtime_connection_rejects_macro_chats() {
-    let h = harness(ChatAgentKind::MacroChat, AccessLevel::Owner);
-
-    let err = h
-        .service
-        .provision_runtime_connection(user_id(), session())
-        .await
-        .unwrap_err();
-    assert!(matches!(err, AgentProxyErr::BadRequest(_)));
-    assert!(h.provisioner.provisioned.lock().unwrap().is_empty());
-}
-
-#[tokio::test]
-async fn provision_runtime_connection_requires_edit_access() {
-    let h = harness(ChatAgentKind::External, AccessLevel::View);
-
-    let err = h
-        .service
-        .provision_runtime_connection(user_id(), session())
-        .await
-        .unwrap_err();
-    assert!(matches!(err, AgentProxyErr::Unauthorized));
-    assert!(h.provisioner.provisioned.lock().unwrap().is_empty());
 }
 
 #[tokio::test]
@@ -793,6 +774,22 @@ async fn handle_agent_connected_surfaces_session_new_errors() {
 }
 
 #[tokio::test]
+async fn handle_agent_connected_sends_only_the_handshake() {
+    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
+    h.service.acp_sessions.lock().unwrap().clear();
+
+    let (connect_result, _) = tokio::join!(
+        h.service.handle_agent_connected(session()),
+        h.service
+            .handle_agent_message(session(), new_session_response("acp-session-xyz")),
+    );
+    connect_result.unwrap();
+
+    assert_eq!(h.sessions.sent.lock().unwrap().len(), 2);
+    assert!(h.repo.stored().is_empty());
+}
+
+#[tokio::test]
 async fn post_acp_stamps_the_live_acp_session_id() {
     let h = harness(ChatAgentKind::External, AccessLevel::Owner);
 
@@ -812,18 +809,229 @@ async fn post_acp_stamps_the_live_acp_session_id() {
 }
 
 #[tokio::test]
-async fn post_acp_requires_acp_session_ready() {
+async fn post_acp_queues_prompts_when_the_session_is_not_ready() {
+    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
+    // No live ACP session: either no runtime is connected or its bootstrap
+    // hasn't completed.
+    h.service.acp_sessions.lock().unwrap().clear();
+
+    h.service
+        .post_acp(user_id(), session(), prompt_message(1, "fix the bug"))
+        .await
+        .unwrap();
+
+    // The user message is persisted immediately and the raw message is
+    // queued for delivery; nothing goes to a runtime that isn't there.
+    let stored = h.repo.stored();
+    assert_eq!(stored.len(), 1);
+    assert_eq!(stored[0].1.role, Role::User);
+    assert_eq!(
+        stored[0].1.content,
+        ChatMessageContent::Text("fix the bug".to_string())
+    );
+    assert_eq!(h.queue.pending.lock().unwrap().len(), 1);
+    assert!(h.sessions.sent.lock().unwrap().is_empty());
+
+    // The pending turn opened by the prompt survives the queueing, so the
+    // streamed user message shows up live too.
+    let items = h.streams.items();
+    assert_eq!(items.len(), 1);
+    assert!(matches!(items[0], ChatStream::ChatUserMessage { .. }));
+}
+
+#[tokio::test]
+async fn post_acp_queues_non_prompt_messages_without_persisting() {
     let h = harness(ChatAgentKind::External, AccessLevel::Owner);
     h.service.acp_sessions.lock().unwrap().clear();
 
+    h.service
+        .post_acp(user_id(), session(), session_update(text_chunk("hi")))
+        .await
+        .unwrap();
+
+    assert!(h.repo.stored().is_empty());
+    assert_eq!(h.queue.pending.lock().unwrap().len(), 1);
+    assert!(h.sessions.sent.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn post_acp_rejects_malformed_prompts_even_when_queueing() {
+    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
+    h.service.acp_sessions.lock().unwrap().clear();
+
+    // Missing the required `prompt` field.
+    let bad = RawJsonRpcMessage::request(
+        "session/prompt".to_string(),
+        serde_json::json!({"sessionId": "whatever"}),
+        RequestId::Number(1),
+    )
+    .unwrap();
     let err = h
         .service
-        .post_acp(user_id(), session(), prompt_message(1, "hi"))
+        .post_acp(user_id(), session(), bad)
         .await
         .unwrap_err();
-    assert!(matches!(err, AgentProxyErr::AcpSessionNotReady));
+    assert!(matches!(err, AgentProxyErr::BadRequest(_)));
+    assert!(h.queue.pending.lock().unwrap().is_empty());
     assert!(h.repo.stored().is_empty());
+}
+
+#[tokio::test]
+async fn flush_pending_delivers_oldest_first_and_clears_the_queue() {
+    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
+    h.service.acp_sessions.lock().unwrap().clear();
+
+    h.service
+        .post_acp(user_id(), session(), prompt_message(1, "first"))
+        .await
+        .unwrap();
+    h.service
+        .post_acp(user_id(), session(), session_update(text_chunk("second")))
+        .await
+        .unwrap();
+
+    // Stand in for a completed bootstrap (TEST_ACP_SESSION_ID is what the
+    // harness seeds when `handle_agent_connected` runs for real).
+    h.service
+        .acp_sessions
+        .lock()
+        .unwrap()
+        .insert(session(), TEST_ACP_SESSION_ID.to_string());
+    h.service.flush_pending(session()).await.unwrap();
+
+    let sent = h.sessions.sent.lock().unwrap();
+    assert_eq!(sent.len(), 2);
+    let RawJsonRpcMessage::Request(prompt) = &sent[0].1 else {
+        panic!("expected a request")
+    };
+    assert_eq!(prompt.method.as_ref(), "session/prompt");
+    let params = prompt.params.clone().unwrap().into_value();
+    assert_eq!(params["sessionId"], serde_json::json!(TEST_ACP_SESSION_ID));
+    let RawJsonRpcMessage::Notification(_) = &sent[1].1 else {
+        panic!("expected a notification")
+    };
+    drop(sent);
+
+    assert!(h.queue.pending.lock().unwrap().is_empty());
+    // The user message was persisted exactly once: at queue time, not again
+    // at delivery.
+    assert_eq!(h.repo.stored().len(), 1);
+}
+
+#[tokio::test]
+async fn flush_pending_keeps_undelivered_messages_queued() {
+    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
+    h.service.acp_sessions.lock().unwrap().clear();
+
+    h.service
+        .post_acp(user_id(), session(), prompt_message(1, "first"))
+        .await
+        .unwrap();
+    h.service
+        .post_acp(user_id(), session(), prompt_message(2, "second"))
+        .await
+        .unwrap();
+
+    h.service
+        .acp_sessions
+        .lock()
+        .unwrap()
+        .insert(session(), TEST_ACP_SESSION_ID.to_string());
+    *h.sessions.fail_send.lock().unwrap() = true;
+    h.service.flush_pending(session()).await.unwrap();
+
+    // Nothing delivered: both rows stay queued for the next connection, and
+    // the persisted user messages were not duplicated by the failed flush.
     assert!(h.sessions.sent.lock().unwrap().is_empty());
+    assert_eq!(h.queue.pending.lock().unwrap().len(), 2);
+    assert_eq!(h.repo.stored().len(), 2);
+
+    // A later flush (the next connection's) delivers the backlog in order.
+    *h.sessions.fail_send.lock().unwrap() = false;
+    h.service.flush_pending(session()).await.unwrap();
+    assert_eq!(h.sessions.sent.lock().unwrap().len(), 2);
+    assert!(h.queue.pending.lock().unwrap().is_empty());
+    assert_eq!(h.repo.stored().len(), 2);
+}
+
+#[tokio::test]
+async fn flushed_prompt_responses_end_the_turn() {
+    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
+    h.service.acp_sessions.lock().unwrap().clear();
+
+    h.service
+        .post_acp(user_id(), session(), prompt_message(1, "fix the bug"))
+        .await
+        .unwrap();
+    h.service
+        .acp_sessions
+        .lock()
+        .unwrap()
+        .insert(session(), TEST_ACP_SESSION_ID.to_string());
+    h.service.flush_pending(session()).await.unwrap();
+
+    // The runtime streams a chunk, then answers the flushed prompt: its
+    // response must end the turn the queueing opened (the flush re-pushed
+    // the pending bookkeeping in case a detach discarded it).
+    h.service
+        .handle_agent_message(session(), session_update(text_chunk("done")))
+        .await
+        .unwrap();
+    h.service
+        .handle_agent_message(
+            session(),
+            RawJsonRpcMessage::response(
+                RequestId::Number(1),
+                Ok(serde_json::json!({"stopReason": "end_turn"})),
+            ),
+        )
+        .await
+        .unwrap();
+
+    let stored = h.repo.stored();
+    assert_eq!(stored.len(), 2);
+    assert_eq!(stored[1].1.role, Role::Assistant);
+    assert_eq!(
+        stored[1].1.content,
+        ChatMessageContent::AssistantMessageParts(vec![AssistantMessagePart::Text {
+            text: "done".to_string()
+        }])
+    );
+}
+
+#[tokio::test]
+async fn handle_agent_connected_flushes_the_queue_after_bootstrap() {
+    let h = harness(ChatAgentKind::External, AccessLevel::Owner);
+    h.service.acp_sessions.lock().unwrap().clear();
+
+    // Posted before any runtime exists - e.g. the prompt a caller supplied
+    // when launching the runtime.
+    h.service
+        .post_acp(user_id(), session(), prompt_message(1, "fix the bug"))
+        .await
+        .unwrap();
+
+    let (connect_result, _) = tokio::join!(
+        h.service.handle_agent_connected(session()),
+        h.service
+            .handle_agent_message(session(), new_session_response("acp-session-xyz")),
+    );
+    connect_result.unwrap();
+
+    // initialize, session/new, then the queued prompt with the fresh ACP
+    // session id stamped on.
+    let sent = h.sessions.sent.lock().unwrap();
+    assert_eq!(sent.len(), 3);
+    let RawJsonRpcMessage::Request(prompt_request) = &sent[2].1 else {
+        panic!("expected a request")
+    };
+    assert_eq!(prompt_request.method.as_ref(), "session/prompt");
+    let params = prompt_request.params.clone().unwrap().into_value();
+    assert_eq!(params["sessionId"], serde_json::json!("acp-session-xyz"));
+    drop(sent);
+
+    assert!(h.queue.pending.lock().unwrap().is_empty());
+    assert_eq!(h.repo.stored().len(), 1);
 }
 
 #[tokio::test]

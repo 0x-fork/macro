@@ -14,7 +14,7 @@ use macro_authorization::{
 };
 use macro_uuid::Uuid;
 use model::response::{EmptyResponse, StringIDResponse};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use utoipa::ToSchema;
 
@@ -59,10 +59,6 @@ where
         .route(
             "/agents/{agent_id}/permanent",
             axum::routing::delete(permanently_delete_agent::<S, Auth>),
-        )
-        .route(
-            "/agents/{agent_id}/runtime-connection",
-            post(provision_runtime_connection::<S, Auth>),
         )
         .route("/sessions/{session_id}/acp", post(post_acp::<S, Auth>))
         .with_state(state)
@@ -254,44 +250,6 @@ pub async fn permanently_delete_agent<S: AgentProxyService, Auth: MacroAuthoriza
         .permanently_delete_agent(user.authorization.user.macro_user_id, agent_id)
         .await?;
     Ok(Json(EmptyResponse::default()))
-}
-
-/// Response body for provisioning a runtime connection.
-#[derive(Debug, Serialize, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct ProvisionRuntimeConnectionResponse {
-    /// The `ws://` URL the runtime should dial. Dedicated to this agent: a
-    /// runtime connecting to it does not need to (and cannot) identify
-    /// itself further.
-    pub url: String,
-}
-
-#[utoipa::path(
-    post,
-    path = "/agents/{agent_id}/runtime-connection",
-    tag = "agent proxy",
-    operation_id = "provision_runtime_connection",
-    params(("agent_id" = Uuid, Path, description = "ID of the agent")),
-    responses(
-        (status = 200, body = ProvisionRuntimeConnectionResponse),
-        (status = 400, body = String),
-        (status = 401, body = String),
-        (status = 404, body = String),
-        (status = 500, body = String),
-    )
-)]
-/// Provision a fresh dial-in endpoint for an external agent's runtime.
-#[tracing::instrument(skip(state, user), fields(user_id = %user.authorization.user.macro_user_id), err(Debug))]
-pub async fn provision_runtime_connection<S: AgentProxyService, Auth: MacroAuthorizationService>(
-    State(state): State<AgentProxyRouterState<S, Auth>>,
-    user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Path(agent_id): Path<Uuid>,
-) -> Result<Json<ProvisionRuntimeConnectionResponse>, AgentProxyApiError> {
-    let url = state
-        .service
-        .provision_runtime_connection(user.authorization.user.macro_user_id, agent_id)
-        .await?;
-    Ok(Json(ProvisionRuntimeConnectionResponse { url }))
 }
 
 #[utoipa::path(

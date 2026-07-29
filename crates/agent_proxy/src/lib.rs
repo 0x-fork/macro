@@ -13,6 +13,11 @@
 //! stored as regular chats (same tables and message format as DCS agents),
 //! distinguished by the `chat` crate's `ChatAgentKind` column on the chat
 //! row.
+//!
+//! ACP messages posted to a session with no ready runtime (none connected,
+//! or its ACP bootstrap hasn't completed) are durably queued in Postgres
+//! and flushed, oldest first, once the runtime's ACP session is ready -
+//! see [`domain::ports::PendingMessages`].
 
 #![deny(missing_docs)]
 

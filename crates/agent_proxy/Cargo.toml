@@ -23,6 +23,7 @@ model-entity = { path = "../model-entity" }
 models_permissions = { path = "../models_permissions" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sqlx = { workspace = true }
 stream = { path = "../stream" }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -43,7 +44,6 @@ connection_gateway_client = { path = "../connection_gateway_client" }
 # mock_runtime test bin
 clap = { workspace = true, features = ["derive"] }
 dotenvy = { workspace = true }
-reqwest = { workspace = true }
 tokio-tungstenite = { workspace = true }
 tracing-subscriber = { workspace = true }
 
@@ -52,3 +52,4 @@ workspace-hack = { version = "0.1", path = "../workspace-hack" }
 [dev-dependencies]
 async-trait = { workspace = true }
 attachment = { path = "../attachment" }
+macro_db_migrator = { path = "../macro_db_migrator" }
