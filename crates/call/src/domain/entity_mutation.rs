@@ -4,8 +4,10 @@ use entity_access::domain::models::{
     AccessError, EditAccessLevel, EntityAccessReceipt, ViewAccessLevel,
 };
 use entity_mutation::{
-    DeleteEntityPermanently, EntityMutationErrorCode, RenameEntity, UpdateEntitySharePolicy,
+    DeleteEntityPermanently, EntityMutationEffect, EntityMutationErrorCode, RenameEntity,
+    UpdateEntitySharePolicy,
 };
+use macro_event_broker::MacroEventBroker;
 use model_entity::Entity;
 use models_permissions::share_permission::UpdateSharePermissionRequestV2;
 
@@ -72,8 +74,8 @@ async fn require_archived_call<S: CallService>(
     Ok(())
 }
 
-impl<R, C, Cn, E, N, S, Sm, I, V, Vr> RenameEntity
-    for CallServiceImpl<R, C, Cn, E, N, S, Sm, I, V, Vr>
+impl<R, C, Cn, E, N, S, Sm, I, V, Vr, B> RenameEntity
+    for CallServiceImpl<R, C, Cn, E, N, S, Sm, I, V, Vr, B>
 where
     R: CallRepository,
     C: CallRtcClient,
@@ -85,16 +87,17 @@ where
     I: CallSearchIndexer,
     V: VoipPushSender,
     Vr: VoiceRepository,
+    B: MacroEventBroker,
     Self: CallService,
 {
     type Receipt = EditAccessLevel;
 
     async fn rename_entity(
         &self,
-        _entity: Entity<'static>,
+        entity: Entity<'static>,
         receipt: EntityAccessReceipt<Self::Receipt>,
         display_name: String,
-    ) -> Result<Vec<Entity<'static>>, EntityMutationErrorCode> {
+    ) -> Result<Vec<EntityMutationEffect>, EntityMutationErrorCode> {
         require_archived_call(self, &receipt, "rename").await?;
         self.edit_call_record(
             receipt,
@@ -105,12 +108,12 @@ where
             },
         )
         .await?;
-        Ok(Vec::new())
+        Ok(vec![EntityMutationEffect::updated(entity)])
     }
 }
 
-impl<R, C, Cn, E, N, S, Sm, I, V, Vr> UpdateEntitySharePolicy
-    for CallServiceImpl<R, C, Cn, E, N, S, Sm, I, V, Vr>
+impl<R, C, Cn, E, N, S, Sm, I, V, Vr, B> UpdateEntitySharePolicy
+    for CallServiceImpl<R, C, Cn, E, N, S, Sm, I, V, Vr, B>
 where
     R: CallRepository,
     C: CallRtcClient,
@@ -122,16 +125,17 @@ where
     I: CallSearchIndexer,
     V: VoipPushSender,
     Vr: VoiceRepository,
+    B: MacroEventBroker,
     Self: CallService,
 {
     type Receipt = EditAccessLevel;
 
     async fn update_share_policy(
         &self,
-        _entity: Entity<'static>,
+        entity: Entity<'static>,
         receipt: EntityAccessReceipt<Self::Receipt>,
         policy: UpdateSharePermissionRequestV2,
-    ) -> Result<Vec<Entity<'static>>, EntityMutationErrorCode> {
+    ) -> Result<Vec<EntityMutationEffect>, EntityMutationErrorCode> {
         require_archived_call(self, &receipt, "update sharing for").await?;
         self.edit_call_record(
             receipt,
@@ -142,12 +146,12 @@ where
             },
         )
         .await?;
-        Ok(Vec::new())
+        Ok(vec![EntityMutationEffect::updated(entity)])
     }
 }
 
-impl<R, C, Cn, E, N, S, Sm, I, V, Vr> DeleteEntityPermanently
-    for CallServiceImpl<R, C, Cn, E, N, S, Sm, I, V, Vr>
+impl<R, C, Cn, E, N, S, Sm, I, V, Vr, B> DeleteEntityPermanently
+    for CallServiceImpl<R, C, Cn, E, N, S, Sm, I, V, Vr, B>
 where
     R: CallRepository,
     C: CallRtcClient,
@@ -159,17 +163,18 @@ where
     I: CallSearchIndexer,
     V: VoipPushSender,
     Vr: VoiceRepository,
+    B: MacroEventBroker,
     Self: CallService,
 {
     type Receipt = EditAccessLevel;
 
     async fn delete_entity_permanently(
         &self,
-        _entity: Entity<'static>,
+        entity: Entity<'static>,
         receipt: EntityAccessReceipt<Self::Receipt>,
-    ) -> Result<Vec<Entity<'static>>, EntityMutationErrorCode> {
+    ) -> Result<Vec<EntityMutationEffect>, EntityMutationErrorCode> {
         require_archived_call(self, &receipt, "permanently delete").await?;
         self.delete_call_record(receipt).await?;
-        Ok(Vec::new())
+        Ok(vec![EntityMutationEffect::deleted(entity)])
     }
 }

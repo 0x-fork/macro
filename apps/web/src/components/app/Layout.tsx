@@ -1,3 +1,4 @@
+import { DEFAULT_ROUTE } from '@app/constants/defaultRoute';
 import { ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
 import Banner from '@app/features/auth/banner/Banner';
 import { GithubReauthenticationPrompt } from '@app/features/auth/GithubReauthenticationPrompt';
@@ -26,6 +27,7 @@ import {
 import { MacroMcpSetupModal } from '@app/features/integrations/mcp-setup/MacroMcpSetupModal';
 import { Paywall } from '@app/features/paywall/Paywall';
 import { PropertyEditorModal } from '@app/features/property/editor/PropertyEditorModal';
+import { useOnboardingV4Flag } from '@app/features/setup/flow/useOnboardingV4Flag';
 import { GlobalShareModal } from '@app/features/sharing/global-share-modal/GlobalShareModal';
 import { IosShareSheet } from '@app/features/sharing/ios-share-sheet/IosShareSheet';
 import { mountGlobalFocusListener } from '@app/signal/focus';
@@ -45,7 +47,6 @@ import {
   SidebarVisibilityContext,
 } from '@components/app/sidebarVisibility';
 import { useIsAuthenticated } from '@core/auth';
-import { ENABLE_ONBOARDING_V4 } from '@core/constant/featureFlags';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isSoloSettings } from '@core/constant/SettingsState';
 import { attachGlobalDOMScope } from '@core/hotkey/hotkeys';
@@ -292,9 +293,10 @@ function NewOnboardingRedirect() {
   const userInfoQuery = useUserInfoQuery();
   const navigate = useNavigate();
   const location = useLocation();
+  const onboardingV4 = useOnboardingV4Flag();
 
   createEffect(() => {
-    if (!ENABLE_ONBOARDING_V4 || isMobile() || isNativeMobilePlatform()) {
+    if (!onboardingV4().enabled || isMobile() || isNativeMobilePlatform()) {
       return;
     }
     const data = userInfoQuery.data;
@@ -303,12 +305,14 @@ function NewOnboardingRedirect() {
     }
     if (AUTH_URLS.includes(location.pathname)) return;
     // Preserve the deep link the user arrived on (a shared doc, an invite):
-    // the flow carries it as ?next and its finish() returns there instead of
-    // home. Base-relative so navigate() can resolve it against the router.
+    // /setup carries it as ?next and its finish() returns there instead of
+    // the post-setup landing. Base-relative so navigate() can resolve it
+    // against the router.
     const target =
       location.pathname.slice(ROUTER_BASE_CONCAT.length - 1) + location.search;
+    const isGenericEntry = target === '/' || target.startsWith(DEFAULT_ROUTE);
     navigate(
-      target === '/'
+      isGenericEntry
         ? '/onboarding'
         : `/onboarding?next=${encodeURIComponent(target)}`,
       { replace: true }

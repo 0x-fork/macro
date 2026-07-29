@@ -34,6 +34,7 @@ import {
   INBOX_FILTER_ENTRY_KEY,
   registerInboxFilterSplit,
 } from '@app/features/next-soup/soup-view/inbox-filter-controllers';
+import { useSoupFilterPersistence } from '@app/features/next-soup/use-soup-filter-persistence';
 import {
   deduplicateEntities,
   scopeChannelNotificationsForEntity,
@@ -50,8 +51,6 @@ import {
   ENABLE_GRAPHQL_SOUP_OVERRIDE,
   ENABLE_NEW_INBOX_FLAG,
   ENABLE_NEW_INBOX_OVERRIDE,
-  ENABLE_SOUP_FILTER_PERSISTENCE_FLAG,
-  ENABLE_SOUP_FILTER_PERSISTENCE_OVERRIDE,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_FLAG,
   ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE,
 } from '@core/constant/featureFlags';
@@ -295,11 +294,7 @@ export const SoupViewContextProvider: FlowComponent<
   });
 
   const queryClient = useQueryClient();
-  const soupFilterPersistenceFF = useFeatureFlag(
-    ENABLE_SOUP_FILTER_PERSISTENCE_FLAG,
-    { enabledOverride: ENABLE_SOUP_FILTER_PERSISTENCE_OVERRIDE }
-  );
-  const filterPersistenceEnabled = () => soupFilterPersistenceFF().enabled;
+  const [filterPersistenceEnabled] = useSoupFilterPersistence();
 
   const useGraphqlSoupFF = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
     enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
@@ -599,9 +594,9 @@ export const SoupViewContextProvider: FlowComponent<
     )
   );
 
-  // PostHog can resolve after this provider mounts. Hydrate query-backed
-  // state once on the disabled -> enabled transition; entry state remains the
-  // higher-priority source when navigating through split history.
+  // The local preference can be enabled after this provider mounts. Hydrate
+  // query-backed state once on the disabled -> enabled transition; entry state
+  // remains the higher-priority source when navigating through split history.
   let filterPersistenceHydrated = filterPersistenceEnabled();
   createEffect(
     on(filterPersistenceEnabled, (persistenceEnabled) => {
