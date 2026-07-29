@@ -3025,6 +3025,7 @@ dependencies = [
  "email",
  "entity_access",
  "entity_mutation",
+ "graphql_channel",
  "graphql_common",
  "graphql_email",
  "graphql_entity_mutation",
@@ -6197,6 +6198,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "graphql_channel"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "channels",
+ "chrono",
+ "entity_access",
+ "graphql_common",
+ "macro_user_id",
+ "tokio",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
 name = "graphql_common"
 version = "0.1.0"
 dependencies = [
@@ -6268,6 +6284,7 @@ name = "graphql_notification"
 version = "0.1.0"
 dependencies = [
  "async-graphql",
+ "chrono",
  "graphql_common",
  "macro_user_id",
  "model-entity",
@@ -6275,6 +6292,7 @@ dependencies = [
  "rootcause",
  "serde_json",
  "tokio",
+ "uuid",
  "workspace-hack",
 ]
 
