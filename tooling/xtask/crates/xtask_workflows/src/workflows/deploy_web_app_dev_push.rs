@@ -76,6 +76,13 @@ fn checkout() -> Step<Use> {
 
 fn diff_checker() -> Step<Use> {
     let web_app_paths = web_artifact_paths::diff_checker_list();
+    let deployment_paths = [
+        "./.github/workflows/deploy_web_app.yml",
+        "./.github/workflows/deploy_web_app_dev_push.yml",
+        "./tooling/xtask/crates/xtask_workflows/src/workflows/deploy_web_app.rs",
+        "./tooling/xtask/crates/xtask_workflows/src/workflows/deploy_web_app_dev_push.rs",
+    ]
+    .join(" ");
 
     Step::new("Check changed paths")
         .uses(
@@ -87,6 +94,6 @@ fn diff_checker() -> Step<Use> {
         .add_with(("token", "${{ github.token }}"))
         .add_with((
             "diff",
-            format!("web-app: ./infra/stacks/web-app/** {web_app_paths}"),
+            format!("web-app: ./infra/stacks/web-app/** {web_app_paths} {deployment_paths}"),
         ))
 }
