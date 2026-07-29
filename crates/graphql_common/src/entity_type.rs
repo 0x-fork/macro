@@ -1,4 +1,4 @@
-use async_graphql::{Enum, ID, Object};
+use async_graphql::{Enum, ID, Object, SimpleObject};
 use model_entity::{Entity, EntityType};
 
 /// GraphQL representation of Soup entity types.
@@ -150,11 +150,21 @@ impl<'a> GraphqlEntity<'a> {
     }
 }
 
-/// Operation carried by a realtime entity patch.
-#[derive(Enum, Clone, Copy, PartialEq, Eq)]
-pub enum GraphqlPatchOperation {
-    /// The entity was created or updated.
-    Updated,
-    /// The entity was deleted.
-    Deleted,
+/// Marker instructing a normalized GraphQL cache to delete one entity record.
+#[derive(SimpleObject)]
+pub struct GraphqlCacheDeletion {
+    /// Concrete GraphQL object type used in the normalized cache key.
+    pub graphql_type_name: String,
+    /// Identifier used in the normalized cache key.
+    pub entity_id: ID,
+}
+
+impl GraphqlCacheDeletion {
+    /// Constructs a cache deletion marker from its concrete GraphQL type and identifier.
+    pub fn new(graphql_type_name: impl Into<String>, entity_id: impl Into<ID>) -> Self {
+        Self {
+            graphql_type_name: graphql_type_name.into(),
+            entity_id: entity_id.into(),
+        }
+    }
 }
