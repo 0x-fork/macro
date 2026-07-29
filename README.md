@@ -22,15 +22,15 @@
 </div>
 
 
-Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so you and your agents never lose context.
+Most engineering teams run five or six tools that each own one slice of the workday: a chat app, an issue tracker, a doc editor, a note-taking tool, an email client. Each tool stores its own data, maintains its own search index, and has no awareness of what lives in the others.
+
+Macro is a single application that covers all of those surfaces, backed by one database, so that the boundaries between messaging, documents, tasks, email, and code stop being product boundaries and become features of the same system.
 
 ## Stack
 
-The backend is Rust — a Cargo workspace of 167 crates behind 42 deployable services. Services are `axum` over `tokio`, talking to Postgres through `sqlx` with compile-time-checked queries. There's an `async-graphql` layer for the client, `rdkafka` for the event bus, and `lambda_runtime` for the event-driven handlers. Search runs on OpenSearch, caching on Redis, blobs on S3, connection tracking on DynamoDB.
+The backend is Rust, not Node, not Electron: a Cargo workspace of 167 crates behind 42 deployable services, built on `axum` and `sqlx` with compile-time-checked queries against Postgres. Kafka carries events, OpenSearch handles search, and the client talks to it over `async-graphql`.
 
-The client is SolidJS, not React — Tailwind 4, Vite, TanStack Solid Query. The editor is built on Lexical, and real-time collaboration runs on Loro CRDTs, so two people and two agents can edit a doc at once without a central lock. The same app ships to the browser, to desktop, and to mobile through Tauri.
-
-A Nix flake pins the toolchain (Rust 1.94, Bun 1.3, sqlx, zig). `just` drives everything else.
+The frontend is SolidJS, and documents use Loro CRDTs for real-time collaboration. A Nix flake pins the toolchain; `just` drives everything else.
 
 ### Quick start
 
@@ -41,7 +41,7 @@ nix develop          # Rust toolchain, Bun, sqlx, zig, cargo-zigbuild
 just run_local       # local infra + backend services + proxy + frontend
 ```
 
-`run_local` prints the frontend URL once the stack is up. Press `r` to rebuild and reload changed Rust services, `q` to tear it down. Named instances (`--instance foo`) let you run several stacks side by side across worktrees. See [Running locally](docs/RUNNING_LOCALLY.md) for Doppler setup and the no-Doppler path.
+`run_local` prints the frontend URL once the stack is up; `r` rebuilds changed Rust services, `q` tears it down. See [Running locally](docs/RUNNING_LOCALLY.md) for Doppler setup and named instances.
 
 ```bash
 just check                    # type check the workspace
@@ -66,17 +66,17 @@ macro/
 └── tooling/       repo scripts and code generators
 ```
 
-The Cargo and Bun workspaces are both rooted at the top level. Services follow a hexagonal layout — inbound adapters (axum handlers, tool handlers, listeners), a domain core with ports, and outbound adapters (db clients, external APIs). [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md) has the conventions, [`docs/CLOUD_STORAGE.md`](docs/CLOUD_STORAGE.md) covers the storage architecture, and [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the PR process.
+Services follow a hexagonal layout: inbound adapters, a domain core with ports, outbound adapters. [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md) has the conventions and [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the PR process.
 
 ## Features
 
-Every block below is the same underlying entity, which is why any of them can @link to any other.
+Documents are documents. Tasks are tasks. Channels are channels. Each surface is purpose-built for its job rather than composed from a generic block primitive — but every one of them shares a backend, so cross-references between a doc and a task, or a channel message and an email, are native rather than something you wire up.
 
 ### Email
 
-The fastest, smartest email client — the best of Superhuman, Gmail, and Outlook in one keyboard-first inbox. Multi-account and unified, with shared inboxes for support@ and sales@ so a thread is never stuck in one person's mailbox.
+Keyboard-first with the same emphasis on speed that made Superhuman the benchmark for email UX. Multi-account and unified, with shared inboxes for support@ and sales@ so a thread is never stuck in one person's mailbox.
 
-Threads are first-class entities, so you can tag them, hang custom properties off them, and filter on those properties like a database. Turning a thread into a task or a doc takes one keystroke, attachments land in file storage automatically, and the whole thing stays searchable.
+The difference is that the inbox lives in the same interface as channels, docs, tasks, and code. An email can become a task, reference a document, or surface in an AI response alongside a channel thread, because all of those entities share a database. Superhuman optimized one tab; Macro is the case for needing fewer tabs in the first place.
 
 ![Macro email thread with actions, tags, and properties in the sidebar](.github/readme/email-thread.png)
 
@@ -84,9 +84,9 @@ Threads are first-class entities, so you can tag them, hang custom properties of
 
 ### Messages
 
-Channels and DMs for teams that spend the day in technical discussion. Threads keep side conversations from burying the main one, and GitHub checks, PRs, and deploys render inline so triage doesn't mean tab-hopping.
+Real-time channels and threads that work the way you would expect from a team messaging tool, but messages share a database with documents, tasks, and email. Search in Slack searches Slack; here, when you search, you search everything.
 
-Because channel membership is also the permission model, @mentioning a doc in a channel shares it with everyone there — no separate sharing step to forget.
+A message can become a task with one click, and that task links back to the conversation it came from, because they are entries in the same system rather than records bridged by a webhook. GitHub checks and PRs render inline, and channel membership doubles as the permission model.
 
 ![Macro #Engineers channel with threads, mentions, and an inline GitHub check](.github/readme/messages-channel.png)
 
@@ -94,7 +94,9 @@ Because channel membership is also the permission model, @mentioning a doc in a 
 
 ### Tasks
 
-Keyboard-first tasks built around the messages that created them. A bug report in a channel becomes a task in one keystroke and keeps the original conversation attached, so nobody has to re-explain context in a tracker that lives somewhere else.
+An issue tracker only has access to issues. It cannot see the thread where the bug was first reported, or the doc where the architecture decision was made, or the email from the customer who triggered the investigation, so you end up copying context between tools by hand.
+
+In Macro, tasks are first-class entities that live alongside channels, documents, and email, and creating a task from a message preserves the link automatically.
 
 - Sort, group, and filter by assignee, status, priority, or any custom property.
 - Linked pull requests show live status and diff size on the task itself.
@@ -106,9 +108,9 @@ Keyboard-first tasks built around the messages that created them. A bug report i
 
 ### Docs
 
-Collaborative, version-controlled, markdown-native docs, built on CRDTs so several people and several agents can edit at once. Backlinks are automatic — the References panel on any doc lists everywhere it's been mentioned, which is how a workspace turns into a navigable graph instead of a folder tree.
+Collaborative, version-controlled, markdown-native docs, built on CRDTs so several people and several agents can edit at once. Backlinks are automatic: the References panel on any doc lists everywhere it has been mentioned.
 
-Checklists, tags, and properties are enough to make a doc into a plan or a spec without reaching for another tool.
+A Notion workspace tends to accumulate complexity — nested databases, template hierarchies, relation properties linking pages to pages. That rewards people who enjoy building systems, but most engineers would rather use a system than build one. Macro trades configurability for less time spent configuring: checklists, tags, and properties are enough to turn a doc into a plan or a spec, and nothing has to be wired up first.
 
 ![A PRD in Macro with tags, assignees, properties, and references](.github/readme/docs-prd.png)
 
@@ -138,9 +140,9 @@ Board and list views group by any property — stage, owner, revenue — and rec
 
 ### Agents
 
-Team-level memory is what makes the agent useful: it can see email, messages, tasks, docs, files, and calls, scoped to exactly the permissions you have. That makes it the most knowledgeable "person" at the company, and it acts rather than just answers.
+Notion's AI operates within the context of a single page or database. Macro's operates across the entire workspace: Claude is integrated on every surface with access to email, messages, tasks, docs, files, and calls, scoped to exactly the permissions you have. When it answers a question it can pull from a channel conversation, a design doc, and an email thread in the same response.
 
-Coding agents get the same access. Hand a task to Claude Code straight from the task view and it opens a branch and reports back on the task itself; point any MCP client at your workspace and it can read and write the same graph.
+Coding agents get the same access. Hand a task to Claude Code straight from the task view and it opens a branch and reports back on the task itself; point any MCP client at your workspace and it can read and write the same database.
 
 ![A Macro task being handed off to a coding agent, with a linked branch](.github/readme/agents-task-handoff.png)
 
@@ -154,13 +156,13 @@ Canvas is a 2D board with embedded @links, for planning that doesn't fit in a li
 
 Four ideas make the blocks above behave as one system.
 
-**Everything @links, in both directions.** @mention a doc in a message and each one knows about the other. The doc's References panel shows every place it's been mentioned, so context accumulates instead of scattering — and agents traverse the same graph you do.
+**Bidirectional @linking.** @mention a doc in a message and both know about each other. Your workspace becomes a web of context you can navigate in either direction.
 
-**Channel membership is the permission model.** Anything @mentioned in a channel is shared with that channel's members. Join, gain access; leave, lose it. There is no separate sharing dialog and no permission-request dance.
+**Channel-based permissions.** Anything you @mention in a channel is automatically shared with its members. Join a channel, gain access; leave, lose it. No permission-request dance.
 
-**Memory is team-level, not per-user.** Agents see what the whole team is doing across email, messages, tasks, docs, and calls — refreshed nightly — instead of only your own chat history. That's the difference between an assistant that knows you and one that knows the company.
+**Unified memory.** Agents remember what your whole team is doing across email, messages, tasks, docs, and calls, not just your own chat history. Refreshed nightly.
 
-**One inbox, split into Signal and Noise.** Emails, channel messages, task assignments, @mentions, and agent responses land in the same place, keyboard-first throughout.
+**One inbox.** Emails, channel messages, task assignments, @mentions, and agent responses all land in one place, split into Signal and Noise. Keyboard-first throughout.
 
 Deeper reading: [key concepts](https://docs.macro.com/concepts/blocks) covers blocks, mentions, properties, and permissions; the [FAQ](https://docs.macro.com/faq) covers comparisons, licensing, and self-hosting.
 
