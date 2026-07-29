@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Our encryption answers involve export-compliance documentation (French
+	     declaration) already reviewed by Apple. Declaring non-exempt encryption
+	     plus the compliance code App Store Connect issued for that documentation
+	     lets it skip the manual questionnaire for each build. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<true/>
+	<key>ITSEncryptionExportComplianceCode</key>
+	<string>REPLACE_WITH_EXPORT_COMPLIANCE_CODE</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>

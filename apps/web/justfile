@@ -10,6 +10,12 @@ ios-build-no-update: ios-prepare
 ios-build: ios-prepare
     cd tauri/src-tauri && cargo tauri ios build --open
 
+# iOS: full release — build, upload to App Store Connect/TestFlight, and set
+# export compliance, no Xcode UI. Requires APPLE_API_KEY + APPLE_API_ISSUER
+# (one-time setup in the script header). Flags: --no-bump --skip-validate --no-wait
+ios-release *ARGS:
+    bash scripts/ios-release.sh {{ARGS}}
+
 # iOS generated project prep. Keep native bundle metadata in sync with
 # tauri.ios.conf.json, then prepare ignored local Swift dependencies.
 ios-prepare:

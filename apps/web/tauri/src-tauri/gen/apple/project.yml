@@ -60,6 +60,11 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: 2.0.6
         CFBundleVersion: "178"
+        # Non-exempt encryption with Apple-reviewed export-compliance docs
+        # (French declaration); the code lets App Store Connect skip the manual
+        # questionnaire per build. Keep in sync with src-tauri/Info.ios.plist.
+        ITSAppUsesNonExemptEncryption: true
+        ITSEncryptionExportComplianceCode: REPLACE_WITH_EXPORT_COMPLIANCE_CODE
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - macro
