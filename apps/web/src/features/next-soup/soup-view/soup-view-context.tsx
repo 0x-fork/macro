@@ -36,6 +36,10 @@ import {
   INBOX_FILTER_ENTRY_KEY,
   registerInboxFilterSplit,
 } from '@app/features/next-soup/soup-view/inbox-filter-controllers';
+import {
+  type ReadFilter,
+  withInboxReadFilter,
+} from '@app/features/next-soup/soup-view/inbox-read-filter';
 import { useSoupFilterPersistence } from '@app/features/next-soup/use-soup-filter-persistence';
 import {
   deduplicateEntities,
@@ -138,7 +142,7 @@ type SoupViewInitializeOptions = {
   itemMembershipFilter?: (item: SoupApiItem) => boolean;
 };
 
-export type ReadFilter = 'all' | 'unread' | 'read';
+export type { ReadFilter } from '@app/features/next-soup/soup-view/inbox-read-filter';
 
 /** List/board display mode — currently only the Customers view offers a board. */
 export type SoupViewMode = 'list' | 'board';
@@ -797,22 +801,10 @@ export const SoupViewContextProvider: FlowComponent<
   // filters ('all' leaves them unset). Matches the experimental inbox.
   const applyInboxReadFilter = (state: QueryState): QueryState => {
     if (!isNewInbox()) return state;
-    const filter = readFilter();
-    if (filter === 'all') return state;
-    const seen = filter === 'read';
-    return {
-      ...state,
-      include: {
-        ...state.include,
-        documentSeen: seen,
-        emailSeen: seen,
-        channelSeen: seen,
-        // channelThreadSeen: seen,
-        chatSeen: seen,
-        folderSeen: seen,
-        foreignEntitySeen: seen,
-      },
-    };
+    return withInboxReadFilter(state, {
+      filter: readFilter(),
+      tab: activeTab(),
+    });
   };
 
   const applyViewFilters = (state: QueryState): QueryState => {
