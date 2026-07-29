@@ -15,6 +15,7 @@ import {
   requestInboxFilter,
 } from '@app/features/next-soup/soup-view/inbox-filter-controllers';
 import { requestSearchFocus } from '@app/features/next-soup/soup-view/search-controllers';
+import { RecentActivitySections } from '@app/features/recents/sidebar/recent-activity-sections';
 import {
   InviteModal,
   setInviteModalOpen,
@@ -55,10 +56,7 @@ import {
   type SettingsTab,
   useSettingsState,
 } from '@core/constant/SettingsState';
-import {
-  getSettingsTabItem,
-  useSettingsTabAvailable,
-} from '@core/constant/settingsTabsConfig';
+import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { useEmail, useUserId } from '@core/context/user';
 import { registerHotkey } from '@core/hotkey/hotkeys';
 import { clearPressedKeys } from '@core/hotkey/state';
@@ -86,7 +84,6 @@ import GearIcon from '@phosphor/gear.svg';
 import HomeIcon from '@phosphor/house.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import SignOutIcon from '@phosphor/sign-out.svg';
-import UsersThreeIcon from '@phosphor/users-three.svg';
 import XIcon from '@phosphor/x.svg';
 import { isRealNamePart, useOwnUserName } from '@queries/auth/user-name-self';
 import { useEmailLinksQuery } from '@queries/email/link';
@@ -141,15 +138,25 @@ type SidebarSectionLinkId =
 
 type SidebarSectionVisibility = Record<SidebarSectionLinkId, boolean>;
 
-type TryItemId = 'connect' | 'invite' | 'mobile';
+/**
+ * Links pinned at the top of the Workspace section. Not hideable via the
+ * customize menu; the gated ones (getting-started, activity) simply drop out
+ * of the link list when their gates are off.
+ */
+const WORKSPACE_FIXED_LINK_IDS = [
+  'home',
+  'getting-started',
+  'inbox',
+  'activity',
+] as const;
 
-type TryItemVisibility = Record<TryItemId, boolean>;
-
-const COMMUNICATIONS_LINK_IDS = ['mail', 'channels', 'calls'] as const;
 const WORKSPACE_LINK_IDS = [
+  'mail',
+  'channels',
+  'calls',
   'documents',
-  'tasks',
   'agents',
+  'tasks',
   'companies',
 ] as const;
 
@@ -161,12 +168,6 @@ const DEFAULT_SECTION_VISIBILITY: SidebarSectionVisibility = {
   tasks: true,
   agents: true,
   companies: true,
-};
-
-const DEFAULT_TRY_VISIBILITY: TryItemVisibility = {
-  connect: true,
-  invite: true,
-  mobile: true,
 };
 
 const markdownDocumentsQuery = buildDocumentTypeQuery(['doc-markdown']);
@@ -191,20 +192,20 @@ const SIDEBAR_LINKS = [
     hiddenFromSidebar: true,
   },
   {
-    id: 'agents',
-    label: 'Agents',
-    href: LIST_VIEW_PATHS.agents,
-    icon: AnimatedStarIcon,
-    hotkey: 'a',
-    hotkeyToken: TOKENS.sidebar.goTo.agents,
-  },
-  {
     id: 'mail',
     label: 'Email',
     href: LIST_VIEW_PATHS.mail,
     icon: AnimatedEmailIcon,
     hotkey: 'e',
     hotkeyToken: TOKENS.sidebar.goTo.mail,
+  },
+  {
+    id: 'channels',
+    label: 'Channels',
+    href: LIST_VIEW_PATHS.channels,
+    icon: AnimatedChannelIcon,
+    hotkey: 'c',
+    hotkeyToken: TOKENS.sidebar.goTo.channels,
   },
   {
     id: 'documents',
@@ -231,20 +232,20 @@ const SIDEBAR_LINKS = [
     hiddenFromSidebar: true,
   },
   {
+    id: 'agents',
+    label: 'Agents',
+    href: LIST_VIEW_PATHS.agents,
+    icon: AnimatedStarIcon,
+    hotkey: 'a',
+    hotkeyToken: TOKENS.sidebar.goTo.agents,
+  },
+  {
     id: 'tasks',
     label: 'Tasks',
     href: LIST_VIEW_PATHS.tasks,
     icon: AnimatedTaskIcon,
     hotkey: 't',
     hotkeyToken: TOKENS.sidebar.goTo.tasks,
-  },
-  {
-    id: 'channels',
-    label: 'Channels',
-    href: LIST_VIEW_PATHS.channels,
-    icon: AnimatedChannelIcon,
-    hotkey: 'c',
-    hotkeyToken: TOKENS.sidebar.goTo.channels,
   },
 ] satisfies SidebarItem[];
 
@@ -517,54 +518,6 @@ export const GoToHotkeys = () => {
 /** Session-only signal so a hint shows after dismissal until the user acknowledges or the timer expires. */
 const [premiumHintVisible, setPremiumHintVisible] = createSignal(false);
 
-type SidebarShortcutLinkProps = {
-  label: string;
-  icon: Component<{ triggerAnimation?: boolean; class?: string }>;
-  onClick: () => void;
-  isSlim: () => boolean;
-  trailing?: JSX.Element;
-};
-
-const SidebarShortcutLink = (props: SidebarShortcutLinkProps) => {
-  const [isHovering, setIsHovering] = createSignal(false);
-
-  return (
-    <div class="group/shortcut relative w-full">
-      <NavRow
-        draggable={false}
-        class={cn(
-          'h-7 group-hover/shortcut:bg-ink/3 group-hover/shortcut:text-ink',
-          props.trailing && !props.isSlim() && 'pr-8'
-        )}
-        fullWidth
-        tooltipPlacement="right"
-        label={props.isSlim() ? props.label : undefined}
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
-        onMouseDown={(e) => {
-          if (e.button !== 0) return;
-          e.preventDefault();
-          props.onClick();
-        }}
-      >
-        <div class="relative size-5 shrink-0 flex items-center justify-center [&_svg]:size-3.5">
-          <Dynamic component={props.icon} triggerAnimation={isHovering()} />
-        </div>
-
-        <div class="flex items-center gap-1 group-data-[slim=true]/sidebar:hidden">
-          <span class="flex-1 min-w-0 whitespace-nowrap">{props.label}</span>
-        </div>
-      </NavRow>
-
-      <Show when={props.trailing && !props.isSlim()}>
-        <div class="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-          {props.trailing}
-        </div>
-      </Show>
-    </div>
-  );
-};
-
 const SidebarSectionMenu = (props: {
   label: string;
   options: { id: SidebarSectionLinkId; label: string; checked: boolean }[];
@@ -603,42 +556,6 @@ const SidebarSectionMenu = (props: {
             </Dropdown.CheckboxItem>
           )}
         </For>
-      </Dropdown.Group>
-    </Dropdown.Content>
-  </Dropdown>
-);
-
-const SidebarTryItemMenu = (props: {
-  label: string;
-  onDismiss: () => void;
-  onOpenChange?: (open: boolean) => void;
-}) => (
-  <Dropdown
-    placement="right-start"
-    gutter={8}
-    onOpenChange={props.onOpenChange}
-  >
-    <Dropdown.Trigger
-      variant="ghost"
-      class="shrink-0 opacity-0 group-hover/shortcut:pointer-events-auto group-hover/shortcut:opacity-100 focus-visible:opacity-100 transition-opacity rounded-md size-5 min-h-0 p-0 bg-transparent hover:bg-ink/6 [&_svg]:size-3.5 pointer-events-none"
-      label={`${props.label} options`}
-      onMouseDown={(e: MouseEvent) => {
-        if (e.button !== 0) return;
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-      onClick={(e: MouseEvent) => e.stopPropagation()}
-    >
-      <DotsThreeIcon />
-    </Dropdown.Trigger>
-    <Dropdown.Content class="w-40 shadow-menu">
-      <Dropdown.Group>
-        <Dropdown.Item
-          class="min-h-8 gap-2 px-2.5 text-[13px]"
-          onSelect={props.onDismiss}
-        >
-          <span class="flex-1 truncate text-ink">Dismiss</span>
-        </Dropdown.Item>
       </Dropdown.Group>
     </Dropdown.Content>
   </Dropdown>
@@ -1009,14 +926,8 @@ const buildSidebarLinks = (showGettingStarted: boolean): SidebarItem[] => {
   }
 
   if (ENABLE_CRM()) {
-    // Customers sits just after Channels (and Calls when present).
-    const anchorId = ENABLE_CALLS() ? 'calls' : 'channels';
-    const idx = links.findIndex((l) => l.id === anchorId);
-    links = [
-      ...links.slice(0, idx + 1),
-      COMPANIES_LINK,
-      ...links.slice(idx + 1),
-    ];
+    // Customers closes out the Workspace section, after Tasks.
+    links = [...links, COMPANIES_LINK];
   }
 
   return links;
@@ -1058,10 +969,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
   const [sectionVisibility, setSectionVisibility] = makePersisted(
     createSignal<SidebarSectionVisibility>(DEFAULT_SECTION_VISIBILITY),
     { name: 'sidebar-section-visibility' }
-  );
-  const [tryVisibility, setTryVisibility] = makePersisted(
-    createSignal<TryItemVisibility>(DEFAULT_TRY_VISIBILITY),
-    { name: 'sidebar-try-visibility' }
   );
   const callCtx = useCallContextOptional();
 
@@ -1243,15 +1150,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
     ),
   });
 
-  const topLinks = createMemo(() =>
-    ['home', 'getting-started', 'inbox', 'activity']
-      .filter(
-        (id) => id !== 'getting-started' || !gettingStartedVisibility.hidden()
-      )
-      .map((id) => findLink(id))
-      .filter((link): link is SidebarItem => link !== undefined)
-  );
-
   const sectionItemsFor = (ids: readonly SidebarSectionLinkId[]) =>
     ids
       .filter((id) => sectionVisibility()[id])
@@ -1259,21 +1157,21 @@ export const AppSidebar = (props: AppSidebarProps) => {
       .filter((link): link is SidebarItem => link !== undefined)
       .map(toSectionItem);
 
-  const communicationsItems = createMemo(() =>
-    sectionItemsFor(COMMUNICATIONS_LINK_IDS)
-  );
-  const workspaceItems = createMemo(() => sectionItemsFor(WORKSPACE_LINK_IDS));
+  const workspaceItems = createMemo(() => [
+    ...WORKSPACE_FIXED_LINK_IDS.filter(
+      (id) => id !== 'getting-started' || !gettingStartedVisibility.hidden()
+    )
+      .map((id) => findLink(id))
+      .filter((link): link is SidebarItem => link !== undefined)
+      .map(toSectionItem),
+    ...sectionItemsFor(WORKSPACE_LINK_IDS),
+  ]);
 
   const toggleSectionVisibility = (id: SidebarSectionLinkId) => {
     setSectionVisibility({
       ...sectionVisibility(),
       [id]: !sectionVisibility()[id],
     });
-    scheduleMiddleScrollUpdate();
-  };
-
-  const dismissTryItem = (id: TryItemId) => {
-    setTryVisibility({ ...tryVisibility(), [id]: false });
     scheduleMiddleScrollUpdate();
   };
 
@@ -1287,73 +1185,10 @@ export const AppSidebar = (props: AppSidebarProps) => {
         checked: sectionVisibility()[link.id as SidebarSectionLinkId],
       }));
 
-  const tryItems = createMemo<CollapsibleSidebarSectionItem[]>(() => {
-    const items: CollapsibleSidebarSectionItem[] = [];
-    const addTryItem = (
-      id: TryItemId,
-      label: string,
-      icon: Component<{ triggerAnimation?: boolean; class?: string }>,
-      onClick: () => void
-    ) => {
-      if (!tryVisibility()[id]) return;
-
-      const trailing = (
-        <SidebarTryItemMenu
-          label={label}
-          onDismiss={() => dismissTryItem(id)}
-          onOpenChange={handleWorkspaceContextMenuOpenChange}
-        />
-      );
-
-      items.push({
-        id,
-        visible: () => (
-          <SidebarShortcutLink
-            label={label}
-            isSlim={isSlim}
-            onClick={onClick}
-            icon={icon}
-            trailing={trailing}
-          />
-        ),
-        dropdown: () => (
-          <SidebarShortcutLink
-            label={label}
-            isSlim={isSlim}
-            onClick={onClick}
-            icon={icon}
-            trailing={trailing}
-          />
-        ),
-      });
-    };
-
-    const connected = getSettingsTabItem('Connected');
-    if (connected && isTabAvailable('Connected')) {
-      addTryItem('connect', 'Connect', connected.icon, () =>
-        openSettingsTab('Connected')
-      );
-    }
-
-    addTryItem('invite', 'Invite', UsersThreeIcon, () =>
-      setInviteModalOpen(true)
-    );
-
-    const mobile = getSettingsTabItem('Mobile App');
-    if (mobile && isTabAvailable('Mobile App')) {
-      addTryItem('mobile', 'Mobile', mobile.icon, () =>
-        openSettingsTab('Mobile App')
-      );
-    }
-    return items;
-  });
-
   createEffect(() => {
     middleScrollSize.width;
     middleScrollSize.height;
-    communicationsItems().length;
     workspaceItems().length;
-    tryItems().length;
     props.overlayOpen;
     scheduleMiddleScrollUpdate();
   });
@@ -1426,57 +1261,25 @@ export const AppSidebar = (props: AppSidebarProps) => {
         </div>
       </div>
 
-      <nav class="shrink-0 mt-2">
-        <ul class="size-full flex flex-col gap-0.5">
-          <For each={topLinks()}>
-            {(link) => (
-              <li class="flex flex-col items-center justify-center">
-                {renderSidebarLink(link)}
-              </li>
-            )}
-          </For>
-        </ul>
-      </nav>
-
-      <div class="relative min-h-0 flex-1 my-3">
+      <div class="relative min-h-0 flex-1 mt-2 mb-3">
         <div
           ref={attachMiddleScrollRef}
           onScroll={updateMiddleScrollShadows}
           class="size-full overflow-y-auto flex flex-col gap-3"
         >
-          <Show
-            when={sectionMenuOptionsFor(COMMUNICATIONS_LINK_IDS).length > 0}
-          >
-            <CollapsibleSidebarSection
-              label="Conversations"
-              items={communicationsItems()}
-              headerMenu={() => (
-                <SidebarSectionMenu
-                  label="Conversations"
-                  options={sectionMenuOptionsFor(COMMUNICATIONS_LINK_IDS)}
-                  onToggle={toggleSectionVisibility}
-                  onOpenChange={handleWorkspaceContextMenuOpenChange}
-                />
-              )}
-              onOpenChange={scheduleMiddleScrollUpdate}
-            />
-          </Show>
-
-          <Show when={sectionMenuOptionsFor(WORKSPACE_LINK_IDS).length > 0}>
-            <CollapsibleSidebarSection
-              label="Workspace"
-              items={workspaceItems()}
-              headerMenu={() => (
-                <SidebarSectionMenu
-                  label="Workspace"
-                  options={sectionMenuOptionsFor(WORKSPACE_LINK_IDS)}
-                  onToggle={toggleSectionVisibility}
-                  onOpenChange={handleWorkspaceContextMenuOpenChange}
-                />
-              )}
-              onOpenChange={scheduleMiddleScrollUpdate}
-            />
-          </Show>
+          <CollapsibleSidebarSection
+            label="Workspace"
+            items={workspaceItems()}
+            headerMenu={() => (
+              <SidebarSectionMenu
+                label="Workspace"
+                options={sectionMenuOptionsFor(WORKSPACE_LINK_IDS)}
+                onToggle={toggleSectionVisibility}
+                onOpenChange={handleWorkspaceContextMenuOpenChange}
+              />
+            )}
+            onOpenChange={scheduleMiddleScrollUpdate}
+          />
 
           <Suspense>
             <FavoritesSection
@@ -1491,13 +1294,12 @@ export const AppSidebar = (props: AppSidebarProps) => {
             onDropdownOpenChange={handleOverlayDropdownOpenChange}
           />
 
-          <Show when={tryItems().length > 0}>
-            <CollapsibleSidebarSection
-              label="Try"
-              items={tryItems()}
-              onOpenChange={scheduleMiddleScrollUpdate}
+          <Suspense>
+            <RecentActivitySections
+              sidebarState={sidebarDisplayState()}
+              onContextMenuOpenChange={handleOverlayDropdownOpenChange}
             />
-          </Show>
+          </Suspense>
         </div>
         <div
           class={cn(
