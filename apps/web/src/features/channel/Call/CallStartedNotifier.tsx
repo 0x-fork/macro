@@ -39,12 +39,19 @@ const activeCallRingers = new Map<string, Ringer>();
 // the Tauri notification handle's close() is currently a no-op.
 const activeCallNotifications = new Map<string, { close: () => void }>();
 
+// Notifications still being created (showNotification is async), so a remote
+// answer that lands mid-flight can cancel the toast once it materializes
+// instead of leaving a stale requireInteraction toast up indefinitely.
+const pendingCallNotifications = new Map<string, { cancelled: boolean }>();
+
 export function stopCallRinger(callId: string) {
   activeCallRingers.get(callId)?.stop();
   activeCallRingers.delete(callId);
 }
 
 function closeCallNotification(callId: string) {
+  const pending = pendingCallNotifications.get(callId);
+  if (pending) pending.cancelled = true;
   activeCallNotifications.get(callId)?.close();
   activeCallNotifications.delete(callId);
 }
@@ -251,41 +258,55 @@ async function emitCallStartedNotification(args: {
 
   if (notif === 'not-supported') return;
 
-  const callerName =
-    (createdBy ? await DefaultUserNameResolver(createdBy) : undefined) ??
-    'Someone';
-  const target = channelName ? ` in ${channelName}` : '';
+  const pending = { cancelled: false };
+  pendingCallNotifications.set(callId, pending);
+  try {
+    const callerName =
+      (createdBy ? await DefaultUserNameResolver(createdBy) : undefined) ??
+      'Someone';
+    const target = channelName ? ` in ${channelName}` : '';
 
-  const handle = await notif.showNotification({
-    title: `Incoming call${target}`,
-    options: {
-      body: `${callerName} started a call`,
-      // Keep the toast visible until the user answers or dismisses it,
-      // instead of the browser's default few-second auto-dismiss.
-      requireInteraction: true,
-      // Collapse duplicate broadcasts (e.g. multi-device) into one toast.
-      tag: `call-${callId}`,
-    },
-  });
+    const handle = await notif.showNotification({
+      title: `Incoming call${target}`,
+      options: {
+        body: `${callerName} started a call`,
+        // Keep the toast visible until the user answers or dismisses it,
+        // instead of the browser's default few-second auto-dismiss.
+        requireInteraction: true,
+        // Collapse duplicate broadcasts (e.g. multi-device) into one toast.
+        tag: `call-${callId}`,
+      },
+    });
 
-  if (handle === 'not-granted' || handle === 'disabled-in-ui') return;
+    if (handle === 'not-granted' || handle === 'disabled-in-ui') return;
 
-  activeCallNotifications.set(callId, handle);
-
-  const untrack = () => {
-    if (activeCallNotifications.get(callId) === handle) {
-      activeCallNotifications.delete(callId);
+    // The call was answered remotely while the toast was being created.
+    if (pending.cancelled) {
+      handle.close();
+      return;
     }
-  };
-  handle.onClick(() => {
-    window.focus();
-    void joinChannelCall(channelId);
-    handle.close();
-    untrack();
-    ringer.stop();
-  });
-  handle.onDismiss(() => {
-    untrack();
-    ringer.stop();
-  });
+
+    activeCallNotifications.set(callId, handle);
+
+    const untrack = () => {
+      if (activeCallNotifications.get(callId) === handle) {
+        activeCallNotifications.delete(callId);
+      }
+    };
+    handle.onClick(() => {
+      window.focus();
+      void joinChannelCall(channelId);
+      handle.close();
+      untrack();
+      ringer.stop();
+    });
+    handle.onDismiss(() => {
+      untrack();
+      ringer.stop();
+    });
+  } finally {
+    if (pendingCallNotifications.get(callId) === pending) {
+      pendingCallNotifications.delete(callId);
+    }
+  }
 }
