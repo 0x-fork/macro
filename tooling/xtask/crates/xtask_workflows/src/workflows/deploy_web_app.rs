@@ -123,6 +123,14 @@ fn build() -> Step<Run> {
         .working_directory(xtask_paths::repo_dir!("apps/web"))
         .add_env(Env::new("VITE_SEGMENT_WRITE_KEY", vars::SEGMENT_WRITE_KEY))
         .add_env(Env::new("VITE_POSTHOG_API_KEY", vars::POSTHOG_API_KEY))
+        .add_env(Env::new(
+            "VITE_OTEL_EXPORTER_URL",
+            "${{ inputs.environment == 'prod' && 'https://macro-prox-prod.macroverse.workers.dev/i/otlp/v1/traces' || 'https://macro-prox-dev.macroverse.workers.dev/i/otlp/v1/traces' }}",
+        ))
+        .add_env(Env::new(
+            "VITE_OTEL_ENV",
+            "${{ inputs.environment == 'prod' && 'production' || 'development' }}",
+        ))
 }
 
 fn install_infra_dependencies() -> Step<Run> {

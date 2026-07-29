@@ -18,14 +18,11 @@
   ],
   "vars": {
     "POSTHOG_HOST": "https://us.i.posthog.com",
-    // Full origins (scheme included) the `/i/otlp` route forwards to, split
-    // per signal because Datadog has no single OTLP origin: traces and logs
-    // use different intake hosts. In deployed envs the server-side dd-api-key
-    // is injected (a secret set via `wrangler secret put DD_API_KEY`, never
-    // committed here). In the local pool the docker command overrides both to
-    // the otel-collector alias via --var (one collector serves both paths).
-    "OTLP_TRACES_INTAKE_URL": "https://trace.agent.us5.datadoghq.com",
-    "OTLP_LOGS_INTAKE_URL": "https://otlp-http-intake.logs.us5.datadoghq.com"
+    // Datadog's Cloudflare managed-platform endpoint accepts both OTLP signals.
+    // The server-side dd-api-key is injected from a Worker secret. The local
+    // pool overrides both origins to its collector via --var.
+    "OTLP_TRACES_INTAKE_URL": "https://cloudflare.integrations.otlp.us5.datadoghq.com",
+    "OTLP_LOGS_INTAKE_URL": "https://cloudflare.integrations.otlp.us5.datadoghq.com"
   },
   "env": {
     "local": {
@@ -54,8 +51,8 @@
       ],
       "vars": {
         "POSTHOG_HOST": "https://us.i.posthog.com",
-        "OTLP_TRACES_INTAKE_URL": "https://trace.agent.us5.datadoghq.com",
-        "OTLP_LOGS_INTAKE_URL": "https://otlp-http-intake.logs.us5.datadoghq.com"
+        "OTLP_TRACES_INTAKE_URL": "https://cloudflare.integrations.otlp.us5.datadoghq.com",
+        "OTLP_LOGS_INTAKE_URL": "https://cloudflare.integrations.otlp.us5.datadoghq.com"
       }
     },
     "prod": {
@@ -68,8 +65,8 @@
       ],
       "vars": {
         "POSTHOG_HOST": "https://us.i.posthog.com",
-        "OTLP_TRACES_INTAKE_URL": "https://trace.agent.us5.datadoghq.com",
-        "OTLP_LOGS_INTAKE_URL": "https://otlp-http-intake.logs.us5.datadoghq.com"
+        "OTLP_TRACES_INTAKE_URL": "https://cloudflare.integrations.otlp.us5.datadoghq.com",
+        "OTLP_LOGS_INTAKE_URL": "https://cloudflare.integrations.otlp.us5.datadoghq.com"
       }
     }
   },
