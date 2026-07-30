@@ -39,6 +39,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use notification::domain::service::SqsNotificationIngress;
 use notification::inbound::ai_tool::NotificationToolContext;
 use properties::inbound::toolset::PropertiesToolContext;
+use skills::inbound::toolset::SkillToolContext;
 use soup::{domain::service::SoupImpl, inbound::toolset::SoupToolContext};
 use std::sync::Arc;
 use system_properties::{
@@ -232,6 +233,25 @@ pub fn build_crm_tool_context(pool: sqlx::PgPool) -> ToolCrmToolContext {
         entity_access_service,
         properties,
     }
+}
+
+/// Type alias for the skill service implementation used by AI tools.
+pub type ToolSkillService = skills::domain::service::SkillServiceImpl<
+    skills::outbound::search_service_searcher::SearchServiceSkillSearcher,
+>;
+
+/// Type alias for the skill AI tool context.
+pub type ToolSkillToolContext = SkillToolContext<ToolSkillService>;
+
+/// Build the skill AI tool context from a search service client.
+pub fn build_skill_tool_context(
+    search_service_client: Arc<search_service_client::SearchServiceClient>,
+) -> ToolSkillToolContext {
+    SkillToolContext::new(skills::domain::service::SkillServiceImpl::new(
+        skills::outbound::search_service_searcher::SearchServiceSkillSearcher::new(
+            search_service_client,
+        ),
+    ))
 }
 
 /// Type alias for the team member listing service used by AI tools.
@@ -1048,6 +1068,7 @@ pub struct ToolServiceContext {
     pub channel_tool_context: ToolChannelToolContext,
     pub team_tool_context: ToolTeamToolContext,
     pub crm_tool_context: ToolCrmToolContext,
+    pub skill_tool_context: ToolSkillToolContext,
     pub schedule_tool_context: NoOpScheduleContext,
     pub anthropic_tool_context: AnthropicToolContext,
     /// Records token usage / cost for AI calls made with this context.

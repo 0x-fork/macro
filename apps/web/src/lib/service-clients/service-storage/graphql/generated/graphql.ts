@@ -323,6 +323,8 @@ export type GraphqlDocumentLiteral =
 
 /** GraphQL input representing the document sub type. */
 export type GraphqlDocumentSubType =
+  /** The skill option. */
+  | 'SKILL'
   /** The snippet option. */
   | 'SNIPPET'
   /** The task option. */
@@ -937,6 +939,7 @@ type EntityMutationResultFields_GraphqlMutationSuccess_Fragment = { __typename: 
               | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
              | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
         | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+            | { __typename: 'GraphqlSkillSubType' }
             | { __typename: 'GraphqlSnippetSubType' }
             | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
            | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1010,6 +1013,7 @@ export type EntityMutationPayloadFieldsFragment = { results: Array<
                   | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                  | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
             | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                | { __typename: 'GraphqlSkillSubType' }
                 | { __typename: 'GraphqlSnippetSubType' }
                 | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1084,6 +1088,7 @@ export type RenameEntitiesMutation = { renameEntities: { results: Array<
                     | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                    | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
               | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                  | { __typename: 'GraphqlSkillSubType' }
                   | { __typename: 'GraphqlSnippetSubType' }
                   | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                  | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1158,6 +1163,7 @@ export type MoveEntitiesMutation = { moveEntities: { results: Array<
                     | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                    | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
               | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                  | { __typename: 'GraphqlSkillSubType' }
                   | { __typename: 'GraphqlSnippetSubType' }
                   | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                  | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1232,6 +1238,7 @@ export type UpdateEntitySharePoliciesMutation = { updateEntitySharePolicies: { r
                     | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                    | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
               | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                  | { __typename: 'GraphqlSkillSubType' }
                   | { __typename: 'GraphqlSnippetSubType' }
                   | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                  | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1306,6 +1313,7 @@ export type TrashEntitiesMutation = { trashEntities: { results: Array<
                     | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                    | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
               | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                  | { __typename: 'GraphqlSkillSubType' }
                   | { __typename: 'GraphqlSnippetSubType' }
                   | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                  | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1380,6 +1388,7 @@ export type RestoreEntitiesMutation = { restoreEntities: { results: Array<
                     | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                    | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
               | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                  | { __typename: 'GraphqlSkillSubType' }
                   | { __typename: 'GraphqlSnippetSubType' }
                   | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                  | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1454,6 +1463,7 @@ export type DeleteEntitiesPermanentlyMutation = { deleteEntitiesPermanently: { r
                     | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                    | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
               | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                  | { __typename: 'GraphqlSkillSubType' }
                   | { __typename: 'GraphqlSnippetSubType' }
                   | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                  | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1528,6 +1538,7 @@ export type DuplicateEntitiesMutation = { duplicateEntities: { results: Array<
                     | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                    | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
               | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                  | { __typename: 'GraphqlSkillSubType' }
                   | { __typename: 'GraphqlSnippetSubType' }
                   | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                  | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1603,6 +1614,7 @@ export type SetEntityFavoriteMutation = { setEntityFavorite:
                   | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                  | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
             | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+                | { __typename: 'GraphqlSkillSubType' }
                 | { __typename: 'GraphqlSnippetSubType' }
                 | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
                | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1690,6 +1702,7 @@ export type GroupSoupQuery = { user: { id: string, groupSoup: { bins: Array<{ ke
                 | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
                | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
           | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+              | { __typename: 'GraphqlSkillSubType' }
               | { __typename: 'GraphqlSnippetSubType' }
               | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
              | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1757,6 +1770,7 @@ type GraphqlHistoryItemFields_GraphqlSoupCrmCompany_Fragment = { __typename: 'Gr
      | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> };
 
 type GraphqlHistoryItemFields_GraphqlSoupDocument_Fragment = { __typename: 'GraphqlSoupDocument', id: string, ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, entityType: GraphqlSoupEntityType, frecencyScore: number | null, documentName: string, subType:
+    | { __typename: 'GraphqlSkillSubType' }
     | { __typename: 'GraphqlSnippetSubType' }
     | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
    | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1843,6 +1857,7 @@ type SoupPatchFields_SoupUpdated_Fragment = { __typename: 'SoupUpdated', item:
           | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
          | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
     | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+        | { __typename: 'GraphqlSkillSubType' }
         | { __typename: 'GraphqlSnippetSubType' }
         | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
        | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1916,6 +1931,7 @@ export type SoupUpdatesSubscription = { soupUpdates: Array<
               | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
              | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
         | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+            | { __typename: 'GraphqlSkillSubType' }
             | { __typename: 'GraphqlSnippetSubType' }
             | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
            | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -1985,6 +2001,7 @@ export type SoupQuery = { user: { id: string, soup: { nextCursor: string | null,
               | { __typename: 'GraphqlStringPropertyValue', stringValue: string }
              | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> }
         | { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+            | { __typename: 'GraphqlSkillSubType' }
             | { __typename: 'GraphqlSnippetSubType' }
             | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
            | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
@@ -2052,6 +2069,7 @@ type SoupItemFields_GraphqlSoupCrmCompany_Fragment = { __typename: 'GraphqlSoupC
      | null }>, notifications: Array<{ id: string, eventType: string, entityType: GraphqlSoupEntityType, entityId: string, sent: boolean, done: boolean, seen: boolean, createdAt: string, viewedAt: string | null, updatedAt: string, senderId: string | null, metadata: unknown }> };
 
 type SoupItemFields_GraphqlSoupDocument_Fragment = { __typename: 'GraphqlSoupDocument', ownerId: string, fileType: string | null, projectId: string | null, createdAt: string, updatedAt: string, viewedAt: string | null, deletedAt: string | null, frecencyScore: number | null, id: string, entityType: GraphqlSoupEntityType, displayName: string | null, isFavorited: boolean, documentName: string, subType:
+    | { __typename: 'GraphqlSkillSubType' }
     | { __typename: 'GraphqlSnippetSubType' }
     | { __typename: 'GraphqlTaskSubType', isCompleted: boolean }
    | null, properties: Array<{ id: string, propertyDefinitionId: string, displayName: string, dataType: GraphqlPropertyDataType, isMultiSelect: boolean, specificEntityType: GraphqlPropertyEntityType | null, isSystem: boolean, isMetadata: boolean, value:
