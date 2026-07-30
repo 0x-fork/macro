@@ -87,6 +87,7 @@ const FIELD_CONFIG: Record<
   documentOwnerId: { target: 'df', field: 'o' },
   documentSeen: { target: 'df', field: 'ns' },
   documentDone: { target: 'df', field: 'nd' },
+  documentImportance: { target: 'df', field: 'imp' },
   isEmailAttachment: { target: 'df', field: 'iea' },
   threadId: { target: 'ef', field: 'ThreadId' },
   emailLinkId: { target: 'ef', field: 'Owner' },
