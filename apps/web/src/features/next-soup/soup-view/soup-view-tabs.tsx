@@ -212,9 +212,7 @@ export const useApplyPreset = () => {
       // Only override the active sort when the tab preset asks for a specific
       // one; otherwise the view keeps its persisted/default sort.
       if (preset.sort) {
-        soup.sort.setAll(
-          preset.sort as Parameters<typeof soup.sort.setAll>[0]
-        );
+        soup.sort.setAll(preset.sort as Parameters<typeof soup.sort.setAll>[0]);
       }
     });
 
