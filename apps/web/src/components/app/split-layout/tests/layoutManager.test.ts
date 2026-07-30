@@ -641,7 +641,7 @@ describe('layoutManager', () => {
       });
     });
 
-    it('uses the configured controller width for Email Soup', () => {
+    it('uses the shared controller width for Email Soup', () => {
       createRoot((dispose) => {
         const manager = createSplitLayout(createMockOrchestrator(), [
           { type: 'component', id: 'mail' },
@@ -650,7 +650,9 @@ describe('layoutManager', () => {
 
         manager.engagePreviewMode(controllerId);
 
-        expect(manager.previewControllerWidth(controllerId)).toBe(800);
+        // Every list view shares one controller width so the list panel
+        // (the app's nav) doesn't resize when a view pill switches it.
+        expect(manager.previewControllerWidth(controllerId)).toBe(440);
 
         dispose();
       });
@@ -694,7 +696,7 @@ describe('layoutManager', () => {
       });
     });
 
-    it('caps the Companies controller width at 70vw', () => {
+    it('keeps the Companies controller width viewport-independent', () => {
       createRoot((dispose) => {
         const manager = createSplitLayout(createMockOrchestrator(), [
           { type: 'component', id: 'companies' },
@@ -703,8 +705,8 @@ describe('layoutManager', () => {
 
         manager.engagePreviewMode(controllerId);
 
-        expect(manager.previewControllerWidth(controllerId, 1000)).toBe(700);
-        expect(manager.previewControllerWidth(controllerId, 1600)).toBe(880);
+        expect(manager.previewControllerWidth(controllerId, 1000)).toBe(440);
+        expect(manager.previewControllerWidth(controllerId, 1600)).toBe(440);
 
         dispose();
       });

@@ -1,4 +1,4 @@
-import { isListViewID, LIST_VIEW_ID } from '@app/constants/list-views';
+import { isListViewID } from '@app/constants/list-views';
 import type { SplitContent, SplitContentType } from './layoutManager';
 
 type PreviewControllerWidth = {
@@ -27,7 +27,14 @@ type PreviewControllerContentConfig = {
   emptyState?: PreviewEmptyState;
 };
 
-/** Non-list additions and exact-content overrides for preview controllers. */
+/**
+ * Non-list additions and exact-content overrides for preview controllers.
+ *
+ * List views deliberately carry no per-view `redistributionWidth`: the list
+ * panel doubles as the app's nav (view pills switch its content in place),
+ * so every view sharing the default width keeps the panel from jumping on a
+ * switch.
+ */
 const PREVIEW_CONTROLLER_CONTENT_CONFIG: readonly PreviewControllerContentConfig[] =
   [
     {
@@ -39,24 +46,6 @@ const PREVIEW_CONTROLLER_CONTENT_CONFIG: readonly PreviewControllerContentConfig
       emptyState: {
         title: 'Welcome to Macro',
         description: 'Select an item from the list to get started.',
-      },
-    },
-    {
-      type: 'component',
-      id: LIST_VIEW_ID.channels,
-      redistributionWidth: { preferredPx: 360 },
-    },
-    {
-      type: 'component',
-      id: LIST_VIEW_ID.mail,
-      redistributionWidth: { preferredPx: 800, maxViewportFraction: 0.6 },
-    },
-    {
-      type: 'component',
-      id: LIST_VIEW_ID.companies,
-      redistributionWidth: {
-        preferredPx: 880,
-        maxViewportFraction: 0.7,
       },
     },
   ];

@@ -19,31 +19,14 @@ describe('preview controller content', () => {
     ).toBe(true);
   });
 
-  it('resolves default and content-specific widths from the same config', () => {
-    expect(
-      previewControllerWidthForContent({ type: 'component', id: 'inbox' })
-    ).toBe(440);
-    expect(
-      previewControllerWidthForContent({ type: 'component', id: 'channels' })
-    ).toBe(360);
-    expect(
-      previewControllerWidthForContent({ type: 'component', id: 'mail' })
-    ).toBe(800);
-    expect(
-      previewControllerWidthForContent({ type: 'component', id: 'companies' })
-    ).toBe(880);
-    expect(
-      previewControllerWidthForContent(
-        { type: 'component', id: 'companies' },
-        1000
-      )
-    ).toBe(700);
-    expect(
-      previewControllerWidthForContent(
-        { type: 'component', id: 'companies' },
-        1600
-      )
-    ).toBe(880);
+  it('gives every list view the same controller width', () => {
+    // The list panel doubles as the app's nav (view pills switch its content
+    // in place), so a per-view width would make the panel jump on a switch.
+    for (const id of ['inbox', 'channels', 'mail', 'companies', 'documents']) {
+      expect(previewControllerWidthForContent({ type: 'component', id })).toBe(
+        440
+      );
+    }
     expect(
       previewControllerWidthForContent({ type: 'component', id: 'settings' })
     ).toBeUndefined();
