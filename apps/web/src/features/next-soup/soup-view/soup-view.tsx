@@ -625,17 +625,6 @@ export const SoupView = (props: SoupViewProps) => {
           </SplitHeaderRight>
         </Show>
       </div>
-      {/* The old sidebar's view links, pinned above the list. Viewer-hosted
-          full views skip it so the right panel doesn't grow its own nav. */}
-      <Show
-        when={
-          !isMobile() &&
-          !panel.handle.isViewerSplit() &&
-          !isComponentListView('search')
-        }
-      >
-        <SoupViewNav />
-      </Show>
       <SoupFiltersBar variant={props.filterBarVariant} />
       <Show when={applyDefaultCrmView}>
         <CrmDefaultViewLoader />
@@ -736,6 +725,15 @@ const SoupViewListContent = (props: SoupViewListProps) => {
       ? 'condensed'
       : 'standard';
   });
+
+  // The view/favorites pill nav rides inside the list's scroll container so
+  // it scrolls away with the rows. Viewer-hosted full views skip it so the
+  // right panel doesn't grow its own nav.
+  const showNav = () =>
+    !isMobile() &&
+    !panel.handle.isViewerSplit() &&
+    currentView() !== undefined &&
+    currentView() !== 'search';
 
   const focusFirstEntity = () => {
     const allRows = rows();
@@ -1179,6 +1177,9 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                         panel leaves list views unpadded so rows can
                         under-scroll the status bar. */}
                   <div class="flex-1 min-h-0 flex flex-col mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)">
+                    <Show when={showNav()}>
+                      <SoupViewNav />
+                    </Show>
                     <LoadingBlock />
                   </div>
                 </Match>
@@ -1189,6 +1190,9 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                     !isPullRefreshing()
                   }
                 >
+                  <Show when={showNav()}>
+                    <SoupViewNav />
+                  </Show>
                   <div class="flex items-center gap-2 p-3 text-xs text-text-muted mobile:mt-(--mobile-content-inset-top) mobile:mb-(--mobile-content-inset-bottom)">
                     <Spinner class="size-3 animate-spin" />
                     Searching...
@@ -1199,6 +1203,9 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                     ref={setEmptyStateRef}
                     class="flex-1 min-h-0 flex flex-col mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
                   >
+                    <Show when={showNav()}>
+                      <SoupViewNav />
+                    </Show>
                     <EmptyState
                       listView={currentView()}
                       search={!!searchText()}
@@ -1255,6 +1262,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                         onScrollBottom={debouncedFetchMore}
                         scrollBottomOffset={300}
                         rows={rows()}
+                        leading={showNav() ? <SoupViewNav /> : undefined}
                       >
                         {(row, i) => {
                           const timestamp = () => {
@@ -1520,6 +1528,12 @@ interface SoupListProps {
   scrollBottomOffset?: number;
   rows: SoupRow[];
   cache?: CacheSnapshot;
+  /**
+   * Content rendered inside the scroll container ahead of the rows (e.g. the
+   * view/favorites pill nav), so it scrolls away with the list. Its measured
+   * height feeds the virtualizer's `startMargin`.
+   */
+  leading?: JSX.Element;
 }
 
 const SoupList = (props: SoupListProps) => {
@@ -1529,10 +1543,16 @@ const SoupList = (props: SoupListProps) => {
   const overscan = createMemo(() => props.overscan ?? DEFAULT_OVERSCAN);
   const [topSpacerRef, setTopSpacerRef] = createSignal<HTMLDivElement>();
   const topSpacerSize = createElementSize(topSpacerRef);
+  const [leadingRef, setLeadingRef] = createSignal<HTMLDivElement>();
+  const leadingSize = createElementSize(leadingRef);
 
   // Full-frame mobile: rows under-scroll the status bar; this in-scroll
   // spacer is their resting inset (safe-top — list views have no header).
-  const topInset = () => (isMobile() ? (topSpacerSize.height ?? 0) : 0);
+  // Leading content (the pill nav) adds its measured height on top so
+  // virtua's scroll math stays correct.
+  const topInset = () =>
+    (isMobile() ? (topSpacerSize.height ?? 0) : 0) +
+    (props.leading ? (leadingSize.height ?? 0) : 0);
 
   const handleScroll = (offset: number) => {
     const handle = virtualizerHandle();
@@ -1591,6 +1611,9 @@ const SoupList = (props: SoupListProps) => {
           aria-hidden
           class="h-0 block sm:hidden mobile:h-(--mobile-content-inset-top)"
         />
+        <Show when={props.leading}>
+          <div ref={setLeadingRef}>{props.leading}</div>
+        </Show>
         <Virtualizer
           cache={props.cache}
           ref={registerVirtualizerHandler}
