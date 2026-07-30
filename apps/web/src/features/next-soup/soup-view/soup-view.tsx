@@ -31,6 +31,7 @@ import { SoupRowMetadataProvider } from '@app/features/next-soup/soup-view/soup-
 import { useSoupView } from '@app/features/next-soup/soup-view/soup-view-context';
 import { SoupViewCreateButton } from '@app/features/next-soup/soup-view/soup-view-create-button';
 import { SoupViewFileDropzone } from '@app/features/next-soup/soup-view/soup-view-file-dropzone';
+import { SoupViewNav } from '@app/features/next-soup/soup-view/soup-view-nav';
 import { SoupViewSwitcher } from '@app/features/next-soup/soup-view/soup-view-switcher';
 import {
   MobileSoupViewTabs,
@@ -624,6 +625,17 @@ export const SoupView = (props: SoupViewProps) => {
           </SplitHeaderRight>
         </Show>
       </div>
+      {/* The old sidebar's view links, pinned above the list. Viewer-hosted
+          full views skip it so the right panel doesn't grow its own nav. */}
+      <Show
+        when={
+          !isMobile() &&
+          !panel.handle.isViewerSplit() &&
+          !isComponentListView('search')
+        }
+      >
+        <SoupViewNav />
+      </Show>
       <SoupFiltersBar variant={props.filterBarVariant} />
       <Show when={applyDefaultCrmView}>
         <CrmDefaultViewLoader />

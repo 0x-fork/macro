@@ -4,11 +4,7 @@ import { BotIcon } from '@channel/Message/BotIcon';
 import { MACRO_AI_BOT_ID, MACRO_AI_NAME } from '@channel/macroAi';
 import { EntityIcon, getEntityIconType } from '@core/component/EntityIcon';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
-import {
-  createTheme,
-  twoLineClampMarkdownTheme,
-  unifiedListMarkdownTheme,
-} from '@core/component/LexicalMarkdown/theme';
+import { unifiedListMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import { UserIcon } from '@core/component/UserIcon';
 import { isMacroAgentId } from '@core/constant/macroAgent';
 import { useUserId } from '@core/context/user';
@@ -432,16 +428,6 @@ const entityLocation = (entity: EntityData): string | undefined => {
   return entity.name;
 };
 
-const githubLocation = (entity: EntityData): string | undefined => {
-  if (
-    entity.type !== 'foreign' ||
-    entity.foreignSource !== 'github_pull_request'
-  ) {
-    return entity.name;
-  }
-  return `${entity.metadata.owner}/${entity.metadata.repo}#${entity.metadata.number}`;
-};
-
 const githubAction = (notification?: Notification): string => {
   const metadata = notification?.notification_metadata;
 
@@ -523,14 +509,6 @@ function BaseCard(props: {
     </InboxCard.Root>
   );
 }
-
-const inlineWrappingMarkdownTheme = createTheme(
-  {
-    root: 'md inline pr-[2px] cursor-default',
-    paragraph: 'md-p text-[1em] inline',
-  },
-  twoLineClampMarkdownTheme
-);
 
 /** Fallback shown in place of message text when a message is just attachments. */
 const attachmentSummary = (count: number): string | undefined =>
@@ -648,7 +626,7 @@ export function ChannelCardLayout(props: InboxCardLayoutProps) {
         </InboxCard.Header>
 
         <div class="col-start-2 row-start-2 min-w-0 text-sm">
-          <InboxCard.Content class="line-clamp-2 min-h-[2lh]">
+          <InboxCard.Content class="truncate">
             <Show when={senderLabel()}>
               <span class="whitespace-nowrap mr-1">{senderLabel()}:</span>
             </Show>
@@ -662,7 +640,7 @@ export function ChannelCardLayout(props: InboxCardLayoutProps) {
                   <StaticMarkdown
                     markdown={value()}
                     singleLine
-                    theme={inlineWrappingMarkdownTheme}
+                    theme={unifiedListMarkdownTheme}
                   />
                 </>
               )}
@@ -758,22 +736,12 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
   const senderLabel = () =>
     senderId() === currentUserId() ? 'You' : senderName();
 
-  // The root/original thread message sender (who a reply is replying to).
-  const originalSenderId = () =>
-    props.item.entity.type === 'channel_thread'
-      ? props.item.entity.senderId
-      : undefined;
-  const originalSenderName = createSenderDisplayName(originalSenderId);
-  const originalSenderLabel = () =>
-    originalSenderId() === currentUserId() ? 'You' : originalSenderName();
-
   const text = createMemo(() => {
     if (props.item.entity.type !== 'channel_thread') {
       return {
         title: '',
         content: '',
         contentIsAttachmentSummary: false,
-        contextIsAttachmentSummary: false,
       };
     }
 
@@ -783,11 +751,10 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
     const rootAttachments = props.item.entity.attachments;
 
     let content: string | undefined;
-    let context: string | undefined;
     let contentIsAttachmentSummary = false;
-    let contextIsAttachmentSummary = false;
     if (metadata?.tag === 'channel_message_reply') {
-      // Current message is the reply; the quoted context is the original (root).
+      // Current message is the reply (the quoted original stays off the
+      // two-line pill).
       content = metadata.content.messageContent;
       if (!content.trim()) {
         const reply = props.item.entity.thread.preview.find(
@@ -798,11 +765,6 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
         content = attachmentSummary(reply?.attachments.length || 1);
         contentIsAttachmentSummary = true;
       }
-      const original = props.item.entity.content.trim();
-      context = original.length
-        ? original
-        : attachmentSummary(rootAttachments.length);
-      contextIsAttachmentSummary = !original.length && !!context;
     } else {
       // Root message: fall back to an attachment summary when it has no text.
       content = itemContent(props.item.entity, props.item.notification);
@@ -815,10 +777,8 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
 
     return {
       title: location,
-      context,
       content,
       contentIsAttachmentSummary,
-      contextIsAttachmentSummary,
     };
   });
 
@@ -844,58 +804,25 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
             </InboxCard.Title>
           </InboxCard.Header>
 
-          {/* For replies, show the original message being replied to first,
-              with a left bar marking it as the quoted original. */}
-          <div class="min-h-[2lh]">
-            <Show when={isLatestNotificationReply() && text().context?.trim()}>
-              {(context) => (
-                <div class="flex min-w-0 items-center gap-1 border-l-2 border-edge-muted pl-2">
-                  <span class="flex gap-1 items-center text-sm whitespace-nowrap text-ink-extra-muted/80 group-data-unread/inbox-item:text-ink-muted">
-                    {originalSenderLabel()}:
-                  </span>
-                  <InboxCard.Content class="truncate text-sm text-ink/60">
-                    <Show when={text().contextIsAttachmentSummary}>
-                      <PaperclipIcon class="mr-0.5 inline size-3.5 align-[-0.125em]" />
-                    </Show>
-                    <StaticMarkdown
-                      markdown={context()}
-                      singleLine
-                      theme={unifiedListMarkdownTheme}
-                    />
-                  </InboxCard.Content>
-                </div>
+          <InboxCard.Content class="truncate text-sm text-ink/60">
+            <Show when={!isDM()}>
+              <span class="mr-1 whitespace-nowrap">{senderLabel()}:</span>
+            </Show>
+            <Show when={text().content?.trim()}>
+              {(value) => (
+                <>
+                  <Show when={text().contentIsAttachmentSummary}>
+                    <PaperclipIcon class="mr-0.5 inline size-3.5 align-[-0.125em]" />
+                  </Show>
+                  <StaticMarkdown
+                    markdown={value()}
+                    singleLine
+                    theme={unifiedListMarkdownTheme}
+                  />
+                </>
               )}
             </Show>
-
-            <InboxCard.Content
-              class={cn(
-                'text-sm text-ink/60',
-                isLatestNotificationReply() ? 'truncate' : 'line-clamp-2'
-              )}
-            >
-              <Show when={!isDM()}>
-                <span class="mr-1 whitespace-nowrap">{senderLabel()}:</span>
-              </Show>
-              <Show when={text().content?.trim()}>
-                {(value) => (
-                  <>
-                    <Show when={text().contentIsAttachmentSummary}>
-                      <PaperclipIcon class="mr-0.5 inline size-3.5 align-[-0.125em]" />
-                    </Show>
-                    <StaticMarkdown
-                      markdown={value()}
-                      singleLine
-                      theme={
-                        isLatestNotificationReply()
-                          ? unifiedListMarkdownTheme
-                          : inlineWrappingMarkdownTheme
-                      }
-                    />
-                  </>
-                )}
-              </Show>
-            </InboxCard.Content>
-          </div>
+          </InboxCard.Content>
         </div>
       </InboxCard.Body>
       <InboxTimestamp
@@ -1115,16 +1042,13 @@ export function EmailCardLayout(props: InboxCardLayoutProps) {
 
   const senderName = createSenderDisplayName(senderId, senderFallbackName);
 
+  // Two-line pill: sender + subject only — the body snippet stays off the row.
   const text = createMemo(() => {
     const entity = props.item.entity;
 
     return {
       sender: senderName(),
       subject: entity.name,
-      content:
-        entity.type === 'email'
-          ? (itemContent(entity, props.item.notification) ?? entity.snippet)
-          : undefined,
       isDraft: entity.type === 'email' && entity.isDraft,
     };
   });
@@ -1136,7 +1060,7 @@ export function EmailCardLayout(props: InboxCardLayoutProps) {
       highlighted={props.highlighted}
       onClick={props.onClick}
     >
-      <div class="col-start-1 row-start-1 row-span-3">
+      <div class="col-start-1 row-start-1 row-span-2">
         <InboxCard.Icon
           fallback={<ActionBubble tag="new_email" />}
         ></InboxCard.Icon>
@@ -1155,18 +1079,6 @@ export function EmailCardLayout(props: InboxCardLayoutProps) {
           {(subject) => (
             <InboxCard.Content class="col-start-2 row-start-2 truncate text-sm">
               {subject()}
-            </InboxCard.Content>
-          )}
-        </Show>
-
-        <Show when={text().content?.trim()}>
-          {(value) => (
-            <InboxCard.Content class="col-start-2 row-start-3 truncate text-sm">
-              <StaticMarkdown
-                markdown={value()}
-                singleLine
-                theme={unifiedListMarkdownTheme}
-              />
             </InboxCard.Content>
           )}
         </Show>
@@ -1226,7 +1138,6 @@ export function GithubCardLayout(props: InboxCardLayoutProps) {
         content:
           getGithubTitle(entity, props.item.notification) ||
           entity.metadata.name,
-        location: githubLocation(entity),
       };
     }
 
@@ -1236,7 +1147,6 @@ export function GithubCardLayout(props: InboxCardLayoutProps) {
         action: githubAction(props.item.notification),
       }),
       content: getGithubTitle(entity, props.item.notification) || entity.name,
-      location: githubLocation(entity),
     };
   });
 
@@ -1247,7 +1157,7 @@ export function GithubCardLayout(props: InboxCardLayoutProps) {
       highlighted={props.highlighted}
       onClick={props.onClick}
     >
-      <div class="col-start-1 row-start-1 row-span-3">
+      <div class="col-start-1 row-start-1 row-span-2">
         <InboxCard.Icon
           fallback={
             <Show
@@ -1285,14 +1195,6 @@ export function GithubCardLayout(props: InboxCardLayoutProps) {
                 singleLine
                 theme={unifiedListMarkdownTheme}
               />
-            </InboxCard.Content>
-          )}
-        </Show>
-
-        <Show when={text().location}>
-          {(location) => (
-            <InboxCard.Content class="col-start-2 row-start-3 truncate text-sm text-ink/40">
-              {location()}
             </InboxCard.Content>
           )}
         </Show>
@@ -1371,7 +1273,7 @@ export function CallCardLayout(props: InboxCardLayoutProps) {
       highlighted={props.highlighted}
       onClick={props.onClick}
     >
-      <div class="col-start-1 row-start-1 row-span-3">
+      <div class="col-start-1 row-start-1 row-span-2">
         <InboxCard.Icon
           fallback={
             <EntityIcon
@@ -1390,7 +1292,8 @@ export function CallCardLayout(props: InboxCardLayoutProps) {
           </InboxCard.Title>
         </InboxCard.Header>
 
-        <Show when={participantIds().length}>
+        {/* Participants and duration share the second line of the pill. */}
+        <Show when={participantIds().length || duration()}>
           <InboxCard.Content class="col-start-2 row-start-2 truncate text-sm">
             <For each={participantIds()}>
               {(participantId, index) => (
@@ -1400,15 +1303,15 @@ export function CallCardLayout(props: InboxCardLayoutProps) {
                 </>
               )}
             </For>
+            <Show when={duration()}>
+              {(value) => (
+                <>
+                  {participantIds().length ? ' · ' : ''}
+                  {value()}
+                </>
+              )}
+            </Show>
           </InboxCard.Content>
-        </Show>
-
-        <Show when={duration()}>
-          {(value) => (
-            <InboxCard.Content class="col-start-2 row-start-3 truncate text-sm">
-              {value()}
-            </InboxCard.Content>
-          )}
         </Show>
       </InboxCard.Body>
       <InboxTimestamp
