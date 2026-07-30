@@ -26,17 +26,20 @@ describe('withInboxReadFilter', () => {
       })
     );
 
-    // The seen filter is an EXISTS over notifications server-side; docs and
-    // agents the user creates have none, so injecting documentSeen/chatSeen
-    // here would silently exclude the tab's whole "my work" half.
+    // The seen filter is an EXISTS over notifications server-side; the tab's
+    // own activity carries no notifications for the acting user (self-created
+    // docs/agents have none, sending a message notifies everyone BUT the
+    // sender), so injecting seen filters here would silently exclude the
+    // whole "my activity" half.
     expect(ast.df).toEqual({ '!': { l: { id: NIL_UUID } } });
     expect(ast.cf).toEqual({ '!': { l: { cid: NIL_UUID } } });
+    expect(ast.chanf).toEqual({ l: { IsParticipant: true } });
 
     // The signal half still narrows to unseen items.
     expect(JSON.stringify(ast.ef)).toContain('"NotificationSeen":false');
   });
 
-  it('still narrows docs and chats on other inbox tabs', () => {
+  it('still narrows docs, chats, and channels on other inbox tabs', () => {
     const ast = compileToAst(
       withInboxReadFilter(defaultTabState(), {
         filter: 'unread',
@@ -46,6 +49,7 @@ describe('withInboxReadFilter', () => {
 
     expect(JSON.stringify(ast.df)).toContain('"ns":false');
     expect(JSON.stringify(ast.cf)).toContain('"ns":false');
+    expect(JSON.stringify(ast.chanf)).toContain('"NotificationSeen":false');
   });
 
   it("leaves the query untouched for 'all'", () => {
