@@ -46,6 +46,7 @@ members = [
   "crates/onboarding",
   "crates/prompt",
   "crates/properties_service",
+  "crates/reminders",
   "crates/search_service",
   "crates/soup_realtime",
   "crates/task_dedup",

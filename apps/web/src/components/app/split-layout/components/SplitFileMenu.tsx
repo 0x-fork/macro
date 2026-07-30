@@ -1,5 +1,8 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
-import { makeFavoriteAction } from '@app/features/next-soup/actions';
+import {
+  makeCreateReminderAction,
+  makeFavoriteAction,
+} from '@app/features/next-soup/actions';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import type { BlockTool } from '@components/app/ResponsiveBlockToolbar';
 import { useBlockAliasedName, useBlockName } from '@core/block';
@@ -12,6 +15,7 @@ import { useIsDocumentOwner } from '@core/signal/permissions';
 import { buildEntityData, type EntityData } from '@entity';
 import DotsThree from '@icon/dots-three-large.svg';
 import ArrowRight from '@phosphor/arrow-right.svg';
+import BellSimple from '@phosphor/bell-simple.svg';
 import CaretDown from '@phosphor/caret-down.svg';
 import CaretRight from '@phosphor/caret-right.svg';
 import Copy from '@phosphor/copy.svg';
@@ -252,6 +256,7 @@ export function SplitFileMenu(props: {
   const itemOperations = useItemOperations();
   const quickAccess = useQuickAccess();
   const favoriteAction = makeFavoriteAction();
+  const createReminderAction = makeCreateReminderAction();
 
   const { replaceOrInsertSplit, resetSplit } = useSplitLayout();
 
@@ -280,6 +285,23 @@ export function SplitFileMenu(props: {
     };
   };
 
+  // Injected here rather than per-block so every block rendering this menu gets
+  // it, the way Favorite does. Entity types the reminders API cannot mint an
+  // access receipt for (channel messages/threads) return undefined and are
+  // filtered out.
+  const reminderOp = (): SplitFileMenuAction | undefined => {
+    const entity = menuEntity();
+    if (!entity || !createReminderAction.canExecute(entity)) return undefined;
+    return {
+      label: 'Remind me about this',
+      icon: BellSimple,
+      action: () => {
+        setOpen(false);
+        createReminderAction.execute([entity]);
+      },
+    };
+  };
+
   createEffect(() => {
     const openMenu = () => setOpen(true);
     ctx.setTitleFileMenuTrigger(() => openMenu);
@@ -288,6 +310,7 @@ export function SplitFileMenu(props: {
 
   const ops = createMemo<SplitFileMenuAction[]>(() => {
     const favorite = favoriteOp();
+    const reminder = reminderOp();
     const mapped = props.ops
       .map((op) => {
         if (isDefaultFileOperation(op)) {
@@ -387,7 +410,7 @@ export function SplitFileMenu(props: {
         }
       })
       .filter((op) => !!op);
-    return favorite ? [favorite, ...mapped] : mapped;
+    return [favorite, reminder, ...mapped].filter((op) => !!op);
   });
 
   const filteredTools = createMemo(() =>
