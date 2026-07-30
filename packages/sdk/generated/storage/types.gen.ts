@@ -6094,7 +6094,11 @@ export type ReminderSchedule = {
     type: 'once';
 } | {
     /**
-     * Cron expression in `sec min hour dom mon dow [year]` form.
+     * Cron expression, either the conventional 5-field
+     * `min hour dom mon dow` or the 6-/7-field
+     * `sec min hour dom mon dow [year]`. A 5-field expression is stored
+     * normalized to 6 fields with a zero seconds field, so `0 9 * * *` and
+     * `0 0 9 * * *` are the same schedule and both read back as the latter.
      */
     cron: string;
     /**
@@ -7622,17 +7626,27 @@ export type UpdateOperation = 'add' | 'remove' | 'replace';
 /**
  * Request body for modifying a reminder. Omitted fields are left unchanged;
  * the entity association is not modifiable.
+ *
+ * Every field is optional but **not** nullable. `Option` here means "absent",
+ * and serde cannot tell an explicit `null` from an omitted key — so a body of
+ * `{"enabled": null}` would deserialize to an empty patch and be rejected as
+ * having no fields to update. `nullable = false` keeps the schema from
+ * advertising a value the API has no meaning for; the deserializer still
+ * tolerates `null` rather than erroring on it.
  */
 export type UpdateReminderRequest = {
     /**
      * Replacement description.
      */
-    description?: string | null;
+    description?: string;
     /**
      * Whether the reminder should fire at all.
      */
-    enabled?: boolean | null;
-    schedule?: null | ReminderSchedule;
+    enabled?: boolean;
+    /**
+     * Replacement schedule.
+     */
+    schedule?: ReminderSchedule;
 };
 
 export type UpdateSharePermissionRequestV2 = {
@@ -11914,9 +11928,13 @@ export type CreateReminderErrors = {
      */
     401: ErrorResponse;
     /**
-     * No view access to the requested entity
+     * No access to the requested entity
      */
     403: ErrorResponse;
+    /**
+     * The requested entity does not exist
+     */
+    404: ErrorResponse;
     /**
      * Malformed request body (plain text)
      */
