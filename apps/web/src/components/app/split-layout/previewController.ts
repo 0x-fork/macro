@@ -9,7 +9,7 @@ type PreviewControllerWidth = {
 
 /** Default automatic-redistribution width for preview controllers. */
 const DEFAULT_PREVIEW_CONTROLLER_WIDTH: PreviewControllerWidth = {
-  preferredPx: 440,
+  preferredPx: 340,
 };
 
 /** Copy for a controller's empty-Viewer placeholder (`preview-empty`). */

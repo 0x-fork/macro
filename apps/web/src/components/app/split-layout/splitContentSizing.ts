@@ -17,7 +17,7 @@ const SPLIT_CONTENT_SIZING_CONFIG: readonly SplitContentSizingConfig[] = [
   {
     matches: (content) =>
       content.type === 'component' && isListViewID(content.id),
-    minWidthPx: 340,
+    minWidthPx: 240,
   },
 ];
 

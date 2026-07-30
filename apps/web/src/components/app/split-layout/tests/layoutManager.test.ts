@@ -509,7 +509,7 @@ describe('layoutManager', () => {
         const { manager, controllerId } = setup();
         manager.engagePreviewMode(controllerId);
 
-        expect(manager.previewControllerWidth(controllerId)).toBe(440);
+        expect(manager.previewControllerWidth(controllerId)).toBe(340);
         expect(manager.splits()).toHaveLength(2);
         const viewerId = manager.splits()[1].id;
         expect(manager.viewerOf(controllerId)).toBe(viewerId);
@@ -652,7 +652,7 @@ describe('layoutManager', () => {
 
         // Every list view shares one controller width so the list panel
         // (the app's nav) doesn't resize when a view pill switches it.
-        expect(manager.previewControllerWidth(controllerId)).toBe(440);
+        expect(manager.previewControllerWidth(controllerId)).toBe(340);
 
         dispose();
       });
@@ -705,8 +705,8 @@ describe('layoutManager', () => {
 
         manager.engagePreviewMode(controllerId);
 
-        expect(manager.previewControllerWidth(controllerId, 1000)).toBe(440);
-        expect(manager.previewControllerWidth(controllerId, 1600)).toBe(440);
+        expect(manager.previewControllerWidth(controllerId, 1000)).toBe(340);
+        expect(manager.previewControllerWidth(controllerId, 1600)).toBe(340);
 
         dispose();
       });
@@ -775,7 +775,7 @@ describe('layoutManager', () => {
         expect(manager.splits()).toHaveLength(2);
         expect(manager.viewerOf(controllerId)).toBe(viewerId);
         expect(manager.controllerOf(viewerId)).toBe(controllerId);
-        expect(manager.previewControllerWidth(controllerId)).toBe(440);
+        expect(manager.previewControllerWidth(controllerId)).toBe(340);
         expect(manager.activeSplitId()).toBe(controllerId);
 
         dispose();

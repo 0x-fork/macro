@@ -24,7 +24,7 @@ describe('preview controller content', () => {
     // in place), so a per-view width would make the panel jump on a switch.
     for (const id of ['inbox', 'channels', 'mail', 'companies', 'documents']) {
       expect(previewControllerWidthForContent({ type: 'component', id })).toBe(
-        440
+        340
       );
     }
     expect(
@@ -35,15 +35,15 @@ describe('preview controller content', () => {
         type: 'project',
         id: 'project-1',
       })
-    ).toBe(440);
+    ).toBe(340);
   });
 
   it('uses the list-view minimum width with a 400px default', () => {
     expect(splitMinWidthForContent({ type: 'component', id: 'channels' })).toBe(
-      340
+      240
     );
     expect(splitMinWidthForContent({ type: 'component', id: 'inbox' })).toBe(
-      340
+      240
     );
     expect(splitMinWidthForContent({ type: 'component', id: 'settings' })).toBe(
       400
