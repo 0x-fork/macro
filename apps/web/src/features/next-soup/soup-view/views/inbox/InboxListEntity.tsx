@@ -1,5 +1,5 @@
 import { useChannelsContext } from '@core/context/channels';
-import { MaybeEntityRow, MultiSelectCheckbox, UnreadIndicator } from '@entity';
+import { MaybeEntityRow, MultiSelectCheckbox } from '@entity';
 import type { BaseListEntityProps } from '@entity/composed/list-entity/shared';
 import { cn } from '@ui';
 import { createMemo, Show } from 'solid-js';
@@ -41,32 +41,20 @@ export function InboxListEntity(props: BaseListEntityProps) {
           onClick={props.onClick}
         />
       </MaybeEntityRow>
-      {/* Select checkbox lives in the gutter reserved by the card's `pl-9`. */}
+      {/* On hover the entity icon swaps to the select checkbox (checked rows
+          keep it visible) — no reserved gutter column. */}
       <Show when={!props.hideCheckbox}>
-        <div class="group/select-control absolute left-1 top-2.5 z-10 grid size-8 place-items-center">
-          <Show when={!props.checked}>
-            <div
-              aria-hidden="true"
-              class={cn(
-                'pointer-events-none grid size-4 place-items-center rounded-xs group-hover/select-control:hidden',
-                !item().unread && 'border border-edge'
-              )}
-            >
-              <UnreadIndicator active={item().unread} />
-            </div>
-          </Show>
-          <div
-            class={cn(
-              'absolute inset-0 place-items-center',
-              props.checked ? 'grid' : 'hidden group-hover/select-control:grid'
-            )}
-          >
-            <MultiSelectCheckbox
-              checked={props.checked}
-              onChecked={props.onChecked}
-              showBorder
-            />
-          </div>
+        <div
+          class={cn(
+            'absolute left-2 top-2.5 z-10 size-8 place-items-center rounded-full bg-surface',
+            props.checked ? 'grid' : 'hidden group-hover/inbox-item:grid'
+          )}
+        >
+          <MultiSelectCheckbox
+            checked={props.checked}
+            onChecked={props.onChecked}
+            showBorder
+          />
         </div>
       </Show>
     </div>
