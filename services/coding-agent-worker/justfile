@@ -7,6 +7,11 @@ typecheck:
 gen-protocol:
     nix develop --command cargo run -p agent_runtime_protocol --bin export_types
 
+# Build the local @macro/sdk dependency (its dist/ is gitignored: needed
+# once after cloning, and again whenever packages/sdk changes)
+sdk:
+    cd ../../packages/sdk && bun install && bun run build
+
 build-image:
     cd container && docker build -t {{image}} .
 
@@ -18,7 +23,10 @@ client *args:
 
 # Kick off a session (returns the id immediately; the worker streams progress
 # to UPSTREAM_WS_URL). Pass agent_id to tie this session to an agent_proxy
-# chat - that id becomes the `?id=` the shared runtime endpoint matches on.
+# chat - that id becomes the `?id=` the shared runtime endpoint matches on,
+# and the worker posts `prompt` to the proxy's HTTP API via the SDK (needs
+# MACRO_API_KEY with edit access to the chat), which queues it until the
+# runtime's ACP session is ready.
 session repo prompt agent_id='':
     #!/usr/bin/env bash
     set -euo pipefail

@@ -25,6 +25,17 @@ export const env = envsafe({
     devDefault: 'ws://localhost:4001',
     desc: 'Preconfigured upstream websocket; the worker adds its session id as the id query parameter',
   }),
+  MACRO_ENV: str({
+    default: 'prod',
+    devDefault: 'local',
+    choices: ['local', 'dev', 'prod'],
+    desc: 'Which Macro environment the SDK posts kickoff prompts to',
+  }),
+  MACRO_API_KEY: str({
+    default: '',
+    allowEmpty: true,
+    desc: 'Macro API token the SDK authenticates with when posting the kickoff prompt to agent_proxy (needs edit access to the agent chat). Read directly by @macro/sdk.',
+  }),
   GITHUB_TOKEN: str({
     desc: 'Token with read access to the repos we clone into sandboxes',
   }),
