@@ -9,6 +9,7 @@ import {
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   buildSidebarLinks,
+  navigateToSidebarView,
   type SidebarItem,
 } from '@components/app/app-sidebar/sidebar';
 import { useSplitLayout } from '@components/app/split-layout/layout';
@@ -16,9 +17,10 @@ import type { SplitContent } from '@components/app/split-layout/layoutManager';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { UserIcon } from '@core/component/UserIcon';
+import ArrowRightIcon from '@phosphor/arrow-right.svg';
 import { useFavoritesData } from '@queries/favorites/favorites';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
-import { cn } from '@ui';
+import { cn, Tooltip } from '@ui';
 import { createMemo, For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
@@ -36,24 +38,53 @@ const NAV_VIEW_ORDER: readonly ListView[] = [
 const NavPill = (props: {
   active?: boolean;
   onClick: (event: MouseEvent) => void;
+  /**
+   * Hover-revealed right zone of the pill: "kick into the main panel". The
+   * primary click stays the whole-pill action (filtering the list).
+   */
+  onKickToMain?: (event: MouseEvent) => void;
   icon: JSX.Element;
   label: string;
 }) => (
-  <button
-    type="button"
+  <div
     class={cn(
-      'flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-1.5 py-1.5 text-[13px]',
+      'group/pill relative flex min-w-0 overflow-hidden rounded-lg',
       'bg-surface ring ring-edge-muted text-ink-muted',
-      'hover:bg-hover/50 hover:text-ink',
       props.active && 'bg-ink/6 text-ink ring-ink/15'
     )}
-    onClick={(event) => props.onClick(event)}
   >
-    <span class="grid size-4 shrink-0 place-items-center [&_svg]:size-4">
-      {props.icon}
-    </span>
-    <span class="min-w-0 truncate">{props.label}</span>
-  </button>
+    <button
+      type="button"
+      class={cn(
+        'flex min-w-0 flex-1 items-center justify-center gap-1.5 px-1.5 py-1.5 text-[13px]',
+        'hover:bg-hover/50 hover:text-ink'
+      )}
+      onClick={(event) => props.onClick(event)}
+    >
+      <span class="grid size-4 shrink-0 place-items-center [&_svg]:size-4">
+        {props.icon}
+      </span>
+      <span class="min-w-0 truncate">{props.label}</span>
+    </button>
+    <Show when={props.onKickToMain}>
+      {(onKickToMain) => (
+        <Tooltip label="Open in main panel">
+          <button
+            type="button"
+            aria-label="Open in main panel"
+            class={cn(
+              'absolute inset-y-0 right-0 hidden w-[30%] min-w-7 items-center justify-center',
+              'border-l border-edge-muted bg-surface text-ink-muted',
+              'group-hover/pill:flex hover:bg-hover/50 hover:text-ink'
+            )}
+            onClick={(event) => onKickToMain()(event)}
+          >
+            <ArrowRightIcon class="size-3.5" />
+          </button>
+        </Tooltip>
+      )}
+    </Show>
+  </div>
 );
 
 const FavoritePill = (props: {
@@ -99,7 +130,8 @@ const FavoritePill = (props: {
  * pill grid: view links first, then the user's favorites, with the column
  * count adapting to the panel width. A view pill filters the list in place —
  * the panel switches to that view (Email → the mail inbox, etc.), keeping a
- * Preview Pair engaged. A favorite pill opens its entity in the panel's
+ * Preview Pair engaged — while its hover-revealed right zone kicks the view's
+ * full list into the main panel instead. A favorite pill opens its entity in the panel's
  * preview Viewer (the right-hand panel), engaging the pair first when
  * needed; when no Viewer can form (narrow layouts) it falls back to
  * navigating like the old sidebar did.
@@ -164,8 +196,8 @@ export const SoupViewNav = () => {
     viewer.replace({ next: content, referredFrom: 'sidebar' });
   };
 
-  // A view pill filters the list in place, mirroring the master dropdown's
-  // Views section.
+  // A view pill's primary click filters the list in place, mirroring the
+  // master dropdown's Views section.
   const openView = (link: SidebarItem) => {
     if (link.id === currentViewId()) return;
     analytics.track('sidebar_click', { view: link.id, source: 'panel-nav' });
@@ -178,6 +210,25 @@ export const SoupViewNav = () => {
     // a list view — clear the previous view's entity out of the Viewer.
     if (wasController) panel.handle.resetPreview();
     globalSplitManager()?.returnFocus();
+  };
+
+  // The pill's hover-revealed right zone kicks the view's full list into the
+  // main content panel (the Viewer) instead.
+  const kickViewToMain = (link: SidebarItem, event: MouseEvent) => {
+    analytics.track('sidebar_click', {
+      view: link.id,
+      source: 'panel-nav-main',
+    });
+    openInViewer({ type: 'component', id: link.id, params: link.params }, () =>
+      navigateToSidebarView({
+        viewId: link.id,
+        params: link.params,
+        shiftKey: event.shiftKey,
+        activeSplit: panel.handle,
+        openWithSplit: layout.openWithSplit,
+        referredFrom: 'sidebar',
+      })
+    );
   };
 
   const openFavorite = (favorite: Favorite, event: MouseEvent) => {
@@ -201,6 +252,7 @@ export const SoupViewNav = () => {
           <NavPill
             active={currentViewId() === link.id}
             onClick={() => openView(link)}
+            onKickToMain={(event) => kickViewToMain(link, event)}
             icon={<Dynamic component={link.icon} />}
             label={link.label}
           />

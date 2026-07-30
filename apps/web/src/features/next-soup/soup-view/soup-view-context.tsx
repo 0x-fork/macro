@@ -249,12 +249,17 @@ const isQueryState = (value: unknown): value is QueryState =>
 //   base query (and its predicates) under the new 'default' tab key, which
 //   would silently shadow the preset's much wider base query. Drop that
 //   saved state once.
+// Bump when the Default preset's shape changes: the query store re-persists
+// the applied preset under inbox.default, so an already-visited browser would
+// otherwise keep restoring the previous preset over the new one. (v1 shipped
+// as `true`; Number(true) keeps it below every later version.)
+const INBOX_DEFAULT_TAB_MIGRATION_VERSION = 2;
 const [inboxDefaultTabMigrated, setInboxDefaultTabMigrated] = makePersisted(
-  createSignal(false),
+  createSignal<number | boolean>(0),
   { name: 'soup-inbox-default-tab-migrated' }
 );
-if (!inboxDefaultTabMigrated()) {
-  setInboxDefaultTabMigrated(true);
+if (Number(inboxDefaultTabMigrated()) < INBOX_DEFAULT_TAB_MIGRATION_VERSION) {
+  setInboxDefaultTabMigrated(INBOX_DEFAULT_TAB_MIGRATION_VERSION);
   if (persistedActiveTabs().inbox === 'signal') {
     setPersistedActiveTabs(({ inbox: _inbox, ...rest }) => rest);
   }

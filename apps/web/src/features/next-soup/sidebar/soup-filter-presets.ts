@@ -128,13 +128,17 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
       /**
        * The date-grouped "everything I care about" feed: the signal inbox
        * (important emails, channel activity, notification-bearing items)
-       * plus every doc, task, and agent the user created — without noise
-       * emails or the rest of the team's work. Server-side, docs and chats
-       * fetch as a superset (every reachable one, like the All tab) —
-       * deliberately context-free so the preset always resolves, even before
-       * the user id loads. The `inbox`/`my-work` or-predicates narrow rows
-       * client-side, and gate live websocket inserts the same way, so new
-       * items surface at the top of Today and survive refetches.
+       * plus every doc, task, and agent the user created, and conversations
+       * they last messaged — without noise emails or the rest of the team's
+       * work. Server-side, docs, chats, and the user's channels fetch as a
+       * superset — deliberately context-free so the preset always resolves,
+       * even before the user id loads. The `inbox`/`my-work`/`my-messages`
+       * or-predicates narrow rows client-side, and gate live websocket
+       * inserts the same way, so new items surface at the top of Today and
+       * survive refetches.
+       *
+       * When this preset's shape changes, bump the persisted-state migration
+       * version in soup-view-context so stale saved filters don't shadow it.
        */
       default: () => ({
         filters: defineQueryFilters({
@@ -143,8 +147,10 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
             emailDone: false,
             emailImportance: true,
             emailShared: 'exclude',
-            // …signal channels, threads, folders, and foreign entities.
-            channelDone: false,
+            // …threads, folders, and foreign entities. Channels fetch for
+            // every one the user is in — not just notification-bearing ones —
+            // so a conversation they just messaged (which notifies everyone
+            // BUT the sender) still surfaces via `my-messages`.
             channelIsParticipant: [true],
             channelThreadDone: false,
             folderDone: false,
@@ -161,7 +167,7 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewTabConfig> = {
           },
           emailView: 'inbox',
         }),
-        clientFilters: { or: ['inbox', 'my-work'] },
+        clientFilters: { or: ['inbox', 'my-work', 'my-messages'] },
         groupBy: 'date',
       }),
       signal: () => ({

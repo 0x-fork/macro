@@ -41,6 +41,12 @@ describe('inbox default preset', () => {
     expect(ast.df).toEqual({ '!': { l: { id: NIL_UUID } } });
     expect(ast.cf).toEqual({ '!': { l: { cid: NIL_UUID } } });
 
+    // Channels fetch for every one the user participates in — with no
+    // notification condition, since sending a message notifies everyone BUT
+    // the sender; the my-messages or-predicate keeps just-messaged
+    // conversations (incl. DMs) in the feed.
+    expect(ast.chanf).toEqual({ l: { IsParticipant: true } });
+
     // The signal half still scopes emails to important inbox mail.
     expect(ast.emailView).toBe('inbox');
 
@@ -49,9 +55,9 @@ describe('inbox default preset', () => {
     expect(ast.ccf).toEqual({ l: { id: NIL_UUID } });
   });
 
-  it('narrows rows client-side with the inbox/my-work or-predicates', () => {
+  it('narrows rows client-side with the inbox/my-work/my-messages or-predicates', () => {
     expect(getViewPreset('inbox', 'default')?.clientFilters).toEqual({
-      or: ['inbox', 'my-work'],
+      or: ['inbox', 'my-work', 'my-messages'],
     });
   });
 });

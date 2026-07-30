@@ -185,3 +185,21 @@ export const myWorkFilter = config({
     },
   }),
 });
+
+/**
+ * Channels (including DMs) whose latest root message the user sent — the
+ * "conversations I just messaged" slice of the inbox Default tab. Sending a
+ * message produces no notification for the sender, so the notification-driven
+ * `inbox` predicate alone would drop the conversation from the feed the
+ * moment its other notifications are done.
+ */
+export const myMessagesFilter = config({
+  id: 'my-messages',
+  predicate: (e, ctx) =>
+    e.type === 'channel' &&
+    ctx.userId !== undefined &&
+    e.latestRootMessage?.senderId === ctx.userId,
+  query: {
+    include: { channelIsParticipant: [true] },
+  },
+});
