@@ -86,7 +86,10 @@ export const SoupViewNav = () => {
   };
 
   return (
-    <nav class="shrink-0 px-2 py-1.5">
+    // Arc-style pill grid: the column count adapts to the panel width
+    // (auto-fit), so pills stay compact instead of stretching into sparse
+    // full-width rows.
+    <nav class="shrink-0 grid grid-cols-[repeat(auto-fit,minmax(6.75rem,1fr))] gap-1.5 px-2 py-1.5">
       <For each={links()}>
         {(link) => {
           const isActive = () => viewerContentId() === link.id;
@@ -94,18 +97,17 @@ export const SoupViewNav = () => {
             <button
               type="button"
               class={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1 text-[13px] text-ink-muted',
+                'flex min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[13px]',
+                'bg-surface ring ring-edge-muted text-ink-muted',
                 'hover:bg-hover/50 hover:text-ink',
-                isActive() && 'bg-ink/6 text-ink'
+                isActive() && 'bg-ink/6 text-ink ring-ink/15'
               )}
               onClick={(event) => openView(link, event)}
             >
               <span class="shrink-0 [&_svg]:size-4">
                 <Dynamic component={link.icon} />
               </span>
-              <span class="min-w-0 flex-1 truncate text-left">
-                {link.label}
-              </span>
+              <span class="min-w-0 truncate">{link.label}</span>
             </button>
           );
         }}
