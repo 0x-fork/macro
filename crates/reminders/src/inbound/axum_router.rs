@@ -124,14 +124,24 @@ pub struct CreateReminderRequest {
 
 /// Request body for modifying a reminder. Omitted fields are left unchanged;
 /// the entity association is not modifiable.
+///
+/// Every field is optional but **not** nullable. `Option` here means "absent",
+/// and serde cannot tell an explicit `null` from an omitted key — so a body of
+/// `{"enabled": null}` would deserialize to an empty patch and be rejected as
+/// having no fields to update. `nullable = false` keeps the schema from
+/// advertising a value the API has no meaning for; the deserializer still
+/// tolerates `null` rather than erroring on it.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateReminderRequest {
     /// Replacement description.
+    #[schema(nullable = false)]
     pub description: Option<String>,
     /// Replacement schedule.
+    #[schema(nullable = false)]
     pub schedule: Option<ReminderSchedule>,
     /// Whether the reminder should fire at all.
+    #[schema(nullable = false)]
     pub enabled: Option<bool>,
 }
 
@@ -220,7 +230,7 @@ async fn mint_entity_receipt<Eas: EntityAccessService>(
             AccessError::Unauthorized | AccessError::UnauthorizedWithMessage(_) => {
                 ReminderError::EntityAccessDenied
             }
-            AccessError::NotFound(_) => ReminderError::NotFound,
+            AccessError::NotFound(_) => ReminderError::EntityNotFound,
             AccessError::BadRequest(msg) => ReminderError::BadRequest(msg.to_string()),
             other => ReminderError::Internal(anyhow::Error::new(other)),
         })
@@ -461,7 +471,7 @@ where
 impl IntoResponse for ReminderError {
     fn into_response(self) -> axum::response::Response {
         let status_code = match &self {
-            ReminderError::NotFound => StatusCode::NOT_FOUND,
+            ReminderError::NotFound | ReminderError::EntityNotFound => StatusCode::NOT_FOUND,
             ReminderError::BadRequest(_) => StatusCode::BAD_REQUEST,
             ReminderError::EntityAccessDenied => StatusCode::FORBIDDEN,
             ReminderError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,

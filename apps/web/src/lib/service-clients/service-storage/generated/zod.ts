@@ -24128,7 +24128,7 @@ export const listRemindersResponse = zod
                     cron: zod
                       .string()
                       .describe(
-                        'Cron expression in `sec min hour dom mon dow [year]` form.'
+                        'Cron expression, either the conventional 5-field\n`min hour dom mon dow` or the 6-\/7-field\n`sec min hour dom mon dow [year]`. A 5-field expression is stored\nnormalized to 6 fields with a zero seconds field, so `0 9 \* \* \*` and\n`0 0 9 \* \* \*` are the same schedule and both read back as the latter.'
                       ),
                     timezone: zod
                       .string()
@@ -24204,7 +24204,7 @@ export const createReminderBody = zod
             cron: zod
               .string()
               .describe(
-                'Cron expression in `sec min hour dom mon dow [year]` form.'
+                'Cron expression, either the conventional 5-field\n`min hour dom mon dow` or the 6-\/7-field\n`sec min hour dom mon dow [year]`. A 5-field expression is stored\nnormalized to 6 fields with a zero seconds field, so `0 9 \* \* \*` and\n`0 0 9 \* \* \*` are the same schedule and both read back as the latter.'
               ),
             timezone: zod
               .string()
@@ -24285,7 +24285,7 @@ export const getReminderResponse = zod
             cron: zod
               .string()
               .describe(
-                'Cron expression in `sec min hour dom mon dow [year]` form.'
+                'Cron expression, either the conventional 5-field\n`min hour dom mon dow` or the 6-\/7-field\n`sec min hour dom mon dow [year]`. A 5-field expression is stored\nnormalized to 6 fields with a zero seconds field, so `0 9 \* \* \*` and\n`0 0 9 \* \* \*` are the same schedule and both read back as the latter.'
               ),
             timezone: zod
               .string()
@@ -24321,48 +24321,40 @@ export const updateReminderParams = zod.object({
 
 export const updateReminderBody = zod
   .object({
-    description: zod.string().nullish().describe('Replacement description.'),
+    description: zod.string().optional().describe('Replacement description.'),
     enabled: zod
       .boolean()
-      .nullish()
+      .optional()
       .describe('Whether the reminder should fire at all.'),
     schedule: zod
       .union([
-        zod.null(),
         zod
-          .union([
-            zod
-              .object({
-                remindAt: zod.iso
-                  .datetime({})
-                  .describe('The instant to fire at.'),
-                type: zod.enum(['once']),
-              })
-              .describe('Fires once, at a fixed instant.'),
-            zod
-              .object({
-                cron: zod
-                  .string()
-                  .describe(
-                    'Cron expression in `sec min hour dom mon dow [year]` form.'
-                  ),
-                timezone: zod
-                  .string()
-                  .describe(
-                    'The timezone the cron expression is evaluated in.'
-                  ),
-                type: zod.enum(['recurring']),
-              })
+          .object({
+            remindAt: zod.iso.datetime({}).describe('The instant to fire at.'),
+            type: zod.enum(['once']),
+          })
+          .describe('Fires once, at a fixed instant.'),
+        zod
+          .object({
+            cron: zod
+              .string()
               .describe(
-                'Fires repeatedly, on a cron schedule evaluated in `timezone`.'
+                'Cron expression, either the conventional 5-field\n`min hour dom mon dow` or the 6-\/7-field\n`sec min hour dom mon dow [year]`. A 5-field expression is stored\nnormalized to 6 fields with a zero seconds field, so `0 9 \* \* \*` and\n`0 0 9 \* \* \*` are the same schedule and both read back as the latter.'
               ),
-          ])
-          .describe('When a reminder fires.'),
+            timezone: zod
+              .string()
+              .describe('The timezone the cron expression is evaluated in.'),
+            type: zod.enum(['recurring']),
+          })
+          .describe(
+            'Fires repeatedly, on a cron schedule evaluated in `timezone`.'
+          ),
       ])
-      .optional(),
+      .optional()
+      .describe('When a reminder fires.'),
   })
   .describe(
-    'Request body for modifying a reminder. Omitted fields are left unchanged;\nthe entity association is not modifiable.'
+    'Request body for modifying a reminder. Omitted fields are left unchanged;\nthe entity association is not modifiable.\n\nEvery field is optional but \*\*not\*\* nullable. `Option` here means \"absent\",\nand serde cannot tell an explicit `null` from an omitted key — so a body of\n`{\"enabled\": null}` would deserialize to an empty patch and be rejected as\nhaving no fields to update. `nullable = false` keeps the schema from\nadvertising a value the API has no meaning for; the deserializer still\ntolerates `null` rather than erroring on it.'
   );
 
 export const updateReminderResponse = zod
@@ -24424,7 +24416,7 @@ export const updateReminderResponse = zod
             cron: zod
               .string()
               .describe(
-                'Cron expression in `sec min hour dom mon dow [year]` form.'
+                'Cron expression, either the conventional 5-field\n`min hour dom mon dow` or the 6-\/7-field\n`sec min hour dom mon dow [year]`. A 5-field expression is stored\nnormalized to 6 fields with a zero seconds field, so `0 9 \* \* \*` and\n`0 0 9 \* \* \*` are the same schedule and both read back as the latter.'
               ),
             timezone: zod
               .string()

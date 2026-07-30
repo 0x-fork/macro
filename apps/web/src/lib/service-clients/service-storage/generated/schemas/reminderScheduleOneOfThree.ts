@@ -10,7 +10,11 @@ import type { ReminderScheduleOneOfThreeType } from './reminderScheduleOneOfThre
  * Fires repeatedly, on a cron schedule evaluated in `timezone`.
  */
 export type ReminderScheduleOneOfThree = {
-  /** Cron expression in `sec min hour dom mon dow [year]` form. */
+  /** Cron expression, either the conventional 5-field
+`min hour dom mon dow` or the 6-/7-field
+`sec min hour dom mon dow [year]`. A 5-field expression is stored
+normalized to 6 fields with a zero seconds field, so `0 9 * * *` and
+`0 0 9 * * *` are the same schedule and both read back as the latter. */
   cron: string;
   /** The timezone the cron expression is evaluated in. */
   timezone: string;

@@ -68,9 +68,21 @@ impl MacroAuthorizationService for FakeAuthorizationService {
 #[derive(Clone, Default)]
 struct FakeEntityAccessService {
     receipts_minted: Arc<Mutex<Vec<(String, EntityType)>>>,
+    /// Error returned for anything other than [`ACCESSIBLE_DOC`]. `None` means
+    /// [`AccessError::Unauthorized`], which is the common case.
+    denial: Option<fn() -> AccessError>,
 }
 
 impl FakeEntityAccessService {
+    /// Denies with a specific [`AccessError`], so the router's mapping of each
+    /// variant can be exercised.
+    fn denying_with(denial: fn() -> AccessError) -> Self {
+        Self {
+            receipts_minted: Arc::default(),
+            denial: Some(denial),
+        }
+    }
+
     fn minted(&self) -> Vec<(String, EntityType)> {
         self.receipts_minted
             .lock()
@@ -93,7 +105,7 @@ impl EntityAccessService for FakeEntityAccessService {
             .push((entity_id.to_string(), entity_type));
 
         if entity_id != ACCESSIBLE_DOC {
-            return Err(AccessError::Unauthorized);
+            return Err(self.denial.map_or(AccessError::Unauthorized, |make| make()));
         }
 
         EntityAccessReceipt::try_new_authenticated_user(
@@ -796,6 +808,11 @@ async fn domain_errors_map_to_their_status_codes() {
     let table: Vec<(fn() -> ReminderError, StatusCode, bool)> = vec![
         (|| ReminderError::NotFound, StatusCode::NOT_FOUND, true),
         (
+            || ReminderError::EntityNotFound,
+            StatusCode::NOT_FOUND,
+            true,
+        ),
+        (
             || ReminderError::BadRequest("nope".to_string()),
             StatusCode::BAD_REQUEST,
             true,
@@ -1063,4 +1080,138 @@ async fn an_invalid_cron_message_reaches_the_client() {
         .to_bytes();
     let body = String::from_utf8_lossy(&bytes);
     assert!(body.contains("expected 5 fields"), "unhelpful body: {body}");
+}
+
+/// The router declares its collection routes at `/` and DSS mounts it with
+/// `.nest("/reminders", ..)`, so the paths clients actually call are
+/// `/reminders` and `/reminders/{id}` — never the bare `/` every other test in
+/// this file exercises. Nesting a `/` route is a known routing footgun (whether
+/// the prefix alone matches, or only the prefix with a trailing slash), so pin
+/// the mounted shape here rather than inferring it from the nested router.
+fn mounted_router(service: FakeRemindersService) -> axum::Router {
+    axum::Router::new().nest(
+        "/reminders",
+        build_router(service, FakeEntityAccessService::default()),
+    )
+}
+
+#[tokio::test]
+async fn list_is_reachable_at_the_mounted_collection_path() {
+    let service = FakeRemindersService::default();
+    let response = mounted_router(service.clone())
+        .oneshot(
+            authed(axum::http::Request::get("/reminders"))
+                .body(axum::body::Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("router should respond");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        service
+            .calls()
+            .iter()
+            .any(|call| matches!(call, ServiceCall::List { .. })),
+        "GET /reminders did not reach the handler"
+    );
+}
+
+/// Axum 0.8 dropped implicit trailing-slash redirects, so the nested `/` route
+/// answers `/reminders` and *only* `/reminders`. Documented rather than fixed:
+/// every other router DSS nests behaves the same way, the OpenAPI spec and the
+/// generated clients all use the unslashed form, and adding a redirect layer
+/// for this one router would make it the odd one out.
+#[tokio::test]
+async fn the_mounted_collection_path_does_not_answer_a_trailing_slash() {
+    let response = mounted_router(FakeRemindersService::default())
+        .oneshot(
+            authed(axum::http::Request::get("/reminders/"))
+                .body(axum::body::Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("router should respond");
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn create_is_reachable_at_the_mounted_collection_path() {
+    let service = FakeRemindersService::default();
+    let response = mounted_router(service.clone())
+        .oneshot(
+            authed(axum::http::Request::post("/reminders"))
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(json_body(serde_json::json!({
+                    "description": "follow up",
+                    "schedule": once_schedule(),
+                })))
+                .expect("request should build"),
+        )
+        .await
+        .expect("router should respond");
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    assert!(
+        service
+            .calls()
+            .iter()
+            .any(|call| matches!(call, ServiceCall::Create { .. })),
+        "POST /reminders did not reach the handler"
+    );
+}
+
+#[tokio::test]
+async fn item_routes_are_reachable_at_the_mounted_path() {
+    let id = Uuid::now_v7();
+    let service = FakeRemindersService::default();
+    let response = mounted_router(service.clone())
+        .oneshot(
+            authed(axum::http::Request::get(format!("/reminders/{id}")))
+                .body(axum::body::Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("router should respond");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(
+        service.calls().contains(&ServiceCall::Get(id)),
+        "GET /reminders/{{id}} did not reach the handler"
+    );
+}
+
+/// A create naming an entity that does not exist must not answer "reminder not
+/// found" — there is no reminder yet, and that wording sends a client looking
+/// for the wrong thing. `EntityNotFound` keeps the 404 but says which object is
+/// missing.
+#[tokio::test]
+async fn creating_against_a_missing_entity_says_the_entity_is_missing() {
+    let response = build_router(
+        FakeRemindersService::default(),
+        FakeEntityAccessService::denying_with(|| AccessError::NotFound("doc")),
+    )
+    .oneshot(
+        authed(axum::http::Request::post("/"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(json_body(serde_json::json!({
+                "description": "follow up",
+                "entityType": "document",
+                "entityId": "missing-doc",
+                "schedule": once_schedule(),
+            })))
+            .expect("request should build"),
+    )
+    .await
+    .expect("router should respond");
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    let body = read_json(response).await;
+    let message = body["message"].as_str().unwrap_or_default();
+    assert_eq!(message, "entity not found");
+    assert!(
+        !message.contains("reminder"),
+        "create failure should not blame a reminder: {message}"
+    );
 }

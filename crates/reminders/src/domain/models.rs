@@ -101,7 +101,11 @@ pub enum ReminderSchedule {
     /// Fires repeatedly, on a cron schedule evaluated in `timezone`.
     #[serde(rename_all = "camelCase")]
     Recurring {
-        /// Cron expression in `sec min hour dom mon dow [year]` form.
+        /// Cron expression, either the conventional 5-field
+        /// `min hour dom mon dow` or the 6-/7-field
+        /// `sec min hour dom mon dow [year]`. A 5-field expression is stored
+        /// normalized to 6 fields with a zero seconds field, so `0 9 * * *` and
+        /// `0 0 9 * * *` are the same schedule and both read back as the latter.
         #[cfg_attr(feature = "inbound", schema(value_type = String))]
         cron: ReminderCron,
         /// The timezone the cron expression is evaluated in.
@@ -388,6 +392,11 @@ pub enum ReminderError {
     /// No such reminder belongs to the caller.
     #[error("reminder not found")]
     NotFound,
+    /// The entity the reminder would be attached to does not exist. Distinct
+    /// from [`ReminderError::NotFound`] so a failed create does not tell the
+    /// caller "reminder not found" about a reminder they were trying to make.
+    #[error("entity not found")]
+    EntityNotFound,
     /// The request was invalid.
     #[error("{0}")]
     BadRequest(String),
