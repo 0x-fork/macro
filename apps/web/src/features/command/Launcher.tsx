@@ -1,11 +1,8 @@
-import { isListViewID } from '@app/constants/list-views';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { globalSplitManager } from '@app/signal/splitLayout';
 import { setAutomationComposerOpen } from '@block-automation/component';
 import { EMAIL_COMPOSE_TO_INPUT_ID } from '@block-email/constants';
 import { openNewChannelModal } from '@channel/CreateChannelModal';
 import { useSplitLayout } from '@components/app/split-layout/layout';
-import type { SplitHandle } from '@components/app/split-layout/layoutManager';
 import type { BlockAlias, BlockName } from '@core/block';
 import { CHAT_INPUT_TEXT_AREA_ID } from '@core/component/AI/component/input/ChatInput';
 import { getIconConfig } from '@core/component/EntityIcon';
@@ -68,39 +65,8 @@ import {
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { type FocusableElement, tabbable } from 'tabbable';
+import { createTargetSplit } from './target-split';
 import type { CreatableBlock } from './types';
-
-/**
- * Where a create action should land when a list panel is on screen: the
- * active Preview Pair's Viewer, so the list keeps its state and the new
- * entity opens beside it. On a bare list view (preview toggled off) the
- * preview pane is engaged first so a right panel exists to land in.
- * Returns undefined when no list panel is involved — default replace/new
- * split routing applies.
- */
-const createTargetSplit = (): SplitHandle | undefined => {
-  const manager = globalSplitManager();
-  const active = manager?.activeSplit();
-  if (!manager || !active) return undefined;
-
-  const viewerId = manager.viewerOf(active.id);
-  if (viewerId) return manager.getSplit(viewerId);
-  // Creating from a focused Viewer replaces the Viewer itself.
-  if (manager.controllerOf(active.id) !== undefined) return active;
-
-  const content = active.content();
-  if (
-    content.type === 'component' &&
-    isListViewID(content.id) &&
-    active.canEngagePreview()
-  ) {
-    active.engagePreview();
-    const engagedViewerId = manager.viewerOf(active.id);
-    if (engagedViewerId) return manager.getSplit(engagedViewerId);
-  }
-
-  return undefined;
-};
 
 const createBlock = async (spec: {
   blockName: BlockName | BlockAlias;

@@ -50,6 +50,7 @@ import { CommandItem } from './CommandItem';
 import { getCategorySearchFilters } from './category-search-filters';
 import { trackCommandUsage } from './recency';
 import { CommandState } from './state';
+import { createTargetSplit } from './target-split';
 import type { CategoryFilter } from './types';
 import {
   type CommandMenuItem,
@@ -278,11 +279,20 @@ export function CommandMenuInner(props: {
 
     // Handle entity items (documents, channels, chats, etc.)
     if (isEntityItem(item)) {
+      // Land beside an on-screen list panel (in its preview Viewer) so the
+      // panel — the app's nav — stays put; new-split intent keeps the
+      // default routing.
+      const targetSplit = openInNewSplit ? undefined : createTargetSplit();
+
       if (isGithubPrEntity(item.data)) {
         if (USE_MACRO_PR_SUMMARY_BLOCK) {
           openWithSplit(
             { type: 'pr', id: item.data.id },
-            { referredFrom: 'kommand-menu', preferNewSplit: openInNewSplit }
+            {
+              referredFrom: 'kommand-menu',
+              preferNewSplit: openInNewSplit,
+              handle: targetSplit,
+            }
           );
         } else {
           openExternalUrl(item.data.metadata.url);
@@ -301,6 +311,7 @@ export function CommandMenuInner(props: {
               referredFrom: 'kommand-menu',
               preferNewSplit: openInNewSplit,
               reopen: blockName === 'channel' ? 'latest' : undefined,
+              handle: targetSplit,
             }
           );
         }

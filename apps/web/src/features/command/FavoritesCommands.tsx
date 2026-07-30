@@ -8,6 +8,7 @@ import { useFavoritesData } from '@queries/favorites/favorites';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
 import { createEffect, onCleanup } from 'solid-js';
 import { CommandState } from './state';
+import { createTargetSplit } from './target-split';
 
 /** Command scope for the favorites sub-view of the command menu. */
 export const FAVORITES_COMMAND_SCOPE = 'command-scope-favorites';
@@ -35,6 +36,9 @@ export function FavoritesCommands() {
   const openFavorite = (favorite: Favorite) => {
     openWithSplit(favoriteSplitContent(favorite), {
       referredFrom: 'kommand-menu',
+      // Land beside an on-screen list panel (in its preview Viewer) so the
+      // panel — the app's nav — stays put.
+      handle: createTargetSplit(),
     });
     // Close the menu and clear the query once a favorite is opened.
     CommandState.close();
