@@ -947,3 +947,219 @@ async fn the_active_list_index_covers_the_default_query(pool: PgPool) {
     .expect("index lookup should succeed");
     assert!(indexed, "the active-list partial index is missing");
 }
+
+// ---------------------------------------------------------------------------
+// Dispatch
+// ---------------------------------------------------------------------------
+
+/// A stale threshold far enough in the past that a claim made "now" is fresh,
+/// so a second claim in the same test is refused rather than taken over.
+fn no_retry() -> DateTime<Utc> {
+    at(2000, 1, 1, 0)
+}
+
+async fn create_due(pool: &PgPool, user_id: &str, remind_at: DateTime<Utc>) -> Reminder {
+    let repo = PgRemindersRepo::new(pool.clone());
+    let new = NewReminder {
+        description: "Follow up".to_string(),
+        entity: None,
+        schedule: once_at(remind_at),
+        next_run_at: remind_at,
+    };
+    repo.create_reminder(&user(user_id), &new)
+        .await
+        .expect("reminder should insert")
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn due_reminders_returns_only_firings_that_have_arrived(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let now = at(2026, 8, 1, 12);
+    let past = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let _future = create_due(&pool, USER_A, at(2026, 8, 1, 13)).await;
+    let repo = PgRemindersRepo::new(pool);
+
+    let due = repo.due_reminders(now, 10).await.expect("query succeeds");
+
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].reminder.id, past.id);
+    assert_eq!(due[0].owner_id.as_ref(), USER_A);
+    // The firing being delivered is the reminder's next_run_at, which is what
+    // keys the occurrence row.
+    assert_eq!(due[0].scheduled_for, past.next_run_at);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn due_reminders_spans_users(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    insert_user(&pool, USER_B).await;
+    let now = at(2026, 8, 1, 12);
+    create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    create_due(&pool, USER_B, at(2026, 8, 1, 10)).await;
+    let repo = PgRemindersRepo::new(pool);
+
+    let due = repo.due_reminders(now, 10).await.expect("query succeeds");
+
+    // Dispatch is the one read that is not scoped to a single caller.
+    let owners: Vec<&str> = due.iter().map(|d| d.owner_id.as_ref()).collect();
+    assert_eq!(owners, vec![USER_B, USER_A], "soonest firing first");
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn due_reminders_skips_disabled_and_completed(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let now = at(2026, 8, 1, 12);
+    let disabled = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let completed = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+
+    repo.update_reminder(
+        &user(USER_A),
+        disabled.id,
+        &ReminderUpdate {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("disable succeeds");
+    repo.complete_occurrence(completed.id, completed.next_run_at)
+        .await
+        .expect("complete succeeds");
+
+    let due = repo.due_reminders(now, 10).await.expect("query succeeds");
+
+    assert!(due.is_empty());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_firing_can_only_be_claimed_once(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let reminder = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let repo = PgRemindersRepo::new(pool);
+
+    let first = repo
+        .claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+        .await
+        .expect("first claim succeeds");
+    let second = repo
+        .claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+        .await
+        .expect("second claim succeeds");
+
+    assert!(first, "the first dispatcher takes the firing");
+    assert!(!second, "a peer must not take a firing already in flight");
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_stale_undelivered_claim_can_be_taken_over(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let reminder = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let repo = PgRemindersRepo::new(pool);
+
+    assert!(
+        repo.claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+            .await
+            .expect("first claim succeeds")
+    );
+
+    // A dispatcher that claimed and then died leaves sent_at NULL. Once the
+    // claim ages past the retry window another sweep must be able to take it.
+    let retaken = repo
+        .claim_occurrence(
+            reminder.id,
+            reminder.next_run_at,
+            Utc::now() + Duration::minutes(1),
+        )
+        .await
+        .expect("retry claim succeeds");
+
+    assert!(retaken);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_delivered_firing_is_never_reclaimed(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let reminder = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let repo = PgRemindersRepo::new(pool);
+
+    repo.claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+        .await
+        .expect("claim succeeds");
+    repo.complete_occurrence(reminder.id, reminder.next_run_at)
+        .await
+        .expect("complete succeeds");
+
+    // Even with a retry window wide enough to reclaim anything unsent, a sent
+    // firing must stay sent — this is what stops a duplicate notification.
+    let reclaimed = repo
+        .claim_occurrence(
+            reminder.id,
+            reminder.next_run_at,
+            Utc::now() + Duration::minutes(1),
+        )
+        .await
+        .expect("claim succeeds");
+
+    assert!(!reclaimed);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn completing_a_firing_marks_it_sent_and_completes_the_reminder(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let reminder = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+
+    repo.claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+        .await
+        .expect("claim succeeds");
+    repo.complete_occurrence(reminder.id, reminder.next_run_at)
+        .await
+        .expect("complete succeeds");
+
+    let sent_at: Option<DateTime<Utc>> = sqlx::query_scalar(
+        r#"SELECT sent_at FROM reminder_occurrence WHERE reminder_id = $1 AND scheduled_for = $2"#,
+    )
+    .bind(reminder.id)
+    .bind(reminder.next_run_at)
+    .fetch_one(&pool)
+    .await
+    .expect("occurrence exists");
+    assert!(sent_at.is_some());
+
+    let stored = repo
+        .get_reminder(&user(USER_A), reminder.id)
+        .await
+        .expect("read succeeds")
+        .expect("reminder still exists");
+    assert!(stored.completed_at.is_some());
+
+    // And it must drop out of the due set, or the next sweep sends it again.
+    let due = repo
+        .due_reminders(at(2026, 8, 1, 12), 10)
+        .await
+        .expect("query succeeds");
+    assert!(due.is_empty());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn deleting_a_reminder_removes_its_occurrences(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    let reminder = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+
+    repo.claim_occurrence(reminder.id, reminder.next_run_at, no_retry())
+        .await
+        .expect("claim succeeds");
+    repo.delete_reminder(&user(USER_A), reminder.id)
+        .await
+        .expect("delete succeeds");
+
+    let remaining: i64 =
+        sqlx::query_scalar(r#"SELECT count(*) FROM reminder_occurrence WHERE reminder_id = $1"#)
+            .bind(reminder.id)
+            .fetch_one(&pool)
+            .await
+            .expect("count succeeds");
+    assert_eq!(remaining, 0, "occurrences cascade with the reminder");
+}

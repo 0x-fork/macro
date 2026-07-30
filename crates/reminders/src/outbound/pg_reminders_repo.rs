@@ -7,16 +7,17 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
+use macro_user_id::cowlike::CowLike;
 use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::EntityType;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::domain::models::{
-    InvalidCron, NewReminder, Reminder, ReminderBatch, ReminderCron, ReminderCursor,
+    DueReminder, InvalidCron, NewReminder, Reminder, ReminderBatch, ReminderCron, ReminderCursor,
     ReminderFilter, ReminderSchedule, ReminderUpdate,
 };
-use crate::domain::ports::RemindersRepo;
+use crate::domain::ports::{ReminderDispatchRepo, RemindersRepo};
 
 /// Postgres-backed reminders repository.
 #[derive(Debug, Clone)]
@@ -55,6 +56,14 @@ pub enum RemindersRepoErr {
     /// should make impossible.
     #[error("reminder {0} has no schedule")]
     MissingSchedule(Uuid),
+    /// A stored owner is not a parseable macro user id.
+    #[error("invalid user id {value:?} stored for reminder {reminder_id}")]
+    InvalidUserId {
+        /// The reminder carrying the bad value.
+        reminder_id: Uuid,
+        /// The value that could not be parsed.
+        value: String,
+    },
 }
 
 /// A `reminder` row, before the schedule columns are folded into a
@@ -119,6 +128,65 @@ impl ReminderRow {
             completed_at: self.completed_at,
             created_at: self.created_at,
             updated_at: self.updated_at,
+        })
+    }
+}
+
+/// A `reminder` row read by the dispatcher, which unlike every other read is
+/// not scoped to one user and so has to carry the owner.
+struct DueReminderRow {
+    id: Uuid,
+    user_id: String,
+    description: String,
+    entity_type: Option<String>,
+    entity_id: Option<String>,
+    remind_at: Option<DateTime<Utc>>,
+    cron: Option<String>,
+    timezone: Option<String>,
+    next_run_at: DateTime<Utc>,
+    enabled: bool,
+    completed_at: Option<DateTime<Utc>>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+}
+
+impl DueReminderRow {
+    fn into_due(self) -> Result<DueReminder, RemindersRepoErr> {
+        let reminder_id = self.id;
+        let owner_id = match MacroUserIdStr::parse_from_str(&self.user_id) {
+            Ok(owner_id) => owner_id.into_owned(),
+            Err(_) => {
+                return Err(RemindersRepoErr::InvalidUserId {
+                    reminder_id,
+                    value: self.user_id,
+                });
+            }
+        };
+
+        // The firing being delivered is the reminder's current `next_run_at`,
+        // which is also what keys the occurrence row.
+        let scheduled_for = self.next_run_at;
+
+        let reminder = ReminderRow {
+            id: self.id,
+            description: self.description,
+            entity_type: self.entity_type,
+            entity_id: self.entity_id,
+            remind_at: self.remind_at,
+            cron: self.cron,
+            timezone: self.timezone,
+            next_run_at: self.next_run_at,
+            enabled: self.enabled,
+            completed_at: self.completed_at,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        }
+        .into_reminder()?;
+
+        Ok(DueReminder {
+            reminder,
+            owner_id,
+            scheduled_for,
         })
     }
 }
@@ -397,5 +465,124 @@ impl RemindersRepo for PgRemindersRepo {
         .await?;
 
         Ok(result.rows_affected() > 0)
+    }
+}
+
+impl ReminderDispatchRepo for PgRemindersRepo {
+    type Err = RemindersRepoErr;
+
+    #[tracing::instrument(err, skip(self))]
+    async fn due_reminders(
+        &self,
+        now: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<DueReminder>, Self::Err> {
+        // Matches `reminder_due_idx` exactly: (next_run_at) WHERE enabled AND
+        // completed_at IS NULL.
+        let rows = sqlx::query_as!(
+            DueReminderRow,
+            r#"
+            SELECT
+                id,
+                user_id,
+                description,
+                entity_type,
+                entity_id,
+                remind_at,
+                cron,
+                timezone,
+                next_run_at,
+                enabled,
+                completed_at,
+                created_at,
+                updated_at
+            FROM reminder
+            WHERE enabled
+              AND completed_at IS NULL
+              AND next_run_at <= $1
+            ORDER BY next_run_at
+            LIMIT $2
+            "#,
+            now,
+            limit,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(DueReminderRow::into_due).collect()
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn claim_occurrence(
+        &self,
+        reminder_id: Uuid,
+        scheduled_for: DateTime<Utc>,
+        retry_before: DateTime<Utc>,
+    ) -> Result<bool, Self::Err> {
+        let id = macro_uuid::generate_uuid_v7();
+
+        // One statement covers both a first claim and a retry. The unique index
+        // on (reminder_id, scheduled_for) makes the insert the claim; the
+        // conflict branch takes over a claim that was made before
+        // `retry_before` and never delivered, so a dispatcher that died
+        // mid-flight does not strand the firing. A claim that is either already
+        // sent or still fresh matches neither and returns no row.
+        let claimed = sqlx::query_scalar!(
+            r#"
+            INSERT INTO reminder_occurrence (id, reminder_id, scheduled_for)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (reminder_id, scheduled_for) DO UPDATE
+               SET created_at = now()
+             WHERE reminder_occurrence.sent_at IS NULL
+               AND reminder_occurrence.created_at < $4
+            RETURNING id
+            "#,
+            id,
+            reminder_id,
+            scheduled_for,
+            retry_before,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(claimed.is_some())
+    }
+
+    #[tracing::instrument(err, skip(self))]
+    async fn complete_occurrence(
+        &self,
+        reminder_id: Uuid,
+        scheduled_for: DateTime<Utc>,
+    ) -> Result<(), Self::Err> {
+        // Both halves in one transaction: a delivered firing whose reminder is
+        // still uncompleted would be sent again on the next sweep.
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query!(
+            r#"
+            UPDATE reminder_occurrence
+            SET sent_at = now()
+            WHERE reminder_id = $1 AND scheduled_for = $2
+            "#,
+            reminder_id,
+            scheduled_for,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            UPDATE reminder
+            SET completed_at = now(), updated_at = now()
+            WHERE id = $1
+            "#,
+            reminder_id,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(())
     }
 }

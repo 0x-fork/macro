@@ -8,6 +8,7 @@ use std::str::FromStr;
 use chrono::{DateTime, Utc};
 use chrono_tz::Tz;
 use cron::Schedule as CronSchedule;
+use macro_user_id::user_id::MacroUserIdStr;
 use model_entity::{Entity, EntityType};
 use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
@@ -384,6 +385,38 @@ pub struct ReminderUpdate {
     pub schedule: Option<ScheduleUpdate>,
     /// Replacement enabled flag.
     pub enabled: Option<bool>,
+}
+
+/// A reminder that is due to fire, with everything the dispatcher needs to
+/// notify its owner.
+///
+/// Carries `owner_id` because dispatch is the one path that crosses users:
+/// [`RemindersRepo`](crate::domain::ports::RemindersRepo) is scoped to a single
+/// caller, while the dispatcher sweeps every user's reminders at once.
+#[derive(Debug, Clone)]
+pub struct DueReminder {
+    /// The reminder itself.
+    pub reminder: Reminder,
+    /// The user the reminder belongs to, and the only recipient of its
+    /// notification.
+    pub owner_id: MacroUserIdStr<'static>,
+    /// The firing being delivered. Also the occurrence's `scheduled_for`, which
+    /// is what makes a firing claimable exactly once.
+    pub scheduled_for: DateTime<Utc>,
+}
+
+/// What one dispatch sweep did, for logging and metrics.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DispatchSummary {
+    /// Firings this dispatcher claimed.
+    pub claimed: usize,
+    /// Firings notified and completed.
+    pub delivered: usize,
+    /// Due reminders skipped because they recur; recurring dispatch is not
+    /// implemented yet.
+    pub skipped_recurring: usize,
+    /// Firings claimed but not delivered. These stay due and are retried.
+    pub failed: usize,
 }
 
 /// Errors returned by the reminders service.

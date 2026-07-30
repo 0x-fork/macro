@@ -1,5 +1,7 @@
 //! Reminders service implementation.
 
+pub mod dispatch;
+
 #[cfg(test)]
 mod test;
 

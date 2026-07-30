@@ -6,8 +6,8 @@ use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
 use crate::domain::models::{
-    CreateReminder, NewReminder, Reminder, ReminderBatch, ReminderError, ReminderFilter,
-    ReminderPage, ReminderPatch, ReminderUpdate,
+    CreateReminder, DispatchSummary, DueReminder, NewReminder, Reminder, ReminderBatch,
+    ReminderError, ReminderFilter, ReminderPage, ReminderPatch, ReminderUpdate,
 };
 
 /// Source of the current time.
@@ -79,6 +79,71 @@ pub trait RemindersRepo: Send + Sync + 'static {
         user_id: &MacroUserIdStr<'_>,
         id: Uuid,
     ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
+}
+
+/// Outbound persistence port for firing reminders.
+///
+/// Deliberately separate from [`RemindersRepo`], whose every method is scoped
+/// to one user. Dispatch is the only path that reads across users, and folding
+/// it in would quietly retire that invariant.
+pub trait ReminderDispatchRepo: Send + Sync + 'static {
+    /// The error type returned by repository operations.
+    type Err: Send + std::fmt::Debug;
+
+    /// Reminders whose next firing is due at or before `now`, soonest first.
+    ///
+    /// Enabled and not yet completed; the recurring/one-shot distinction is
+    /// left to the caller so the exclusion stays visible in the domain.
+    fn due_reminders(
+        &self,
+        now: DateTime<Utc>,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<DueReminder>, Self::Err>> + Send;
+
+    /// Claim one firing for delivery, returning whether this caller now owns it.
+    ///
+    /// `false` means the firing already delivered, or another dispatcher holds
+    /// it. A claim taken before `retry_before` and never delivered is
+    /// reclaimable, so a dispatcher that dies mid-flight does not strand the
+    /// reminder forever.
+    fn claim_occurrence(
+        &self,
+        reminder_id: Uuid,
+        scheduled_for: DateTime<Utc>,
+        retry_before: DateTime<Utc>,
+    ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
+
+    /// Record the firing as delivered and complete the reminder, atomically.
+    ///
+    /// Both halves together: a delivered firing must never leave its reminder
+    /// still due, or the next sweep sends it again.
+    fn complete_occurrence(
+        &self,
+        reminder_id: Uuid,
+        scheduled_for: DateTime<Utc>,
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+}
+
+/// Outbound port for telling a reminder's owner that it fired.
+///
+/// Takes domain types and returns nothing, so the domain never sees how the
+/// notification is built or delivered.
+pub trait ReminderNotifier: Send + Sync + 'static {
+    /// The error type returned by delivery attempts.
+    type Err: Send + std::fmt::Debug;
+
+    /// Notify the reminder's owner. Failure leaves the firing undelivered and
+    /// retryable.
+    fn notify(&self, due: &DueReminder) -> impl Future<Output = Result<(), Self::Err>> + Send;
+}
+
+/// Inbound service port: the dispatch sweep, driven by a scheduled trigger.
+pub trait ReminderDispatch: Send + Sync + 'static {
+    /// Deliver every reminder that is currently due, up to `limit`.
+    fn dispatch_due(
+        &self,
+        limit: i64,
+    ) -> impl Future<Output = Result<DispatchSummary, ReminderError>> + Send;
 }
 
 /// Inbound service port: the reminders API used by drivers (HTTP).
