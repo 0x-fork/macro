@@ -44,8 +44,8 @@ connection_gateway_client = { path = "../connection_gateway_client" }
 # mock_runtime test bin
 clap = { workspace = true, features = ["derive"] }
 dotenvy = { workspace = true }
+macro_entrypoint = { path = "../macro_entrypoint" }
 tokio-tungstenite = { workspace = true }
-tracing-subscriber = { workspace = true }
 
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 

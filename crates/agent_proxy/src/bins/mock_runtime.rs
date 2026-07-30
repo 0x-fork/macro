@@ -147,13 +147,7 @@ async fn main() -> Result<()> {
     // regardless of the working directory; already-set vars and the
     // crate-local file take precedence over an ancestor .env.
     let _ = dotenvy::from_path(concat!(env!("CARGO_MANIFEST_DIR"), "/.env"));
-    let _ = dotenvy::dotenv();
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    macro_entrypoint::MacroEntrypoint::default().init();
 
     let args = Args::parse();
     let agent_id = args.agent_id.to_string();
