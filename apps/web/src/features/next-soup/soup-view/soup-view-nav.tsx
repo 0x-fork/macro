@@ -9,7 +9,6 @@ import {
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   buildSidebarLinks,
-  navigateToSidebarView,
   type SidebarItem,
 } from '@components/app/app-sidebar/sidebar';
 import { useSplitLayout } from '@components/app/split-layout/layout';
@@ -98,10 +97,12 @@ const FavoritePill = (props: {
 /**
  * The old app sidebar's nav, relocated into the list panel as an Arc-style
  * pill grid: view links first, then the user's favorites, with the column
- * count adapting to the panel width. Clicking a pill opens the view or
- * entity in the panel's preview Viewer (the right-hand panel), engaging the
- * pair first when needed; when no Viewer can form (narrow layouts) it falls
- * back to navigating like the old sidebar did.
+ * count adapting to the panel width. A view pill filters the list in place —
+ * the panel switches to that view (Email → the mail inbox, etc.), keeping a
+ * Preview Pair engaged. A favorite pill opens its entity in the panel's
+ * preview Viewer (the right-hand panel), engaging the pair first when
+ * needed; when no Viewer can form (narrow layouts) it falls back to
+ * navigating like the old sidebar did.
  *
  * Rendered inside the soup list's scroll container so it scrolls away with
  * the rows (see SoupList's `leading`).
@@ -118,6 +119,11 @@ export const SoupViewNav = () => {
       all.find((link) => link.id === id && !link.hiddenFromSidebar)
     ).filter((link): link is SidebarItem => link !== undefined);
   });
+
+  const currentViewId = () => {
+    const content = panel.handle.content();
+    return content.type === 'component' ? content.id : undefined;
+  };
 
   const viewerContent = () => {
     const manager = globalSplitManager();
@@ -158,18 +164,20 @@ export const SoupViewNav = () => {
     viewer.replace({ next: content, referredFrom: 'sidebar' });
   };
 
-  const openView = (link: SidebarItem, event: MouseEvent) => {
+  // A view pill filters the list in place, mirroring the master dropdown's
+  // Views section.
+  const openView = (link: SidebarItem) => {
+    if (link.id === currentViewId()) return;
     analytics.track('sidebar_click', { view: link.id, source: 'panel-nav' });
-    openInViewer({ type: 'component', id: link.id, params: link.params }, () =>
-      navigateToSidebarView({
-        viewId: link.id,
-        params: link.params,
-        shiftKey: event.shiftKey,
-        activeSplit: panel.handle,
-        openWithSplit: layout.openWithSplit,
-        referredFrom: 'sidebar',
-      })
-    );
+    const wasController = panel.handle.isControllerSplit();
+    panel.handle.replace({
+      next: { type: 'component', id: link.id, params: link.params },
+      referredFrom: 'sidebar',
+    });
+    // A direct replace keeps the Preview Pair when the next content is still
+    // a list view — clear the previous view's entity out of the Viewer.
+    if (wasController) panel.handle.resetPreview();
+    globalSplitManager()?.returnFocus();
   };
 
   const openFavorite = (favorite: Favorite, event: MouseEvent) => {
@@ -191,8 +199,8 @@ export const SoupViewNav = () => {
       <For each={links()}>
         {(link) => (
           <NavPill
-            active={isContentActive({ type: 'component', id: link.id })}
-            onClick={(event) => openView(link, event)}
+            active={currentViewId() === link.id}
+            onClick={() => openView(link)}
             icon={<Dynamic component={link.icon} />}
             label={link.label}
           />
