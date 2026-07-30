@@ -205,7 +205,7 @@ Macro has raised $30m led by a16z. We are based in NYC.
 <a href="https://github.com/macro-inc/macro">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/readme/star-history-dark.svg" />
-    <img alt="Star history for macro-inc/macro, from launch to 672 stars" src=".github/readme/star-history-light.svg" width="100%" />
+    <img alt="Star history for macro-inc/macro, from launch to 687 stars" src=".github/readme/star-history-light.svg" width="100%" />
   </picture>
 </a>
 

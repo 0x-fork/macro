@@ -2,7 +2,7 @@
 from datetime import date
 
 # Star counts reverse-engineered from the star-history.com chart,
-# anchored to the known value of 672 on 2026-07-28.
+# anchored to the known value of 687 on 2026-07-28.
 SERIES = [
     (date(2025, 11, 18), 0),
     (date(2025, 12, 1), 3),
@@ -29,7 +29,7 @@ SERIES = [
     (date(2026, 7, 1), 330),
     (date(2026, 7, 10), 415),
     (date(2026, 7, 17), 520),
-    (date(2026, 7, 28), 672),
+    (date(2026, 7, 28), 687),
 ]
 
 W, H = 1000, 1000
@@ -37,6 +37,7 @@ L, R, T, B = 84, 56, 152, 74           # plot padding
 PX0, PX1 = L, W - R
 PY0, PY1 = T, H - B
 YMAX = 700
+LATEST = SERIES[-1][1]
 ORANGE = "#f26a1b"
 
 THEMES = {
@@ -100,7 +101,7 @@ def build(name, c):
     a = o.append
 
     a(f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" '
-      f'viewBox="0 0 {W} {H}" role="img" aria-label="Macro GitHub star history: 672 stars">')
+      f'viewBox="0 0 {W} {H}" role="img" aria-label="Macro GitHub star history: {LATEST} stars">')
     a('<defs>')
     a(f'<linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'
       f'<stop offset="0%" stop-color="{ORANGE}" stop-opacity="{c["fill_op"][0]}"/>'
@@ -114,7 +115,7 @@ def build(name, c):
     a(f'<text x="{L}" y="56" font-family="{FONT}" font-size="26" font-weight="600" '
       f'fill="{c["fg"]}">Star history</text>')
     a(f'<text x="{L}" y="84" font-family="{FONT}" font-size="14" '
-      f'fill="{c["muted"]}">macro-inc/macro &#183; 672 stars and counting</text>')
+      f'fill="{c["muted"]}">macro-inc/macro &#183; {LATEST} stars and counting</text>')
 
     # star button, top right
     bw, bh = 178, 40
@@ -152,7 +153,7 @@ def build(name, c):
     a(f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="7" fill="{ORANGE}" stroke="{c["dot_ring"]}" '
       f'stroke-width="3"/>')
     a(f'<text x="{lx - 14:.1f}" y="{ly - 18:.1f}" text-anchor="end" font-family="{FONT}" '
-      f'font-size="22" font-weight="700" fill="{c["fg"]}">672</text>')
+      f'font-size="22" font-weight="700" fill="{c["fg"]}">{LATEST}</text>')
 
     a('</svg>')
     path = f".github/readme/star-history-{name}.svg"
