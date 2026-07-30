@@ -63,6 +63,36 @@ export type ReactiveSoupAstItemsQuery = {
   refresh: () => Promise<void>;
 };
 
+const SOUP_PAGE_CACHE_CAPACITY = 8;
+
+/**
+ * Last emitted page per serialized soup input, shared by every soup view in
+ * the session. A view the user switches back to renders its previous rows in
+ * the same frame as the navigation while the live subscription revalidates
+ * (stale-while-revalidate above the async normalized cache, whose reads are
+ * a worker round-trip away). In-memory only: it dies with the page, and soup
+ * inputs are per-viewer, so it never outlives the session's identity.
+ */
+const soupPageCache = new Map<string, SoupQuery>();
+const [soupPageCacheVersion, setSoupPageCacheVersion] = createSignal(0);
+
+function cacheSoupPage(key: string, data: SoupQuery): void {
+  soupPageCache.delete(key);
+  soupPageCache.set(key, data);
+  while (soupPageCache.size > SOUP_PAGE_CACHE_CAPACITY) {
+    const oldest = soupPageCache.keys().next().value;
+    if (oldest === undefined) break;
+    soupPageCache.delete(oldest);
+  }
+  setSoupPageCacheVersion((version) => version + 1);
+}
+
+/** Reactive read: re-evaluates whenever any page is cached. */
+function cachedSoupPage(key: string | undefined): SoupQuery | undefined {
+  soupPageCacheVersion();
+  return key === undefined ? undefined : soupPageCache.get(key);
+}
+
 export function useReactiveSoupAstItemsQuery(
   args: Accessor<ReactiveSoupAstItemsQueryArgs>,
   options: Accessor<ReactiveSoupAstItemsQueryOptions>
@@ -95,6 +125,14 @@ export function useReactiveSoupAstItemsQuery(
   createComputed(on(inputKey, () => setCursors([null]), { defer: true }));
 
   const pages = mapArray(cursors, (cursor) => {
+    // Serialized input this page is currently asking for. Doubles as the
+    // page-cache key, so rendered rows always belong to the current input —
+    // a family view swap can change the input under a live page without
+    // briefly showing the previous view's rows.
+    const pageKey = createMemo(() => {
+      const input = inputForCursor(cursor);
+      return input === undefined ? undefined : JSON.stringify(input);
+    });
     const query = createQuerySignal<SoupQuery, SoupQueryVariables>({
       client: getGraphqlSoupClient,
       document: SoupDocument,
@@ -106,10 +144,18 @@ export function useReactiveSoupAstItemsQuery(
         const input = inputForCursor(cursor);
         return input === undefined ? undefined : { input };
       },
+      // Every emission (stale cache hit or fresh network page) lands in the
+      // shared page cache under the input that actually produced it.
+      onResult: (result) => {
+        if (result.data == null) return;
+        const input = result.operation.variables?.input;
+        if (input === undefined) return;
+        cacheSoupPage(JSON.stringify(input), result.data);
+      },
     });
     const page = createMemo(() => {
-      const data = query.data();
-      return data == null ? undefined : mapGraphqlSoupPage(data);
+      const data = cachedSoupPage(pageKey());
+      return data === undefined ? undefined : mapGraphqlSoupPage(data);
     });
     return { query, page };
   });

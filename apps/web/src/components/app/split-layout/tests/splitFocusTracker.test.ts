@@ -19,6 +19,7 @@ vi.mock('../componentRegistry', () => ({
     id,
     params,
   })),
+  componentFamilyOf: vi.fn(() => undefined),
 }));
 
 vi.mock('@core/constant/allBlocks', () => ({

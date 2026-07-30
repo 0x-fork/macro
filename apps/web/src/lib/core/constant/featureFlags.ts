@@ -472,6 +472,27 @@ export function ENABLE_GRAPHQL_SOUP(): boolean {
   return analytics.posthog.isFeatureEnabled(ENABLE_GRAPHQL_SOUP_FLAG) ?? false;
 }
 
+export const ENABLE_SPLIT_MOUNT_REUSE_FLAG = 'enable-split-mount-reuse';
+export const ENABLE_SPLIT_MOUNT_REUSE_OVERRIDE = getFeatureFlagOverride(
+  'ENABLE_SPLIT_MOUNT_REUSE'
+);
+
+/**
+ * Non-reactive check for the split layout manager: when on, navigating a
+ * split between components of the same registered family (e.g. the soup
+ * list views) keeps the mounted element alive and only swaps the content,
+ * instead of unmounting and rebuilding the whole view tree.
+ */
+export function ENABLE_SPLIT_MOUNT_REUSE(): boolean {
+  if (ENABLE_SPLIT_MOUNT_REUSE_OVERRIDE !== undefined) {
+    return ENABLE_SPLIT_MOUNT_REUSE_OVERRIDE;
+  }
+
+  return (
+    analytics.posthog.isFeatureEnabled(ENABLE_SPLIT_MOUNT_REUSE_FLAG) ?? false
+  );
+}
+
 export const DISABLE_AUTO_UPDATE_UI_FLAG = 'disable-auto-update-ui';
 export const ENABLE_AUTO_UPDATE_UI_OVERRIDE = getFeatureFlagOverride(
   'ENABLE_AUTO_UPDATE_UI'

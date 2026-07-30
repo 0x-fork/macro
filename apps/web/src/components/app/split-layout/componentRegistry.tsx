@@ -1,3 +1,8 @@
+import {
+  isListViewID,
+  LIST_VIEWS,
+  type ListView,
+} from '@app/constants/list-views';
 import { GettingStarted } from '@app/features/getting-started';
 import { Home } from '@app/features/home';
 import { queryStateFrom } from '@app/features/next-soup/filters/filter-store';
@@ -24,6 +29,7 @@ import {
   DEV_MODE_ENV,
   ENABLE_ACTIVITY,
   ENABLE_CRM,
+  ENABLE_SPLIT_MOUNT_REUSE,
   LOCAL_ONLY,
 } from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
@@ -31,7 +37,16 @@ import type { ViewId } from '@core/types/view';
 import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
 import { EmptyStatePanel } from '@ui';
-import { type Component, type JSXElement, lazy, onMount, Show } from 'solid-js';
+import {
+  type Component,
+  createEffect,
+  createMemo,
+  type JSXElement,
+  lazy,
+  on,
+  onMount,
+  Show,
+} from 'solid-js';
 import type { SplitContent } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
 import { previewEmptyStateForContent } from './previewController';
@@ -61,11 +76,6 @@ const withAuth = <P extends object>(Comp: Component<P>): Component<P> => {
 
 type ComponentFactory = (params?: Record<string, any>) => JSXElement;
 
-type DocumentsComponentParams = {
-  initialFilters?: Query;
-  initialClientFilters?: SetPredicatesInput<string>;
-};
-
 function mergeClientFilters(
   base?: SetPredicatesInput<string>,
   refinement?: SetPredicatesInput<string>
@@ -90,9 +100,20 @@ export type ComponentMetaMap = {
   'unified-list': UnifiedListMeta;
 };
 
+/**
+ * Mount families: components that share a family render through one factory
+ * that reads the split's current content reactively. Navigating a split
+ * between two members keeps the mounted element alive (no unmount/remount) —
+ * see `reattach` in layoutManager. Family factories must therefore derive
+ * everything view-specific from `panel.handle.content()`, never from the
+ * one-shot `params` argument.
+ */
+type ComponentFamily = 'soup-list';
+
 type ComponentRegistration = {
   factory: ComponentFactory;
   initialMeta?: ComponentMeta;
+  family?: ComponentFamily;
 };
 
 const REGISTRY = new Map<string, ComponentRegistration>();
@@ -100,10 +121,25 @@ const REGISTRY = new Map<string, ComponentRegistration>();
 function registerComponent<T extends Omit<ComponentMeta, 'kind'>>(
   name: string,
   factory: ComponentFactory,
-  initialMeta?: T
+  initialMeta?: T,
+  options?: { family?: ComponentFamily }
 ) {
   const metaWithKind = initialMeta ? { kind: name, ...initialMeta } : undefined;
-  REGISTRY.set(name, { factory, initialMeta: metaWithKind as ComponentMeta });
+  REGISTRY.set(name, {
+    factory,
+    initialMeta: metaWithKind as ComponentMeta,
+    family: options?.family,
+  });
+}
+
+/**
+ * The mount family a component belongs to, if any. Gated on the rollout flag
+ * at call time (navigation), so turning the flag off restores the historical
+ * unmount/remount behavior without touching registrations.
+ */
+export function componentFamilyOf(name: string): ComponentFamily | undefined {
+  if (!ENABLE_SPLIT_MOUNT_REUSE()) return undefined;
+  return REGISTRY.get(name)?.family;
 }
 
 type ResolvedComponent = {
@@ -138,6 +174,142 @@ registerComponent('unified-list', () => (
   <RedirectSplit to={{ type: 'component', id: 'inbox' }} />
 ));
 
+const LIST_VIEW_NAMES: Record<ListView, string> = {
+  inbox: 'Inbox',
+  agents: 'Agents',
+  mail: 'Email',
+  documents: 'Files',
+  tasks: 'Tasks',
+  channels: 'Channels',
+  calls: 'Calls',
+  companies: 'Customers',
+  folders: 'Folders',
+  search: 'Search',
+};
+
+type SoupListRouteParams = {
+  initialFilters?: Query;
+  initialClientFilters?: SetPredicatesInput<string>;
+  initialQuery?: string;
+};
+
+/**
+ * Shared route for every soup list view (`soup-list` mount family). One
+ * mounted instance serves all of them: the active view id, its preset, and
+ * any navigation params are derived reactively from the split's current
+ * content, so a family navigation (e.g. channels → tasks) re-parameterizes
+ * this component instead of unmounting it. `SoupView` re-initializes itself
+ * whenever the content id changes.
+ */
+const SoupListRoute = withAuth(() => {
+  const panel = useSplitPanelOrThrow();
+  const analytics = useAnalytics();
+  const user = useUserContext();
+
+  const view = createMemo<ListView | undefined>(() => {
+    const content = panel.handle.content();
+    if (content.type !== 'component') return undefined;
+    return isListViewID(content.id) ? content.id : undefined;
+  });
+
+  const automationEntities = useAutomationEntities(() => view() === 'agents');
+
+  // One-shot navigation params (documents/search refinements). Stripped by
+  // the layout manager on history re-attach, exactly like remounted routes.
+  const routeParams = createMemo<SoupListRouteParams>(() => {
+    const content = panel.handle.content();
+    if (content.type !== 'component') return {};
+    return (content.params ?? {}) as SoupListRouteParams;
+  });
+
+  createEffect(
+    on(view, (id) => {
+      if (!id) return;
+      analytics.pageView(id);
+      analytics.track('open_view', { viewId: id });
+    })
+  );
+
+  const preset = createMemo(() => {
+    const id = view();
+    if (!id) return undefined;
+    return getViewPreset(id, undefined, {
+      userId: user.userId(),
+      isTeamAdmin: false,
+    });
+  });
+
+  const initialFilters = createMemo<Query | undefined>(() => {
+    const id = view();
+    const presetFilters = preset()?.filters;
+    const paramFilters = routeParams().initialFilters;
+    if (id === 'documents') {
+      // Sidebar sub-entries (e.g. Markdown docs) refine the base preset.
+      return presetFilters && paramFilters
+        ? mergeQuery(queryStateFrom(presetFilters), paramFilters)
+        : (paramFilters ?? presetFilters);
+    }
+    if (id === 'search') return paramFilters ?? presetFilters;
+    return presetFilters;
+  });
+
+  const initialClientFilters = createMemo<
+    SetPredicatesInput<string> | undefined
+  >(() => {
+    const id = view();
+    const presetPredicates = preset()?.clientFilters;
+    const paramPredicates = routeParams().initialClientFilters;
+    if (id === 'documents') {
+      return mergeClientFilters(presetPredicates, paramPredicates);
+    }
+    if (id === 'search') return paramPredicates ?? presetPredicates;
+    return presetPredicates;
+  });
+
+  const viewName = createMemo(() => {
+    const id = view();
+    return id === undefined ? '' : LIST_VIEW_NAMES[id];
+  });
+
+  // Share links land on Customers as `?crmView=<encoded config>` — the param
+  // carries the full view state (never data), decoded client-side.
+  const initialCrmView = createMemo<CrmViewConfig | undefined>(() => {
+    if (view() !== 'companies') return undefined;
+    const crmViewParam = new URLSearchParams(window.location.search).get(
+      CRM_VIEW_URL_PARAM
+    );
+    return crmViewParam ? decodeCrmViewParam(crmViewParam) : undefined;
+  });
+
+  return (
+    <Show
+      // Registered even when the CRM feature is off so direct navigation /
+      // restored splits redirect instead of throwing in resolveComponent.
+      when={!(view() === 'companies' && !ENABLE_CRM())}
+      fallback={<RedirectSplit to={{ type: 'component', id: 'inbox' }} />}
+    >
+      <SoupView
+        viewName={viewName()}
+        initialFilters={initialFilters()}
+        initialClientFilters={initialClientFilters()}
+        initialSearchText={
+          view() === 'search' ? routeParams().initialQuery : undefined
+        }
+        initialGroupBy={preset()?.groupBy}
+        disableLocalSearch={view() === 'inbox'}
+        additionalEntities={
+          view() === 'agents' ? automationEntities : undefined
+        }
+        initialCrmView={initialCrmView()}
+      />
+    </Show>
+  );
+});
+
+for (const id of LIST_VIEWS) {
+  registerComponent(id, SoupListRoute, undefined, { family: 'soup-list' });
+}
+
 /** BEGIN - APP ROUTES */
 registerComponent(
   'home',
@@ -152,23 +324,6 @@ registerComponent(
   withAuth(() => {
     usePageViewTracking('getting-started');
     return <GettingStarted />;
-  })
-);
-
-registerComponent(
-  'inbox',
-  withAuth(() => {
-    usePageViewTracking('inbox');
-    const preset = getViewPreset('inbox');
-    return (
-      <SoupView
-        viewName="Inbox"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-        disableLocalSearch
-      />
-    );
   })
 );
 
@@ -200,197 +355,6 @@ registerComponent('my-activity', () => (
   <RedirectSplit to={{ type: 'component', id: 'activity' }} />
 ));
 
-registerComponent(
-  'agents',
-  withAuth(() => {
-    usePageViewTracking('agents');
-    const user = useUserContext();
-    const preset = getViewPreset('agents', undefined, {
-      userId: user.userId(),
-      isTeamAdmin: false,
-    });
-    const automationEntities = useAutomationEntities();
-    return (
-      <SoupView
-        viewName="Agents"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-        additionalEntities={automationEntities}
-      />
-    );
-  })
-);
-
-registerComponent(
-  'mail',
-  withAuth(() => {
-    usePageViewTracking('mail');
-    const preset = getViewPreset('mail');
-    return (
-      <SoupView
-        viewName="Email"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
-
-registerComponent(
-  'documents',
-  withAuth((params: DocumentsComponentParams = {}) => {
-    usePageViewTracking('documents');
-    const user = useUserContext();
-    const preset = getViewPreset('documents', undefined, {
-      userId: user.userId(),
-      isTeamAdmin: false,
-    });
-    const initialFilters =
-      preset?.filters && params.initialFilters
-        ? mergeQuery(queryStateFrom(preset.filters), params.initialFilters)
-        : (params.initialFilters ?? preset?.filters);
-    const initialClientFilters = mergeClientFilters(
-      preset?.clientFilters,
-      params.initialClientFilters
-    );
-    return (
-      <SoupView
-        viewName="Files"
-        initialFilters={initialFilters}
-        initialClientFilters={initialClientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
-
-registerComponent(
-  'tasks',
-  withAuth(() => {
-    usePageViewTracking('tasks');
-    const user = useUserContext();
-    const preset = getViewPreset('tasks', undefined, {
-      userId: user.userId(),
-      isTeamAdmin: false,
-    });
-    return (
-      <SoupView
-        viewName="Tasks"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
-
-registerComponent(
-  'channels',
-  withAuth(() => {
-    usePageViewTracking('channels');
-    const preset = getViewPreset('channels');
-    return (
-      <SoupView
-        viewName="Channels"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
-
-registerComponent(
-  'calls',
-  withAuth(() => {
-    usePageViewTracking('calls');
-    const preset = getViewPreset('calls');
-    return (
-      <SoupView
-        viewName="Calls"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
-
-registerComponent(
-  'companies',
-  withAuth(() => {
-    // Registered even when the CRM feature is off so direct navigation /
-    // restored splits redirect instead of throwing in resolveComponent.
-    if (!ENABLE_CRM()) {
-      return <RedirectSplit to={{ type: 'component', id: 'inbox' }} />;
-    }
-    usePageViewTracking('companies');
-    const preset = getViewPreset('companies');
-    // Share links land here as `/companies?crmView=<encoded config>` — the
-    // param carries the full view state (never data), decoded client-side.
-    const crmViewParam = new URLSearchParams(window.location.search).get(
-      CRM_VIEW_URL_PARAM
-    );
-    const initialCrmView: CrmViewConfig | undefined = crmViewParam
-      ? decodeCrmViewParam(crmViewParam)
-      : undefined;
-    return (
-      <SoupView
-        viewName="Customers"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-        initialCrmView={initialCrmView}
-      />
-    );
-  })
-);
-
-registerComponent(
-  'folders',
-  withAuth(() => {
-    usePageViewTracking('folders');
-    const user = useUserContext();
-    const preset = getViewPreset('folders', undefined, {
-      userId: user.userId(),
-      isTeamAdmin: false,
-    });
-    return (
-      <SoupView
-        viewName="Folders"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
-
-type SearchComponentParams = {
-  initialQuery?: string;
-  initialFilters?: Query;
-  initialClientFilters?: SetPredicatesInput<string>;
-};
-
-registerComponent(
-  'search',
-  withAuth((params: SearchComponentParams = {}) => {
-    usePageViewTracking('search');
-    const preset = getViewPreset('search');
-    return (
-      <SoupView
-        viewName="Search"
-        initialFilters={params.initialFilters ?? preset?.filters}
-        initialClientFilters={
-          params.initialClientFilters ?? preset?.clientFilters
-        }
-        initialSearchText={params.initialQuery}
-      />
-    );
-  })
-);
 /** END - APP ROUTES */
 
 registerComponent('loading', () => <LoadingBlock />);

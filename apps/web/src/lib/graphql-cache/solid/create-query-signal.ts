@@ -17,6 +17,7 @@ import type {
   AnyVariables,
   Client,
   CombinedError,
+  OperationResult,
   RequestPolicy,
 } from '@urql/core';
 import {
@@ -48,6 +49,13 @@ export type CreateQuerySignalOptions<TData, TVariables extends AnyVariables> = {
    */
   variables: Accessor<TVariables | undefined>;
   requestPolicy?: RequestPolicy;
+  /**
+   * Observes every emitted result (stale cache hits included). The result
+   * carries its own operation, so consumers can attribute data to the exact
+   * variables that produced it — `data`/`error` signals only reflect the
+   * latest subscription.
+   */
+  onResult?: (result: OperationResult<TData, TVariables>) => void;
 };
 
 export function createQuerySignal<TData, TVariables extends AnyVariables>(
@@ -74,6 +82,7 @@ export function createQuerySignal<TData, TVariables extends AnyVariables>(
           requestPolicy: options.requestPolicy,
         }),
         subscribe((result) => {
+          options.onResult?.(result);
           batch(() => {
             // GraphQL responses may contain `data: null` at runtime when a
             // non-null field error propagates to the operation root, even

@@ -1,6 +1,6 @@
 import type { AutomationEntity } from '@entity';
 import type { ScheduledAction } from '@service-scheduled-action/generated/schemas';
-import { createMemo } from 'solid-js';
+import { type Accessor, createMemo } from 'solid-js';
 import { useSchedulesQuery } from './schedules';
 
 // Must match `MAX_ACTION_TIME` on the backend
@@ -35,10 +35,12 @@ function scheduleToEntity(
 /**
  * Reactive list of automation entities derived from the scheduled-action
  * query. Safe to call from any component tree that's under a QueryClient —
- * returns `[]` until the query resolves.
+ * returns `[]` until the query resolves. Pass `enabled` when the caller only
+ * sometimes shows automations (e.g. the shared soup-list route), so the
+ * schedules fetch doesn't run for views that never render them.
  */
-export function useAutomationEntities() {
-  const schedulesQuery = useSchedulesQuery(() => true);
+export function useAutomationEntities(enabled: Accessor<boolean> = () => true) {
+  const schedulesQuery = useSchedulesQuery(enabled);
   return createMemo<AutomationEntity[]>(() => {
     const data = schedulesQuery.data;
     if (!data) return [];

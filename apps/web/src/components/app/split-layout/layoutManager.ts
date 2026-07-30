@@ -26,6 +26,7 @@ import { createStore, produce, reconcile, type Store } from 'solid-js/store';
 import {
   type ComponentMeta,
   type ComponentMetaMap,
+  componentFamilyOf,
   resolveComponent,
 } from './componentRegistry';
 import { createHistory, type History } from './history';
@@ -590,6 +591,20 @@ function sameIdentity(a: SplitContent, b: SplitContent): boolean {
   return a.id === b.id;
 }
 
+/**
+ * Whether an existing component mount can serve the next content without
+ * remounting: both sides are components of the same registered mount family
+ * (e.g. every soup list view). Family factories read the split's current
+ * content reactively, so swapping content re-parameterizes the live element
+ * instead of tearing the view tree down. Gated on `ENABLE_SPLIT_MOUNT_REUSE`
+ * inside `componentFamilyOf`.
+ */
+function canReuseMount(mount: SplitMount, next: SplitContent): boolean {
+  if (mount.kind !== 'component' || next.type !== 'component') return false;
+  const family = componentFamilyOf(mount.name);
+  return family !== undefined && family === componentFamilyOf(next.id);
+}
+
 function sameNonComponentIdentity(a: SplitContent, b: SplitContent): boolean {
   if (a.type === 'component' || b.type === 'component') return false;
   // check on the resolved block so you cannot open `/md/{ID}/task{ID}`
@@ -835,7 +850,11 @@ export function createSplitLayout(
       });
     }
 
-    const newMount = createPinnedMount(orchestrator, content);
+    // Same mount family: the live element re-parameterizes itself from the
+    // new content, so keep it mounted instead of rebuilding the view tree.
+    const newMount = canReuseMount(split.mount, content)
+      ? { ...split.mount, name: content.id }
+      : createPinnedMount(orchestrator, content);
 
     setState('splits', (s) => {
       const i = s.findIndex((x) => x.id === split.id);

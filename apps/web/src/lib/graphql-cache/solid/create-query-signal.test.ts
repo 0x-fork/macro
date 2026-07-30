@@ -137,4 +137,26 @@ describe('createQuerySignal', () => {
     executions[0]?.next({ data: { page: 'late' } });
     expect(query.data()).toEqual({ page: 1 });
   });
+
+  it('reports every emission through onResult, stale hits included', () => {
+    const { client, executions } = makeFakeClient();
+    const seen: FakeResult[] = [];
+    dispose = createRoot((dispose) => {
+      createQuerySignal({
+        client: () => client,
+        document: DOCUMENT,
+        variables: () => ({ cursor: null }),
+        onResult: (result) => seen.push(result),
+      });
+      return dispose;
+    });
+
+    executions[0]?.next({ data: { from: 'cache' }, stale: true });
+    executions[0]?.next({ data: { from: 'network' }, stale: false });
+
+    expect(seen).toEqual([
+      { data: { from: 'cache' }, stale: true },
+      { data: { from: 'network' }, stale: false },
+    ]);
+  });
 });

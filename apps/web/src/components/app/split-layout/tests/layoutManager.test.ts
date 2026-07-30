@@ -15,6 +15,10 @@ vi.mock('../componentRegistry', () => ({
     id,
     params,
   })),
+  // Components named `soup-*` share a mount family in these tests.
+  componentFamilyOf: vi.fn((name: string) =>
+    name.startsWith('soup-') ? 'soup-list' : undefined
+  ),
 }));
 
 vi.mock('@core/constant/allBlocks', () => ({
@@ -155,6 +159,80 @@ describe('layoutManager', () => {
           },
         });
         expect(split.history()[0].state).toEqual(split.currentEntryState());
+
+        dispose();
+      });
+    });
+  });
+
+  describe('mount families', () => {
+    it('keeps the mount when navigating between same-family components', async () => {
+      const { resolveComponent } = await import('../componentRegistry');
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'soup-channels' },
+        ]);
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        vi.mocked(resolveComponent).mockClear();
+
+        split.replace({ next: { type: 'component', id: 'soup-tasks' } });
+
+        // No new pinned mount: the live family element re-parameterizes.
+        expect(resolveComponent).not.toHaveBeenCalled();
+        expect(split.content()).toMatchObject({
+          type: 'component',
+          id: 'soup-tasks',
+        });
+        // The navigation is still a full content change for observers.
+        expect(manager.events()).toMatchObject({
+          type: SplitEvent.ContentChange,
+          newContent: { type: 'component', id: 'soup-tasks' },
+          previousContent: { type: 'component', id: 'soup-channels' },
+        });
+
+        dispose();
+      });
+    });
+
+    it('remounts when navigating to a component outside the family', async () => {
+      const { resolveComponent } = await import('../componentRegistry');
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'soup-channels' },
+        ]);
+        const split = manager.getSplit(manager.splits()[0].id)!;
+        vi.mocked(resolveComponent).mockClear();
+
+        split.replace({ next: { type: 'component', id: 'settings' } });
+
+        expect(resolveComponent).toHaveBeenCalledTimes(1);
+        expect(split.content()).toMatchObject({
+          type: 'component',
+          id: 'settings',
+        });
+
+        dispose();
+      });
+    });
+
+    it('restores family mounts through split history navigation', async () => {
+      const { resolveComponent } = await import('../componentRegistry');
+      createRoot((dispose) => {
+        const manager = createSplitLayout(createMockOrchestrator(), [
+          { type: 'component', id: 'soup-channels' },
+        ]);
+        const split = manager.getSplit(manager.splits()[0].id)!;
+
+        split.replace({ next: { type: 'component', id: 'soup-tasks' } });
+        vi.mocked(resolveComponent).mockClear();
+
+        split.goBack();
+        expect(split.content()).toMatchObject({ id: 'soup-channels' });
+        split.goForward();
+        expect(split.content()).toMatchObject({ id: 'soup-tasks' });
+
+        // Back/forward between family members also reuses the mount.
+        expect(resolveComponent).not.toHaveBeenCalled();
 
         dispose();
       });

@@ -116,7 +116,6 @@ import {
   Match,
   on,
   onCleanup,
-  onMount,
   Show,
   Suspense,
   Switch,
@@ -273,50 +272,33 @@ export const SoupView = (props: SoupViewProps) => {
     onPreviewRestored: openFocusedEntityInPreview,
   });
 
-  const entryState = panel.handle.currentEntryState();
-  const contentId = panel.handle.content().id;
+  const contentId = createMemo(() => panel.handle.content().id);
 
-  const persistedFilters = entryState?.['search.filters'] as Query | undefined;
+  // Per-view sticky preferences. Keyed on the content id because soup-list
+  // family mounts survive navigation between views, so a single component
+  // instance serves several preference scopes over its lifetime.
+  const viewPrefs = createMemo(() => {
+    const id = contentId();
+    const [sortPref, setSortPref] = usePreference<string[]>(
+      `macro:pref:soup:${id}:sort`,
+      { default: [] }
+    );
+    const [previewOpen, setPreviewOpen] = usePreference<boolean>(
+      `macro:pref:soup:${id}:preview-open`,
+      { default: true }
+    );
+    return { sortPref, setSortPref, previewOpen, setPreviewOpen };
+  });
 
-  const persistedPredicates = entryState?.['search.predicates'] as
-    | SetPredicatesInput<string>
-    | undefined;
-
-  const persistedSearchText = entryState?.['search.text'] as string | undefined;
-
-  const persistedGroupBy = entryState?.['soup.groupBy'] as
-    | string
-    | null
-    | undefined;
-
-  const persistedActiveTab = entryState?.['soup.tab'] as string | undefined;
-
-  const persistedCollapsedGroups = entryState?.['soup.collapsedGroups'] as
-    | string[]
-    | undefined;
-
-  const [sortPref, setSortPref] = usePreference<string[]>(
-    `macro:pref:soup:${contentId}:sort`,
-    { default: [] }
-  );
-  const [previewOpenPreference, setPreviewOpenPreference] =
-    usePreference<boolean>(`macro:pref:soup:${contentId}:preview-open`, {
-      default: true,
-    });
-
-  // Shared CRM view opened via a `?crmView=` link — only honored on the
-  // Customers view; its pieces win over persisted/preset values in init.
-  const initialCrmView =
-    contentId === 'companies' ? props.initialCrmView : undefined;
+  // Whether the initial preview-engagement decision has been made for the
+  // currently rendered view. Reset on every family view swap by the keyed
+  // init effect below.
+  let initialPreviewResolved = false;
 
   // A default saved view only applies to a fresh Customers entry: restored
   // (back/forward) entries keep what the user was looking at, and share
-  // links carry their own state.
-  const applyDefaultCrmView =
-    contentId === 'companies' &&
-    initialCrmView === undefined &&
-    persistedFilters === undefined &&
-    persistedPredicates === undefined;
+  // links carry their own state. Decided per view by the keyed init effect.
+  const [applyDefaultCrmView, setApplyDefaultCrmView] = createSignal(false);
 
   // We handle the restore of the persistence here instead of within the context
   // because the context is no longer recreated for each soup view because we
@@ -326,78 +308,114 @@ export const SoupView = (props: SoupViewProps) => {
   // context or are used within the context to produce the output (like the
   // client filters, local search state, and additionalEntities)
   //
-  // We use `createRenderEffect` to initialize before the elements mount
-  let init = false;
-  createRenderEffect(() => {
-    if (init) return;
-    init = true;
-    batch(() => {
-      soupView.initialize({
-        initialQuery: initialCrmView
-          ? (initialCrmView.filters as Query | undefined)
-          : (persistedFilters ?? props.initialFilters),
-        initialClientFilters: initialCrmView
-          ? (initialCrmView.clientFilters ?? {})
-          : (persistedPredicates ?? props.initialClientFilters),
-        initialSearchText: initialCrmView
-          ? (initialCrmView.searchText ?? '')
-          : (persistedSearchText ?? props.initialSearchText),
-        preferInitialFilters: initialCrmView !== undefined,
-        disableLocalSearch: props.disableLocalSearch,
-        additionalEntities: props.additionalEntities,
+  // We use `createRenderEffect` to initialize before the elements mount, and
+  // key it on the content id: the same mounted instance re-initializes when a
+  // soup-list family navigation swaps which view it renders.
+  createRenderEffect(
+    on(contentId, (id) => {
+      initialPreviewResolved = false;
+      batch(() => {
+        const entryState = panel.handle.currentEntryState();
+
+        const persistedFilters = entryState?.['search.filters'] as
+          | Query
+          | undefined;
+        const persistedPredicates = entryState?.['search.predicates'] as
+          | SetPredicatesInput<string>
+          | undefined;
+        const persistedSearchText = entryState?.['search.text'] as
+          | string
+          | undefined;
+        const persistedGroupBy = entryState?.['soup.groupBy'] as
+          | string
+          | null
+          | undefined;
+        const persistedActiveTab = entryState?.['soup.tab'] as
+          | string
+          | undefined;
+        const persistedCollapsedGroups = entryState?.['soup.collapsedGroups'] as
+          | string[]
+          | undefined;
+
+        // Shared CRM view opened via a `?crmView=` link — only honored on the
+        // Customers view; its pieces win over persisted/preset values in init.
+        const initialCrmView =
+          id === 'companies' ? props.initialCrmView : undefined;
+
+        setApplyDefaultCrmView(
+          id === 'companies' &&
+            initialCrmView === undefined &&
+            persistedFilters === undefined &&
+            persistedPredicates === undefined
+        );
+
+        soupView.initialize({
+          initialQuery: initialCrmView
+            ? (initialCrmView.filters as Query | undefined)
+            : (persistedFilters ?? props.initialFilters),
+          initialClientFilters: initialCrmView
+            ? (initialCrmView.clientFilters ?? {})
+            : (persistedPredicates ?? props.initialClientFilters),
+          initialSearchText: initialCrmView
+            ? (initialCrmView.searchText ?? '')
+            : (persistedSearchText ?? props.initialSearchText),
+          preferInitialFilters: initialCrmView !== undefined,
+          disableLocalSearch: props.disableLocalSearch,
+          additionalEntities: props.additionalEntities,
+        });
+
+        // `groupBy: null` in a shared view records an explicit "no grouping",
+        // which the grouping store expresses as `undefined`.
+        const initialGroupBy = initialCrmView
+          ? (initialCrmView.groupBy ?? undefined)
+          : (persistedGroupBy ?? props.initialGroupBy);
+
+        let initialSortIds = initialCrmView?.sort ?? viewPrefs().sortPref();
+        if (initialSortIds.length === 0) {
+          initialSortIds = ['updated_at'];
+        }
+
+        const persistedViewActiveTab = isListViewID(id)
+          ? soupView.getPersistedActiveTab(id)
+          : undefined;
+        let initialActiveTab =
+          initialCrmView?.activeTab ??
+          persistedActiveTab ??
+          persistedViewActiveTab;
+
+        if (initialActiveTab === undefined && isListViewID(id)) {
+          initialActiveTab = VIEW_TAB_PRESETS[id].default;
+        }
+
+        soup.grouping.setActiveGroupId(initialGroupBy);
+        soup.grouping.collapseAll(persistedCollapsedGroups ?? []);
+
+        soup.sort.setAll(
+          initialSortIds as Parameters<typeof soup.sort.setAll>[0]
+        );
+
+        soupView.setActiveTab(initialActiveTab);
+
+        if (initialCrmView) {
+          // Stage/owner sub-filters ride separate signals plus a client
+          // predicate that must be active iff the selection is non-empty
+          // (same rule as handleStageChange/handleOwnerChange in
+          // unified-filter-dropdown).
+          const stages = initialCrmView.stageFilter ?? [];
+          soupView.setStageFilter(stages);
+          if (stages.length > 0 !== soup.predicates.isActive('company-stage')) {
+            soup.predicates.toggle({ and: ['company-stage'] });
+          }
+          const owners = initialCrmView.ownerFilter ?? [];
+          soupView.setOwnerFilter(owners);
+          if (owners.length > 0 !== soup.predicates.isActive('company-owner')) {
+            soup.predicates.toggle({ and: ['company-owner'] });
+          }
+          soupView.setViewMode(initialCrmView.viewMode ?? 'board');
+        }
       });
-
-      // `groupBy: null` in a shared view records an explicit "no grouping",
-      // which the grouping store expresses as `undefined`.
-      const initialGroupBy = initialCrmView
-        ? (initialCrmView.groupBy ?? undefined)
-        : (persistedGroupBy ?? props.initialGroupBy);
-
-      let initialSortIds = initialCrmView?.sort ?? sortPref();
-      if (initialSortIds.length === 0) {
-        initialSortIds = ['updated_at'];
-      }
-
-      const persistedViewActiveTab = isListViewID(contentId)
-        ? soupView.getPersistedActiveTab(contentId)
-        : undefined;
-      let initialActiveTab =
-        initialCrmView?.activeTab ??
-        persistedActiveTab ??
-        persistedViewActiveTab;
-
-      if (initialActiveTab === undefined && isListViewID(contentId)) {
-        initialActiveTab = VIEW_TAB_PRESETS[contentId].default;
-      }
-
-      soup.grouping.setActiveGroupId(initialGroupBy);
-      soup.grouping.collapseAll(persistedCollapsedGroups ?? []);
-
-      soup.sort.setAll(
-        initialSortIds as Parameters<typeof soup.sort.setAll>[0]
-      );
-
-      soupView.setActiveTab(initialActiveTab);
-
-      if (initialCrmView) {
-        // Stage/owner sub-filters ride separate signals plus a client
-        // predicate that must be active iff the selection is non-empty
-        // (same rule as handleStageChange/handleOwnerChange in
-        // unified-filter-dropdown).
-        const stages = initialCrmView.stageFilter ?? [];
-        soupView.setStageFilter(stages);
-        if (stages.length > 0 !== soup.predicates.isActive('company-stage')) {
-          soup.predicates.toggle({ and: ['company-stage'] });
-        }
-        const owners = initialCrmView.ownerFilter ?? [];
-        soupView.setOwnerFilter(owners);
-        if (owners.length > 0 !== soup.predicates.isActive('company-owner')) {
-          soup.predicates.toggle({ and: ['company-owner'] });
-        }
-        soupView.setViewMode(initialCrmView.viewMode ?? 'board');
-      }
-    });
-  });
+    })
+  );
 
   // Fresh preview-default views engage as soon as the layout can form a pair,
   // without waiting for rows. useSoupPreviewAvailability owns disengagement: a
@@ -405,10 +423,12 @@ export const SoupView = (props: SoupViewProps) => {
   // re-engages once an entity arrives, so an initially empty view still lands
   // in preview mode. Resolving here keeps a manual exit from being undone by
   // later Soup updates.
-  let initialPreviewResolved = false;
   createEffect(() => {
+    // Track the view id before the resolved short-circuit so a family view
+    // swap (which resets the flag) re-runs this effect.
+    const id = contentId();
     if (initialPreviewResolved) return;
-    if (!DEFAULT_PREVIEW_VIEWS.has(contentId) || !previewOpenPreference()) {
+    if (!DEFAULT_PREVIEW_VIEWS.has(id) || !viewPrefs().previewOpen()) {
       initialPreviewResolved = true;
       return;
     }
@@ -428,33 +448,37 @@ export const SoupView = (props: SoupViewProps) => {
     if (panel.handle.isControllerSplit()) initialPreviewResolved = true;
   });
 
-  onMount(() => {
-    if (contentId !== 'documents') return;
+  createEffect(
+    on(contentId, (id) => {
+      if (id !== 'documents') return;
 
-    const markdownQuery = buildDocumentTypeQuery(['doc-markdown']);
-    if (!markdownQuery) return;
+      const markdownQuery = buildDocumentTypeQuery(['doc-markdown']);
+      if (!markdownQuery) return;
 
-    const dispose = registerDocumentsFilterSplit(panel.handle.id, {
-      toggleMarkdownFilter: () => {
-        if (soup.predicates.isActive('doc-markdown')) {
-          soupView.queryFilters.remove(markdownQuery);
+      const dispose = registerDocumentsFilterSplit(panel.handle.id, {
+        toggleMarkdownFilter: () => {
+          if (soup.predicates.isActive('doc-markdown')) {
+            soupView.queryFilters.remove(markdownQuery);
+            soup.predicates.set(({ andIds, orIds }) => ({
+              and: andIds,
+              or: orIds.filter((orId) => orId !== 'doc-markdown'),
+            }));
+            return;
+          }
+
+          soupView.queryFilters.add(markdownQuery);
           soup.predicates.set(({ andIds, orIds }) => ({
             and: andIds,
-            or: orIds.filter((id) => id !== 'doc-markdown'),
+            or: [...new Set([...orIds, 'doc-markdown'])],
           }));
-          return;
-        }
+        },
+      });
 
-        soupView.queryFilters.add(markdownQuery);
-        soup.predicates.set(({ andIds, orIds }) => ({
-          and: andIds,
-          or: [...new Set([...orIds, 'doc-markdown'])],
-        }));
-      },
-    });
-
-    onCleanup(dispose);
-  });
+      // Effects re-run their cleanups: navigating this mount away from
+      // `documents` (or disposing it) unregisters the filter split.
+      onCleanup(dispose);
+    })
+  );
 
   createEffect(() => {
     panel.handle.setDisplayName(props.viewName);
@@ -465,7 +489,7 @@ export const SoupView = (props: SoupViewProps) => {
   createEffect(
     on(
       () => soup.sort.active().map((s) => s.id),
-      (ids) => setSortPref(ids),
+      (ids) => viewPrefs().setSortPref(ids),
       { defer: true }
     )
   );
@@ -664,11 +688,11 @@ export const SoupView = (props: SoupViewProps) => {
         hasPreviewItems={hasPreviewItems()}
         onPreviewEngage={openFocusedEntityInPreview}
         onPreviewOpenChange={(open) => {
-          if (DEFAULT_PREVIEW_VIEWS.has(contentId))
-            setPreviewOpenPreference(open);
+          if (DEFAULT_PREVIEW_VIEWS.has(contentId()))
+            viewPrefs().setPreviewOpen(open);
         }}
       />
-      <Show when={applyDefaultCrmView}>
+      <Show when={applyDefaultCrmView()}>
         <CrmDefaultViewLoader />
       </Show>
       <div class="relative grow min-h-1 flex max-sm:flex-col flex-row size-full">
@@ -1087,7 +1111,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
   );
 
   const isProjectList = panel.handle.content().type === 'project';
-  const contentId = panel.handle.content().id;
+  const contentId = createMemo(() => panel.handle.content().id);
 
   const readListEntryState = () =>
     panel.handle.currentEntryState()?.[SOUP_LIST_STATE_ENTRY_KEY] as
@@ -1160,6 +1184,26 @@ const SoupViewListContent = (props: SoupViewListProps) => {
 
     if (handle) restoreListState();
   };
+
+  // A soup-list family navigation swaps which view this mounted list renders.
+  // Re-arm the initial focus/restore machinery for the new view: back/forward
+  // entries restore their captured scroll + focus, fresh entries start at the
+  // top exactly like a fresh mount would.
+  createEffect(
+    on(contentId, (_, prev) => {
+      if (prev === undefined) return;
+
+      initialLoad = true;
+      restored = false;
+      setFocusEffectsEnabled(false);
+      setMoveInitialFocus(true);
+
+      if (!isProjectList && !readListEntryState()) {
+        virtualizerHandle()?.scrollTo(0);
+      }
+      restoreListState();
+    })
+  );
 
   const featuredCount = createMemo(() => featuredIds().length);
 
@@ -1251,9 +1295,10 @@ const SoupViewListContent = (props: SoupViewListProps) => {
 
                         const tab = activeTab();
 
+                        const view = contentId();
                         if (
-                          !isListViewID(contentId) ||
-                          (tab && !canExecuteMarkDoneOnView(contentId, tab))
+                          !isListViewID(view) ||
+                          (tab && !canExecuteMarkDoneOnView(view, tab))
                         )
                           return false;
 
