@@ -32,11 +32,11 @@ import { AutomationComposer } from '@block-automation/component';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { InCallPanel } from '@channel/Call/InCallPanel';
 import { CreateChannelModal } from '@channel/CreateChannelModal';
-import {
-  AppSidebar,
-  GoToHotkeys,
-  type SidebarState,
-} from '@components/app/app-sidebar/sidebar';
+import { AppSidebar, GoToHotkeys } from '@components/app/app-sidebar/sidebar';
+import type {
+  SidebarState,
+  VisibleSidebarState,
+} from '@components/app/app-sidebar/sidebar-links';
 import { registerMailtoComposerHandler } from '@components/app/mailtoComposerHandler';
 import {
   isSidebarVisible,
@@ -101,6 +101,26 @@ const [sidebarState, setSidebarState] = makePersisted(
   }
 );
 
+/**
+ * The variant to restore when the sidebar is shown again, so a user on the
+ * narrow rail who hides the sidebar doesn't come back to the wide one.
+ */
+const [preferredSidebarState, setPreferredSidebarState] = makePersisted(
+  createSignal<VisibleSidebarState>('expanded'),
+  { name: 'sidebar-preferred-state' }
+);
+
+/** Show the sidebar again in whichever variant the user last chose. */
+const showSidebar = () => setSidebarState(preferredSidebarState());
+
+/** Switch variants (wide <-> narrow), remembering the choice. */
+const selectSidebarState = (state: SidebarState) => {
+  if (state === 'expanded' || state === 'narrow') {
+    setPreferredSidebarState(state);
+  }
+  setSidebarState(state);
+};
+
 export function Layout(props: RouteSectionProps) {
   const isAuthenticated = useIsAuthenticated();
   const location = useLocation();
@@ -118,7 +138,7 @@ export function Layout(props: RouteSectionProps) {
       <SidebarCollapseContext.Provider
         value={{
           isCollapsed: () => sidebarVisible() && sidebarState() === 'slim',
-          expand: () => setSidebarState('expanded'),
+          expand: showSidebar,
         }}
       >
         <LayoutInner {...props} />
@@ -346,12 +366,13 @@ function LayoutInner(props: RouteSectionProps) {
   const sidebarCollapsed = createMemo(
     () => isSidebarVisible() && sidebarState() === 'slim'
   );
+  // Only the wide sidebar has room for the call panel; on the rail (and when
+  // collapsed) the call UI floats over the app instead.
+  const callWidgetFloats = createMemo(
+    () => isSidebarVisible() && sidebarState() !== 'expanded'
+  );
   const activeCallWidgetVisible = createMemo(
-    () =>
-      isSidebarVisible() &&
-      sidebarState() === 'slim' &&
-      !!callCtx?.isInCall() &&
-      !callCtx?.isCallPage()
+    () => callWidgetFloats() && !!callCtx?.isInCall() && !callCtx?.isCallPage()
   );
   let sidebarOverlayCloseTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -477,13 +498,14 @@ function LayoutInner(props: RouteSectionProps) {
               sidebarState={sidebarState()}
               overlayOpen={sidebarOverlayOpen()}
               onOverlayOpenChange={setSidebarOverlayOpenGuarded}
+              onStateChange={selectSidebarState}
               onOpenChange={(open) => {
                 if (!open) {
                   setSidebarState(isMobile() ? 'hidden' : 'slim');
                   return;
                 }
 
-                setSidebarState('expanded');
+                showSidebar();
               }}
             />
           </Show>
@@ -507,11 +529,7 @@ function LayoutInner(props: RouteSectionProps) {
         </ItemDndProvider>
       </div>
       <CollapsedSidebarIncomingCallWidget
-        visible={
-          isSidebarVisible() &&
-          sidebarState() === 'slim' &&
-          incomingCallWidgetVisible()
-        }
+        visible={callWidgetFloats() && incomingCallWidgetVisible()}
         activeCallWidgetVisible={activeCallWidgetVisible()}
       />
       <CollapsedSidebarCallWidget visible={activeCallWidgetVisible()} />

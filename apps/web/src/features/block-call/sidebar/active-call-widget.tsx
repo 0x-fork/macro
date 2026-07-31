@@ -1,6 +1,6 @@
 import { joinChannelCall } from '@channel/Call/join-channel-call';
 import { openChannelCallTab } from '@channel/Call/open-channel-call-tab';
-import type { SidebarState } from '@components/app/app-sidebar/sidebar';
+import type { SidebarState } from '@components/app/app-sidebar/sidebar-links';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import { useChannelsContext } from '@core/context/channels';
 import { useUserId } from '@core/context/user';

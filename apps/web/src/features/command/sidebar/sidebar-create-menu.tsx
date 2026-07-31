@@ -8,18 +8,36 @@ import {
   ENABLE_SNIPPETS_FLAG,
   ENABLE_SNIPPETS_OVERRIDE,
 } from '@core/constant/featureFlags';
+import {
+  RAIL_BUTTON_CLASS,
+  RAIL_LABEL_CLASS,
+  RAIL_TILE_ACTIVE_CLASS,
+  RAIL_TILE_CLASS,
+} from '@components/app/app-sidebar/narrow-sidebar-styles';
 import { setActiveScope } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
 import CreateIcon from '@icon/square-pen-create.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { Button, cn, Dropdown, Hotkey, NavRow } from '@ui';
-import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js';
+import {
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
 export const SidebarCreateMenu = (props: {
   isSlim: () => boolean;
-  variant?: 'row' | 'icon';
+  /**
+   * `row` is the wide sidebar's full-width row, `icon` the round button in its
+   * header, and `rail` the narrow sidebar's big icon-over-label button.
+   */
+  variant?: 'row' | 'icon' | 'rail';
   onMenuOpenChange?: (open: boolean) => void;
 }) => {
   const analytics = useAnalytics();
@@ -85,8 +103,7 @@ export const SidebarCreateMenu = (props: {
       placement="right-start"
       gutter={8}
     >
-      <Show
-        when={props.variant === 'icon'}
+      <Switch
         fallback={
           <Dropdown.Trigger
             as={NavRow}
@@ -118,22 +135,44 @@ export const SidebarCreateMenu = (props: {
           </Dropdown.Trigger>
         }
       >
-        <Dropdown.Trigger
-          as={Button}
-          variant="base"
-          size="icon-sm"
-          depth={1}
-          class="size-[26px] rounded-full bg-surface shadow-md shadow-drop-shadow [&_svg]:size-4!"
-          label="Create"
-          hotkey={TOKENS.global.createCommand}
-          onMouseDown={(e: MouseEvent) => {
-            if (e.button !== 0) return;
-            e.preventDefault();
-          }}
-        >
-          <CreateIcon />
-        </Dropdown.Trigger>
-      </Show>
+        <Match when={props.variant === 'icon'}>
+          <Dropdown.Trigger
+            as={Button}
+            variant="base"
+            size="icon-sm"
+            depth={1}
+            class="size-[26px] rounded-full bg-surface shadow-md shadow-drop-shadow [&_svg]:size-4!"
+            label="Create"
+            hotkey={TOKENS.global.createCommand}
+            onMouseDown={(e: MouseEvent) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+            }}
+          >
+            <CreateIcon />
+          </Dropdown.Trigger>
+        </Match>
+        <Match when={props.variant === 'rail'}>
+          <Dropdown.Trigger
+            as={Button}
+            variant="ghost"
+            fullWidth
+            class={RAIL_BUTTON_CLASS}
+            label="Create"
+            hotkey={TOKENS.global.createCommand}
+            tooltipPlacement="right"
+            onMouseDown={(e: MouseEvent) => {
+              if (e.button !== 0) return;
+              e.preventDefault();
+            }}
+          >
+            <div class={cn(RAIL_TILE_CLASS, open() && RAIL_TILE_ACTIVE_CLASS)}>
+              <CreateIcon />
+            </div>
+            <span class={RAIL_LABEL_CLASS}>Create</span>
+          </Dropdown.Trigger>
+        </Match>
+      </Switch>
       <Dropdown.Content class="min-w-52 shadow-menu">
         <Dropdown.Group>
           <For each={blocks()}>

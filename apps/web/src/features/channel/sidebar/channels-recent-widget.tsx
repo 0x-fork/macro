@@ -10,7 +10,7 @@ import {
   CollapsibleSidebarSection,
   type CollapsibleSidebarSectionItem,
 } from '@components/app/app-sidebar/collapsible-sidebar-section';
-import type { SidebarState } from '@components/app/app-sidebar/sidebar';
+import type { SidebarState } from '@components/app/app-sidebar/sidebar-links';
 import {
   useGlobalBlockOrchestrator,
   useGlobalNotificationSource,

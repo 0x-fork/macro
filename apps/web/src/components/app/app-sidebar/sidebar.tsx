@@ -1,14 +1,10 @@
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
-import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { SidebarActiveCallWidget } from '@app/features/block-call/sidebar/active-call-widget';
 import { ChannelsRecentWidget } from '@app/features/channel/sidebar/channels-recent-widget';
-import { CommandState } from '@app/features/command';
 import { SidebarCreateMenu } from '@app/features/command/sidebar/sidebar-create-menu';
 import { FavoritesSection } from '@app/features/favorites/sidebar/favorites-section';
 import { useGettingStartedEnabled } from '@app/features/getting-started/account-gate';
 import { createGettingStartedSidebarVisibility } from '@app/features/getting-started/sidebar-visibility';
-import { buildDocumentTypeQuery } from '@app/features/next-soup/filters/configs/document-type-query';
-import { getDocumentsFilterSplit } from '@app/features/next-soup/soup-view/documents-filter-controllers';
 import {
   getInboxFilterSplit,
   INBOX_FILTER_ENTRY_KEY,
@@ -29,28 +25,37 @@ import {
   CollapsibleSidebarSection,
   type CollapsibleSidebarSectionItem,
 } from '@components/app/app-sidebar/collapsible-sidebar-section';
+import { NarrowSidebar } from '@components/app/app-sidebar/narrow-sidebar';
+import { SidebarDropdownLink } from '@components/app/app-sidebar/sidebar-dropdown-link';
+import {
+  buildSidebarLinks,
+  goToHotkeyVisible,
+  navigateToSidebarView,
+  resetGoToHotkeysState,
+  sectionVisibility,
+  setGoToHotkeyVisible,
+  setSectionVisibility,
+  setTryVisibility,
+  type SidebarItem,
+  type SidebarSectionLinkId,
+  type SidebarState,
+  type TryItemId,
+  tryVisibility,
+  WORKSPACE_LINK_IDS,
+} from '@components/app/app-sidebar/sidebar-links';
 import {
   SidebarPromoCard,
   SidebarPromoHint,
 } from '@components/app/app-sidebar/sidebar-promo';
+import { SidebarSettingsWidget } from '@components/app/app-sidebar/sidebar-settings-widget';
 import { useSplitLayout } from '@components/app/split-layout/layout';
-import type {
-  ReferredFrom,
-  SplitContent,
-  SplitHandle,
-} from '@components/app/split-layout/layoutManager';
+import type { SplitContent } from '@components/app/split-layout/layoutManager';
 import { useHasPaidAccess } from '@core/auth';
-import { useLogout } from '@core/auth/logout';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
 import { inboxIconProps } from '@core/component/inboxIcon';
 import { toast } from '@core/component/Toast/Toast';
 import { UserIcon } from '@core/component/UserIcon';
-import {
-  ENABLE_ACTIVITY,
-  ENABLE_CALLS,
-  ENABLE_CRM,
-  ENABLE_NEW_PRICING_OVERRIDE,
-} from '@core/constant/featureFlags';
+import { ENABLE_NEW_PRICING_OVERRIDE } from '@core/constant/featureFlags';
 import {
   type SettingsTab,
   useSettingsState,
@@ -59,36 +64,18 @@ import {
   getSettingsTabItem,
   useSettingsTabAvailable,
 } from '@core/constant/settingsTabsConfig';
-import { useEmail, useUserId } from '@core/context/user';
 import { registerHotkey } from '@core/hotkey/hotkeys';
-import { clearPressedKeys } from '@core/hotkey/state';
-import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
+import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
-import { activateClosestDOMScope } from '@core/hotkey/utils';
 import { tryMacroId, useDisplayName } from '@core/user';
 import LogoIcon from '@icon/macro-logo.svg';
-import { AnimatedActivityIcon } from '@icon/wide-activity';
-import { AnimatedCallIcon } from '@icon/wide-call';
-import { AnimatedChannelIcon } from '@icon/wide-channel';
-import { AnimatedCompanyIcon } from '@icon/wide-company';
-import { AnimatedEmailIcon } from '@icon/wide-email';
-import { AnimatedFileMdIcon } from '@icon/wide-fileMd';
-import { AnimatedInboxIcon } from '@icon/wide-inbox';
-import { AnimatedSearchIcon } from '@icon/wide-search';
-import { AnimatedStarIcon } from '@icon/wide-star';
-import { AnimatedTaskIcon } from '@icon/wide-task';
+import { AnimatedSquareSidebarIcon } from '@icon/square-sidebar';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import CaretRightIcon from '@phosphor/caret-right.svg';
-import CaretUpIcon from '@phosphor/caret-up.svg';
-import CompassIcon from '@phosphor/compass.svg';
 import DotsThreeIcon from '@phosphor/dots-three.svg';
-import GearIcon from '@phosphor/gear.svg';
-import HomeIcon from '@phosphor/house.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
-import SignOutIcon from '@phosphor/sign-out.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import XIcon from '@phosphor/x.svg';
-import { isRealNamePart, useOwnUserName } from '@queries/auth/user-name-self';
 import { useEmailLinksQuery } from '@queries/email/link';
 import {
   useJoinTeamMutation,
@@ -104,7 +91,6 @@ import { useLocation } from '@solidjs/router';
 import { Button, cn, Dropdown, Hotkey, NavRow, Tooltip } from '@ui';
 import {
   type Component,
-  type ComponentProps,
   createEffect,
   createMemo,
   createSignal,
@@ -115,142 +101,6 @@ import {
   Suspense,
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-
-interface SidebarItem {
-  id: ListView | (string & {});
-  label: string;
-  href: string;
-  params?: Record<string, unknown>;
-  icon?: Component<
-    JSX.SvgSVGAttributes<SVGSVGElement> | { triggerAnimation?: boolean }
-  >;
-  hotkey: ValidHotkey;
-  hotkeyToken: HotkeyToken;
-  standaloneHotkey?: boolean;
-  hiddenFromSidebar?: boolean;
-}
-
-type SidebarSectionLinkId =
-  | 'mail'
-  | 'channels'
-  | 'calls'
-  | 'documents'
-  | 'tasks'
-  | 'agents'
-  | 'companies';
-
-type SidebarSectionVisibility = Record<SidebarSectionLinkId, boolean>;
-
-type TryItemId = 'connect' | 'invite' | 'mobile';
-
-type TryItemVisibility = Record<TryItemId, boolean>;
-
-const WORKSPACE_LINK_IDS = [
-  'mail',
-  'channels',
-  'calls',
-  'documents',
-  'tasks',
-  'agents',
-  'companies',
-] as const;
-
-const DEFAULT_SECTION_VISIBILITY: SidebarSectionVisibility = {
-  mail: true,
-  channels: true,
-  calls: true,
-  documents: true,
-  tasks: true,
-  agents: true,
-  companies: true,
-};
-
-const DEFAULT_TRY_VISIBILITY: TryItemVisibility = {
-  connect: true,
-  invite: true,
-  mobile: true,
-};
-
-const markdownDocumentsQuery = buildDocumentTypeQuery(['doc-markdown']);
-
-const SIDEBAR_LINKS = [
-  {
-    id: 'inbox',
-    label: 'Inbox',
-    href: LIST_VIEW_PATHS.inbox,
-    icon: AnimatedInboxIcon,
-    hotkey: 'i',
-    hotkeyToken: TOKENS.sidebar.goTo.inbox,
-  },
-  {
-    id: 'search',
-    label: 'Search',
-    href: LIST_VIEW_PATHS.search,
-    icon: AnimatedSearchIcon,
-    hotkey: '/',
-    hotkeyToken: TOKENS.sidebar.goTo.search,
-    standaloneHotkey: true,
-    hiddenFromSidebar: true,
-  },
-  {
-    id: 'agents',
-    label: 'Agents',
-    href: LIST_VIEW_PATHS.agents,
-    icon: AnimatedStarIcon,
-    hotkey: 'a',
-    hotkeyToken: TOKENS.sidebar.goTo.agents,
-  },
-  {
-    id: 'mail',
-    label: 'Email',
-    href: LIST_VIEW_PATHS.mail,
-    icon: AnimatedEmailIcon,
-    hotkey: 'e',
-    hotkeyToken: TOKENS.sidebar.goTo.mail,
-  },
-  {
-    id: 'documents',
-    label: 'Files',
-    href: LIST_VIEW_PATHS.documents,
-    icon: AnimatedFileMdIcon,
-    hotkey: 'f',
-    hotkeyToken: TOKENS.sidebar.goTo.documents,
-  },
-  {
-    id: 'documents',
-    label: 'Documents',
-    href: LIST_VIEW_PATHS.documents,
-    params: {
-      initialFilters: markdownDocumentsQuery ?? {},
-      initialClientFilters: {
-        and: ['document-or-file'],
-        or: ['doc-markdown'],
-      },
-    },
-    icon: AnimatedFileMdIcon,
-    hotkey: 'd',
-    hotkeyToken: TOKENS.sidebar.goTo.markdownDocuments,
-    hiddenFromSidebar: true,
-  },
-  {
-    id: 'tasks',
-    label: 'Tasks',
-    href: LIST_VIEW_PATHS.tasks,
-    icon: AnimatedTaskIcon,
-    hotkey: 't',
-    hotkeyToken: TOKENS.sidebar.goTo.tasks,
-  },
-  {
-    id: 'channels',
-    label: 'Channels',
-    href: LIST_VIEW_PATHS.channels,
-    icon: AnimatedChannelIcon,
-    hotkey: 'c',
-    hotkeyToken: TOKENS.sidebar.goTo.channels,
-  },
-] satisfies SidebarItem[];
-
-export type SidebarState = 'hidden' | 'expanded' | 'slim';
 
 /** Root sidebar `max-width` transition (see `SIDEBAR_MAX_WIDTH_TRANSITION_STYLE`). */
 const SIDEBAR_MAX_WIDTH_TRANSITION_MS = 120;
@@ -264,6 +114,8 @@ const SIDEBAR_MAX_WIDTH_TRANSITION_STYLE = [
 type AppSidebarProps = {
   sidebarState?: SidebarState;
   onOpenChange: (open: boolean) => void;
+  /** Switch to a specific state — used by the wide/narrow variant toggles. */
+  onStateChange: (state: SidebarState) => void;
   overlayOpen?: boolean;
   onOverlayOpenChange?: (open: boolean) => void;
 };
@@ -272,61 +124,6 @@ type SidebarHotkeyDeps = {
   isSlim: () => boolean;
   onOpenChange: (open: boolean) => void;
 };
-
-type OpenWithSplitFn = ReturnType<typeof useSplitLayout>['openWithSplit'];
-
-const isMarkdownDocumentsParams = (
-  params: SidebarItem['params'] | undefined
-): boolean => {
-  const initialClientFilters = params?.initialClientFilters as
-    | { or?: readonly unknown[] }
-    | undefined;
-
-  return initialClientFilters?.or?.includes('doc-markdown') ?? false;
-};
-
-/**
- * Navigate to a sidebar view by pushing a fresh entry into the active split.
- * Holding shift opens it in a new split. Use in-app back/forward to return to
- * prior entries.
- */
-function navigateToSidebarView(args: {
-  viewId: SidebarItem['id'];
-  params?: SidebarItem['params'];
-  shiftKey: boolean;
-  activeSplit: SplitHandle | undefined;
-  openWithSplit: OpenWithSplitFn;
-  referredFrom?: ReferredFrom;
-}): SplitHandle | undefined {
-  const { viewId, params, shiftKey, activeSplit, openWithSplit, referredFrom } =
-    args;
-
-  const activeContent = activeSplit?.content();
-  if (
-    !shiftKey &&
-    isMarkdownDocumentsParams(params) &&
-    activeContent?.type === 'component' &&
-    activeContent.id === 'documents'
-  ) {
-    const controller = activeSplit
-      ? getDocumentsFilterSplit(activeSplit.id)
-      : undefined;
-    if (controller) {
-      controller.toggleMarkdownFilter();
-      return activeSplit;
-    }
-  }
-
-  return openWithSplit(
-    { type: 'component', id: viewId, params },
-    {
-      preferNewSplit: shiftKey,
-      mergeHistory: false,
-      allowDuplicate: true,
-      referredFrom,
-    }
-  );
-}
 
 const registerSidebarHotkeys = ({
   isSlim,
@@ -349,22 +146,6 @@ const registerSidebarHotkeys = ({
       return true;
     },
   });
-};
-
-/**
- * Whether the "g" leader key is currently awaiting a destination key. Lives
- * at module scope so it can drive the hint overlay on `AppSidebar`'s nav
- * icons even though the registration below is owned by `GoToHotkeys`, which
- * stays mounted regardless of whether the sidebar itself is visible.
- */
-const [goToHotkeyVisible, setGoToHotkeyVisible] = createSignal(false);
-
-const resetGoToHotkeysState = () => {
-  setGoToHotkeyVisible(false);
-  // To prevent the next key from triggering the hotkey handler,
-  // we reset the pressed keys state and exit the command scope
-  clearPressedKeys();
-  activateClosestDOMScope();
 };
 
 /**
@@ -646,111 +427,6 @@ const SidebarTryItemMenu = (props: {
   </Dropdown>
 );
 
-const SidebarDropdownLink = (
-  props: SidebarItem & {
-    onContextMenuOpenChange?: (open: boolean) => void;
-  }
-) => {
-  const analytics = useAnalytics();
-  const layout = useSplitLayout();
-  const location = useLocation();
-  const [isHovering, setIsHovering] = createSignal(false);
-  let contextMenuOpen = false;
-
-  const isActive = () => {
-    const activeContent = globalSplitManager()?.activeSplit()?.content();
-    if (!activeContent) {
-      return location.pathname.split('/').filter(Boolean).includes(props.id);
-    }
-    return activeContent.id === props.id;
-  };
-
-  const handleContextMenuOpenChange = (open: boolean) => {
-    contextMenuOpen = open;
-    props.onContextMenuOpenChange?.(open);
-  };
-
-  onCleanup(() => {
-    if (contextMenuOpen) props.onContextMenuOpenChange?.(false);
-  });
-
-  const open = (newSplit = false) => {
-    analytics.track('sidebar_click', { view: props.id });
-    const handle = navigateToSidebarView({
-      viewId: props.id,
-      params: props.params,
-      shiftKey: newSplit,
-      activeSplit: globalSplitManager()?.activeSplit(),
-      openWithSplit: layout.openWithSplit,
-      referredFrom: 'sidebar',
-    });
-    if (props.id === 'search' && handle) requestSearchFocus(handle.id);
-    globalSplitManager()?.returnFocus();
-    return handle;
-  };
-
-  const canOpenInNewSplit = () =>
-    globalSplitManager()?.canAppendSplit() ?? false;
-  const canOpenFullscreen = () => layout.getSplitCount() > 1;
-  const openInNewSplit = () => {
-    if (canOpenInNewSplit()) open(true);
-  };
-  const openInCurrentSplit = () => open(false);
-  const openFullscreen = () => {
-    analytics.track('sidebar_click', { view: props.id });
-    const handle = layout.replaceAllSplits(
-      { type: 'component', id: props.id, params: props.params },
-      { referredFrom: 'sidebar' }
-    );
-    if (props.id === 'search' && handle) requestSearchFocus(handle.id);
-    globalSplitManager()?.returnFocus();
-  };
-
-  const ContextMenuTriggerItem = (
-    triggerProps: ComponentProps<typeof ContextMenu.Trigger>
-  ) => (
-    <ContextMenu onOpenChange={handleContextMenuOpenChange}>
-      <ContextMenu.Trigger {...triggerProps} />
-      <ContextMenu.Portal>
-        <ContextMenuContent class="z-tool-tip! text-xs text-ink-muted">
-          <MenuItem
-            text="Open in new split"
-            onClick={openInNewSplit}
-            disabled={!canOpenInNewSplit()}
-          />
-          <Show when={canOpenFullscreen()}>
-            <MenuItem text="Open fullscreen" onClick={openFullscreen} />
-          </Show>
-          <MenuItem text="Open in current split" onClick={openInCurrentSplit} />
-        </ContextMenuContent>
-      </ContextMenu.Portal>
-    </ContextMenu>
-  );
-
-  return (
-    <Dropdown.Item
-      as={ContextMenuTriggerItem}
-      class={cn(
-        'min-h-8 gap-2 px-2.5 text-[13px]',
-        isActive() &&
-          'bg-ink/6 text-ink hover:bg-ink/6 data-highlighted:bg-ink/6'
-      )}
-      data-active={isActive() ? '' : undefined}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      onSelect={openInCurrentSplit}
-    >
-      <Show when={props.icon}>
-        <div class="shrink-0 [&_svg]:size-3.5">
-          <Dynamic component={props.icon} triggerAnimation={isHovering()} />
-        </div>
-      </Show>
-      <span class="min-w-0 flex-1 truncate text-ink">{props.label}</span>
-      <Hotkey token={props.hotkeyToken} theme="subtle" class="ml-6" />
-    </Dropdown.Item>
-  );
-};
-
 const SidebarHeaderSearchButton = (props: { link: SidebarItem }) => {
   const analytics = useAnalytics();
   const layout = useSplitLayout();
@@ -799,231 +475,6 @@ const SidebarHeaderSearchButton = (props: { link: SidebarItem }) => {
   );
 };
 
-type SidebarSettingsWidgetProps = {
-  isSlim: () => boolean;
-  onSelect: (tab: SettingsTab) => void;
-  onMenuOpenChange?: (open: boolean) => void;
-};
-
-const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
-  const userId = useUserId();
-  const email = useEmail();
-  const logout = useLogout();
-
-  const userName = useOwnUserName();
-
-  // Prefer the user's real name (first/last); fall back to their email.
-  const displayName = createMemo(() => {
-    const name = userName();
-    const parts = [name?.first_name, name?.last_name]
-      .map((part) => part?.trim())
-      .filter((part): part is string => isRealNamePart(part));
-    return parts.length > 0 ? parts.join(' ') : (email() ?? 'Macro User');
-  });
-
-  return (
-    <Dropdown
-      placement="top-start"
-      gutter={6}
-      onOpenChange={props.onMenuOpenChange}
-    >
-      <Dropdown.Trigger
-        variant="ghost"
-        class={cn(
-          'flex items-center rounded-md cursor-default text-ink-extra-muted not-disabled:hover:bg-ink/3 h-9',
-          'justify-start gap-3 px-1.5 py-1'
-        )}
-        label={displayName()}
-        fullWidth
-        tooltipDisabled={!props.isSlim()}
-        tooltipPlacement="right"
-        onMouseDown={(e: MouseEvent) => {
-          if (e.button !== 0) return;
-          e.preventDefault();
-        }}
-      >
-        <Show
-          when={userId()}
-          fallback={<div class="size-5 shrink-0 rounded-full bg-ink/10" />}
-        >
-          {(id) => (
-            <div class="size-5 shrink-0">
-              <UserIcon
-                id={id()}
-                size="fill"
-                suppressClick
-                showTooltip={false}
-              />
-            </div>
-          )}
-        </Show>
-        <span class="flex-1 min-w-0 text-left whitespace-nowrap text-sm truncate group-data-[slim=true]/sidebar:hidden">
-          {displayName()}
-        </span>
-        <CaretUpIcon class="size-3 text-ink-extra-muted shrink-0 group-data-[slim=true]/sidebar:hidden" />
-      </Dropdown.Trigger>
-      <Dropdown.Content class="min-w-64 shadow-menu">
-        <Dropdown.Group class="p-1.5 gap-0">
-          <div class="flex items-center gap-3 px-1 py-1">
-            <Show
-              when={userId()}
-              fallback={<div class="size-10 shrink-0 rounded-full bg-ink/10" />}
-            >
-              {(id) => (
-                <div class="size-10 shrink-0">
-                  <UserIcon
-                    id={id()}
-                    size="fill"
-                    suppressClick
-                    showTooltip={false}
-                  />
-                </div>
-              )}
-            </Show>
-            <div class="min-w-0">
-              <div class="truncate text-sm font-semibold text-ink">
-                {displayName()}
-              </div>
-              <div class="truncate text-sm text-ink-muted">{email()}</div>
-            </div>
-          </div>
-          <div class="-mx-1.5 mt-2 mb-1.5 h-px bg-edge-muted" />
-          <Dropdown.Item
-            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-ink-muted"
-            onSelect={() => CommandState.open()}
-          >
-            <span class="size-5 flex items-center justify-center text-ink-extra-muted">
-              ⌘
-            </span>
-            <span class="flex-1 text-ink">Command menu</span>
-            <Hotkey
-              token={TOKENS.global.commandMenu}
-              theme="subtle"
-              class="ml-6"
-            />
-          </Dropdown.Item>
-          <Dropdown.Item
-            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-ink-muted"
-            onSelect={() => props.onSelect('Account')}
-          >
-            <span class="size-5 flex items-center justify-center">
-              <GearIcon class="size-4 shrink-0 text-ink-extra-muted" />
-            </span>
-            <span class="flex-1 text-ink">Settings</span>
-            <Hotkey
-              token={TOKENS.global.toggleSettings}
-              theme="subtle"
-              class="ml-6"
-            />
-          </Dropdown.Item>
-          <Dropdown.Item
-            class="flex items-center gap-2 px-2.5 py-2 text-sm cursor-default outline-none text-failure"
-            onSelect={() => logout()}
-          >
-            <span class="size-5 flex items-center justify-center">
-              <SignOutIcon class="size-4 shrink-0" />
-            </span>
-            <span>Log out</span>
-          </Dropdown.Item>
-        </Dropdown.Group>
-      </Dropdown.Content>
-    </Dropdown>
-  );
-};
-
-const CALLS_LINK: SidebarItem = {
-  id: 'calls',
-  label: 'Calls',
-  href: LIST_VIEW_PATHS.calls,
-  icon: AnimatedCallIcon,
-  hotkey: 'l',
-  hotkeyToken: TOKENS.sidebar.goTo.calls,
-};
-
-const COMPANIES_LINK: SidebarItem = {
-  id: 'companies',
-  label: 'Customers',
-  href: LIST_VIEW_PATHS.companies,
-  icon: AnimatedCompanyIcon,
-  hotkey: 'o',
-  hotkeyToken: TOKENS.sidebar.goTo.companies,
-};
-
-const DASHBOARD_LINK: SidebarItem = {
-  id: 'home',
-  label: 'Home',
-  href: '/home',
-  icon: HomeIcon,
-  hotkey: 'h',
-  hotkeyToken: TOKENS.sidebar.goTo.home,
-};
-
-const GETTING_STARTED_LINK: SidebarItem = {
-  id: 'getting-started',
-  label: 'Getting Started',
-  href: '/getting-started',
-  icon: CompassIcon,
-  hotkey: 's',
-  hotkeyToken: TOKENS.sidebar.goTo.gettingStarted,
-};
-
-const ACTIVITY_LINK: SidebarItem = {
-  id: 'activity',
-  label: 'Activity',
-  href: '/activity',
-  icon: AnimatedActivityIcon,
-  hotkey: 'y',
-  hotkeyToken: TOKENS.sidebar.goTo.activity,
-};
-
-/**
- * Assemble the ordered sidebar link list: the static links plus Home, Getting
- * started, and the flag-gated Activity, Calls, and CRM entries in their
- * correct positions.
- * Shared by the rendered sidebar (`AppSidebar.visibleLinks`) and the
- * always-mounted `GoToHotkeys` registrar so their link sets can't drift. Call
- * from a reactive context — it reads `ENABLE_CALLS()` / `ENABLE_CRM()`.
- * `showGettingStarted` is the account-age gate (`useGettingStartedEnabled`),
- * passed in because this runs outside a component; when false the link is
- * fully absent — row, `g s` hotkey, and command menu entry.
- * Rendered sections additionally drop `hiddenFromSidebar` entries, which have
- * hotkeys but no sidebar row.
- */
-const buildSidebarLinks = (showGettingStarted: boolean): SidebarItem[] => {
-  let links: SidebarItem[] = [
-    DASHBOARD_LINK,
-    ...(showGettingStarted ? [GETTING_STARTED_LINK] : []),
-    ...SIDEBAR_LINKS,
-  ];
-
-  if (ENABLE_ACTIVITY) {
-    const idx = links.findIndex((link) => link.id === 'inbox');
-    links = [
-      ...links.slice(0, idx + 1),
-      ACTIVITY_LINK,
-      ...links.slice(idx + 1),
-    ];
-  }
-
-  if (ENABLE_CALLS()) {
-    const idx = links.findIndex((l) => l.id === 'channels');
-    links = [...links.slice(0, idx + 1), CALLS_LINK, ...links.slice(idx + 1)];
-  }
-
-  if (ENABLE_CRM()) {
-    // Customers sits just after Channels (and Calls when present).
-    const anchorId = ENABLE_CALLS() ? 'calls' : 'channels';
-    const idx = links.findIndex((l) => l.id === anchorId);
-    links = [
-      ...links.slice(0, idx + 1),
-      COMPANIES_LINK,
-      ...links.slice(idx + 1),
-    ];
-  }
-
-  return links;
-};
-
 const TeamInviteSidebarPromo = (props: { invite: TeamInviteDetails }) => {
   const [inviterName] = useDisplayName(tryMacroId(props.invite.invited_by));
   const joinTeamMutation = useJoinTeamMutation();
@@ -1051,20 +502,61 @@ const TeamInviteSidebarPromo = (props: { invite: TeamInviteDetails }) => {
   );
 };
 
+/** Header button that swaps the wide sidebar for the narrow rail. */
+const NarrowSidebarToggle = (props: { onClick: () => void }) => {
+  const [hovering, setHovering] = createSignal(false);
+
+  return (
+    <Button
+      size="icon-sm"
+      class="[&_svg]:size-4!"
+      label="Narrow sidebar"
+      onMouseEnter={() => setHovering(true)}
+      onMouseLeave={() => setHovering(false)}
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+      }}
+      onClick={props.onClick}
+    >
+      <AnimatedSquareSidebarIcon triggerAnimation={hovering()} />
+    </Button>
+  );
+};
+
+/**
+ * The app sidebar. Renders the narrow Slack-style rail or the wide list,
+ * depending on the state the user last picked; `slim` and `hidden` are
+ * handled by the wide variant, which collapses to a hover overlay.
+ */
 export const AppSidebar = (props: AppSidebarProps) => {
+  // Registered here rather than in a variant so cmd+. keeps working on the
+  // rail, which has no collapse affordance of its own.
+  registerSidebarHotkeys({
+    isSlim: () => props.sidebarState === 'slim',
+    onOpenChange: props.onOpenChange,
+  });
+
+  return (
+    <Show
+      when={props.sidebarState === 'narrow'}
+      fallback={<WideSidebar {...props} />}
+    >
+      <NarrowSidebar onStateChange={props.onStateChange} />
+    </Show>
+  );
+};
+
+/**
+ * The wide sidebar: the full-width list of links, favorites, recent channels
+ * and promos. See `NarrowSidebar` for the rail variant.
+ */
+const WideSidebar = (props: AppSidebarProps) => {
   const { openSettings, selectTab, settingsOpen } = useSettingsState();
   const isTabAvailable = useSettingsTabAvailable();
   const currentTeamQuery = useCurrentTeamQuery();
   const userInvitesQuery = useUserInvitesQuery();
   const firstTeamInvite = () => userInvitesQuery.data?.invites.at(0);
-  const [sectionVisibility, setSectionVisibility] = makePersisted(
-    createSignal<SidebarSectionVisibility>(DEFAULT_SECTION_VISIBILITY),
-    { name: 'sidebar-section-visibility' }
-  );
-  const [tryVisibility, setTryVisibility] = makePersisted(
-    createSignal<TryItemVisibility>(DEFAULT_TRY_VISIBILITY),
-    { name: 'sidebar-try-visibility' }
-  );
   const callCtx = useCallContextOptional();
 
   const hasPaidAccess = useHasPaidAccess();
@@ -1365,11 +857,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
     }
   });
 
-  registerSidebarHotkeys({
-    isSlim: isCollapsed,
-    onOpenChange: props.onOpenChange,
-  });
-
   return (
     <div
       class={cn(
@@ -1413,6 +900,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
           </Show>
         </div>
         <div class="flex shrink-0 items-center gap-1">
+          <NarrowSidebarToggle onClick={() => props.onStateChange('narrow')} />
           <Show when={searchLink()}>
             {(link) => <SidebarHeaderSearchButton link={link()} />}
           </Show>

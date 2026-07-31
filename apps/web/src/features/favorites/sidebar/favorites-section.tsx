@@ -8,7 +8,7 @@ import {
 } from '@app/util/favorites';
 import { navigateToChannelMessage } from '@block-channel/utils/link';
 import { ReadonlyThread } from '@channel/StandaloneThread';
-import type { SidebarState } from '@components/app/app-sidebar/sidebar';
+import type { SidebarState } from '@components/app/app-sidebar/sidebar-links';
 import {
   useGlobalBlockOrchestrator,
   useGlobalNotificationSource,
