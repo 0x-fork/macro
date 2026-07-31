@@ -1,5 +1,4 @@
 import type { ListView } from '@app/constants/list-views';
-import { SoupSectionHeader } from '@app/features/next-soup/soup-view/section-header';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import {
   favoriteIconType,
@@ -19,79 +18,53 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import ArrowRightIcon from '@phosphor/arrow-right.svg';
-import ChevronRightIcon from '@phosphor/caret-right.svg';
 import { useFavoritesData } from '@queries/favorites/favorites';
 import type { Favorite } from '@service-storage/generated/schemas/favorite';
-import { makePersisted } from '@solid-primitives/storage';
-import { cn, Layer, Tooltip } from '@ui';
-import { createMemo, createSignal, For, type JSX, Show } from 'solid-js';
+import { cn, Tooltip } from '@ui';
+import { createMemo, For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 
-/** Views in the "My views" section, in display order. */
+/** Views pinned at the top of the list panel, in display order. */
 const NAV_VIEW_ORDER: readonly ListView[] = [
+  'inbox',
   'documents',
   'tasks',
   'channels',
   'mail',
+  'agents',
   'companies',
 ];
 
-/** Nav labels that differ from the sidebar link's (Customers → Companies). */
-const NAV_LABEL_OVERRIDES: Partial<Record<string, string>> = {
-  companies: 'Companies',
-};
-
-// Collapse state is app-wide (not per view/entry), like the old sidebar's
-// sections.
-const [myViewsCollapsed, setMyViewsCollapsed] = makePersisted(
-  createSignal(false),
-  { name: 'soup-nav-my-views-collapsed' }
-);
-const [favoritesCollapsed, setFavoritesCollapsed] = makePersisted(
-  createSignal(false),
-  { name: 'soup-nav-favorites-collapsed' }
-);
-
-/** Collapsible section header, styled like the list's date group headers. */
-const NavSectionHeader = (props: {
-  label: string;
-  expanded: boolean;
-  onToggle: () => void;
-}) => (
-  <SoupSectionHeader onClick={props.onToggle}>
-    <Layer depth={3}>
-      <div class="flex items-center justify-center size-4.5 rounded-xs group-hover/header:bg-ink/5">
-        <ChevronRightIcon
-          class={cn('size-2.5', { 'rotate-90': props.expanded })}
-        />
-      </div>
-    </Layer>
-    <span class="truncate">{props.label}</span>
-  </SoupSectionHeader>
-);
-
-const NavRow = (props: {
+const NavPill = (props: {
   active?: boolean;
   onClick: (event: MouseEvent) => void;
-  /** Hover-revealed trailing action: "kick into the main panel". */
+  /**
+   * Hover-revealed right zone of the pill: "kick into the main panel". The
+   * primary click stays the whole-pill action (filtering the list).
+   */
   onKickToMain?: (event: MouseEvent) => void;
   icon: JSX.Element;
   label: string;
 }) => (
-  <div class="group/nav-row relative mx-2">
+  <div
+    class={cn(
+      'group/pill relative flex min-w-0 overflow-hidden rounded-lg',
+      'bg-surface ring ring-edge-muted text-ink-muted',
+      props.active && 'bg-ink/6 text-ink ring-ink/15'
+    )}
+  >
     <button
       type="button"
       class={cn(
-        'flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1 text-sm',
-        'text-ink-muted hover:bg-hover/50 hover:text-ink',
-        props.active && 'bg-ink/6 text-ink'
+        'flex min-w-0 flex-1 items-center justify-center gap-1.5 px-1.5 py-1.5 text-[13px]',
+        'hover:bg-hover/50 hover:text-ink'
       )}
       onClick={(event) => props.onClick(event)}
     >
       <span class="grid size-4 shrink-0 place-items-center [&_svg]:size-4">
         {props.icon}
       </span>
-      <span class="min-w-0 flex-1 truncate text-left">{props.label}</span>
+      <span class="min-w-0 truncate">{props.label}</span>
     </button>
     <Show when={props.onKickToMain}>
       {(onKickToMain) => (
@@ -100,8 +73,9 @@ const NavRow = (props: {
             type="button"
             aria-label="Open in main panel"
             class={cn(
-              'absolute inset-y-0.5 right-1 hidden w-6 place-items-center rounded-md',
-              'text-ink-muted group-hover/nav-row:grid hover:bg-ink/10 hover:text-ink'
+              'absolute inset-y-0 right-0 hidden w-[30%] min-w-7 items-center justify-center',
+              'border-l border-edge-muted bg-surface text-ink-muted',
+              'group-hover/pill:flex hover:bg-hover/50 hover:text-ink'
             )}
             onClick={(event) => onKickToMain()(event)}
           >
@@ -113,7 +87,7 @@ const NavRow = (props: {
   </div>
 );
 
-const FavoriteRow = (props: {
+const FavoritePill = (props: {
   favorite: Favorite;
   active: boolean;
   onClick: (event: MouseEvent) => void;
@@ -122,7 +96,7 @@ const FavoriteRow = (props: {
   const dmRecipientId = useFavoriteDmRecipientId(props.favorite);
 
   return (
-    <NavRow
+    <NavPill
       active={props.active}
       onClick={props.onClick}
       label={name()}
@@ -152,15 +126,15 @@ const FavoriteRow = (props: {
 };
 
 /**
- * The old app sidebar's nav, relocated into the list panel: a collapsible
- * "My views" section of single-line view rows, then the user's Favorites —
- * both styled like the list's date groups. A view row filters the list in
- * place — the panel switches to that view (Email → the mail inbox, etc.),
- * keeping a Preview Pair engaged — while its hover-revealed arrow kicks the
- * view's full list into the main panel instead. A favorite row opens its
- * entity in the panel's preview Viewer (the right-hand panel), engaging the
- * pair first when needed; when no Viewer can form (narrow layouts) it falls
- * back to navigating like the old sidebar did.
+ * The old app sidebar's nav, relocated into the list panel as an Arc-style
+ * pill grid: view links first, then the user's favorites, with the column
+ * count adapting to the panel width. A view pill filters the list in place —
+ * the panel switches to that view (Email → the mail inbox, etc.), keeping a
+ * Preview Pair engaged — while its hover-revealed right zone kicks the view's
+ * full list into the main panel instead. A favorite pill opens its entity in the panel's
+ * preview Viewer (the right-hand panel), engaging the pair first when
+ * needed; when no Viewer can form (narrow layouts) it falls back to
+ * navigating like the old sidebar did.
  *
  * Rendered inside the soup list's scroll container so it scrolls away with
  * the rows (see SoupList's `leading`).
@@ -222,7 +196,7 @@ export const SoupViewNav = () => {
     viewer.replace({ next: content, referredFrom: 'sidebar' });
   };
 
-  // A view row's primary click filters the list in place, mirroring the
+  // A view pill's primary click filters the list in place, mirroring the
   // master dropdown's Views section.
   const openView = (link: SidebarItem) => {
     if (link.id === currentViewId()) return;
@@ -238,8 +212,8 @@ export const SoupViewNav = () => {
     globalSplitManager()?.returnFocus();
   };
 
-  // The row's hover-revealed arrow kicks the view's full list into the main
-  // content panel (the Viewer) instead.
+  // The pill's hover-revealed right zone kicks the view's full list into the
+  // main content panel (the Viewer) instead.
   const kickViewToMain = (link: SidebarItem, event: MouseEvent) => {
     analytics.track('sidebar_click', {
       view: link.id,
@@ -269,43 +243,30 @@ export const SoupViewNav = () => {
   };
 
   return (
-    <nav class="flex flex-col pb-1">
-      <NavSectionHeader
-        label="My views"
-        expanded={!myViewsCollapsed()}
-        onToggle={() => setMyViewsCollapsed((collapsed) => !collapsed)}
-      />
-      <Show when={!myViewsCollapsed()}>
-        <For each={links()}>
-          {(link) => (
-            <NavRow
-              active={currentViewId() === link.id}
-              onClick={() => openView(link)}
-              onKickToMain={(event) => kickViewToMain(link, event)}
-              icon={<Dynamic component={link.icon} />}
-              label={NAV_LABEL_OVERRIDES[link.id] ?? link.label}
-            />
-          )}
-        </For>
-      </Show>
-      <Show when={(favorites()?.favorites.length ?? 0) > 0}>
-        <NavSectionHeader
-          label="Favorites"
-          expanded={!favoritesCollapsed()}
-          onToggle={() => setFavoritesCollapsed((collapsed) => !collapsed)}
-        />
-        <Show when={!favoritesCollapsed()}>
-          <For each={favorites()?.favorites ?? []}>
-            {(favorite) => (
-              <FavoriteRow
-                favorite={favorite}
-                active={isContentActive(favoriteSplitContent(favorite))}
-                onClick={(event) => openFavorite(favorite, event)}
-              />
-            )}
-          </For>
-        </Show>
-      </Show>
+    // Arc-style pill grid: the column count adapts to the panel width
+    // (auto-fit), so pills stay compact instead of stretching into sparse
+    // full-width rows.
+    <nav class="grid grid-cols-[repeat(auto-fit,minmax(5.5rem,1fr))] gap-1.5 px-2 py-1.5">
+      <For each={links()}>
+        {(link) => (
+          <NavPill
+            active={currentViewId() === link.id}
+            onClick={() => openView(link)}
+            onKickToMain={(event) => kickViewToMain(link, event)}
+            icon={<Dynamic component={link.icon} />}
+            label={link.label}
+          />
+        )}
+      </For>
+      <For each={favorites()?.favorites ?? []}>
+        {(favorite) => (
+          <FavoritePill
+            favorite={favorite}
+            active={isContentActive(favoriteSplitContent(favorite))}
+            onClick={(event) => openFavorite(favorite, event)}
+          />
+        )}
+      </For>
     </nav>
   );
 };
