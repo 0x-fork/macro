@@ -97,6 +97,8 @@ pub enum Port {
     // Appended (not slotted by number) so existing per-instance port offsets,
     // which come from declaration order, stay stable.
     AgentProxy = 8091,
+    SdkWebhookSsh = 8788,
+    SdkWebhookHostReceiver = 8789,
 }
 
 impl Port {
