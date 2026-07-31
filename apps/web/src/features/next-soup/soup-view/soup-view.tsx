@@ -41,10 +41,6 @@ import { useIsNewInboxEnabled } from '@app/features/next-soup/soup-view/use-is-n
 import { CompanyKanban } from '@app/features/next-soup/soup-view/views/companies/CompanyKanban';
 import { CompanyListEntity } from '@app/features/next-soup/soup-view/views/companies/CompanyListEntity';
 import { ResponsiveCompanyListHeader } from '@app/features/next-soup/soup-view/views/companies/CompanyListHeader';
-import {
-  CompanyDisplayMenu,
-  CompanyViewsMenu,
-} from '@app/features/next-soup/soup-view/views/companies/CompanyViewsMenu';
 import { CrmDefaultViewLoader } from '@app/features/next-soup/soup-view/views/companies/CrmDefaultView';
 import { DateGroupHeader } from '@app/features/next-soup/soup-view/views/inbox/date-group-header';
 import { InboxListEntity } from '@app/features/next-soup/soup-view/views/inbox/InboxListEntity';
@@ -68,7 +64,7 @@ import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { FloatRegion } from '@components/app/mobile/float-regions/FloatRegion';
 import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { SwipableRowProvider } from '@components/app/mobile/SwipableRow';
-import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleHeaderItem';
+import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleItem';
 import {
   SplitHeaderLeft,
   SplitHeaderRight,
@@ -520,10 +516,13 @@ export const SoupView = (props: SoupViewProps) => {
       <div class="flex flex-col w-full">
         <SplitHeaderLeft>
           <div
-            class={cn('h-full flex gap-3 items-center', {
-              'shrink-0': !narrowSearchExpanded(),
-              'flex-1 min-w-0': narrowSearchExpanded(),
-            })}
+            class={cn(
+              'h-full flex gap-3 @max-[380px]/split-header:gap-2 items-center',
+              {
+                'shrink-0': !narrowSearchExpanded(),
+                'flex-1 min-w-0': narrowSearchExpanded(),
+              }
+            )}
           >
             <Show
               when={!narrowSearchExpanded() && !isComponentListView('search')}
@@ -545,12 +544,6 @@ export const SoupView = (props: SoupViewProps) => {
         </SplitHeaderLeft>
         <Show when={!isMobile()}>
           <SplitHeaderRight>
-            <Show
-              when={!narrowSearchExpanded() && isComponentListView('companies')}
-            >
-              <CompanyViewsMenu />
-              <CompanyDisplayMenu />
-            </Show>
             <Show
               when={
                 !narrowSearchExpanded() &&
@@ -594,29 +587,34 @@ export const SoupView = (props: SoupViewProps) => {
                     setSearchIsCollapsed(isCollapsed);
                     if (!isCollapsed) setNarrowSearchExpanded(false);
                   }}
-                  expanded={() => (
-                    <Layer depth={2}>
-                      <div class="w-60 ml-2">
-                        <SoupSearchbar
-                          variant="secondary"
-                          initialValue={props.initialSearchText}
-                        />
-                      </div>
-                    </Layer>
+                >
+                  {(isCollapsed) => (
+                    <Show
+                      when={!isCollapsed()}
+                      fallback={
+                        <Tooltip label="Search" hotkey={TOKENS.soup.openSearch}>
+                          <Button
+                            variant="base"
+                            class="p-1 size-7 rounded-lg ml-2 bg-surface"
+                            onClick={() => setNarrowSearchExpanded(true)}
+                            depth={2}
+                          >
+                            <SearchIcon class="size-4 touch:size-6" />
+                          </Button>
+                        </Tooltip>
+                      }
+                    >
+                      <Layer depth={2}>
+                        <div class="w-60 ml-2">
+                          <SoupSearchbar
+                            variant="secondary"
+                            initialValue={props.initialSearchText}
+                          />
+                        </div>
+                      </Layer>
+                    </Show>
                   )}
-                  collapsed={() => (
-                    <Tooltip label="Search" hotkey={TOKENS.soup.openSearch}>
-                      <Button
-                        variant="base"
-                        class="p-1 size-7 rounded-lg ml-2 bg-surface"
-                        onClick={() => setNarrowSearchExpanded(true)}
-                        depth={2}
-                      >
-                        <SearchIcon class="size-4 touch:size-6" />
-                      </Button>
-                    </Tooltip>
-                  )}
-                />
+                </CollapsibleHeaderItem>
               </Show>
             </Show>
             <div class="flex shrink-0 items-center gap-0.5 ml-1">

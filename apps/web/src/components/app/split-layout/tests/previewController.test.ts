@@ -3,7 +3,10 @@ import {
   isPreviewControllerContent,
   previewControllerWidthForContent,
 } from '../previewController';
-import { splitMinWidthForContent } from '../splitContentSizing';
+import {
+  DEFAULT_SPLIT_MIN_WIDTH,
+  splitMinWidthForContent,
+} from '../splitContentSizing';
 
 describe('preview controller content', () => {
   it('explicitly recognizes configured content', () => {
@@ -20,7 +23,7 @@ describe('preview controller content', () => {
   });
 
   it('gives every list view the same controller width', () => {
-    // The list panel doubles as the app's nav (view pills switch its content
+    // The list panel doubles as the app's nav (view rows switch its content
     // in place), so a per-view width would make the panel jump on a switch.
     for (const id of ['inbox', 'channels', 'mail', 'companies', 'documents']) {
       expect(previewControllerWidthForContent({ type: 'component', id })).toBe(
@@ -38,16 +41,25 @@ describe('preview controller content', () => {
     ).toBe(340);
   });
 
-  it('uses the list-view minimum width with a 400px default', () => {
-    expect(splitMinWidthForContent({ type: 'component', id: 'channels' })).toBe(
+  it('uses the configured list-view minimum only for Preview Controllers', () => {
+    const previewController = { isPreviewController: true };
+    const standaloneSplit = { isPreviewController: false };
+    const listViewContent = { type: 'component' as const, id: 'inbox' };
+
+    expect(splitMinWidthForContent(listViewContent, previewController)).toBe(
       240
     );
-    expect(splitMinWidthForContent({ type: 'component', id: 'inbox' })).toBe(
-      240
+    expect(splitMinWidthForContent(listViewContent, standaloneSplit)).toBe(
+      DEFAULT_SPLIT_MIN_WIDTH
     );
-    expect(splitMinWidthForContent({ type: 'component', id: 'settings' })).toBe(
-      400
-    );
-    expect(splitMinWidthForContent({ type: 'md', id: 'doc-1' })).toBe(400);
+    expect(
+      splitMinWidthForContent(
+        { type: 'component', id: 'settings' },
+        previewController
+      )
+    ).toBe(DEFAULT_SPLIT_MIN_WIDTH);
+    expect(
+      splitMinWidthForContent({ type: 'md', id: 'doc-1' }, previewController)
+    ).toBe(DEFAULT_SPLIT_MIN_WIDTH);
   });
 });
