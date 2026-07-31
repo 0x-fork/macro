@@ -27,7 +27,8 @@ import { Tooltip as KobalteTooltip } from '@kobalte/core/tooltip';
 import { isChannelNotification } from '@notifications/notification-helpers';
 import { getChannelNotificationParams } from '@notifications/notification-navigation';
 import type { UnifiedNotification } from '@notifications/types';
-import CaretDownIcon from '@phosphor/caret-down.svg';
+import CaretDownIcon from '@phosphor-icons/core/assets/fill/caret-down-fill.svg';
+import StarIcon from '@phosphor-icons/core/assets/fill/star-fill.svg';
 import {
   favoriteEntityKey,
   useFavoritesData,
@@ -278,10 +279,11 @@ const FavoritesGroup = (props: {
           aria-expanded={expanded()}
           onClick={() => setExpanded(!expanded())}
         >
+          <StarIcon class="size-3 shrink-0 text-alert" />
           <span class="min-w-0 truncate">{props.label}</span>
           <CaretDownIcon
             class={cn(
-              'size-3 shrink-0 transition-transform duration-[120ms] ease-in-out',
+              'ml-auto size-3 shrink-0 transition-transform duration-[120ms] ease-in-out',
               !expanded() && '-rotate-90'
             )}
           />

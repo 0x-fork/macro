@@ -32,8 +32,10 @@ import { AutomationComposer } from '@block-automation/component';
 import { useCallContextOptional } from '@channel/Call/CallContext';
 import { InCallPanel } from '@channel/Call/InCallPanel';
 import { CreateChannelModal } from '@channel/CreateChannelModal';
+// Sidebar layout experiments: swap the AppSidebar import to try a layout.
+// Default: import { AppSidebar } from '@components/app/app-sidebar/sidebar';
+import { AppSidebar } from '@components/app/app-sidebar/layouts/sidebar-layout-1';
 import {
-  AppSidebar,
   GoToHotkeys,
   type SidebarState,
 } from '@components/app/app-sidebar/sidebar';

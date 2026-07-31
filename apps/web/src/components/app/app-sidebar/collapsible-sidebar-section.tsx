@@ -1,4 +1,4 @@
-import CaretDownIcon from '@phosphor/caret-down.svg';
+import CaretDownIcon from '@phosphor-icons/core/assets/fill/caret-down-fill.svg';
 import { cn } from '@ui';
 import { createSignal, For, type JSX, onCleanup, Show } from 'solid-js';
 
@@ -11,6 +11,8 @@ export type CollapsibleSidebarSectionItem = {
 export function CollapsibleSidebarSection(props: {
   label: string;
   items: readonly CollapsibleSidebarSectionItem[];
+  /** Optional icon rendered before the header label. */
+  icon?: JSX.Element;
   headerMenu?: () => JSX.Element;
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -38,14 +40,24 @@ export function CollapsibleSidebarSection(props: {
       <header class="group/section relative">
         <button
           type="button"
-          class="flex h-7 w-full min-w-0 items-center justify-start gap-1 rounded-md px-2 pr-9 text-left text-[13px] font-medium text-ink-extra-muted/60 transition-colors group-hover/section:bg-ink/3 group-hover/section:text-ink-muted"
+          class={cn(
+            'flex h-7 w-full min-w-0 items-center justify-start gap-1 rounded-md px-2 text-left text-[13px] font-medium text-ink-extra-muted/60 transition-colors group-hover/section:bg-ink/3 group-hover/section:text-ink-muted',
+            // Reserve space for the hover menu only when one exists, so the
+            // right-aligned caret can reach the edge otherwise.
+            props.headerMenu && 'pr-9'
+          )}
           aria-expanded={open()}
           onClick={toggleOpen}
         >
+          <Show when={props.icon}>
+            <span class="shrink-0 flex items-center [&_svg]:size-3">
+              {props.icon}
+            </span>
+          </Show>
           <span class="min-w-0 truncate">{props.label}</span>
           <CaretDownIcon
             class={cn(
-              'size-3 shrink-0 transition-transform duration-[120ms] ease-in-out',
+              'ml-auto size-3 shrink-0 transition-transform duration-[120ms] ease-in-out',
               !open() && '-rotate-90'
             )}
           />
