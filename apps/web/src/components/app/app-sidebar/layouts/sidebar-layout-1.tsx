@@ -18,7 +18,6 @@
  */
 import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { SidebarActiveCallWidget } from '@app/features/block-call/sidebar/active-call-widget';
-import { ChannelsRecentWidget } from '@app/features/channel/sidebar/channels-recent-widget';
 import { CommandState } from '@app/features/command';
 import { SidebarCreateMenu } from '@app/features/command/sidebar/sidebar-create-menu';
 import { FavoritesSection } from '@app/features/favorites/sidebar/favorites-section';
@@ -1620,14 +1619,6 @@ export const AppSidebar = (props: AppSidebarProps) => {
               <FavoritesSection
                 sidebarState={sidebarDisplayState()}
                 onContextMenuOpenChange={handleOverlayDropdownOpenChange}
-              />
-            </Suspense>
-
-            <Suspense>
-              <ChannelsRecentWidget
-                sidebarState={sidebarDisplayState()}
-                onSectionOpenChange={scheduleMiddleScrollUpdate}
-                onDropdownOpenChange={handleOverlayDropdownOpenChange}
               />
             </Suspense>
 
