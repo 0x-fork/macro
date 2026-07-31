@@ -24,7 +24,6 @@
   "scripts": {
     "sync-specs": "bun scripts/sync-specs.ts",
     "webhook": "bun scripts/webhook.ts",
-    "setup-webhook": "bun scripts/setup-webhook.ts",
     "validate-webhook": "bun scripts/validate-webhook.ts",
     "coverage": "bun src/coverage/check.ts",
     "generate": "openapi-ts",
