@@ -118,11 +118,11 @@ import HashIcon from '@phosphor/hash.svg';
 import HomeIcon from '@phosphor/house.svg';
 import LightbulbIcon from '@phosphor/lightbulb.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
-import PlusIcon from '@phosphor-icons/core/assets/bold/plus-bold.svg';
 import SignOutIcon from '@phosphor/sign-out.svg';
 import SquaresFourIcon from '@phosphor/squares-four.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import XIcon from '@phosphor/x.svg';
+import PlusIcon from '@phosphor-icons/core/assets/bold/plus-bold.svg';
 import { isRealNamePart, useOwnUserName } from '@queries/auth/user-name-self';
 import { useEmailLinksQuery } from '@queries/email/link';
 import { useSoupItemsQuery } from '@queries/soup/items';
@@ -509,6 +509,7 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
   const userId = useUserId();
   const email = useEmail();
   const logout = useLogout();
+  const [menuOpen, setMenuOpen] = createSignal(false);
 
   const userName = useOwnUserName();
 
@@ -525,7 +526,10 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
     <Dropdown
       placement="top-start"
       gutter={6}
-      onOpenChange={props.onMenuOpenChange}
+      onOpenChange={(open: boolean) => {
+        setMenuOpen(open);
+        props.onMenuOpenChange?.(open);
+      }}
     >
       <Dropdown.Trigger
         variant="ghost"
@@ -560,7 +564,14 @@ const SidebarSettingsWidget = (props: SidebarSettingsWidgetProps) => {
         <span class="flex-1 min-w-0 text-left whitespace-nowrap text-sm truncate group-data-[slim=true]/sidebar:hidden">
           {displayName()}
         </span>
-        <CaretUpIcon class="size-3 text-ink-extra-muted shrink-0 group-data-[slim=true]/sidebar:hidden" />
+        {/* Points down at rest; flips up while the menu is open (it opens
+            upward from the bottom of the sidebar). */}
+        <CaretUpIcon
+          class={cn(
+            'size-3 text-ink-extra-muted shrink-0 transition-transform duration-[120ms] group-data-[slim=true]/sidebar:hidden',
+            !menuOpen() && 'rotate-180'
+          )}
+        />
       </Dropdown.Trigger>
       <Dropdown.Content class="min-w-64 shadow-menu">
         <Dropdown.Group class="p-1.5 gap-0">

@@ -275,15 +275,19 @@ const FavoritesGroup = (props: {
       <header>
         <button
           type="button"
-          class="group/section flex h-7 w-full items-center justify-start gap-1 rounded-md px-2 text-left text-[13px] font-medium text-ink-extra-muted/60 transition-colors hover:bg-ink/3 hover:text-ink-muted"
+          class="group/section flex h-7 w-full items-center justify-start gap-2 rounded-md px-2 text-left text-[13px] font-medium text-ink-extra-muted transition-colors hover:bg-ink/3 hover:text-ink"
           aria-expanded={expanded()}
           onClick={() => setExpanded(!expanded())}
         >
-          <StarIcon class="size-3 shrink-0 text-alert" />
+          {/* Same 20px box + 14px glyph as the nav rows' icons, so the star
+              lines up with the link icons above. */}
+          <span class="size-5 shrink-0 flex items-center justify-center opacity-75 transition-opacity group-hover/section:opacity-100">
+            <StarIcon class="size-3.5 text-alert" />
+          </span>
           <span class="min-w-0 truncate">{props.label}</span>
           <CaretDownIcon
             class={cn(
-              'ml-auto size-3 shrink-0 transition-transform duration-[120ms] ease-in-out',
+              'ml-auto size-3 shrink-0 text-ink-extra-muted/60 transition-[transform,color] duration-[120ms] ease-in-out group-hover/section:text-ink-muted',
               !expanded() && '-rotate-90'
             )}
           />
@@ -294,7 +298,7 @@ const FavoritesGroup = (props: {
         class="grid w-full transition-[grid-template-rows] duration-200 ease-out"
         style={{ 'grid-template-rows': expanded() ? '1fr' : '0fr' }}
       >
-        <ul class="min-h-0 overflow-hidden flex flex-col gap-0.5">
+        <ul class="min-h-0 overflow-hidden flex flex-col gap-0.5 pl-3">
           <SortableProvider ids={keys()}>
             <For each={props.favorites}>
               {(favorite) => (
