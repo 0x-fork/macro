@@ -1,7 +1,7 @@
 //! Issue comment, PR review, and PR review comment event handlers.
 
 use crate::domain::{
-    models::{GithubError, MacroTaskId, ValidatedGithubWebhookEvent},
+    models::{GithubAppInstallationSource, GithubError, MacroTaskId, ValidatedGithubWebhookEvent},
     ports::{GithubSyncClient, GithubSyncRepo},
 };
 use documents::domain::ports::DocumentService;
@@ -27,11 +27,12 @@ impl<
     pub(crate) async fn handle_comment_event(
         &self,
         event: &ValidatedGithubWebhookEvent,
+        source: &GithubAppInstallationSource,
     ) -> Result<(), GithubError> {
         // Extract task IDs from the new comment/review text only
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
-        let comment_task_ids = self.extract_task_ids_from_text(event, &combined).await;
+        let comment_task_ids = self.extract_task_ids_from_text(source, &combined).await;
 
         tracing::trace!(
             new_task_id_count = comment_task_ids.len(),
@@ -47,7 +48,7 @@ impl<
         let github_key = Self::github_key(event);
 
         // Validate comment task IDs against the document service
-        let resolved = self.resolve_tasks(&comment_task_ids).await;
+        let resolved = self.resolve_tasks(source, &comment_task_ids).await;
 
         if resolved.validated_task_ids.is_empty() {
             tracing::debug!("no valid task documents found for extracted IDs");
@@ -59,9 +60,11 @@ impl<
         if let Some(ref key) = github_key {
             let pr_context_tasks = {
                 let pr_context = event.extract_pr_context_text().join(" ");
-                let extracted = self.extract_task_ids_from_text(event, &pr_context).await;
+                let extracted = self.extract_task_ids_from_text(source, &pr_context).await;
                 // Validate PR context task IDs too
-                self.resolve_tasks(&extracted).await.validated_task_ids
+                self.resolve_tasks(source, &extracted)
+                    .await
+                    .validated_task_ids
             };
             if !pr_context_tasks.is_empty() {
                 tracing::trace!(

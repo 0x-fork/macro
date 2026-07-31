@@ -1,7 +1,7 @@
 //! PR open/edit/close event handlers.
 
 use crate::domain::{
-    models::{GithubError, MacroTaskId, ValidatedGithubWebhookEvent},
+    models::{GithubAppInstallationSource, GithubError, MacroTaskId, ValidatedGithubWebhookEvent},
     ports::{GithubSyncClient, GithubSyncRepo},
 };
 use documents::domain::ports::DocumentService;
@@ -24,10 +24,11 @@ impl<
     pub(crate) async fn handle_pr_open(
         &self,
         event: &ValidatedGithubWebhookEvent,
+        source: &GithubAppInstallationSource,
     ) -> Result<(), GithubError> {
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
-        let task_ids = self.extract_task_ids_from_text(event, &combined).await;
+        let task_ids = self.extract_task_ids_from_text(source, &combined).await;
 
         tracing::trace!(
             task_id_count = task_ids.len(),
@@ -42,7 +43,7 @@ impl<
 
         // Resolve all extracted IDs against the document service to validate
         // they are actual task documents (filters out false positives like "macro-inc")
-        let resolved_all = self.resolve_tasks(&task_ids).await;
+        let resolved_all = self.resolve_tasks(source, &task_ids).await;
 
         if resolved_all.validated_task_ids.is_empty() {
             tracing::debug!("no valid task documents found for extracted IDs");
@@ -105,10 +106,11 @@ impl<
     pub(crate) async fn handle_pr_edit(
         &self,
         event: &ValidatedGithubWebhookEvent,
+        source: &GithubAppInstallationSource,
     ) -> Result<(), GithubError> {
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
-        let task_ids = self.extract_task_ids_from_text(event, &combined).await;
+        let task_ids = self.extract_task_ids_from_text(source, &combined).await;
 
         tracing::trace!(
             task_id_count = task_ids.len(),
@@ -123,7 +125,7 @@ impl<
 
         // Resolve all extracted IDs against the document service to validate
         // they are actual task documents (filters out false positives like "macro-inc")
-        let resolved_all = self.resolve_tasks(&task_ids).await;
+        let resolved_all = self.resolve_tasks(source, &task_ids).await;
 
         if resolved_all.validated_task_ids.is_empty() {
             tracing::debug!("no valid task documents found for extracted IDs");
@@ -189,6 +191,7 @@ impl<
     pub(crate) async fn handle_pr_close(
         &self,
         event: &ValidatedGithubWebhookEvent,
+        source: &GithubAppInstallationSource,
     ) -> Result<(), GithubError> {
         let is_merged = event.is_merged();
         tracing::trace!(is_merged, "handling PR close");
@@ -197,7 +200,7 @@ impl<
         let searchable_texts = event.extract_searchable_text();
         let combined = searchable_texts.join(" ");
         let mut task_id_set: HashSet<MacroTaskId> = self
-            .extract_task_ids_from_text(event, &combined)
+            .extract_task_ids_from_text(source, &combined)
             .await
             .into_iter()
             .collect();
@@ -237,8 +240,9 @@ impl<
             "total task IDs for close event"
         );
 
-        // resolve_tasks validates each ID is an actual task document
-        let resolved = self.resolve_tasks(&all_task_ids).await;
+        // Revalidate stored IDs against the current installation source; old
+        // associations must never authorize a cross-tenant status mutation.
+        let resolved = self.resolve_tasks(source, &all_task_ids).await;
 
         // No bot comment on close
         let status = if is_merged {

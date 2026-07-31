@@ -93,6 +93,43 @@ impl<
             client,
         }
     }
+
+    /// Resolve the webhook's installation to exactly one authorized Macro source.
+    ///
+    /// Missing and multi-source mappings fail closed so an installation can
+    /// never fan GitHub data out across tenant boundaries.
+    async fn authorized_installation_source(
+        &self,
+        event: &ValidatedGithubWebhookEvent,
+    ) -> Option<GithubAppInstallationSource> {
+        let Some(installation_id) = event.installation_id() else {
+            tracing::warn!("missing installation id; rejecting GitHub webhook processing");
+            return None;
+        };
+        let installation_id = installation_id.to_string();
+        let sources = match self.repo.get_installation_sources(&installation_id).await {
+            Ok(sources) => sources,
+            Err(error) => {
+                tracing::error!(
+                    error=?error,
+                    installation_id,
+                    "failed to load GitHub App installation source"
+                );
+                return None;
+            }
+        };
+
+        let [source] = sources.as_slice() else {
+            tracing::warn!(
+                installation_id,
+                source_count = sources.len(),
+                "GitHub App installation is not bound to exactly one Macro source; rejecting webhook"
+            );
+            return None;
+        };
+
+        Some(source.clone())
+    }
 }
 
 /// Metadata needed to interact with a pull request via the GitHub API.
@@ -417,36 +454,11 @@ impl<
     async fn upsert_pull_request_foreign_entities(
         &self,
         event: &ValidatedGithubWebhookEvent,
+        source: &GithubAppInstallationSource,
     ) -> Option<(
         EnrichedGithubPullRequest,
         Vec<PullRequestForeignEntityUpsert>,
     )> {
-        let Some(installation_id) = event.installation_id() else {
-            tracing::warn!("missing installation id, cannot upsert PR foreign entity");
-            return None;
-        };
-        let installation_id = installation_id.to_string();
-
-        let stored_for_sources = match self.repo.get_installation_sources(&installation_id).await {
-            Ok(sources) => sources,
-            Err(error) => {
-                tracing::error!(
-                    error=?error,
-                    installation_id,
-                    "failed to fetch GitHub App installation sources for PR foreign entity"
-                );
-                return None;
-            }
-        };
-
-        if stored_for_sources.is_empty() {
-            tracing::trace!(
-                installation_id,
-                "no GitHub App installation sources found for PR foreign entity upsert"
-            );
-            return None;
-        }
-
         let Some(pull_request) = self.enriched_pull_request_metadata(event).await else {
             tracing::warn!("missing PR metadata, cannot upsert foreign entity");
             return None;
@@ -455,7 +467,7 @@ impl<
         let upserts = self
             .upsert_enriched_pull_request_foreign_entities(
                 pull_request.clone(),
-                &stored_for_sources,
+                std::slice::from_ref(source),
             )
             .await;
 
@@ -627,10 +639,10 @@ impl<
 
     /// Extract both legacy `MACRO-{short_uuid}` IDs and team-scoped
     /// `{team_slug}-{team_task_id}` references from text.
-    #[tracing::instrument(skip(self, event, text))]
+    #[tracing::instrument(skip(self, source, text))]
     async fn extract_task_ids_from_text(
         &self,
-        event: &ValidatedGithubWebhookEvent,
+        source: &GithubAppInstallationSource,
         text: &str,
     ) -> Vec<MacroTaskId> {
         let mut task_ids = MacroTaskId::extract_from_text(text);
@@ -638,11 +650,10 @@ impl<
         let team_task_refs = TeamTaskReference::extract_from_text(text);
 
         if !team_task_refs.is_empty() {
-            if let Some(installation_id) = event.installation_id() {
-                let installation_id = installation_id.to_string();
+            if let GithubAppInstallationSource::Team(team_id) = source {
                 match self
                     .repo
-                    .resolve_team_task_references(&installation_id, &team_task_refs)
+                    .resolve_team_task_references(*team_id, &team_task_refs)
                     .await
                 {
                     Ok(mut resolved_team_task_ids) => {
@@ -664,7 +675,7 @@ impl<
             } else {
                 tracing::debug!(
                     team_task_ref_count = team_task_refs.len(),
-                    "found team task references but webhook payload has no installation id"
+                    "ignoring team task references for a user-scoped installation"
                 );
             }
         }
@@ -683,7 +694,11 @@ impl<
     /// Resolve task IDs to documents, returning doc IDs and markdown links
     /// for all tasks that are actually task-type documents.
     #[tracing::instrument(skip(self, task_ids))]
-    async fn resolve_tasks(&self, task_ids: &[MacroTaskId]) -> ResolvedTasks {
+    async fn resolve_tasks(
+        &self,
+        source: &GithubAppInstallationSource,
+        task_ids: &[MacroTaskId],
+    ) -> ResolvedTasks {
         tracing::trace!(
             task_id_count = task_ids.len(),
             "resolving task IDs to documents"
@@ -708,8 +723,32 @@ impl<
 
             tracing::trace!(task_id=%task_id, uuid=%uuid, "looking up document for task ID");
 
-            // SAFETY: This is ok as we are only using the preview information of the
-            // document
+            let task_source = match self.repo.get_task_source(&uuid.to_string()).await {
+                Ok(Some(task_source)) => task_source,
+                Ok(None) => {
+                    tracing::trace!(task_id=%uuid, "task document does not exist");
+                    continue;
+                }
+                Err(error) => {
+                    tracing::error!(error=?error, task_id=%uuid, "failed to resolve task source");
+                    continue;
+                }
+            };
+
+            if &task_source != source {
+                tracing::warn!(
+                    task_id=%uuid,
+                    installation_source_type=source.source_type(),
+                    installation_source_id=%source.source_id(),
+                    task_source_type=task_source.source_type(),
+                    task_source_id=%task_source.source_id(),
+                    "rejecting cross-source GitHub task reference"
+                );
+                continue;
+            }
+
+            // SAFETY: The repository fact above proves that this task belongs
+            // to the installation's single authorized Macro source.
             let entity_access = entity_access::domain::models::EntityAccessReceipt::<
                 ViewAccessLevel,
             >::dangerously_assert_internal_user(
@@ -868,8 +907,11 @@ impl<
                 Ok(())
             }
             GithubWebhookEventType::PullRequest => {
+                let Some(source) = self.authorized_installation_source(webhook_event).await else {
+                    return Ok(());
+                };
                 let upsert_result = self
-                    .upsert_pull_request_foreign_entities(webhook_event)
+                    .upsert_pull_request_foreign_entities(webhook_event, &source)
                     .await;
                 if let Some((pull_request, upserts)) = &upsert_result {
                     self.notify_pr_status_transitions(webhook_event, pull_request, upserts)
@@ -888,9 +930,11 @@ impl<
                 }
 
                 match action {
-                    Some("opened" | "reopened") => self.handle_pr_open(webhook_event).await,
-                    Some("edited") => self.handle_pr_edit(webhook_event).await,
-                    Some("closed") => self.handle_pr_close(webhook_event).await,
+                    Some("opened" | "reopened") => {
+                        self.handle_pr_open(webhook_event, &source).await
+                    }
+                    Some("edited") => self.handle_pr_edit(webhook_event, &source).await,
+                    Some("closed") => self.handle_pr_close(webhook_event, &source).await,
                     _ => {
                         tracing::debug!(action, "skipping unhandled pull_request action");
                         Ok(())
@@ -900,9 +944,12 @@ impl<
             GithubWebhookEventType::IssueComment
             | GithubWebhookEventType::PullRequestReview
             | GithubWebhookEventType::PullRequestReviewComment => {
+                let Some(source) = self.authorized_installation_source(webhook_event).await else {
+                    return Ok(());
+                };
                 if webhook_event.is_associated_with_pull_request()
                     && let Some((pull_request, upserts)) = self
-                        .upsert_pull_request_foreign_entities(webhook_event)
+                        .upsert_pull_request_foreign_entities(webhook_event, &source)
                         .await
                 {
                     match (webhook_event.parsed_event_type(), action) {
@@ -926,12 +973,15 @@ impl<
                     }
                 }
 
-                self.handle_comment_event(webhook_event).await
+                self.handle_comment_event(webhook_event, &source).await
             }
             GithubWebhookEventType::CheckRun => {
+                let Some(source) = self.authorized_installation_source(webhook_event).await else {
+                    return Ok(());
+                };
                 if webhook_event.is_associated_with_pull_request() {
                     if let Some((pull_request, upserts)) = self
-                        .upsert_pull_request_foreign_entities(webhook_event)
+                        .upsert_pull_request_foreign_entities(webhook_event, &source)
                         .await
                     {
                         self.notify_pr_check_run(webhook_event, &pull_request, &upserts)
@@ -945,6 +995,7 @@ impl<
             }
             GithubWebhookEventType::Installation => match action {
                 Some("created") => self.handle_installation_created(webhook_event).await,
+                Some("deleted") => self.handle_installation_deleted(webhook_event).await,
                 _ => {
                     tracing::debug!(action, "skipping unhandled installation action");
                     Ok(())
@@ -973,14 +1024,7 @@ impl<
             return Ok(());
         }
 
-        let sources = self.sources_for_github_user(github_user_id).await?;
-        if sources.is_empty() {
-            tracing::debug!(
-                github_user_id,
-                "no macro sources found for github user, skipping installation association"
-            );
-            return Ok(());
-        }
+        let source = self.source_for_github_user(github_user_id).await?;
 
         for installation_id in installation_ids {
             let installation_id: u64 = match installation_id.parse() {
@@ -997,7 +1041,7 @@ impl<
 
             // Keep going on failure so one broken installation doesn't block
             // associating the rest.
-            self.associate_installation_with_sources(installation_id, &sources)
+            self.associate_installation_with_source(installation_id, source.as_ref())
                 .await
                 .inspect_err(|error| {
                     tracing::error!(

@@ -43,86 +43,108 @@ impl<
             .await
             .map_err(|e| GithubError::Internal(e.into()))?;
 
-        let sources = self.sources_for_github_user(&sender_github_user_id).await?;
-        if sources.is_empty() {
+        let source = self.source_for_github_user(&sender_github_user_id).await?;
+        if source.is_none() {
             tracing::warn!(
                 installation_id,
-                "no github link found for sender, cannot associate installation with a source"
+                "GitHub identity does not resolve to exactly one Macro source; disabling installation"
             );
-            return Ok(());
         }
 
-        self.associate_installation_with_sources(installation_id, &sources)
+        self.associate_installation_with_source(installation_id, source.as_ref())
             .await
     }
 
-    /// Compute the Macro sources (teams or users) for every Macro user linked
-    /// to the given GitHub user. Returns an empty list when no link exists.
-    pub(crate) async fn sources_for_github_user(
+    /// Resolve a GitHub identity to exactly one Macro source.
+    ///
+    /// A shared GitHub identity or a Macro user in multiple teams is
+    /// ambiguous. Those cases fail closed until the install flow can bind an
+    /// installation to an explicitly selected Macro source.
+    pub(crate) async fn source_for_github_user(
         &self,
         github_user_id: &str,
-    ) -> Result<Vec<GithubAppInstallationSource>, GithubError> {
+    ) -> Result<Option<GithubAppInstallationSource>, GithubError> {
         let links = self
             .repo
             .get_macro_ids_by_github_user_ids(std::slice::from_ref(&github_user_id.to_string()))
             .await
             .map_err(|e| GithubError::Internal(e.into()))?;
 
-        let macro_ids = links.get(github_user_id).cloned().unwrap_or_default();
+        let mut macro_ids = links.get(github_user_id).cloned().unwrap_or_default();
+        macro_ids.sort();
+        macro_ids.dedup();
 
-        // A GitHub account may be linked to several Macro users; collect the
-        // team/user source of every linked user.
-        let mut seen = std::collections::HashSet::new();
-        let mut sources = Vec::new();
-        for macro_id in macro_ids {
-            let team_ids = self
-                .repo
-                .get_user_team_ids(&macro_id)
-                .await
-                .map_err(|e| GithubError::Internal(e.into()))?;
-
-            if team_ids.is_empty() {
-                tracing::info!(
+        let [macro_id] = macro_ids.as_slice() else {
+            if macro_ids.len() > 1 {
+                tracing::warn!(
                     github_user_id,
-                    "user has no teams, using user source for installation association"
+                    macro_user_count = macro_ids.len(),
+                    "GitHub identity is linked to multiple Macro users"
                 );
-                let source = GithubAppInstallationSource::User(macro_id);
-                if seen.insert(source.clone()) {
-                    sources.push(source);
-                }
-            } else {
-                tracing::info!(
+            }
+            return Ok(None);
+        };
+
+        let mut team_ids = self
+            .repo
+            .get_user_team_ids(macro_id)
+            .await
+            .map_err(|e| GithubError::Internal(e.into()))?;
+        team_ids.sort();
+        team_ids.dedup();
+
+        match team_ids.as_slice() {
+            [] => Ok(Some(GithubAppInstallationSource::User(macro_id.clone()))),
+            [team_id] => Ok(Some(GithubAppInstallationSource::Team(*team_id))),
+            _ => {
+                tracing::warn!(
                     github_user_id,
+                    macro_id,
                     team_count = team_ids.len(),
-                    "using team sources for installation association"
+                    "Macro user belongs to multiple teams; installation source is ambiguous"
                 );
-                for team_id in team_ids {
-                    let source = GithubAppInstallationSource::Team(team_id);
-                    if seen.insert(source.clone()) {
-                        sources.push(source);
-                    }
-                }
+                Ok(None)
             }
         }
-
-        Ok(sources)
     }
 
-    /// Persist the installation-to-source associations and backfill open pull
-    /// requests visible to the installation.
-    pub(crate) async fn associate_installation_with_sources(
+    /// Replace the installation's source association and backfill only when it
+    /// resolves to a single source.
+    pub(crate) async fn associate_installation_with_source(
         &self,
         installation_id: u64,
-        sources: &[GithubAppInstallationSource],
+        source: Option<&GithubAppInstallationSource>,
     ) -> Result<(), GithubError> {
+        let sources = source.map(std::slice::from_ref).unwrap_or_default();
         self.repo
-            .upsert_installation_sources(&installation_id.to_string(), sources)
+            .replace_installation_sources(&installation_id.to_string(), sources)
             .await
             .map_err(|e| GithubError::Internal(e.into()))?;
 
-        self.backfill_open_pull_request_foreign_entities(installation_id, sources)
+        if let Some(source) = source {
+            self.backfill_open_pull_request_foreign_entities(
+                installation_id,
+                std::slice::from_ref(source),
+            )
             .await?;
+        }
 
         Ok(())
+    }
+
+    /// Handle an installation deletion by removing all local associations.
+    #[tracing::instrument(skip(self, event), err)]
+    pub(crate) async fn handle_installation_deleted(
+        &self,
+        event: &ValidatedGithubWebhookEvent,
+    ) -> Result<(), GithubError> {
+        let installation_id = event
+            .installation_id()
+            .ok_or_else(|| GithubError::Internal(anyhow::anyhow!("missing installation.id")))?;
+
+        self.repo
+            .delete_installation(&installation_id.to_string())
+            .await
+            .map_err(|error| GithubError::Internal(error.into()))
     }
 }

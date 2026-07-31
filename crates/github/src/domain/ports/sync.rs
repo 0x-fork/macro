@@ -40,16 +40,21 @@ pub trait GithubSyncRepo: Send + Sync + 'static {
         task_ids: &[MacroTaskId],
     ) -> impl Future<Output = Result<Vec<MacroTaskId>, Self::Err>> + Send;
 
-    /// Resolves team-scoped task references for a GitHub App installation.
-    ///
-    /// Implementations should use the installation's team sources from
-    /// `github_app_installation` (`source_type = 'team'`) and the referenced
-    /// team slug/task number to find the backing Macro task document.
+    /// Resolves task references within one explicitly authorized team.
     fn resolve_team_task_references(
         &self,
-        installation_id: &str,
+        team_id: uuid::Uuid,
         references: &[TeamTaskReference],
     ) -> impl Future<Output = Result<Vec<MacroTaskId>, Self::Err>> + Send;
+
+    /// Returns the source that owns a document.
+    ///
+    /// Team tasks belong to their `team_task.team_id`; other documents belong
+    /// to their document owner.
+    fn get_task_source(
+        &self,
+        document_id: &str,
+    ) -> impl Future<Output = Result<Option<GithubAppInstallationSource>, Self::Err>> + Send;
 
     /// Maps GitHub user IDs to the Macro user IDs linked to them via the `github_links` table.
     ///
@@ -89,12 +94,17 @@ pub trait GithubSyncRepo: Send + Sync + 'static {
         team_id: uuid::Uuid,
     ) -> impl Future<Output = Result<Vec<MacroUserIdStr<'static>>, Self::Err>> + Send;
 
-    /// Upserts associations between a GitHub App installation and its sources.
-    /// Ignores conflicts (idempotent).
-    fn upsert_installation_sources(
+    /// Atomically replaces all source associations for an installation.
+    fn replace_installation_sources(
         &self,
         installation_id: &str,
         sources: &[GithubAppInstallationSource],
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Removes all source and installer records for a deleted installation.
+    fn delete_installation(
+        &self,
+        installation_id: &str,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
     /// Records the GitHub user that installed a GitHub App installation,

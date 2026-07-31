@@ -991,7 +991,9 @@ impl<
             EntityAccessAuth::Internal => None,
         };
 
-        for pull_request in &mut response.pull_requests {
+        let allow_unscoped_internal_refs = source_ids.is_none();
+        let mut visible_pull_requests = Vec::with_capacity(response.pull_requests.len());
+        for mut pull_request in response.pull_requests {
             let foreign_entities = self
                 .foreign_entity_service
                 .get_foreign_entities_by_foreign_entity_id(
@@ -1004,9 +1006,13 @@ impl<
             if let Some(foreign_entity) =
                 first_visible_foreign_entity(&foreign_entities, source_ids.as_deref())
             {
-                hydrate_github_pull_request_from_foreign_entity(pull_request, foreign_entity);
+                hydrate_github_pull_request_from_foreign_entity(&mut pull_request, foreign_entity);
+                visible_pull_requests.push(pull_request);
+            } else if allow_unscoped_internal_refs {
+                visible_pull_requests.push(pull_request);
             }
         }
+        response.pull_requests = visible_pull_requests;
 
         Ok(response)
     }

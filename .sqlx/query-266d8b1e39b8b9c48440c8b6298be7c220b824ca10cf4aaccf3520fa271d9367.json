@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT tt.team_id AS \"team_id?\", d.owner\n            FROM \"Document\" d\n            LEFT JOIN team_task tt ON tt.document_id = d.id\n            WHERE d.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "team_id?",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "owner",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "266d8b1e39b8b9c48440c8b6298be7c220b824ca10cf4aaccf3520fa271d9367"
+}

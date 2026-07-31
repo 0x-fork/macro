@@ -111,7 +111,7 @@ impl GithubSyncRepo for PgGithubSyncRepo {
     #[tracing::instrument(skip(self, references), err)]
     async fn resolve_team_task_references(
         &self,
-        installation_id: &str,
+        team_id: uuid::Uuid,
         references: &[TeamTaskReference],
     ) -> Result<Vec<MacroTaskId>, Self::Err> {
         if references.is_empty() {
@@ -125,15 +125,12 @@ impl GithubSyncRepo for PgGithubSyncRepo {
             r#"
             SELECT DISTINCT tt.document_id
             FROM UNNEST($2::text[], $3::int4[]) AS refs(team_slug, task_num)
-            JOIN github_app_installation gai
-                ON gai.id = $1
-                AND gai.source_type = 'team'::github_app_installation_source_type
             JOIN team t
-                ON t.id = gai.source_id::uuid
+                ON t.id = $1
                 AND LOWER(t.slug) = LOWER(refs.team_slug)
             JOIN team_task tt ON tt.team_id = t.id AND tt.task_num = refs.task_num
             "#,
-            installation_id,
+            team_id,
             &team_slugs,
             &team_task_ids
         )
@@ -157,6 +154,29 @@ impl GithubSyncRepo for PgGithubSyncRepo {
                 }
             })
             .collect())
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_task_source(
+        &self,
+        document_id: &str,
+    ) -> Result<Option<GithubAppInstallationSource>, Self::Err> {
+        let row = sqlx::query!(
+            r#"
+            SELECT tt.team_id AS "team_id?", d.owner
+            FROM "Document" d
+            LEFT JOIN team_task tt ON tt.document_id = d.id
+            WHERE d.id = $1
+            "#,
+            document_id,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|row| match row.team_id {
+            Some(team_id) => GithubAppInstallationSource::Team(team_id),
+            None => GithubAppInstallationSource::User(row.owner),
+        }))
     }
 
     #[tracing::instrument(skip(self), err)]
@@ -319,13 +339,24 @@ impl GithubSyncRepo for PgGithubSyncRepo {
     }
 
     #[tracing::instrument(skip(self), err)]
-    async fn upsert_installation_sources(
+    async fn replace_installation_sources(
         &self,
         installation_id: &str,
         sources: &[GithubAppInstallationSource],
     ) -> Result<(), Self::Err> {
         let source_ids: Vec<String> = sources.iter().map(|source| source.source_id()).collect();
         let source_types: Vec<&str> = sources.iter().map(|source| source.source_type()).collect();
+        let mut transaction = self.pool.begin().await?;
+
+        sqlx::query!(
+            r#"
+            DELETE FROM github_app_installation
+            WHERE id = $1
+            "#,
+            installation_id,
+        )
+        .execute(&mut *transaction)
+        .await?;
 
         sqlx::query!(
             r#"
@@ -339,9 +370,38 @@ impl GithubSyncRepo for PgGithubSyncRepo {
             &source_ids,
             &source_types as &[&str],
         )
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
 
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn delete_installation(&self, installation_id: &str) -> Result<(), Self::Err> {
+        let mut transaction = self.pool.begin().await?;
+
+        sqlx::query!(
+            r#"
+            DELETE FROM github_app_installation
+            WHERE id = $1
+            "#,
+            installation_id,
+        )
+        .execute(&mut *transaction)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            DELETE FROM github_app_installation_installer
+            WHERE installation_id = $1
+            "#,
+            installation_id,
+        )
+        .execute(&mut *transaction)
+        .await?;
+
+        transaction.commit().await?;
         Ok(())
     }
 

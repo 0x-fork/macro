@@ -937,7 +937,7 @@ async fn test_soft_delete_document() {
 }
 
 #[tokio::test]
-async fn bot_pull_request_does_not_hydrate_foreign_entity() {
+async fn bot_pull_request_hides_unscoped_foreign_entity() {
     let document_id = "00000000-0000-0000-0000-000000000125";
     let expected_short_id = short_id_for_entity_id(document_id).unwrap();
     let foreign_entity_id = uuid::uuid!("00000000-0000-0000-0000-000000000126");
@@ -970,18 +970,11 @@ async fn bot_pull_request_does_not_hydrate_foreign_entity() {
         .await
         .unwrap();
 
-    assert_eq!(response.pull_requests.len(), 1);
-    assert_raw_pull_request(
-        &response.pull_requests[0],
-        "macro/repo/pull/17",
-        "macro",
-        "repo",
-        17,
-    );
+    assert!(response.pull_requests.is_empty());
 }
 
 #[tokio::test]
-async fn test_get_task_github_pull_requests_returns_raw_refs_for_authenticated_user() {
+async fn test_get_task_github_pull_requests_hides_unscoped_refs_for_authenticated_user() {
     let document_id = "00000000-0000-0000-0000-000000000001";
     let expected_short_id = short_id_for_entity_id(document_id).unwrap();
     let mut repo = make_mock_repo();
@@ -1005,14 +998,7 @@ async fn test_get_task_github_pull_requests_returns_raw_refs_for_authenticated_u
         .await
         .unwrap();
 
-    assert_eq!(response.pull_requests.len(), 1);
-    assert_raw_pull_request(
-        &response.pull_requests[0],
-        "macro/repo/pull/7",
-        "macro",
-        "repo",
-        7,
-    );
+    assert!(response.pull_requests.is_empty());
 }
 
 #[tokio::test]
@@ -1315,14 +1301,7 @@ async fn test_get_task_github_pull_requests_ignores_unrelated_foreign_entity_sou
         .await
         .unwrap();
 
-    assert_eq!(response.pull_requests.len(), 1);
-    assert_raw_pull_request(
-        &response.pull_requests[0],
-        "macro/repo/pull/10",
-        "macro",
-        "repo",
-        10,
-    );
+    assert!(response.pull_requests.is_empty());
     assert_eq!(
         *lookup_requests.lock().unwrap(),
         vec![ForeignEntityLookupRequest {
@@ -1402,14 +1381,7 @@ async fn test_get_task_github_pull_requests_ignores_unrelated_stored_source() {
         .await
         .unwrap();
 
-    assert_eq!(response.pull_requests.len(), 1);
-    assert_raw_pull_request(
-        &response.pull_requests[0],
-        "macro/repo/pull/11",
-        "macro",
-        "repo",
-        11,
-    );
+    assert!(response.pull_requests.is_empty());
 }
 
 #[tokio::test]

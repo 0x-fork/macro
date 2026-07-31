@@ -189,30 +189,33 @@ async fn test_resolve_team_task_references(pool: Pool<Postgres>) {
     ];
 
     let task_ids = repo
-        .resolve_team_task_references("12345", &refs)
+        .resolve_team_task_references(
+            Uuid::parse_str("dddddddd-dddd-dddd-dddd-dddddddddddd").unwrap(),
+            &refs,
+        )
         .await
         .unwrap();
 
     let expected_known =
         MacroTaskId::from_uuid(&Uuid::parse_str("0d0dc589-f301-43f1-8b11-4ab448ca4bb4").unwrap());
-    let expected_platform =
-        MacroTaskId::from_uuid(&Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap());
 
-    assert_eq!(task_ids.len(), 2);
+    assert_eq!(task_ids.len(), 1);
     assert!(task_ids.contains(&expected_known));
-    assert!(task_ids.contains(&expected_platform));
 }
 
 #[sqlx::test(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("github_team_task_test_data"))
 )]
-async fn test_resolve_team_task_references_requires_team_source(pool: Pool<Postgres>) {
+async fn test_resolve_team_task_references_requires_matching_team(pool: Pool<Postgres>) {
     let repo = PgGithubSyncRepo::new(pool);
     let refs = vec![TeamTaskReference::new("eng", 123).unwrap()];
 
     let task_ids = repo
-        .resolve_team_task_references("99999", &refs)
+        .resolve_team_task_references(
+            Uuid::parse_str("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee").unwrap(),
+            &refs,
+        )
         .await
         .unwrap();
 
@@ -223,28 +226,19 @@ async fn test_resolve_team_task_references_requires_team_source(pool: Pool<Postg
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("github_team_task_test_data"))
 )]
-async fn test_resolve_team_task_references_ignores_user_source(pool: Pool<Postgres>) {
-    sqlx::query(
-        r#"
-        INSERT INTO github_app_installation (id, source_id, source_type)
-        VALUES ($1, $2, 'user'::github_app_installation_source_type)
-        "#,
-    )
-    .bind("user-installation")
-    .bind("dddddddd-dddd-dddd-dddd-dddddddddddd")
-    .execute(&pool)
-    .await
-    .unwrap();
-
+async fn test_get_task_source_prefers_team_task_source(pool: Pool<Postgres>) {
     let repo = PgGithubSyncRepo::new(pool);
-    let refs = vec![TeamTaskReference::new("eng", 123).unwrap()];
-
-    let task_ids = repo
-        .resolve_team_task_references("user-installation", &refs)
+    let source = repo
+        .get_task_source("0d0dc589-f301-43f1-8b11-4ab448ca4bb4")
         .await
         .unwrap();
 
-    assert!(task_ids.is_empty());
+    assert_eq!(
+        source,
+        Some(GithubAppInstallationSource::Team(
+            Uuid::parse_str("dddddddd-dddd-dddd-dddd-dddddddddddd").unwrap()
+        ))
+    );
 }
 
 #[sqlx::test(
@@ -606,7 +600,7 @@ async fn test_get_team_member_ids(pool: Pool<Postgres>) {
 }
 
 // ---------------------------------------------------------------------------
-// upsert_installation_sources
+// replace_installation_sources
 // ---------------------------------------------------------------------------
 
 async fn get_installation_sources(
@@ -631,7 +625,7 @@ async fn get_installation_sources(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
 )]
-async fn test_upsert_installation_sources_inserts_team_sources(pool: Pool<Postgres>) {
+async fn test_replace_installation_sources_inserts_team_sources(pool: Pool<Postgres>) {
     let repo = PgGithubSyncRepo::new(pool.clone());
 
     let sources = vec![
@@ -639,7 +633,7 @@ async fn test_upsert_installation_sources_inserts_team_sources(pool: Pool<Postgr
         GithubAppInstallationSource::Team("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee".parse().unwrap()),
     ];
 
-    repo.upsert_installation_sources("123456", &sources)
+    repo.replace_installation_sources("123456", &sources)
         .await
         .unwrap();
 
@@ -666,17 +660,17 @@ async fn test_upsert_installation_sources_inserts_team_sources(pool: Pool<Postgr
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
 )]
-async fn test_upsert_installation_sources_idempotent_team_source(pool: Pool<Postgres>) {
+async fn test_replace_installation_sources_idempotent_team_source(pool: Pool<Postgres>) {
     let repo = PgGithubSyncRepo::new(pool.clone());
 
     let sources = vec![GithubAppInstallationSource::Team(
         "dddddddd-dddd-dddd-dddd-dddddddddddd".parse().unwrap(),
     )];
 
-    repo.upsert_installation_sources("123456", &sources)
+    repo.replace_installation_sources("123456", &sources)
         .await
         .unwrap();
-    repo.upsert_installation_sources("123456", &sources)
+    repo.replace_installation_sources("123456", &sources)
         .await
         .unwrap();
 
@@ -696,17 +690,17 @@ async fn test_upsert_installation_sources_idempotent_team_source(pool: Pool<Post
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("github_installation_test_data"))
 )]
-async fn test_upsert_installation_sources_idempotent_user_source(pool: Pool<Postgres>) {
+async fn test_replace_installation_sources_idempotent_user_source(pool: Pool<Postgres>) {
     let repo = PgGithubSyncRepo::new(pool.clone());
 
     let sources = vec![GithubAppInstallationSource::User(
         "macro|solo@user.com".to_string(),
     )];
 
-    repo.upsert_installation_sources("654321", &sources)
+    repo.replace_installation_sources("654321", &sources)
         .await
         .unwrap();
-    repo.upsert_installation_sources("654321", &sources)
+    repo.replace_installation_sources("654321", &sources)
         .await
         .unwrap();
 
