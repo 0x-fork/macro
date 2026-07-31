@@ -1,4 +1,5 @@
 import CaretDownIcon from '@phosphor-icons/core/assets/fill/caret-down-fill.svg';
+import { makePersisted } from '@solid-primitives/storage';
 import { cn } from '@ui';
 import { createSignal, For, type JSX, onCleanup, Show } from 'solid-js';
 
@@ -15,9 +16,18 @@ export function CollapsibleSidebarSection(props: {
   icon?: JSX.Element;
   headerMenu?: () => JSX.Element;
   defaultOpen?: boolean;
+  /** Persist the open state locally under this key. */
+  persistKey?: string;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = createSignal(props.defaultOpen ?? true);
+  // With a `persistKey` the signal itself is persisted — the setter writes
+  // through to local storage, so a refresh restores the toggled state.
+  const [open, setOpen] =
+    props.persistKey !== undefined
+      ? makePersisted(createSignal(props.defaultOpen ?? true), {
+          name: `sidebar-section-open:${props.persistKey}`,
+        })
+      : createSignal(props.defaultOpen ?? true);
   let openChangeTimer: ReturnType<typeof setTimeout> | undefined;
 
   onCleanup(() => {
