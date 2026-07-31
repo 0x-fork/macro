@@ -4,27 +4,28 @@
  * nix devshells as BASH_ENV + /env/repo-dev-env.sh, /opt/acp-sidecar), not to
  * any provider. */
 
-import type { CommandRunner } from './interfaces'
+import type { CommandRunner } from './interfaces';
 
 /** Macro dev shell baked into the image at build time (see the Dockerfile);
  * absent on images built without the github_token secret. */
-const REPO_ENV_FILE = '/env/repo-dev-env.sh'
-const SIDECAR_LOG = '/tmp/acp-sidecar.log'
+const REPO_ENV_FILE = '/env/repo-dev-env.sh';
+const SIDECAR_LOG = '/tmp/acp-sidecar.log';
 
-export const WORKSPACE_DIR = '/workspace'
+export const WORKSPACE_DIR = '/workspace';
 
 /** Clone + sidecar start; the dev env is prebaked so nothing builds here. */
-export const ENSURE_TIMEOUT_S = 300
+export const ENSURE_TIMEOUT_S = 300;
 
 export function assertSafeRepoUrl(url: string): void {
-  let u: URL
+  let u: URL;
   try {
-    u = new URL(url)
+    u = new URL(url);
   } catch {
-    throw new Error(`invalid repoUrl: ${url}`)
+    throw new Error(`invalid repoUrl: ${url}`);
   }
-  if (u.protocol !== 'https:') throw new Error('repoUrl must be https')
-  if (/[\s"'`$\\;|&<>()]/.test(url)) throw new Error('repoUrl contains illegal characters')
+  if (u.protocol !== 'https:') throw new Error('repoUrl must be https');
+  if (/[\s"'`$\\;|&<>()]/.test(url))
+    throw new Error('repoUrl contains illegal characters');
 }
 
 /** Bring the sandbox to "ready" no matter its current state; every stage
@@ -49,25 +50,28 @@ export function ensureReadyCommand(): string {
     `if [ -f ${REPO_ENV_FILE} ]; then source ${REPO_ENV_FILE}; export PATH="$PATH:$baked_path"; fi; ` +
     `nohup /opt/acp-sidecar > ${SIDECAR_LOG} 2>&1 & ` +
     `fi'`
-  )
+  );
 }
 
 export async function ensureReady(runner: CommandRunner): Promise<void> {
-  console.log('[provision] ensuring sandbox is ready')
-  await runner.run(ensureReadyCommand(), { timeoutS: ENSURE_TIMEOUT_S })
+  console.log('[provision] ensuring sandbox is ready');
+  await runner.run(ensureReadyCommand(), { timeoutS: ENSURE_TIMEOUT_S });
 }
 
 /** Poll the sidecar's readiness probe until it answers. */
-export async function waitForPing(pingUrl: string, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs
+export async function waitForPing(
+  pingUrl: string,
+  timeoutMs: number
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(pingUrl)
-      if (res.ok) return
+      const res = await fetch(pingUrl);
+      if (res.ok) return;
     } catch {
       // sidecar not up yet
     }
-    await new Promise((r) => setTimeout(r, 250))
+    await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error(`sidecar did not answer ${pingUrl} within ${timeoutMs}ms`)
+  throw new Error(`sidecar did not answer ${pingUrl} within ${timeoutMs}ms`);
 }

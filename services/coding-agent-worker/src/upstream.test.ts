@@ -1,105 +1,105 @@
-import { expect, test } from 'bun:test'
-import { UpstreamLink } from './upstream'
+import { expect, test } from 'bun:test';
+import type { ToRuntimeMessage, ToServerMessage } from './protocol/generated';
+import type { Socket } from './socket';
+import { UpstreamLink } from './upstream';
 
-class MockWebSocket extends EventTarget {
-  readonly sent: string[] = []
+class MockSocket implements Socket {
+  onOpen: () => void = () => {};
+  onMessage: (message: ToRuntimeMessage) => void = () => {};
+  readonly sent: ToServerMessage[] = [];
+  closed = false;
 
-  send(message: string) {
-    this.sent.push(message)
+  constructor(readonly url: string) {}
+
+  send(message: ToServerMessage) {
+    this.sent.push(message);
   }
 
   close() {
-    this.dispatchEvent(new Event('close'))
-  }
-
-  open() {
-    this.dispatchEvent(new Event('open'))
-  }
-
-  receive(message: unknown) {
-    this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(message) }))
+    this.closed = true;
   }
 }
 
 function setup() {
-  const sockets: MockWebSocket[] = []
-  const urls: string[] = []
+  let socket: MockSocket | undefined;
   const link = new UpstreamLink(
     'ws://localhost:4001/ws?existing=true',
     'session 1',
     (url) => {
-      urls.push(url)
-      const socket = new MockWebSocket()
-      sockets.push(socket)
-      return socket as unknown as WebSocket
-    },
-    0,
-  )
-  return { link, sockets, urls }
+      socket = new MockSocket(url);
+      return socket;
+    }
+  );
+  return { link, socket: socket! };
 }
 
 test('uses the query session id and agent_runtime_protocol tagged messages', () => {
-  const { link, sockets, urls } = setup()
-  expect(new URL(urls[0]!).searchParams.get('id')).toBe('session 1')
-  expect(new URL(urls[0]!).searchParams.get('existing')).toBe('true')
+  const { link, socket } = setup();
+  expect(new URL(socket.url).searchParams.get('id')).toBe('session 1');
+  expect(new URL(socket.url).searchParams.get('existing')).toBe('true');
 
-  link.status('booting')
-  sockets[0]!.open()
-  expect(JSON.parse(sockets[0]!.sent[0]!)).toEqual({ type: 'event', event: 'booting' })
+  link.status('booting');
+  socket.onOpen();
+  expect(socket.sent[0]).toEqual({ type: 'event', event: 'booting' });
 
-  link.acp({ jsonrpc: '2.0', method: 'session/update' })
-  expect(JSON.parse(sockets[0]!.sent[1]!)).toEqual({
+  link.acp({ jsonrpc: '2.0', method: 'session/update' });
+  expect(socket.sent[1]).toEqual({
     type: 'acp',
     jsonrpc: '2.0',
     method: 'session/update',
-  })
+  });
 
-  let received: unknown
+  let received: unknown;
   link.onAcp = (message) => {
-    received = message
-  }
-  sockets[0]!.receive({ type: 'acp', jsonrpc: '2.0', id: 1, result: {} })
-  expect(received).toEqual({ jsonrpc: '2.0', id: 1, result: {} })
-  link.close()
-})
+    received = message;
+  };
+  socket.onMessage({ type: 'acp', jsonrpc: '2.0', id: 1, result: {} });
+  expect(received).toEqual({ jsonrpc: '2.0', id: 1, result: {} });
+  link.close();
+  expect(socket.closed).toBe(true);
+});
 
 test('ACP frames received before onAcp is set are queued and flushed once it is', () => {
-  const { link, sockets } = setup()
-  sockets[0]!.open()
+  const { link, socket } = setup();
+  socket.onOpen();
 
   // Arrives before any caller has wired up a real handler (e.g. the proxy's
   // session/new bootstrap racing ahead of the runtime's own downstream
   // connection) - must not be silently dropped.
-  sockets[0]!.receive({ type: 'acp', jsonrpc: '2.0', id: 'agent_proxy:session/new', result: {} })
+  socket.onMessage({
+    type: 'acp',
+    jsonrpc: '2.0',
+    id: 'agent_proxy:session/new',
+    result: {},
+  });
 
-  const received: unknown[] = []
+  const received: unknown[] = [];
   link.onAcp = (message) => {
-    received.push(message)
-  }
-  expect(received).toEqual([{ jsonrpc: '2.0', id: 'agent_proxy:session/new', result: {} }])
+    received.push(message);
+  };
+  expect(received).toEqual([
+    { jsonrpc: '2.0', id: 'agent_proxy:session/new', result: {} },
+  ]);
 
   // Once attached, later frames deliver immediately - no re-queueing.
-  sockets[0]!.receive({ type: 'acp', jsonrpc: '2.0', id: 'live', result: {} })
+  socket.onMessage({ type: 'acp', jsonrpc: '2.0', id: 'live', result: {} });
   expect(received).toEqual([
     { jsonrpc: '2.0', id: 'agent_proxy:session/new', result: {} },
     { jsonrpc: '2.0', id: 'live', result: {} },
-  ])
-  link.close()
-})
+  ]);
+  link.close();
+});
 
-test('reconnect sends current event and only ACP queued while offline', async () => {
-  const { link, sockets } = setup()
-  link.status('ready')
-  sockets[0]!.open()
-  link.acp({ jsonrpc: '2.0', id: 'already-sent', method: 'session/prompt' })
-  sockets[0]!.close()
-  link.acp({ jsonrpc: '2.0', id: 'queued', method: 'session/prompt' })
+test('ACP frames sent before the socket opens are queued and flushed on open', () => {
+  const { link, socket } = setup();
+  link.status('ready');
+  link.acp({ jsonrpc: '2.0', id: 'early', method: 'session/prompt' });
+  expect(socket.sent).toEqual([]);
 
-  await Bun.sleep(1)
-  sockets[1]!.open()
-  expect(sockets[1]!.sent.map((message) => JSON.parse(message))).toEqual([
+  socket.onOpen();
+  expect(socket.sent).toEqual([
     { type: 'event', event: 'ready' },
-    { type: 'acp', jsonrpc: '2.0', id: 'queued', method: 'session/prompt' },
-  ])
-  link.close()
-})
+    { type: 'acp', jsonrpc: '2.0', id: 'early', method: 'session/prompt' },
+  ]);
+  link.close();
+});

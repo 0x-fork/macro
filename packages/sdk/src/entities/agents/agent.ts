@@ -3,6 +3,7 @@ import type {
   ChatResponse,
   GetAgentResponse,
 } from '../../../generated/agent-proxy/types.gen';
+import { type Mentionable, type MentionPart, wrapXml } from '../../mentions';
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { PropertiedEntity } from '../entity';
@@ -11,7 +12,10 @@ import { Project } from '../projects/project';
 /** An external coding agent, proxied through agent_proxy_service. Backed by
  * the same chat row a regular {@link Chat} is (`id` is the chat id), just
  * with `kind: 'External'`, so favorites/properties treat it identically. */
-export class Agent extends PropertiedEntity<GetAgentResponse> {
+export class Agent
+  extends PropertiedEntity<GetAgentResponse>
+  implements Mentionable
+{
   /** Favorites identify agents as `chat` — an agent is a chat under the hood. */
   readonly entityType = 'chat';
 
@@ -151,5 +155,18 @@ export class Agent extends PropertiedEntity<GetAgentResponse> {
   /** The agent's URL in the Macro web app (it's a chat under the hood). */
   webUrl(): string {
     return `${this.client.webAppUrl}/app/chat/${this.id}`;
+  }
+
+  /** Mentions as a chat — an agent is a chat under the hood. */
+  toMention(): MentionPart {
+    return {
+      tag: wrapXml('m-document-mention', {
+        documentId: this.id,
+        documentName: this.detail.peek()?.chat.name ?? '',
+        blockName: 'chat',
+        blockParams: {},
+      }),
+      mention: { entity_type: 'chat', entity_id: this.id },
+    };
   }
 }

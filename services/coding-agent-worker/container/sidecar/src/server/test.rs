@@ -82,23 +82,25 @@ async fn ping_answers_ok() {
 }
 
 #[tokio::test]
-async fn round_trips_binary_and_text() {
+async fn round_trips_one_message_per_frame() {
     let harness = fake_harness("exec cat");
     let addr = serve(&harness).await;
     let mut ws = connect(addr).await.expect("ws connect");
 
-    ws.send(tungstenite::Message::Binary(b"hello\n".to_vec().into()))
-        .await
-        .expect("send binary");
-    let echoed = ws.next().await.expect("stream open").expect("read frame");
-    assert_eq!(echoed.into_data().as_ref(), b"hello\n");
-
-    // Text frames must reach stdin as the same raw bytes.
-    ws.send(tungstenite::Message::Text("{\"id\":1}\n".into()))
+    // One frame in = one NDJSON line on stdin; `cat` echoes the line back,
+    // which must come out as one text frame without the newline.
+    ws.send(tungstenite::Message::Text("{\"id\":1}".into()))
         .await
         .expect("send text");
     let echoed = ws.next().await.expect("stream open").expect("read frame");
-    assert_eq!(echoed.into_data().as_ref(), b"{\"id\":1}\n");
+    assert_eq!(echoed, tungstenite::Message::Text("{\"id\":1}".into()));
+
+    // Binary frames carry the same contract.
+    ws.send(tungstenite::Message::Binary(b"{\"id\":2}".to_vec().into()))
+        .await
+        .expect("send binary");
+    let echoed = ws.next().await.expect("stream open").expect("read frame");
+    assert_eq!(echoed, tungstenite::Message::Text("{\"id\":2}".into()));
 }
 
 #[tokio::test]
@@ -137,11 +139,11 @@ async fn token_gates_the_bridge_but_not_ping() {
     let (mut ws, _) = tokio_tungstenite::connect_async(format!("ws://{addr}/?token=s3cret"))
         .await
         .expect("token-bearing connect");
-    ws.send(tungstenite::Message::Binary(b"hi\n".to_vec().into()))
+    ws.send(tungstenite::Message::Text("hi".into()))
         .await
         .expect("send");
     let echoed = ws.next().await.expect("stream open").expect("read frame");
-    assert_eq!(echoed.into_data().as_ref(), b"hi\n");
+    assert_eq!(echoed, tungstenite::Message::Text("hi".into()));
 }
 
 #[tokio::test]

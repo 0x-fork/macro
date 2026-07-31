@@ -11,7 +11,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use futures_util::{SinkExt, StreamExt};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Semaphore;
 
@@ -90,9 +90,6 @@ async fn bridge(
         .into_response()
 }
 
-/// Forward bytes between the websocket and a fresh harness process until
-/// either side goes away: a disconnect kills the harness, a harness exit
-/// closes the socket.
 async fn pipe(socket: WebSocket, harness: &str, workspace: &str) {
     let mut child = match Command::new(harness)
         .args(["acp", "--cwd", workspace])
@@ -109,23 +106,28 @@ async fn pipe(socket: WebSocket, harness: &str, workspace: &str) {
         }
     };
     let mut stdin = child.stdin.take().expect("stdin was piped");
-    let mut stdout = child.stdout.take().expect("stdout was piped");
+    let stdout = child.stdout.take().expect("stdout was piped");
     tracing::info!("agent connected, harness spawned");
 
     let (mut ws_tx, mut ws_rx) = socket.split();
-    let mut buf = [0u8; 32 * 1024];
+    let mut lines = BufReader::new(stdout).lines();
     loop {
         tokio::select! {
-            read = stdout.read(&mut buf) => match read {
-                Ok(0) | Err(_) => {
+            line = lines.next_line() => match line {
+                Ok(Some(line)) => {
+                    if ws_tx.send(Message::Text(line.into())).await.is_err() {
+                        break;
+                    }
+                }
+                Ok(None) => {
                     tracing::info!("harness exited, closing socket");
                     let _ = ws_tx.send(Message::Close(None)).await;
                     break;
                 }
-                Ok(n) => {
-                    if ws_tx.send(Message::Binary(buf[..n].to_vec().into())).await.is_err() {
-                        break;
-                    }
+                Err(e) => {
+                    tracing::error!(error = ?e, "failed to read harness stdout, closing socket");
+                    let _ = ws_tx.send(Message::Close(None)).await;
+                    break;
                 }
             },
             msg = ws_rx.next() => {
@@ -136,7 +138,9 @@ async fn pipe(socket: WebSocket, harness: &str, workspace: &str) {
                     Some(Ok(Message::Ping(_) | Message::Pong(_))) => continue,
                     Some(Ok(Message::Close(_))) | Some(Err(_)) | None => break,
                 };
-                if stdin.write_all(&bytes).await.is_err() {
+                if stdin.write_all(&bytes).await.is_err()
+                    || stdin.write_all(b"\n").await.is_err()
+                {
                     break;
                 }
             },

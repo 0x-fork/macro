@@ -1,12 +1,10 @@
-import { randomUUID } from 'node:crypto'
-import { type AnyMessage, ndJsonStream } from '@agentclientprotocol/sdk'
-import { Macro } from '@macro/sdk'
-import { isJsonRpcMessage } from './acp/jsonrpc'
-import { env } from './env'
-import { log } from './log'
-import { DaytonaProvider } from './providers/daytona'
-import type { AcpConnection, AgentSandbox } from './interfaces'
-import { UpstreamLink } from './upstream'
+import type { AnyMessage, Stream } from '@agentclientprotocol/sdk';
+import { env } from './env';
+import type { AgentSandbox } from './interfaces';
+import { macro } from './macro';
+import type { AcpMessage } from './protocol/generated';
+import { DaytonaProvider } from './providers/daytona';
+import { UpstreamLink } from './upstream';
 
 /** Frame router between the sandbox's ACP connection and the upstream link.
  * The worker itself never speaks ACP - it neither initializes the agent nor
@@ -15,151 +13,150 @@ import { UpstreamLink } from './upstream'
  * sandbox. Every frame in either direction — upstream's, and every byte
  * opencode emits — is relayed verbatim. */
 class SessionRouter {
-  onAgentExit: () => void = () => {}
+  onAgentExit: () => void = () => {};
 
-  private readonly writer: WritableStreamDefaultWriter<AnyMessage>
+  private readonly writer: WritableStreamDefaultWriter<AnyMessage>;
 
   constructor(
-    private readonly conn: AcpConnection,
+    conn: Stream,
     private readonly link: UpstreamLink,
-    private readonly sessionId: string,
+    private readonly sessionId: string
   ) {
-    // NDJSON framing only. The SDK's connection layer is deliberately not
-    // used: agent_proxy owns the ACP session, so this end correlates nothing.
-    const wire = ndJsonStream(conn.writable, conn.readable)
-    this.writer = wire.writable.getWriter()
-    link.onAcp = (frame) => this.writeToAgent(frame)
-    void this.pump(wire.readable)
+    // The SDK's connection layer is deliberately not used: agent_proxy owns
+    // the ACP session, so this end correlates nothing.
+    this.writer = conn.writable.getWriter();
+    link.onAcp = (frame) => this.writeToAgent(frame);
+    void this.pump(conn.readable);
   }
 
   async close(): Promise<void> {
-    try {
-      this.writer.releaseLock()
-    } catch {}
-    await this.conn.close()
+    // Closing the writable closes the underlying websocket.
+    await this.writer.close().catch(() => {});
   }
 
-  private writeToAgent(frame: unknown) {
-    if (!isJsonRpcMessage(frame)) {
-      log.error(`[session ${this.sessionId}] upstream sent a non-JSON-RPC frame`, { frame })
-      return
-    }
-    log.debug(`[session ${this.sessionId}] -> agent`, frame)
-    void this.writer.write(frame).catch((error) => {
-      log.error(`[session ${this.sessionId}] write to agent failed`, error)
-    })
+  private writeToAgent(frame: AcpMessage) {
+    console.log(`[session ${this.sessionId}] -> agent`, frame);
+    // Relayed verbatim: agent_proxy owns the ACP session and its validation.
+    void this.writer.write(frame as AnyMessage).catch((error) => {
+      console.error(`[session ${this.sessionId}] write to agent failed`, error);
+    });
   }
 
   private async pump(readable: ReadableStream<AnyMessage>): Promise<void> {
-    const reader = readable.getReader()
+    const reader = readable.getReader();
     try {
       for (;;) {
-        const { value, done } = await reader.read()
+        const { value, done } = await reader.read();
         if (done) {
-          log.warn(`[session ${this.sessionId}] agent stream closed (done)`)
-          break
+          console.warn(
+            `[session ${this.sessionId}] agent stream closed (done)`
+          );
+          break;
         }
-        log.debug(`[session ${this.sessionId}] <- agent`, value)
-        this.link.acp(value)
+        console.log(`[session ${this.sessionId}] <- agent`, value);
+        this.link.acp(value);
       }
     } catch (error) {
-      log.error(`[session ${this.sessionId}] agent stream failed`, error)
+      console.error(`[session ${this.sessionId}] agent stream failed`, error);
     }
-    this.onAgentExit()
+    this.onAgentExit();
   }
 }
 
-type LiveSession = { sandbox: AgentSandbox; router: SessionRouter; link: UpstreamLink }
-const sessions = new Map<string, LiveSession>()
-const provider = new DaytonaProvider()
+type LiveSession = {
+  sandbox: AgentSandbox;
+  router: SessionRouter;
+  link: UpstreamLink;
+};
+const sessions = new Map<string, LiveSession>();
+const provider = new DaytonaProvider();
 
 /** Kick off a session: returns the id immediately; all progress streams to the
  * session-scoped upstream WebSocket as tagged system and ACP messages.
  *
- * `agentId`, when given, is agent_proxy's chat/agent id and becomes the
- * session id verbatim (the shared runtime endpoint's `?id=` is matched
- * against it on the other end). Without it, a fresh id is generated - the
- * standalone dev-fixture flow doesn't have an agent_proxy chat to match. */
-export function startSession(opts: { repoUrl: string; prompt: string; agentId?: string }): string {
-  const sessionId = opts.agentId ?? randomUUID()
-  void run(sessionId, opts)
-  return sessionId
+ * `agentId` is agent_proxy's chat/agent id and becomes the session id
+ * verbatim (the shared runtime endpoint's `?id=` is matched against it on
+ * the other end). */
+export function startSession(opts: {
+  repoUrl: string;
+  prompt: string;
+  agentId: string;
+  /** Called once the sandbox is up and the agent is ready to work. */
+  onBoot?: () => unknown;
+}): string {
+  void run(opts.agentId, opts);
+  return opts.agentId;
 }
 
 async function run(
   sessionId: string,
-  opts: { repoUrl: string; prompt: string; agentId?: string },
+  opts: {
+    repoUrl: string;
+    prompt: string;
+    agentId: string;
+    onBoot?: () => unknown;
+  }
 ): Promise<void> {
-  const link = new UpstreamLink(env.UPSTREAM_WS_URL, sessionId)
-  let sandbox: AgentSandbox | null = null
+  // agent_proxy serves the runtime websocket on the same host as its HTTP
+  // API, so the SDK's resolved host (env defaults / local portmap) is the
+  // default; UPSTREAM_WS_URL only overrides it for the dev fixture.
+  const upstreamUrl =
+    env.UPSTREAM_WS_URL ||
+    `${macro._client.hosts['agent-proxy'].replace(/^http/, 'ws')}/runtime`;
+
+  const link = new UpstreamLink(upstreamUrl, sessionId);
+  let sandbox: AgentSandbox | null = null;
   try {
-    // The kickoff prompt goes to agent_proxy's HTTP API, not the
-    // websocket: the proxy durably queues it and delivers it as the
-    // session's first `session/prompt` once this runtime's ACP session is
-    // bootstrapped. Posted before the sandbox exists on purpose - the
-    // queue is exactly what makes that safe.
-    if (opts.agentId) await postInitialPrompt(opts.agentId, opts.prompt)
-    link.status('booting')
-    log.info(`[session ${sessionId}] spawning sandbox`, { repoUrl: opts.repoUrl })
+    await macro.agents.byId(opts.agentId).prompt(opts.prompt);
+
+    link.status('booting');
+    console.log(`[session ${sessionId}] spawning sandbox`, {
+      repoUrl: opts.repoUrl,
+    });
+
     sandbox = await provider.spawn({
       repoUrl: opts.repoUrl,
       envVars: {
         GITHUB_TOKEN: env.GITHUB_TOKEN,
-        ...(env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY } : {}),
+        ...(env.ANTHROPIC_API_KEY
+          ? { ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY }
+          : {}),
       },
-    })
-    log.info(`[session ${sessionId}] sandbox up, connecting to ACP sidecar`, { sandboxId: sandbox.id })
+    });
+    console.log(
+      `[session ${sessionId}] sandbox up, connecting to ACP sidecar`,
+      { sandboxId: sandbox.id }
+    );
 
-    const conn = await sandbox.connect()
-    log.info(`[session ${sessionId}] ACP sidecar connected, wiring session router`)
-    const router = new SessionRouter(conn, link, sessionId)
-    router.onAgentExit = () => void destroySession(sessionId)
-    sessions.set(sessionId, { sandbox, router, link })
+    const conn = await sandbox.connect();
+    console.log(
+      `[session ${sessionId}] ACP sidecar connected, wiring session router`
+    );
+    const router = new SessionRouter(conn, link, sessionId);
+    router.onAgentExit = () => void destroySession(sessionId);
+    sessions.set(sessionId, { sandbox, router, link });
 
-    // Matches agent_runtime_protocol's `SystemEvent::AcpReady` wire name:
-    // agent_proxy waits for this exact event before starting the ACP
-    // `initialize`/`session/new` handshake, since only now is the sandbox's
-    // ACP connection actually wired up to receive it.
-    link.status('acp_ready')
+    link.status('acp_ready');
+    await opts.onBoot?.();
   } catch (e) {
-    log.error(`[session ${sessionId}] sandbox setup failed`, e)
+    console.error(`[session ${sessionId}] sandbox setup failed`, e);
     if (sessions.has(sessionId)) {
-      await destroySession(sessionId)
+      await destroySession(sessionId);
     } else {
-      link.status('shutting_down')
-      await sandbox?.release().catch(() => {})
-      link.close()
+      link.status('shutting_down');
+      await sandbox?.release().catch(() => {});
+      link.close();
     }
   }
 }
 
-/** agent_proxy's HTTP base URL, derived from the upstream WS URL (they
- * are the same service): `ws(s)://host/...` -> `http(s)://host`. */
-function agentProxyHttpUrl(): string {
-  const url = new URL(env.UPSTREAM_WS_URL)
-  url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:'
-  url.pathname = ''
-  url.search = ''
-  return url.toString().replace(/\/$/, '')
-}
-
-/** Post the session's kickoff prompt to agent_proxy through the Macro SDK. */
-async function postInitialPrompt(agentId: string, prompt: string): Promise<void> {
-  const macro = new Macro({
-    env: env.MACRO_ENV as 'local' | 'dev' | 'prod',
-    hosts: { 'agent-proxy': agentProxyHttpUrl() },
-  })
-  await macro.agents.byId(agentId).prompt(prompt)
-  log.info(`[session ${agentId}] kickoff prompt posted to agent proxy`)
-}
-
-export async function destroySession(id: string): Promise<boolean> {
-  const live = sessions.get(id)
-  if (!live) return false
-  sessions.delete(id)
-  live.link.status('shutting_down')
-  await live.router.close().catch(() => {})
-  await live.sandbox.release().catch(() => {})
-  live.link.close()
-  return true
+async function destroySession(id: string): Promise<boolean> {
+  const live = sessions.get(id);
+  if (!live) return false;
+  sessions.delete(id);
+  live.link.status('shutting_down');
+  await live.router.close().catch(() => {});
+  await live.sandbox.release().catch(() => {});
+  live.link.close();
+  return true;
 }
