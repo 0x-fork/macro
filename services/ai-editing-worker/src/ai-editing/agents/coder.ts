@@ -45,18 +45,16 @@ export async function coder(
         onRunCode: deps.onRunCode,
         span: deps.span,
       }),
-      // `readDocument` returns the whole document. When the coder's window
-      // already IS the whole document the call can only return what it was
-      // given, yet coders reliably make it anyway — costing a full model round
-      // trip and permanently adding a duplicate copy to their history. Withhold
-      // the tool rather than asking the prompt to discourage it.
-      ...(deps.contextIsWholeDocument
-        ? {}
-        : { readDocument: createReadDocumentTool({ session }) }),
+      // Always available, even when the coder's window already is the whole
+      // document. Withholding it looked like free savings — the call can only
+      // return what the coder was handed — but the bench says otherwise:
+      // removing it drove coder input tokens +37%, runCode calls 129 -> 168 and
+      // retries 22 -> 28. The re-read is not redundant, it is the coder's only
+      // way to see the document AFTER its own edits, and without that feedback
+      // it makes more blind attempts than the re-read ever cost.
+      readDocument: createReadDocumentTool({ session }),
       reportBlocked: createImBlockedTool(
-        deps.contextIsWholeDocument
-          ? 'Call this instead of guessing when you cannot do the edit. Your context already contains the entire document.'
-          : 'Call this instead of guessing when you cannot do the edit -- but only after `readDocument` failed to surface what you need.',
+        'Call this instead of guessing when you cannot do the edit -- but only after `readDocument` failed to surface what you need.',
         false
       ),
     },
