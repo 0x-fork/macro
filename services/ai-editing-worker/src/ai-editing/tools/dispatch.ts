@@ -287,6 +287,11 @@ export function createDispatchTool(opts: DispatchToolOptions) {
       const xml = serializeWithXml(session);
       const range = computeContextRange(xml, edit.editing_instruction);
       const context = xmlWindow(xml, range);
+      // The window grows to a minimum size and pads its edges, so it routinely
+      // covers the whole document even when ids were matched. Compare line counts
+      // rather than trusting `range.source`.
+      const contextIsWholeDocument =
+        context.split('\n').length >= numberLines(xml).split('\n').length;
       span.setAttr('context.source', range.source);
       span.setAttr('context.lines', range.endLine - range.startLine + 1);
       const borrowStartedAt = Date.now();
@@ -302,6 +307,7 @@ export function createDispatchTool(opts: DispatchToolOptions) {
             doc,
             awarenessSource,
             context,
+            contextIsWholeDocument,
             request,
             params,
             typingAnimations,

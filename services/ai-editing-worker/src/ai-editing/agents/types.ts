@@ -15,6 +15,9 @@ export type RunTaskDeps = {
   awarenessSource: AwarenessSource;
   runner: RunCodeToolOptions['runner'];
   context: string;
+  /** True when `context` already holds the entire document, so there is nothing
+   *  `readDocument` could add. */
+  contextIsWholeDocument?: boolean;
   /** The user's original edit request (plus resolved intent when available),
    *  tone and content context for the writer. */
   request?: string;
