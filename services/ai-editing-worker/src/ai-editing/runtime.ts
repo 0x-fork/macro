@@ -136,11 +136,5 @@ export async function runEditorCode(args: RunEditorCodeArgs): Promise<string> {
   span?.setAttr('ops.failed', failed);
   if (failed > 0) span?.setAttr('error.kind', 'apply');
   const after = snapshotNodes(serializeWithXml(args.session));
-  const report = describeEffect(summarize(results), diffNodes(before, after));
-  // Destructive-but-successful ops (notably setText flattening a block) can only
-  // be surfaced here — they neither throw nor show up as a missing diff.
-  const warnings = args.doc.drainWarnings();
-  return warnings.length === 0
-    ? report
-    : `${report}\n\nWARNING: ${warnings.join('\nWARNING: ')}`;
+  return describeEffect(summarize(results), diffNodes(before, after));
 }

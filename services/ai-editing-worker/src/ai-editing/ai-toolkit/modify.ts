@@ -69,8 +69,6 @@ export function $modifyNode(
     )
     .with({ op: 'text' }, (c) => {
       const block = $asBlock(node, label);
-      // Loss is reported by Doc.setText, which owns the warning channel; this
-      // path exists for callers that only need the node back.
       $setText(block, c.text);
       return block;
     })

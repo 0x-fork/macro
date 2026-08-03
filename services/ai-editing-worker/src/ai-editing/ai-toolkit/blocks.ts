@@ -47,69 +47,27 @@ export function $setBlockType(
   return $retypeContainer(session, block, make());
 }
 
-/** What a `$setText` call destroyed, so the caller can warn about it. */
-export type SetTextLoss = {
-  /** Inline formatting stripped from the surviving text node, e.g. `bold`. */
-  strippedFormats: string[];
-  /** Node types removed outright, e.g. `document-mention`, `link`, `linebreak`. */
-  removedInline: string[];
-};
-
-const INLINE_FORMAT_BITS: Array<[string, number]> = [
-  ['bold', 1],
-  ['italic', 1 << 1],
-  ['strikethrough', 1 << 2],
-  ['underline', 1 << 3],
-  ['code', 1 << 4],
-  ['subscript', 1 << 5],
-  ['superscript', 1 << 6],
-];
-
-/**
- * Rewrite a block's inline content to plain text, keeping its type and id.
- *
- * This is destructive by design: it strips inline formatting on the surviving
- * text node and removes every other child, so bold/italic runs, links, mentions
- * and line breaks in the block are gone. It is also the most-used method in the
- * corpus (1,409 calls), and nothing used to tell the coder what it had just
- * thrown away — which is the largest single source of "lost the bold formatting"
- * and "the mention disappeared" defects in the judged results.
- *
- * Returns what was lost so the caller can report it.
- */
-export function $setText(block: ElementNode, text: string): SetTextLoss {
-  const loss: SetTextLoss = { strippedFormats: [], removedInline: [] };
-
+/** Rewrite a block's inline content to plain text, keeping its type and id. Always strips any inline formatting (bold, italic, underline, etc.) on the kept node. */
+export function $setText(block: ElementNode, text: string): void {
   // A code block's children are code-highlight nodes (re-tokenized from the
   // block's text by Prism), so we use `setCode`, which splices the whole
   // content in one shot, keeping the language.
   if ($isCustomCodeNode(block)) {
     block.setCode(block.getLanguage(), text);
-    return loss;
+    return;
   }
   const children = block.getChildren();
   const existing = children.find($isTextNode);
   if (existing) {
-    const format = existing.getFormat();
-    for (const [name, bit] of INLINE_FORMAT_BITS) {
-      if (format & bit) loss.strippedFormats.push(name);
-    }
     existing.setTextContent(text);
     existing.setFormat(0);
     for (const child of children) {
-      if (child === existing) continue;
-      // A plain sibling text run carries content; anything else is structure.
-      loss.removedInline.push(
-        $isTextNode(child) ? 'text run' : child.getType()
-      );
-      child.remove();
+      if (child !== existing) child.remove();
     }
   } else {
-    for (const child of children) loss.removedInline.push(child.getType());
     block.clear();
     block.append($createTextNode(text));
   }
-  return loss;
 }
 
 /** Append pre-built block node(s) at the end of the document. */

@@ -101,16 +101,6 @@ const FORMAT_BIT: Record<
 };
 
 export class Doc implements DocReader, DocWriter {
-  /** Non-fatal notes raised while applying ops, drained into the coder's reply.
-   *  A destructive-but-successful op has nowhere else to surface: it doesn't
-   *  throw, and the document diff can't say what the coder *meant* to keep. */
-  private readonly warnings: string[] = [];
-
-  /** Take and clear the accumulated warnings. */
-  public drainWarnings(): string[] {
-    return this.warnings.splice(0, this.warnings.length);
-  }
-
   constructor(
     private readonly session: LexicalSession,
     /** Push the new state out (snapshot to mirror to Loro). Noop in unit tests. */
@@ -297,14 +287,7 @@ export class Doc implements DocReader, DocWriter {
   }
 
   private setText(node: NodeRef, text: string): void {
-    // $setText reports what it flattened, but telling the coder measurably made
-    // things worse: on the 7 cases where that warning fired it drove runCode
-    // calls 68 -> 99 while purpose-met and correctness stayed flat, i.e. it
-    // provoked repair attempts that did not land. The API doc states the
-    // semantics instead, and cross-run `replace` gives a non-destructive option.
-    this.tx(() => {
-      blocks.$setText(this.block(node), text);
-    });
+    this.tx(() => blocks.$setText(this.block(node), text));
   }
 
   private appendText(node: NodeRef, text: string): void {
