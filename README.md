@@ -21,21 +21,19 @@
   </p>
 </div>
 
-Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so you and your agents never lose context.
-
-Macro has raised $30m led by a16z. We are based in NYC.
+Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so your team and your agents never have to switch tools.
 
 ## Why Macro
 
-We built Macro because we wanted a single unified system. There are many good products, but nothing works together. So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust, to work together as one. We've been dogfooding it for two years and now we've opened it up so you can use it too.
-
-Replaces Slack, Linear, Notion, HubSpot, and Superhuman. Or integrates with them.
+We built Macro because we wanted a single unified system for our starup. There are many good products — e.g. Slack, Linear, Notion, HubSpot, and Superhuman — but they don't together one one. As we scaled our last venture to ~20 people things started to break; every team got their own tools and the company was held together by MCP and Zapier. Nobody has the full picture. Agents were missing context. So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust. We've been dogfooding it for two years and now we've opened it up so you can use it too.
 
 ## Features
 
-Documents are documents. Tasks are tasks. Channels are channels. Each surface is purpose-built for its job rather than composed from a generic block primitive — but every one of them shares a backend, so cross-references between a doc and a task, or a channel message and an email, are native rather than something you wire up.
+Macro is composed of 'blocks' designed to be modular, extensible, and work together like Lego. For each block, we studied the best prior art and tried to make it even better.
 
-For each block, we studied the best prior art and tried to make it even better. Every block has its own page in the [docs](https://docs.macro.com):
+Each surface is purpose-built for its job rather than composed from a generic block primitive — but every one of them shares the same backend; cross-references between a doc and a task, or a channel message and an email, are natively stored as a **bidirectional graph**.
+
+Every block has its own page in the [docs](https://docs.macro.com):
 
 | Block | What it does |
 | --- | --- |
@@ -52,15 +50,23 @@ For each block, we studied the best prior art and tried to make it even better. 
 
 ### Email
 
-Keyboard-first with the same emphasis on speed that made Superhuman the benchmark for email UX. Multi-account and unified, with shared inboxes for support@ and sales@ so a thread is never stuck in one person's mailbox.
+Macro Mail is inspired by Superhuman's keyboard-first interface with a few key additions:
 
-The difference is that the inbox lives in the same interface as channels, docs, tasks, and code. An email can become a task, reference a document, or surface in an AI response alongside a channel thread, because all of those entities share a database. Superhuman optimized one tab; Macro is the case for needing fewer tabs in the first place.
+1. Multi-account. Triage all your Google accounts in a single inbox, with the same tagging and sharing system. Or triage individually.
+2. Unified inbox: emails, messages, @mentions, and tasks to complete, all in the same list. Use `j` `k` and `e` to naviate everything.
+3. Better AI, with a tools/MCP surface designed to work across inboxes and to help your agents more accurately retrieve information. For example, we expose a unified search tool that allows agents to search all file attachment pdf's (parsed out of email) directly, rather than pulling email threads then attachments. You can also draft, edit and send emails right from AI chats, without opening your email.
+4. Multitasking ability — Macro has a built-in window manager that lets you create 3+ splits (scales with monitor size) so you can draft emails while reviewing prior threads.
+5. Company/Contact objects. Macro has native CRM capability so you can `cmd+k` to a contact, like tim@acme.com to see all emails between you and that person, or companies, to see all emails and files between everyone on your team and everyone at that company, e.g. `@acme.com`. All of this right from your email without having to open a heavyweight CRM like HubSpot or Salesforce. Email aggregation by contact or company is also available to your agents so they can better assist with CRM-type queries and actions.
+
+Macro Maik lives in the interface as tab as channels, docs, tasks, and code. From any email, hit "task" to create a linked task, e.g. a ticket for an engineer from a customer support email. @mention emails in documents, e.g. @Re: Contract Signature.eml inside of Todos.md. In Macro, your email is brought into the fold with all of your tools, and your team, in the same permissions system: just hit `Share` to share an email to any DM or channel — no need to screenshot.
 
 ![Macro email thread with actions, tags, and properties in the sidebar](.github/readme/email-thread.png)
 
 [Email docs &rarr;](https://docs.macro.com/product/email)
 
 ### Messages
+
+Macro Chat is designed to be more focused than Slack for technical discussions. The first couple replies are shown inline 
 
 Real-time channels and threads that work the way you would expect from a team messaging tool, but messages share a database with documents, tasks, and email. Search in Slack searches Slack; here, when you search, you search everything.
 
