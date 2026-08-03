@@ -152,19 +152,25 @@ We haven't innovated on the core idea of CRM other than what you read in the abo
 
 # Agents
 
-Notion's AI operates within the context of a single page or database. Macro's operates across the entire workspace: Claude is integrated on every surface with access to email, messages, tasks, docs, files, and calls, scoped to exactly the permissions you have. When it answers a question it can pull from a channel conversation, a design doc, and an email thread in the same response.
+Since Macro has the team context in a single database, it is uniquely positioned to offer team-level memory with full context of all of the operations of the business. We do this every day via a cron job. Your memory is updated from team conversations, your DMs, your sent and received emails, tasks created and completed, etc. All of this is synthesized together in one pass, rather than severally, and combined with your previous memory to form the new memory output. The net result is 
 
-Coding agents get the same access. Hand a task to Claude Code straight from the task view and it opens a branch and reports back on the task itself; point any MCP client at your workspace and it can read and write the same database.
+- Macro has the best memory on what you're working on and what you care about vs. chatbots that only build memory from prior chats
+- This memory is available to external agents via MCP, or any AI model (OpenAI, Google, Anthropic, etc.) through the model picker for maximum portability
+- The memory is plainly stored in markdown so you can export it as you please. To manually update it, just ask the AI to remember something/update your memory
+
+Team memory comes in quite handy. For example, I took a screenshot of some features I'd written in a paper notepad and asked the agent to create tickets and assign to the appropriate engineer which it did perfectly without any runtime tool use.
 
 ![A Macro task being handed off to a coding agent, with a linked branch](.github/readme/agents-task-handoff.png)
+
+Memory isn't supposed to encompass everything. Macro also has a tool/MCP surface with near 100% coverage of the things you can do in Macro's UI, so that your agents aren't limited in what they can do like they are in most SaaS. There are also no rate limits on MCP.
 
 [Agents docs &rarr;](https://docs.macro.com/product/agents)
 
 <br />
 
-# How it holds together
+# How it all works together
 
-Four ideas make the blocks above behave as one system.
+As we've discussed above, each of the blocks is designed to be best-in-class. We have thoughtfully designed each of Chat, Docs, Email, Agents, etc., to improve on your status quo individually. But where it all comes together is how its more than the some of its modules; it's how they work together.
 
 **Bidirectional @linking.** @mention a doc in a message and both know about each other. Your workspace becomes a web of context you can navigate in either direction.
 
@@ -193,14 +199,6 @@ claude mcp add --transport http macro https://mcp-server.macro.com/mcp
 ```
  
 See [MCP setup](https://docs.macro.com/AI/mcp/overview) and [agent recipes](https://docs.macro.com/AI/recipes) for what they can do once connected.
-
-<br />
-
-# Repository
-
-The backend is Rust, not Node, not Electron: a Cargo workspace of 167 crates behind 42 deployable services, built on `axum` and `sqlx` with compile-time-checked queries against Postgres. Kafka carries events, OpenSearch handles search, and the client talks to it over `async-graphql`.
-
-The frontend is SolidJS, and documents use Loro CRDTs for real-time collaboration. A Nix flake pins the toolchain; `just` drives everything else.
 
 <br />
 
