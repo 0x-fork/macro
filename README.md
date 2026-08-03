@@ -110,13 +110,21 @@ Creating tasks in Macro is easy. Where possible tasks created are bidirectionall
 
 <br />
 
-# Docs
+# @linked markdown docs powered by CRDT's
 
-Collaborative, version-controlled, markdown-native docs, built on CRDTs so several people and several agents can edit at once. Backlinks are automatic: the References panel on any doc lists everywhere it has been mentioned.
+We wanted everything in a single markdown editor without switching tools. 
 
-A Notion workspace tends to accumulate complexity — nested databases, template hierarchies, relation properties linking pages to pages. That rewards people who enjoy building systems, but most engineers would rather use a system than build one. Macro trades configurability for less time spent configuring: checklists, tags, and properties are enough to turn a doc into a plan or a spec, and nothing has to be wired up first.
+- Native markdown compatibility and bulk/import export (see "file over app" paradigm)
+- Live collaboration with CRDT's and Cloudflare durable objects make it feel like you're editing on the same computer. Edits come in ~instantly instead of ka-chunking like Google Docs
+- Version control: history and forking, with a neat UI for scrubbing history. This is still in v1, there's a lot to do to get it closer to git, or we may eventually add git compatibility.
+- Offline editing and reconciliation.
+- @-linked to everything in your workspace: email, docs, tasks, messages, channels, companies, contacts, etc. Like Notion but multi-modal
+- Mobile-friendly, in our [iOS app](https://apps.apple.com/kw/app/macro-app/id6743133649) or in the web (Android app coming soon)
+- Agent native editing, powered by swarms of agents operating as peers in the CRDT collaboration system like human collaborators. See Wolf's tech blog on this https://404wolf.com/posts/AgentsAttackTheDocument/. Use via MCP or internal agent.
 
 ![A PRD in Macro with tags, assignees, properties, and references](.github/readme/docs-prd.png)
+
+Agents can edit documents that are open or closed. One interesting use case for agentic editing is to maintain team-context. For example we have a Macro Automation that runs daily to update our in-office Pool Games markdown doc. It scans through all of the channels to see if anyone has one and then updates the doc. If somebody has already edited the doc, it can know that and forgo the update. Conflicts are handled natively by the CRDT collaboration system.
 
 [Docs &rarr;](https://docs.macro.com/product/docs)
 
