@@ -26,15 +26,17 @@
 
 <br />
 
-Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so your team and your agents never have to switch tools.
+Macro is the all-in-one workspace for you and your team. It unifies email + message + docs + tasks + agents + CRM into a single fast interface with shared team-level memory. Everything in your workspace is @linked and searchable so your team (and your agents) never have to switch tools.
 
 <br />
 
 # Why Macro
 
-We built Macro because we wanted a single unified system for our startup. There are many good products — e.g. Slack, Linear, Notion, HubSpot, and Superhuman — but they don't work together as one. As we scaled our last venture to ~20 people things started to break... every team got their own tools and the company was held together by MCP and Zapier. Nobody had the full picture of what was going on and it became chaotic. 
+We built Macro because we wanted a single operating system for our startup. There are many good software products, and we used them all — Slack, Linear, Notion, HubSpot, and Superhuman — but they don't work together as one system. As we scaled our last venture to ~20 people things started to break: every team got their own tools and the company was held together by MCP and Zapier. The company was not computable. It was chaotic. 
 
-Macro is a complete redesign of work software from the ground up as a single system. Designed by us, dogfooded by our team of ~15 across our NYC and Toronto office. Built in in SolidJS and Rust for speed and reliability. We're focused on building something that any small company or team at a larger company can use as their "operating system".
+Macro is a complete redesign of work software from the ground up as a single system.
+
+Designed by us in NYC and Toronto, dogfooded by our team of ~15 for two years. Built in in SolidJS and Rust for speed and reliability. We're focused on building something that any small company or team at a larger company can use as their "operating system".
 
 <br />
 
