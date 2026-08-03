@@ -11,8 +11,8 @@ use super::models::{
     CalendarBackfillFailureOutcome, CalendarBackfillJobKey, CalendarEvent, CalendarEventUpsert,
     CalendarOccurrence, CalendarOccurrenceCursor, CalendarSyncStatus, EmailCalendarBackfillState,
     EmailCalendarScanAssociation, EmailCalendarScanJob, GoogleCalendarSyncSnapshot,
-    GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, OccurrenceRange, ProviderCalendar,
-    StoredGoogleCalendar,
+    GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig,
+    OccurrenceRange, ProviderCalendar, StoredGoogleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -151,15 +151,42 @@ pub trait CalendarRepository: Send + Sync + 'static {
     ) -> impl Future<Output = Result<StoredGoogleCalendar, Report>> + Send;
 
     /// Durably commit one calendar's poll under the backfill's fencing token:
-    /// prune sources a full snapshot no longer observed, then advance the
-    /// calendar's continuation token and materialized range.
+    /// prune sources a full snapshot no longer observed, advance the
+    /// calendar's continuation token and materialized range, and add this
+    /// calendar's upserts to the job's running progress counters.
     fn commit_google_calendar_sync(
         &self,
         key: CalendarBackfillJobKey,
         lease_token: Uuid,
         account_id: Uuid,
         sync: GoogleCalendarSyncSnapshot,
+        events_upserted: usize,
     ) -> impl Future<Output = Result<(), Report>> + Send;
+
+    /// Record a freshly opened push channel for one calendar under the
+    /// backfill's fencing token.
+    fn record_watch_channel(
+        &self,
+        key: CalendarBackfillJobKey,
+        lease_token: Uuid,
+        account_id: Uuid,
+        calendar_id: Uuid,
+        channel: GoogleWatchChannel,
+    ) -> impl Future<Output = Result<(), Report>> + Send;
+
+    /// Resolve a push notification to the inbox whose calendar it watches.
+    fn find_watch_target(
+        &self,
+        channel_id: &str,
+        resource_id: &str,
+    ) -> impl Future<Output = Result<Option<Uuid>, Report>> + Send;
+
+    /// Re-arm a completed sync job for one inbox, returning whether a run
+    /// was scheduled. Pending or running jobs absorb the notification.
+    fn schedule_google_sync_for_link(
+        &self,
+        email_link_id: Uuid,
+    ) -> impl Future<Output = Result<bool, Report>> + Send;
 
     /// Reconcile the provider's calendar list under the backfill's fencing
     /// token, removing calendars and sources no longer returned by Google.
@@ -178,6 +205,7 @@ pub trait GoogleCalendarProvider: Send + Sync + 'static {
     fn list_calendars(
         &self,
         access_token: &str,
+        email_link_id: Uuid,
     ) -> impl Future<Output = Result<Vec<ProviderCalendar>, GoogleProviderError>> + Send;
 
     /// Poll provider changes and, when needed, rebuild the bounded event snapshot.
@@ -186,6 +214,16 @@ pub trait GoogleCalendarProvider: Send + Sync + 'static {
         access_token: &str,
         context: GoogleEventSyncContext,
     ) -> impl Future<Output = Result<GoogleEventSyncBatch, GoogleProviderError>> + Send;
+
+    /// Open a push notification channel for one provider calendar.
+    fn watch_calendar(
+        &self,
+        access_token: &str,
+        email_link_id: Uuid,
+        provider_calendar_id: &str,
+        channel_id: Uuid,
+        config: &GoogleWatchConfig,
+    ) -> impl Future<Output = Result<GoogleWatchChannel, GoogleProviderError>> + Send;
 }
 
 /// Durable scheduling operations for periodic provider maintenance.
@@ -227,12 +265,12 @@ pub trait CalendarBackfillRepository: Send + Sync + 'static {
         lease_token: Uuid,
     ) -> impl Future<Output = Result<(), Report>> + Send;
 
-    /// Atomically complete the job and mark its account ready.
+    /// Atomically complete the job and mark its account ready; progress
+    /// counters were already accumulated by the per-calendar commits.
     fn complete_google_backfill(
         &self,
         key: CalendarBackfillJobKey,
         lease_token: Uuid,
-        extracted_count: usize,
     ) -> impl Future<Output = Result<(), Report>> + Send;
 
     /// Persist a classified failure, releasing or terminating the job.

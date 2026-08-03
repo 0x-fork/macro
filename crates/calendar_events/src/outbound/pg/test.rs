@@ -1,6 +1,7 @@
 use super::*;
 use crate::domain::models::{
     EmailIcsSource, GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleEventSource,
+    GoogleWatchChannel,
 };
 use crate::domain::ports::GoogleCalendarSyncRepository;
 use crate::domain::service::GoogleCalendarBackfillFailureService;
@@ -422,13 +423,24 @@ async fn completed_google_job_is_rearmed_and_reuses_calendar_sync_state(pool: Pg
             materialized_range: Some(range.clone()),
             cancelled_provider_event_ids: Vec::new(),
         },
+        3,
     )
     .await
     .unwrap();
+    assert_eq!(
+        sqlx::query_scalar!(
+            r#"SELECT extracted_count FROM calendar_backfill_jobs WHERE id = $1"#,
+            key.job_id,
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap(),
+        3
+    );
     repo.reconcile_google_calendar_list(key, lease_token, account_id, vec![calendar_id])
         .await
         .unwrap();
-    repo.complete_google_backfill(key, lease_token, 0)
+    repo.complete_google_backfill(key, lease_token)
         .await
         .unwrap();
     sqlx::query!(
@@ -906,7 +918,7 @@ async fn expired_google_worker_cannot_resurrect_reconciled_provider_data(pool: P
     repo.reconcile_google_calendar_list(key, current_lease, account_id, Vec::new())
         .await
         .unwrap();
-    repo.complete_google_backfill(key, current_lease, 0)
+    repo.complete_google_backfill(key, current_lease)
         .await
         .unwrap();
 
@@ -1042,6 +1054,7 @@ async fn google_snapshot_deletion_restores_the_surviving_email_source(pool: PgPo
             materialized_range: Some(OccurrenceRange::historical_sync(Utc::now())),
             cancelled_provider_event_ids: Vec::new(),
         },
+        0,
     )
     .await
     .unwrap();
@@ -1163,6 +1176,7 @@ async fn incremental_cancellation_tombstones_retire_sources_without_a_snapshot(p
                 "cancelled-master".to_string(),
             ],
         },
+        0,
     )
     .await
     .unwrap();
@@ -1283,6 +1297,133 @@ async fn occurrence_cursor_is_stable_when_occurrences_share_a_start(pool: PgPool
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn watch_channels_round_trip_from_recording_to_targeted_rearm(pool: PgPool) {
+    let owner_id = "macro|calendar-watch@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let enabled = repo
+        .apply_google_grant(link_id, complete_grant())
+        .await
+        .unwrap();
+    let account_id = repo.upsert_google_account(link_id).await.unwrap();
+    let google_job = enabled
+        .jobs
+        .into_iter()
+        .find(|job| job.kind == CalendarBackfillKind::GoogleCalendar)
+        .unwrap();
+    let key = CalendarBackfillJobKey {
+        job_id: google_job.id,
+        email_link_id: link_id,
+    };
+    let CalendarBackfillClaim::Claimed { lease_token, .. } =
+        repo.claim_google_backfill(key).await.unwrap()
+    else {
+        panic!("Google job should be claimable");
+    };
+    let provider_calendar = ProviderCalendar {
+        provider_calendar_id: "primary".to_string(),
+        name: "Primary".to_string(),
+        description: None,
+        time_zone: Some("UTC".to_string()),
+        color: None,
+        access_role: Some("owner".to_string()),
+        is_primary: true,
+        is_selected: true,
+    };
+    let calendar_id = repo
+        .upsert_google_calendar(key, lease_token, account_id, provider_calendar.clone())
+        .await
+        .unwrap()
+        .id;
+
+    let channel = GoogleWatchChannel {
+        channel_id: Uuid::new_v4(),
+        resource_id: "resource-1".to_string(),
+        expires_at: (Utc::now() + Duration::days(6)).trunc_subsecs(6),
+    };
+    assert!(
+        repo.record_watch_channel(
+            key,
+            Uuid::new_v4(),
+            account_id,
+            calendar_id,
+            channel.clone()
+        )
+        .await
+        .is_err(),
+        "a stale lease must not record channels"
+    );
+    repo.record_watch_channel(key, lease_token, account_id, calendar_id, channel.clone())
+        .await
+        .unwrap();
+
+    // The stored expiry feeds the renewal decision on the next run.
+    let stored = repo
+        .upsert_google_calendar(key, lease_token, account_id, provider_calendar)
+        .await
+        .unwrap();
+    assert_eq!(stored.watch_expires_at, Some(channel.expires_at));
+
+    // Notifications resolve the channel to its inbox; unknown or mismatched
+    // identifiers resolve to nothing.
+    assert_eq!(
+        repo.find_watch_target(&channel.channel_id.to_string(), "resource-1")
+            .await
+            .unwrap(),
+        Some(link_id)
+    );
+    assert_eq!(
+        repo.find_watch_target(&channel.channel_id.to_string(), "other-resource")
+            .await
+            .unwrap(),
+        None
+    );
+
+    // A completed job re-arms exactly once per notification burst.
+    repo.commit_google_calendar_sync(
+        key,
+        lease_token,
+        account_id,
+        GoogleCalendarSyncSnapshot {
+            calendar_id,
+            next_sync_token: "next".to_string(),
+            observed_provider_event_ids: Some(Vec::new()),
+            materialized_range: Some(OccurrenceRange::historical_sync(Utc::now())),
+            cancelled_provider_event_ids: Vec::new(),
+        },
+        0,
+    )
+    .await
+    .unwrap();
+    repo.reconcile_google_calendar_list(key, lease_token, account_id, vec![calendar_id])
+        .await
+        .unwrap();
+    repo.complete_google_backfill(key, lease_token)
+        .await
+        .unwrap();
+    assert!(repo.schedule_google_sync_for_link(link_id).await.unwrap());
+    assert!(
+        !repo.schedule_google_sync_for_link(link_id).await.unwrap(),
+        "a pending job absorbs further notifications"
+    );
+
+    // Disabled accounts stop resolving notifications.
+    sqlx::query!(
+        "UPDATE calendar_accounts SET sync_status = 'disabled' WHERE id = $1",
+        account_id,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        repo.find_watch_target(&channel.channel_id.to_string(), "resource-1")
+            .await
+            .unwrap(),
+        None
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn sync_status_reflects_visible_account_ingestion_state(pool: PgPool) {
     let owner_id = "macro|calendar-sync-status@example.com";
     let repo = PgCalendarRepository::new(pool.clone());
@@ -1312,6 +1453,83 @@ async fn sync_status_reflects_visible_account_ingestion_state(pool: PgPool) {
         repo.sync_status(owner_id).await.unwrap(),
         CalendarSyncStatus::Ready
     );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn unchanged_google_projection_skips_the_write_path(pool: PgPool) {
+    let owner_id = "macro|calendar-idempotent@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    repo.apply_google_grant(link_id, complete_grant())
+        .await
+        .unwrap();
+    let account_id = repo.upsert_google_account(link_id).await.unwrap();
+    let calendar_id = repo
+        .upsert_calendar_fixture(
+            account_id,
+            ProviderCalendar {
+                provider_calendar_id: "primary".to_string(),
+                name: "Primary".to_string(),
+                description: None,
+                time_zone: Some("UTC".to_string()),
+                color: None,
+                access_role: Some("owner".to_string()),
+                is_primary: true,
+                is_selected: true,
+            },
+        )
+        .await
+        .unwrap();
+
+    let build = |title: &str| {
+        let mut upsert = timed_upsert(owner_id, link_id, "idempotent@example.com", title, 1);
+        upsert.source = CalendarEventSource::Google(GoogleEventSource {
+            email_link_id: link_id,
+            account_id,
+            calendar_id,
+            provider_event_id: "stable-event".to_string(),
+            provider_recurring_event_id: None,
+            provider_etag: Some("\"etag\"".to_string()),
+            raw_payload: serde_json::json!({}),
+        });
+        upsert
+    };
+
+    let first_id = repo
+        .upsert_event_fixture(build("Same title"))
+        .await
+        .unwrap();
+    let generated_before = sqlx::query_scalar!(
+        r#"SELECT max(generated_at) AS "max!" FROM calendar_event_occurrences WHERE event_id = $1"#,
+        first_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    // A rebuild re-mints the proposed entity id, so a fresh mapping of the
+    // same provider state must be recognized as unchanged and skipped.
+    let second_id = repo
+        .upsert_event_fixture(build("Same title"))
+        .await
+        .unwrap();
+    assert_eq!(second_id, first_id);
+    let generated_after = sqlx::query_scalar!(
+        r#"SELECT max(generated_at) AS "max!" FROM calendar_event_occurrences WHERE event_id = $1"#,
+        first_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(generated_after, generated_before);
+
+    // A real change still writes through.
+    repo.upsert_event_fixture(build("New title")).await.unwrap();
+    let title = sqlx::query_scalar!("SELECT title FROM calendar_events WHERE id = $1", first_id,)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(title, "New title");
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -1585,6 +1803,7 @@ async fn stale_google_source_projection_cannot_resurface_during_reconciliation(p
             materialized_range: Some(OccurrenceRange::historical_sync(Utc::now())),
             cancelled_provider_event_ids: Vec::new(),
         },
+        0,
     )
     .await
     .unwrap();
@@ -1599,6 +1818,7 @@ async fn stale_google_source_projection_cannot_resurface_during_reconciliation(p
             materialized_range: Some(OccurrenceRange::historical_sync(Utc::now())),
             cancelled_provider_event_ids: Vec::new(),
         },
+        0,
     )
     .await
     .unwrap();

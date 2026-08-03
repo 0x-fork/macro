@@ -6,8 +6,8 @@ use crate::domain::{
         CalendarEventSource, CalendarOccurrence, CalendarSyncStatus, EmailCalendarBackfillState,
         EmailCalendarScanAssociation, EmailCalendarScanJob, EmailCalendarScanStatus,
         EmailIcsSource, EventStatus, EventTime, EventTransparency, EventVisibility,
-        GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleEventSyncBatch, ProviderCalendar,
-        StoredGoogleCalendar,
+        GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleEventSyncBatch,
+        GoogleWatchChannel, GoogleWatchConfig, ProviderCalendar, StoredGoogleCalendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventWrite, CalendarRepository,
@@ -21,6 +21,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone, Default)]
 struct FakeRepo {
     upserts: Arc<Mutex<Vec<CalendarEventUpsert>>>,
+    stored_synced_at: Option<chrono::DateTime<Utc>>,
 }
 
 impl CalendarRepository for FakeRepo {
@@ -68,6 +69,8 @@ impl CalendarRepository for FakeRepo {
             id: Uuid::nil(),
             sync_token: None,
             materialized_range: None,
+            synced_at: self.stored_synced_at,
+            watch_expires_at: None,
         })
     }
 
@@ -77,6 +80,7 @@ impl CalendarRepository for FakeRepo {
         _lease_token: Uuid,
         _account_id: Uuid,
         _sync: GoogleCalendarSyncSnapshot,
+        _events_upserted: usize,
     ) -> Result<(), Report> {
         Ok(())
     }
@@ -89,6 +93,29 @@ impl CalendarRepository for FakeRepo {
         _calendar_ids: Vec<Uuid>,
     ) -> Result<(), Report> {
         Ok(())
+    }
+
+    async fn record_watch_channel(
+        &self,
+        _key: CalendarBackfillJobKey,
+        _lease_token: Uuid,
+        _account_id: Uuid,
+        _calendar_id: Uuid,
+        _channel: GoogleWatchChannel,
+    ) -> Result<(), Report> {
+        Ok(())
+    }
+
+    async fn find_watch_target(
+        &self,
+        _channel_id: &str,
+        _resource_id: &str,
+    ) -> Result<Option<Uuid>, Report> {
+        Ok(None)
+    }
+
+    async fn schedule_google_sync_for_link(&self, _email_link_id: Uuid) -> Result<bool, Report> {
+        Ok(false)
     }
 }
 
@@ -196,6 +223,7 @@ impl GoogleCalendarProvider for FakeGoogleProvider {
     async fn list_calendars(
         &self,
         _access_token: &str,
+        _email_link_id: Uuid,
     ) -> Result<Vec<ProviderCalendar>, GoogleProviderError> {
         Ok(Vec::new())
     }
@@ -213,6 +241,17 @@ impl GoogleCalendarProvider for FakeGoogleProvider {
             cancelled_provider_event_ids: Vec::new(),
         })
     }
+
+    async fn watch_calendar(
+        &self,
+        _access_token: &str,
+        _email_link_id: Uuid,
+        _provider_calendar_id: &str,
+        _channel_id: Uuid,
+        _config: &GoogleWatchConfig,
+    ) -> Result<GoogleWatchChannel, GoogleProviderError> {
+        unreachable!("watch is disabled in these tests")
+    }
 }
 
 #[derive(Clone)]
@@ -222,6 +261,7 @@ impl GoogleCalendarProvider for ReauthGoogleProvider {
     async fn list_calendars(
         &self,
         _access_token: &str,
+        _email_link_id: Uuid,
     ) -> Result<Vec<ProviderCalendar>, GoogleProviderError> {
         Err(GoogleProviderError::new(
             GoogleProviderErrorKind::ReauthRequired,
@@ -236,12 +276,23 @@ impl GoogleCalendarProvider for ReauthGoogleProvider {
     ) -> Result<GoogleEventSyncBatch, GoogleProviderError> {
         unreachable!("calendar listing fails first")
     }
+
+    async fn watch_calendar(
+        &self,
+        _access_token: &str,
+        _email_link_id: Uuid,
+        _provider_calendar_id: &str,
+        _channel_id: Uuid,
+        _config: &GoogleWatchConfig,
+    ) -> Result<GoogleWatchChannel, GoogleProviderError> {
+        unreachable!("watch is disabled in these tests")
+    }
 }
 
 #[derive(Clone)]
 struct FakeLifecycle {
     claim: CalendarBackfillClaim,
-    completions: Arc<Mutex<Vec<usize>>>,
+    completions: Arc<Mutex<Vec<()>>>,
     failures: Arc<Mutex<Vec<CalendarBackfillFailureDisposition>>>,
     failure_outcome: CalendarBackfillFailureOutcome,
     lease_lost: bool,
@@ -312,9 +363,8 @@ impl CalendarBackfillRepository for FakeLifecycle {
         &self,
         _key: CalendarBackfillJobKey,
         _lease_token: Uuid,
-        extracted_count: usize,
     ) -> Result<(), Report> {
-        self.completions.lock().unwrap().push(extracted_count);
+        self.completions.lock().unwrap().push(());
         Ok(())
     }
 
@@ -337,6 +387,7 @@ async fn google_coordinator_owns_claim_and_completion_lifecycle() {
         FakeRepo::default(),
         FakeGoogleProvider,
         lifecycle.clone(),
+        None,
     );
 
     let count = coordinator
@@ -353,7 +404,79 @@ async fn google_coordinator_owns_claim_and_completion_lifecycle() {
         .unwrap();
 
     assert_eq!(count, 0);
-    assert_eq!(lifecycle.completions.lock().unwrap().as_slice(), &[0]);
+    assert_eq!(lifecycle.completions.lock().unwrap().len(), 1);
+}
+
+#[derive(Clone)]
+struct SystemCalendarProvider;
+
+impl GoogleCalendarProvider for SystemCalendarProvider {
+    async fn list_calendars(
+        &self,
+        _access_token: &str,
+        _email_link_id: Uuid,
+    ) -> Result<Vec<ProviderCalendar>, GoogleProviderError> {
+        Ok(vec![ProviderCalendar {
+            provider_calendar_id: "en.usa#holiday@group.v.calendar.google.com".to_string(),
+            name: "Holidays in United States".to_string(),
+            description: None,
+            time_zone: Some("UTC".to_string()),
+            color: None,
+            access_role: Some("reader".to_string()),
+            is_primary: false,
+            is_selected: true,
+        }])
+    }
+
+    async fn sync_events(
+        &self,
+        _access_token: &str,
+        _context: GoogleEventSyncContext,
+    ) -> Result<GoogleEventSyncBatch, GoogleProviderError> {
+        unreachable!("freshly synced system calendars must not sync")
+    }
+
+    async fn watch_calendar(
+        &self,
+        _access_token: &str,
+        _email_link_id: Uuid,
+        _provider_calendar_id: &str,
+        _channel_id: Uuid,
+        _config: &GoogleWatchConfig,
+    ) -> Result<GoogleWatchChannel, GoogleProviderError> {
+        unreachable!("watch is disabled in these tests")
+    }
+}
+
+#[tokio::test]
+async fn freshly_synced_system_calendars_are_skipped() {
+    let lifecycle = FakeLifecycle::claimed();
+    let repo = FakeRepo {
+        stored_synced_at: Some(Utc::now()),
+        ..FakeRepo::default()
+    };
+    let coordinator = GoogleCalendarBackfillCoordinator::new(
+        repo,
+        SystemCalendarProvider,
+        lifecycle.clone(),
+        None,
+    );
+
+    let count = coordinator
+        .run(
+            CalendarBackfillJobKey {
+                job_id: Uuid::now_v7(),
+                email_link_id: Uuid::now_v7(),
+            },
+            "macro|calendar@example.com",
+            "secret",
+            OccurrenceRange::maintenance_horizon(Utc::now()),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(count, 0);
+    assert_eq!(lifecycle.completions.lock().unwrap().len(), 1);
 }
 
 #[derive(Clone)]
@@ -363,6 +486,7 @@ impl GoogleCalendarProvider for HangingGoogleProvider {
     async fn list_calendars(
         &self,
         _access_token: &str,
+        _email_link_id: Uuid,
     ) -> Result<Vec<ProviderCalendar>, GoogleProviderError> {
         std::future::pending().await
     }
@@ -374,6 +498,17 @@ impl GoogleCalendarProvider for HangingGoogleProvider {
     ) -> Result<GoogleEventSyncBatch, GoogleProviderError> {
         unreachable!("provider hangs before syncing events")
     }
+
+    async fn watch_calendar(
+        &self,
+        _access_token: &str,
+        _email_link_id: Uuid,
+        _provider_calendar_id: &str,
+        _channel_id: Uuid,
+        _config: &GoogleWatchConfig,
+    ) -> Result<GoogleWatchChannel, GoogleProviderError> {
+        unreachable!("watch is disabled in these tests")
+    }
 }
 
 #[tokio::test]
@@ -383,6 +518,7 @@ async fn google_coordinator_surfaces_lease_loss_while_work_is_running() {
         FakeRepo::default(),
         HangingGoogleProvider,
         lifecycle.clone(),
+        None,
     );
 
     let error = coordinator
@@ -410,6 +546,7 @@ async fn google_coordinator_keeps_calendar_permission_health_separate_from_gmail
         FakeRepo::default(),
         ReauthGoogleProvider,
         lifecycle.clone(),
+        None,
     );
 
     let error = coordinator

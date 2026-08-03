@@ -15,8 +15,8 @@ use crate::domain::{
         CalendarBackfillJobKey, CalendarBackfillKind, CalendarEvent, CalendarEventOverride,
         CalendarEventSource, CalendarEventUpsert, CalendarOccurrence, CalendarOccurrenceCursor,
         CalendarSyncStatus, EventStart, EventStatus, EventTime, EventTransparency, EventVisibility,
-        GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, OccurrenceRange,
-        ProviderCalendar, StoredGoogleCalendar,
+        GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
+        OccurrenceRange, ProviderCalendar, StoredGoogleCalendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventWrite, CalendarRepository,
@@ -258,6 +258,8 @@ struct StoredCalendarRow {
     materialized_ends_at: Option<DateTime<Utc>>,
     materialized_start_date: Option<NaiveDate>,
     materialized_end_date: Option<NaiveDate>,
+    synced_at: Option<DateTime<Utc>>,
+    watch_expires_at: Option<DateTime<Utc>>,
 }
 
 struct OccurrenceJoinRow {
@@ -500,6 +502,38 @@ impl CalendarRepository for PgCalendarRepository {
         .fetch_one(&mut *tx)
         .await
         .map_err(report)?;
+        // Full snapshots re-upsert every event they observed, and a provider
+        // sync-token reset makes that happen wholesale. When the incoming
+        // Google projection is identical to the stored one, skip the write
+        // path entirely so rebuilds cost reads, not occurrence churn.
+        if let CalendarEventSource::Google(source) = &upsert.source {
+            let existing = sqlx::query!(
+                r#"
+                SELECT event_id, normalized_payload
+                FROM calendar_event_sources
+                WHERE source_kind = 'google'
+                  AND account_id = $1
+                  AND calendar_id = $2
+                  AND provider_event_id = $3
+                "#,
+                source.account_id,
+                source.calendar_id,
+                &source.provider_event_id,
+            )
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(report)?;
+            if let Some(row) = existing {
+                let incoming =
+                    serde_json::to_value(StoredSourceProjection::from(&upsert)).map_err(report)?;
+                if canonical_projection(&row.normalized_payload) == canonical_projection(&incoming)
+                {
+                    tx.commit().await.map_err(report)?;
+                    return Ok(row.event_id);
+                }
+            }
+        }
+
         let (starts_at, ends_at, start_date, end_date, time_zone) = split_time(&upsert.event.time);
         let proposed_id = upsert.event.id;
 
@@ -800,9 +834,32 @@ impl CalendarRepository for PgCalendarRepository {
         lease_token: Uuid,
         account_id: Uuid,
         sync: GoogleCalendarSyncSnapshot,
+        events_upserted: usize,
     ) -> Result<(), Report> {
         let mut tx = self.pool.begin().await.map_err(report)?;
         fence_google_mutation_tx(&mut tx, key, lease_token, Some(account_id)).await?;
+
+        if events_upserted > 0 {
+            sqlx::query!(
+                r#"
+                UPDATE calendar_backfill_jobs
+                SET extracted_count = extracted_count + $3,
+                    updated_at = now()
+                WHERE id = $1
+                  AND email_link_id = $2
+                "#,
+                key.job_id,
+                key.email_link_id,
+                i64::try_from(events_upserted).map_err(|_| {
+                    rootcause::report!(
+                        "calendar backfill extracted count overflows the database representation"
+                    )
+                })?,
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(report)?;
+        }
 
         if !sync.cancelled_provider_event_ids.is_empty() {
             // A cancelled recurring master retires its expanded instances via
@@ -876,6 +933,7 @@ impl CalendarRepository for PgCalendarRepository {
             r#"
             UPDATE calendars
             SET sync_token = $3,
+                synced_at = now(),
                 materialized_starts_at = CASE
                     WHEN $4 THEN $5
                     ELSE materialized_starts_at
@@ -916,6 +974,108 @@ impl CalendarRepository for PgCalendarRepository {
         }
 
         tx.commit().await.map_err(report)
+    }
+
+    #[tracing::instrument(skip(self, channel), fields(job_id = %key.job_id), err)]
+    async fn record_watch_channel(
+        &self,
+        key: CalendarBackfillJobKey,
+        lease_token: Uuid,
+        account_id: Uuid,
+        calendar_id: Uuid,
+        channel: GoogleWatchChannel,
+    ) -> Result<(), Report> {
+        let mut tx = self.pool.begin().await.map_err(report)?;
+        fence_google_mutation_tx(&mut tx, key, lease_token, Some(account_id)).await?;
+        sqlx::query!(
+            r#"
+            UPDATE calendars
+            SET watch_channel_id = $3,
+                watch_resource_id = $4,
+                watch_expires_at = $5,
+                updated_at = now()
+            WHERE id = $1
+              AND account_id = $2
+              AND NOT is_deleted
+            "#,
+            calendar_id,
+            account_id,
+            channel.channel_id.to_string(),
+            channel.resource_id,
+            channel.expires_at,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(report)?;
+        tx.commit().await.map_err(report)
+    }
+
+    #[tracing::instrument(skip(self, channel_id, resource_id), err)]
+    async fn find_watch_target(
+        &self,
+        channel_id: &str,
+        resource_id: &str,
+    ) -> Result<Option<Uuid>, Report> {
+        sqlx::query_scalar!(
+            r#"
+            SELECT account.email_link_id
+            FROM calendars calendar
+            JOIN calendar_accounts account ON account.id = calendar.account_id
+            WHERE calendar.watch_channel_id = $1
+              AND calendar.watch_resource_id = $2
+              AND NOT calendar.is_deleted
+              AND account.sync_status <> 'disabled'
+            "#,
+            channel_id,
+            resource_id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(report)
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn schedule_google_sync_for_link(&self, email_link_id: Uuid) -> Result<bool, Report> {
+        let required_scopes = GOOGLE_CALENDAR_SCOPES.map(str::to_owned);
+        let scheduled = sqlx::query_scalar!(
+            r#"
+            WITH due AS (
+                UPDATE calendar_backfill_jobs job
+                SET status = 'pending',
+                    cursor = '{}',
+                    last_error = NULL,
+                    started_at = NULL,
+                    completed_at = NULL,
+                    lease_token = NULL,
+                    lease_expires_at = NULL,
+                    updated_at = now()
+                FROM calendar_accounts account, email_links link
+                WHERE job.email_link_id = $1
+                  AND job.email_link_id = account.email_link_id
+                  AND job.account_id = account.id
+                  AND link.id = job.email_link_id
+                  AND job.kind = 'google_calendar'
+                  AND job.status = 'complete'
+                  AND job.grant_version = link.google_grant_version
+                  AND link.google_granted_scopes @> $2::text[]
+                  AND account.sync_status = 'ready'
+                RETURNING job.id
+            ),
+            republished AS (
+                UPDATE calendar_sync_outbox outbox
+                SET published_at = NULL
+                FROM due
+                WHERE outbox.backfill_job_id = due.id
+            )
+            SELECT count(*) > 0 AS "scheduled!" FROM due
+            "#,
+            email_link_id,
+            &required_scopes,
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(report)?;
+        Ok(scheduled)
     }
 
     #[tracing::instrument(skip(self, calendar_ids), fields(job_id = %key.job_id), err)]
@@ -1121,7 +1281,9 @@ async fn upsert_calendar_tx(
             materialized_starts_at,
             materialized_ends_at,
             materialized_start_date,
-            materialized_end_date
+            materialized_end_date,
+            synced_at,
+            watch_expires_at
         "#,
         Uuid::now_v7(),
         account_id,
@@ -1165,6 +1327,8 @@ fn stored_google_calendar(row: StoredCalendarRow) -> Result<StoredGoogleCalendar
         id: row.id,
         sync_token: row.sync_token,
         materialized_range,
+        synced_at: row.synced_at,
+        watch_expires_at: row.watch_expires_at,
     })
 }
 
@@ -1350,7 +1514,6 @@ impl CalendarBackfillRepository for PgCalendarRepository {
         &self,
         key: CalendarBackfillJobKey,
         lease_token: Uuid,
-        extracted_count: usize,
     ) -> Result<(), Report> {
         let required_scopes = GOOGLE_CALENDAR_SCOPES.map(str::to_owned);
         let mut tx = self.pool.begin().await.map_err(report)?;
@@ -1358,31 +1521,25 @@ impl CalendarBackfillRepository for PgCalendarRepository {
             r#"
             UPDATE calendar_backfill_jobs
             SET status = 'complete',
-                extracted_count = $2,
                 completed_at = now(),
                 lease_token = NULL,
                 lease_expires_at = NULL,
                 updated_at = now()
             WHERE id = $1
-              AND email_link_id = $3
+              AND email_link_id = $2
               AND kind = 'google_calendar'
               AND status = 'running'
-              AND lease_token = $4
+              AND lease_token = $3
               AND lease_expires_at > now()
               AND EXISTS (
                     SELECT 1
                     FROM email_links link
                     WHERE link.id = calendar_backfill_jobs.email_link_id
                       AND link.google_grant_version = calendar_backfill_jobs.grant_version
-                      AND link.google_granted_scopes @> $5::text[]
+                      AND link.google_granted_scopes @> $4::text[]
               )
             "#,
             key.job_id,
-            i64::try_from(extracted_count).map_err(|_| {
-                rootcause::report!(
-                    "calendar backfill extracted count overflows the database representation"
-                )
-            })?,
             key.email_link_id,
             lease_token,
             &required_scopes,
@@ -2158,6 +2315,24 @@ fn attendee_status(value: &str) -> AttendeeResponseStatus {
         "tentative" => AttendeeResponseStatus::Tentative,
         _ => AttendeeResponseStatus::NeedsAction,
     }
+}
+
+/// Strip the volatile identifiers a fresh normalization mints (the proposed
+/// entity id and its occurrence back-references) so two projections of the
+/// same provider state compare equal.
+fn canonical_projection(value: &serde_json::Value) -> serde_json::Value {
+    let mut value = value.clone();
+    if let Some(event) = value.get_mut("event").and_then(|event| event.get_mut("id")) {
+        *event = serde_json::Value::Null;
+    }
+    if let Some(occurrences) = value.get_mut("occurrences").and_then(|v| v.as_array_mut()) {
+        for occurrence in occurrences {
+            if let Some(id) = occurrence.get_mut("eventId") {
+                *id = serde_json::Value::Null;
+            }
+        }
+    }
+    value
 }
 
 fn report(error: impl std::error::Error + Send + Sync + 'static) -> Report {

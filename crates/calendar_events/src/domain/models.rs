@@ -546,6 +546,53 @@ pub struct StoredGoogleCalendar {
     pub sync_token: Option<String>,
     /// Exact recurrence window materialized by the last full snapshot.
     pub materialized_range: Option<OccurrenceRange>,
+    /// When this calendar's sync state last committed, if ever.
+    pub synced_at: Option<DateTime<Utc>>,
+    /// Expiry of the active push notification channel, when one exists.
+    pub watch_expires_at: Option<DateTime<Utc>>,
+}
+
+/// How often Google's own read-only system calendars (holidays, birthdays)
+/// are synced. Their content changes on the order of once a year, and Google
+/// chronically resets their sync tokens, turning every poll into a full
+/// snapshot; a daily cadence keeps them fresh without that churn.
+pub const SYSTEM_CALENDAR_SYNC_INTERVAL: chrono::Duration = chrono::Duration::hours(24);
+
+/// Whether a provider calendar is one of Google's shared system calendars
+/// (`en.usa#holiday@group.v.calendar.google.com` and friends) rather than a
+/// calendar a person maintains.
+pub fn is_system_calendar(provider_calendar_id: &str) -> bool {
+    provider_calendar_id.ends_with("@group.v.calendar.google.com")
+}
+
+/// Deployment configuration enabling Google push notification channels.
+#[derive(Clone, PartialEq, Eq)]
+pub struct GoogleWatchConfig {
+    /// Public HTTPS address Google delivers notifications to.
+    pub address: String,
+    /// Shared verification token echoed back on every notification.
+    pub token: String,
+}
+
+impl std::fmt::Debug for GoogleWatchConfig {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("GoogleWatchConfig")
+            .field("address", &self.address)
+            .field("token", &"<redacted>")
+            .finish()
+    }
+}
+
+/// An active Google push notification channel for one calendar.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GoogleWatchChannel {
+    /// Client-minted channel identifier.
+    pub channel_id: Uuid,
+    /// Provider-assigned resource identifier required to stop the channel.
+    pub resource_id: String,
+    /// Provider-assigned channel expiry.
+    pub expires_at: DateTime<Utc>,
 }
 
 /// How the provider adapter must reconcile one calendar this run.
