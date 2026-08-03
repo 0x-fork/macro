@@ -242,7 +242,7 @@ Have an idea, want to contribute, or want to work on Macro?
 
 # Star us on GitHub
 
-If Macro is useful to you, please give the repo a star. Stars are how most people hear about Macro — they move us up GitHub's search and trending pages, and they make it much easier for anyone sharing Macro to get it taken seriously by their own team. It takes one click and it genuinely helps.
+If Macro is interesting/useful to you, please scroll up and give the repo a star (scroll to the top of this page -> click `Star` in top right). Stars are how most users hear about Macro because they move us up GitHub's search and trending pages. 
 
 <a href="https://github.com/macro-inc/macro">
   <picture>
