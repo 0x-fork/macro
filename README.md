@@ -24,6 +24,8 @@
   </p>
 </div>
 
+<br />
+
 Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so your team and your agents never have to switch tools.
 
 <br />
@@ -132,11 +134,17 @@ Agents can edit documents that are open or closed. One interesting use case for 
 
 # CRM
 
-Contact and company objects with custom properties, email sync, and enrichment. Since email already lives in Macro, the pipeline updates itself rather than asking anyone to log activity, and a company record shows the whole team's correspondence instead of only yours.
+The problem with standalone CRM is the same as with task trackers: it's not up to date. The CRM only partially reflects reality, so if you want to know what the latest status on a deal is you still have to message the AE/SDR and ask for context. CRM's are also too rigid and closed-source, while DIY CRM's in Airtable/Notion don't provide email aggregation by Company/Contact/Deal that is the core feature of CRM. We went through all the CRM's, including the new AI-native ones, and while they're well-designed they're just structurally set up to fail over time.
 
-Board and list views group by any property — stage, owner, revenue — and records @link to the threads, docs, and tasks around them.
+**Macro fixes this by colocating your CRM with your team chat and email, instead of having a separate system.** When you @mention a company record in a message, your team can click that record to see the latest — it's much faster than navigating to your CRM to find the record, going back to Slack and pasting it in, and this speed difference makes all the difference. Secondly, @mentioning a Company/Contact creates a bidirectional link between that message and the record, so from the record later you can trace of the conversations that happened. This fixes the core issue we had with Attio/HubSpot/Salesforce: the actual important conversation about a deal happens not in the CRM but over messages. Macro makes this a feature rather than making you feel disorganized about it. It's not your fault, it was the CRM's fault!
 
 ![Macro CRM board grouped by pipeline stage](.github/readme/crm-board.png)
+
+We haven't innovated on the core idea of CRM other than what you read in the above paragraph. None of this should be that interesting:
+
+- Kanban board and customizeable deal stages, list view, saved views, shareable views, personal and team views, etc.
+- "Notes" on the company actually use the same system as channels/dm's, so you can @mention and do all of the things you expect in a channel. Basically, every deal gets it's own channel, automatically, that's pinned right to the deal record
+- @mention the company or contact from any note, message, task, pull request, etc., to create a bidirectional link between the record and that thing. For example, @mention a company from an engineering task to note their request. It all ties together.
 
 [CRM docs &rarr;](https://docs.macro.com/product/crm)
 
