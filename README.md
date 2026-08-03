@@ -256,9 +256,3 @@ If Macro is interesting/useful to you, please scroll up and give the repo a star
     <img alt="Star history for macro-inc/macro, from launch to 713 stars" src=".github/readme/star-history-light.svg" width="100%" />
   </picture>
 </a>
-
-<div align="center">
-  <a target="_blank" href="https://macro.com/app">
-    <img width="2195" height="721" alt="Frame 12" src="https://github.com/user-attachments/assets/61b846b0-0a61-4a65-9f7b-0e605e209d12" />
-  </a>
-</div>
