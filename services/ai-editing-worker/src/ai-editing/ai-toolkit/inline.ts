@@ -172,10 +172,16 @@ export function $prependText(block: ElementNode, text: string): void {
 }
 
 /**
- * Core inline-match engine. Finds occurrences of `needle` across the block's
- * text nodes, splits so each match is its own text node, then calls `apply` on
- * each matched node. Collects matches first, then mutates (mutating during the
- * walk would re-process freshly-created nodes). Returns the count changed.
+ * Core inline-match engine. Finds occurrences of `needle` in the block's
+ * FLATTENED text, splits every run the match overlaps at the match boundaries,
+ * then calls `apply` on each isolated segment. Returns the number of
+ * occurrences acted on.
+ *
+ * Matching on the flat text means a needle spanning a formatting boundary is
+ * found — `inlineCode` over `build_content_has_child_clauses` where part of it is
+ * already a code span was the single most common residual failure. A match that
+ * crosses runs is applied to each overlapping segment, which is the same result
+ * as selecting across the boundary in the editor and applying the format.
  */
 function mutateMatches(
   block: ElementNode,
@@ -190,68 +196,78 @@ function mutateMatches(
   // `nth` is 1-based per occurrence; default targets the first occurrence.
   const nth = scope?.kind === 'nth' ? scope.n : undefined;
 
-  // 1) Collect every (textNode, offset) occurrence in document order.
-  const occurrences: Array<{ node: TextNode; offset: number }> = [];
-  for (const tn of block.getAllTextNodes()) {
-    const content = tn.getTextContent();
-    let from = 0;
-    let idx = content.indexOf(needle, from);
-    while (idx !== -1) {
-      occurrences.push({ node: tn, offset: idx });
-      from = idx + needle.length;
-      idx = content.indexOf(needle, from);
-    }
+  // 1) Flatten the block's runs, keeping each run's absolute start offset, and
+  //    find the needle in the flat text. Matching on the flat text is what lets
+  //    a needle span a formatting boundary — the per-run walk this replaced
+  //    could not see `total **408**` as the single string "total 408".
+  const runs = block
+    .getAllTextNodes()
+    .map((node) => ({ node, text: node.getTextContent(), start: 0 }));
+  let cursor = 0;
+  for (const run of runs) {
+    run.start = cursor;
+    cursor += run.text.length;
   }
-  if (occurrences.length === 0) {
+  const flat = runs.map((r) => r.text).join('');
+
+  const hits: number[] = [];
+  for (
+    let i = flat.indexOf(needle);
+    i !== -1;
+    i = flat.indexOf(needle, i + needle.length)
+  ) {
+    hits.push(i);
+  }
+  if (hits.length === 0) {
     return 0;
   }
 
   // 2) Decide which occurrences to act on.
-  let targets: Array<{ node: TextNode; offset: number }>;
-  if (all) {
-    targets = occurrences;
-  } else if (nth != null) {
-    const pick = occurrences[nth - 1];
-    targets = pick ? [pick] : [];
-  } else {
-    targets = [occurrences[0]];
-  }
-  if (targets.length === 0) {
+  const chosen = all
+    ? hits
+    : nth != null
+      ? hits[nth - 1] === undefined
+        ? []
+        : [hits[nth - 1]!]
+      : [hits[0]!];
+  if (chosen.length === 0) {
     return 0;
   }
 
-  // 3) Group targets by their text node so we can split correctly. We process
-  //    one text node at a time, splitting out each match into its own node.
-  const byNode = new Map<TextNode, number[]>();
-  for (const t of targets) {
-    const list = byNode.get(t.node) ?? [];
-    list.push(t.offset);
-    byNode.set(t.node, list);
-  }
-
+  // 3) For each chosen occurrence, split every run it overlaps at the match
+  //    boundaries and apply to the isolated segments. A match crossing runs
+  //    yields several segments — applying to each is what a user selecting
+  //    across a bold boundary and pressing Cmd+B gets.
+  //    Work back-to-front: splitting mutates the tree, and later offsets would
+  //    otherwise be invalidated.
   let count = 0;
-  for (const [node, offsets] of byNode) {
-    // Split the node at all match boundaries (offset and offset+len). Then the
-    // substrings equal to `needle` are isolated nodes we can act on.
-    const boundaries = new Set<number>();
-    for (const off of offsets) {
-      boundaries.add(off);
-      boundaries.add(off + needle.length);
-    }
-    const sorted = [...boundaries].sort((a, b) => a - b);
-    const pieces = node.splitText(...sorted);
-    // Walk pieces by cumulative character position so we can identify target
-    // pieces by offset — content equality alone is ambiguous when needle repeats.
-    const targetOffsets = new Set(offsets);
-    let pos = 0;
-    for (const piece of pieces) {
-      const len = piece.getTextContent().length;
-      if (targetOffsets.has(pos) && piece.getTextContent() === needle) {
-        apply(piece);
-        count++;
+  for (const at of [...chosen].sort((a, b) => b - a)) {
+    const end = at + needle.length;
+    const touched = runs.filter(
+      (r) => r.start < end && r.start + r.text.length > at
+    );
+    if (touched.length === 0) continue;
+
+    for (const run of touched) {
+      const from = Math.max(0, at - run.start);
+      const to = Math.min(run.text.length, end - run.start);
+      if (to <= from) continue;
+
+      const boundaries = [from, to].filter((b) => b > 0 && b < run.text.length);
+      const pieces =
+        boundaries.length > 0 ? run.node.splitText(...boundaries) : [run.node];
+      // The segment covering [from, to) is the piece starting at `from`.
+      let pos = 0;
+      for (const piece of pieces) {
+        const len = piece.getTextContent().length;
+        if (pos === from) {
+          apply(piece);
+          break;
+        }
+        pos += len;
       }
-      pos += len;
     }
+    count++;
   }
   return count;
 }

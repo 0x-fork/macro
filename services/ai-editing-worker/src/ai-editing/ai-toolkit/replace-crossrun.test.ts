@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createEditingSession, loadMarkdown } from './session';
-import { $replaceString } from './inline';
+import { $formatTextInBlock, $replaceString } from './inline';
 import { $getRoot, type ElementNode } from 'lexical';
 import { serializeWithXml } from '../utils';
 
@@ -104,5 +104,45 @@ describe('$replaceString across run boundaries', () => {
       $replaceString(b, 'keep drop', 'keep')
     );
     expect(text(xml)).toBe('keep');
+  });
+});
+
+describe('formatting across run boundaries', () => {
+  it('applies a format to a span that crosses a boundary', () => {
+    const { xml } = withBlock('total **408** done', (b) =>
+      $formatTextInBlock(b, 'total 408', 'code')
+    );
+    expect(xml).toContain('code="true"');
+    expect(text(xml)).toBe('total 408 done');
+  });
+
+  it('preserves the formatting already on the crossed run', () => {
+    const { xml } = withBlock('total **408** done', (b) =>
+      $formatTextInBlock(b, 'total 408', 'code')
+    );
+    // "408" keeps its bold and additionally gains code.
+    expect(xml).toMatch(/<t[^>]*bold="true"[^>]*code="true"|<t[^>]*code="true"[^>]*bold="true"/);
+  });
+
+  it('leaves text outside the match untouched', () => {
+    const { xml } = withBlock('keep total **408** done', (b) =>
+      $formatTextInBlock(b, 'total 408', 'code')
+    );
+    expect(text(xml)).toBe('keep total 408 done');
+    expect(xml).toMatch(/<t id="[^"]+">keep <\/t>/);
+  });
+
+  it('reports 0 when the span is genuinely absent', () => {
+    const { result } = withBlock('alpha **beta**', (b) =>
+      $formatTextInBlock(b, 'gamma delta', 'code')
+    );
+    expect(result).toBe(0);
+  });
+
+  it('counts one occurrence even when it spans several runs', () => {
+    const { result } = withBlock('a **b** c', (b) =>
+      $formatTextInBlock(b, 'a b c', 'code')
+    );
+    expect(result).toBe(1);
   });
 });

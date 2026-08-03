@@ -297,30 +297,14 @@ export class Doc implements DocReader, DocWriter {
   }
 
   private setText(node: NodeRef, text: string): void {
+    // $setText reports what it flattened, but telling the coder measurably made
+    // things worse: on the 7 cases where that warning fired it drove runCode
+    // calls 68 -> 99 while purpose-met and correctness stayed flat, i.e. it
+    // provoked repair attempts that did not land. The API doc states the
+    // semantics instead, and cross-run `replace` gives a non-destructive option.
     this.tx(() => {
-      const loss = blocks.$setText(this.block(node), text);
-      this.noteSetTextLoss(node, loss);
+      blocks.$setText(this.block(node), text);
     });
-  }
-
-  /** setText flattens a block to one plain run. Say so when that actually threw
-   *  something away, naming it, plus the surgical alternative. */
-  private noteSetTextLoss(node: NodeRef, loss: blocks.SetTextLoss): void {
-    const lost = [
-      ...loss.removedInline,
-      ...loss.strippedFormats.map((f) => `${f} formatting`),
-    ];
-    if (lost.length === 0) return;
-    const counted = [...new Set(lost)]
-      .map((k) => {
-        const n = lost.filter((x) => x === k).length;
-        return n > 1 ? `${n}x ${k}` : k;
-      })
-      .join(', ');
-    this.warnings.push(
-      `setText on "${typeof node === 'string' ? node : 'block'}" replaced the whole block with plain text and DESTROYED: ${counted}. ` +
-        `If you meant to keep those, undo this by rebuilding them, and prefer replace(id, find, to) for a surgical text change next time.`
-    );
   }
 
   private appendText(node: NodeRef, text: string): void {

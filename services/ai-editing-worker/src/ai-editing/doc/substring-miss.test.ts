@@ -65,22 +65,22 @@ describe('substring-targeted ops report a miss', () => {
   });
 
   /**
-   * Formatting a span that straddles a boundary has no single sensible
-   * semantics (which run's formatting wins?), so that case still raises — and
-   * names the runs so the coder can pick a span inside one of them.
+   * Formatting across a run boundary used to raise, because the matchers walked
+   * one run at a time. It now applies to each overlapping segment — the same
+   * result as selecting across the boundary in the editor and applying the
+   * format — so this is no longer an error either.
    */
-  it('formatting across a run boundary still names the split-run cause', () => {
+  it('formatting now applies across a run boundary', () => {
     const { doc, session, id } = blockId('total 408 done');
     doc.apply({ kind: 'formatText', node: id, match: '408', format: 'bold', on: true } as never);
 
-    let message = '';
-    try {
-      doc.apply({ kind: 'formatText', node: id, match: 'total 408', format: 'code', on: true } as never);
-    } catch (e) {
-      message = (e as Error).message;
-    }
-    expect(message).toMatch(/SPLIT ACROSS/);
-    expect(message).toContain('"total "');
+    expect(() =>
+      doc.apply({ kind: 'formatText', node: id, match: 'total 408', format: 'code', on: true } as never)
+    ).not.toThrow();
+    const xml = serializeWithXml(session);
+    expect(xml).toContain('code="true"');
+    // the pre-existing bold on "408" survives
+    expect(xml).toContain('bold="true"');
   });
 
   it('clearFormat with no match string still strips everything without throwing', () => {
