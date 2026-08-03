@@ -72,6 +72,7 @@ import * as blocks from '../ai-toolkit/blocks';
 import * as inline from '../ai-toolkit/inline';
 import * as lists from '../ai-toolkit/lists';
 import * as locate from '../ai-toolkit/locate';
+import { assertSubstringMatched } from './substring-miss';
 import * as modify from '../ai-toolkit/modify';
 import type { LexicalSession } from '../ai-toolkit/session';
 import * as tables from '../ai-toolkit/tables';
@@ -310,13 +311,35 @@ export class Doc implements DocReader, DocWriter {
     });
   }
 
+  /** A miss on any substring-targeted op used to apply nothing and report
+   *  success. Every one of these now raises instead — see ./substring-miss.ts. */
+  private assertMatched(
+    count: number,
+    block: ElementNode,
+    node: NodeRef,
+    operation: string,
+    needle: string
+  ): void {
+    assertSubstringMatched(
+      count,
+      block,
+      typeof node === 'string' ? node : block.getType(),
+      operation,
+      needle
+    );
+  }
+
   private replaceText(
     node: NodeRef,
     find: string,
     to: string,
     scope: Scope
   ): void {
-    this.tx(() => inline.$replaceString(this.block(node), find, to, scope));
+    this.tx(() => {
+      const block = this.block(node);
+      const count = inline.$replaceString(block, find, to, scope);
+      this.assertMatched(count, block, node, 'replace', find);
+    });
   }
 
   private formatText(
@@ -328,8 +351,10 @@ export class Doc implements DocReader, DocWriter {
   ): void {
     this.tx(() => {
       const block = this.block(node);
-      if (on) inline.$formatTextInBlock(block, match, format, scope);
-      else inline.$clearFormat(block, match, format, scope);
+      const count = on
+        ? inline.$formatTextInBlock(block, match, format, scope)
+        : inline.$clearFormat(block, match, format, scope);
+      this.assertMatched(count, block, node, `${format}`, match);
     });
   }
 
@@ -340,8 +365,12 @@ export class Doc implements DocReader, DocWriter {
   ): void {
     this.tx(() => {
       const block = this.block(node);
-      if (match === undefined) inline.$stripFormat(block);
-      else inline.$clearFormat(block, match, undefined, scope);
+      if (match === undefined) {
+        inline.$stripFormat(block);
+        return;
+      }
+      const count = inline.$clearFormat(block, match, undefined, scope);
+      this.assertMatched(count, block, node, 'clearFormat', match);
     });
   }
 
@@ -352,9 +381,11 @@ export class Doc implements DocReader, DocWriter {
     scope: Scope
   ): void {
     this.tx(() => {
-      if (on)
-        inline.$wrapInBlock(this.block(node), match, $createMarkNode, scope);
-      else inline.$unwrapFromBlock(this.block(node), match, $isMarkNode, scope);
+      const block = this.block(node);
+      const count = on
+        ? inline.$wrapInBlock(block, match, $createMarkNode, scope)
+        : inline.$unwrapFromBlock(block, match, $isMarkNode, scope);
+      this.assertMatched(count, block, node, 'mark', match);
     });
   }
 
@@ -365,14 +396,12 @@ export class Doc implements DocReader, DocWriter {
     scope: Scope
   ): void {
     this.tx(() => {
-      if (url !== null)
-        inline.$wrapInBlock(
-          this.block(node),
-          match,
-          () => $createLinkNode(url),
-          scope
-        );
-      else inline.$unwrapFromBlock(this.block(node), match, $isLinkNode, scope);
+      const block = this.block(node);
+      const count =
+        url !== null
+          ? inline.$wrapInBlock(block, match, () => $createLinkNode(url), scope)
+          : inline.$unwrapFromBlock(block, match, $isLinkNode, scope);
+      this.assertMatched(count, block, node, 'link', match);
     });
   }
 
