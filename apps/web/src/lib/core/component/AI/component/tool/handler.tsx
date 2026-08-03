@@ -47,7 +47,7 @@ import { readMetadataHandler } from './ReadMetadata';
 import { readThreadHandler } from './ReadThread';
 import { renameDocumentHandler } from './RenameDocument';
 import { contentSearchHandler, nameSearchHandler } from './Search';
-import { searchSkillsHandler } from './SearchSkills';
+import { listSkillsHandler, searchSkillsHandler } from './SearchSkills';
 import { searchToolsHandler } from './SearchTools';
 import { selfKnowledgeHandler } from './SelfKnowledge';
 import { sendChannelMessageHandler } from './SendChannelMessage';
@@ -76,6 +76,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ListEntities: listEntitiesHandler,
   ListInboxes: listInboxesHandler,
   ListLabels: listLabelsHandler,
+  ListSkills: listSkillsHandler,
   ListNotifications: listNotificationsHandler,
   ListTags: listTagsHandler,
   ListTeamMembers: listTeamMembersHandler,
