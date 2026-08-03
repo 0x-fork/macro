@@ -32,8 +32,8 @@ SERIES = [
     (date(2026, 7, 28), 713),
 ]
 
-W, H = 1000, 1000
-L, R, T, B = 84, 56, 152, 74           # plot padding
+W, H = 1100, 560
+L, R, T, B = 76, 52, 112, 62           # plot padding
 PX0, PX1 = L, W - R
 PY0, PY1 = T, H - B
 YMAX = 750
@@ -112,18 +112,18 @@ def build(name, c):
     a(f'<rect width="{W}" height="{H}" rx="12" fill="{c["card"]}" stroke="{c["border"]}"/>')
 
     # title
-    a(f'<text x="{L}" y="56" font-family="{FONT}" font-size="26" font-weight="600" '
+    a(f'<text x="{L}" y="46" font-family="{FONT}" font-size="21" font-weight="600" '
       f'fill="{c["fg"]}">Star history</text>')
-    a(f'<text x="{L}" y="84" font-family="{FONT}" font-size="14" '
+    a(f'<text x="{L}" y="70" font-family="{FONT}" font-size="13" '
       f'fill="{c["muted"]}">macro-inc/macro &#183; {LATEST} stars and counting</text>')
 
     # star button, top right
-    bw, bh = 178, 40
-    bx, by = PX1 - bw, 44
+    bw, bh = 160, 36
+    bx, by = PX1 - bw, 34
     a(f'<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" rx="8" '
       f'fill="{c["btn"]}" stroke="{c["btn_border"]}"/>')
-    a(f'<path d="{star(bx + 26, by + bh / 2, 9)}" fill="{ORANGE}"/>')
-    a(f'<text x="{bx + 44}" y="{by + 26}" font-family="{FONT}" font-size="15" '
+    a(f'<path d="{star(bx + 23, by + bh / 2, 8)}" fill="{ORANGE}"/>')
+    a(f'<text x="{bx + 39}" y="{by + 23}" font-family="{FONT}" font-size="14" '
       f'font-weight="600" fill="{c["btn_fg"]}">Star this repo</text>')
 
     # gridlines + y labels
@@ -153,7 +153,7 @@ def build(name, c):
     a(f'<circle cx="{lx:.1f}" cy="{ly:.1f}" r="7" fill="{ORANGE}" stroke="{c["dot_ring"]}" '
       f'stroke-width="3"/>')
     a(f'<text x="{lx - 14:.1f}" y="{ly - 18:.1f}" text-anchor="end" font-family="{FONT}" '
-      f'font-size="22" font-weight="700" fill="{c["fg"]}">{LATEST}</text>')
+      f'font-size="19" font-weight="700" fill="{c["fg"]}">{LATEST}</text>')
 
     a('</svg>')
     path = f".github/readme/star-history-{name}.svg"

@@ -4,6 +4,9 @@
     <img width="2195" height="721" alt="Frame 11" src="https://github.com/user-attachments/assets/50405352-785e-4984-b24f-544e89731acb" />
   </a>
 
+  <br />
+  <br />
+
   <p>
     <a href="https://macro.com/app">Sign up</a>
     ·
@@ -23,17 +26,17 @@
 
 Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so your team and your agents never have to switch tools.
 
-## Why Macro
+# Why Macro
 
-We built Macro because we wanted a single unified system for our starup. There are many good products — e.g. Slack, Linear, Notion, HubSpot, and Superhuman — but they don't together one one. As we scaled our last venture to ~20 people things started to break; every team got their own tools and the company was held together by MCP and Zapier. Nobody has the full picture. Agents were missing context. So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust. We've been dogfooding it for two years and now we've opened it up so you can use it too.
+We built Macro because we wanted a single unified system for our startup. There are many good products — e.g. Slack, Linear, Notion, HubSpot, and Superhuman — but they don't work together as one. As we scaled our last venture to ~20 people things started to break; every team got their own tools and the company was held together by MCP and Zapier. Nobody had the full picture. Agents were missing context.
 
-## Features
+So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust. We've been dogfooding it for two years and now we've opened it up so you can use it too.
+
+# Features
 
 Macro is composed of 'blocks' designed to be modular, extensible, and work together like Lego. For each block, we studied the best prior art and tried to make it even better.
 
 Each surface is purpose-built for its job rather than composed from a generic block primitive — but every one of them shares the same backend; cross-references between a doc and a task, or a channel message and an email, are natively stored as a **bidirectional graph**.
-
-Every block has its own page in the [docs](https://docs.macro.com):
 
 | Block | What it does |
 | --- | --- |
@@ -48,25 +51,26 @@ Every block has its own page in the [docs](https://docs.macro.com):
 | [Pull requests](https://docs.macro.com/integrations/github) | Linked to tasks, embeddable in channels, available to agents. |
 | [CRM](https://docs.macro.com/product/crm) | Customer and contact objects, custom properties, email sync, enrichment. |
 
-### Email
+## Email
 
 Macro Mail is inspired by Superhuman's keyboard-first interface with a few key additions:
 
 1. Multi-account. Triage all your Google accounts in a single inbox, with the same tagging and sharing system. Or triage individually.
-2. Unified inbox: emails, messages, @mentions, and tasks to complete, all in the same list. Use `j` `k` and `e` to naviate everything.
+2. Unified inbox: emails, messages, @mentions, and tasks to complete, all in the same list. Use `j` `k` and `e` to navigate everything.
 3. Better AI, with a tools/MCP surface designed to work across inboxes and to help your agents more accurately retrieve information. For example, we expose a unified search tool that allows agents to search all file attachment pdf's (parsed out of email) directly, rather than pulling email threads then attachments. You can also draft, edit and send emails right from AI chats, without opening your email.
-4. Multitasking ability — Macro has a built-in window manager that lets you create 3+ splits (scales with monitor size) so you can draft emails while reviewing prior threads.
-5. Company/Contact objects. Macro has native CRM capability so you can `cmd+k` to a contact, like tim@acme.com to see all emails between you and that person, or companies, to see all emails and files between everyone on your team and everyone at that company, e.g. `@acme.com`. All of this right from your email without having to open a heavyweight CRM like HubSpot or Salesforce. Email aggregation by contact or company is also available to your agents so they can better assist with CRM-type queries and actions.
-
-Macro Maik lives in the interface as tab as channels, docs, tasks, and code. From any email, hit "task" to create a linked task, e.g. a ticket for an engineer from a customer support email. @mention emails in documents, e.g. @Re: Contract Signature.eml inside of Todos.md. In Macro, your email is brought into the fold with all of your tools, and your team, in the same permissions system: just hit `Share` to share an email to any DM or channel — no need to screenshot.
 
 ![Macro email thread with actions, tags, and properties in the sidebar](.github/readme/email-thread.png)
 
+4. Multitasking ability — Macro has a built-in window manager that lets you create 3+ splits (scales with monitor size) so you can draft emails while reviewing prior threads.
+5. Company/Contact objects. Macro has native CRM capability so you can `cmd+k` to a contact, like tim@acme.com to see all emails between you and that person, or companies, to see all emails and files between everyone on your team and everyone at that company, e.g. `@acme.com`. All of this right from your email without having to open a heavyweight CRM like HubSpot or Salesforce. Email aggregation by contact or company is also available to your agents so they can better assist with CRM-type queries and actions.
+
+Macro Mail lives in the same interface as channels, docs, tasks, and code. From any email, hit "task" to create a linked task, e.g. a ticket for an engineer from a customer support email. @mention emails in documents, e.g. @Re: Contract Signature.eml inside of Todos.md. In Macro, your email is brought into the fold with all of your tools, and your team, in the same permissions system: just hit `Share` to share an email to any DM or channel — no need to screenshot.
+
 [Email docs &rarr;](https://docs.macro.com/product/email)
 
-### Messages
+## Messages
 
-Macro Chat is designed to be more focused than Slack for technical discussions. The first couple replies are shown inline 
+Macro Chat is designed to be more focused than Slack for technical discussions. The first couple of replies show inline and the rest collapse into a thread, so a busy channel stays readable.
 
 Real-time channels and threads that work the way you would expect from a team messaging tool, but messages share a database with documents, tasks, and email. Search in Slack searches Slack; here, when you search, you search everything.
 
@@ -76,7 +80,7 @@ A message can become a task with one click, and that task links back to the conv
 
 [Messages docs &rarr;](https://docs.macro.com/product/channels)
 
-### Tasks
+## Tasks
 
 An issue tracker only has access to issues. It cannot see the thread where the bug was first reported, or the doc where the architecture decision was made, or the email from the customer who triggered the investigation, so you end up copying context between tools by hand.
 
@@ -90,7 +94,7 @@ In Macro, tasks are first-class entities that live alongside channels, documents
 
 [Tasks docs &rarr;](https://docs.macro.com/product/tasks)
 
-### Docs
+## Docs
 
 Collaborative, version-controlled, markdown-native docs, built on CRDTs so several people and several agents can edit at once. Backlinks are automatic: the References panel on any doc lists everywhere it has been mentioned.
 
@@ -98,19 +102,9 @@ A Notion workspace tends to accumulate complexity — nested databases, template
 
 ![A PRD in Macro with tags, assignees, properties, and references](.github/readme/docs-prd.png)
 
-![A Macro doc with checklists that @link out to tasks, messages, and other docs](.github/readme/docs-checklist.png)
-
 [Docs &rarr;](https://docs.macro.com/product/docs)
 
-### File storage
-
-Files arrive on their own — imported from email and channels, indexed by content rather than filename, and readable in place. PDFs open in a real viewer with comments and annotations, and every file keeps a pointer back to the message it came in on.
-
-![A PDF opened in Macro's viewer, auto-imported from an email thread (document contents blurred)](.github/readme/files-pdf-viewer.png)
-
-[File storage docs &rarr;](https://docs.macro.com/product/folders)
-
-### CRM
+## CRM
 
 Contact and company objects with custom properties, email sync, and enrichment. Since email already lives in Macro, the pipeline updates itself rather than asking anyone to log activity, and a company record shows the whole team's correspondence instead of only yours.
 
@@ -118,11 +112,9 @@ Board and list views group by any property — stage, owner, revenue — and rec
 
 ![Macro CRM board grouped by pipeline stage](.github/readme/crm-board.png)
 
-![A Macro company record with properties, contacts, and team-wide email history](.github/readme/crm-company.png)
-
 [CRM docs &rarr;](https://docs.macro.com/product/crm)
 
-### Agents
+## Agents
 
 Notion's AI operates within the context of a single page or database. Macro's operates across the entire workspace: Claude is integrated on every surface with access to email, messages, tasks, docs, files, and calls, scoped to exactly the permissions you have. When it answers a question it can pull from a channel conversation, a design doc, and an email thread in the same response.
 
@@ -132,7 +124,7 @@ Coding agents get the same access. Hand a task to Claude Code straight from the 
 
 [Agents docs &rarr;](https://docs.macro.com/product/agents)
 
-## How it holds together
+# How it holds together
 
 Four ideas make the blocks above behave as one system.
 
@@ -146,11 +138,11 @@ Four ideas make the blocks above behave as one system.
 
 Deeper reading: [key concepts](https://docs.macro.com/concepts/blocks) covers blocks, mentions, properties, and permissions; the [FAQ](https://docs.macro.com/faq) covers comparisons, licensing, and self-hosting.
 
-## Using the hosted app
+# Using the hosted app
  
 [Sign up](https://macro.com/app) and connect your Gmail or Google Workspace account. Macro runs in any modern browser, with an [iOS app](https://apps.apple.com/us/app/macro-app/id6743133649) for your phone. The [getting started guide](https://docs.macro.com/getting-started) takes you from a fresh account to a working setup in about 15 minutes. Coming from Notion, Slack, Superhuman, or Linear? See [Switch to Macro](https://docs.macro.com/switch-to-macro).
  
-## Agents & MCP
+# Agents & MCP
  
 Your coding agents can use Macro too. Point Claude Code, Codex, or any MCP client at your workspace:
  
@@ -222,14 +214,16 @@ Have an idea, want to contribute, or want to work on Macro?
 - Contributions: see our [contribution guidelines](CONTRIBUTING.md)
 - Hiring: [teo@macro.com](mailto:teo@macro.com)
 
+# Star us on GitHub
+
+If Macro is useful to you, please give the repo a star. Stars are how most people hear about Macro — they move us up GitHub's search and trending pages, and they make it much easier for anyone sharing Macro to get it taken seriously by their own team. It takes one click and it genuinely helps.
+
 <a href="https://github.com/macro-inc/macro">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/readme/star-history-dark.svg" />
     <img alt="Star history for macro-inc/macro, from launch to 713 stars" src=".github/readme/star-history-light.svg" width="100%" />
   </picture>
 </a>
-
-If Macro is useful to you, starring the repo helps other people find it.
 
 <div align="center">
   <a target="_blank" href="https://macro.com/app">
