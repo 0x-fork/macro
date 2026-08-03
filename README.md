@@ -28,9 +28,9 @@ Macro is the all-in-one workspace that combines email, messages, docs, tasks, co
 
 # Why Macro
 
-We built Macro because we wanted a single unified system for our startup. There are many good products — e.g. Slack, Linear, Notion, HubSpot, and Superhuman — but they don't work together as one. As we scaled our last venture to ~20 people things started to break; every team got their own tools and the company was held together by MCP and Zapier. Nobody had the full picture. Agents were missing context.
+We built Macro because we wanted a single unified system for our startup. There are many good products — e.g. Slack, Linear, Notion, HubSpot, and Superhuman — but they don't work together as one. As we scaled our last venture to ~20 people things started to break... every team got their own tools and the company was held together by MCP and Zapier. Nobody had the full picture of what was going on and it became chaotic. 
 
-So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust. We've been dogfooding it for two years and now we've opened it up so you can use it too.
+Macro is a complete redesign of work software from the ground up as a single system. Designed by us, dogfooded by our team of ~15 across our NYC and Toronto office. Built in in SolidJS and Rust for speed and reliability. We're focused on building something that any small company or team at a larger company can use as their "operating system".
 
 # Features
 
@@ -51,7 +51,7 @@ Each surface is purpose-built for its job rather than composed from a generic bl
 | [Pull requests](https://docs.macro.com/integrations/github) | Linked to tasks, embeddable in channels, available to agents. |
 | [CRM](https://docs.macro.com/product/crm) | Customer and contact objects, custom properties, email sync, enrichment. |
 
-## Email
+## **Multiple email inbox** w/ good AI tools, integrated CRM
 
 Macro Mail is inspired by Superhuman's keyboard-first interface with a few key additions:
 
@@ -68,19 +68,15 @@ Macro Mail lives in the same interface as channels, docs, tasks, and code. From 
 
 [Email docs &rarr;](https://docs.macro.com/product/email)
 
-## Messages
+## **Team chat** for focused technical discussions
 
-Macro Chat is designed to be more focused than Slack for technical discussions. The first couple of replies show inline and the rest collapse into a thread, so a busy channel stays readable.
-
-Real-time channels and threads that work the way you would expect from a team messaging tool, but messages share a database with documents, tasks, and email. Search in Slack searches Slack; here, when you search, you search everything.
-
-A message can become a task with one click, and that task links back to the conversation it came from, because they are entries in the same system rather than records bridged by a webhook. GitHub checks and PRs render inline, and channel membership doubles as the permission model.
+Macro Chat is designed to be more focused than Slack. The first couple of replies show inline and the rest collapse into a thread, so a busy channel stays readable. Threads are permissioned severally so you can share threads across channels by copying links. Everything is stored in a bidirectional graph, so tasks @link to messages that created them, customer support emails tie into support channels, CRM records get updated when they're discussed in messages, etc. The core idea is that (i) messaging should be the centerpiece around which tasks, mail, docs, and content management is built around, all in a lightweight way, and agents should be first-class citizens like human users and (ii) messaging needs to be more focused and readable for technical conversations, and not turn into battles where context is lost and progress is indistinguishable from noise.
 
 ![Macro #Engineers channel with threads, mentions, and an inline GitHub check](.github/readme/messages-channel.png)
 
 [Messages docs &rarr;](https://docs.macro.com/product/channels)
 
-## Tasks
+## **Task management** build around chat
 
 An issue tracker only has access to issues. It cannot see the thread where the bug was first reported, or the doc where the architecture decision was made, or the email from the customer who triggered the investigation, so you end up copying context between tools by hand.
 
