@@ -27,7 +27,6 @@
 Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so your team and your agents never have to switch tools.
 
 <br />
-<br />
 
 # Why Macro
 
@@ -35,7 +34,6 @@ We built Macro because we wanted a single unified system for our startup. There 
 
 Macro is a complete redesign of work software from the ground up as a single system. Designed by us, dogfooded by our team of ~15 across our NYC and Toronto office. Built in in SolidJS and Rust for speed and reliability. We're focused on building something that any small company or team at a larger company can use as their "operating system".
 
-<br />
 <br />
 
 # Features
@@ -57,7 +55,9 @@ Each surface is purpose-built for its job rather than composed from a generic bl
 | Pull requests | [Docs &rarr;](https://docs.macro.com/integrations/github) | Linked to tasks, embeddable in channels, available to agents. |
 | CRM | [Docs &rarr;](https://docs.macro.com/product/crm) | Customer and contact objects, custom properties, email sync, enrichment. |
 
-## **Multiple email inbox** w/ good AI tools, integrated CRM
+<br />
+
+# **Multiple email inbox** w/ good AI tools, integrated CRM
 
 Macro Mail is inspired by Superhuman's keyboard-first interface with a few key additions:
 
@@ -74,7 +74,9 @@ Macro Mail lives in the same interface as channels, docs, tasks, and code. From 
 
 [Email docs &rarr;](https://docs.macro.com/product/email)
 
-## **Team chat** for focused technical discussions
+<br />
+
+# **Team chat** for focused technical discussions
 
 Macro Chat is designed to be more focused than Slack. The first couple of replies show inline and the rest collapse into a thread, so a busy channel stays readable. Threads are permissioned severally so you can share threads across channels by copying links. Everything is stored in a bidirectional graph, so tasks @link to messages that created them, customer support emails tie into support channels, CRM records get updated when they're discussed in messages, etc. The core idea is that (i) messaging should be the centerpiece around which tasks, mail, docs, and content management is built around, all in a lightweight way, and agents should be first-class citizens like human users and (ii) messaging needs to be more focused and readable for technical conversations, and not turn into battles where context is lost and progress is indistinguishable from noise.
 
@@ -82,7 +84,9 @@ Macro Chat is designed to be more focused than Slack. The first couple of replie
 
 [Messages docs &rarr;](https://docs.macro.com/product/channels)
 
-## **Task management** build around chat
+<br />
+
+# **Task management** build around chat
 
 An issue tracker only has access to issues. It cannot see the thread where the bug was first reported, or the doc where the architecture decision was made, or the email from the customer who triggered the investigation, so you end up copying context between tools by hand.
 
@@ -96,7 +100,9 @@ In Macro, tasks are first-class entities that live alongside channels, documents
 
 [Tasks docs &rarr;](https://docs.macro.com/product/tasks)
 
-## Docs
+<br />
+
+# Docs
 
 Collaborative, version-controlled, markdown-native docs, built on CRDTs so several people and several agents can edit at once. Backlinks are automatic: the References panel on any doc lists everywhere it has been mentioned.
 
@@ -106,7 +112,9 @@ A Notion workspace tends to accumulate complexity — nested databases, template
 
 [Docs &rarr;](https://docs.macro.com/product/docs)
 
-## CRM
+<br />
+
+# CRM
 
 Contact and company objects with custom properties, email sync, and enrichment. Since email already lives in Macro, the pipeline updates itself rather than asking anyone to log activity, and a company record shows the whole team's correspondence instead of only yours.
 
@@ -116,7 +124,9 @@ Board and list views group by any property — stage, owner, revenue — and rec
 
 [CRM docs &rarr;](https://docs.macro.com/product/crm)
 
-## Agents
+<br />
+
+# Agents
 
 Notion's AI operates within the context of a single page or database. Macro's operates across the entire workspace: Claude is integrated on every surface with access to email, messages, tasks, docs, files, and calls, scoped to exactly the permissions you have. When it answers a question it can pull from a channel conversation, a design doc, and an email thread in the same response.
 
@@ -126,7 +136,6 @@ Coding agents get the same access. Hand a task to Claude Code straight from the 
 
 [Agents docs &rarr;](https://docs.macro.com/product/agents)
 
-<br />
 <br />
 
 # How it holds together
@@ -144,13 +153,11 @@ Four ideas make the blocks above behave as one system.
 Deeper reading: [key concepts](https://docs.macro.com/concepts/blocks) covers blocks, mentions, properties, and permissions; the [FAQ](https://docs.macro.com/faq) covers comparisons, licensing, and self-hosting.
 
 <br />
-<br />
 
 # Using the hosted app
  
 [Sign up](https://macro.com/app) and connect your Gmail or Google Workspace account. Macro runs in any modern browser, with an [iOS app](https://apps.apple.com/us/app/macro-app/id6743133649) for your phone. The [getting started guide](https://docs.macro.com/getting-started) takes you from a fresh account to a working setup in about 15 minutes. Coming from Notion, Slack, Superhuman, or Linear? See [Switch to Macro](https://docs.macro.com/switch-to-macro).
  
-<br />
 <br />
 
 # Agents & MCP
@@ -164,7 +171,6 @@ claude mcp add --transport http macro https://mcp-server.macro.com/mcp
 See [MCP setup](https://docs.macro.com/AI/mcp/overview) and [agent recipes](https://docs.macro.com/AI/recipes) for what they can do once connected.
 
 <br />
-<br />
 
 # Repository
 
@@ -172,7 +178,9 @@ The backend is Rust, not Node, not Electron: a Cargo workspace of 167 crates beh
 
 The frontend is SolidJS, and documents use Loro CRDTs for real-time collaboration. A Nix flake pins the toolchain; `just` drives everything else.
 
-## Running it locally
+<br />
+
+# Running it locally
 
 ```bash
 git clone https://github.com/macro-inc/macro.git
@@ -190,7 +198,9 @@ just test                     # full test suite
 cargo test -p email_service   # a single service
 ```
 
-## Layout
+<br />
+
+# Layout
 
 ```
 macro/
@@ -209,7 +219,6 @@ macro/
 Services follow a hexagonal layout: inbound adapters, a domain core with ports, outbound adapters. [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md) has the conventions and [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the PR process.
 
 <br />
-<br />
 
 # Security
 
@@ -218,7 +227,6 @@ Services follow a hexagonal layout: inbound adapters, a domain core with ports, 
 Enterprise-grade security. Zero data retention with model providers, including no training on customer data. SOC 2 Type II certified. We welcome responsible security reports and pay bounties in accordance with severity and impact. Send reports to [security@macro.com](mailto:security@macro.com).
 
 <br />
-<br />
 
 # License
 
@@ -226,7 +234,6 @@ Macro is fully open source — not "open core" — under the GNU Affero General 
 
 You can self-host Macro under the terms of the AGPLv3; the [FAQ](https://docs.macro.com/faq) covers what that involves. If you want to build on top of Macro under a different license, contact [licensing@macro.com](mailto:licensing@macro.com). For managed hosting or commercial arrangements, contact [self-host@macro.com](mailto:self-host@macro.com).
 
-<br />
 <br />
 
 # Community
@@ -237,7 +244,6 @@ Have an idea, want to contribute, or want to work on Macro?
 - Contributions: see our [contribution guidelines](CONTRIBUTING.md)
 - Hiring: [teo@macro.com](mailto:teo@macro.com)
 
-<br />
 <br />
 
 # Star us on GitHub
