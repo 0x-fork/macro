@@ -245,6 +245,8 @@ export type DispatchToolOptions = {
   sleep?: (ms: number) => Promise<void>;
   signal?: AbortSignal;
   makeWriter: () => Promise<Writer>;
+  /** Per-coder step cap, forwarded to every coder this tool spawns. */
+  maxCoderSteps?: number;
   runTask: typeof coder;
   serialize?: (session: LexicalSession) => string;
   onOps?: RunCodeToolOptions['onOps'];
@@ -281,6 +283,7 @@ export function createDispatchTool(opts: DispatchToolOptions) {
     sleep,
     signal,
     makeWriter,
+    maxCoderSteps,
     runTask,
     runner,
     onOps,
@@ -352,6 +355,7 @@ export function createDispatchTool(opts: DispatchToolOptions) {
             doc,
             awarenessSource,
             context,
+            maxSteps: maxCoderSteps,
             request,
             params,
             typingAnimations,

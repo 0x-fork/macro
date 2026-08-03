@@ -16,6 +16,21 @@ export type { RunTaskDeps } from './types';
 
 export const CHILD_SYSTEM = `${SHARED}\n${CODER}\n${API_COMPLETE}`;
 
+/**
+ * Default per-coder step cap.
+ *
+ * `runCode` executes arbitrary JS against `editor`, so ANY edit — however many
+ * nodes it touches — can be expressed in a single call. Extra steps are
+ * therefore either error recovery or the coder voluntarily splitting one edit
+ * across round trips. Measured across instrumented runs, 33% of coders made more
+ * than one call and 74 of those continuations followed a SUCCESSFUL call, i.e.
+ * pure round-trip waste: another full model turn plus its accumulated history.
+ *
+ * 3 leaves room for one attempt and two recoveries. The old cap of 7 let a
+ * confused coder burn six extra turns before the supervisor saw anything.
+ */
+export const DEFAULT_MAX_CODER_STEPS = 3;
+
 /** One writer: carry out a single edit instruction via the `editor` surface. */
 export async function coder(
   session: LexicalSession,
@@ -26,8 +41,10 @@ export async function coder(
   return generateText({
     model,
     // Stop on the step cap OR the moment the writer declares itself blocked.
-    // Cap allows headroom for larger multi-part tasks and a few error retries.
-    stopWhen: [stepCountIs(7), hasToolCall('reportBlocked')],
+    stopWhen: [
+      stepCountIs(deps.maxSteps ?? DEFAULT_MAX_CODER_STEPS),
+      hasToolCall('reportBlocked'),
+    ],
     system: CHILD_SYSTEM,
     // System, tools, and task/context are fixed for this coder's whole run;
     // one cache breakpoint on the opening message covers all of them.

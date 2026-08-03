@@ -88,6 +88,7 @@ export async function supervisor(
       sleep: opts.sleep,
       signal: opts.signal,
       makeWriter: opts.borrowWriter,
+      maxCoderSteps: opts.maxCoderSteps,
       runTask: coder,
       serialize,
       runner: opts.runner,
