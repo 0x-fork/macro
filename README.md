@@ -26,11 +26,17 @@
 
 Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so your team and your agents never have to switch tools.
 
+<br />
+<br />
+
 # Why Macro
 
 We built Macro because we wanted a single unified system for our startup. There are many good products — e.g. Slack, Linear, Notion, HubSpot, and Superhuman — but they don't work together as one. As we scaled our last venture to ~20 people things started to break... every team got their own tools and the company was held together by MCP and Zapier. Nobody had the full picture of what was going on and it became chaotic. 
 
 Macro is a complete redesign of work software from the ground up as a single system. Designed by us, dogfooded by our team of ~15 across our NYC and Toronto office. Built in in SolidJS and Rust for speed and reliability. We're focused on building something that any small company or team at a larger company can use as their "operating system".
+
+<br />
+<br />
 
 # Features
 
@@ -38,18 +44,18 @@ Macro is composed of 'blocks' designed to be modular, extensible, and work toget
 
 Each surface is purpose-built for its job rather than composed from a generic block primitive — but every one of them shares the same backend; cross-references between a doc and a task, or a channel message and an email, are natively stored as a **bidirectional graph**.
 
-| Block | What it does |
-| --- | --- |
-| [Email](https://docs.macro.com/product/email) | Multi-account unified inbox, keyboard shortcuts, and shared inboxes. Gmail. |
-| [Messages](https://docs.macro.com/product/channels) | Channels and direct messages designed for focused technical discussions. |
-| [Tasks](https://docs.macro.com/product/tasks) | Linear-inspired tasks, tightly integrated with channels, email, and agents. |
-| [Docs](https://docs.macro.com/product/docs) | Real-time collaborative, markdown-native docs built on CRDTs, with @mentions. |
-| [Canvas](https://docs.macro.com/product/canvas) | 2D board with embedded @links to tasks, files, and emails. |
-| [Agents](https://docs.macro.com/product/agents) | Unified, team-level memory. Can take action on your behalf. |
-| [Calls](https://docs.macro.com/product/calls) | Recorded, transcribed, and logged to team memory for agents. |
-| [File storage](https://docs.macro.com/product/folders) | Auto-imported from email and channels, fully searchable. |
-| [Pull requests](https://docs.macro.com/integrations/github) | Linked to tasks, embeddable in channels, available to agents. |
-| [CRM](https://docs.macro.com/product/crm) | Customer and contact objects, custom properties, email sync, enrichment. |
+| Block | Docs | What it does |
+| --- | --- | --- |
+| Email | [Docs &rarr;](https://docs.macro.com/product/email) | Multi-account unified inbox, keyboard shortcuts, and shared inboxes. Gmail. |
+| Messages | [Docs &rarr;](https://docs.macro.com/product/channels) | Channels and direct messages designed for focused technical discussions. |
+| Tasks | [Docs &rarr;](https://docs.macro.com/product/tasks) | Linear-inspired tasks, tightly integrated with channels, email, and agents. |
+| Docs | [Docs &rarr;](https://docs.macro.com/product/docs) | Real-time collaborative, markdown-native docs built on CRDTs, with @mentions. |
+| Canvas | [Docs &rarr;](https://docs.macro.com/product/canvas) | 2D board with embedded @links to tasks, files, and emails. |
+| Agents | [Docs &rarr;](https://docs.macro.com/product/agents) | Unified, team-level memory. Can take action on your behalf. |
+| Calls | [Docs &rarr;](https://docs.macro.com/product/calls) | Recorded, transcribed, and logged to team memory for agents. |
+| File storage | [Docs &rarr;](https://docs.macro.com/product/folders) | Auto-imported from email and channels, fully searchable. |
+| Pull requests | [Docs &rarr;](https://docs.macro.com/integrations/github) | Linked to tasks, embeddable in channels, available to agents. |
+| CRM | [Docs &rarr;](https://docs.macro.com/product/crm) | Customer and contact objects, custom properties, email sync, enrichment. |
 
 ## **Multiple email inbox** w/ good AI tools, integrated CRM
 
@@ -120,6 +126,9 @@ Coding agents get the same access. Hand a task to Claude Code straight from the 
 
 [Agents docs &rarr;](https://docs.macro.com/product/agents)
 
+<br />
+<br />
+
 # How it holds together
 
 Four ideas make the blocks above behave as one system.
@@ -134,10 +143,16 @@ Four ideas make the blocks above behave as one system.
 
 Deeper reading: [key concepts](https://docs.macro.com/concepts/blocks) covers blocks, mentions, properties, and permissions; the [FAQ](https://docs.macro.com/faq) covers comparisons, licensing, and self-hosting.
 
+<br />
+<br />
+
 # Using the hosted app
  
 [Sign up](https://macro.com/app) and connect your Gmail or Google Workspace account. Macro runs in any modern browser, with an [iOS app](https://apps.apple.com/us/app/macro-app/id6743133649) for your phone. The [getting started guide](https://docs.macro.com/getting-started) takes you from a fresh account to a working setup in about 15 minutes. Coming from Notion, Slack, Superhuman, or Linear? See [Switch to Macro](https://docs.macro.com/switch-to-macro).
  
+<br />
+<br />
+
 # Agents & MCP
  
 Your coding agents can use Macro too. Point Claude Code, Codex, or any MCP client at your workspace:
@@ -147,6 +162,9 @@ claude mcp add --transport http macro https://mcp-server.macro.com/mcp
 ```
  
 See [MCP setup](https://docs.macro.com/AI/mcp/overview) and [agent recipes](https://docs.macro.com/AI/recipes) for what they can do once connected.
+
+<br />
+<br />
 
 # Repository
 
@@ -190,17 +208,26 @@ macro/
 
 Services follow a hexagonal layout: inbound adapters, a domain core with ports, outbound adapters. [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md) has the conventions and [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the PR process.
 
+<br />
+<br />
+
 # Security
 
 <img width="520" alt="ISO 27001 and SOC 2 Type II badges" src=".github/readme/security-badges.svg" />
 
 Enterprise-grade security. Zero data retention with model providers, including no training on customer data. SOC 2 Type II certified. We welcome responsible security reports and pay bounties in accordance with severity and impact. Send reports to [security@macro.com](mailto:security@macro.com).
 
+<br />
+<br />
+
 # License
 
 Macro is fully open source — not "open core" — under the GNU Affero General Public License v3.0. See `LICENSE.txt` for details.
 
 You can self-host Macro under the terms of the AGPLv3; the [FAQ](https://docs.macro.com/faq) covers what that involves. If you want to build on top of Macro under a different license, contact [licensing@macro.com](mailto:licensing@macro.com). For managed hosting or commercial arrangements, contact [self-host@macro.com](mailto:self-host@macro.com).
+
+<br />
+<br />
 
 # Community
 
@@ -209,6 +236,9 @@ Have an idea, want to contribute, or want to work on Macro?
 - Feature requests: [contact@macro.com](mailto:contact@macro.com)
 - Contributions: see our [contribution guidelines](CONTRIBUTING.md)
 - Hiring: [teo@macro.com](mailto:teo@macro.com)
+
+<br />
+<br />
 
 # Star us on GitHub
 
