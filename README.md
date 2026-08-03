@@ -21,56 +21,34 @@
   </p>
 </div>
 
+Macro is the all-in-one workspace that combines email, messages, docs, tasks, code, agents, calls, and CRM into a single fast interface. With shared team-level memory, everything in your workspace is @linked and queryable, so you and your agents never lose context.
 
-Most engineering teams run five or six tools that each own one slice of the workday: a chat app, an issue tracker, a doc editor, a note-taking tool, an email client. Each tool stores its own data, maintains its own search index, and has no awareness of what lives in the others.
+Macro has raised $30m led by a16z. We are based in NYC.
 
-Macro is a single application that covers all of those surfaces, backed by one database, so that the boundaries between messaging, documents, tasks, email, and code stop being product boundaries and become features of the same system.
+## Why Macro
 
-## Stack
+We built Macro because we wanted a single unified system. There are many good products, but nothing works together. So, we rebuilt everything from scratch, from first principles, in SolidJS and Rust, to work together as one. We've been dogfooding it for two years and now we've opened it up so you can use it too.
 
-The backend is Rust, not Node, not Electron: a Cargo workspace of 167 crates behind 42 deployable services, built on `axum` and `sqlx` with compile-time-checked queries against Postgres. Kafka carries events, OpenSearch handles search, and the client talks to it over `async-graphql`.
-
-The frontend is SolidJS, and documents use Loro CRDTs for real-time collaboration. A Nix flake pins the toolchain; `just` drives everything else.
-
-### Quick start
-
-```bash
-git clone https://github.com/macro-inc/macro.git
-cd macro
-nix develop          # Rust toolchain, Bun, sqlx, zig, cargo-zigbuild
-just run_local       # local infra + backend services + proxy + frontend
-```
-
-`run_local` prints the frontend URL once the stack is up; `r` rebuilds changed Rust services, `q` tears it down. See [Running locally](docs/RUNNING_LOCALLY.md) for Doppler setup and named instances.
-
-```bash
-just check                    # type check the workspace
-just clippy                   # lints
-just test                     # full test suite
-cargo test -p email_service   # a single service
-```
-
-### Repository layout
-
-```
-macro/
-├── apps/
-│   ├── web/       SolidJS client — browser, Tauri desktop, mobile
-│   └── docs/      docs.macro.com
-├── services/      42 deployable services, workers, and Lambda handlers
-├── crates/        167 Rust libraries — domain logic, models, db clients
-├── packages/      shared TypeScript — collaboration, lexical-core, loro-mirror
-├── infra/         Pulumi definitions
-├── docker/        local Compose stack
-├── nix/           pinned dev shell and build inputs
-└── tooling/       repo scripts and code generators
-```
-
-Services follow a hexagonal layout: inbound adapters, a domain core with ports, outbound adapters. [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md) has the conventions and [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the PR process.
+Replaces Slack, Linear, Notion, HubSpot, and Superhuman. Or integrates with them.
 
 ## Features
 
 Documents are documents. Tasks are tasks. Channels are channels. Each surface is purpose-built for its job rather than composed from a generic block primitive — but every one of them shares a backend, so cross-references between a doc and a task, or a channel message and an email, are native rather than something you wire up.
+
+For each block, we studied the best prior art and tried to make it even better. Every block has its own page in the [docs](https://docs.macro.com):
+
+| Block | What it does |
+| --- | --- |
+| [Email](https://docs.macro.com/product/email) | Multi-account unified inbox, keyboard shortcuts, and shared inboxes. Gmail. |
+| [Messages](https://docs.macro.com/product/channels) | Channels and direct messages designed for focused technical discussions. |
+| [Tasks](https://docs.macro.com/product/tasks) | Linear-inspired tasks, tightly integrated with channels, email, and agents. |
+| [Docs](https://docs.macro.com/product/docs) | Real-time collaborative, markdown-native docs built on CRDTs, with @mentions. |
+| [Canvas](https://docs.macro.com/product/canvas) | 2D board with embedded @links to tasks, files, and emails. |
+| [Agents](https://docs.macro.com/product/agents) | Unified, team-level memory. Can take action on your behalf. |
+| [Calls](https://docs.macro.com/product/calls) | Recorded, transcribed, and logged to team memory for agents. |
+| [File storage](https://docs.macro.com/product/folders) | Auto-imported from email and channels, fully searchable. |
+| [Pull requests](https://docs.macro.com/integrations/github) | Linked to tasks, embeddable in channels, available to agents. |
+| [CRM](https://docs.macro.com/product/crm) | Customer and contact objects, custom properties, email sync, enrichment. |
 
 ### Email
 
@@ -148,10 +126,6 @@ Coding agents get the same access. Hand a task to Claude Code straight from the 
 
 [Agents docs &rarr;](https://docs.macro.com/product/agents)
 
-### Also included
-
-Canvas is a 2D board with embedded @links, for planning that doesn't fit in a list. Calls are recorded, transcribed, and logged to team memory. Pull requests link to tasks and embed in channels. All three are documented at [docs.macro.com](https://docs.macro.com).
-
 ## How it holds together
 
 Four ideas make the blocks above behave as one system.
@@ -180,6 +154,48 @@ claude mcp add --transport http macro https://mcp-server.macro.com/mcp
  
 See [MCP setup](https://docs.macro.com/AI/mcp/overview) and [agent recipes](https://docs.macro.com/AI/recipes) for what they can do once connected.
 
+# Repository
+
+The backend is Rust, not Node, not Electron: a Cargo workspace of 167 crates behind 42 deployable services, built on `axum` and `sqlx` with compile-time-checked queries against Postgres. Kafka carries events, OpenSearch handles search, and the client talks to it over `async-graphql`.
+
+The frontend is SolidJS, and documents use Loro CRDTs for real-time collaboration. A Nix flake pins the toolchain; `just` drives everything else.
+
+## Running it locally
+
+```bash
+git clone https://github.com/macro-inc/macro.git
+cd macro
+nix develop          # Rust toolchain, Bun, sqlx, zig, cargo-zigbuild
+just run_local       # local infra + backend services + proxy + frontend
+```
+
+`run_local` prints the frontend URL once the stack is up; `r` rebuilds changed Rust services, `q` tears it down. See [Running locally](docs/RUNNING_LOCALLY.md) for Doppler setup and named instances.
+
+```bash
+just check                    # type check the workspace
+just clippy                   # lints
+just test                     # full test suite
+cargo test -p email_service   # a single service
+```
+
+## Layout
+
+```
+macro/
+├── apps/
+│   ├── web/       SolidJS client — browser, Tauri desktop, mobile
+│   └── docs/      docs.macro.com
+├── services/      42 deployable services, workers, and Lambda handlers
+├── crates/        167 Rust libraries — domain logic, models, db clients
+├── packages/      shared TypeScript — collaboration, lexical-core, loro-mirror
+├── infra/         Pulumi definitions
+├── docker/        local Compose stack
+├── nix/           pinned dev shell and build inputs
+└── tooling/       repo scripts and code generators
+```
+
+Services follow a hexagonal layout: inbound adapters, a domain core with ports, outbound adapters. [`docs/STYLE_GUIDE.md`](docs/STYLE_GUIDE.md) has the conventions and [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the PR process.
+
 # Security
 
 <img width="520" alt="ISO 27001 and SOC 2 Type II badges" src=".github/readme/security-badges.svg" />
@@ -200,12 +216,10 @@ Have an idea, want to contribute, or want to work on Macro?
 - Contributions: see our [contribution guidelines](CONTRIBUTING.md)
 - Hiring: [teo@macro.com](mailto:teo@macro.com)
 
-Macro has raised $30m led by a16z. We are based in NYC.
-
 <a href="https://github.com/macro-inc/macro">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/readme/star-history-dark.svg" />
-    <img alt="Star history for macro-inc/macro, from launch to 687 stars" src=".github/readme/star-history-light.svg" width="100%" />
+    <img alt="Star history for macro-inc/macro, from launch to 713 stars" src=".github/readme/star-history-light.svg" width="100%" />
   </picture>
 </a>
 

@@ -2,7 +2,7 @@
 from datetime import date
 
 # Star counts reverse-engineered from the star-history.com chart,
-# anchored to the known value of 687 on 2026-07-28.
+# anchored to the known value of 713 on 2026-07-28.
 SERIES = [
     (date(2025, 11, 18), 0),
     (date(2025, 12, 1), 3),
@@ -29,14 +29,14 @@ SERIES = [
     (date(2026, 7, 1), 330),
     (date(2026, 7, 10), 415),
     (date(2026, 7, 17), 520),
-    (date(2026, 7, 28), 687),
+    (date(2026, 7, 28), 713),
 ]
 
 W, H = 1000, 1000
 L, R, T, B = 84, 56, 152, 74           # plot padding
 PX0, PX1 = L, W - R
 PY0, PY1 = T, H - B
-YMAX = 700
+YMAX = 750
 LATEST = SERIES[-1][1]
 ORANGE = "#f26a1b"
 
