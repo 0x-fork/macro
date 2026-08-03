@@ -49,30 +49,38 @@ describe('substring-targeted ops report a miss', () => {
   });
 
   /**
-   * The failure that produced the corpus's worst silent thrash (trace 213282e2):
-   * the needle IS in the block, but split across text runs, so the per-run
-   * matchers can never see it. The coder narrowed from a substring all the way
-   * to the node's entire text and got no error at any point.
+   * The failure that produced the corpus's worst silent thrash (trace 213282e2)
+   * was a needle spanning text runs. `replace` now matches across runs, so this
+   * is no longer an error at all — it just works.
    */
-  it('names the split-run cause when the text spans separate runs', () => {
+  it('replace now succeeds across a run boundary', () => {
     const { doc, session, id } = blockId('total 408 done');
-    // Bold one word so the paragraph holds three separate text runs.
     doc.apply({ kind: 'formatText', node: id, match: '408', format: 'bold', on: true } as never);
-    const runs = serializeWithXml(session).match(/<t /g) ?? [];
-    expect(runs.length).toBeGreaterThan(1);
+    expect((serializeWithXml(session).match(/<t /g) ?? []).length).toBeGreaterThan(1);
 
-    // "total 408" now straddles run 1 and run 2.
+    expect(() =>
+      doc.apply({ kind: 'replaceText', node: id, find: 'total 408', to: 'total 414' } as never)
+    ).not.toThrow();
+    expect(serializeWithXml(session)).toContain('414');
+  });
+
+  /**
+   * Formatting a span that straddles a boundary has no single sensible
+   * semantics (which run's formatting wins?), so that case still raises — and
+   * names the runs so the coder can pick a span inside one of them.
+   */
+  it('formatting across a run boundary still names the split-run cause', () => {
+    const { doc, session, id } = blockId('total 408 done');
+    doc.apply({ kind: 'formatText', node: id, match: '408', format: 'bold', on: true } as never);
+
     let message = '';
     try {
-      doc.apply({ kind: 'replaceText', node: id, find: 'total 408', to: 'total 414' } as never);
+      doc.apply({ kind: 'formatText', node: id, match: 'total 408', format: 'code', on: true } as never);
     } catch (e) {
       message = (e as Error).message;
     }
     expect(message).toMatch(/SPLIT ACROSS/);
-    // The runs are quoted so the boundary is visible.
     expect(message).toContain('"total "');
-    // And it points at the way out.
-    expect(message).toMatch(/setText/);
   });
 
   it('clearFormat with no match string still strips everything without throwing', () => {

@@ -60,7 +60,7 @@ describe('diffNodes', () => {
 });
 
 describe('describeEffect', () => {
-  it('says NO CHANGE loudly and tells the coder not to retry', () => {
+  it('states NO CHANGE as an observable fact, without instructing the model', () => {
     const out = describeEffect('ok', {
       changed: false,
       addedIds: [],
@@ -68,7 +68,10 @@ describe('describeEffect', () => {
       modifiedIds: [],
     });
     expect(out).toContain('NO CHANGE');
-    expect(out).toContain('Do NOT repeat this call');
+    expect(out).toContain('byte-identical');
+    // The exhortation was measured ineffective (8/9 NO CHANGE replies retried
+    // anyway); the raised errors carry the behaviour instead.
+    expect(out).not.toMatch(/Do NOT/i);
   });
 
   it('lists what changed so the coder can confirm its target', () => {

@@ -101,6 +101,16 @@ const FORMAT_BIT: Record<
 };
 
 export class Doc implements DocReader, DocWriter {
+  /** Non-fatal notes raised while applying ops, drained into the coder's reply.
+   *  A destructive-but-successful op has nowhere else to surface: it doesn't
+   *  throw, and the document diff can't say what the coder *meant* to keep. */
+  private readonly warnings: string[] = [];
+
+  /** Take and clear the accumulated warnings. */
+  public drainWarnings(): string[] {
+    return this.warnings.splice(0, this.warnings.length);
+  }
+
   constructor(
     private readonly session: LexicalSession,
     /** Push the new state out (snapshot to mirror to Loro). Noop in unit tests. */
@@ -287,7 +297,30 @@ export class Doc implements DocReader, DocWriter {
   }
 
   private setText(node: NodeRef, text: string): void {
-    this.tx(() => blocks.$setText(this.block(node), text));
+    this.tx(() => {
+      const loss = blocks.$setText(this.block(node), text);
+      this.noteSetTextLoss(node, loss);
+    });
+  }
+
+  /** setText flattens a block to one plain run. Say so when that actually threw
+   *  something away, naming it, plus the surgical alternative. */
+  private noteSetTextLoss(node: NodeRef, loss: blocks.SetTextLoss): void {
+    const lost = [
+      ...loss.removedInline,
+      ...loss.strippedFormats.map((f) => `${f} formatting`),
+    ];
+    if (lost.length === 0) return;
+    const counted = [...new Set(lost)]
+      .map((k) => {
+        const n = lost.filter((x) => x === k).length;
+        return n > 1 ? `${n}x ${k}` : k;
+      })
+      .join(', ');
+    this.warnings.push(
+      `setText on "${typeof node === 'string' ? node : 'block'}" replaced the whole block with plain text and DESTROYED: ${counted}. ` +
+        `If you meant to keep those, undo this by rebuilding them, and prefer replace(id, find, to) for a surgical text change next time.`
+    );
   }
 
   private appendText(node: NodeRef, text: string): void {

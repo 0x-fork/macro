@@ -17,8 +17,11 @@
  * `uncheck` and `setChecked` on three list items that were *already unchecked*,
  * getting `ok` every time.
  *
- * Reporting the observed effect closes that loop: a no-op says so explicitly,
- * so the coder stops guessing and either moves on or reconsiders its target.
+ * Reporting the observed effect states plainly which of those happened. On its
+ * own that is not enough — measured over a self-correction sweep, 8 of 9
+ * `NO CHANGE` replies were still followed by a retry, so the ops themselves must
+ * fail loudly (see doc/substring-miss.ts). This exists to make the state
+ * observable, not to instruct the model.
  */
 
 /** Per-node snapshot of a document, keyed by durable id. */
@@ -104,7 +107,7 @@ export function describeEffect(
   effect: DocumentEffect
 ): string {
   if (!effect.changed) {
-    return `${outcome}\n\nNO CHANGE: the document is byte-identical to before this call. The ops ran without error but had no effect — the nodes were already in the state you asked for, or you targeted the wrong ids. Do NOT repeat this call or retry it with a different method; re-read the document and reconsider whether this edit is needed at all.`;
+    return `${outcome}\n\nNO CHANGE: the document is byte-identical to before this call.`;
   }
 
   const parts = [

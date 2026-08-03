@@ -66,8 +66,12 @@ export function $stripFormat(block: ElementNode): void {
  * Literal text replace. Mutates matched text nodes IN PLACE (via
  * `setTextContent`) so their durable ids survive — the diff then sees a clean
  * `setText{from,to}` instead of node churn, which is what lets the replay
- * highlight/animate the exact changed span. Like the formatting helpers it
- * works per text node, so a needle straddling two nodes isn't matched.
+ * highlight/animate the exact changed span.
+ *
+ * Matches across run boundaries: the needle is found in the block's flattened
+ * text, so `replace` works on prose interrupted by bold/code spans. The
+ * replacement text lands in the first run it touched (inheriting that run's
+ * formatting) and the matched remainder is removed from the following runs.
  */
 // TODO(wolf): unreliable on code blocks -- their children are per-token
 // code-highlight nodes, so a `find` can span a Prism token boundary
@@ -78,38 +82,69 @@ export function $replaceString(
   scope?: Scope
 ): number {
   if (find.length === 0) return 0;
+
+  // Flatten the block's runs into one string with an index back to each run.
+  // Matching on the flat text is what lets a needle span a formatting boundary
+  // (`total **408** done`), which the per-run walk could never see — the single
+  // largest source of silently-missed `replace` calls in the prod corpus.
+  const runs = block.getAllTextNodes().map((node) => ({
+    node,
+    text: node.getTextContent(),
+    start: 0,
+  }));
+  let cursor = 0;
+  for (const run of runs) {
+    run.start = cursor;
+    cursor += run.text.length;
+  }
+  const flat = runs.map((r) => r.text).join('');
+
+  const hits: number[] = [];
+  for (let i = flat.indexOf(find); i !== -1; i = flat.indexOf(find, i + find.length)) {
+    hits.push(i);
+  }
+  if (hits.length === 0) return 0;
+
   const all = scope?.kind === 'all';
   const nth = scope?.kind === 'nth' ? scope.n : undefined;
-  let occ = 0; // global, 1-based occurrence counter across the block's text nodes
-  let count = 0;
-  for (const tn of block.getAllTextNodes()) {
-    const content = tn.getTextContent();
-    if (!content.includes(find)) continue;
-    let next = '';
-    let i = 0;
-    let changed = false;
-    while (i < content.length) {
-      if (content.startsWith(find, i)) {
-        occ++;
-        const take = all || (nth == null ? occ === 1 : occ === nth);
-        if (take) {
-          next += replace;
-          changed = true;
-          count++;
-        } else {
-          next += find;
-        }
-        i += find.length;
-      } else {
-        next += content[i];
-        i++;
-      }
+  const chosen = all
+    ? hits
+    : nth != null
+      ? hits[nth - 1] === undefined
+        ? []
+        : [hits[nth - 1]!]
+      : [hits[0]!];
+  if (chosen.length === 0) return 0;
+
+  // Apply back-to-front so earlier offsets stay valid as text shrinks/grows.
+  for (const at of [...chosen].sort((a, b) => b - a)) {
+    const end = at + find.length;
+    const touched = runs.filter((r) => r.start < end && r.start + r.text.length > at);
+    if (touched.length === 0) continue;
+
+    // The replacement lands in the first touched run, inheriting its formatting;
+    // the matched remainder is deleted from the runs that follow.
+    const first = touched[0]!;
+    const firstFrom = at - first.start;
+    const firstTo = Math.min(first.text.length, end - first.start);
+    first.text = first.text.slice(0, firstFrom) + replace + first.text.slice(firstTo);
+
+    for (const run of touched.slice(1)) {
+      const from = Math.max(0, at - run.start);
+      const to = Math.min(run.text.length, end - run.start);
+      run.text = run.text.slice(0, from) + run.text.slice(to);
     }
-    if (!changed) continue;
-    if (next.length === 0) tn.remove();
-    else tn.setTextContent(next);
   }
-  return count;
+
+  // Write back, keeping durable ids by mutating in place. A run emptied by the
+  // replacement is dropped, as an empty text node would render as nothing.
+  for (const run of runs) {
+    if (run.text === run.node.getTextContent()) continue;
+    if (run.text.length === 0) run.node.remove();
+    else run.node.setTextContent(run.text);
+  }
+
+  return chosen.length;
 }
 
 /** Append plain text to the end of a block. Extends the trailing plain text node
