@@ -88,15 +88,23 @@ Macro Chat is designed to be more focused than Slack. The first couple of replie
 
 # **Task management** build around chat
 
-An issue tracker only has access to issues. It cannot see the thread where the bug was first reported, or the doc where the architecture decision was made, or the email from the customer who triggered the investigation, so you end up copying context between tools by hand.
+Linear recently published a report that issue tracking is dead. We agree with that, but the stronger form is that issue tracking never really worked, at least for us. We really tried and we blamed ourselves, but as we talked to other companies, it turns out that nobody was using their issue tracker "correctly". And if that's the case, the problem is the design of the tool, not the companies that use it.
 
-In Macro, tasks are first-class entities that live alongside channels, documents, and email, and creating a task from a message preserves the link automatically.
+The core problem with traditional issue trackers or project management tools is that they get out of date. The reason they get out of date is that (i) they're a separate system from where the conversation really happens in team chat (e.g. Slack, Macro, Discord, etc.) and (ii) they don't add much benefit beyond tracking the work. They're a chore with near-terms costs and only the promise of long-term benefit. They're too rigid compared too a 2d canvas, too opinionated, and don't match how your project actually functions.
 
-- Sort, group, and filter by assignee, status, priority, or any custom property.
-- Linked pull requests show live status and diff size on the task itself.
-- Agents pick up, work, and close tasks alongside the rest of the team.
+The solution isn't to forgo tracking entirely. We tried that and it was a different form of chaos. **The solution we've found is leightweight issues tightly coupled to your channels and DM's, so that issue tracking naturally occurs where the conversation itself happens.**
 
 ![Macro tasks list grouped by assignee, with a task detail showing its source message and linked PR](.github/readme/tasks-list.png)
+
+Creating tasks in Macro is easy. Where possible tasks created are bidirectionally linked to the creating context (e.g. a customer email) so the full chain is audible from "why are we doing this" → task → agent → pull request, all in one system.
+
+- Create a task from an email
+- From anywhere via `c` `t`
+- Fom a markdown doc with `/task`
+- From any `- [ ]` bullet by highlighting and clicking "Task"
+- `@Macro` create tasks in any channel or DM
+- In any agent chat
+- Via external MCP, API or SDK
 
 [Tasks docs &rarr;](https://docs.macro.com/product/tasks)
 
