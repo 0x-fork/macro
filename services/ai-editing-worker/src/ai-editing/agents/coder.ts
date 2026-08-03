@@ -44,6 +44,7 @@ export async function coder(
         onOps: deps.onOps,
         onRunCode: deps.onRunCode,
         span: deps.span,
+        onRunCodeResult: deps.onRunCodeResult,
       }),
       // Always available, even when the coder's window already is the whole
       // document. Withholding it looked like free savings — the call can only

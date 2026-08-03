@@ -26,6 +26,7 @@ export type RunTaskDeps = {
   onRunCode?: RunCodeToolOptions['onRunCode'];
   /** This coder's `edit.dispatch` span; parents its `edit.run_code` children. */
   span?: Span;
+  onRunCodeResult?: RunCodeToolOptions['onRunCodeResult'];
 };
 
 export type RunAgentOptions = {

@@ -218,11 +218,18 @@ export type DispatchEditTrace = {
   coderStartedAt: number;
   coderFinishedAt: number;
   runCodeAt: number[];
+  /** Reply text per runCode call, positionally aligned with `runCodeAt`. */
+  runCodeResults: string[];
 };
 
 /** One runCode invocation as recorded for the trace: the code plus any content
  *  the writer composed and passed alongside it. */
-export type CoderRunCode = { code: string; snippets?: Record<string, string> };
+export type CoderRunCode = {
+  code: string;
+  snippets?: Record<string, string>;
+  /** The reply this call produced, as the coder saw it. */
+  result?: string;
+};
 
 export type DispatchToolOptions = {
   session: LexicalSession;
@@ -353,6 +360,7 @@ export function createDispatchTool(opts: DispatchToolOptions) {
             runner,
             onOps,
             onRunCode: () => trace.runCodeAt.push(Date.now()),
+            onRunCodeResult: (result) => trace.runCodeResults.push(result),
             span,
           }
         );
@@ -388,6 +396,7 @@ export function createDispatchTool(opts: DispatchToolOptions) {
       coderStartedAt: Date.now(),
       coderFinishedAt: 0,
       runCodeAt: [],
+      runCodeResults: [],
     };
     // runEdit ends the span in its finally, so streamed runs that reject
     // before `execute` joins them still close it.
@@ -448,9 +457,9 @@ export function createDispatchTool(opts: DispatchToolOptions) {
           const codes = result.steps
             .flatMap((step) => step.toolCalls)
             .filter((call) => call.toolName === 'runCode')
-            .map((call) => {
+            .map((call, i) => {
               const { code, snippets } = call.input as CoderRunCode;
-              return { code, snippets };
+              return { code, snippets, result: entry.trace.runCodeResults[i] };
             });
           onCoderResult(codes);
         }

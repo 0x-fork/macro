@@ -21,6 +21,11 @@ export type RunCodeToolOptions = {
   onRunCode?: (snippets?: Record<string, string>) => void;
   /** Parent for the per-call `edit.run_code` span (the dispatch span). */
   span?: Span;
+  /** Called with the reply the coder receives. Recorded in the trace so a run
+   *  can be diagnosed after the fact: without it, the trace shows the code a
+   *  coder wrote but not what it was told, which is precisely the signal needed
+   *  to explain why it retried. */
+  onRunCodeResult?: (result: string) => void;
 };
 
 /** Collapse array snippet values to newline-joined text.
@@ -85,6 +90,7 @@ export function createRunCodeTool(opts: RunCodeToolOptions) {
           onOps: opts.onOps,
           span,
         });
+        opts.onRunCodeResult?.(result);
         span.setAttr('result', result.startsWith('error:') ? 'error' : 'ok');
         return result;
       } catch (e) {
