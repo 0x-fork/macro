@@ -53,6 +53,9 @@ export const definition = defineBlock({
         registerDocumentSpan(documentId, rootSpan);
       }
       return rootSpan.span('doc.load', async (loadSpan) => {
+        // The long-lived root may not be retained, so keep completed loads
+        // independently searchable by document.
+        loadSpan.setAttr('document.id', documentId);
         const loadBundle = () =>
           loadSpan.span('doc.load.bundle', async (bundleSpan) => {
             const result = await fetchDocumentLoadBundle(documentId);

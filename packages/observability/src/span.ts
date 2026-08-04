@@ -99,10 +99,26 @@ export class SpanImpl implements Span {
 	}
 
 	private static normalizeError(error: unknown): Error | string {
-		return error instanceof Error ||
-			typeof error === "string" ||
-			(typeof error === "object" && error !== null && "message" in error)
-			? (error as Error | string)
-			: String(error);
+		if (error instanceof Error || typeof error === "string") return error;
+
+		if (
+			typeof error === "object" &&
+			error !== null &&
+			"message" in error &&
+			typeof error.message === "string"
+		) {
+			return new Error(error.message);
+		}
+
+		if (typeof error === "object" && error !== null) {
+			try {
+				const message = JSON.stringify(error);
+				if (message !== undefined) return new Error(message);
+			} catch {
+				return new Error("Unserializable thrown object");
+			}
+		}
+
+		return new Error(String(error));
 	}
 }

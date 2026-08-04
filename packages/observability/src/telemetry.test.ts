@@ -172,6 +172,20 @@ describe("Telemetry", () => {
 		expect(exported?.events[0]?.name).toBe("exception");
 	});
 
+	test("records structured non-Error values", () => {
+		const span = Telemetry.span("edit.apply");
+		span.error([{ code: "ImportFailed", detail: "missing dependency" }]);
+		span.end();
+
+		const [exported] = spanExporter.getFinishedSpans();
+		expect(exported?.status.message).toBe(
+			'[{"code":"ImportFailed","detail":"missing dependency"}]',
+		);
+		expect(exported?.events[0]?.attributes?.["exception.message"]).toBe(
+			'[{"code":"ImportFailed","detail":"missing dependency"}]',
+		);
+	});
+
 	test("emits structured logs", () => {
 		Telemetry.warn("WAL flush not acked", {
 			"document.id": "doc-1",
