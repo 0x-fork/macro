@@ -19,17 +19,14 @@ export const CHILD_SYSTEM = `${SHARED}\n${CODER}\n${API_COMPLETE}`;
 /**
  * Default per-coder step cap.
  *
- * `runCode` executes arbitrary JS against `editor`, so ANY edit — however many
- * nodes it touches — can be expressed in a single call. Extra steps are
- * therefore either error recovery or the coder voluntarily splitting one edit
- * across round trips. Measured across instrumented runs, 33% of coders made more
- * than one call and 74 of those continuations followed a SUCCESSFUL call, i.e.
- * pure round-trip waste: another full model turn plus its accumulated history.
- *
- * 3 leaves room for one attempt and two recoveries. The old cap of 7 let a
- * confused coder burn six extra turns before the supervisor saw anything.
+ * Lowering this to 3 was tried and reverted. It did cut runCode calls (139 -> 118
+ * over 40 cases) but the work simply moved up a level: dispatch rounds rose
+ * 79 -> 89 as the supervisor re-dispatched coders it had cut off, cost rose, and
+ * quality fell hard — purpose met 35/40 -> 31/40, fully correct 34/40 -> 28/40.
+ * A coder that needs a fourth step is better served finishing than being
+ * truncated into a fresh dispatch.
  */
-export const DEFAULT_MAX_CODER_STEPS = 3;
+export const DEFAULT_MAX_CODER_STEPS = 7;
 
 /** One writer: carry out a single edit instruction via the `editor` surface. */
 export async function coder(
