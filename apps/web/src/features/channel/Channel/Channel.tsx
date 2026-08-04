@@ -6,6 +6,7 @@ import { buildPostMessageSendPayload } from '@channel/Input/message-payload';
 import {
   makeAttachmentTrackerPersistenceKey,
   makeInputValuePersistenceKey,
+  makeTaskPersistence,
 } from '@channel/Input/utils/persistence';
 import {
   type MessageData,
@@ -22,7 +23,11 @@ import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { FindBar } from '@core/component/FindBar';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
-import { useChannelActivity, useChannelName } from '@core/context/channels';
+import {
+  useChannelActivity,
+  useChannelName,
+  useChannelType,
+} from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
 import type { DateValue } from '@core/util/date';
@@ -57,6 +62,7 @@ import {
 import { threadRepliesQueryOptions } from '@queries/channel/thread-replies';
 import { usePostTypingUpdateMutation } from '@queries/channel/typing';
 import { queryClient } from '@queries/client';
+import { ChannelTypeEnum } from '@service-storage/client';
 import { useBeforeLeave } from '@solidjs/router';
 import {
   type Accessor,
@@ -337,7 +343,23 @@ export function Channel(props: ChannelProps) {
   });
 
   const channelName = useChannelName(props.channelId);
-  const { popoverSplit } = useSplitLayout();
+  const channelType = useChannelType(props.channelId);
+  const { popoverSplit, openWithSplit } = useSplitLayout();
+
+  // Placeholder name: a 1:1 DM named "First Last" shortens to the first
+  // name; channels (and group DMs like "A, B") keep their full name.
+  const inputPlaceholderName = () => {
+    const name = channelName();
+    if (!name) return undefined;
+    if (channelType() !== ChannelTypeEnum.DirectMessage) return name;
+    const parts = name.split(' ');
+    return parts.length === 2 && !parts[0]?.endsWith(',') ? parts[0] : name;
+  };
+
+  const inputPlaceholder = () => {
+    const name = inputPlaceholderName();
+    return name ? `Type @ to share with ${name}.` : 'Type @ to share.';
+  };
 
   const buildChannelMessageMention = (message: {
     id: string;
@@ -594,6 +616,50 @@ export function Channel(props: ChannelProps) {
     );
   };
 
+  // Task mode: post the freshly created task into the channel as a message
+  // carrying a task mention.
+  const onSendTask: ChannelInputProps['onSendTask'] = (task) => {
+    const senderId = userId();
+    if (!senderId) return;
+    sendMessageMutation.mutate(
+      {
+        channelID: props.channelId,
+        senderId,
+        optimisticId: crypto.randomUUID(),
+        message: {
+          content: buildMentionMarkdownString({
+            type: 'document',
+            documentId: task.documentId,
+            documentName: task.title,
+            blockName: 'task',
+          }),
+          mentions: [{ entity_type: 'document', entity_id: task.documentId }],
+          attachments: [],
+        },
+        optimisticAttachments: [],
+      },
+      {
+        // The task itself was created before this send, so don't restore the
+        // composer (retrying there would create a duplicate) — point at the
+        // task instead.
+        onError: () => {
+          toast.failure('Task created, but sharing it to the channel failed', {
+            actions: [
+              {
+                label: 'Open task',
+                onClick: () =>
+                  openWithSplit(
+                    { type: 'task', id: task.documentId },
+                    { referredFrom: null }
+                  ),
+              },
+            ],
+          });
+        },
+      }
+    );
+  };
+
   const isChannelReady = () => {
     return (
       messagesQuery.isFetched &&
@@ -835,7 +901,7 @@ export function Channel(props: ChannelProps) {
                           input={{
                             mode: 'channel',
                             id: `channel-input-${props.channelId}`,
-                            placeholder: 'Message channel',
+                            placeholder: inputPlaceholder(),
                           }}
                           participants={participants.users}
                           bots={channelBotMentionUsers}
@@ -854,6 +920,10 @@ export function Channel(props: ChannelProps) {
                             void setChannelInputSnapshot(snapshot)
                           }
                           onSend={onSend}
+                          onSendTask={onSendTask}
+                          taskPersistence={makeTaskPersistence({
+                            channelId: props.channelId,
+                          })}
                           onStartTyping={() =>
                             typingMutation.mutate({
                               channelId: props.channelId,
