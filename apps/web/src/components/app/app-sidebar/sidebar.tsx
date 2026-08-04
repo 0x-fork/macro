@@ -1,6 +1,7 @@
 import { GO_TO_COMMAND_SCOPE, GO_TO_LEADER_KEY } from '@app/constants/hotkeys';
 import { LIST_VIEW_PATHS, type ListView } from '@app/constants/list-views';
 import { SidebarActiveCallWidget } from '@app/features/block-call/sidebar/active-call-widget';
+import { useCalendarUiFlag } from '@app/features/calendar/use-calendar-ui-flag';
 import { ChannelsRecentWidget } from '@app/features/channel/sidebar/channels-recent-widget';
 import { CommandState } from '@app/features/command';
 import { SidebarCreateMenu } from '@app/features/command/sidebar/sidebar-create-menu';
@@ -68,6 +69,7 @@ import { activateClosestDOMScope } from '@core/hotkey/utils';
 import { tryMacroId, useDisplayName } from '@core/user';
 import LogoIcon from '@icon/macro-logo.svg';
 import { AnimatedActivityIcon } from '@icon/wide-activity';
+import WideCalendarIcon from '@icon/wide-calendar.svg';
 import { AnimatedCallIcon } from '@icon/wide-call';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import { AnimatedCompanyIcon } from '@icon/wide-company';
@@ -136,6 +138,7 @@ type SidebarSectionLinkId =
   | 'calls'
   | 'documents'
   | 'tasks'
+  | 'calendar'
   | 'agents'
   | 'companies';
 
@@ -151,6 +154,7 @@ const WORKSPACE_LINK_IDS = [
   'calls',
   'documents',
   'tasks',
+  'calendar',
   'agents',
   'companies',
 ] as const;
@@ -161,6 +165,7 @@ const DEFAULT_SECTION_VISIBILITY: SidebarSectionVisibility = {
   calls: true,
   documents: true,
   tasks: true,
+  calendar: true,
   agents: true,
   companies: true,
 };
@@ -239,6 +244,14 @@ const SIDEBAR_LINKS = [
     icon: AnimatedTaskIcon,
     hotkey: 't',
     hotkeyToken: TOKENS.sidebar.goTo.tasks,
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    href: '/calendar',
+    icon: WideCalendarIcon,
+    hotkey: 'r',
+    hotkeyToken: TOKENS.sidebar.goTo.calendar,
   },
   {
     id: 'channels',
@@ -389,8 +402,9 @@ export const GoToHotkeys = () => {
   });
 
   const gettingStartedEnabled = useGettingStartedEnabled();
+  const calendarUiEnabled = useCalendarUiFlag();
   const links = createMemo((): SidebarItem[] =>
-    buildSidebarLinks(gettingStartedEnabled())
+    buildSidebarLinks(gettingStartedEnabled(), calendarUiEnabled())
   );
 
   const debounceResetHotkeysState = debounce(resetGoToHotkeysState, 2000);
@@ -999,8 +1013,8 @@ const ACTIVITY_LINK: SidebarItem = {
 
 /**
  * Assemble the ordered sidebar link list: the static links plus Home, Getting
- * started, and the flag-gated Activity, Calls, and CRM entries in their
- * correct positions.
+ * started, and the flag-gated Activity, Calendar, Calls, and CRM entries in
+ * their correct positions.
  * Shared by the rendered sidebar (`AppSidebar.visibleLinks`) and the
  * always-mounted `GoToHotkeys` registrar so their link sets can't drift. Call
  * from a reactive context — it reads `ENABLE_CALLS()` / `ENABLE_CRM()`.
@@ -1010,11 +1024,14 @@ const ACTIVITY_LINK: SidebarItem = {
  * Rendered sections additionally drop `hiddenFromSidebar` entries, which have
  * hotkeys but no sidebar row.
  */
-const buildSidebarLinks = (showGettingStarted: boolean): SidebarItem[] => {
+const buildSidebarLinks = (
+  showGettingStarted: boolean,
+  showCalendar: boolean
+): SidebarItem[] => {
   let links: SidebarItem[] = [
     DASHBOARD_LINK,
     ...(showGettingStarted ? [GETTING_STARTED_LINK] : []),
-    ...SIDEBAR_LINKS,
+    ...SIDEBAR_LINKS.filter((link) => showCalendar || link.id !== 'calendar'),
   ];
 
   if (ENABLE_ACTIVITY) {
@@ -1079,7 +1096,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   const userInvitesQuery = useUserInvitesQuery();
   const firstTeamInvite = () => userInvitesQuery.data?.invites.at(0);
   const [sectionVisibility, setSectionVisibility] = makePersisted(
-    createSignal<SidebarSectionVisibility>(DEFAULT_SECTION_VISIBILITY),
+    createSignal<Partial<SidebarSectionVisibility>>(DEFAULT_SECTION_VISIBILITY),
     { name: 'sidebar-section-visibility' }
   );
   const [tryVisibility, setTryVisibility] = makePersisted(
@@ -1101,8 +1118,9 @@ export const AppSidebar = (props: AppSidebarProps) => {
   });
 
   const gettingStartedEnabled = useGettingStartedEnabled();
+  const calendarUiEnabled = useCalendarUiFlag();
   const allLinks = createMemo((): SidebarItem[] =>
-    buildSidebarLinks(gettingStartedEnabled())
+    buildSidebarLinks(gettingStartedEnabled(), calendarUiEnabled())
   );
 
   // Hides only the rendered row: the g+s hotkey and command menu entry keep
@@ -1275,6 +1293,9 @@ export const AppSidebar = (props: AppSidebarProps) => {
       .filter((link): link is SidebarItem => link !== undefined)
   );
 
+  const isSectionVisible = (id: SidebarSectionLinkId) =>
+    sectionVisibility()[id] ?? DEFAULT_SECTION_VISIBILITY[id];
+
   // While the Getting Started row is hidden (but still account-gated in via
   // `findLink`), surface it in the account menu so the page stays reachable.
   const gettingStartedMenuLink = createMemo(() =>
@@ -1283,7 +1304,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
 
   const sectionItemsFor = (ids: readonly SidebarSectionLinkId[]) =>
     ids
-      .filter((id) => sectionVisibility()[id])
+      .filter(isSectionVisible)
       .map((id) => findLink(id))
       .filter((link): link is SidebarItem => link !== undefined)
       .map(toSectionItem);
@@ -1293,7 +1314,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
   const toggleSectionVisibility = (id: SidebarSectionLinkId) => {
     setSectionVisibility({
       ...sectionVisibility(),
-      [id]: !sectionVisibility()[id],
+      [id]: !isSectionVisible(id),
     });
     scheduleMiddleScrollUpdate();
   };
@@ -1318,7 +1339,7 @@ export const AppSidebar = (props: AppSidebarProps) => {
       .map((link) => ({
         id: link.id as SidebarSectionLinkId,
         label: link.label,
-        checked: sectionVisibility()[link.id as SidebarSectionLinkId],
+        checked: isSectionVisible(link.id as SidebarSectionLinkId),
       }));
 
   const tryItems = createMemo<TryCardItem[]>(() => {
