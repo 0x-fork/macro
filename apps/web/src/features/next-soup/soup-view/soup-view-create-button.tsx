@@ -2,6 +2,7 @@ import { isListViewID, type ListView } from '@app/constants/list-views';
 import {
   CREATABLE_BLOCKS,
   runCreateAction,
+  SECONDARY_CREATABLE_BLOCKS,
 } from '@app/features/command/Launcher';
 import { openCreateCompanyModal } from '@app/features/companies/CreateCompanyModal';
 import { useHandleFileUpload } from '@app/util/handleFileUpload';
@@ -73,7 +74,9 @@ const VIEW_CREATE_LABELS: Partial<Record<ListView, string>> = {
 function getViewCreateOptions(view: ListView): CreateOption[] {
   const createNames = VIEW_CREATE_BLOCKNAMES[view] ?? [];
   const options: CreateOption[] = createNames.flatMap((name) => {
-    const block = CREATABLE_BLOCKS.find((b) => b.blockName === name);
+    const block = [...CREATABLE_BLOCKS, ...SECONDARY_CREATABLE_BLOCKS].find(
+      (b) => b.blockName === name
+    );
     if (block) return [{ id: block.blockName, label: block.label }];
     return [];
   });

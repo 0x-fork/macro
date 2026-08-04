@@ -2,6 +2,7 @@ import type { ListView } from '@app/constants/list-views';
 import {
   CREATABLE_BLOCKS,
   runCreateAction,
+  SECONDARY_CREATABLE_BLOCKS,
 } from '@app/features/command/Launcher';
 import { SearchState } from '@app/features/command/mobile/mobileSearchState';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
@@ -159,9 +160,11 @@ function CreateMenu() {
   const handleFileUpload = useHandleFileUpload();
 
   const blocks = () =>
-    CREATABLE_BLOCKS.filter(
-      (block) => block.blockName !== 'snippet' || snippetsFlag().enabled
-    ).toReversed();
+    [...CREATABLE_BLOCKS, ...SECONDARY_CREATABLE_BLOCKS]
+      .filter(
+        (block) => block.blockName !== 'snippet' || snippetsFlag().enabled
+      )
+      .toReversed();
 
   const uploadItem: MobileTouchMenuItem = {
     id: 'upload-file',

@@ -11,6 +11,8 @@ import { useSplitLayout } from '@components/app/split-layout/layout';
 import type { BlockAlias, BlockName } from '@core/block';
 import { CHAT_INPUT_TEXT_AREA_ID } from '@core/component/AI/component/input/ChatInput';
 import { getIconConfig } from '@core/component/EntityIcon';
+import type { TabItem } from '@core/component/Tabs';
+import { TabsInset } from '@core/component/TabsInset';
 import {
   ENABLE_ANIMATED_ICONS,
   ENABLE_SNIPPETS_FLAG,
@@ -396,6 +398,28 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     },
   },
   {
+    label: 'Message',
+    icon: WideChat,
+    animatedIcon: AnimatedChatIcon,
+    description: 'Create message',
+    keywords: ['new', 'make', 'add', 'channel'],
+    blockName: 'channel',
+    hotkeyToken: TOKENS.create.message,
+    altHotkeyToken: TOKENS.create.messageNewSplit,
+    hotkey: 'm',
+    keyDownHandler: () => {
+      runCreateAction('channel', { shouldInsert: pressedKeys().has('shift') });
+      return true;
+    },
+  },
+];
+
+/**
+ * Second layer of the create menu. Rendered as a stacked card behind the
+ * primary menu in the launcher; swapped to via click or Tab.
+ */
+export const SECONDARY_CREATABLE_BLOCKS: CreatableBlock[] = [
+  {
     label: 'Snippet',
     icon: WideSnippet,
     animatedIcon: AnimatedSnippetIcon,
@@ -438,21 +462,6 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     },
   },
   {
-    label: 'Message',
-    icon: WideChat,
-    animatedIcon: AnimatedChatIcon,
-    description: 'Create message',
-    keywords: ['new', 'make', 'add', 'channel'],
-    blockName: 'channel',
-    hotkeyToken: TOKENS.create.message,
-    altHotkeyToken: TOKENS.create.messageNewSplit,
-    hotkey: 'm',
-    keyDownHandler: () => {
-      runCreateAction('channel', { shouldInsert: pressedKeys().has('shift') });
-      return true;
-    },
-  },
-  {
     label: 'Channel',
     icon: WideChannel,
     animatedIcon: AnimatedChannelIcon,
@@ -485,21 +494,6 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     },
   },
   {
-    label: 'Folder',
-    icon: WideFolder,
-    animatedIcon: AnimatedFolderIcon,
-    description: 'Create folder',
-    keywords: ['new', 'make', 'add', 'project'],
-    blockName: 'project',
-    hotkeyToken: TOKENS.create.project,
-    altHotkeyToken: TOKENS.create.projectNewSplit,
-    hotkey: 'f',
-    keyDownHandler: () => {
-      runCreateAction('project', { shouldInsert: pressedKeys().has('shift') });
-      return true;
-    },
-  },
-  {
     label: 'Code',
     icon: WideFileCode,
     animatedIcon: AnimatedFileCodeIcon,
@@ -511,6 +505,21 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkey: 'o',
     keyDownHandler: () => {
       runCreateAction('code', { shouldInsert: pressedKeys().has('shift') });
+      return true;
+    },
+  },
+  {
+    label: 'Folder',
+    icon: WideFolder,
+    animatedIcon: AnimatedFolderIcon,
+    description: 'Create folder',
+    keywords: ['new', 'make', 'add', 'project'],
+    blockName: 'project',
+    hotkeyToken: TOKENS.create.project,
+    altHotkeyToken: TOKENS.create.projectNewSplit,
+    hotkey: 'f',
+    keyDownHandler: () => {
+      runCreateAction('project', { shouldInsert: pressedKeys().has('shift') });
       return true;
     },
   },
@@ -623,10 +632,26 @@ export const LauncherInner = (props: LauncherInnerProps) => {
   const snippetsFlag = useFeatureFlag(ENABLE_SNIPPETS_FLAG, {
     enabledOverride: ENABLE_SNIPPETS_OVERRIDE,
   });
-  const blocks = () =>
-    (props.blocks ?? CREATABLE_BLOCKS).filter(
+  // The launcher has two tabs; callers that pass explicit blocks
+  // (e.g. the onboarding sandbox) get a single untabbed menu.
+  const hasLayers = !props.blocks;
+  const [activeLayer, setActiveLayer] = createSignal<'primary' | 'secondary'>(
+    'primary'
+  );
+  const filterCreatable = (list: CreatableBlock[]) =>
+    list.filter(
       (block) => block.blockName !== 'snippet' || snippetsFlag().enabled
     );
+  const primaryBlocks = () => filterCreatable(props.blocks ?? CREATABLE_BLOCKS);
+  const secondaryBlocks = () => filterCreatable(SECONDARY_CREATABLE_BLOCKS);
+  const blocks = () =>
+    hasLayers && activeLayer() === 'secondary'
+      ? secondaryBlocks()
+      : primaryBlocks();
+  const LAYER_TABS: TabItem[] = [
+    { value: 'primary', label: 'Create New' },
+    { value: 'secondary', label: 'More' },
+  ];
   const [attachHotkeys, launcherScope] = useHotkeyDOMScope('create-menu', true);
 
   let ref!: HTMLDivElement;
@@ -691,33 +716,68 @@ export const LauncherInner = (props: LauncherInnerProps) => {
     return true;
   };
 
-  blocks().forEach((item) => {
-    registerHotkey({
-      hotkeyToken: item.hotkeyToken,
-      hotkey: item.hotkey,
-      scopeId: launcherScope,
-      description: item.description,
-      keyDownHandler: () => {
-        item.keyDownHandler();
-        props.onClose(false);
-        return true;
-      },
-    }).withGroup(hkGroup);
+  const swapLayer = () => {
+    if (!hasLayers) return;
+    setActiveLayer((layer) => (layer === 'primary' ? 'secondary' : 'primary'));
+    setFocusedIndex(0);
+    // Focus the first item of the incoming tab once it has rendered.
+    setTimeout(() => {
+      const firstItem = blocks()[0];
+      if (firstItem) focusMenuItem(firstItem.label);
+    });
+  };
 
-    if (item.altHotkeyToken) {
+  const registerItemHotkeys = (
+    items: CreatableBlock[],
+    layer: 'primary' | 'secondary'
+  ) => {
+    items.forEach((item) => {
       registerHotkey({
-        hotkeyToken: item.altHotkeyToken,
-        hotkey: `shift+${item.hotkey}` as ValidHotkey,
+        hotkeyToken: item.hotkeyToken,
+        hotkey: item.hotkey,
         scopeId: launcherScope,
-        description: `${item.description} in new split`,
+        description: item.description,
+        condition: () => activeLayer() === layer,
         keyDownHandler: () => {
           item.keyDownHandler();
-          props.onClose();
+          props.onClose(false);
           return true;
         },
       }).withGroup(hkGroup);
-    }
-  });
+
+      if (item.altHotkeyToken) {
+        registerHotkey({
+          hotkeyToken: item.altHotkeyToken,
+          hotkey: `shift+${item.hotkey}` as ValidHotkey,
+          scopeId: launcherScope,
+          description: `${item.description} in new split`,
+          condition: () => activeLayer() === layer,
+          keyDownHandler: () => {
+            item.keyDownHandler();
+            props.onClose();
+            return true;
+          },
+        }).withGroup(hkGroup);
+      }
+    });
+  };
+
+  registerItemHotkeys(primaryBlocks(), 'primary');
+  if (hasLayers) {
+    registerItemHotkeys(secondaryBlocks(), 'secondary');
+
+    registerHotkey({
+      hotkey: 'tab',
+      scopeId: launcherScope,
+      description: 'Switch menu',
+      keyDownHandler: (e) => {
+        e?.preventDefault();
+        swapLayer();
+        return true;
+      },
+      runWithInputFocused: true,
+    }).withGroup(hkGroup);
+  }
 
   registerHotkey({
     hotkey: 'c',
@@ -825,42 +885,80 @@ export const LauncherInner = (props: LauncherInnerProps) => {
 
   onCleanup(hkGroup.dispose);
 
+  const ShiftHint = () => (
+    <p class="gap-2 text-ink-extra-muted text-xs items-center hidden touch:hidden md:flex">
+      <style>{`
+        @keyframes shift-ripple {
+          0%   { transform: scale(1); opacity: 0.6; }
+          100% { transform: scale(2.2); opacity: 0; }
+        }
+        .shift-ripple.rippling {
+          animation: shift-ripple 0.35s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+        }
+      `}</style>
+      Hold{' '}
+      <span class="relative inline-flex place-items-center my-1">
+        <span
+          ref={shiftRippleRef}
+          class="shift-ripple absolute inset-0 rounded-sm border border-accent pointer-events-none opacity-0"
+        />
+        <span
+          class={cn(
+            'ring text-xs px-1.5 py-0.5 rounded-sm transition-colors duration-150',
+            shiftHeld()
+              ? 'ring-accent text-accent bg-accent/10'
+              : 'ring-edge-muted'
+          )}
+        >
+          {getNormalizedKeyString({ shortcut: 'shift' })}
+        </span>
+      </span>
+      to launch in new split
+    </p>
+  );
+
+  const TabHint = () => (
+    <p class="flex gap-2 text-ink-extra-muted text-xs items-center">
+      <span
+        class={cn(
+          'ring text-xs px-1.5 py-0.5 rounded-sm transition-colors duration-150',
+          activeLayer() === 'secondary'
+            ? 'ring-accent text-accent bg-accent/10'
+            : 'ring-edge-muted'
+        )}
+      >
+        {getNormalizedKeyString({ shortcut: 'tab' })}
+      </span>
+      to switch
+    </p>
+  );
+
   return (
     <CommandMenuShell
       depth={2}
       class="h-auto w-fit max-w-[calc(100vw-2rem)] shadow-menu"
     >
-      <CommandMenuShell.Header class="my-0 justify-between p-2 px-4 sm:px-6 bg-surface">
-        <h1 class="font-bold text-ink-muted">Create New</h1>
-        <p class="gap-2 text-ink-extra-muted text-xs items-center hidden touch:hidden md:flex">
-          <style>{`
-            @keyframes shift-ripple {
-              0%   { transform: scale(1); opacity: 0.6; }
-              100% { transform: scale(2.2); opacity: 0; }
-            }
-            .shift-ripple.rippling {
-              animation: shift-ripple 0.35s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
-            }
-          `}</style>
-          Hold{' '}
-          <span class="relative inline-flex place-items-center my-1">
-            <span
-              ref={shiftRippleRef}
-              class="shift-ripple absolute inset-0 rounded-sm border border-accent pointer-events-none opacity-0"
-            />
-            <span
-              class={cn(
-                'ring text-xs px-1.5 py-0.5 rounded-sm transition-colors duration-150',
-                shiftHeld()
-                  ? 'ring-accent text-accent bg-accent/10'
-                  : 'ring-edge-muted'
-              )}
-            >
-              {getNormalizedKeyString({ shortcut: 'shift' })}
-            </span>
-          </span>
-          to launch in new split
-        </p>
+      <CommandMenuShell.Header class="my-0 justify-between gap-6 p-2 px-4 sm:px-6 bg-surface">
+        <Show
+          when={hasLayers}
+          fallback={<h1 class="font-bold text-ink-muted">Create New</h1>}
+        >
+          <TabsInset
+            depth={2}
+            list={LAYER_TABS}
+            value={activeLayer()}
+            defaultValue="primary"
+            onChange={(value) => {
+              if (value !== activeLayer()) swapLayer();
+            }}
+          />
+        </Show>
+        <div class="flex items-center gap-4">
+          <ShiftHint />
+          <Show when={hasLayers}>
+            <TabHint />
+          </Show>
+        </div>
       </CommandMenuShell.Header>
       <CommandMenuShell.Body>
         <div
