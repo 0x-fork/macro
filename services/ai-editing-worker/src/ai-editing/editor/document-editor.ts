@@ -31,6 +31,18 @@ export type DocumentEditorOptions = {
   refs: string[];
 };
 
+/** Describe a non-string id argument without dumping a whole object. */
+function describeBadId(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (Array.isArray(value)) return `an array of ${value.length}`;
+  if (typeof value === 'object') {
+    const keys = Object.keys(value as object).slice(0, 4);
+    return `an object with keys [${keys.join(', ')}]`;
+  }
+  return `a ${typeof value} (${String(value)})`;
+}
+
 export class DocumentEditor {
   private ops: DocumentOp[] = [];
   private valid: Set<string>;
@@ -48,6 +60,17 @@ export class DocumentEditor {
   }
 
   private requireId(id: NodeId): void {
+    // A non-string argument used to be stringified into the message, producing
+    // `unknown id "[object Object]"` — which tells the writer nothing about what
+    // it actually passed. Naming the type and the likely cause does.
+    if (typeof id !== 'string') {
+      throw new EditError(
+        `expected a node id string but got ${describeBadId(id)}. ` +
+          'Insert helpers return the new node\'s id directly, so use that value ' +
+          'as-is rather than a property of it.'
+      );
+    }
+    if (id.length === 0) throw new EditError('node id is an empty string');
     if (!this.valid.has(id)) {
       throw new EditError(`unknown id "${id}"`);
     }
