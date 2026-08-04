@@ -1,5 +1,6 @@
 import { useKeyedPersistentToasts } from '@core/component/Toast/useKeyedPersistentToasts';
 import { useAddInboxFlow } from '@core/email-link';
+import { isMobile } from '@core/mobile/isMobile';
 import {
   useEmailLinksQuery,
   useInboxHealthProbeQuery,
@@ -24,6 +25,8 @@ export function GmailReauthenticationPrompt() {
     items: () =>
       (linksQuery.data?.links ?? []).filter((link) => link.needs_reauth),
     key: (link) => link.id,
+    // One at a time on a phone; the other dead inboxes queue behind it.
+    maxVisible: () => (isMobile() ? 1 : Number.POSITIVE_INFINITY),
     toast: (link, dismiss) => ({
       title: 'Reconnect Gmail',
       content(): string {

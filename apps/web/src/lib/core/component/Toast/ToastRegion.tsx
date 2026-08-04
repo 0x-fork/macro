@@ -18,9 +18,10 @@ export function ToastRegion() {
       </div>
 
       {/*
-        Mobile-only region: centered above the mobile dock. Only one toast is
-        ever visible — Toast.tsx dismisses the previous mobile toast as soon
-        as a new one is shown, so no stacking is needed here.
+        Mobile-only region: centered above the mobile dock. At most one
+        transient toast is visible — Toast.tsx dismisses the previous one as
+        soon as a new one is shown. Persistent prompts opt out of that slot and
+        stack above it until answered, so this list needs real spacing.
       */}
       <div
         class="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] px-(--mobile-chrome-gutter) pointer-events-none z-toast-region"
@@ -33,7 +34,7 @@ export function ToastRegion() {
           duration={Infinity}
           pauseOnInteraction={false}
         >
-          <Toast.List class="flex flex-col" />
+          <Toast.List class="flex flex-col gap-2" />
         </Toast.Region>
       </div>
     </Portal>

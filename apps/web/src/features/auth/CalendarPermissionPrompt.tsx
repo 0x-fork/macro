@@ -1,6 +1,7 @@
 import { useCalendarUiFlag } from '@app/features/calendar/use-calendar-ui-flag';
 import { useKeyedPersistentToasts } from '@core/component/Toast/useKeyedPersistentToasts';
 import { useAddInboxFlow } from '@core/email-link';
+import { isMobile } from '@core/mobile/isMobile';
 import { useEmailLinksQuery } from '@queries/email/link';
 
 /**
@@ -12,6 +13,10 @@ import { useEmailLinksQuery } from '@queries/email/link';
  *
  * Inboxes that also need a full reconnect are skipped: the reconnect prompt
  * covers them, and reconnecting records the calendar grant anyway.
+ *
+ * Closing the prompt sticks across reloads. Nothing is broken while calendar
+ * is off, so re-asking every load is just nagging — Settings › Email keeps a
+ * per-inbox "Enable calendar" button for whenever the user wants it.
  */
 export function CalendarPermissionPrompt() {
   const calendarUiEnabled = useCalendarUiFlag();
@@ -26,6 +31,14 @@ export function CalendarPermissionPrompt() {
           )
         : [],
     key: (link) => link.id,
+    persistKey: 'macro:calendar-prompt:dismissed',
+    // Until the flag resolves and the links land, the empty list above means
+    // "don't know yet", not "no inbox needs this" — stored dismissals must
+    // survive that window.
+    itemsLoaded: () => calendarUiEnabled() && linksQuery.isSuccess,
+    // A phone has room for one of these above the dock; extra inboxes wait
+    // their turn rather than burying the screen.
+    maxVisible: () => (isMobile() ? 1 : Number.POSITIVE_INFINITY),
     toast: (link, dismiss) => ({
       title: 'Enable calendar',
       content(): string {

@@ -192,6 +192,29 @@ function dismissActiveToast(region: string): boolean {
   return true;
 }
 
+/**
+ * Hand the region's single visible slot to a new toast, and report whether it
+ * displaced one (so the newcomer can skip its entrance animation).
+ *
+ * Persistent toasts opt out of the slot entirely: they are prompts the user is
+ * expected to answer, so a passing "Copied" must not tear one down, and a
+ * prompt appearing must not swallow a result the user is still reading. They
+ * stack in the region instead, and leave only when dismissed.
+ */
+function replaceActiveToast(region: string, persistent?: boolean): boolean {
+  if (persistent) return false;
+  return dismissActiveToast(region);
+}
+
+function trackActiveToast(
+  region: string,
+  toastId: number,
+  persistent?: boolean
+): void {
+  if (persistent) return;
+  setActiveToastId(region, toastId);
+}
+
 function clearTrackedToast(region: string, toastId: number): void {
   if (getActiveToastId(region) === toastId) {
     setActiveToastId(region, undefined);
@@ -251,8 +274,8 @@ function ActionButtons(props: { actions: ToastAction[]; mobile?: boolean }) {
         <Button
           size={props.mobile ? 'sm' : 'md'}
           onClick={action.onClick}
-          variant={props.mobile ? 'ghost' : 'base'}
-          class={cn('px-2 py-1', props.mobile && 'text-panel text-xs')}
+          variant="base"
+          class="px-2 py-1"
           depth={3}
         >
           <Show when={action.icon}>
@@ -289,7 +312,7 @@ function ToastBodyWrapper(props: {
       }
     >
       <Layer depth={3}>
-        <div class="island relative w-[90vw] p-2 rounded-xl">
+        <div class="island relative w-full p-2 rounded-xl">
           {props.children}
         </div>
       </Layer>
@@ -411,46 +434,69 @@ function ToastContent(props: {
 
           {/* ── Custom layout ── */}
           <Match when={props.custom}>
-            {(customConfig) => (
-              <>
-                <div class="flex items-center gap-2 justify-between">
-                  <Show when={customConfig().icon && !props.mobile}>
-                    {(_) => {
-                      const icon = customConfig().icon!;
-                      return (
-                        <div class="size-5 flex shrink-0 justify-center items-center rounded-full p-0.75">
-                          <Dynamic component={icon} />
-                        </div>
-                      );
-                    }}
+            {(customConfig) => {
+              // A persistent prompt on mobile can't borrow the transient
+              // one-line treatment: with the body and close button stripped it
+              // reduces to a bare title that never goes away. Give it the full
+              // card — description, close button, and its actions on their own
+              // row so the tap targets aren't fighting a truncated title.
+              const stacked = () => Boolean(props.mobile && props.persistent);
+              const showContent = () =>
+                Boolean(customConfig().content) && (!props.mobile || stacked());
+              return (
+                <>
+                  <div class="flex items-center gap-2 justify-between">
+                    <Show when={customConfig().icon && !props.mobile}>
+                      {(_) => {
+                        const icon = customConfig().icon!;
+                        return (
+                          <div class="size-5 flex shrink-0 justify-center items-center rounded-full p-0.75">
+                            <Dynamic component={icon} />
+                          </div>
+                        );
+                      }}
+                    </Show>
+                    <Toast.Title
+                      class={cn(
+                        'font-semibold grow shrink truncate text-left',
+                        props.mobile ? 'text-xs' : 'text-ink',
+                        stacked() && 'text-sm'
+                      )}
+                    >
+                      {customConfig().title}
+                    </Toast.Title>
+                    <Show when={customConfig().actions?.length && !stacked()}>
+                      <ActionButtons
+                        actions={customConfig().actions!}
+                        mobile={props.mobile}
+                      />
+                    </Show>
+                    <Show when={!props.mobile || props.persistent}>
+                      <Toast.CloseButton>
+                        <Button variant="ghost" size="icon-sm">
+                          <XIcon />
+                        </Button>
+                      </Toast.CloseButton>
+                    </Show>
+                  </div>
+                  <Show when={showContent()}>
+                    <div
+                      class={cn(
+                        'my-2',
+                        props.mobile ? 'text-xs text-ink-muted' : 'ml-7'
+                      )}
+                    >
+                      {customConfig().content?.()}
+                    </div>
                   </Show>
-                  <Toast.Title
-                    class={cn(
-                      'font-semibold grow shrink truncate text-left',
-                      props.mobile ? 'text-xs' : 'text-ink'
-                    )}
-                  >
-                    {customConfig().title}
-                  </Toast.Title>
-                  <Show when={customConfig().actions?.length}>
-                    <ActionButtons
-                      actions={customConfig().actions!}
-                      mobile={props.mobile}
-                    />
+                  <Show when={stacked() && customConfig().actions?.length}>
+                    <div class="flex justify-end gap-2">
+                      <ActionButtons actions={customConfig().actions!} mobile />
+                    </div>
                   </Show>
-                  <Show when={!props.mobile}>
-                    <Toast.CloseButton>
-                      <Button variant="ghost" size="icon-sm">
-                        <XIcon />
-                      </Button>
-                    </Toast.CloseButton>
-                  </Show>
-                </div>
-                <Show when={customConfig().content && !props.mobile}>
-                  <div class="my-2 ml-7">{customConfig().content?.()}</div>
-                </Show>
-              </>
-            )}
+                </>
+              );
+            }}
           </Match>
 
           {/* ── Standard layout ── */}
@@ -667,7 +713,7 @@ function embed(
   const useMobile = isMobile();
   const region =
     options?.region ?? (useMobile ? 'mobile-toast-region' : 'toast-region');
-  const skipOpenAnimation = dismissActiveToast(region);
+  const skipOpenAnimation = replaceActiveToast(region, options?.persistent);
   const toastId = toaster.show(
     (props) => (
       <ToastContent
@@ -682,7 +728,7 @@ function embed(
     ),
     { region }
   );
-  setActiveToastId(region, toastId);
+  trackActiveToast(region, toastId, options?.persistent);
   return toastId;
 }
 
@@ -705,7 +751,7 @@ function custom(
   const useMobile = isMobile();
   const region =
     options?.region ?? (useMobile ? 'mobile-toast-region' : 'toast-region');
-  const skipOpenAnimation = dismissActiveToast(region);
+  const skipOpenAnimation = replaceActiveToast(region, options?.persistent);
   const toastId = toaster.show(
     (props) => (
       <ToastContent
@@ -723,7 +769,7 @@ function custom(
     ),
     { region }
   );
-  setActiveToastId(region, toastId);
+  trackActiveToast(region, toastId, options?.persistent);
   return toastId;
 }
 
