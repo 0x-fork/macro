@@ -147,21 +147,37 @@ function sweepEachThen(
 
 /* Replace a node's text by selecting all, deleting, and typing the new content.
  *
- * Anchors on the enclosing BLOCK, because the delete step empties the target and
- * Lexical drops empty text nodes. Planning against an inline `<t>` ref meant the
- * ref stopped existing halfway through: the remaining steps failed with
- * `No node with id "…"` and the paragraph was left empty. Every text run in the
- * XML the model reads carries a `<t id>`, and dispatch instructions name those
- * ids routinely, so this was reachable on ordinary input.
+ * Branches on what the ref points at, because the two cases have incompatible
+ * safety requirements:
  *
- * The direct-apply path already resolves to the block (`Doc.setText` via
- * `$blockById`); this makes the animated path agree with it. */
+ * - A BLOCK can be emptied and retyped: it survives having no children, so the
+ *   delete-then-type animation is safe and reads well.
+ * - An INLINE RUN cannot. Emptying it makes Lexical drop the node, so every later
+ *   step targets an id that no longer exists — the paragraph ends up empty and
+ *   the reply claims the id was never there. It is also wrong to widen the ref to
+ *   its block, because `setText` on a run means "set this run" and widening
+ *   deletes the run's siblings, which is how a coder rewriting several runs in one
+ *   paragraph destroyed its own remaining targets.
+ *
+ * So a run is selected and set atomically. That trades character-by-character
+ * typing for correctness on this one path; the block path, which is what a
+ * whole-paragraph rewrite uses, keeps the full animation. */
 function retype(
   node: NodeRef,
   text: string,
   ctx: AnimatorCtx
 ): DocumentOpStep[] {
   const block = ctx.docReader.blockRef(node);
+  const isInlineRun = block !== node;
+
+  if (isInlineRun) {
+    return [
+      ...selectAll(node, ctx),
+      { kind: 'pause', ms: ctx.randomSource.integer(ctx.ranges.settlePauseMs) },
+      edit({ kind: 'setText', node, text }),
+    ];
+  }
+
   const len = ctx.docReader.textLength(block);
   const steps: DocumentOpStep[] = [...selectAll(block, ctx)];
   if (len > 0) {

@@ -299,8 +299,38 @@ export class Doc implements DocReader, DocWriter {
     this.tx(() => removeTextAt(this.block(node), at, len));
   }
 
+  /**
+   * Set text content.
+   *
+   * Given a BLOCK id this replaces the block's contents, which is what the name
+   * promises. Given an inline text-run id it sets THAT RUN and leaves its
+   * siblings alone — matching `appendText`, `replace`, `bold` and friends, all of
+   * which already act on the run they are handed.
+   *
+   * Widening a run id to its block was the single largest remaining source of
+   * coder retries. `$setText` keeps only the block's FIRST text child and deletes
+   * the rest, so a coder rewriting several runs in one paragraph destroyed its own
+   * remaining targets with the first call:
+   *
+   *   editor.setText('n9qP6lV-', '…')   -> ok
+   *   editor.setText('eNt8jsxy', 'him') -> error: No node with id "eNt8jsxy"
+   *   editor.setText('rYT9Q8LF', '. …') -> error: No node with id "rYT9Q8LF"
+   *   CHANGED — removed eNt8jsxy, rYT9Q8LF, IoUm7NTJ, …
+   *
+   * It could even remove the node it was given, when that run was not the first
+   * child. Addressing runs individually is both what the call reads as and the
+   * only way a multi-run rewrite can work.
+   */
   private setText(node: NodeRef, text: string): void {
-    this.tx(() => blocks.$setText(this.block(node), text));
+    this.tx(() => {
+      const target = locate.$byId(this.session, node as string);
+      if ($isTextNode(target)) {
+        if (text.length === 0) target.remove();
+        else target.setTextContent(text);
+        return;
+      }
+      blocks.$setText(this.block(node), text);
+    });
   }
 
   private appendText(node: NodeRef, text: string): void {
