@@ -509,7 +509,20 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         .fetch_all(&self.pool)
         .await?;
 
-        rows.into_iter().map(DueReminderRow::into_due).collect()
+        // Skip rows that will not decode rather than failing the batch. The
+        // query is ordered and limited, so one poison row would be re-selected
+        // on every sweep and stall delivery for every user, permanently. This
+        // mirrors `list_reminders`, which reports skipped rows rather than
+        // failing the page.
+        let mut due = Vec::with_capacity(rows.len());
+        for row in rows {
+            match row.into_due() {
+                Ok(reminder) => due.push(reminder),
+                Err(e) => tracing::error!(error = ?e, "skipping undecodable due reminder"),
+            }
+        }
+
+        Ok(due)
     }
 
     #[tracing::instrument(err, skip(self))]

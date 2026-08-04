@@ -1163,3 +1163,28 @@ async fn deleting_a_reminder_removes_its_occurrences(pool: PgPool) {
             .expect("count succeeds");
     assert_eq!(remaining, 0, "occurrences cascade with the reminder");
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn an_undecodable_row_does_not_stall_the_whole_sweep(pool: PgPool) {
+    insert_user(&pool, USER_A).await;
+    // Fires first, so a batch-level failure would hide the good one behind it.
+    let broken = create_due(&pool, USER_A, at(2026, 8, 1, 10)).await;
+    let good = create_due(&pool, USER_A, at(2026, 8, 1, 11)).await;
+    let repo = PgRemindersRepo::new(pool.clone());
+
+    // Only reachable by writing around the service; the CHECK constraints allow
+    // it because both entity columns are non-empty text.
+    sqlx::query(r#"UPDATE reminder SET entity_type = 'chupacabra', entity_id = 'x' WHERE id = $1"#)
+        .bind(broken.id)
+        .execute(&pool)
+        .await
+        .expect("update should succeed");
+
+    let due = repo
+        .due_reminders(at(2026, 8, 1, 12), 10)
+        .await
+        .expect("one bad row must not fail the sweep");
+
+    assert_eq!(due.len(), 1);
+    assert_eq!(due[0].reminder.id, good.id);
+}
