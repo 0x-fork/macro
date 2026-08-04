@@ -158,6 +158,82 @@ export function orderChunks(
 
 const GB = 1024 ** 3;
 
+/**
+ * Retry a read against the cluster.
+ *
+ * This job runs for hours, and against prod it runs through an SSH tunnel into
+ * the VPC. A dropped tunnel or a single slow response surfaces as a client-side
+ * `TimeoutError`, which used to kill the whole run — while the server-side
+ * `_update_by_query` carried on to completion, so the operator was left
+ * guessing what had actually landed. Reads are idempotent, so retry them.
+ */
+async function withRetry<T>(
+  label: string,
+  read: () => Promise<T>,
+  attempts = 6
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await read();
+    } catch (error) {
+      lastError = error;
+      const delaySeconds = Math.min(60, 5 * 2 ** (attempt - 1));
+      console.log(
+        `  ${label} failed (attempt ${attempt}/${attempts}): ${(error as Error).message}. ` +
+          `retrying in ${delaySeconds}s`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
+    }
+  }
+  throw lastError;
+}
+
+/**
+ * An already-running rewrite task on this index, if any.
+ *
+ * Submitting `_update_by_query` is the one call that isn't safe to retry — a
+ * submission that succeeds and then times out client-side leaves a task we
+ * can't see, and blindly submitting again would rewrite the same docs twice.
+ * So on every chunk we look for a live task first and attach to it instead.
+ * That makes a restart after a dropped connection pick up the in-flight work
+ * rather than duplicating it.
+ *
+ * `search_processing_service` also issues `_update_by_query` against this index
+ * to denormalize thread properties, but those are single-doc and unsliced;
+ * ours are sliced and cover millions, so `slices` tells them apart.
+ */
+async function findRunningRewriteTask(
+  client: Client,
+  index: string
+): Promise<string | undefined> {
+  const response = await withRetry('tasks.list', () =>
+    client.tasks.list({ actions: '*byquery*', detailed: true })
+  );
+  for (const node of Object.values(response.body.nodes ?? {})) {
+    const tasks =
+      (
+        node as {
+          tasks: Record<
+            string,
+            {
+              parent_task_id?: string;
+              description?: string;
+              status?: { slices?: unknown[]; total?: number };
+            }
+          >;
+        }
+      ).tasks ?? {};
+    for (const [taskId, task] of Object.entries(tasks)) {
+      if (task.parent_task_id) continue;
+      if (task.description && !task.description.includes(index)) continue;
+      const sliced = (task.status?.slices?.length ?? 0) > 0;
+      if (sliced) return taskId;
+    }
+  }
+  return undefined;
+}
+
 async function physicalIndexBehindAlias(
   client: Client,
   alias: string
@@ -181,7 +257,9 @@ async function physicalIndexBehindAlias(
 
 /** Smallest free-disk figure across data nodes, in bytes. */
 async function minFreeBytes(client: Client): Promise<number> {
-  const response = await client.cat.allocation({ format: 'json', bytes: 'b' });
+  const response = await withRetry('cat.allocation', () =>
+    client.cat.allocation({ format: 'json', bytes: 'b' })
+  );
   const rows = (response.body ?? []) as { 'disk.avail'?: string }[];
   const avail = rows
     .map((row) => Number(row['disk.avail']))
@@ -281,32 +359,33 @@ async function chunkPlan(
   index: string,
   maxDocsPerChunk: number
 ): Promise<RewriteChunk[]> {
-  const response = await client.search({
-    index,
-    body: {
-      size: 0,
-      query: { bool: { must_not: { exists: { field: DONE_MARKER_FIELD } } } },
-      aggs: {
-        months: {
-          date_histogram: {
-            field: 'sent_at_millis',
-            calendar_interval: 'month',
-            min_doc_count: 1,
+  const response = await withRetry('chunk plan search', () =>
+    client.search({
+      index,
+      body: {
+        size: 0,
+        query: { bool: { must_not: { exists: { field: DONE_MARKER_FIELD } } } },
+        aggs: {
+          months: {
+            date_histogram: {
+              field: 'sent_at_millis',
+              calendar_interval: 'month',
+              min_doc_count: 1,
+            },
           },
         },
       },
-    },
-  });
+    })
+  );
   const buckets = (response.body.aggregations?.months?.buckets ??
     []) as HistogramBucket[];
   const chunks = planChunks(buckets, maxDocsPerChunk);
 
   // Docs with no sent_at_millis match none of the ranges above.
   const undated = { kind: 'undated' as const, docs: 0 };
-  const undatedCount = await client.count({
-    index,
-    body: { query: chunkQuery(undated) },
-  });
+  const undatedCount = await withRetry('undated count', () =>
+    client.count({ index, body: { query: chunkQuery(undated) } })
+  );
   if (undatedCount.body.count > 0) {
     chunks.push({ kind: 'undated', docs: undatedCount.body.count });
   }
@@ -315,7 +394,9 @@ async function chunkPlan(
 
 async function pollTask(client: Client, taskId: string, label: string) {
   for (;;) {
-    const response = await client.tasks.get({ task_id: taskId });
+    const response = await withRetry(`${label} tasks.get`, () =>
+      client.tasks.get({ task_id: taskId })
+    );
     if (response.body.completed) {
       const result = response.body.response ?? {};
       console.log(
@@ -330,10 +411,9 @@ async function pollTask(client: Client, taskId: string, label: string) {
     }
     // A sliced task reports zeroes on the parent until it finishes, so read
     // progress off the child slice tasks.
-    const children = await client.tasks.list({
-      parent_task_id: taskId,
-      detailed: true,
-    });
+    const children = await withRetry(`${label} tasks.list`, () =>
+      client.tasks.list({ parent_task_id: taskId, detailed: true })
+    );
     let updated = 0;
     let total = 0;
     for (const node of Object.values(children.body.nodes ?? {})) {
@@ -378,6 +458,17 @@ async function runRewrite(client: Client, index: string) {
   const requestsPerSecond = Number(process.env.REQUESTS_PER_SECOND ?? 2000);
   const minFree = Number(process.env.MIN_FREE_GB ?? 40) * GB;
   const settleTimeout = Number(process.env.SETTLE_TIMEOUT_MINUTES ?? 30);
+
+  // A rewrite left running by an interrupted invocation. Drain it before
+  // planning, so the plan reflects the work it lands and we never run two
+  // passes over the same docs at once.
+  if (!IS_DRY_RUN) {
+    const inFlight = await findRunningRewriteTask(client, index);
+    if (inFlight) {
+      console.log(`attaching to in-flight rewrite task ${inFlight}`);
+      await pollTask(client, inFlight, 'in-flight chunk');
+    }
+  }
 
   const order = process.env.ORDER === 'oldest' ? 'oldest' : 'newest';
 
@@ -430,7 +521,7 @@ async function runRewrite(client: Client, index: string) {
 async function runVerify(client: Client, index: string) {
   console.log(`\n== verify phase on ${index} ==`);
   const count = async (body: Record<string, unknown>) =>
-    (await client.count({ index, body })).body.count;
+    (await withRetry('count', () => client.count({ index, body }))).body.count;
 
   const total = await count({ query: { match_all: {} } });
   const withParts = await count({
