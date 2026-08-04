@@ -25,6 +25,12 @@ pub enum Runner {
     /// cache volume, isolated from the deploy profiles so deploy's churn can't
     /// evict the CI Cargo/Nix caches.
     RustCi,
+    /// Large profile for the consolidated deploy build jobs: one big machine
+    /// builds a whole closure so nix parallelises across all cores and the
+    /// job checks out exactly one /nix cache volume (volume pools hand each
+    /// concurrent job its own un-merged copy, so one job per cache tag = one
+    /// always-warm volume).
+    LargeBuild,
 }
 
 impl fmt::Display for Runner {
@@ -34,6 +40,7 @@ impl fmt::Display for Runner {
             Runner::Small => "namespace-profile-linux-small",
             Runner::Mid => "namespace-profile-linux-mid",
             Runner::RustCi => "namespace-profile-linux-rust-ci",
+            Runner::LargeBuild => "namespace-profile-linux-large-build",
         })
     }
 }

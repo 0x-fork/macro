@@ -1,11 +1,22 @@
-//! `Deploy All Services` — the shared cloud-storage deploy pipeline: warm the
-//! two shared dep closures onto sticky disks, fan a build matrix out per
-//! service (binaries via crane, lambdas via crane + cargo-zigbuild), hand the
-//! artifacts off through Namespace artifact storage, run DB migrations, then
-//! deploy every service via Pulumi. Called by `deploy_cloud_storage_on_push`
-//! (dev) and `release-production` (prod), and manually dispatchable.
-//! Generated into `deploy_all_services.yml` (replaces the hand-written
+//! `Deploy All Services` — the shared cloud-storage deploy pipeline: two
+//! consolidated build jobs (all service binaries via crane; all lambda
+//! handlers via crane + cargo-zigbuild) each realise their whole closure in a
+//! single `nix build` on a large-build runner, hand the per-service artifacts off
+//! through Namespace artifact storage, then DB migrations run and every
+//! service deploys via Pulumi. Called by `deploy_cloud_storage_on_push` (dev)
+//! and `release-production` (prod), and manually dispatchable. Generated into
+//! `deploy_all_services.yml` (replaces the hand-written
 //! `deploy-all-services.yml`).
+//!
+//! Why consolidated jobs instead of a per-service matrix: Namespace cache
+//! volumes are a *pool* of independent copies — each concurrent job checks
+//! out its own volume and writes never merge back into the others. A 30-wide
+//! matrix therefore mostly draws cold or stale /nix volumes (and blows the
+//! cache quota, so warm ones get evicted), rebuilding the shared dep closure
+//! over and over. One job per closure, each on its own cache tag, checks out
+//! exactly the volume its previous run committed — so the cache actually
+//! persists run-to-run, and nix parallelises the per-service builds across
+//! the large-build runner's cores instead of across runners.
 
 use anyhow::Result;
 use gh_workflow::{
@@ -18,6 +29,20 @@ use crate::workflows::{runners, steps, vars};
 /// The in-VPC self-hosted runner with network access to the databases. Stays
 /// off Namespace deliberately — migrations need to reach RDS.
 const DB_MIGRATOR_RUNNER: &str = "db-migrator";
+
+/// Fixed cache tags for the two deploy /nix volumes. Namespace scopes cache
+/// volumes per branch by default; pinning a tag makes the dev deploy (main)
+/// and the prod deploy (release refs) read/write the *same* volume, so a prod
+/// deploy of a commit dev already built is a pure cache hit.
+///
+/// One tag *per build job*, not one shared: volumes under a tag are handed out
+/// nondeterministically, so two concurrent jobs on one tag would randomly swap
+/// volumes and miss each other's closure. The closures are near-disjoint
+/// anyway (native crane builds vs cargo-zigbuild/musl), so separate tags keep
+/// each volume small and only re-staled by its own toolchain's churn.
+const NIX_DEPLOY_BINARIES_CACHE_TAG: &str = "nix-deploy-binaries";
+/// See [`NIX_DEPLOY_BINARIES_CACHE_TAG`].
+const NIX_DEPLOY_LAMBDAS_CACHE_TAG: &str = "nix-deploy-lambdas";
 
 /// Build the workflow. The dispatch/call input blocks are filled in by
 /// [`patch`].
@@ -39,28 +64,8 @@ pub fn deploy_all_services() -> Workflow {
             .cancel_in_progress(false),
         )
         .add_job("setup", setup())
-        .add_job(
-            "warm-binaries",
-            warm_job(
-                "Warm shared binary deps onto sticky disk",
-                "binaries",
-                "Warm shared release deps",
-                "\".#deployCargoArtifacts\"",
-                "Shared release deps realised into /nix/store; committed on job exit.",
-            ),
-        )
-        .add_job(
-            "warm-lambdas",
-            warm_job(
-                "Warm shared lambda deps onto sticky disk",
-                "lambdas",
-                "Warm shared lambda dep closure",
-                "\".#lambdaDeployCargoArtifacts\" \".#callRecordingPreviewFfmpegLayer\"",
-                "Shared lambda deps realised into /nix/store; committed on job exit.",
-            ),
-        )
-        .add_job("build-service-binaries", build_service_binaries())
-        .add_job("build-lambda-artifacts", build_lambda_artifacts())
+        .add_job("build-binaries", build_binaries())
+        .add_job("build-lambdas", build_lambdas())
         .add_job("migrate-db", migrate_db())
         .add_job("deploy-services", deploy_services())
         .add_job("deployment-summary", deployment_summary())
@@ -126,9 +131,9 @@ fn set_matrix() -> Step<Run> {
         .run(indoc::indoc! {r#"
             set -euo pipefail
             cfg=.github/services-config.json
-            # Full list drives deploy-services; the filtered lists keep each build
-            # matrix to only the services that actually produce that artifact, so
-            # no build job spins up Nix + a cache volume for nothing.
+            # Full list drives deploy-services; the filtered lists gate the
+            # build job (skipped when nothing produces an artifact) and record
+            # which services ship binaries vs lambdas.
             services=$(jq -c '.services | keys' "$cfg")
             binaries=$(jq -c '[.services | to_entries[] | select((.value.deploy_binaries // []) | length > 0) | .key]' "$cfg")
             lambdas=$(jq -c '[.services | to_entries[] | select((.value.deploy_lambdas // []) | length > 0) | .key]' "$cfg")
@@ -142,122 +147,125 @@ fn set_matrix() -> Step<Run> {
         .id("set-matrix")
 }
 
-/// Warm one shared dep closure onto the /nix sticky disk. The two warm jobs
-/// run in parallel and each build matrix depends only on its own warm job, so
-/// a slow lambda-closure warm never blocks binary builds and vice versa. The
-/// /nix cache volume is provided by Namespace's native Nix integration.
-fn warm_job(
-    name: &str,
-    gate_output: &str,
-    build_step_name: &str,
-    targets: &str,
-    done_msg: &str,
-) -> Job {
+/// Base for the two consolidated build jobs: one volume checkout, one nix
+/// setup, then a single `nix build` of that job's whole closure so nix
+/// parallelises every service across the large-build runner's cores. Each job pins its
+/// own cache tag so every run — dev or prod, any ref — deterministically
+/// checks out that closure's always-warm /nix volume.
+fn consolidated_build_job(name: &str, gate_output: &str, cache_tag: &str) -> Job {
     Job::default()
         .name(name)
         .needs(vec!["setup".to_string()])
         .cond(Expression::new(format!(
             "${{{{ needs.setup.outputs.{gate_output} != '[]' }}}}"
         )))
-        .runs_on(runners::Runner::Mid.to_string())
-        .add_step(steps::checkout_v4())
-        .add_step(steps::mount_nix_cache_volume())
-        .add_step(steps::setup_nix())
-        .add_step(steps::nix_build(build_step_name, targets, done_msg))
-        .add_step(steps::teardown_nix())
-}
-
-/// Base for the per-service build matrix jobs: clones the warm /nix cache
-/// volume populated by the matching warm job, so only each service's own
-/// crate compiles. No max-parallel:
-/// runners autoscale, so all services build concurrently.
-fn build_job(name: &str, warm_job_id: &str, gate_output: &str) -> Job {
-    Job::default()
-        .name(name)
-        .needs(vec!["setup".to_string(), warm_job_id.to_string()])
-        .cond(Expression::new(format!(
-            "${{{{ needs.setup.outputs.{gate_output} != '[]' }}}}"
-        )))
-        .runs_on(runners::Runner::Mid.to_string())
-        .strategy(Strategy {
-            fail_fast: Some(false),
-            matrix: Some(serde_json::json!({
-                "service": format!("${{{{ fromJson(needs.setup.outputs.{gate_output}) }}}}"),
-            })),
-            max_parallel: None,
-        })
+        .runs_on(runners::Runner::LargeBuild.with_cache_tag(cache_tag))
         .add_step(steps::checkout_v4().add_with(("clean", false)))
         .add_step(steps::mount_nix_cache_volume())
         .add_step(steps::setup_nix())
 }
 
-fn build_service_binaries() -> Job {
-    build_job(
-        "Build ${{ matrix.service }} binaries",
-        "warm-binaries",
+/// Native crane builds of every service's release binaries.
+fn build_binaries() -> Job {
+    consolidated_build_job(
+        "Build all service binaries",
         "binaries",
+        NIX_DEPLOY_BINARIES_CACHE_TAG,
     )
-    .add_step(build_prebuilt_binaries())
-    .add_step(steps::upload_handoff_artifact(
-        "prebuilt-binaries.tar.gz",
-        "${{ matrix.service }}",
-    ))
+    .add_step(build_all_binary_targets())
+    .add_step(package_binary_handoffs())
     .add_step(steps::teardown_nix())
 }
 
-fn build_prebuilt_binaries() -> Step<Run> {
-    let script = indoc::indoc! {r#"
-        set -euo pipefail
-        mkdir -p prebuilt
-        nix build --print-build-logs ".#deploy-service-binaries-${SERVICE}"
-        cp -r result/bin/* prebuilt/
-        mkdir -p prebuilt/nix-store
-        while IFS= read -r store_path; do
-          cp -a "$store_path" prebuilt/nix-store/
-        done < <(nix-store -qR result)
-        touch prebuilt/.keep
-        tar -C prebuilt -czf prebuilt-binaries.tar.gz .
-        # Receipt: the deploy job logs the same hash on read.
-        echo "handoff receipt: $(sha256sum prebuilt-binaries.tar.gz | cut -d' ' -f1) ($(stat -c%s prebuilt-binaries.tar.gz) bytes)"
-    "#};
-    Step::new("Build prebuilt binaries")
-        .run(script)
-        .shell("bash")
-        .add_env(Env::new("SERVICE", "${{ matrix.service }}"))
-}
-
-/// Each handler is a crane + cargo-zigbuild nix package. This job builds all
-/// of a service's handlers via `nix build .#deploy-lambda-<name>`, cloning the
-/// warm lambda /nix disk committed by warm-lambdas. Unchanged handlers are
-/// pure cache hits from the Namespace Nix volume (no recompile).
-fn build_lambda_artifacts() -> Job {
-    build_job(
-        "Build ${{ matrix.service }} Lambda artifacts",
-        "warm-lambdas",
+/// crane + cargo-zigbuild builds of every service's Lambda handlers.
+fn build_lambdas() -> Job {
+    consolidated_build_job(
+        "Build all Lambda artifacts",
         "lambdas",
+        NIX_DEPLOY_LAMBDAS_CACHE_TAG,
     )
-    .add_step(build_lambdas())
-    .add_step(log_lambda_receipt())
-    .add_step(steps::upload_handoff_artifact(
-        "lambda-artifacts.tar.gz",
-        "${{ matrix.service }}",
-    ))
+    .add_step(build_all_lambda_targets())
+    .add_step(package_lambda_handoffs())
     .add_step(steps::teardown_nix())
 }
 
-fn build_lambdas() -> Step<Run> {
-    Step::new("Build Lambda artifacts")
-        .run(".github/scripts/build-cloud-storage-lambdas-nix.sh")
-        .add_env(Env::new("SERVICE", "${{ matrix.service }}"))
-}
-
-fn log_lambda_receipt() -> Step<Run> {
-    Step::new("Log handoff receipt")
+fn build_all_binary_targets() -> Step<Run> {
+    Step::new("Build all binary targets")
         .run(indoc::indoc! {r#"
             set -euo pipefail
-            # The build script writes lambda-artifacts.tar.gz to the workspace
-            # root; the deploy job logs the same hash on read.
-            echo "handoff receipt: $(sha256sum lambda-artifacts.tar.gz | cut -d' ' -f1) ($(stat -c%s lambda-artifacts.tar.gz) bytes)"
+            cfg=.github/services-config.json
+            # One evaluation, every derivation: nix schedules all services'
+            # crates across the runner's cores and the shared dep closure
+            # builds once instead of once per runner. --keep-going surfaces
+            # every broken service in a single run instead of the first.
+            installables=()
+            while IFS= read -r svc; do
+              installables+=(".#deploy-service-binaries-${svc}")
+            done < <(jq -r '.services | to_entries[] | select((.value.deploy_binaries // []) | length > 0) | .key' "$cfg")
+            echo "Building ${#installables[@]} binary targets"
+            nix build --no-link --keep-going --print-build-logs "${installables[@]}"
+        "#})
+        .shell("bash")
+}
+
+fn build_all_lambda_targets() -> Step<Run> {
+    Step::new("Build all Lambda targets")
+        .run(indoc::indoc! {r#"
+            set -euo pipefail
+            cfg=.github/services-config.json
+            # One evaluation, every handler derivation: see the binary job's
+            # build step for why this beats per-service invocations.
+            installables=()
+            while IFS= read -r lambda; do
+              installables+=(".#deploy-lambda-${lambda}")
+            done < <(jq -r '[.services[].deploy_lambdas[]?] | unique | .[]' "$cfg")
+            echo "Building ${#installables[@]} Lambda targets"
+            nix build --no-link --keep-going --print-build-logs "${installables[@]}"
+        "#})
+        .shell("bash")
+}
+
+fn package_binary_handoffs() -> Step<Run> {
+    Step::new("Package and upload binary handoffs")
+        .run(indoc::indoc! {r#"
+            set -euo pipefail
+            cfg=.github/services-config.json
+            while IFS= read -r svc; do
+              rm -rf prebuilt result
+              mkdir -p prebuilt/nix-store
+              nix build ".#deploy-service-binaries-${svc}"
+              cp -r result/bin/* prebuilt/
+              while IFS= read -r store_path; do
+                cp -a "$store_path" prebuilt/nix-store/
+              done < <(nix-store -qR result)
+              touch prebuilt/.keep
+              tar -C prebuilt -czf prebuilt-binaries.tar.gz .
+              # Store copies are read-only; restore write bits so the next
+              # iteration's rm -rf works.
+              chmod -R u+w prebuilt
+              # Receipt: the deploy job logs the same hash on read.
+              echo "handoff receipt (${svc}): $(sha256sum prebuilt-binaries.tar.gz | cut -d' ' -f1) ($(stat -c%s prebuilt-binaries.tar.gz) bytes)"
+              nsc artifact upload prebuilt-binaries.tar.gz "handoff/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/${svc}/prebuilt-binaries.tar.gz" --expires_in=24h
+            done < <(jq -r '.services | to_entries[] | select((.value.deploy_binaries // []) | length > 0) | .key' "$cfg")
+        "#})
+        .shell("bash")
+}
+
+/// Each handler is a crane + cargo-zigbuild nix package already realised by
+/// the build step, so the per-service script runs are pure cache hits that
+/// just assemble the target/lambda/<name>/ zip layout the deploy action
+/// consumes.
+fn package_lambda_handoffs() -> Step<Run> {
+    Step::new("Package and upload lambda handoffs")
+        .run(indoc::indoc! {r#"
+            set -euo pipefail
+            cfg=.github/services-config.json
+            while IFS= read -r svc; do
+              SERVICE="$svc" .github/scripts/build-cloud-storage-lambdas-nix.sh
+              # Receipt: the deploy job logs the same hash on read.
+              echo "handoff receipt (${svc}): $(sha256sum lambda-artifacts.tar.gz | cut -d' ' -f1) ($(stat -c%s lambda-artifacts.tar.gz) bytes)"
+              nsc artifact upload lambda-artifacts.tar.gz "handoff/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/${svc}/lambda-artifacts.tar.gz" --expires_in=24h
+            done < <(jq -r '.services | to_entries[] | select((.value.deploy_lambdas // []) | length > 0) | .key' "$cfg")
         "#})
         .shell("bash")
 }
@@ -267,10 +275,8 @@ fn migrate_db() -> Job {
         .name("Run Database Migrations")
         .needs(vec![
             "setup".to_string(),
-            "warm-binaries".to_string(),
-            "warm-lambdas".to_string(),
-            "build-service-binaries".to_string(),
-            "build-lambda-artifacts".to_string(),
+            "build-binaries".to_string(),
+            "build-lambdas".to_string(),
         ])
         .cond(Expression::new(
             "${{ !cancelled() && needs.setup.outputs.matrix != '[]' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}",
@@ -298,10 +304,8 @@ fn deploy_services() -> Job {
         .name("Deploy ${{ matrix.service }}")
         .needs(vec![
             "setup".to_string(),
-            "warm-binaries".to_string(),
-            "warm-lambdas".to_string(),
-            "build-service-binaries".to_string(),
-            "build-lambda-artifacts".to_string(),
+            "build-binaries".to_string(),
+            "build-lambdas".to_string(),
             "migrate-db".to_string(),
         ])
         .cond(Expression::new(
@@ -415,10 +419,8 @@ fn deployment_summary() -> Job {
         .runs_on(runners::Runner::TinyNoCache.to_string())
         .needs(vec![
             "setup".to_string(),
-            "warm-binaries".to_string(),
-            "warm-lambdas".to_string(),
-            "build-service-binaries".to_string(),
-            "build-lambda-artifacts".to_string(),
+            "build-binaries".to_string(),
+            "build-lambdas".to_string(),
             "migrate-db".to_string(),
             "deploy-services".to_string(),
         ])
@@ -427,20 +429,18 @@ fn deployment_summary() -> Job {
 }
 
 fn check_deployment_results() -> Step<Run> {
-    Step::new("Check deployment results").run(indoc::indoc! {r#"
+    Step::new("Check deployment results")
+        .run(indoc::indoc! {r#"
         if [[ "${{ needs.setup.result }}" == "failure" ]]; then
           echo "❌ Deployment setup failed"
           exit 1
         elif [[ "${{ needs.setup.result }}" == "skipped" ]]; then
           echo "⏭️ Deployment setup was skipped"
-        elif [[ "${{ needs.warm-binaries.result }}" == "failure" || "${{ needs.warm-lambdas.result }}" == "failure" ]]; then
-          echo "❌ Warming shared deps onto a sticky disk failed"
+        elif [[ "${{ needs.build-binaries.result }}" == "failure" ]]; then
+          echo "❌ Building service binaries failed"
           exit 1
-        elif [[ "${{ needs.build-service-binaries.result }}" == "failure" ]]; then
-          echo "❌ One or more service binary builds failed"
-          exit 1
-        elif [[ "${{ needs.build-lambda-artifacts.result }}" == "failure" ]]; then
-          echo "❌ One or more Lambda artifact builds failed"
+        elif [[ "${{ needs.build-lambdas.result }}" == "failure" ]]; then
+          echo "❌ Building Lambda artifacts failed"
           exit 1
         elif [[ "${{ needs.migrate-db.result }}" == "failure" ]]; then
           echo "❌ Database migrations failed"
@@ -454,6 +454,6 @@ fn check_deployment_results() -> Step<Run> {
           echo "✅ All service deployments completed successfully for $ENVIRONMENT environment"
         fi
     "#})
-    .shell("bash")
-    .add_env(Env::new("ENVIRONMENT", "${{ inputs.environment }}"))
+        .shell("bash")
+        .add_env(Env::new("ENVIRONMENT", "${{ inputs.environment }}"))
 }

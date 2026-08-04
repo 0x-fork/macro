@@ -285,15 +285,6 @@ pub fn checkout_v4() -> Step<Use> {
         .add_with(("persist-credentials", false))
 }
 
-/// Build Nix targets using Namespace's mounted `/nix` cache volume.
-pub fn nix_build(name: &str, targets: &str, done_msg: &str) -> Step<Run> {
-    Step::new(name)
-        .run(format!(
-            "set -euo pipefail\nnix build --print-build-logs {targets}\necho \"{done_msg}\""
-        ))
-        .shell("bash")
-}
-
 /// Upload a build's handoff tarball to Namespace artifact storage: strongly
 /// consistent object storage that rides Namespace's network rather than the
 /// GitHub artifacts API. Attempt-scoped path so re-runs never collide with

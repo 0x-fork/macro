@@ -1,7 +1,7 @@
 //! `Deploy Cloud Storage Services on Push` — thin trigger: every push to main
 //! touching the Rust services (or the deploy machinery) deploys all services
 //! to dev via the shared [`crate::workflows::deploy_all_services`] pipeline —
-//! the same warm sticky-disk nix builds, crane/zigbuild lambdas, and handoff
+//! the same consolidated nix build, crane/zigbuild lambdas, and handoff
 //! topology used by manual dispatches and prod releases. Generated into
 //! `deploy_cloud_storage_on_push.yml` (replaces the hand-written
 //! `deploy-cloud-storage-on-push.yml`; keep
