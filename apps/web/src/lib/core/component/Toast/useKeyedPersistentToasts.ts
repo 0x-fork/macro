@@ -69,14 +69,22 @@ export function useKeyedPersistentToasts<T>(options: {
    */
   itemsLoaded?: Accessor<boolean>;
 }): void {
-  const toastIds = new Map<string, number>();
+  /**
+   * A shown toast. Tracked by object identity rather than by key alone: a
+   * toast unmounts at the end of its exit animation, by which point the key
+   * may already belong to a replacement, and the departing toast must not
+   * retract or answer for it.
+   */
+  type LiveToast = { id: number };
+
+  const live = new Map<string, LiveToast>();
   const dismissed = new Set<string>();
   /**
-   * Keys whose toast we tore down ourselves. Their `onDismiss` reports our own
-   * teardown — item left the set, action taken, owner disposed — rather than a
-   * user decision, so it must not be recorded as one.
+   * Toasts we tore down ourselves. Their `onDismiss` reports our own teardown
+   * — item left the set, action taken, cap tightened, owner disposed — rather
+   * than a user decision, so it must not be recorded as one.
    */
-  const selfDismissed = new Set<string>();
+  const selfDismissed = new Set<LiveToast>();
 
   const persistKey = options.persistKey;
   const persisted = new Set(persistKey ? readDismissed(persistKey) : []);
@@ -88,11 +96,11 @@ export function useKeyedPersistentToasts<T>(options: {
   const onUserDismissed = () => setDismissals((count) => count + 1);
 
   const dismissToast = (key: string) => {
-    const id = toastIds.get(key);
-    if (id !== undefined) {
-      selfDismissed.add(key);
-      toast.dismiss(id);
-      toastIds.delete(key);
+    const entry = live.get(key);
+    if (entry) {
+      selfDismissed.add(entry);
+      toast.dismiss(entry.id);
+      live.delete(key);
     }
   };
 
@@ -109,7 +117,7 @@ export function useKeyedPersistentToasts<T>(options: {
     const maxVisible = options.maxVisible?.() ?? Number.POSITIVE_INFINITY;
     const liveKeys = new Set(items.map(options.key));
 
-    for (const key of [...toastIds.keys()]) {
+    for (const key of [...live.keys()]) {
       if (!liveKeys.has(key)) dismissToast(key);
     }
     if (options.itemsLoaded?.() ?? true) {
@@ -117,25 +125,31 @@ export function useKeyedPersistentToasts<T>(options: {
         if (!liveKeys.has(key)) forget(key);
       }
     }
+    // A cap can tighten under prompts that are already up — a tablet rotating
+    // into phone width, say. Retract the newest back into the queue rather
+    // than leaving them stacked on a layout with no room for them.
+    for (const key of [...live.keys()].slice(maxVisible)) dismissToast(key);
 
     for (const item of items) {
       const key = options.key(item);
-      if (toastIds.has(key) || dismissed.has(key)) continue;
-      if (toastIds.size >= maxVisible) break;
+      if (live.has(key) || dismissed.has(key)) continue;
+      if (live.size >= maxVisible) break;
 
       const suppress = () => {
         dismissed.add(key);
         dismissToast(key);
         onUserDismissed();
       };
-      const id = toast.custom(options.toast(item, suppress), {
+      const entry: LiveToast = { id: 0 };
+      entry.id = toast.custom(options.toast(item, suppress), {
         persistent: true,
         onDismiss: () => {
-          toastIds.delete(key);
+          // Only retract ourselves; the key may already hold a replacement.
+          if (live.get(key) === entry) live.delete(key);
           // Our own teardown already left `dismissed` how it wants it, and the
           // unmount can land after the item was forgotten — re-adding here
           // would strand a returning item.
-          if (selfDismissed.delete(key)) return;
+          if (selfDismissed.delete(entry)) return;
 
           dismissed.add(key);
           if (persistKey && !persisted.has(key)) {
@@ -145,11 +159,11 @@ export function useKeyedPersistentToasts<T>(options: {
           onUserDismissed();
         },
       });
-      toastIds.set(key, id);
+      live.set(key, entry);
     }
   });
 
   onCleanup(() => {
-    for (const key of [...toastIds.keys()]) dismissToast(key);
+    for (const key of [...live.keys()]) dismissToast(key);
   });
 }

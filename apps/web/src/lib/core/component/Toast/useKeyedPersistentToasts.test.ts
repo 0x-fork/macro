@@ -60,6 +60,7 @@ describe('useKeyedPersistentToasts', () => {
   ) {
     let setItems!: (items: Item[]) => void;
     let setLoaded!: (loaded: boolean) => void;
+    let setMaxVisible!: (max: number) => void;
     let dispose!: () => void;
     createRoot((d) => {
       dispose = d;
@@ -67,24 +68,25 @@ describe('useKeyedPersistentToasts', () => {
       const [loaded, setLoadedSignal] = createSignal(
         options?.itemsLoaded ?? true
       );
+      const [maxVisible, setMaxVisibleSignal] = createSignal(
+        options?.maxVisible ?? Number.POSITIVE_INFINITY
+      );
       setItems = set;
       setLoaded = setLoadedSignal;
+      setMaxVisible = setMaxVisibleSignal;
       useKeyedPersistentToasts<Item>({
         items,
         key: (item) => item.id,
         persistKey: options?.persistKey,
         itemsLoaded: loaded,
-        maxVisible:
-          options?.maxVisible === undefined
-            ? undefined
-            : () => options.maxVisible!,
+        maxVisible,
         toast: (item, dismiss) => ({
           title: item.label,
           actions: [{ label: 'Go', onClick: dismiss }],
         }),
       });
     });
-    return { setItems, setLoaded, dispose };
+    return { setItems, setLoaded, setMaxVisible, dispose };
   }
 
   function titlesShown(): string[] {
@@ -302,5 +304,44 @@ describe('useKeyedPersistentToasts', () => {
       expect(titlesShown()).toEqual(['A', 'B']);
       dispose();
     });
+
+    it('retracts surplus prompts when the cap tightens', () => {
+      const { setMaxVisible, dispose } = mount(three);
+      expect(titlesShown()).toEqual(['A', 'B', 'C']);
+
+      // e.g. a tablet rotating into phone width with three prompts up.
+      setMaxVisible(1);
+      expect(mocks.toastDismiss.mock.calls.flat()).toEqual([2, 3]);
+      dispose();
+    });
+
+    it('re-shows a retracted prompt once the cap loosens again', () => {
+      const { setMaxVisible, dispose } = mount(three, { maxVisible: 1 });
+      expect(titlesShown()).toEqual(['A']);
+
+      setMaxVisible(3);
+      expect(titlesShown()).toEqual(['A', 'B', 'C']);
+      dispose();
+    });
+  });
+
+  it('lets a stale unmount retract only its own toast', () => {
+    const item = { id: 'a', label: 'A' };
+    const { setItems, dispose } = mount([item]);
+    const staleUnmount = toastOptionsAt(0).onDismiss!;
+
+    // Item leaves and returns inside the first toast's exit animation, so the
+    // key already belongs to a replacement by the time #1 finally unmounts.
+    setItems([]);
+    setItems([{ ...item }]);
+    expect(mocks.toastCustom).toHaveBeenCalledTimes(2);
+
+    staleUnmount();
+
+    // The replacement is still tracked, so no duplicate is created for it and
+    // the stale teardown is not mistaken for a user dismissal.
+    setItems([{ ...item, label: 'A2' }]);
+    expect(mocks.toastCustom).toHaveBeenCalledTimes(2);
+    dispose();
   });
 });
