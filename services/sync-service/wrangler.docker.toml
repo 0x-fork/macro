@@ -95,7 +95,7 @@ name = "sync-service-prod2"
 
 [env.prod.vars]
 INTERNAL_API_SECRET_KEY = "SYNC_SERVICE_KEY_PROD"
-ENVIRONMENT = "production"
+ENVIRONMENT = "prod"
 SPS_URL = "https://search-processing.macro.com"
 
 [env.prod.durable_objects]
