@@ -8,7 +8,7 @@
  */
 
 import { $createCodeNode } from '@lexical/code';
-import { $createLinkNode, $isLinkNode } from '@lexical/link';
+import { $createLinkNode, $isLinkNode, type LinkNode } from '@lexical/link';
 import {
   $createListItemNode,
   $createListNode,
@@ -399,7 +399,15 @@ export class Doc implements DocReader, DocWriter {
       const block = this.block(node);
       const count =
         url !== null
-          ? inline.$wrapInBlock(block, match, () => $createLinkNode(url), scope)
+          ? inline.$wrapInBlock(
+              block,
+              match,
+              () => $createLinkNode(url),
+              scope,
+              // Retarget an anchor the text is already inside rather than
+              // nesting a second one within it.
+              { is: $isLinkNode, update: (n) => (n as LinkNode).setURL(url) }
+            )
           : inline.$unwrapFromBlock(block, match, $isLinkNode, scope);
       this.assertMatched(count, block, node, 'link', match);
     });
