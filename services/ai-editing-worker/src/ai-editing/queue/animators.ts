@@ -145,24 +145,35 @@ function sweepEachThen(
   return steps;
 }
 
-/* Replace a node's text by selecting all, deleting, and typing the new content.*/
+/* Replace a node's text by selecting all, deleting, and typing the new content.
+ *
+ * Anchors on the enclosing BLOCK, because the delete step empties the target and
+ * Lexical drops empty text nodes. Planning against an inline `<t>` ref meant the
+ * ref stopped existing halfway through: the remaining steps failed with
+ * `No node with id "…"` and the paragraph was left empty. Every text run in the
+ * XML the model reads carries a `<t id>`, and dispatch instructions name those
+ * ids routinely, so this was reachable on ordinary input.
+ *
+ * The direct-apply path already resolves to the block (`Doc.setText` via
+ * `$blockById`); this makes the animated path agree with it. */
 function retype(
   node: NodeRef,
   text: string,
   ctx: AnimatorCtx
 ): DocumentOpStep[] {
-  const len = ctx.docReader.textLength(node);
-  const steps: DocumentOpStep[] = [...selectAll(node, ctx)];
+  const block = ctx.docReader.blockRef(node);
+  const len = ctx.docReader.textLength(block);
+  const steps: DocumentOpStep[] = [...selectAll(block, ctx)];
   if (len > 0) {
     steps.push({
       kind: 'pause',
       ms: ctx.randomSource.integer(ctx.ranges.preDeletePauseMs),
     });
-    steps.push(edit({ kind: 'removeText', node, at: 0, len }));
-    steps.push(cursor(node, 0));
+    steps.push(edit({ kind: 'removeText', node: block, at: 0, len }));
+    steps.push(cursor(block, 0));
   }
-  steps.push(...typeText(node, text, 0, ctx));
-  steps.push(edit({ kind: 'setText', node, text }));
+  steps.push(...typeText(block, text, 0, ctx));
+  steps.push(edit({ kind: 'setText', node: block, text }));
   return steps;
 }
 

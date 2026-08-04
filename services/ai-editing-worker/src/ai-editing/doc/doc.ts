@@ -112,6 +112,19 @@ export class Doc implements DocReader, DocWriter {
     return node;
   }
 
+  /** See DocReader.blockRef. Falls back to the input when nothing resolves, so a
+   *  planning read can never throw where the apply would report a clean error. */
+  public blockRef(node: NodeRef): NodeRef {
+    try {
+      return this.session.editor.getEditorState().read(() => {
+        const block = locate.$blockById(this.session, node as string);
+        return ($getId(block) as NodeRef | undefined) ?? node;
+      });
+    } catch {
+      return node;
+    }
+  }
+
   public apply(op: DocumentOp): void {
     match(op)
       .with({ kind: 'insertText' }, (e) =>
