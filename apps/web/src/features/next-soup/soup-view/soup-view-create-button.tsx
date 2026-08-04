@@ -60,16 +60,6 @@ const CREATE_COMPANY_OPTION: CreateOption = {
   label: 'Company',
 };
 
-/**
- * Fallback labels for blocks that shouldn't appear in the global launcher
- * (and thus aren't in CREATABLE_BLOCKS) but still need a create entry in
- * specific list views.
- */
-const VIEW_ONLY_BLOCK_LABELS: Partial<Record<BlockName | BlockAlias, string>> =
-  {
-    automation: 'Automation',
-  };
-
 const VIEW_CREATE_LABELS: Partial<Record<ListView, string>> = {
   agents: 'Agent',
   channels: 'Channel',
@@ -85,8 +75,6 @@ function getViewCreateOptions(view: ListView): CreateOption[] {
   const options: CreateOption[] = createNames.flatMap((name) => {
     const block = CREATABLE_BLOCKS.find((b) => b.blockName === name);
     if (block) return [{ id: block.blockName, label: block.label }];
-    const viewOnlyLabel = VIEW_ONLY_BLOCK_LABELS[name];
-    if (viewOnlyLabel) return [{ id: name, label: viewOnlyLabel }];
     return [];
   });
   if (view === 'documents') {

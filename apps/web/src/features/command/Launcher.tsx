@@ -35,6 +35,7 @@ import {
   createSnippet,
 } from '@core/util/create';
 import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
+import WideAutomation from '@icon/wide-automation.svg';
 import { AnimatedChannelIcon } from '@icon/wide-channel';
 import WideChannel from '@icon/wide-channel.svg';
 import { AnimatedChatIcon } from '@icon/wide-chat';
@@ -420,6 +421,19 @@ export const CREATABLE_BLOCKS: CreatableBlock[] = [
     hotkey: 'i' as const,
     keyDownHandler: () => {
       runCreateAction('skill', { shouldInsert: pressedKeys().has('shift') });
+      return true;
+    },
+  },
+  {
+    label: 'Automation',
+    icon: WideAutomation,
+    description: 'Create automation',
+    keywords: ['new', 'make', 'add', 'schedule', 'recurring', 'agent'],
+    blockName: 'automation',
+    hotkeyToken: TOKENS.create.automation,
+    hotkey: 'u',
+    keyDownHandler: () => {
+      runCreateAction('automation');
       return true;
     },
   },

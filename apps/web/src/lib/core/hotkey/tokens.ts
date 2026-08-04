@@ -262,6 +262,7 @@ export const TOKENS = {
     snippetNewSplit: 'create.snippetNewSplit',
     skill: 'create.skill',
     skillNewSplit: 'create.skillNewSplit',
+    automation: 'create.automation',
     close_menu: 'create.close_menu',
   },
 
