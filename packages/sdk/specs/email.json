@@ -1661,6 +1661,45 @@
         }
       }
     },
+    "/email/links/unread-counts": {
+      "get": {
+        "tags": ["Links"],
+        "summary": "Unread Signal-view thread counts for every inbox the caller can read.",
+        "operationId": "list_unread_counts",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUnreadCountsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/email/links/{link_id}": {
       "delete": {
         "tags": ["Links"],
@@ -3206,6 +3245,23 @@
           }
         }
       },
+      "ApiInboxUnreadCount": {
+        "type": "object",
+        "description": "Unread Signal-view thread count for one of the caller's inboxes.",
+        "required": ["link_id", "unread_count"],
+        "properties": {
+          "link_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The inbox (email link) the count belongs to."
+          },
+          "unread_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unread signal threads currently visible in that inbox's inbox view."
+          }
+        }
+      },
       "ApiLabel": {
         "type": "object",
         "required": [
@@ -4394,6 +4450,25 @@
               "$ref": "#/components/schemas/Link"
             },
             "description": "the thread, with messages inside"
+          }
+        }
+      },
+      "ListUnreadCountsResponse": {
+        "type": "object",
+        "description": "Response body for the per-inbox unread Signal counts.",
+        "required": ["counts", "total"],
+        "properties": {
+          "counts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiInboxUnreadCount"
+            },
+            "description": "One entry per inbox accessible to the caller, including inboxes with\nnothing unread."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The sum across every inbox, for clients showing a single badge."
           }
         }
       },

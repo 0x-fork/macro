@@ -1,5 +1,6 @@
 use crate::domain::models::{
-    EmailBackfillStatus, EmailInboxDetails, Link, UserEmailLinkSettings, UserProvider,
+    EmailBackfillStatus, EmailInboxDetails, InboxUnreadSignalCount, Link, UserEmailLinkSettings,
+    UserProvider,
 };
 use chrono::{DateTime, Utc};
 use macro_user_id::{email::EmailStr, user_id::MacroUserIdStr};
@@ -312,4 +313,40 @@ pub(super) async fn inbox_details_for_macro_id(
                 .map_err(|error| sqlx::Error::Decode(Box::new(error)))
         })
         .collect()
+}
+
+/// Count unread threads in each inbox's Signal view.
+///
+/// The predicate mirrors the Signal tab's candidate scan — the `inbox` view's
+/// `inbox_visible AND latest_inbound_message_ts IS NOT NULL` plus the
+/// `Importance(true)` literal's `is_signal` — so the badge and the tab it opens
+/// always agree. Inboxes with nothing unread are absent from the result.
+#[tracing::instrument(err, skip(pool))]
+pub(super) async fn unread_signal_counts_for_links(
+    pool: &PgPool,
+    link_ids: &[Uuid],
+) -> Result<Vec<InboxUnreadSignalCount>, sqlx::Error> {
+    sqlx::query!(
+        r#"
+        SELECT t.link_id AS "link_id!", COUNT(*) AS "unread_count!"
+        FROM email_threads t
+        WHERE t.link_id = ANY($1)
+          AND t.inbox_visible
+          AND t.is_signal
+          AND NOT t.is_read
+          AND t.latest_inbound_message_ts IS NOT NULL
+        GROUP BY t.link_id
+        "#,
+        link_ids
+    )
+    .fetch_all(pool)
+    .await
+    .map(|rows| {
+        rows.into_iter()
+            .map(|row| InboxUnreadSignalCount {
+                link_id: row.link_id,
+                unread_count: row.unread_count,
+            })
+            .collect()
+    })
 }

@@ -37,6 +37,7 @@ import type {
   ListEmailFiltersResponse,
   ListLabelsResponse,
   ListLinksResponse,
+  ListUnreadCountsResponse,
   ParsedMessage,
   PatchSettingsRequest,
   PatchSettingsResponse,
@@ -1860,6 +1861,60 @@ export const healthCheckLinks = async (
     status: res.status,
     headers: res.headers,
   } as healthCheckLinksResponse;
+};
+
+/**
+ * @summary Unread Signal-view thread counts for every inbox the caller can read.
+ */
+export type listUnreadCountsResponse200 = {
+  data: ListUnreadCountsResponse;
+  status: 200;
+};
+
+export type listUnreadCountsResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type listUnreadCountsResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type listUnreadCountsResponseSuccess = listUnreadCountsResponse200 & {
+  headers: Headers;
+};
+export type listUnreadCountsResponseError = (
+  | listUnreadCountsResponse401
+  | listUnreadCountsResponse500
+) & {
+  headers: Headers;
+};
+
+export type listUnreadCountsResponse =
+  | listUnreadCountsResponseSuccess
+  | listUnreadCountsResponseError;
+
+export const getListUnreadCountsUrl = () => {
+  return `/email/links/unread-counts`;
+};
+
+export const listUnreadCounts = async (
+  options?: RequestInit
+): Promise<listUnreadCountsResponse> => {
+  const res = await fetch(getListUnreadCountsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: listUnreadCountsResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as listUnreadCountsResponse;
 };
 
 /**

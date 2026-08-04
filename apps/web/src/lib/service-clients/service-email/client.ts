@@ -20,6 +20,7 @@ import type {
   ListEmailFiltersResponse,
   ListLabelsResponse,
   ListLinksResponse,
+  ListUnreadCountsResponse,
   PatchSettingsRequest,
   PatchSettingsResponse,
   ResyncResponse,
@@ -293,6 +294,14 @@ export const emailClient = {
   async getLinks() {
     return (
       await emailFetch<ListLinksResponse>('/email/links', {
+        method: 'GET',
+      })
+    ).map((result) => result);
+  },
+
+  async getUnreadCounts() {
+    return (
+      await emailFetch<ListUnreadCountsResponse>('/email/links/unread-counts', {
         method: 'GET',
       })
     ).map((result) => result);

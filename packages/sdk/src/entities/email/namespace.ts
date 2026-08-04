@@ -44,6 +44,15 @@ export class EmailNamespace {
     return Link.list(this.client);
   }
 
+  /**
+   * Unread Signal-view threads across every connected inbox — the important
+   * mail waiting, excluding anything classified as noise. Use
+   * {@link Link.unreadSignalCount} for a single inbox.
+   */
+  async unreadSignalCount(): Promise<number> {
+    return unwrap(await this.client.email.listUnreadCounts()).total;
+  }
+
   /** Send a new email message. */
   send(opts: SendEmailOptions): Promise<EmailMessage | undefined> {
     return EmailMessage.send(this.client, opts);

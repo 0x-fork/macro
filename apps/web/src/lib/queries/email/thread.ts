@@ -25,6 +25,7 @@ import { invalidateAllSoup } from '../soup/normalized-cache';
 import { type UndoHandle, useUndoableMutation } from '../undo';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import { emailKeys } from './keys';
+import { invalidateEmailUnreadCounts } from './unread-counts';
 
 const THREAD_STALE_TIME = 5 * 60 * 1000;
 
@@ -216,6 +217,11 @@ export function useMarkThreadAsSeenMutation(
         // Note: We intentionally don't invalidate thread messages in onSuccess.
         // The optimistic update already sets isRead in soup, and invalidating
         // thread messages triggers Suspense which resets scroll position.
+        //
+        // The sidebar badge counts unread signal threads, so reading one moves
+        // it. Refetched once the server has actually applied the read — doing
+        // it in onMutate would race the write and re-cache the old count.
+        onSettled: invalidateEmailUnreadCounts,
       },
       callbacks
     ),
@@ -285,7 +291,10 @@ export function useMarkThreadAsUnreadMutation(
       );
     },
     ...withCallbacks<void, Error, MarkThreadAsUnreadParams>(
-      { onMutate: threadUnreadOnMutate },
+      {
+        onMutate: threadUnreadOnMutate,
+        onSettled: invalidateEmailUnreadCounts,
+      },
       callbacks
     ),
   }));
@@ -640,6 +649,9 @@ async function upsertSenderFilterWithToast(
 
   const filterId = result.value.filter.id;
   invalidateAllSoup();
+  // Reclassifying a sender moves their threads between Signal and Noise, so
+  // the Signal-only badge count changes with them.
+  invalidateEmailUnreadCounts();
 
   toast.success(`Sender marked as ${label}`, {
     subtext: `Messages from ${senderEmail} will appear in ${label}`,
@@ -655,6 +667,7 @@ async function upsertSenderFilterWithToast(
             toast.failure('Failed to undo', { subtext: senderEmail });
           } else {
             invalidateAllSoup();
+            invalidateEmailUnreadCounts();
             toast.success('Sender filter removed');
           }
         },

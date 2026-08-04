@@ -275,6 +275,20 @@ export type ApiEmailFilter = {
     is_important: boolean;
 };
 
+/**
+ * Unread Signal-view thread count for one of the caller's inboxes.
+ */
+export type ApiInboxUnreadCount = {
+    /**
+     * The inbox (email link) the count belongs to.
+     */
+    link_id: string;
+    /**
+     * Unread signal threads currently visible in that inbox's inbox view.
+     */
+    unread_count: number;
+};
+
 export type ApiLabel = {
     createdAt: string;
     id: string;
@@ -794,6 +808,21 @@ export type ListLinksResponse = {
      * the thread, with messages inside
      */
     links: Array<Link>;
+};
+
+/**
+ * Response body for the per-inbox unread Signal counts.
+ */
+export type ListUnreadCountsResponse = {
+    /**
+     * One entry per inbox accessible to the caller, including inboxes with
+     * nothing unread.
+     */
+    counts: Array<ApiInboxUnreadCount>;
+    /**
+     * The sum across every inbox, for clients showing a single badge.
+     */
+    total: number;
 };
 
 export type Message = {
@@ -1805,6 +1834,26 @@ export type HealthCheckLinksResponses = {
 };
 
 export type HealthCheckLinksResponse = HealthCheckLinksResponses[keyof HealthCheckLinksResponses];
+
+export type ListUnreadCountsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/email/links/unread-counts';
+};
+
+export type ListUnreadCountsErrors = {
+    401: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type ListUnreadCountsError = ListUnreadCountsErrors[keyof ListUnreadCountsErrors];
+
+export type ListUnreadCountsResponses = {
+    200: ListUnreadCountsResponse;
+};
+
+export type ListUnreadCountsResponse2 = ListUnreadCountsResponses[keyof ListUnreadCountsResponses];
 
 export type DeleteLinkData = {
     body?: never;

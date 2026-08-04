@@ -1,11 +1,11 @@
 use crate::domain::models::{
     Attachment, AttachmentDraft, AttachmentForwarded, Contact, ContactInfo, CreateDraftInput,
     CreatedDraft, EmailErr, EmailFilter, EmailInboxDetails, EmailThreadPreview,
-    EnrichedEmailThreadPreview, GetEmailsRequest, Label, Link, LinkLabel, MessageAttachment,
-    MessageLabel, MessageRow, ParsedAddresses, ParsedMessage, ParsedThread, PreviewCursorQuery,
-    RecipientType, ResolvedDraftInput, SimpleMessage, SimpleMessageInfo, Thread, ThreadRow,
-    UpdateThreadLabelsResult, UpsertEmailFilterInput, UpsertedContacts, UserEmailLink,
-    UserProvider,
+    EnrichedEmailThreadPreview, GetEmailsRequest, InboxUnreadSignalCount, Label, Link, LinkLabel,
+    MessageAttachment, MessageLabel, MessageRow, ParsedAddresses, ParsedMessage, ParsedThread,
+    PreviewCursorQuery, RecipientType, ResolvedDraftInput, SimpleMessage, SimpleMessageInfo,
+    Thread, ThreadRow, UpdateThreadLabelsResult, UpsertEmailFilterInput, UpsertedContacts,
+    UserEmailLink, UserProvider,
 };
 use chrono::{DateTime, Utc};
 use entity_access::domain::models::{EditAccessLevel, EntityAccessReceipt, ViewAccessLevel};
@@ -72,6 +72,16 @@ pub trait EmailUserRepo: Send + Sync + 'static {
         &self,
         macro_id: MacroUserIdStr<'static>,
     ) -> impl Future<Output = Result<Vec<EmailInboxDetails>, EmailErr>> + Send;
+
+    /// Count unread signal threads in the inbox view for each of the given,
+    /// already-authorized inboxes.
+    ///
+    /// Inboxes with nothing unread may be omitted from the result — zero-fill
+    /// is the domain service's job, not the repository's.
+    fn unread_signal_counts_for_links(
+        &self,
+        link_ids: &[Uuid],
+    ) -> impl Future<Output = Result<Vec<InboxUnreadSignalCount>, EmailErr>> + Send;
 }
 
 pub trait EmailRepo: Send + Sync + 'static {
@@ -421,6 +431,13 @@ pub trait EmailUserService: Send + Sync + 'static {
         &self,
         macro_id: MacroUserIdStr<'static>,
     ) -> impl Future<Output = Result<Vec<UserEmailLink>, EmailErr>> + Send;
+
+    /// Unread signal-thread counts for every inbox accessible to the user, one
+    /// entry per inbox including the ones with nothing unread.
+    fn get_user_unread_signal_counts(
+        &self,
+        macro_id: MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<Vec<InboxUnreadSignalCount>, EmailErr>> + Send;
 }
 
 pub trait EmailService: Send + Sync + 'static {
@@ -632,6 +649,13 @@ impl EmailUserService for NoOpEmailService {
         &self,
         _macro_id: MacroUserIdStr<'static>,
     ) -> Result<Vec<UserEmailLink>, EmailErr> {
+        Err(no_op_email_err())
+    }
+
+    async fn get_user_unread_signal_counts(
+        &self,
+        _macro_id: MacroUserIdStr<'static>,
+    ) -> Result<Vec<InboxUnreadSignalCount>, EmailErr> {
         Err(no_op_email_err())
     }
 }

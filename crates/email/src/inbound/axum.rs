@@ -8,6 +8,7 @@ pub mod previews_router;
 pub mod send_router;
 pub mod thread_labels_router;
 pub mod thread_project_router;
+pub mod unread_counts_router;
 
 pub use api_types::{
     ApiAttachment, ApiAttachmentDraft, ApiAttachmentForwarded, ApiContact, ApiContactInfo,

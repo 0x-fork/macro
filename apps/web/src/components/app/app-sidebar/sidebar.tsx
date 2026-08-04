@@ -90,6 +90,7 @@ import UsersThreeIcon from '@phosphor/users-three.svg';
 import XIcon from '@phosphor/x.svg';
 import { isRealNamePart, useOwnUserName } from '@queries/auth/user-name-self';
 import { useEmailLinksQuery } from '@queries/email/link';
+import { useEmailUnreadCounts } from '@queries/email/unread-counts';
 import {
   useJoinTeamMutation,
   useRejectInvitationMutation,
@@ -1600,12 +1601,47 @@ interface SidebarLinkProps extends SidebarItem {
    */
   trailingWhenActive?: JSX.Element;
   /**
+   * Unread count shown as a badge at the row's right edge, or over the icon in
+   * slim mode. `0` (or omitted) renders nothing.
+   */
+  unreadCount?: number;
+  /**
    * Swaps the icon for an X while the row is hovered (expanded sidebar only —
    * in slim mode the icon is the whole row, so the swap would hijack
    * navigation). Clicking the X calls `onRemove` instead of navigating.
    */
   removeAction?: { tooltip: string; onRemove: () => void };
 }
+
+/**
+ * Unread-count badge for a sidebar row. Renders nothing at zero, so callers can
+ * pass a count unconditionally.
+ *
+ * `slim` is the compact variant that sits over a rail icon, where there is only
+ * room for a single digit before the count becomes an "attention" marker.
+ */
+const SidebarUnreadBadge = (props: { count: number; slim?: boolean }) => {
+  const label = () => {
+    if (props.slim) return props.count > 9 ? '9+' : `${props.count}`;
+    return props.count > 99 ? '99+' : `${props.count}`;
+  };
+
+  return (
+    <Show when={props.count > 0}>
+      <span
+        aria-label={`${props.count} unread`}
+        class={cn(
+          'rounded-full bg-accent/15 text-accent font-medium tabular-nums text-center',
+          props.slim
+            ? 'absolute -top-1 -right-1 min-w-3.5 px-0.5 text-[8px] leading-3.5'
+            : 'min-w-4 px-1 text-xxs leading-4'
+        )}
+      >
+        {label()}
+      </span>
+    </Show>
+  );
+};
 
 /** Which action of {@link SidebarOpenInSplitMenu} placed the content. */
 type SidebarOpenAction = 'current-split' | 'new-split' | 'fullscreen';
@@ -1780,6 +1816,12 @@ const SidebarLink = (props: SidebarLinkProps) => {
           globalSplitManager()?.returnFocus();
         }}
       >
+        {/* Slim rail has no room for a trailing badge, so the count rides the
+            icon. Top-right keeps it clear of the bottom-right hotkey chip. */}
+        <Show when={props.sidebarState === 'slim'}>
+          <SidebarUnreadBadge count={props.unreadCount ?? 0} slim />
+        </Show>
+
         <Show when={props.icon}>
           <div class="size-5 shrink-0 flex items-center justify-center [&_svg]:size-3.5">
             <Show
@@ -1836,6 +1878,14 @@ const SidebarLink = (props: SidebarLinkProps) => {
           <span class="whitespace-nowrap">{props.label}</span>
         </div>
 
+        {/* Sits before the chevron and hotkey hints so the count keeps its
+            place as those come and go with hover and active state. */}
+        <Show when={!props.hotkeyVisible}>
+          <div class="group-data-[slim=true]/sidebar:hidden ml-auto flex items-center">
+            <SidebarUnreadBadge count={props.unreadCount ?? 0} />
+          </div>
+        </Show>
+
         <Show
           when={
             isActive() &&
@@ -1843,7 +1893,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
             !props.hotkeyVisible
           }
         >
-          <div class="group-data-[slim=true]/sidebar:hidden ml-auto flex items-center text-ink-muted">
+          <div class="group-data-[slim=true]/sidebar:hidden ml-1 flex items-center text-ink-muted">
             {props.trailingWhenActive}
           </div>
         </Show>
@@ -1855,7 +1905,7 @@ const SidebarLink = (props: SidebarLinkProps) => {
             !(isActive() && props.trailingWhenActive !== undefined)
           }
         >
-          <div class="group-data-[slim=true]/sidebar:hidden ml-auto">
+          <div class="group-data-[slim=true]/sidebar:hidden ml-1">
             <div class="flex gap-1 items-center text-ink-extra-muted font-normal text-xxs">
               <Show when={!props.standaloneHotkey}>
                 <div class="text-xxs text-ink-extra-muted rounded-sm ml-auto border border-ink/5 px-1.5 py-0.5 -my-1">
@@ -1909,6 +1959,11 @@ const SidebarLink = (props: SidebarLinkProps) => {
  * Each row carries the same right-click menu as the parent link (open in the
  * current split, a new split, or fullscreen), scoping whichever split it opens
  * to that inbox.
+ *
+ * Unread Signal counts follow the same fan-out: while the rows are collapsed
+ * the Email link badges the total across every inbox, and once they expand each
+ * inbox badges its own. Noise is never counted, so the badge always matches the
+ * Signal tab a click lands on.
  */
 const SidebarMailLink = (props: SidebarLinkProps) => {
   const layout = useSplitLayout();
@@ -1922,6 +1977,9 @@ const SidebarMailLink = (props: SidebarLinkProps) => {
       a.email_address.localeCompare(b.email_address)
     )
   );
+
+  // Only worth asking once we know the user has an inbox at all.
+  const unread = useEmailUnreadCounts(() => links().length > 0);
 
   const isMailList = (content: SplitContent | undefined) =>
     content?.type === 'component' && content.id === 'mail';
@@ -1987,6 +2045,9 @@ const SidebarMailLink = (props: SidebarLinkProps) => {
     <>
       <SidebarLink
         {...props}
+        // Once the rows are out, each inbox badges itself — a total here on top
+        // of them would report the same mail twice.
+        unreadCount={showAccounts() ? 0 : unread.total()}
         suppressActiveStyle={showAccounts() && onlySelectedId() !== undefined}
         onActiveClick={() => {
           if (!canShow()) return;
@@ -2064,6 +2125,9 @@ const SidebarMailLink = (props: SidebarLinkProps) => {
                         showTooltip={false}
                       />
                       <span class="truncate">{link.email_address}</span>
+                      <div class="ml-auto pl-1 flex items-center">
+                        <SidebarUnreadBadge count={unread.forLink(link.id)} />
+                      </div>
                     </NavRow>
                   </SidebarOpenInSplitMenu>
                 </li>

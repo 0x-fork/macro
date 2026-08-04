@@ -9,8 +9,8 @@ use uuid::Uuid;
 
 use crate::domain::{
     models::{
-        EmailBackfillStatus, EmailInboxDetails, EmailSyncStatus, Link, LinkLabel,
-        UserEmailLinkSettings, UserProvider,
+        EmailBackfillStatus, EmailInboxDetails, EmailSyncStatus, InboxUnreadSignalCount, Link,
+        LinkLabel, UserEmailLinkSettings, UserProvider,
     },
     ports::{EmailUserRepo, EmailUserService},
 };
@@ -22,8 +22,13 @@ struct FakeUserRepo {
     inboxes: Vec<Link>,
     labels: HashMap<Uuid, Vec<LinkLabel>>,
     details: Vec<EmailInboxDetails>,
+    /// Per-link unread counts the repo reports. Links absent from the map are
+    /// omitted from the repo's response, as the real one omits caught-up
+    /// inboxes.
+    unread_counts: HashMap<Uuid, i64>,
     requested_users: Arc<Mutex<Vec<MacroUserIdStr<'static>>>>,
     requested_label_links: Arc<Mutex<Vec<Uuid>>>,
+    requested_count_links: Arc<Mutex<Vec<Vec<Uuid>>>>,
 }
 
 impl EmailUserRepo for FakeUserRepo {
@@ -49,6 +54,27 @@ impl EmailUserRepo for FakeUserRepo {
     ) -> Result<Vec<EmailInboxDetails>, crate::domain::models::EmailErr> {
         self.requested_users.lock().unwrap().push(macro_id);
         Ok(self.details.clone())
+    }
+
+    async fn unread_signal_counts_for_links(
+        &self,
+        link_ids: &[Uuid],
+    ) -> Result<Vec<InboxUnreadSignalCount>, crate::domain::models::EmailErr> {
+        self.requested_count_links
+            .lock()
+            .unwrap()
+            .push(link_ids.to_vec());
+        Ok(link_ids
+            .iter()
+            .filter_map(|link_id| {
+                self.unread_counts
+                    .get(link_id)
+                    .map(|unread_count| InboxUnreadSignalCount {
+                        link_id: *link_id,
+                        unread_count: *unread_count,
+                    })
+            })
+            .collect())
     }
 }
 
@@ -167,4 +193,60 @@ async fn links_are_scoped_to_the_user_and_enriched_by_domain_policy() {
         links[0].settings.signature.as_deref(),
         Some("<p>Regards</p>")
     );
+}
+
+#[tokio::test]
+async fn unread_counts_cover_every_accessible_inbox_including_caught_up_ones() {
+    let owned = Uuid::from_u128(1);
+    let delegated = Uuid::from_u128(2);
+    let repo = FakeUserRepo {
+        inboxes: vec![
+            link(owned, "viewer@example.com"),
+            link(delegated, "delegate@example.com"),
+        ],
+        // The delegated inbox is caught up, so the repo omits it entirely.
+        unread_counts: HashMap::from([(owned, 7)]),
+        ..Default::default()
+    };
+    let requested_users = Arc::clone(&repo.requested_users);
+    let requested_count_links = Arc::clone(&repo.requested_count_links);
+
+    let counts = service(repo)
+        .get_user_unread_signal_counts(user_id())
+        .await
+        .unwrap();
+
+    assert_eq!(*requested_users.lock().unwrap(), vec![user_id()]);
+    // Counts are only ever asked for over the caller's own accessible inboxes.
+    assert_eq!(
+        *requested_count_links.lock().unwrap(),
+        vec![vec![owned, delegated]]
+    );
+    assert_eq!(
+        counts,
+        vec![
+            InboxUnreadSignalCount {
+                link_id: owned,
+                unread_count: 7,
+            },
+            InboxUnreadSignalCount {
+                link_id: delegated,
+                unread_count: 0,
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn unread_counts_skip_the_repo_entirely_when_no_inbox_is_linked() {
+    let repo = FakeUserRepo::default();
+    let requested_count_links = Arc::clone(&repo.requested_count_links);
+
+    let counts = service(repo)
+        .get_user_unread_signal_counts(user_id())
+        .await
+        .unwrap();
+
+    assert!(counts.is_empty());
+    assert!(requested_count_links.lock().unwrap().is_empty());
 }

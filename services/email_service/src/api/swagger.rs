@@ -41,6 +41,7 @@ use ::email::inbound::axum::thread_labels_router::{
 use ::email::inbound::axum::thread_project_router::{
     UpdateThreadProjectRequest, UpdateThreadProjectResponse,
 };
+use ::email::inbound::axum::unread_counts_router::{ApiInboxUnreadCount, ListUnreadCountsResponse};
 use model::response::EmptyResponse;
 use models_email::api::link::SyncStatus;
 use models_email::api::refresh::{BackfillStatus, RefreshEmailEvent};
@@ -93,6 +94,7 @@ use utoipa::OpenApi;
         email::links::health_check::health_check_handler,
         email::links::delete::delete_link_handler,
         email::links::resync::resync_link_handler,
+        inbound::axum::unread_counts_router::unread_counts_handler,
         email::labels::create::handler,
         email::labels::delete::handler,
         inbound::axum::list_labels_router::list_labels_handler,
@@ -159,6 +161,8 @@ use utoipa::OpenApi;
             GetAttachmentDocumentIDResponse,
             // Link types
             ListLinksResponse,
+            ListUnreadCountsResponse,
+            ApiInboxUnreadCount,
             Link,
             SyncStatus,
             RefreshEmailEvent,

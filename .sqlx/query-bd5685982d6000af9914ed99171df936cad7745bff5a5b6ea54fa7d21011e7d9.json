@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT t.link_id AS \"link_id!\", COUNT(*) AS \"unread_count!\"\n        FROM email_threads t\n        WHERE t.link_id = ANY($1)\n          AND t.inbox_visible\n          AND t.is_signal\n          AND NOT t.is_read\n          AND t.latest_inbound_message_ts IS NOT NULL\n        GROUP BY t.link_id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "link_id!",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "unread_count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "bd5685982d6000af9914ed99171df936cad7745bff5a5b6ea54fa7d21011e7d9"
+}

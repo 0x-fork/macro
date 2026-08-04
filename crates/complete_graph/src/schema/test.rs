@@ -5,9 +5,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use axum::http::{Request as HttpRequest, header};
 use email::domain::models::{
     CreateDraftInput, CreatedDraft, EmailErr, EmailFilter, EmailSyncStatus,
-    EnrichedEmailThreadPreview, GetEmailsRequest, LabelListVisibility, LabelType, Link, LinkLabel,
-    MessageListVisibility, ParsedMessage, ParsedThread, Thread, UpdateThreadLabelsResult,
-    UpsertEmailFilterInput, UserEmailLink, UserEmailLinkSettings, UserProvider,
+    EnrichedEmailThreadPreview, GetEmailsRequest, InboxUnreadSignalCount, LabelListVisibility,
+    LabelType, Link, LinkLabel, MessageListVisibility, ParsedMessage, ParsedThread, Thread,
+    UpdateThreadLabelsResult, UpsertEmailFilterInput, UserEmailLink, UserEmailLinkSettings,
+    UserProvider,
 };
 use entity_access::domain::models::{
     AccessError, AccessLevel, BotAccessScope, BotId, CallChannelInfo, EditAccessLevel,
@@ -278,6 +279,17 @@ impl EmailUserService for CountingEmailService {
             created_at: Default::default(),
             updated_at: Default::default(),
         }])
+    }
+
+    async fn get_user_unread_signal_counts(
+        &self,
+        macro_id: MacroUserIdStr<'static>,
+    ) -> Result<Vec<InboxUnreadSignalCount>, EmailErr> {
+        self.user_catalog_identities
+            .lock()
+            .expect("user catalog identities lock")
+            .push(macro_id);
+        Ok(Vec::new())
     }
 }
 

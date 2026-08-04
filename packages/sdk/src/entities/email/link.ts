@@ -47,4 +47,16 @@ export class Link extends MacroEntity<LinkRecord> {
 
   /** The inbox's avatar URL, if any. */
   readonly photoUrl = this.field('photo_url');
+
+  /**
+   * Unread threads in this inbox's Signal view — the important mail waiting,
+   * excluding anything classified as noise (promotions, social, bulk updates).
+   *
+   * Not part of the link record, so this is a live read rather than a cached
+   * field. `0` for an inbox with nothing unread.
+   */
+  async unreadSignalCount(): Promise<number> {
+    const { counts } = unwrap(await this.client.email.listUnreadCounts());
+    return counts.find((c) => c.link_id === this.id)?.unread_count ?? 0;
+  }
 }

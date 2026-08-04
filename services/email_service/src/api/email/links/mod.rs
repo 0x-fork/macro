@@ -14,4 +14,11 @@ pub fn router() -> Router<ApiContext> {
         .route("/health-check", post(health_check::health_check_handler))
         .route("/{link_id}", delete(delete::delete_link_handler))
         .route("/{link_id}/resync", post(resync::resync_link_handler))
+        .merge(
+            email::inbound::axum::unread_counts_router::unread_counts_router::<
+                ApiContext,
+                crate::api::context::EmailSvc,
+                crate::api::context::AuthorizationService,
+            >(),
+        )
 }

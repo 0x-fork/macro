@@ -1,10 +1,10 @@
 use crate::domain::{
     models::{
         Attachment, AttachmentDraft, AttachmentForwarded, Contact, ContactInfo, EmailErr,
-        EmailFilter, EmailInboxDetails, EmailThreadPreview, Label, Link, LinkLabel,
-        MessageAttachment, MessageLabel, MessageRow, ParsedAddresses, PreviewCursorQuery,
-        ResolvedDraftInput, SimpleMessage, SimpleMessageInfo, ThreadRow, UpsertEmailFilterInput,
-        UpsertedContacts, UserProvider,
+        EmailFilter, EmailInboxDetails, EmailThreadPreview, InboxUnreadSignalCount, Label, Link,
+        LinkLabel, MessageAttachment, MessageLabel, MessageRow, ParsedAddresses,
+        PreviewCursorQuery, ResolvedDraftInput, SimpleMessage, SimpleMessageInfo, ThreadRow,
+        UpsertEmailFilterInput, UpsertedContacts, UserProvider,
     },
     ports::{EmailRepo, EmailUserRepo, LinkEmailSettings, RecipientsByMessageId},
 };
@@ -78,6 +78,15 @@ impl EmailUserRepo for EmailPgRepo {
         macro_id: MacroUserIdStr<'static>,
     ) -> Result<Vec<EmailInboxDetails>, EmailErr> {
         link::inbox_details_for_macro_id(&self.pool, &macro_id)
+            .await
+            .map_err(|error| EmailErr::RepoErr(error.into()))
+    }
+
+    async fn unread_signal_counts_for_links(
+        &self,
+        link_ids: &[Uuid],
+    ) -> Result<Vec<InboxUnreadSignalCount>, EmailErr> {
+        link::unread_signal_counts_for_links(&self.pool, link_ids)
             .await
             .map_err(|error| EmailErr::RepoErr(error.into()))
     }

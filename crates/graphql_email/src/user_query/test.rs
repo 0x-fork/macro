@@ -4,8 +4,8 @@ use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 use chrono::{TimeZone, Utc};
 use email::domain::{
     models::{
-        EmailErr, EmailSyncStatus, LabelListVisibility, LabelType, LinkLabel,
-        MessageListVisibility, UserEmailLink, UserEmailLinkSettings, UserProvider,
+        EmailErr, EmailSyncStatus, InboxUnreadSignalCount, LabelListVisibility, LabelType,
+        LinkLabel, MessageListVisibility, UserEmailLink, UserEmailLinkSettings, UserProvider,
     },
     ports::EmailUserService,
 };
@@ -45,6 +45,14 @@ impl EmailUserService for FakeEmailUserService {
             ));
         }
         Ok(vec![link()])
+    }
+
+    async fn get_user_unread_signal_counts(
+        &self,
+        macro_id: MacroUserIdStr<'static>,
+    ) -> Result<Vec<InboxUnreadSignalCount>, EmailErr> {
+        self.requested_users.lock().unwrap().push(macro_id);
+        Ok(Vec::new())
     }
 }
 

@@ -12,6 +12,7 @@ mod settings;
 mod signal_flag;
 mod thread;
 mod thread_labels;
+mod unread_counts;
 
 use std::sync::Arc;
 

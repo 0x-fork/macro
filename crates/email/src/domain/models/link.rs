@@ -113,6 +113,20 @@ pub struct EmailInboxDetails {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Unread Signal-view thread count for one inbox.
+///
+/// "Signal" is the denormalized `email_threads.is_signal` heuristic the mail
+/// list's Signal tab filters on, scoped to the inbox view — noise threads are
+/// deliberately not counted, so the badge only ever nags about mail the user
+/// would see on the tab they land on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InboxUnreadSignalCount {
+    /// The inbox the count belongs to.
+    pub link_id: Uuid,
+    /// Unread signal threads currently visible in the inbox view.
+    pub unread_count: i64,
+}
+
 /// Enriched email link visible to an authenticated user.
 ///
 /// The model intentionally omits the provider's authentication-system user ID,
