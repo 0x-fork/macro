@@ -90,6 +90,11 @@ pub(super) fn describe_document_event(event: &DocumentTopicEvent) -> DocumentEve
             document_id: metadata.document_id.clone(),
             event_type: "document.interaction",
         },
+        DocumentTopicEvent::Opened(metadata) => DocumentEventDescription {
+            action: DocumentIndexAction::Ignore,
+            document_id: metadata.document_id.clone(),
+            event_type: "document.opened",
+        },
     }
 }
 

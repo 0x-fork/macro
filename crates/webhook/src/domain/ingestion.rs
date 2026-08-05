@@ -231,9 +231,12 @@ fn normalized_document_event(
         DocumentTopicEvent::Interaction(metadata) => {
             ("document.interaction", &metadata.document_id)
         }
+        // Opened is deliberately not exposed: per-user view activity is
+        // never surfaced through webhooks.
         DocumentTopicEvent::ContentUploaded(_)
         | DocumentTopicEvent::SyncContentUpdated(_)
-        | DocumentTopicEvent::Purged(_) => return Ok(None),
+        | DocumentTopicEvent::Purged(_)
+        | DocumentTopicEvent::Opened(_) => return Ok(None),
     };
 
     if Uuid::parse_str(entity_id).is_err() {

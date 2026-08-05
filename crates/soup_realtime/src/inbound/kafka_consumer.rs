@@ -125,7 +125,8 @@ fn patches_from_document_event(event: &DocumentTopicEvent) -> Vec<SoupRealtimePa
         DocumentTopicEvent::Interaction(_)
         | DocumentTopicEvent::ContentUploaded(_)
         | DocumentTopicEvent::SyncContentUpdated(_)
-        | DocumentTopicEvent::Purged(_) => {}
+        | DocumentTopicEvent::Purged(_)
+        | DocumentTopicEvent::Opened(_) => {}
     }
     updates
 }

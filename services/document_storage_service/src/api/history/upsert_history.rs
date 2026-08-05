@@ -66,12 +66,17 @@ pub async fn upsert_history_handler(
         }
     };
 
+    // Stamp once so the UserHistory write and the published opened event
+    // carry the same timestamp.
+    let accessed_at = chrono::Utc::now();
+
     if item_type != "thread" {
         // Update the item's last accessed time
-        if let Err(e) = macro_db_client::history::upsert_item_last_accessed(
+        if let Err(e) = macro_db_client::history::upsert_item_last_accessed_timestamp(
             &mut transaction,
             item_id.as_str(),
             item_type.as_str(),
+            &accessed_at,
         )
         .await
         {
@@ -83,11 +88,12 @@ pub async fn upsert_history_handler(
         }
     }
 
-    if let Err(e) = macro_db_client::history::upsert_user_history(
+    if let Err(e) = macro_db_client::history::upsert_user_history_timestamp(
         &mut transaction,
         user.authorization.user.macro_user_id.clone(),
         item_id.as_str(),
         item_type.as_str(),
+        &accessed_at,
     )
     .await
     {
@@ -120,6 +126,16 @@ pub async fn upsert_history_handler(
             .message("unable to commit transaction")
             .is_error(true)
             .send(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    // Best-effort activity fact; never fails the request.
+    if item_type == "document" {
+        let _ = crate::service::document_event_publisher::publish_document_opened_event(
+            &ctx.macro_event_broker,
+            item_id.as_str(),
+            user.authorization.user.macro_user_id.clone(),
+            accessed_at,
+        );
     }
 
     GenericResponse::builder()

@@ -67,6 +67,35 @@ async fn publishes_document_purged_event_to_documents_topic() {
     );
 }
 
+#[tokio::test]
+async fn publishes_document_opened_event_to_documents_topic() {
+    let event_broker = RecordingEventBroker::default();
+    let actor = MacroUserIdStr::try_from("macro|viewer@example.com".to_string()).unwrap();
+    let opened_at = chrono::DateTime::parse_from_rfc3339("2026-08-05T12:00:00Z")
+        .unwrap()
+        .with_timezone(&chrono::Utc);
+
+    publish_document_opened_event(&event_broker, "document-one", actor, opened_at).unwrap();
+
+    let published = event_broker.published.lock().unwrap();
+    assert_eq!(published.len(), 1);
+
+    let event = &published[0];
+    assert_eq!(event.topic, "macro.documents");
+    assert_eq!(event.key, "document-one");
+    assert!(Uuid::parse_str(event.envelope["event_id"].as_str().unwrap()).is_ok());
+    assert_eq!(event.envelope["schema_version"], json!(1));
+    assert_eq!(event.envelope["event_type"], json!("document.opened"));
+    assert_eq!(
+        event.envelope["metadata"],
+        json!({
+            "document_id": "document-one",
+            "actor_user_id": "macro|viewer@example.com",
+            "opened_at": "2026-08-05T12:00:00Z",
+        })
+    );
+}
+
 #[test]
 fn returns_immediate_broker_failures() {
     let error = publish_document_purged_event(&FailingEventBroker, "document-one")

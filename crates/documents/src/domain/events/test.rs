@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 use super::{
     DocumentContentUploadedMetadata, DocumentInteractionMetadata, DocumentMacroEvent,
-    DocumentPurgedMetadata, DocumentSyncContentUpdatedMetadata, DocumentTopicEvent,
-    InteractionReason,
+    DocumentOpenedMetadata, DocumentPurgedMetadata, DocumentSyncContentUpdatedMetadata,
+    DocumentTopicEvent, InteractionReason,
 };
 
 const DOCUMENT_ID: &str = "11111111-1111-1111-1111-111111111111";
@@ -98,6 +98,35 @@ fn purged_serializes_to_the_exact_envelope() {
             "event_type": "document.purged",
             "metadata": {
                 "document_id": DOCUMENT_ID,
+            },
+        }),
+    );
+}
+
+#[test]
+fn opened_serializes_to_the_exact_envelope() {
+    let opened_at = chrono::DateTime::parse_from_rfc3339("2026-08-05T12:00:00Z")
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+    let event = Event::with_event_id(
+        Uuid::from_u128(4),
+        DocumentTopicEvent::Opened(DocumentOpenedMetadata {
+            document_id: DOCUMENT_ID.to_string(),
+            actor_user_id: owner(),
+            opened_at,
+        }),
+    );
+
+    assert_wire_round_trip(
+        event,
+        json!({
+            "event_id": "00000000-0000-0000-0000-000000000004",
+            "schema_version": 1,
+            "event_type": "document.opened",
+            "metadata": {
+                "document_id": DOCUMENT_ID,
+                "actor_user_id": "macro|owner@example.com",
+                "opened_at": "2026-08-05T12:00:00Z",
             },
         }),
     );

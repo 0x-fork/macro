@@ -133,6 +133,19 @@ pub struct DocumentInteractionMetadata {
     pub reason: InteractionReason,
 }
 
+/// Metadata for [`DocumentTopicEvent::Opened`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+pub struct DocumentOpenedMetadata {
+    /// The id of the opened document.
+    pub document_id: String,
+    /// The user who opened the document.
+    pub actor_user_id: MacroUserIdStr<'static>,
+    /// When the open was recorded; matches the `UserHistory` write it
+    /// mirrors so downstream consumers and the history table agree.
+    pub opened_at: DateTime<Utc>,
+}
+
 /// Metadata for [`DocumentTopicEvent::Copied`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
@@ -184,6 +197,9 @@ pub enum DocumentTopicEvent {
     /// A peer joined, left, or a periodic save occurred.
     #[serde(rename = "document.interaction")]
     Interaction(DocumentInteractionMetadata),
+    /// A user opened the document.
+    #[serde(rename = "document.opened")]
+    Opened(DocumentOpenedMetadata),
 }
 
 impl TopicEvent for DocumentTopicEvent {
@@ -243,6 +259,11 @@ impl DocumentMacroEvent {
     /// Build an interaction event keyed by the document id.
     pub fn interaction(key: impl Into<String>, metadata: DocumentInteractionMetadata) -> Self {
         Self::new(key, DocumentTopicEvent::Interaction(metadata))
+    }
+
+    /// Build an opened event keyed by the document id.
+    pub fn opened(key: impl Into<String>, metadata: DocumentOpenedMetadata) -> Self {
+        Self::new(key, DocumentTopicEvent::Opened(metadata))
     }
 
     /// Build an event from a topic-specific event variant.
