@@ -1078,6 +1078,11 @@ impl GraphqlCallStatus {
 /// GraphQL input representing the reminder literal.
 #[derive(async_graphql::OneofObject)]
 enum GraphqlReminderLiteral {
+    /// Opt this query into reminders at all. Reminders are off by default, so
+    /// without this (or an `id`/`entity`) Soup omits them entirely — a filter
+    /// of only `completed` would otherwise silently match nothing. Must be
+    /// `true`; there is no literal for excluding reminders, that is the default.
+    Include(bool),
     /// The id option.
     Id(ID),
     /// The referenced entity, as `"{type}:{id}"`.
@@ -1090,6 +1095,14 @@ impl IntoFilterExpr<ReminderLiteral> for GraphqlReminderLiteral {
     /// Convert this value into the expr representation.
     fn into_expr(self) -> async_graphql::Result<Expr<ReminderLiteral>> {
         let literal = match self {
+            // `include: false` is the default, not a literal — accepting it
+            // would opt the query in, the opposite of what was asked.
+            Self::Include(false) => {
+                return Err(async_graphql::Error::new(
+                    "reminder `include` must be true; omit the filter to exclude reminders",
+                ));
+            }
+            Self::Include(true) => ReminderLiteral::Include,
             Self::Id(id) => ReminderLiteral::Id(parse_id(id, "id")?),
             Self::Entity(entity) => ReminderLiteral::Entity(entity),
             Self::Completed(completed) => ReminderLiteral::Completed(completed),

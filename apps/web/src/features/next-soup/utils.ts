@@ -205,6 +205,18 @@ export const openEntityInNewTab = ({
   entity: EntityData;
   location?: SearchLocation;
 }) => {
+  // A reminder has no route of its own — it opens what it references, the
+  // same as the split paths. A standalone one references nothing, so there is
+  // no tab to open.
+  if (entity.type === 'reminder') {
+    const target = reminderSplitTarget(entity);
+    if (!target) return;
+    openExternalUrl(
+      new URL(`/app/${target.type}/${target.id}`, window.location.origin).href
+    );
+    return;
+  }
+
   // Build URL for the entity
   let entityPath: string;
   if (entity.type === 'document') {
@@ -1280,8 +1292,18 @@ export function applyEntitiesDoneOptimistic(args: {
 export function applyEntitiesNotDoneOptimistic(args: {
   emailIds: string[];
   notificationIds: string[];
+  reminderIds?: string[];
 }): { rollback: () => void } {
-  const { emailIds, notificationIds } = args;
+  const { emailIds, notificationIds, reminderIds = [] } = args;
+  // Clearing `completedAt` is what returns a reminder to the Upcoming tab,
+  // whose predicate is `!entity.completedAt`.
+  const reminderRowTxns = reminderIds.map((id) =>
+    optimisticUpdateSoupEntity({
+      tag: 'reminder',
+      data: { id, completedAt: null },
+      frecency_score: getSoupEntityById(id)?.frecency_score ?? 0,
+    })
+  );
 
   const emailRowTxns = emailIds.map((id) =>
     optimisticUpdateSoupEntity({
@@ -1294,6 +1316,9 @@ export function applyEntitiesNotDoneOptimistic(args: {
 
   return {
     rollback: () => {
+      for (const txn of [...reminderRowTxns].reverse()) {
+        txn.rollback();
+      }
       for (const txn of [...emailRowTxns].reverse()) {
         txn.rollback();
       }

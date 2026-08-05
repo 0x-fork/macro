@@ -14,7 +14,10 @@ import {
   itemToBlockName,
   resolveBlockAlias,
 } from '@core/constant/allBlocks';
-import { USE_MACRO_PR_SUMMARY_BLOCK } from '@core/constant/featureFlags';
+import {
+  ENABLE_REMINDERS,
+  USE_MACRO_PR_SUMMARY_BLOCK,
+} from '@core/constant/featureFlags';
 import type { EntityType, NotificationType } from '@core/types';
 import { openExternalUrl } from '@core/util/url';
 import { getNotificationById } from '@queries/notification/user-notifications';
@@ -366,6 +369,10 @@ function getSupportedHandler(
       // open until the reminder is fetched and its referenced entity read. A
       // standalone reminder references nothing and opens nothing.
       return async (lm: SplitManager, newSplit: boolean = false) => {
+        // A reminder created before the flag closed still has a live
+        // notification; opening it would reach reminder surfaces the user is
+        // no longer meant to have.
+        if (!ENABLE_REMINDERS()) return;
         const reminder = await getReminderById(notification.entity_id);
         const entityType = reminder?.entityType;
         const entityId = reminder?.entityId;

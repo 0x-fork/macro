@@ -1,5 +1,8 @@
 pub mod grouping;
 
+#[cfg(test)]
+mod test;
+
 use call::domain::models::GetCallRecordsRequest;
 use channels::domain::models::{GetChannelsRequest, GetThreadReplyRowsRequest};
 use crm::domain::auth::CrmTeamReceipt;
@@ -851,7 +854,15 @@ fn extract_reminder_filter(expr: &Expr<ReminderLiteral>, out: &mut ReminderFilte
             }
         },
         Expr::And(a, b) => extract_reminder_filter(a, out) && extract_reminder_filter(b, out),
-        Expr::Or(a, b) => reminder_or_is_sets_only(a, out) && reminder_or_is_sets_only(b, out),
+        Expr::Or(a, b) => {
+            // The repo ANDs `ids` against `entities`, so an `Or` spanning both
+            // would come out as an `And` — narrower than asked. Only reject
+            // when this `Or` actually contributes both; ids-only or
+            // entities-only branches still flatten faithfully.
+            let (ids_before, entities_before) = (out.ids.len(), out.entities.len());
+            let ok = reminder_or_is_sets_only(a, out) && reminder_or_is_sets_only(b, out);
+            ok && !(out.ids.len() > ids_before && out.entities.len() > entities_before)
+        }
         Expr::Not(_) => false,
     }
 }

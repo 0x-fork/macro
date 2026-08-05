@@ -1931,6 +1931,13 @@ GraphQL input representing the reminder literal.
 """
 input GraphqlReminderLiteral @oneOf {
 	"""
+	Opt this query into reminders at all. Reminders are off by default, so
+	without this (or an `id`/`entity`) Soup omits them entirely — a filter
+	of only `completed` would otherwise silently match nothing. Must be
+	`true`; there is no literal for excluding reminders, that is the default.
+	"""
+	include: Boolean
+	"""
 	The id option.
 	"""
 	id: ID

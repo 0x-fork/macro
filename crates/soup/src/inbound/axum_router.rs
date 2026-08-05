@@ -1105,8 +1105,9 @@ pub struct ApiEntityFilterAst {
     #[serde(default, rename = "ccf")]
     #[schema(value_type = serde_json::Value)]
     pub crm_company_filter: LiteralTree<CrmCompanyLiteral>,
-    /// Filters applied to reminders (wire key `remf`). Empty/omitted =
-    /// all of the caller's reminders.
+    /// Filters applied to reminders (wire key `remf`). Unlike every other
+    /// filter here, empty/omitted returns **no** reminders: they are opt-in,
+    /// so the caller must send `inc`, an id, or an entity to get any.
     #[serde(default, rename = "remf")]
     #[schema(value_type = serde_json::Value)]
     pub reminder_filter: LiteralTree<ReminderLiteral>,

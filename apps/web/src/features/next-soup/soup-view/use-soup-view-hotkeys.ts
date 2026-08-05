@@ -219,6 +219,7 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     keyDownHandler: () => {
       const entity = soup.focus.item();
       if (!entity) return false;
+      markReminderSeenOnOpen(entity, notificationSource);
       openEntityInSplitFromUnifiedList(entity, {
         splitHandle,
         replacePreview: true,
