@@ -194,20 +194,16 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
     return prefilled().filter((address) => !kept.has(address)).length;
   };
 
-  // A remove affordance only where there's something to take back: a filled
-  // row, or an extra empty row beyond the starter slots.
-  const canRemoveSlot = (value: string) =>
-    value.trim() !== '' || inviteSlots().length > INITIAL_INVITE_SLOTS.length;
-
-  const removeLabel = (value: string) =>
-    value.trim() === '' ? 'Remove this row' : `Don't invite ${value.trim()}`;
+  // The X means "don't invite this person", so it belongs on rows that name
+  // one. Blank rows need no removing — they're dropped on submit anyway.
+  const canRemoveSlot = (value: string) => value.trim() !== '';
 
   const addEmptyInvite = () => {
     setInviteSlots((slots) => [...slots, '']);
     requestAnimationFrame(() => {
-      inviteListEl?.scrollTo({
-        top: inviteListEl.scrollHeight,
+      inviteListEl?.lastElementChild?.scrollIntoView({
         behavior: 'smooth',
+        block: 'nearest',
       });
     });
   };
@@ -238,16 +234,23 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
 
   return (
     <div class="flex flex-col gap-3">
-      <FormInput
-        id="team-name"
-        placeholder="Team name"
-        value={name()}
-        autoFocus={!customDomain()}
-        onInput={(value) => {
-          setNameTouched(true);
-          setName(value);
-        }}
-      />
+      {/* Same row shape as an invite, with the remove gutter left empty, so
+          every input in the form shares one width. */}
+      <div class="flex items-center gap-1.5">
+        <div class="min-w-0 flex-1">
+          <FormInput
+            id="team-name"
+            placeholder="Team name"
+            value={name()}
+            autoFocus={!customDomain()}
+            onInput={(value) => {
+              setNameTouched(true);
+              setName(value);
+            }}
+          />
+        </div>
+        <div class="size-7 shrink-0" />
+      </div>
 
       <Show when={prefilled().length > 0}>
         {/* Say the quiet part out loud: these go out unless removed. */}
@@ -258,11 +261,11 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
       </Show>
 
       {/* Index, not For: slots are edited strings, and For keys by value —
-          each keystroke would recreate the input node and drop focus. */}
-      <div
-        ref={(el) => (inviteListEl = el)}
-        class="flex max-h-48 flex-col gap-3 overflow-y-auto overscroll-contain"
-      >
+          each keystroke would recreate the input node and drop focus.
+          No inner scroller: the list opens pre-filled now, and a capped box
+          left a row sliced in half above the buttons — the flow's own
+          scroll container takes the height instead. */}
+      <div ref={(el) => (inviteListEl = el)} class="flex flex-col gap-3">
         <Index each={inviteSlots()}>
           {(slot, i) => (
             <div class="flex items-center gap-1.5">
@@ -279,19 +282,23 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
                   }
                 />
               </div>
-              <Show when={canRemoveSlot(slot())}>
-                <button
-                  type="button"
-                  aria-label={removeLabel(slot())}
-                  title={removeLabel(slot())}
-                  onClick={() =>
-                    setInviteSlots((slots) => removeInviteSlot(slots, i))
-                  }
-                  class="shrink-0 rounded-md p-1.5 text-ink-extra-muted transition-colors hover:bg-ink/5 hover:text-ink"
-                >
-                  <XIcon class="size-4" />
-                </button>
-              </Show>
+              {/* Gutter is always reserved, so a blank row's input still lines
+                  up with the ones carrying a remove button. */}
+              <div class="flex size-7 shrink-0 items-center justify-center">
+                <Show when={canRemoveSlot(slot())}>
+                  <button
+                    type="button"
+                    aria-label={`Don't invite ${slot().trim()}`}
+                    title={`Don't invite ${slot().trim()}`}
+                    onClick={() =>
+                      setInviteSlots((slots) => removeInviteSlot(slots, i))
+                    }
+                    class="rounded-md p-1.5 text-ink-extra-muted transition-colors hover:bg-ink/5 hover:text-ink"
+                  >
+                    <XIcon class="size-4" />
+                  </button>
+                </Show>
+              </div>
             </div>
           )}
         </Index>
