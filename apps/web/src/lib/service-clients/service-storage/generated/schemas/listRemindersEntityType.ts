@@ -17,6 +17,7 @@ export const ListRemindersEntityType = {
   document: 'document',
   project: 'project',
   email_thread: 'email_thread',
+  calendar_event: 'calendar_event',
   team: 'team',
   call: 'call',
   foreign_entity: 'foreign_entity',
