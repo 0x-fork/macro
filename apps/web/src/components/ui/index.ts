@@ -26,6 +26,7 @@ export {
   type CommandListController,
   CommandMenuEmptyState,
   CommandMenuHotkeyHint,
+  CommandMenuList,
   CommandMenuListItem,
   CommandMenuSearchInput,
   CommandMenuShell,
@@ -68,4 +69,5 @@ export {
   addCtrlJKMenuNavigation,
   ctrlJKMenuNavigation,
   handleCtrlJKMenuNavigation,
+  wrapIndex,
 } from './utils/menuKeyboardNavigation';
