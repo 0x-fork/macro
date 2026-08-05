@@ -141,17 +141,18 @@ export const createSoupState = <TId extends string = FilterID>(
       isGrouped = false,
       isLoadMore = false,
     } = options;
-    return {
+    const row: SoupRow = {
       id,
       index,
       original,
       group,
       getIsGrouped: () => isGrouped,
       getIsLoadMore: () => isLoadMore,
-      isFocused: () => focusedIndex() === index,
+      isFocused: () => focusedIndex() === row.index,
       isSelected: () =>
         !isGrouped && !isLoadMore && selection.isSelected(original.id),
     };
+    return row;
   };
 
   const [rows, setRowsInternal] = createSignal<SoupRow[]>(

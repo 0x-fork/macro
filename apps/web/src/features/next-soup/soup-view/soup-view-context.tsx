@@ -36,6 +36,7 @@ import {
   INBOX_FILTER_ENTRY_KEY,
   registerInboxFilterSplit,
 } from '@app/features/next-soup/soup-view/inbox-filter-controllers';
+import { reconcileSoupRows } from '@app/features/next-soup/soup-view/reconcile-soup-rows';
 import { useSoupFilterPersistence } from '@app/features/next-soup/use-soup-filter-persistence';
 import {
   deduplicateEntities,
@@ -1260,7 +1261,7 @@ export const SoupViewContextProvider: FlowComponent<
     return '';
   };
 
-  const rows = createMemo((): SoupRow[] => {
+  const builtRows = createMemo((): SoupRow[] => {
     const field = groupByField();
     const groups = itemsSource.data()?.groups;
 
@@ -1460,6 +1461,11 @@ export const SoupViewContextProvider: FlowComponent<
 
     return result;
   });
+
+  const rows = createMemo(
+    (previousRows: SoupRow[]) => reconcileSoupRows(previousRows, builtRows()),
+    []
+  );
 
   const { searchQuery } = search;
 

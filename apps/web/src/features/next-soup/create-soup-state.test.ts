@@ -83,6 +83,34 @@ describe('createSoupState', () => {
         dispose();
       });
     });
+
+    it('uses a reused row current index for focus state', () => {
+      createRoot((dispose) => {
+        const state = createSoupState();
+        const first = state.buildRow({
+          id: '1',
+          index: 0,
+          original: createTestEntity('1'),
+        });
+        const second = state.buildRow({
+          id: '2',
+          index: 1,
+          original: createTestEntity('2'),
+        });
+        state.setRows([first, second]);
+        state.focus.set('2');
+
+        second.index = 0;
+        first.index = 1;
+        state.setRows([second, first]);
+
+        expect(state.focus.index()).toBe(0);
+        expect(second.isFocused()).toBe(true);
+        expect(first.isFocused()).toBe(false);
+
+        dispose();
+      });
+    });
   });
 
   describe('items', () => {
