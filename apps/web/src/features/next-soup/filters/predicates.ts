@@ -143,15 +143,19 @@ export function crmCompanyFilter(entity: EntityData): boolean {
 
 /**
  * Entity types the search view supports. Mirrors the search preset's
- * server-side exclusions (foreign entities + CRM) so entities that enter
- * the soup cache outside the query — e.g. websocket-driven optimistic
- * inserts — don't surface in the search feed.
+ * server-side exclusions (foreign entities, CRM, channel threads) so entities
+ * that enter the soup cache outside the query — websocket-driven optimistic
+ * inserts, or another view's rows held as placeholder data while this view's
+ * query loads — don't surface in the search feed. Channel threads are only
+ * renderable in the inbox, which requests them explicitly; everywhere else the
+ * AST NIL-excludes them, so a thread row here is always stale cache.
  */
 export function searchSupportedFilter(entity: EntityData): boolean {
   return (
     entity.type !== 'foreign' &&
     entity.type !== 'crm_company' &&
-    entity.type !== 'crm_contact'
+    entity.type !== 'crm_contact' &&
+    entity.type !== 'channel_thread'
   );
 }
 
