@@ -273,6 +273,33 @@ pub async fn get_macro_id_from_thread_id(
     Ok(macro_id)
 }
 
+/// Resolve the owning link and Macro user for many threads at once.
+///
+/// Threads that do not exist are absent from the result, so callers can diff
+/// against their input to find unknown ids.
+#[tracing::instrument(skip(pool, thread_ids), err)]
+pub async fn get_thread_links_by_ids(
+    pool: &PgPool,
+    thread_ids: &[Uuid],
+) -> anyhow::Result<Vec<(Uuid, Uuid, String)>> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT t.id, t.link_id, l.macro_id
+        FROM email_threads t
+        JOIN email_links l ON t.link_id = l.id
+        WHERE t.id = ANY($1)
+        "#,
+        thread_ids
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| (row.id, row.link_id, row.macro_id))
+        .collect())
+}
+
 /// Gets a single thread by ID and link_ID
 #[tracing::instrument(skip(pool), err)]
 pub async fn get_thread_by_id_and_link_id(

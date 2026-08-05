@@ -10,6 +10,7 @@ mod get_messages_by_thread_id;
 mod get_thread_histories;
 mod get_thread_owner;
 mod gmail;
+mod reindex_threads;
 
 pub fn router() -> Router<ApiContext> {
     Router::new()
@@ -29,4 +30,5 @@ pub fn router() -> Router<ApiContext> {
         .route("/backfill/provider/gmail/{id}", get(gmail::get::handler))
         .route("/delete_user/{id}", delete(delete_user::handler))
         .route("/threads/{id}/owner", get(get_thread_owner::handler))
+        .route("/threads/reindex", post(reindex_threads::handler))
 }

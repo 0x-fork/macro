@@ -91,6 +91,8 @@ pub enum SendCancelReason {
 pub enum ThreadsReindexReason {
     /// Contact display names changed; sender/recipient names in the index are stale.
     ContactsChanged,
+    /// An operator asked for these threads to be reindexed.
+    ManualRepair,
 }
 
 /// Metadata for [`EmailTopicEvent::LinkConnected`].
