@@ -22,7 +22,9 @@ import {
   onMount,
   Show,
 } from 'solid-js';
+import { CalendarDataStatus } from './CalendarDataStatus';
 import { CalendarPeriodSelector } from './CalendarPeriodSelector';
+import { CalendarRangeUnavailableBanner } from './CalendarRangeUnavailableBanner';
 import { CalendarSettingsDropdown } from './CalendarSettingsDropdown';
 import { CalendarSidePanelSections } from './CalendarSidePanelSections';
 import {
@@ -36,6 +38,7 @@ import { FullCalendar, useFullCalendar } from './fullcalendar-solid';
 import {
   CALENDAR_TIME_FORMAT_OPTIONS,
   formatCalendarTime,
+  formatCompactCalendarTime,
 } from './time-format';
 import { useCalendarTimeGridHoverIndicator } from './useCalendarTimeGridHoverIndicator';
 import './calendar.css';
@@ -162,16 +165,22 @@ function ResponsiveCalendarHost() {
 
   return (
     <Layer depth={2}>
-      <FullCalendar.Host
-        tabIndex={-1}
-        ref={(calendarElement) => {
-          setElement(calendarElement);
-          calendarView.setUseNarrowDayHeaders(
-            calendarElement.clientWidth < 520
-          );
-        }}
-        class="calendar-view-host min-w-0 min-h-0 flex-1 overflow-hidden rounded-xl"
-      />
+      <div class="flex min-w-0 min-h-0 flex-1 flex-col">
+        <CalendarRangeUnavailableBanner />
+        <div class="relative flex min-w-0 min-h-0 flex-1">
+          <FullCalendar.Host
+            tabIndex={-1}
+            ref={(calendarElement) => {
+              setElement(calendarElement);
+              calendarView.setUseNarrowDayHeaders(
+                calendarElement.clientWidth < 520
+              );
+            }}
+            class="calendar-view-host min-w-0 min-h-0 flex-1 overflow-hidden rounded-xl"
+          />
+          <CalendarDataStatus />
+        </div>
+      </div>
     </Layer>
   );
 }
@@ -187,20 +196,15 @@ export function CalendarView() {
 
 function CalendarViewContent() {
   const calendarView = useCalendarView();
-  let visibleRangeKey: string | undefined;
 
-  const handleDatesSet = ({ end, start, view }: DatesSetArg) => {
-    const nextRangeKey = `${view.type}:${start.toISOString()}:${end.toISOString()}`;
-    if (visibleRangeKey !== undefined && visibleRangeKey !== nextRangeKey) {
-      calendarView.closeEventDetails();
-    }
-    visibleRangeKey = nextRangeKey;
+  const handleDatesSet = ({ end, start }: DatesSetArg) => {
+    calendarView.updateVisibleRange(start, end);
   };
 
   return (
     <FullCalendar.Root
       plugins={[dayGridPlugin, interactionPlugin, timeGridPlugin]}
-      initialView="dayGridMonth"
+      initialView="timeGridWeek"
       height="100%"
       expandRows
       fixedWeekCount={false}
@@ -218,14 +222,7 @@ function CalendarViewContent() {
       eventTimeFormat={
         CALENDAR_TIME_FORMAT_OPTIONS[calendarView.displaySettings.timeFormat]
       }
-      eventStartEditable
-      eventDurationEditable
-      eventResizableFromStart
       events={calendarView.fullCalendarEvents()}
-      eventDragStart={calendarView.closeEventDetails}
-      eventDrop={calendarView.updateEventDates}
-      eventResizeStart={calendarView.closeEventDetails}
-      eventResize={calendarView.updateEventDates}
       eventClick={({ el, event, jsEvent }) => {
         jsEvent.preventDefault();
         calendarView.selectEvent(event.id, el);
@@ -271,13 +268,30 @@ function CalendarViewContent() {
         }}
       </FullCalendar.DayHeaderContent>
 
+      <FullCalendar.SlotLabelContent>
+        {({ date, text }) =>
+          calendarView.useNarrowDayHeaders()
+            ? formatCompactCalendarTime(
+                date,
+                calendarView.displaySettings.timeFormat
+              )
+            : text
+        }
+      </FullCalendar.SlotLabelContent>
+
       <FullCalendar.EventContent>
         {(renderProps) => {
           const event = calendarView.eventsById().get(renderProps.event.id);
           if (!event) return null;
 
           return (
-            <CalendarEventContent event={event} renderProps={renderProps} />
+            <CalendarEventContent
+              event={event}
+              renderProps={renderProps}
+              isSelected={calendarView.eventState.selectedEventId === event.id}
+              timeFormat={calendarView.displaySettings.timeFormat}
+              isNarrow={calendarView.useNarrowDayHeaders()}
+            />
           );
         }}
       </FullCalendar.EventContent>

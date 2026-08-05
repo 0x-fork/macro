@@ -1,3 +1,5 @@
+import type { CalendarAttendee } from '@service-storage/generated/schemas/calendarAttendee';
+
 /** Supported first day of the calendar week. */
 export type CalendarWeekStart = 0 | 1;
 
@@ -14,10 +16,30 @@ export interface CalendarSource {
   color: string;
 }
 
-/** Calendar-owned event data, independent from FullCalendar. */
+/** Calendar occurrence data, independent from FullCalendar. */
 export interface CalendarEvent {
-  /** Stable event identifier. */
+  /** Stable identifier for this rendered occurrence. */
   id: string;
+  /** Stable canonical calendar event identifier. */
+  eventId: string;
+  /** Stable key for this occurrence within its event. */
+  occurrenceKey: string;
+  /** Provider recurrence identifier, when applicable. */
+  recurrenceId?: string;
+  /** Whether the canonical event source is read-only. */
+  isReadOnly: boolean;
+  /** Direct conference join URL, when available. */
+  conferenceUrl?: string;
+  /** Event organizer display name. */
+  organizerName?: string;
+  /** Event organizer email address. */
+  organizerEmail?: string;
+  /** Attendees and their RSVP metadata. */
+  attendees: CalendarAttendee[];
+  /** Raw recurrence rules attached to the canonical event. */
+  recurrenceLines: string[];
+  /** Original IANA timezone for a timed occurrence. */
+  timeZone?: string;
   /** Event title. */
   title: string;
   /** ISO timestamp or local date string for all-day events. */
