@@ -12022,7 +12022,7 @@
             "description": "the filters that should be applied based on entity properties"
           },
           "remf": {
-            "description": "Filters applied to reminders (wire key `remf`). Empty/omitted =\nall of the caller's reminders."
+            "description": "Filters applied to reminders (wire key `remf`). Unlike every other\nfilter here, empty/omitted returns **no** reminders: they are opt-in,\nso the caller must send `inc`, an id, or an entity to get any."
           }
         }
       },

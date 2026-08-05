@@ -14342,7 +14342,7 @@ export const postItemsSoupAstBody = zod
       .unknown()
       .optional()
       .describe(
-        "Filters applied to reminders (wire key `remf`). Empty\/omitted =\nall of the caller's reminders."
+        'Filters applied to reminders (wire key `remf`). Unlike every other\nfilter here, empty\/omitted returns \*\*no\*\* reminders: they are opt-in,\nso the caller must send `inc`, an id, or an entity to get any.'
       ),
   })
   .describe('Wire-format entity filter AST accepted by soup AST endpoints.')
@@ -17423,7 +17423,7 @@ export const postItemsSoupAstGroupedBody = zod
           .unknown()
           .optional()
           .describe(
-            "Filters applied to reminders (wire key `remf`). Empty\/omitted =\nall of the caller's reminders."
+            'Filters applied to reminders (wire key `remf`). Unlike every other\nfilter here, empty\/omitted returns \*\*no\*\* reminders: they are opt-in,\nso the caller must send `inc`, an id, or an entity to get any.'
           ),
       })
       .describe('Wire-format entity filter AST accepted by soup AST endpoints.')
@@ -17585,7 +17585,7 @@ export const postItemsSoupAstGroupedBody = zod
           .unknown()
           .optional()
           .describe(
-            "Filters applied to reminders (wire key `remf`). Empty\/omitted =\nall of the caller's reminders."
+            'Filters applied to reminders (wire key `remf`). Unlike every other\nfilter here, empty\/omitted returns \*\*no\*\* reminders: they are opt-in,\nso the caller must send `inc`, an id, or an entity to get any.'
           ),
       })
       .describe('Wire-format entity filter AST accepted by soup AST endpoints.')
