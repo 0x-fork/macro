@@ -250,7 +250,8 @@ impl AccessRepository for PgAccessRepository {
             | EntityType::ForeignEntity
             | EntityType::StaticFile
             | EntityType::CrmCompany
-            | EntityType::CrmContact => {
+            | EntityType::CrmContact
+            | EntityType::Reminder => {
                 return Err(AccessError::BadRequest(
                     "Unsupported entity type for team item access",
                 ));

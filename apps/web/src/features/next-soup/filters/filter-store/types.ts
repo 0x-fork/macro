@@ -61,6 +61,7 @@ export type ArrayFieldFilters = {
   foreignEntityRecordId?: string[];
   foreignEntitySource?: string[];
   crmCompanyId?: string[];
+  reminderId?: string[];
   properties?: PropertyFilter[];
   // Selected tags. Kept separate from `properties` because tags combine as a
   // single OR across all tag definitions (personal + team), whereas `properties`
@@ -96,6 +97,9 @@ export type ScalarFieldFilters = {
   callStatus?: CallStatus;
   callAttended?: boolean;
   crmCompanyHidden?: boolean;
+  // Reminders are off by default in Soup; a view must opt in.
+  includeReminders?: boolean;
+  reminderCompleted?: boolean;
   documentCreatedAt?: DateRangeFilter;
   documentUpdatedAt?: DateRangeFilter;
   chatCreatedAt?: DateRangeFilter;

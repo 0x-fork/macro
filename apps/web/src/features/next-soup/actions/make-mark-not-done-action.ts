@@ -49,10 +49,11 @@ export const makeMarkNotDoneAction = (options: MakeMarkNotDoneOptions) => {
       return;
     }
 
-    const { emailIds, notificationIds } = resolveMarkEntitiesDoneVariables({
-      entities: targets,
-      notificationSource: options.notificationSource(),
-    });
+    const { emailIds, notificationIds, reminderIds } =
+      resolveMarkEntitiesDoneVariables({
+        entities: targets,
+        notificationSource: options.notificationSource(),
+      });
 
     const optimistic = applyEntitiesNotDoneOptimistic({
       emailIds,
@@ -70,6 +71,7 @@ export const makeMarkNotDoneAction = (options: MakeMarkNotDoneOptions) => {
         notificationIds: [
           ...new Set([...notificationIds, ...serverNotificationIds]),
         ],
+        reminderIds,
       });
       // Match the mark-done action's success feedback (and the direct
       // unarchive fallback's toast in EmailContext).

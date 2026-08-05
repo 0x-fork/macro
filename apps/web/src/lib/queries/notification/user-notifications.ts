@@ -668,6 +668,7 @@ function notificationEntityTypeToSoupTag(
     .with('project', () => 'project' as const)
     .with('email_thread', () => 'emailThread' as const)
     .with('foreign_entity', () => 'foreignEntity' as const)
+    .with('reminder', () => 'reminder' as const)
     .with(
       P.union(
         'user',

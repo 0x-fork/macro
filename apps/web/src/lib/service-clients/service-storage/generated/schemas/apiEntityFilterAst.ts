@@ -45,4 +45,7 @@ unlike the materialized [`EntityFilterAst`] used for cursors. */
   pf?: unknown;
   /** the filters that should be applied based on entity properties */
   propf?: unknown;
+  /** Filters applied to reminders (wire key `remf`). Empty/omitted =
+all of the caller's reminders. */
+  remf?: unknown;
 }

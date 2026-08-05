@@ -238,7 +238,9 @@ where
             EntityType::User
             | EntityType::ChannelMessage
             | EntityType::StaticFile
-            | EntityType::CalendarEvent => {
+            | EntityType::CalendarEvent
+            // Reminders belong to a user, never to a team scope.
+            | EntityType::Reminder => {
                 Err(AccessError::BadRequest("Unsupported bot entity type"))
             }
         }
@@ -420,7 +422,11 @@ where
             // Static files are always viewable. This is wrong for owners
             EntityType::StaticFile => Ok(Some(AccessLevel::View)),
             // These entity types either don't have access checks implemented yet, or they should not have access checks.
-            EntityType::Team | EntityType::User | EntityType::ChannelMessage => Ok(None),
+            // Reminders are user-scoped in the reminders repo, not via entity_access.
+            EntityType::Team
+            | EntityType::User
+            | EntityType::ChannelMessage
+            | EntityType::Reminder => Ok(None),
         }
     }
 

@@ -5,7 +5,7 @@ import { useListKeyBindings } from '@core/util/useListKeyBindings';
 import { type EntityData, InlineEntity } from '@entity';
 import BellIcon from '@phosphor/bell-simple.svg';
 import {
-  reminderEntityType,
+  reminderTarget,
   useCreateReminderMutation,
 } from '@queries/reminders/reminders';
 import { mergeRefs } from '@solid-primitives/refs';
@@ -78,7 +78,7 @@ export function CreateReminderModal() {
 
   const submit = async (date: Date, target: EntityData) => {
     const description = reminderDescriptionFor(target);
-    const entityType = reminderEntityType(target.type);
+    const attachTo = reminderTarget(target);
     closeReminderComposer();
 
     try {
@@ -86,7 +86,7 @@ export function CreateReminderModal() {
         description,
         schedule: onceSchedule(date),
         // Both or neither: the API rejects one without the other.
-        ...(entityType ? { entityId: target.id, entityType } : undefined),
+        ...(attachTo ?? undefined),
       });
       toast.success(`Reminder set for ${formatWhen(date)}`);
     } catch {

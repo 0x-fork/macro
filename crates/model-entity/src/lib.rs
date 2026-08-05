@@ -60,6 +60,8 @@ pub enum EntityType {
     CrmCompany,
     /// The entity is a CRM contact tracked by a team
     CrmContact,
+    /// The entity is a reminder set by a user
+    Reminder,
 }
 
 impl EntityType {
@@ -86,6 +88,9 @@ impl EntityType {
             // — they aren't rows in the `entity_access` table.
             EntityType::CrmCompany => false,
             EntityType::CrmContact => false,
+            // Reminders are private to the user who set them; access is enforced
+            // by the user-scoped queries in the reminders repo.
+            EntityType::Reminder => false,
         }
     }
     /// provide an entity string slice to upgrade this type into an [Entity]

@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::domain::models::{
     CreateReminder, DispatchSummary, DueReminder, NewReminder, Reminder, ReminderBatch,
-    ReminderError, ReminderFilter, ReminderPage, ReminderPatch, ReminderUpdate,
+    ReminderError, ReminderFilter, ReminderForSoup, ReminderPage, ReminderPatch, ReminderUpdate,
 };
 
 /// Source of the current time.
@@ -65,6 +65,24 @@ pub trait RemindersRepo: Send + Sync + 'static {
         limit: i64,
     ) -> impl Future<Output = Result<ReminderBatch, Self::Err>> + Send;
 
+    /// Read at most `limit` of the user's reminders for the Soup feed, ordered
+    /// by `next_run_at` descending to match Soup's global ordering.
+    ///
+    /// Deliberately separate from [`RemindersRepo::list_reminders`]: Soup pages
+    /// on its own cursor and sorts descending, whereas the CRUD list keysets
+    /// ascending on `(next_run_at, created_at, id)`. Undecodable rows are
+    /// skipped, as they are there.
+    ///
+    /// An empty `ids`/`entities` slice means "no constraint", not "match none".
+    fn list_reminders_for_soup(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        ids: &[Uuid],
+        entities: &[String],
+        completed: Option<bool>,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<ReminderForSoup>, Self::Err>> + Send;
+
     /// Apply `update` to one of the user's reminders, returning the new state.
     fn update_reminder(
         &self,
@@ -73,7 +91,14 @@ pub trait RemindersRepo: Send + Sync + 'static {
         update: &ReminderUpdate,
     ) -> impl Future<Output = Result<Option<Reminder>, Self::Err>> + Send;
 
-    /// Delete one of the user's reminders. Returns `true` when a row was removed.
+    /// Delete one of the user's reminders, retracting any notification it
+    /// already produced. Returns `true` when a row was removed.
+    ///
+    /// The retraction is part of this contract rather than a separate call so
+    /// the two cannot drift apart. A reminder *is* its notification's
+    /// `event_item`, so a notification outliving it would point at a row that
+    /// no longer exists: the Inbox would keep showing it, and clicking it would
+    /// resolve nothing. Both deletes happen in one transaction.
     fn delete_reminder(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -174,6 +199,19 @@ pub trait RemindersService: Send + Sync + 'static {
         user_id: &MacroUserIdStr<'_>,
         filter: ReminderFilter,
     ) -> impl Future<Output = Result<ReminderPage, ReminderError>> + Send;
+
+    /// List the user's reminders for the Soup feed.
+    ///
+    /// Soup owns pagination and ordering across every item type, so this
+    /// returns a plain bounded slice rather than a [`ReminderPage`].
+    fn list_reminders_for_soup(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        ids: &[Uuid],
+        entities: &[String],
+        completed: Option<bool>,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<ReminderForSoup>, ReminderError>> + Send;
 
     /// Modify one of the user's reminders.
     fn update_reminder(
