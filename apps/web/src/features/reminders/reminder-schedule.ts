@@ -92,8 +92,18 @@ export function reminderDefaultOptions(now: Date): DateOption[] {
     },
   ];
 
+  // On a Saturday `endOfWeek` (Sunday) is the same instant as "Tomorrow" at the
+  // morning default, which would offer the same time under two labels.
+  const seen = new Set<number>();
+  const unique = entries.filter(({ date }) => {
+    const time = date.getTime();
+    if (seen.has(time)) return false;
+    seen.add(time);
+    return true;
+  });
+
   return futureDateOptions(
-    entries.map(({ id, label, date }) => ({
+    unique.map(({ id, label, date }) => ({
       id,
       displayText: label,
       secondaryText: formatDateWithContext(date, now, true),

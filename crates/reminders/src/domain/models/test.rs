@@ -349,9 +349,13 @@ fn a_malformed_cursor_is_rejected() {
     for raw in [
         "",
         "abc",
-        "1|2",
-        "1|2|3|4",
-        "notanumber|2|00000000-0000-0000-0000-000000000001",
+        // Too few parts, too many, then a bad component in each position.
+        "1",
+        "1.2",
+        "1.2.00000000-0000-0000-0000-000000000001.4",
+        "notanumber.2.00000000-0000-0000-0000-000000000001",
+        "1.notanumber.00000000-0000-0000-0000-000000000001",
+        "1.2.not-a-uuid",
     ] {
         assert!(
             ReminderCursor::decode(raw).is_err(),

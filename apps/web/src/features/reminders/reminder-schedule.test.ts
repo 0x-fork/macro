@@ -110,6 +110,19 @@ describe('reminderDefaultOptions', () => {
     expect(oneWeek.date.getDate()).toBe(5);
   });
 
+  // On a Saturday the week ends tomorrow, so both land on Sunday morning.
+  it('drops a preset that duplicates an earlier one', () => {
+    const saturday = new Date(2026, 7, 1, 13, 0, 0);
+    const options = reminderDefaultOptions(saturday);
+    const labels = options.map((o) => o.displayText);
+
+    expect(labels).toContain('Tomorrow');
+    expect(labels).not.toContain('End of week');
+    expect(new Set(options.map((o) => o.date.getTime())).size).toBe(
+      options.length
+    );
+  });
+
   // Late on a Sunday, "End of week" has already gone by — offering it would
   // just produce a 400 from the API.
   it('drops entries that have already passed', () => {
@@ -126,7 +139,9 @@ describe('reminderDefaultOptions', () => {
   it('describes each entry with a concrete date and time', () => {
     const [oneHour] = reminderDefaultOptions(wednesdayAfternoon);
 
-    expect(oneHour.secondaryText).toBe('Today, 5:37 PM');
+    // Matched rather than compared: the time is rendered with the runtime
+    // locale's hour cycle, so an exact string pins the test to en-US.
+    expect(oneHour.secondaryText).toMatch(/^Today, \d{1,2}:\d{2}/);
   });
 });
 

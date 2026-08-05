@@ -3,6 +3,8 @@
 #[cfg(test)]
 mod test;
 
+use std::borrow::Cow;
+
 use chrono::{DateTime, Utc};
 use entity_access::domain::models::{AnyEntityPermission, EntityAccessReceipt};
 use macro_user_id::user_id::MacroUserIdStr;
@@ -144,6 +146,14 @@ fn resolve_entity(
     let receipt = entity_receipt.ok_or(ReminderError::EntityAccessDenied)?;
     validate_entity_receipt(user_id, &entity, &receipt)?;
 
+    // Store the trimmed id so reverse lookups (`reminder_entity_idx`) and
+    // equality filters match. Validation above ran against the raw id the
+    // receipt was minted for, so authorization is unaffected.
+    let mut entity = entity;
+    if entity.entity_id.trim().len() != entity.entity_id.len() {
+        entity.entity_id = Cow::Owned(entity.entity_id.trim().to_owned());
+    }
+
     Ok(Some(entity))
 }
 
@@ -153,7 +163,10 @@ where
     C: Clock,
     anyhow::Error: From<R::Err>,
 {
-    #[tracing::instrument(err, skip(self, entity_receipt))]
+    // `user_id` is the auth-provider composite id (it embeds the user's email)
+    // and `request`/`patch` carry the user-authored description, so neither is
+    // recorded as a span field.
+    #[tracing::instrument(err, skip(self, user_id, request, entity_receipt))]
     async fn create_reminder(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -184,7 +197,7 @@ where
             .map_err(anyhow::Error::from)?)
     }
 
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn get_reminder(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -197,7 +210,7 @@ where
             .ok_or(ReminderError::NotFound)
     }
 
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn list_reminders(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -270,7 +283,7 @@ where
         })
     }
 
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(err, skip(self, user_id, patch))]
     async fn update_reminder(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -311,7 +324,7 @@ where
             .ok_or(ReminderError::NotFound)
     }
 
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(err, skip(self, user_id))]
     async fn delete_reminder(
         &self,
         user_id: &MacroUserIdStr<'_>,
