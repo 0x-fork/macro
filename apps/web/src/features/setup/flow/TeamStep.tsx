@@ -3,6 +3,7 @@ import { useEmail } from '@core/context/user';
 import { idToDisplayName } from '@core/user/util';
 import CheckIcon from '@phosphor/check.svg';
 import Plus from '@phosphor/plus.svg';
+import XIcon from '@phosphor/x.svg';
 import { useContacts } from '@queries/contacts/contacts';
 import { useOnboardingQuery } from '@queries/onboarding';
 import {
@@ -26,14 +27,20 @@ import {
 import {
   ContinueButton,
   deriveTeamName,
-  emailDomain,
   FormInput,
-  isPlausibleEmail,
   SkipButton,
 } from './shared';
+import {
+  INITIAL_INVITE_SLOTS,
+  prefillableTeammates,
+  removeInviteSlot,
+  validInviteEmails,
+  withPrefilledTeammates,
+} from './teamInvites';
 
 /** Set up your team: already a member → confirmation, pending invites →
- * join, otherwise create (with domain-derived prefill + suggestions). */
+ * join, otherwise create (with a domain-derived name and same-domain
+ * teammates pre-added to the invite list). */
 export function TeamStep(props: {
   onContinue: () => void;
   onSkip: () => void;
@@ -133,11 +140,8 @@ function InvitesPanel(props: {
   );
 }
 
-const INITIAL_INVITE_SLOTS = ['', ''];
-const SUGGESTION_CAP = 6;
-
-/** Create a team: pre-derived name + same-domain invite suggestions when the
- * user has a custom domain; the plain form otherwise. */
+/** Create a team: pre-derived name + same-domain teammates already sitting in
+ * the invite list (remove to opt them out); the plain form otherwise. */
 function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
   const analytics = useAnalytics();
   const email = useEmail();
@@ -162,33 +166,41 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
   ]);
   let inviteListEl: HTMLDivElement | undefined;
 
-  const validInvites = () =>
-    [...new Set(inviteSlots().map((value) => value.trim()))].filter(
-      (value) => isPlausibleEmail(value) && value !== email()
-    );
+  const validInvites = () => validInviteEmails(inviteSlots(), email());
 
-  const suggestions = createMemo(() => {
-    const suffix = customDomain();
-    if (!suffix) return [];
-    const own = email();
-    const taken = new Set(inviteSlots().map((value) => value.trim()));
-    return contacts()
-      .filter(
-        (contact) =>
-          contact.email !== own &&
-          emailDomain(contact.email) === suffix &&
-          !taken.has(contact.email)
-      )
-      .slice(0, SUGGESTION_CAP);
+  // Same-domain teammates are pre-added rather than offered: the default is
+  // "invite them", and removing a row is how you opt one out.
+  const [prefilled, setPrefilled] = createSignal<string[]>([]);
+  let hasPrefilled = false;
+  createEffect(() => {
+    if (hasPrefilled) return;
+    const teammates = prefillableTeammates({
+      contacts: contacts(),
+      domain: customDomain(),
+      ownEmail: email(),
+      slots: inviteSlots(),
+    });
+    // Contacts and the domain suggestion land asynchronously — keep waiting
+    // (and keep tracking) until there's actually someone to pre-add.
+    if (teammates.length === 0) return;
+    hasPrefilled = true;
+    setPrefilled(teammates);
+    setInviteSlots((slots) => withPrefilledTeammates(slots, teammates));
   });
 
-  const addInvite = (address: string) => {
-    setInviteSlots((slots) => {
-      const empty = slots.findIndex((value) => value.trim() === '');
-      if (empty === -1) return [...slots, address];
-      return slots.map((value, i) => (i === empty ? address : value));
-    });
+  /** Prefilled teammates the user took back out before submitting. */
+  const removedPrefills = () => {
+    const kept = new Set(validInvites());
+    return prefilled().filter((address) => !kept.has(address)).length;
   };
+
+  // A remove affordance only where there's something to take back: a filled
+  // row, or an extra empty row beyond the starter slots.
+  const canRemoveSlot = (value: string) =>
+    value.trim() !== '' || inviteSlots().length > INITIAL_INVITE_SLOTS.length;
+
+  const removeLabel = (value: string) =>
+    value.trim() === '' ? 'Remove this row' : `Don't invite ${value.trim()}`;
 
   const addEmptyInvite = () => {
     setInviteSlots((slots) => [...slots, '']);
@@ -204,6 +216,8 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
     if (createTeam.isPending || name().trim().length === 0) return;
     // The mutation owns its toasts; stay put (form intact) on failure.
     const invitesSent = validInvites().length;
+    const invitesPrefilled = prefilled().length;
+    const invitesRemoved = removedPrefills();
     try {
       await createTeam.mutateAsync({
         name: name().trim(),
@@ -215,6 +229,8 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
     analytics.track('onboarding_v4_team', {
       action: 'created',
       invites_sent: invitesSent,
+      invites_prefilled: invitesPrefilled,
+      invites_removed: invitesRemoved,
       used_domain_suggestion: customDomain() !== undefined,
     });
     props.onContinue();
@@ -233,6 +249,14 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
         }}
       />
 
+      <Show when={prefilled().length > 0}>
+        {/* Say the quiet part out loud: these go out unless removed. */}
+        <p class="text-xs text-ink-muted leading-snug">
+          Your teammates at {customDomain()} are ready to invite — remove anyone
+          you'd rather leave out.
+        </p>
+      </Show>
+
       {/* Index, not For: slots are edited strings, and For keys by value —
           each keystroke would recreate the input node and drop focus. */}
       <div
@@ -241,17 +265,34 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
       >
         <Index each={inviteSlots()}>
           {(slot, i) => (
-            <FormInput
-              id={`invite-${i}`}
-              type="email"
-              placeholder="teammate@company.com"
-              value={slot()}
-              onInput={(value) =>
-                setInviteSlots((slots) =>
-                  slots.map((v, j) => (j === i ? value : v))
-                )
-              }
-            />
+            <div class="flex items-center gap-1.5">
+              <div class="min-w-0 flex-1">
+                <FormInput
+                  id={`invite-${i}`}
+                  type="email"
+                  placeholder="teammate@company.com"
+                  value={slot()}
+                  onInput={(value) =>
+                    setInviteSlots((slots) =>
+                      slots.map((v, j) => (j === i ? value : v))
+                    )
+                  }
+                />
+              </div>
+              <Show when={canRemoveSlot(slot())}>
+                <button
+                  type="button"
+                  aria-label={removeLabel(slot())}
+                  title={removeLabel(slot())}
+                  onClick={() =>
+                    setInviteSlots((slots) => removeInviteSlot(slots, i))
+                  }
+                  class="shrink-0 rounded-md p-1.5 text-ink-extra-muted transition-colors hover:bg-ink/5 hover:text-ink"
+                >
+                  <XIcon class="size-4" />
+                </button>
+              </Show>
+            </div>
           )}
         </Index>
       </div>
@@ -265,29 +306,6 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
         <Plus class="size-4" />
         Add another teammate
       </Button>
-
-      <Show when={suggestions().length > 0}>
-        <div class="flex flex-col gap-1.5">
-          <p class="text-xs text-ink-muted">
-            From your contacts at {customDomain()}:
-          </p>
-          <div class="flex flex-wrap gap-1.5">
-            <For each={suggestions()}>
-              {(contact) => (
-                <button
-                  type="button"
-                  title={`Invite ${contact.email}`}
-                  onClick={() => addInvite(contact.email)}
-                  class="inline-flex h-7 max-w-72 items-center gap-1.5 rounded-full border border-ink/10 bg-surface px-2.5 text-xs text-ink transition-colors hover:border-ink/20"
-                >
-                  <Plus class="size-3 shrink-0 text-ink-extra-muted" />
-                  <span class="min-w-0 truncate">{contact.email}</span>
-                </button>
-              )}
-            </For>
-          </div>
-        </div>
-      </Show>
 
       <ContinueButton
         label={
