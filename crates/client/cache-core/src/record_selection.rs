@@ -24,6 +24,15 @@ pub struct RecordSelection {
 
 impl RecordSelection {
     /// Parses and validates a named fragment document.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.document.bytes = document.len(),
+            cache.fragment.name = fragment_name,
+        )
+    )]
     pub fn parse(document: &str, fragment_name: &str) -> Result<Self, RecordSelectionError> {
         let document = Document::parse(document)?;
         for fragment in &document.fragments {

@@ -10,6 +10,7 @@ cache-core = { path = "../cache-core" }
 # (libsqlite3-sys has `links = "sqlite3"` — only one version may exist).
 rusqlite = { version = "0.32", features = ["bundled"] }
 thiserror = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 pollster = "0.4"

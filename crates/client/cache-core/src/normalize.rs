@@ -44,6 +44,16 @@ pub type RecordUpdates = BTreeMap<EntityKey, Record>;
 /// Mutation and subscription responses traverse from their schema roots:
 /// nested entities are normalized as usual, but operation-root fields are
 /// discarded. Those roots are transient cache entry points, never read back.
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    err,
+    fields(
+        cache.operation.kind = ?op.kind,
+        cache.variables = variables.len(),
+        cache.records.updates = tracing::field::Empty,
+    )
+)]
 pub fn normalize(
     op: &Operation,
     variables: &serde_json::Map<String, Json>,
@@ -76,6 +86,7 @@ pub fn normalize(
     if op.kind == OperationKind::Query {
         merge_into(&mut records, EntityKey::root(), root);
     }
+    tracing::Span::current().record("cache.records.updates", records.len());
     Ok(records)
 }
 

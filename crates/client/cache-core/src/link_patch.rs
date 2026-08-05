@@ -160,6 +160,12 @@ pub enum LinkPatchError {
 
 /// Removes exact duplicate recipes while retaining the first occurrence and
 /// preserving caller order for conflicting operations.
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    err,
+    fields(cache.link_patches = patches.len())
+)]
 pub fn deduplicate_patches(
     patches: &[OptimisticLinkPatch],
 ) -> Result<Vec<OptimisticLinkPatch>, LinkPatchError> {
@@ -247,6 +253,17 @@ fn is_json_scalar(value: &Json) -> bool {
 /// When `skip_not_applicable` is true, stale/missing recipes are ignored. This
 /// mode is used during hydration and successful settlement, where stale query
 /// fields must never be recreated.
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    err,
+    fields(
+        cache.records.effective = effective.len(),
+        cache.records.updates = updates.len(),
+        cache.link_patches = patches.len(),
+        cache.link_patches.skip_not_applicable = skip_not_applicable,
+    )
+)]
 pub fn apply_link_patches(
     effective: &mut HashMap<EntityKey, Record>,
     updates: &mut RecordUpdates,

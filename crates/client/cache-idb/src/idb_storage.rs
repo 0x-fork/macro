@@ -80,6 +80,12 @@ impl IdbStorage {
     /// Opens the cache database for `scope` and initializes all stores.
     /// Compatibility-epoch or cache-format changes clear only disposable
     /// records; a scope change also clears queued user intent.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "indexeddb")
+    )]
     pub async fn open(scope: &str) -> Result<Self, IdbStorageError> {
         let name = cache_database_name(scope);
         let factory = Factory::new()?;
@@ -109,10 +115,10 @@ impl IdbStorage {
         // upgraded (delete/upgrade requests block while connections are
         // open); without this, `destroy` from another tab can hang forever.
         db.on_version_change(|event: web_sys::Event| {
-            if let Some(target) = event.target() {
-                if let Ok(db) = wasm_bindgen::JsCast::dyn_into::<web_sys::IdbDatabase>(target) {
-                    db.close();
-                }
+            if let Some(target) = event.target()
+                && let Ok(db) = wasm_bindgen::JsCast::dyn_into::<web_sys::IdbDatabase>(target)
+            {
+                db.close();
             }
         });
         let mut storage = IdbStorage { db };
@@ -120,6 +126,12 @@ impl IdbStorage {
         Ok(storage)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "indexeddb")
+    )]
     async fn initialize_namespace(&mut self, scope: &str) -> Result<(), IdbStorageError> {
         let tx = self.db.transaction(
             &[
@@ -168,6 +180,12 @@ impl IdbStorage {
     /// so this does not block on our own live handles. A `blocked` event
     /// (foreign connection without that handler) is logged for diagnosis
     /// instead of hanging silently.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "indexeddb")
+    )]
     pub async fn destroy(scope: &str) -> Result<(), IdbStorageError> {
         let factory = Factory::new()?;
         let mut request = factory.delete(&cache_database_name(scope))?;
@@ -182,6 +200,11 @@ impl IdbStorage {
 
     /// Closes the underlying connection. Subsequent operations on this
     /// storage will fail; call right before dropping/destroying.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(cache.storage.backend = "indexeddb")
+    )]
     pub fn close(&self) {
         self.db.close();
     }
@@ -190,6 +213,16 @@ impl IdbStorage {
 impl Storage for IdbStorage {
     type Error = IdbStorageError;
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.records.requested = keys.len(),
+            cache.records.found = tracing::field::Empty,
+        )
+    )]
     async fn get_batch(&self, keys: &[EntityKey]) -> Result<Vec<Option<Record>>, Self::Error> {
         let tx = self
             .db
@@ -210,9 +243,22 @@ impl Storage for IdbStorage {
                 Some(js) => Some(decode_record(&bytes_from_js(js)?)?),
             });
         }
+        tracing::Span::current().record(
+            "cache.records.found",
+            out.iter().filter(|record| record.is_some()).count(),
+        );
         Ok(out)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.records.written = entries.len(),
+        )
+    )]
     async fn put_batch(&mut self, entries: Vec<(EntityKey, Record)>) -> Result<(), Self::Error> {
         let tx = self
             .db
@@ -227,6 +273,15 @@ impl Storage for IdbStorage {
         Ok(())
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.records.deleted = keys.len(),
+        )
+    )]
     async fn delete_batch(&mut self, keys: &[EntityKey]) -> Result<(), Self::Error> {
         let tx = self
             .db
@@ -239,6 +294,18 @@ impl Storage for IdbStorage {
         Ok(())
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.record_types = type_names.len(),
+            cache.cursor.present = after.is_some(),
+            cache.limit = limit,
+            cache.records.returned = tracing::field::Empty,
+        )
+    )]
     async fn scan_records(
         &self,
         type_names: &[String],
@@ -295,9 +362,16 @@ impl Storage for IdbStorage {
                 cursor.next(None).await?;
             }
         }
+        tracing::Span::current().record("cache.records.returned", records.len());
         Ok(records)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "indexeddb")
+    )]
     async fn enqueue_mutation(
         &mut self,
         entry: NewQueuedMutation,
@@ -317,6 +391,15 @@ impl Storage for IdbStorage {
         Ok(id)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.mutations.queued = tracing::field::Empty,
+        )
+    )]
     async fn load_mutation_queue(&self) -> Result<Vec<QueuedMutation>, Self::Error> {
         let tx = self.db.transaction(
             &[MUTATION_QUEUE_STORE, OPTIMISTIC_LAYERS_STORE],
@@ -357,9 +440,16 @@ impl Storage for IdbStorage {
                 optimistic: decode_optimistic_layer(&bytes_from_js(layer)?)?,
             });
         }
+        tracing::Span::current().record("cache.mutations.queued", out.len());
         Ok(out)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "indexeddb")
+    )]
     async fn claim_next_mutation(
         &mut self,
         request: MutationClaimRequest,
@@ -432,6 +522,15 @@ impl Storage for IdbStorage {
         }))
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.mutation.id = id,
+        )
+    )]
     async fn defer_mutation(
         &mut self,
         id: MutationId,
@@ -462,6 +561,16 @@ impl Storage for IdbStorage {
         Ok(true)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.mutation.id = id,
+            cache.records.written = entries.len(),
+        )
+    )]
     async fn complete_mutation(
         &mut self,
         id: MutationId,
@@ -496,6 +605,15 @@ impl Storage for IdbStorage {
         Ok(true)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "indexeddb",
+            cache.mutation.id = id,
+        )
+    )]
     async fn discard_mutation(
         &mut self,
         id: MutationId,
@@ -522,6 +640,12 @@ impl Storage for IdbStorage {
         Ok(true)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "indexeddb")
+    )]
     async fn clear(&mut self) -> Result<(), Self::Error> {
         let tx = self.db.transaction(
             &[RECORDS_STORE, MUTATION_QUEUE_STORE, OPTIMISTIC_LAYERS_STORE],

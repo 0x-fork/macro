@@ -92,6 +92,12 @@ impl Document {
     /// Parses executable document text into the IR. Fragment spreads are
     /// inlined (cycles rejected by the parser's recursion limit; fragments
     /// must be defined in the same document, which urql guarantees).
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.document.bytes = text.len())
+    )]
     pub fn parse(text: &str) -> Result<Document, DocumentError> {
         let tree = apollo_parser::Parser::new(text).parse();
         if tree.errors().len() > 0 {

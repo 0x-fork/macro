@@ -120,6 +120,9 @@ struct OptimisticLayer {
     revalidations: Vec<QueryRevalidation>,
 }
 
+/// Durable records loaded while resolving the full link-patch candidate set.
+type LinkPatchBases = (BTreeSet<EntityKey>, HashMap<EntityKey, Record>);
+
 /// Reserved storage key holding the identity bound to this cache. The
 /// `__meta:` prefix can never collide with entity keys (typenames can't
 /// contain `:`).
@@ -173,6 +176,12 @@ impl<S: Storage> Engine<S> {
     /// Hydrates durable optimistic layers before the first operation. Queue
     /// order is the optimistic composition order. Relation recipes are
     /// reconstructed against the durable base and preceding layers.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.optimistic.hydrated = self.optimistic_hydrated)
+    )]
     async fn hydrate_optimistic(&mut self) -> Result<(), EngineError<S::Error>> {
         if self.optimistic_hydrated {
             return Ok(());
@@ -190,6 +199,16 @@ impl<S: Storage> Engine<S> {
     /// Reloads durable optimistic layers after another engine sharing this
     /// storage changes the queue. Returns operations whose effective view
     /// changed.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.optimistic.layers_before = self.optimistic.len(),
+            cache.records.changed = tracing::field::Empty,
+            cache.operations.affected = tracing::field::Empty,
+        )
+    )]
     pub async fn refresh_optimistic_queue(&mut self) -> Result<WriteResult, EngineError<S::Error>> {
         let queued = self
             .storage
@@ -213,6 +232,9 @@ impl<S: Storage> Engine<S> {
             .filter(|key| before_all.get(key) != after.get(key))
             .collect();
         let affected_ops = self.deps.ops_for_keys(changed.iter());
+        let span = tracing::Span::current();
+        span.record("cache.records.changed", changed.len());
+        span.record("cache.operations.affected", affected_ops.len());
         Ok(WriteResult {
             changed,
             affected_ops,
@@ -221,6 +243,12 @@ impl<S: Storage> Engine<S> {
         })
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.mutations.queued = queued.len())
+    )]
     async fn rebuild_queued_layers(
         &mut self,
         queued: Vec<QueuedMutation>,
@@ -282,6 +310,12 @@ impl<S: Storage> Engine<S> {
 
     /// The identity binding of this cache, hydrating it from storage on
     /// first use. Never returns [`IdentityState::NotHydrated`].
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.identity.hydrated = self.identity != IdentityState::NotHydrated)
+    )]
     async fn bound_identity(&mut self) -> Result<IdentityState, EngineError<S::Error>> {
         if self.identity == IdentityState::NotHydrated {
             let key = EntityKey(IDENTITY_META_KEY.to_string());
@@ -306,6 +340,7 @@ impl<S: Storage> Engine<S> {
 
     /// Returns the opaque identity currently bound to this cache, hydrating
     /// it from persistent storage when necessary.
+    #[tracing::instrument(level = "debug", skip_all, err)]
     pub async fn current_identity(&mut self) -> Result<Option<String>, EngineError<S::Error>> {
         match self.bound_identity().await? {
             IdentityState::NotHydrated => unreachable!("bound_identity hydrates"),
@@ -314,6 +349,7 @@ impl<S: Storage> Engine<S> {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip_all, err)]
     async fn bind_identity(&mut self, identity: &str) -> Result<(), EngineError<S::Error>> {
         let mut record = Record::default();
         record.fields.insert(
@@ -331,6 +367,23 @@ impl<S: Storage> Engine<S> {
     /// Attempts to answer a query from cache. When `op_id` is given the
     /// operation is registered as active with the dependencies it touched
     /// (hit *or* miss — a miss still re-executes when its records change).
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.operation.name = operation_name.unwrap_or("<anonymous>"),
+            cache.operation.registered = op_id.is_some(),
+            cache.variables = variables.len(),
+            cache.hot.records_before = self.hot.len(),
+            cache.optimistic.layers = self.optimistic.len(),
+            cache.result = tracing::field::Empty,
+            cache.storage.rounds = tracing::field::Empty,
+            cache.storage.records = tracing::field::Empty,
+            cache.dependencies = tracing::field::Empty,
+            cache.hot.records_after = tracing::field::Empty,
+        )
+    )]
     pub async fn read_query(
         &mut self,
         op_id: Option<OpId>,
@@ -369,6 +422,8 @@ impl<S: Storage> Engine<S> {
         let mut fetched_base: HashMap<EntityKey, Record> = HashMap::new();
         let mut known_absent: BTreeSet<EntityKey> = BTreeSet::new();
         let mut deps = BTreeSet::new();
+        let mut storage_rounds = 0usize;
+        let mut storage_records = 0usize;
 
         let outcome = loop {
             deps.clear();
@@ -393,11 +448,13 @@ impl<S: Storage> Engine<S> {
                         // Everything missing is genuinely absent → miss.
                         break ReadResult::Miss;
                     }
+                    storage_rounds += 1;
                     let fetched = self
                         .storage
                         .get_batch(&to_fetch)
                         .await
                         .map_err(EngineError::Storage)?;
+                    storage_records += fetched.iter().filter(|record| record.is_some()).count();
                     for (key, record) in to_fetch.into_iter().zip(fetched) {
                         match record {
                             Some(r) => {
@@ -430,6 +487,18 @@ impl<S: Storage> Engine<S> {
         for key in &deps {
             let _ = self.hot.get(key);
         }
+        let span = tracing::Span::current();
+        span.record(
+            "cache.result",
+            match &outcome {
+                ReadResult::Hit { .. } => "hit",
+                ReadResult::Miss => "miss",
+            },
+        );
+        span.record("cache.storage.rounds", storage_rounds);
+        span.record("cache.storage.records", storage_records);
+        span.record("cache.dependencies", deps.len());
+        span.record("cache.hot.records_after", self.hot.len());
         if let Some(op_id) = op_id {
             self.deps.set_op_deps(op_id, deps);
         }
@@ -441,6 +510,17 @@ impl<S: Storage> Engine<S> {
     /// Durable and optimistic-only records are merged in ascending entity-key
     /// order. Incomplete projections are omitted, and one complete record is
     /// read ahead before a continuation cursor is returned.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.record_types = selection.type_names().len(),
+            cache.cursor.present = cursor.is_some(),
+            cache.limit = limit,
+            cache.records.returned = tracing::field::Empty,
+        )
+    )]
     pub async fn read_records(
         &mut self,
         selection: &RecordSelection,
@@ -520,12 +600,22 @@ impl<S: Storage> Engine<S> {
                     .clone(),
             )
         });
+        tracing::Span::current().record("cache.records.returned", selected.len());
         Ok(SelectedRecordPage {
             records: selected.into_iter().map(|(_, record)| record).collect(),
             next_cursor,
         })
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.records.candidates = candidates.len(),
+            cache.optimistic.records = optimistic.len(),
+        )
+    )]
     async fn project_record_batch(
         &mut self,
         selection: &RecordSelection,
@@ -644,6 +734,22 @@ impl<S: Storage> Engine<S> {
     /// meaning — only that a write tagged with a different identity than the
     /// one bound to this cache wipes everything before the write proceeds
     /// (silent restart), atomically with this write.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.operation.name = operation_name.unwrap_or("<anonymous>"),
+            cache.operation.origin = origin_op.is_some(),
+            cache.variables = variables.len(),
+            cache.identity.observed = identity.is_some(),
+            cache.hot.records_before = self.hot.len(),
+            cache.optimistic.layers = self.optimistic.len(),
+            cache.records.changed = tracing::field::Empty,
+            cache.operations.affected = tracing::field::Empty,
+            cache.reset = tracing::field::Empty,
+        )
+    )]
     pub async fn write_query(
         &mut self,
         origin_op: Option<OpId>,
@@ -708,6 +814,10 @@ impl<S: Storage> Engine<S> {
         if let Some(origin) = origin_op {
             affected_ops.remove(&origin);
         }
+        let span = tracing::Span::current();
+        span.record("cache.records.changed", changed.len());
+        span.record("cache.operations.affected", affected_ops.len());
+        span.record("cache.reset", reset);
         Ok(WriteResult {
             changed,
             affected_ops,
@@ -718,6 +828,12 @@ impl<S: Storage> Engine<S> {
 
     /// Merges normalized updates into the hot tier and storage. Returns the
     /// keys whose durable contents actually changed.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.records.updates = updates.len())
+    )]
     async fn persist_updates(
         &mut self,
         updates: RecordUpdates,
@@ -783,6 +899,18 @@ impl<S: Storage> Engine<S> {
     /// Atomically enqueues a mutation together with its optimistic layer.
     /// The layer is durable before it becomes visible or the caller is
     /// allowed to forward the mutation to the network.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.operation.origin = origin_op.is_some(),
+            cache.optimistic.layers_before = self.optimistic.len(),
+            cache.mutation.id = tracing::field::Empty,
+            cache.records.changed = tracing::field::Empty,
+            cache.operations.affected = tracing::field::Empty,
+        )
+    )]
     pub async fn begin_optimistic_write(
         &mut self,
         origin_op: Option<OpId>,
@@ -865,6 +993,10 @@ impl<S: Storage> Engine<S> {
         if let Some(origin) = origin_op {
             affected_ops.remove(&origin);
         }
+        let span = tracing::Span::current();
+        span.record("cache.mutation.id", id);
+        span.record("cache.records.changed", changed.len());
+        span.record("cache.operations.affected", affected_ops.len());
         Ok((
             id,
             WriteResult {
@@ -878,6 +1010,7 @@ impl<S: Storage> Engine<S> {
 
     /// Claims the oldest runnable mutation. A leased or backed-off head
     /// blocks every later mutation.
+    #[tracing::instrument(level = "debug", skip_all, err)]
     pub async fn claim_next_mutation(
         &mut self,
         request: MutationClaimRequest,
@@ -890,6 +1023,12 @@ impl<S: Storage> Engine<S> {
     }
 
     /// Releases a retryable mutation while retaining its optimistic layer.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.mutation.id = transaction)
+    )]
     pub async fn defer_optimistic_write(
         &mut self,
         transaction: OptimisticTransactionId,
@@ -912,6 +1051,16 @@ impl<S: Storage> Engine<S> {
     /// Replaces the claimed head's optimistic contribution with the real
     /// network response without flickering through the pre-mutation value.
     /// Real records and queue deletion commit in one storage transaction.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.mutation.id = transaction,
+            cache.operation.name = operation_name.unwrap_or("<anonymous>"),
+            cache.variables = variables.len(),
+        )
+    )]
     pub async fn commit_optimistic_write(
         &mut self,
         transaction: OptimisticTransactionId,
@@ -987,6 +1136,12 @@ impl<S: Storage> Engine<S> {
 
     /// Permanently fails the claimed head, atomically removing its queue row
     /// and optimistic layer.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.mutation.id = transaction)
+    )]
     pub async fn rollback_optimistic_write(
         &mut self,
         transaction: OptimisticTransactionId,
@@ -1033,13 +1188,24 @@ impl<S: Storage> Engine<S> {
 
     /// Loads every normalized record reached while resolving query-rooted
     /// link updates, including records currently outside the hot tier.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.records.candidates = candidates.len(),
+            cache.optimistic.layers = layers.len(),
+            cache.records.updates = pending_updates.len(),
+            cache.link_patches = patches.len(),
+        )
+    )]
     async fn load_link_patch_bases(
         &mut self,
         mut candidates: BTreeSet<EntityKey>,
         layers: &[OptimisticLayer],
         pending_updates: &RecordUpdates,
         patches: &[OptimisticLinkPatch],
-    ) -> Result<(BTreeSet<EntityKey>, HashMap<EntityKey, Record>), EngineError<S::Error>> {
+    ) -> Result<LinkPatchBases, EngineError<S::Error>> {
         if !patches.is_empty() {
             candidates.insert(EntityKey::root());
         }
@@ -1062,6 +1228,12 @@ impl<S: Storage> Engine<S> {
 
     /// Loads current durable records (hot tier, then storage) for `keys`
     /// without touching LRU recency or persisting anything.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.records.requested = keys.len())
+    )]
     async fn load_bases(
         &mut self,
         keys: &BTreeSet<EntityKey>,
@@ -1096,6 +1268,12 @@ impl<S: Storage> Engine<S> {
     /// Normalized owners, canonical field keys, cold records, and optimistic
     /// layers remain internal. Every recovered variable set is read through
     /// the ordinary denormalizer so inspection has cache-only read semantics.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.query.variants = tracing::field::Empty)
+    )]
     pub async fn inspect_query(
         &mut self,
         inspection: &QueryInspection,
@@ -1140,12 +1318,14 @@ impl<S: Storage> Engine<S> {
             };
             instances.push(CachedQueryInstance { variables, value });
         }
+        tracing::Span::current().record("cache.query.variants", instances.len());
         Ok(instances)
     }
 
     /// Reacts to a reset performed by *another* engine instance sharing the
     /// same storage (cross-tab broadcast): drops all local in-memory state
     /// and returns every local active operation for re-execution.
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn external_reset(&mut self) -> BTreeSet<OpId> {
         self.hot.clear();
         self.docs.clear();
@@ -1166,6 +1346,7 @@ impl<S: Storage> Engine<S> {
     /// engine in the dedicated-worker fallback topology, or push-driven
     /// invalidation): evicts them from the hot tier so the next read hits
     /// storage, and returns the local active operations that depend on them.
+    #[tracing::instrument(level = "debug", skip_all)]
     pub fn invalidate_keys<'k>(
         &mut self,
         keys: impl IntoIterator<Item = &'k EntityKey>,
@@ -1185,6 +1366,12 @@ impl<S: Storage> Engine<S> {
     /// Cross-engine notifications for records already written to shared
     /// storage should use
     /// [`Self::invalidate_keys`] instead.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.records.deleted = keys.len())
+    )]
     pub async fn delete_keys(
         &mut self,
         keys: &[EntityKey],
@@ -1202,6 +1389,16 @@ impl<S: Storage> Engine<S> {
 
     /// Drops all cached state (for example, on logout), including any pending
     /// optimistic layers.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.hot.records = self.hot.len(),
+            cache.optimistic.layers = self.optimistic.len(),
+            cache.operations.active = self.deps.active_ops(),
+        )
+    )]
     pub async fn clear(&mut self) -> Result<(), EngineError<S::Error>> {
         self.hot.clear();
         self.optimistic.clear();

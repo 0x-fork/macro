@@ -55,6 +55,15 @@ pub enum ReadOutcome {
 
 /// Attempts to answer `op` from `source`. `deps` accumulates every entity
 /// key touched (for dependency tracking), regardless of outcome.
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    err,
+    fields(
+        cache.variables = variables.len(),
+        cache.dependencies.before = deps.len(),
+    )
+)]
 pub fn denormalize(
     op: &Operation,
     variables: &serde_json::Map<String, Json>,
@@ -72,6 +81,16 @@ pub fn denormalize(
 }
 
 /// Projects one normalized record through a fragment selection.
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    err,
+    fields(
+        cache.record.type = type_name,
+        cache.selections = selections.len(),
+        cache.variables = variables.len(),
+    )
+)]
 pub fn denormalize_record(
     key: &EntityKey,
     type_name: &str,

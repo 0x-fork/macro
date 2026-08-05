@@ -52,16 +52,34 @@ pub struct SqliteStorage {
 impl SqliteStorage {
     /// Opens (or wipes and rebuilds) the cache database at `path` for
     /// `scope` (user/workspace identifier).
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     pub fn open(path: impl AsRef<Path>, scope: &str) -> Result<Self, SqliteStorageError> {
         let conn = Connection::open(path)?;
         Self::init(conn, scope)
     }
 
     /// In-memory database (tests).
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     pub fn open_in_memory(scope: &str) -> Result<Self, SqliteStorageError> {
         Self::init(Connection::open_in_memory()?, scope)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     fn init(mut conn: Connection, scope: &str) -> Result<Self, SqliteStorageError> {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
@@ -146,6 +164,12 @@ impl SqliteStorage {
     }
 
     /// Total number of stored records (diagnostics/GC).
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     pub fn record_count(&self) -> Result<u64, SqliteStorageError> {
         Ok(self
             .conn()
@@ -153,6 +177,12 @@ impl SqliteStorage {
     }
 
     /// Number of mutations waiting for settlement.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     pub fn mutation_count(&self) -> Result<u64, SqliteStorageError> {
         Ok(self
             .conn()
@@ -224,6 +254,16 @@ fn claim_is_current(
 impl Storage for SqliteStorage {
     type Error = SqliteStorageError;
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.records.requested = keys.len(),
+            cache.records.found = tracing::field::Empty,
+        )
+    )]
     async fn get_batch(&self, keys: &[EntityKey]) -> Result<Vec<Option<Record>>, Self::Error> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached("SELECT value FROM records WHERE key = ?1")?;
@@ -237,9 +277,22 @@ impl Storage for SqliteStorage {
                 None => None,
             });
         }
+        tracing::Span::current().record(
+            "cache.records.found",
+            out.iter().filter(|record| record.is_some()).count(),
+        );
         Ok(out)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.records.written = entries.len(),
+        )
+    )]
     async fn put_batch(&mut self, entries: Vec<(EntityKey, Record)>) -> Result<(), Self::Error> {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
@@ -256,6 +309,15 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.records.deleted = keys.len(),
+        )
+    )]
     async fn delete_batch(&mut self, keys: &[EntityKey]) -> Result<(), Self::Error> {
         let mut conn = self.conn();
         let tx = conn.transaction()?;
@@ -269,6 +331,18 @@ impl Storage for SqliteStorage {
         Ok(())
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.record_types = type_names.len(),
+            cache.cursor.present = after.is_some(),
+            cache.limit = limit,
+            cache.records.returned = tracing::field::Empty,
+        )
+    )]
     async fn scan_records(
         &self,
         type_names: &[String],
@@ -307,9 +381,16 @@ impl Storage for SqliteStorage {
             let (key, value) = row?;
             records.push((EntityKey(key), decode_record(&value)?));
         }
+        tracing::Span::current().record("cache.records.returned", records.len());
         Ok(records)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     async fn enqueue_mutation(
         &mut self,
         entry: NewQueuedMutation,
@@ -356,6 +437,15 @@ impl Storage for SqliteStorage {
         mutation_id_from_sql(sql_id)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.mutations.queued = tracing::field::Empty,
+        )
+    )]
     async fn load_mutation_queue(&self) -> Result<Vec<QueuedMutation>, Self::Error> {
         let conn = self.conn();
         let mut stmt = conn.prepare_cached(
@@ -382,9 +472,16 @@ impl Storage for SqliteStorage {
                 },
             });
         }
+        tracing::Span::current().record("cache.mutations.queued", out.len());
         Ok(out)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     async fn claim_next_mutation(
         &mut self,
         request: MutationClaimRequest,
@@ -467,6 +564,15 @@ impl Storage for SqliteStorage {
         }))
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.mutation.id = id,
+        )
+    )]
     async fn defer_mutation(
         &mut self,
         id: MutationId,
@@ -494,6 +600,16 @@ impl Storage for SqliteStorage {
         Ok(true)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.mutation.id = id,
+            cache.records.written = entries.len(),
+        )
+    )]
     async fn complete_mutation(
         &mut self,
         id: MutationId,
@@ -521,6 +637,15 @@ impl Storage for SqliteStorage {
         Ok(true)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(
+            cache.storage.backend = "sqlite",
+            cache.mutation.id = id,
+        )
+    )]
     async fn discard_mutation(
         &mut self,
         id: MutationId,
@@ -538,6 +663,12 @@ impl Storage for SqliteStorage {
         Ok(true)
     }
 
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        err,
+        fields(cache.storage.backend = "sqlite")
+    )]
     async fn clear(&mut self) -> Result<(), Self::Error> {
         let mut conn = self.conn();
         let tx = conn.transaction()?;

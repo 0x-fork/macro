@@ -10,7 +10,9 @@ use cache_idb::IdbStorage;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::future::Future;
 use std::rc::Rc;
+use tracing::Instrument;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
@@ -139,6 +141,12 @@ pub struct CacheEngine {
 /// Opens (or creates) the cache for `scope`. The physical database is selected
 /// by [`cache_core::codec::cache_database_name`] from `scope` alone; the schema
 /// compatibility epoch and format version are record-compatibility inputs.
+#[tracing::instrument(
+    level = "debug",
+    skip_all,
+    err(Debug),
+    fields(cache.hot.capacity = hot_capacity)
+)]
 #[wasm_bindgen(js_name = openCache)]
 pub async fn open_cache(scope: String, hot_capacity: Option<u32>) -> Result<CacheEngine, JsError> {
     let storage = IdbStorage::open(&scope)
@@ -155,6 +163,7 @@ pub async fn open_cache(scope: String, hot_capacity: Option<u32>) -> Result<Cach
 }
 
 /// Deletes the cache database for `scope` (logout).
+#[tracing::instrument(level = "debug", skip_all, err(Debug))]
 #[wasm_bindgen(js_name = destroyCache)]
 pub async fn destroy_cache(scope: String) -> Result<(), JsError> {
     IdbStorage::destroy(&scope)
@@ -207,6 +216,18 @@ fn parse_vec<T: serde::de::DeserializeOwned>(value: JsValue) -> Result<Vec<T>, J
     serde_wasm_bindgen::from_value(value).map_err(err_js)
 }
 
+/// Traces the complete JavaScript-facing operation, including mutex wait and
+/// boundary serialization, while engine/storage spans provide the breakdown.
+fn traced_promise(
+    operation: &'static str,
+    future: impl Future<Output = Result<JsValue, JsValue>> + 'static,
+) -> js_sys::Promise {
+    future_to_promise(future.instrument(tracing::debug_span!(
+        "cache.wasm.operation",
+        cache.operation.name = operation,
+    )))
+}
+
 #[wasm_bindgen]
 impl CacheEngine {
     /// Returns the opaque identity bound to this cache, or `null` when no
@@ -214,7 +235,7 @@ impl CacheEngine {
     #[wasm_bindgen(js_name = boundIdentity)]
     pub fn bound_identity(&self) -> js_sys::Promise {
         let engine = self.engine.clone();
-        future_to_promise(async move {
+        traced_promise("bound_identity", async move {
             let identity = engine
                 .lock()
                 .await
@@ -238,7 +259,7 @@ impl CacheEngine {
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("read_query", async move {
             let vars = parse_variables(variables)?;
             let op = op_id.map(|name| ops.borrow_mut().intern(&name));
             let mut engine = engine.lock().await;
@@ -263,7 +284,7 @@ impl CacheEngine {
         limit: u32,
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
-        future_to_promise(async move {
+        traced_promise("read_records", async move {
             let selection = RecordSelection::parse(&document, &fragment_name).map_err(err_js)?;
             let cursor = parse_record_cursor(cursor)?;
             let page = engine
@@ -294,7 +315,7 @@ impl CacheEngine {
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("write_query", async move {
             let vars = parse_variables(variables)?;
             let data: serde_json::Value = serde_wasm_bindgen::from_value(data).map_err(err_js)?;
             let origin = origin_op_id.map(|name| ops.borrow_mut().intern(&name));
@@ -323,6 +344,7 @@ impl CacheEngine {
     /// `{transactionId: string, changed: string[], affectedOps: string[],
     /// reset: false}` where changes reflect the composed view.
     #[wasm_bindgen(js_name = beginOptimisticWrite)]
+    #[allow(clippy::too_many_arguments)]
     pub fn begin_optimistic_write(
         &self,
         origin_op_id: Option<String>,
@@ -336,7 +358,7 @@ impl CacheEngine {
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("begin_optimistic_write", async move {
             let vars = parse_variables(variables)?;
             let data: serde_json::Value = serde_wasm_bindgen::from_value(data).map_err(err_js)?;
             let link_patches: Vec<OptimisticLinkPatch> = parse_vec(link_patches)?;
@@ -379,7 +401,7 @@ impl CacheEngine {
         variable_filters: JsValue,
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
-        future_to_promise(async move {
+        traced_promise("inspect_query", async move {
             let path: Vec<JsInspectionPathSegment> =
                 serde_wasm_bindgen::from_value(path).map_err(err_js)?;
             let variable_filters: Vec<serde_json::Map<String, serde_json::Value>> =
@@ -409,7 +431,7 @@ impl CacheEngine {
         lease_expires_at_ms: f64,
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
-        future_to_promise(async move {
+        traced_promise("claim_next_mutation", async move {
             let request = MutationClaimRequest {
                 owner,
                 now_ms: parse_timestamp(now_ms, "claim timestamp")?,
@@ -439,7 +461,7 @@ impl CacheEngine {
         error: String,
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
-        future_to_promise(async move {
+        traced_promise("defer_optimistic_write", async move {
             let transaction = parse_transaction_id(&transaction_id)?;
             let claim = MutationClaimToken {
                 owner: lease_owner,
@@ -463,6 +485,7 @@ impl CacheEngine {
     /// Atomically replaces a claimed optimistic layer with the real network
     /// response and removes it from the durable queue.
     #[wasm_bindgen(js_name = commitOptimisticWrite)]
+    #[allow(clippy::too_many_arguments)]
     pub fn commit_optimistic_write(
         &self,
         transaction_id: String,
@@ -475,7 +498,7 @@ impl CacheEngine {
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("commit_optimistic_write", async move {
             let transaction = parse_transaction_id(&transaction_id)?;
             let claim = MutationClaimToken {
                 owner: lease_owner,
@@ -515,7 +538,7 @@ impl CacheEngine {
     ) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("rollback_optimistic_write", async move {
             let transaction = parse_transaction_id(&transaction_id)?;
             let claim = MutationClaimToken {
                 owner: lease_owner,
@@ -542,7 +565,7 @@ impl CacheEngine {
     pub fn invalidate_keys(&self, keys: Vec<String>) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("invalidate_keys", async move {
             let keys: Vec<EntityKey> = keys.into_iter().map(EntityKey).collect();
             let mut engine = engine.lock().await;
             let affected = engine.invalidate_keys(keys.iter());
@@ -556,7 +579,7 @@ impl CacheEngine {
     pub fn delete_keys(&self, keys: Vec<String>) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("delete_keys", async move {
             let keys: Vec<EntityKey> = keys.into_iter().map(EntityKey).collect();
             let affected = engine
                 .lock()
@@ -574,7 +597,7 @@ impl CacheEngine {
     pub fn refresh_optimistic_queue(&self) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("refresh_optimistic_queue", async move {
             let result = engine
                 .lock()
                 .await
@@ -597,7 +620,7 @@ impl CacheEngine {
     pub fn external_reset(&self) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("external_reset", async move {
             let affected = engine.lock().await.external_reset();
             to_js(&ops.borrow().names(affected))
         })
@@ -608,7 +631,7 @@ impl CacheEngine {
     pub fn teardown_operation(&self, op_id: String) -> js_sys::Promise {
         let engine = self.engine.clone();
         let ops = self.ops.clone();
-        future_to_promise(async move {
+        traced_promise("teardown_operation", async move {
             let removed = ops.borrow_mut().remove(&op_id);
             if let Some(id) = removed {
                 engine.lock().await.teardown_operation(id);
@@ -620,7 +643,7 @@ impl CacheEngine {
     /// Drops all cached state (logout, corruption rebuild).
     pub fn clear(&self) -> js_sys::Promise {
         let engine = self.engine.clone();
-        future_to_promise(async move {
+        traced_promise("clear", async move {
             engine.lock().await.clear().await.map_err(err_js)?;
             Ok(JsValue::UNDEFINED)
         })
@@ -631,7 +654,7 @@ impl CacheEngine {
     /// connections are open. The engine is unusable afterwards.
     pub fn close(&self) -> js_sys::Promise {
         let engine = self.engine.clone();
-        future_to_promise(async move {
+        traced_promise("close", async move {
             engine.lock().await.storage().close();
             Ok(JsValue::UNDEFINED)
         })
