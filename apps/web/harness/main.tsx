@@ -38,7 +38,7 @@ function Harness() {
             <div class="flex flex-col gap-8">
               <div class="flex flex-col gap-1.5">
                 <h1 class="text-2xl font-semibold tracking-tight text-ink">
-                  Set up your team
+                  Macro is meant for teams
                 </h1>
                 <p class="max-w-md text-sm leading-relaxed text-ink-muted">
                   Macro is built to be used with others. Invite your team to

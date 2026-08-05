@@ -235,12 +235,18 @@ function CreateTeamForm(props: { onContinue: () => void; onSkip: () => void }) {
   return (
     <div class="flex flex-col gap-3">
       {/* Same row shape as an invite, with the remove gutter left empty, so
-          every input in the form shares one width. */}
+          every input in the form shares one width. Labelled, because the
+          name arrives pre-filled — a placeholder alone would be invisible
+          exactly when the field needs explaining. */}
       <div class="flex items-center gap-1.5">
-        <div class="min-w-0 flex-1">
+        <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+          <label for="team-name" class="text-xs text-ink-muted">
+            Team name
+          </label>
           <FormInput
             id="team-name"
-            placeholder="Team name"
+            // An example, not "Team name" again — the label says that.
+            placeholder="Acme Inc."
             value={name()}
             autoFocus={!customDomain()}
             onInput={(value) => {
