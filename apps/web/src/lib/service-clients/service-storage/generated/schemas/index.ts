@@ -445,6 +445,7 @@ export * from './documentMetadataWithContent';
 export * from './documentMetadataWithContentAllOf';
 export * from './documentMetadataWithContentAllOfTeamId';
 export * from './documentMetadataWithContentAllOfTeamTaskId';
+export * from './documentOpenedMetadata';
 export * from './documentPermissionsToken';
 export * from './documentPermissionsTokenRequest';
 export * from './documentPermissionsTokenResponse';

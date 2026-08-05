@@ -15910,6 +15910,26 @@
         ],
         "description": "Full document metadata plus content lifecycle metadata."
       },
+      "DocumentOpenedMetadata": {
+        "type": "object",
+        "description": "Metadata for [`DocumentTopicEvent::Opened`].",
+        "required": ["document_id", "actor_user_id", "opened_at"],
+        "properties": {
+          "actor_user_id": {
+            "$ref": "#/components/schemas/MacroUserIdStr",
+            "description": "The user who opened the document."
+          },
+          "document_id": {
+            "type": "string",
+            "description": "The id of the opened document."
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the open was recorded; matches the `UserHistory` write it\nmirrors so downstream consumers and the history table agree."
+          }
+        }
+      },
       "DocumentPermissionsToken": {
         "type": "object",
         "required": ["document_id", "access_level", "exp", "iss"],
@@ -16387,6 +16407,21 @@
               "metadata": {
                 "$ref": "#/components/schemas/DocumentInteractionMetadata",
                 "description": "A peer joined, left, or a periodic save occurred."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A user opened the document.",
+            "required": ["metadata", "event_type"],
+            "properties": {
+              "event_type": {
+                "type": "string",
+                "enum": ["document.opened"]
+              },
+              "metadata": {
+                "$ref": "#/components/schemas/DocumentOpenedMetadata",
+                "description": "A user opened the document."
               }
             }
           }

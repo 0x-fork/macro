@@ -3698,6 +3698,25 @@ export type DocumentMetadataWithContent = DocumentMetadata & {
     teamTaskId?: number | null;
 };
 
+/**
+ * Metadata for [`DocumentTopicEvent::Opened`].
+ */
+export type DocumentOpenedMetadata = {
+    /**
+     * The user who opened the document.
+     */
+    actor_user_id: MacroUserIdStr;
+    /**
+     * The id of the opened document.
+     */
+    document_id: string;
+    /**
+     * When the open was recorded; matches the `UserHistory` write it
+     * mirrors so downstream consumers and the history table agree.
+     */
+    opened_at: string;
+};
+
 export type DocumentPermissionsToken = {
     /**
      * The access level of the user for the document
@@ -3976,6 +3995,12 @@ export type DocumentTopicEvent = {
      * A peer joined, left, or a periodic save occurred.
      */
     metadata: DocumentInteractionMetadata;
+} | {
+    event_type: 'document.opened';
+    /**
+     * A user opened the document.
+     */
+    metadata: DocumentOpenedMetadata;
 };
 
 /**
