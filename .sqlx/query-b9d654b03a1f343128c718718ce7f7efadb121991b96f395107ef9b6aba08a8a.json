@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM activity_events WHERE entity_type = $1 AND entity_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b9d654b03a1f343128c718718ce7f7efadb121991b96f395107ef9b6aba08a8a"
+}

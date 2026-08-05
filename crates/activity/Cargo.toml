@@ -1,0 +1,28 @@
+[package]
+edition = "2024"
+name = "activity"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+channel_sender = { path = "../channel_sender" }
+chrono = { workspace = true }
+documents = { path = "../documents", default-features = false }
+kafka_util = { path = "../kafka_util" }
+macro_event_broker = { path = "../macro_event_broker" }
+macro_user_id = { path = "../macro_user_id" }
+model-entity = { path = "../model-entity" }
+rdkafka = { workspace = true }
+rootcause = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["json"] }
+tokio = { workspace = true, features = ["sync", "time"] }
+tracing = { workspace = true }
+uuid = { workspace = true }
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+macro_db_migrator = { path = "../macro_db_migrator" }
+model = { path = "../model" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

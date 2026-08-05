@@ -780,6 +780,42 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
+    let activity_consumer_brokers = config.kafka_brokers.as_ref().to_string();
+    consumer_tracker.spawn({
+        let cancellation_token = consumer_cancellation_token.clone();
+        let activity_repo = activity::outbound::pg_activity_repo::PgActivityRepo::new(db.clone());
+        async move {
+            let consumer = activity::inbound::kafka_consumer::ActivityConsumer::new(activity_repo);
+            loop {
+                if cancellation_token.is_cancelled() {
+                    break;
+                }
+
+                tracing::info!("starting activity consumer");
+                let result = consumer
+                    .run(&activity_consumer_brokers, cancellation_token.cancelled())
+                    .await;
+
+                if cancellation_token.is_cancelled() {
+                    break;
+                }
+
+                match result {
+                    Ok(()) => tracing::error!("activity consumer exited unexpectedly"),
+                    Err(error) => {
+                        tracing::error!(error = ?error, "activity consumer exited unexpectedly");
+                    }
+                }
+
+                tokio::select! {
+                    biased;
+                    _ = cancellation_token.cancelled() => break,
+                    _ = tokio::time::sleep(Duration::from_secs(5)) => {}
+                }
+            }
+        }
+    });
+
     let call_internal_state = InternalCallRouterState::new(call_service.clone());
 
     // Create the SQS worker for delete document processing before config is moved.
