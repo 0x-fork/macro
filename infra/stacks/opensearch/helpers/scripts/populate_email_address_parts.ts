@@ -170,7 +170,11 @@ const GB = 1024 ** 3;
 async function withRetry<T>(
   label: string,
   read: () => Promise<T>,
-  attempts = 6
+  // Roughly ten minutes of tolerance. The first prod run died with six
+  // attempts (~3 minutes) because the tunnel supervisor hadn't reconnected
+  // yet — the retry budget has to outlast however long it takes whatever
+  // maintains the connection to notice and fix it.
+  attempts = 12
 ): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
