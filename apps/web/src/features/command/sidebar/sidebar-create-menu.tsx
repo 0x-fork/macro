@@ -11,11 +11,20 @@ import {
 import { setActiveScope } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CreateIcon from '@icon/square-pen-create.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { Button, cn, Dropdown, Hotkey, NavRow } from '@ui';
-import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { CreateMenuExplainer } from './create-menu-explainer';
 
 export const SidebarCreateMenu = (props: {
   isSlim: () => boolean;
@@ -25,6 +34,10 @@ export const SidebarCreateMenu = (props: {
   const analytics = useAnalytics();
   const [open, setOpen] = createSignal(false);
   const [focusedIndex, setFocusedIndex] = createSignal(-1);
+  // The row the explainer panel points at. Tracked alongside `focusedIndex`
+  // rather than derived from it so the panel can anchor to the real element,
+  // whether it became active by pointer or by keyboard.
+  const [focusedRow, setFocusedRow] = createSignal<HTMLElement>();
   const snippetsFlag = useFeatureFlag(ENABLE_SNIPPETS_FLAG, {
     enabledOverride: ENABLE_SNIPPETS_OVERRIDE,
   });
@@ -34,6 +47,26 @@ export const SidebarCreateMenu = (props: {
       (block) => block.blockName !== 'snippet' || snippetsFlag().enabled
     )
   );
+
+  const focusedBlock = createMemo(() => blocks()[focusedIndex()]);
+
+  const focusRow = (index: number, row: HTMLElement | undefined) => {
+    setFocusedIndex(index);
+    setFocusedRow(row);
+  };
+
+  const clearFocusedRow = () => {
+    setFocusedIndex(-1);
+    setFocusedRow(undefined);
+  };
+
+  // Closing also happens outside `handleOpenChange` — the hotkey interceptor and
+  // `onSelect` call `setOpen(false)` directly — so drop the focused row from the
+  // open state itself. Otherwise reopening would briefly anchor the explainer to
+  // the previous row's now-detached element.
+  createEffect(() => {
+    if (!open()) clearFocusedRow();
+  });
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen && !open()) {
@@ -135,16 +168,23 @@ export const SidebarCreateMenu = (props: {
         </Dropdown.Trigger>
       </Show>
       <Dropdown.Content class="min-w-52 shadow-menu">
-        <Dropdown.Group>
+        <Dropdown.Group onMouseLeave={clearFocusedRow}>
           <For each={blocks()}>
             {(block, index) => {
               const iconConfig = getIconConfig(block.blockName);
+              // Captured per row so the explainer can anchor to this element
+              // without indexing into a shared array that goes stale when the
+              // list changes (the snippets flag adds/removes an item).
+              let row: HTMLElement | undefined;
 
               return (
                 <Dropdown.Item
+                  ref={(el: HTMLElement) => {
+                    row = el;
+                  }}
                   class="min-h-9 gap-2 px-2.5"
-                  onFocus={() => setFocusedIndex(index())}
-                  onMouseEnter={() => setFocusedIndex(index())}
+                  onFocus={() => focusRow(index(), row)}
+                  onMouseEnter={() => focusRow(index(), row)}
                   onSelect={() => {
                     setOpen(false);
                     block.keyDownHandler();
@@ -172,6 +212,10 @@ export const SidebarCreateMenu = (props: {
             }}
           </For>
         </Dropdown.Group>
+        {/* Hover-driven, so pointer-only — there is nothing to hover on touch. */}
+        <Show when={!isTouchDevice()}>
+          <CreateMenuExplainer anchor={focusedRow()} block={focusedBlock()} />
+        </Show>
       </Dropdown.Content>
     </Dropdown>
   );
