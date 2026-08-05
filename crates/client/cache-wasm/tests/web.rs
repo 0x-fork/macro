@@ -3,7 +3,7 @@
 
 #![cfg(target_arch = "wasm32")]
 
-use cache_wasm::{destroy_cache, open_cache};
+use cache_wasm::{destroy_cache, initialize_tracing, open_cache};
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
 use wasm_bindgen_test::*;
@@ -27,6 +27,12 @@ fn js(json: serde_json::Value) -> JsValue {
     use serde::Serialize;
     json.serialize(&serde_wasm_bindgen::Serializer::json_compatible())
         .unwrap()
+}
+
+#[wasm_bindgen_test]
+fn initializes_configured_tracing_level() {
+    assert!(initialize_tracing("INFO").is_err());
+    initialize_tracing("WARN").unwrap();
 }
 
 #[wasm_bindgen_test]

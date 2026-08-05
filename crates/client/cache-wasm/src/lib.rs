@@ -16,21 +16,32 @@ mod shell;
 #[cfg(target_arch = "wasm32")]
 pub use shell::*;
 
-/// Registers browser-console tracing before any cache exports are called.
+/// Registers browser-console tracing at the requested maximum level.
 ///
 /// Span-close events include `time.busy` and `time.idle`, making async cache
-/// and storage timings visible in the worker console.
+/// and storage timings visible in the worker console. This must be called once
+/// by the JavaScript host immediately after instantiating the WASM module.
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen::prelude::wasm_bindgen(start)]
-pub fn initialize_tracing() {
+#[wasm_bindgen::prelude::wasm_bindgen(js_name = initializeTracing)]
+pub fn initialize_tracing(max_level: &str) -> Result<(), wasm_bindgen::JsError> {
     use tracing_subscriber::fmt::format::FmtSpan;
     use tracing_subscriber_wasm::MakeConsoleWriter;
 
-    let _ = tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::DEBUG)
+    let max_level = match max_level {
+        "DEBUG" => tracing::Level::DEBUG,
+        "WARN" => tracing::Level::WARN,
+        _ => {
+            return Err(wasm_bindgen::JsError::new(
+                "cache tracing level must be DEBUG or WARN",
+            ));
+        }
+    };
+    tracing_subscriber::fmt()
+        .with_max_level(max_level)
         .with_span_events(FmtSpan::CLOSE)
         .with_writer(MakeConsoleWriter::default().map_trace_level_to(tracing::Level::DEBUG))
         // The writer crate requires timestamps to be disabled in browsers.
         .without_time()
-        .try_init();
+        .try_init()
+        .map_err(|error| wasm_bindgen::JsError::new(&error.to_string()))
 }
