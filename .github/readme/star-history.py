@@ -1,43 +1,64 @@
-"""Generate the star-history SVG (light + dark) for the Macro README."""
+"""Generate the star-history SVG (light + dark) for the Macro README.
+
+The series comes from `star-history-data.json`, which holds the real
+cumulative star count on each day a star was added, derived from the
+GitHub stargazers API (`starred_at`). Refresh it with `--fetch`, then
+re-run this script to rebuild both SVGs.
+"""
+import json
+import os
+import sys
+import urllib.request
 from datetime import date
 
-# Star counts reverse-engineered from the star-history.com chart,
-# anchored to the known value of 713 on 2026-07-28.
-SERIES = [
-    (date(2025, 11, 18), 0),
-    (date(2025, 12, 1), 3),
-    (date(2025, 12, 6), 9),
-    (date(2025, 12, 11), 18),
-    (date(2025, 12, 16), 24),
-    (date(2025, 12, 24), 27),
-    (date(2026, 1, 1), 29),
-    (date(2026, 1, 16), 31),
-    (date(2026, 2, 1), 33),
-    (date(2026, 2, 16), 35),
-    (date(2026, 3, 1), 37),
-    (date(2026, 3, 16), 39),
-    (date(2026, 4, 1), 42),
-    (date(2026, 4, 9), 55),
-    (date(2026, 4, 16), 72),
-    (date(2026, 4, 23), 98),
-    (date(2026, 5, 1), 130),
-    (date(2026, 5, 10), 141),
-    (date(2026, 5, 20), 158),
-    (date(2026, 6, 1), 205),
-    (date(2026, 6, 10), 235),
-    (date(2026, 6, 20), 272),
-    (date(2026, 7, 1), 330),
-    (date(2026, 7, 10), 415),
-    (date(2026, 7, 17), 520),
-    (date(2026, 7, 28), 713),
-]
+HERE = os.path.dirname(os.path.abspath(__file__))
+DATA = os.path.join(HERE, "star-history-data.json")
+REPO = "macro-inc/macro"
+
+
+def fetch():
+    """Pull every stargazer's starred_at and rewrite the data file."""
+    days = {}
+    for page in range(1, 101):
+        req = urllib.request.Request(
+            f"https://api.github.com/repos/{REPO}/stargazers?per_page=100&page={page}",
+            headers={"Accept": "application/vnd.github.star+json",
+                     "User-Agent": "macro-star-history"},
+        )
+        token = os.environ.get("GITHUB_TOKEN")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+        batch = json.load(urllib.request.urlopen(req))
+        if not batch:
+            break
+        for entry in batch:
+            day = entry["starred_at"][:10]
+            days[day] = days.get(day, 0) + 1
+
+    total, daily = 0, []
+    for day in sorted(days):
+        total += days[day]
+        daily.append([day, total])
+    old = json.load(open(DATA))
+    old.update(fetched_at=date.today().isoformat(), total=total, daily=daily)
+    json.dump(old, open(DATA, "w"), indent=1)
+    print(f"fetched {total} stars across {len(daily)} days -> {DATA}")
+
+
+if "--fetch" in sys.argv:
+    fetch()
+
+_data = json.load(open(DATA))
+SERIES = [(date.fromisoformat(d), v) for d, v in _data["daily"]]
+# Anchor the x-axis at repo creation so the curve reads "from launch".
+SERIES.insert(0, (date.fromisoformat(_data["created_at"]), 0))
 
 W, H = 1100, 560
 L, R, T, B = 76, 52, 112, 62           # plot padding
 PX0, PX1 = L, W - R
 PY0, PY1 = T, H - B
-YMAX = 750
 LATEST = SERIES[-1][1]
+YMAX = -(-LATEST // 100) * 100 + 50    # round up to a clean gridline above the peak
 ORANGE = "#f26a1b"
 
 THEMES = {
@@ -61,17 +82,12 @@ def sy(v):
     return PY1 - v / YMAX * (PY1 - PY0)
 
 
-def smooth_path(pts):
-    """Catmull-Rom through the points, emitted as cubic beziers."""
-    out = [f"M {pts[0][0]:.1f} {pts[0][1]:.1f}"]
-    for i in range(len(pts) - 1):
-        p0 = pts[i - 1] if i > 0 else pts[i]
-        p1, p2 = pts[i], pts[i + 1]
-        p3 = pts[i + 2] if i + 2 < len(pts) else p2
-        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
-        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
-        out.append(f"C {c1[0]:.1f} {c1[1]:.1f}, {c2[0]:.1f} {c2[1]:.1f}, {p2[0]:.1f} {p2[1]:.1f}")
-    return " ".join(out)
+def line_path(pts):
+    """Straight segments between daily points — the data is dense enough that
+    smoothing would only invent counts the repo never had."""
+    return f"M {pts[0][0]:.1f} {pts[0][1]:.1f} " + " ".join(
+        f"L {x:.1f} {y:.1f}" for x, y in pts[1:]
+    )
 
 
 def star(cx, cy, r):
@@ -85,16 +101,29 @@ def star(cx, cy, r):
     return "M " + " L ".join(pts) + " Z"
 
 
-MONTHS = [(date(2025, 12, 1), "Dec"), (date(2026, 1, 1), "Jan"), (date(2026, 2, 1), "Feb"),
-          (date(2026, 3, 1), "Mar"), (date(2026, 4, 1), "Apr"), (date(2026, 5, 1), "May"),
-          (date(2026, 6, 1), "Jun"), (date(2026, 7, 1), "Jul")]
+NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def month_ticks():
+    """First of every month covered by the series, after the start date."""
+    ticks, y, m = [], D0.year, D0.month
+    while True:
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+        d = date(y, m, 1)
+        if d > D1:
+            return ticks
+        ticks.append((d, NAMES[m - 1]))
+
+
+MONTHS = month_ticks()
 
 FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
 
 
 def build(name, c):
     pts = [(sx(d), sy(v)) for d, v in SERIES]
-    line = smooth_path(pts)
+    line = line_path(pts)
     area = f"{line} L {pts[-1][0]:.1f} {PY1} L {pts[0][0]:.1f} {PY1} Z"
     lx, ly = pts[-1]
     o = []
