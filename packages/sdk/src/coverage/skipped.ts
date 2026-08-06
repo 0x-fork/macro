@@ -101,6 +101,7 @@ export const cognitionExcluded = [
   'healthHandler',
   'listMcpServers',
   'mcpAuthCallback',
+  'mcpOauthClientMetadata',
   'rejectToolCall',
   'runImportHandler',
   'dismissRunHandler',
@@ -188,6 +189,8 @@ export const notificationBacklog =
 
 export const propertiesExcluded = [
   'ensureTagSet',
+  'mergeTag',
+  'promoteTag',
 ] as const satisfies readonly (keyof PropertiesSdk)[];
 
 export const propertiesBacklog =
@@ -261,7 +264,6 @@ export const storageExcluded = [
   'joinChannelByCode',
   'jobProcessingResultHandler',
   'leaveOrEndCall',
-  'listBotChannels',
   'patchViewHandler',
   'postChannelBotWebhook',
   'postChannelMessages',
@@ -295,6 +297,7 @@ export const storageBacklog = [
   'getProjectPermissionsV2',
   'getProjectUserAccessLevel',
   'getRecentActivityHandler',
+  'listOccurrences',
   'postActivity',
   'presaveDocumentHandler',
   'saveDocumentHandler',

@@ -48,6 +48,7 @@ axum-extra = { workspace = true }
 base64 = { workspace = true }
 bots = { path = "../../crates/bots" }
 bytes = { workspace = true }
+calendar_events = { path = "../../crates/calendar_events", features = ["inbound", "postgres"] }
 bzip2 = { workspace = true, default-features = false, features = [
   "libbz2-rs-sys",
 ] }
@@ -184,6 +185,7 @@ soup_realtime = { path = "../../crates/soup_realtime", default-features = false,
 sqlx = { workspace = true }
 sqs_client = { path = "../../crates/sqs_client", default-features = false, features = [
   "document",
+  "email",
   "search",
 ] }
 sqs_worker = { path = "../../crates/sqs_worker" }

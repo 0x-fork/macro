@@ -25,6 +25,7 @@ import { useInvalidateQueriesOnReconnect } from '@app/lib/queries/invalidate-on-
 import { useSoupBackfills } from '@app/lib/queries/soup/backfill';
 import { setHotkeyRoot } from '@app/signal/hotkeyRoot';
 import { globalSplitManager } from '@app/signal/splitLayout';
+import { IncomingCallEvents } from '@block-call/sidebar/incoming-calls';
 import { CallProvider } from '@channel/Call/CallContext';
 import { CallStartedNotifier } from '@channel/Call/CallStartedNotifier';
 import { CallKitSync } from '@channel/Call/use-callkit';
@@ -60,11 +61,13 @@ import {
 } from '@core/util/cookies';
 import { licenseChannel } from '@core/util/licenseUpdateBroadcastChannel';
 import { isTauri } from '@core/util/platform';
+import { consumePostLoginRedirect } from '@core/util/postLoginRedirect';
 import { thrownResultErrorHasCode } from '@core/util/result';
 import { transformShortIdInUrlPathname } from '@core/util/url';
 import { EntityProvider } from '@entity';
 import { MaybeTauriProvider } from '@macro/tauri';
 import { TauriRouteListener } from '@macro/tauri/TauriProvider';
+import { Telemetry } from '@macro-inc/observability';
 import {
   BrowserNotificationModal,
   createNotificationSource,
@@ -73,10 +76,6 @@ import {
   usePlatformNotificationState,
 } from '@notifications';
 import { maybeHandlePlatformNotification } from '@notifications/notification-platform';
-import {
-  clearUser as clearDatadogUser,
-  setUser as setDatadogUser,
-} from '@observability';
 import {
   invalidateUserInfo,
   prefetchUserInfo,
@@ -119,6 +118,7 @@ import {
   Suspense,
   Switch,
 } from 'solid-js';
+import { TaskRoute } from './TaskRoute';
 
 /** Syncs login cookie with auth state. Only updates on successful query (not errors/loading). */
 function useSyncLoginCookie() {
@@ -250,9 +250,8 @@ function BasePathComponent() {
   });
 
   // check session storage for redirect url
-  const redirectUrl = sessionStorage.getItem('redirectUrl');
+  const redirectUrl = consumePostLoginRedirect();
   if (redirectUrl) {
-    sessionStorage.removeItem('redirectUrl');
     const relativeUrl = redirectUrl.replace(window.location.origin, '');
     window.location.href = relativeUrl;
     return;
@@ -344,6 +343,10 @@ function OnboardingRoute() {
 }
 
 const ROUTES: RouteDefinition[] = [
+  {
+    path: '/task-slug/:taskSlug',
+    component: TaskRoute,
+  },
   LAYOUT_ROUTE,
   /** BEGIN - APP ROUTES */
   {
@@ -352,6 +355,10 @@ const ROUTES: RouteDefinition[] = [
   },
   {
     path: '/activity',
+    component: LAYOUT_ROUTE.component,
+  },
+  {
+    path: '/calendar',
     component: LAYOUT_ROUTE.component,
   },
   {
@@ -545,16 +552,12 @@ function UserInfoSideEffects() {
   let syncedPlanKey: string | undefined;
   createEffect(
     on(userInfo, (user) => {
-      // Keep Datadog log user context in sync with auth state: set on every
-      // authenticated load (the logs SDK doesn't persist across reloads), and
-      // clear on logout so logs aren't attributed to a signed-out user. Logout
-      // flips userInfo client-side, and on native mobile it's an SPA navigation
-      // with no page reload, so this effect is what clears it there.
-      if (user?.authenticated) {
-        setDatadogUser({ id: user.id, email: user.email });
-      } else {
-        clearDatadogUser();
-      }
+      // Keep telemetry user context in sync with auth state: set on every
+      // authenticated load, and clear on logout so spans and logs aren't
+      // attributed to a signed-out user. Logout flips userInfo client-side,
+      // and on native mobile it's an SPA navigation with no page reload, so
+      // this effect is what clears it there.
+      Telemetry.config.setUser(user?.authenticated ? user.id : undefined);
 
       if (!user || !user.authenticated) {
         syncedPlanKey = undefined;
@@ -700,6 +703,7 @@ export function Root() {
                           <CallProvider>
                             <CallKitSync />
                             <CallStartedNotifier />
+                            <IncomingCallEvents />
                             <QuickAccessProvider>
                               <SearchProvider>
                                 <ChatAttachmentsInit />

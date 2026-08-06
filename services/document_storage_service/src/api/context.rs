@@ -12,6 +12,10 @@ use cal::{
     domain::service::CalWebhookServiceImpl, inbound::cal_webhook_router::CalWebhookRouterState,
     outbound::analytics_client::AnalyticsClientSink,
 };
+use calendar_events::{
+    domain::service::CalendarService, inbound::axum_router::CalendarRouterState,
+    outbound::pg::PgCalendarRepository,
+};
 use call::{
     domain::service::CallServiceImpl,
     inbound::axum_router::{CallRouterState, InternalCallRouterState, WebhookRouterState},
@@ -30,7 +34,6 @@ use channels::{
         notification_sender::NotificationChannelSender,
         pg_channel_reference_share_permissions::PgChannelReferenceSharePermissions,
         pg_channels_repo::PgChannelsRepo, pg_side_effect_context::PgChannelSideEffectContext,
-        sqs_search_indexer::SqsChannelSearchIndexer,
     },
 };
 use connection::{
@@ -127,9 +130,10 @@ pub(crate) type DssCrmService = crm::domain::service::CrmServiceImpl<
 pub(crate) type DssEmailService = EmailServiceImpl<
     EmailPgRepo,
     FrecencyQueryServiceImpl<FrecencyPgStorage>,
-    email::domain::ports::NoOpEnqueuer,
+    sqs_client::SQS,
     DssCrmService,
     EntityAccessManagementService,
+    DssEventBroker,
 >;
 
 /// CRM router state.
@@ -167,6 +171,8 @@ pub(crate) type DssGraphqlSoupSchema = complete_graph::SharedSoupSchema<
     ApiContext,
     complete_graph::PropertiesEntityPropertyWriter<PropertiesService, EntityAccessService>,
     DssEntityMutationService,
+    DssChannelService,
+    ai_tools::ToolNotificationService,
     Arc<ai_tools::ToolNotificationService>,
     complete_graph::PropertiesEntityPropertyReader<PropertiesService, EntityAccessService>,
     complete_graph::EmailServiceEmailContentReader<DssEmailService, EntityAccessService>,
@@ -189,6 +195,12 @@ pub(crate) type PropertiesHandlerState =
 
 /// Type alias for the entity access service.
 pub(crate) type EntityAccessService = EntityAccessServiceImpl<PgAccessRepository>;
+
+/// Calendar occurrence query service.
+pub(crate) type DssCalendarService = CalendarService<PgCalendarRepository>;
+
+/// Calendar occurrence router state.
+pub(crate) type DssCalendarState = CalendarRouterState<DssCalendarService, AuthorizationService>;
 
 /// Adapter implementing [`TaskPropertiesPort`] for the system properties service.
 pub(crate) struct TaskPropertiesAdapter {
@@ -285,7 +297,7 @@ pub(crate) type ProjectService = ProjectServiceImpl<
     DynamoBulkUploadAdapter,
     ShaCountAdapter,
     EntityAccessManagementService,
-    SqsProjectSearchIndexer,
+    SqsProjectSearchIndexer<DssEventBroker>,
     DssEventBroker,
 >;
 
@@ -309,7 +321,6 @@ pub(crate) type DssChannelService = ChannelServiceImpl<
             PgChannelSideEffectContext,
             ConnectionGatewayChannelRealtimePublisher,
             NotificationChannelSender<NotificationIngressType>,
-            SqsChannelSearchIndexer,
             ContactsChannelDispatcher<SqsContactsIngress<SqsContactsQueue>>,
             DssEventBroker,
         >,
@@ -358,7 +369,6 @@ pub(crate) type DssCallService = CallServiceImpl<
     NotificationIngressType,
     Option<call::outbound::s3_recording_storage::S3RecordingStorage>,
     call::outbound::ai_call_summarizer::AiCallSummarizer,
-    crate::service::call_search_indexer::SqsCallSearchIndexer,
     DssVoipPushSender,
     call::outbound::pg_voice_repo::PgVoiceRepo,
     DssEventBroker,
@@ -392,7 +402,7 @@ pub(crate) type DssEntityMutationService =
         ProjectService,
         EntityAccessService,
         FavoritesServiceType,
-        crate::outbound::entity_mutation::DssEntityLifecycleAdapter,
+        crate::outbound::entity_mutation::DssEntityLifecycleAdapter<DssEventBroker>,
     >;
 
 /// Type alias for the favorites service.
@@ -452,6 +462,7 @@ pub(crate) struct ApiContext {
     pub favorites_state: DssFavoritesState,
     pub favorites_service: Arc<FavoritesServiceType>,
     pub foreign_entity_state: DssForeignEntityState,
+    pub macro_event_broker: DssEventBroker,
     pub sqs_client: Arc<sqs_client::SQS>,
     pub contacts_ingress: Arc<SqsContactsIngress<SqsContactsQueue>>,
     pub notification_ingress_service: Arc<NotificationIngressType>,
@@ -469,6 +480,7 @@ pub(crate) struct ApiContext {
     /// Legacy channel list router state.
     pub channel_list_state: DssChannelListState,
     pub entity_access_service: Arc<EntityAccessService>,
+    pub calendar_state: DssCalendarState,
     pub documents_state: DocumentsState,
     pub projects_state: ProjectsState,
     pub channels_state: DssChannelsState,

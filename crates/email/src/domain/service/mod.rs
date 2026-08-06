@@ -4,6 +4,7 @@ mod send;
 mod signature;
 mod thread;
 mod thread_labels;
+mod user;
 
 #[cfg(test)]
 mod test;
@@ -294,6 +295,25 @@ where
             .await
     }
 
+    async fn mark_thread_seen(
+        &self,
+        macro_id: macro_user_id::user_id::MacroUserIdStr<'static>,
+        thread_id: Uuid,
+    ) -> Result<(), EmailErr> {
+        self.mark_thread_seen_impl(macro_id, thread_id).await
+    }
+
+    async fn update_thread_labels_for_user(
+        &self,
+        macro_id: macro_user_id::user_id::MacroUserIdStr<'static>,
+        thread_id: Uuid,
+        label_id: Uuid,
+        add: bool,
+    ) -> Result<UpdateThreadLabelsResult, EmailErr> {
+        self.update_thread_labels_for_user_impl(macro_id, thread_id, label_id, add)
+            .await
+    }
+
     async fn update_thread_project(
         &self,
         thread_receipt: EntityAccessReceipt<EditAccessLevel>,
@@ -444,13 +464,14 @@ where
     }
 }
 
-impl<T, U, E, CS, Eam> EmailContentService for EmailServiceImpl<T, U, E, CS, Eam>
+impl<T, U, E, CS, Eam, B> EmailContentService for EmailServiceImpl<T, U, E, CS, Eam, B>
 where
     T: EmailRepo,
     U: FrecencyQueryService,
     E: EmailMessageEnqueuer,
     CS: CrmService,
     Eam: EntityAccessManagementService,
+    B: MacroEventBroker,
     anyhow::Error: From<T::Err>,
 {
     async fn get_latest_messages_parsed(
@@ -458,5 +479,16 @@ where
         receipts: Vec<EntityAccessReceipt<ViewAccessLevel>>,
     ) -> Result<HashMap<Uuid, ParsedMessage>, EmailErr> {
         self.get_latest_messages_parsed_impl(receipts).await
+    }
+
+    async fn get_messages_parsed(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+        offset: i64,
+        limit: i64,
+    ) -> Result<Option<Vec<ParsedMessage>>, EmailErr> {
+        self.get_thread_parsed_impl(receipt, offset, limit)
+            .await
+            .map(|thread| thread.map(|thread| thread.messages))
     }
 }

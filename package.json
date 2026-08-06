@@ -63,10 +63,12 @@
 	"workspaces": {
 		"packages": [
 			"apps/web",
+			"packages/observability",
 			"packages/collaboration",
 			"packages/loro-mirror",
 			"packages/lexical-core",
 			"services/ai-editing-worker",
+			"services/bots/anthropic-status-bot",
 			"services/lexical-service"
 		],
 		"catalog": {

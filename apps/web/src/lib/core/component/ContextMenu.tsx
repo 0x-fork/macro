@@ -143,9 +143,7 @@ export function MenuItem(props: MenuItemProps) {
     <MenuItemWrapper
       class={cn(
         MENU_ITEM_CLASS,
-        props.disabled
-          ? 'opacity-50 cursor-not-allowed'
-          : 'hover:bg-ink/5 hover-transition-bg',
+        props.disabled && 'opacity-50 cursor-not-allowed',
         props.class
       )}
       onClick={props.onClick}
@@ -234,9 +232,7 @@ export function SubTrigger(props: {
     <ContextMenu.SubTrigger
       class={cn(
         MENU_ITEM_CLASS,
-        props.disabled
-          ? 'opacity-50 cursor-not-allowed'
-          : 'hover:bg-ink/5 hover-transition-bg'
+        props.disabled && 'opacity-50 cursor-not-allowed'
       )}
       disabled={props.disabled}
     >
@@ -307,7 +303,7 @@ const menuWidths: Record<MenuWidth, string> = {
   screen: 'w-screen',
 };
 
-export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start bg-surface shadow-menu ring ring-edge rounded-xl p-1.5 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal menu-open-animation`;
+export const MENU_CONTENT_CLASS = `flex flex-col justify-start items-start border border-edge bg-surface shadow-menu rounded-xl p-1.5 cursor-default select-none max-w-full max-h-[calc(100dvh-10rem)] overflow-y-auto z-modal menu-open-animation`;
 
 type MenuContentProps = ParentProps<{
   class?: string;
@@ -428,17 +424,20 @@ export function ContextMenuContent(props: ParentProps<MenuContentProps>) {
           </Layer>
         }
       >
-        <Layer depth={2}>
-          <ContextMenu.SubContent
-            class={cn(
-              MENU_CONTENT_CLASS,
-              props.class,
-              props.width && menuWidths[props.width]
-            )}
-          >
-            {props.children}
-          </ContextMenu.SubContent>
-        </Layer>
+        <ContextMenu.Portal>
+          <Layer depth={2}>
+            <ContextMenu.SubContent
+              class={cn(
+                MENU_CONTENT_CLASS,
+                props.class,
+                props.width && menuWidths[props.width]
+              )}
+              ref={contentRef}
+            >
+              {props.children}
+            </ContextMenu.SubContent>
+          </Layer>
+        </ContextMenu.Portal>
       </Show>
     </MobileConditionalOverlay>
   );

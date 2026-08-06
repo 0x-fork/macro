@@ -13,7 +13,6 @@ use channels::{
         notification_sender::NotificationChannelSender,
         pg_channel_reference_share_permissions::PgChannelReferenceSharePermissions,
         pg_channels_repo::PgChannelsRepo, pg_side_effect_context::PgChannelSideEffectContext,
-        sqs_search_indexer::SqsChannelSearchIndexer,
     },
 };
 use contacts::{domain::service::SqsContactsIngress, outbound::ingress::SqsContactsQueue};
@@ -62,7 +61,6 @@ pub(crate) type ChannelServiceType = ChannelServiceImpl<
             PgChannelSideEffectContext,
             ConnectionGatewayChannelRealtimePublisher,
             NotificationChannelSender<NotificationIngressType>,
-            SqsChannelSearchIndexer,
             ContactsChannelDispatcher<SqsContactsIngress<SqsContactsQueue>>,
             AuthenticationEventBroker,
         >,
@@ -140,6 +138,8 @@ pub(crate) struct ApiContext {
     pub rate_limit_service: RateLimiter,
     /// The stripe price id
     pub stripe_price_id: String,
+    /// Whether Gmail link consent requests the Google Calendar scope.
+    pub calendar_scope_enabled: bool,
 }
 
 env_var! {

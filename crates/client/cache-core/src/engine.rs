@@ -13,8 +13,8 @@ use crate::link_patch::{
 };
 use crate::normalize::{NormalizeError, RecordUpdates, normalize};
 use crate::query_inspection::{
-    CachedQueryInstance, OwnerResolution, QueryInspection, QueryInspectionError, prepare,
-    recover_variants, resolve_owner, selected_result_value,
+    CachedQueryInstance, OwnerResolution, QueryInspection, QueryInspectionError,
+    matches_variable_filters, prepare, recover_variants, resolve_owner, selected_result_value,
 };
 use crate::queue::{
     ClaimedMutation, MutationClaimRequest, MutationClaimToken, MutationId, MutationRequest,
@@ -1123,6 +1123,9 @@ impl<S: Storage> Engine<S> {
         let variables = recover_variants(&owner, &prepared)?;
         let mut instances = Vec::with_capacity(variables.len());
         for variables in variables {
+            if !matches_variable_filters(&variables, &inspection.variable_filters) {
+                continue;
+            }
             let value = match self
                 .read_query(
                     None,
@@ -1197,8 +1200,8 @@ impl<S: Storage> Engine<S> {
         Ok(affected)
     }
 
-    /// Drops all cached state (logout, schema-hash mismatch), including any
-    /// pending optimistic layers.
+    /// Drops all cached state (for example, on logout), including any pending
+    /// optimistic layers.
     pub async fn clear(&mut self) -> Result<(), EngineError<S::Error>> {
         self.hot.clear();
         self.optimistic.clear();

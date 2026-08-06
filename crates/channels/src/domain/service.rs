@@ -22,6 +22,7 @@ use crate::domain::{
 use bot_id::BotIdStr;
 use bot_id::cowlike::CowLike;
 use channel_sender::ChannelSender;
+use entity_access::domain::models::{EntityAccessReceipt, EntityType, MemberParticipantRole};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_pagination::{CreatedAt, PaginateOn, Query};
 use std::collections::{HashMap, HashSet};
@@ -776,22 +777,7 @@ where
                 }
             }
 
-            let participants = if let Some(thread_id) = message.thread_id {
-                self.repo
-                    .get_thread_participants(thread_id)
-                    .await
-                    .map_err(|e| ChannelMutationErr::Repo(e.into()))?
-            } else {
-                participant_ids(
-                    &self
-                        .repo
-                        .get_participants(channel_id)
-                        .await
-                        .map_err(|e| ChannelMutationErr::Repo(e.into()))?,
-                )
-            };
-
-            let posted_notification =
+            let (recipients, posted_notification) =
                 if notification_policy == PatchMessageNotificationPolicy::NotifyAsPostedMessage {
                     let metadata = if let Some(user_actor) = actor.as_user() {
                         self.repo
@@ -814,6 +800,11 @@ where
                         .get_participants(channel_id)
                         .await
                         .map_err(|e| ChannelMutationErr::Repo(e.into()))?;
+                    // This patch replaces a message that was originally posted
+                    // to every channel participant (for example, Macro AI's
+                    // "thinking" placeholder). Keep the realtime audience the
+                    // same so observers do not retain the stale placeholder.
+                    let recipients = participant_ids(&notification_participants);
                     let has_attachments = !self
                         .repo
                         .get_message_attachments(message_id)
@@ -821,21 +812,38 @@ where
                         .map_err(|e| ChannelMutationErr::Repo(e.into()))?
                         .is_empty();
 
-                    Some(crate::domain::events::MessageChangedNotificationContext {
-                        metadata,
-                        participants: notification_participants,
-                        mentions: replacement_mentions.clone().unwrap_or_default(),
-                        has_attachments,
-                    })
+                    (
+                        recipients,
+                        Some(crate::domain::events::MessageChangedNotificationContext {
+                            metadata,
+                            participants: notification_participants,
+                            mentions: replacement_mentions.clone().unwrap_or_default(),
+                            has_attachments,
+                        }),
+                    )
                 } else {
-                    None
+                    let recipients = if let Some(thread_id) = message.thread_id {
+                        self.repo
+                            .get_thread_participants(thread_id)
+                            .await
+                            .map_err(|e| ChannelMutationErr::Repo(e.into()))?
+                    } else {
+                        participant_ids(
+                            &self
+                                .repo
+                                .get_participants(channel_id)
+                                .await
+                                .map_err(|e| ChannelMutationErr::Repo(e.into()))?,
+                        )
+                    };
+                    (recipients, None)
                 };
 
             self.events.dispatch(ChannelEvent::MessageChanged {
                 channel_id,
                 actor: actor.clone(),
                 message: message.clone(),
-                recipients: participants,
+                recipients,
                 nonce,
                 posted_notification,
             });
@@ -1225,7 +1233,13 @@ where
             .get_participants(channel_id)
             .await
             .map_err(|e| ChannelMutationErr::Repo(e.into()))?;
-        match (info.channel_type, participants.len()) {
+        // Bots can be channel participants; only user participants count
+        // toward the minimum-membership guard.
+        let user_participant_count = participants
+            .iter()
+            .filter(|participant| MacroUserIdStr::try_from(participant.user_id.as_str()).is_ok())
+            .count();
+        match (info.channel_type, user_participant_count) {
             (ChannelType::Private, 2) | (ChannelType::DirectMessage, _) => {
                 return Err(ChannelMutationErr::BadRequest(
                     "cannot leave channel with only 2 participants".to_string(),
@@ -1627,10 +1641,20 @@ where
     #[tracing::instrument(err, skip(self))]
     async fn post_activity(
         &self,
-        actor: Sender,
-        channel_id: Uuid,
+        access: EntityAccessReceipt<MemberParticipantRole>,
         activity_type: ActivityType,
     ) -> Result<Activity, ChannelMutationErr> {
+        if access.entity().entity_type != EntityType::Channel {
+            return Err(ChannelMutationErr::BadRequest(
+                "channel access receipt required".to_string(),
+            ));
+        }
+        let channel_id = Uuid::parse_str(&access.entity().entity_id)
+            .map_err(|error| ChannelMutationErr::BadRequest(error.to_string()))?;
+        let actor = access.get_authenticated_user().map_err(|_| {
+            ChannelMutationErr::Unauthorized("authenticated user required".to_string())
+        })?;
+
         let activity = self
             .repo
             .set_activity(actor.as_ref().to_string(), channel_id, activity_type)

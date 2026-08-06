@@ -15,7 +15,6 @@ use channels::outbound::{
     connection_gateway_realtime::ConnectionGatewayChannelRealtimePublisher,
     contacts_dispatcher::ContactsChannelDispatcher, notification_sender::NotificationChannelSender,
     pg_channels_repo::PgChannelsRepo, pg_side_effect_context::PgChannelSideEffectContext,
-    sqs_search_indexer::SqsChannelSearchIndexer,
 };
 use chat::domain::service::ChatServiceImpl;
 use chat::inbound::toolset::ChatToolContext;
@@ -39,6 +38,7 @@ use macro_event_broker::{KafkaEventPublisher, MacroEventBrokerService};
 use macro_user_id::user_id::MacroUserIdStr;
 use notification::domain::service::SqsNotificationIngress;
 use notification::inbound::ai_tool::NotificationToolContext;
+use projects::inbound::toolset::ProjectToolContext;
 use properties::inbound::toolset::PropertiesToolContext;
 use soup::{domain::service::SoupImpl, inbound::toolset::SoupToolContext};
 use std::sync::Arc;
@@ -124,11 +124,11 @@ pub type ToolChannelMessagesService = ChannelServiceImpl<
 pub type ToolChannelToolContext =
     ChannelToolContext<ToolChannelMessagesService, ToolEntityAccessService>;
 
-/// Build the channel AI tool context from a Postgres pool, with no side
-/// effects (no notifications/realtime/search indexing) — messages sent
-/// through it are persisted but never notify anyone. Only for tests and
-/// hosts that genuinely lack the side-effect clients; production hosts
-/// should use [`build_channel_tool_context_with_side_effects`].
+/// Build the channel AI tool context from a Postgres pool with no side
+/// effects. Messages sent through it are persisted, but never notify connected
+/// clients or publish the channel macro events that drive live search indexing.
+/// Only for tests and hosts that genuinely lack the side-effect clients;
+/// production hosts should use [`build_channel_tool_context_with_side_effects`].
 /// `lexical_client` derives the mention list for messages the agent sends,
 /// since bot-authored content arrives without the editor-tracked mentions.
 pub fn build_channel_tool_context_without_side_effects(
@@ -143,14 +143,13 @@ pub fn build_channel_tool_context_without_side_effects(
 }
 
 /// Clients a host provides to wire the real channel side effects for AI
-/// tools. Queue names (notification ingress, contacts, search events) are
-/// resolved through `macro_queues`, so hosts only supply the shared clients.
+/// tools. Notification-ingress and contacts queue names are resolved through
+/// `macro_queues`, so hosts only supply the shared clients.
 pub struct ChannelSideEffectClients {
     /// Connection gateway client used to fan realtime updates out to
     /// connected clients.
     pub connection_gateway: Arc<ConnectionGatewayClient>,
-    /// SQS client used for the notification-ingress, contacts, and
-    /// search-event queues.
+    /// SQS client used for the notification-ingress and contacts queues.
     pub sqs: aws_sdk_sqs::Client,
     /// Broker publishing channel events to the `macro.channels` topic.
     pub macro_event_broker: ToolEventBroker,
@@ -158,10 +157,10 @@ pub struct ChannelSideEffectClients {
 
 /// Build the channel AI tool context dispatching the same side effects as the
 /// document-storage channel API: realtime updates via the connection gateway,
-/// notifications via the notification-ingress queue, search indexing via the
-/// search-event queue, contact sync via the contacts queue, and channel
-/// events on the macro event broker. Hosts that let the agent send channel
-/// messages need this so mentions and replies notify their recipients.
+/// notifications via the notification-ingress queue, contact sync via the
+/// contacts queue, and channel events on the macro event broker. Those channel
+/// macro events drive live search indexing. Hosts that let the agent send
+/// channel messages need this so mentions and replies notify their recipients.
 pub fn build_channel_tool_context_with_side_effects(
     pool: sqlx::PgPool,
     lexical_client: Arc<lexical_client::LexicalClient>,
@@ -179,14 +178,10 @@ pub fn build_channel_tool_context_with_side_effects(
             macro_queues::ContactsQueue::new().to_string(),
         ),
     });
-    let search_event_queue = macro_queues::SearchEventQueue::new();
-    let search_sqs =
-        Arc::new(sqs_client::SQS::new(clients.sqs).search_event_queue(&search_event_queue));
     let side_effects = ChannelSideEffectService::new(
         PgChannelSideEffectContext::new(pool.clone()),
         ConnectionGatewayChannelRealtimePublisher::new(clients.connection_gateway),
         NotificationChannelSender::new(notification_ingress),
-        SqsChannelSearchIndexer::new(search_sqs),
         ContactsChannelDispatcher::new(contacts_ingress),
     )
     .with_macro_event_broker(clients.macro_event_broker);
@@ -198,8 +193,8 @@ pub fn build_channel_tool_context_with_side_effects(
 }
 
 /// Build the channel AI tool context wired to `dispatcher`, so messages sent by
-/// agent tools fire the host's channel side effects (notifications, realtime,
-/// search indexing).
+/// agent tools fire the host's notification, realtime, and macro-event side
+/// effects. Channel macro events drive live search indexing.
 pub fn build_channel_tool_context_with_dispatcher(
     pool: sqlx::PgPool,
     dispatcher: ToolChannelEventDispatcher,
@@ -717,6 +712,63 @@ pub type ToolNotificationToolContext = NotificationToolContext<ToolNotificationS
 /// Uses an empty toolset — the read-only tool never invokes tool execution.
 pub type ToolChatService = ChatServiceImpl<PgChatRepo, (), ToolEntityAccessManagementService>;
 
+/// Type alias for the project service implementation used by AI tools.
+/// Upload, content-hash, and search-cleanup ports are unwired — project
+/// tools only create, read, and move projects, never run upload or purge
+/// flows.
+pub type ToolProjectService = projects::domain::service::ProjectServiceImpl<
+    projects::outbound::PgProjectRepo,
+    projects::domain::ports::UnavailableProjectUploadUrlPort,
+    projects::domain::ports::UnavailableBulkUploadRequestPort,
+    projects::domain::ports::UnavailableShaCounterPort,
+    ToolEntityAccessManagementService,
+    projects::domain::ports::UnavailableProjectSearchIndexer,
+    ToolEventBroker,
+>;
+
+/// Type alias for the project tool context. Move dispatch uses the same
+/// domain services the other tool contexts run on, so moves fire the same
+/// events and side effects as the REST/GraphQL paths.
+pub type ToolProjectToolContext = ProjectToolContext<
+    ToolProjectService,
+    ToolEntityAccessService,
+    ToolDocumentService,
+    ToolChatService,
+    ToolUserEmailService,
+>;
+
+/// Build the project tool context from shared domain and access services.
+/// The move services must be the same instances the document, chat, and
+/// email tool contexts run on so moves share their side-effect wiring.
+pub fn build_project_tool_context(
+    pool: sqlx::PgPool,
+    macro_event_broker: ToolEventBroker,
+    entity_access_service: Arc<ToolEntityAccessService>,
+    document_service: Arc<ToolDocumentService>,
+    chat_service: Arc<ToolChatService>,
+    email_service: Arc<ToolUserEmailService>,
+) -> ToolProjectToolContext {
+    let project_service = projects::domain::service::ProjectServiceImpl::new(
+        projects::outbound::PgProjectRepo::new(pool.clone()),
+        projects::domain::ports::UnavailableProjectUploadUrlPort,
+        projects::domain::ports::UnavailableBulkUploadRequestPort,
+        projects::domain::ports::UnavailableShaCounterPort,
+        entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
+            entity_access_management::outbound::PgRepository::new(pool),
+        ),
+        projects::domain::ports::UnavailableProjectSearchIndexer,
+        None,
+        macro_event_broker,
+    );
+    ProjectToolContext::new(
+        Arc::new(project_service),
+        entity_access_service,
+        document_service,
+        chat_service,
+        email_service,
+    )
+}
+
 /// Type alias for the chat tool context
 pub type ToolChatToolContext = ChatToolContext<ToolChatService, ToolEntityAccessService>;
 
@@ -1052,6 +1104,7 @@ pub struct ToolServiceContext {
     #[from_ref(skip)]
     pub chat_tool_context: ToolChatToolContext,
     pub channel_tool_context: ToolChannelToolContext,
+    pub project_tool_context: ToolProjectToolContext,
     pub team_tool_context: ToolTeamToolContext,
     pub crm_tool_context: ToolCrmToolContext,
     pub schedule_tool_context: NoOpScheduleContext,
