@@ -94,7 +94,7 @@ export interface CacheEngine {
 
 export interface CacheWasmModule {
   default: (input?: { module_or_path?: unknown }) => Promise<unknown>;
-  initializeTracing(maxLevel: 'DEBUG' | 'WARN'): void;
+  initializeTracing(rustLog: string): void;
   openCache(scope: string, hotCapacity?: number): Promise<CacheEngine>;
   destroyCache(scope: string): Promise<void>;
   schemaHash(): string;
@@ -114,9 +114,8 @@ export function loadCacheWasm(): Promise<CacheWasmModule> {
       // analyzable, so vite emits the binary as an asset and rewrites it.
       const wasmUrl = new URL('../wasm/cache_wasm_bg.wasm', import.meta.url);
       await mod.default({ module_or_path: wasmUrl });
-      mod.initializeTracing(
-        import.meta.env.MODE === 'production' ? 'WARN' : 'DEBUG'
-      );
+      const rustLog = import.meta.env.VITE_RUST_LOG?.trim();
+      if (rustLog) mod.initializeTracing(rustLog);
       return mod;
     })();
   }

@@ -30,9 +30,9 @@ fn js(json: serde_json::Value) -> JsValue {
 }
 
 #[wasm_bindgen_test]
-fn initializes_configured_tracing_level() {
-    assert!(initialize_tracing("INFO").is_err());
-    initialize_tracing("WARN").unwrap();
+fn initializes_configured_tracing_filter() {
+    assert!(initialize_tracing("cache_core=[").is_err());
+    initialize_tracing("warn,cache_core=debug,cache_idb=trace").unwrap();
 }
 
 #[wasm_bindgen_test]

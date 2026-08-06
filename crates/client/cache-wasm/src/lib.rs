@@ -16,37 +16,30 @@ mod shell;
 #[cfg(target_arch = "wasm32")]
 pub use shell::*;
 
-/// Registers browser-console tracing at the requested maximum level.
+/// Registers browser-console tracing with the requested `RUST_LOG` filter.
 ///
 /// Events are routed to the browser console and spans are recorded as
-/// performance measures. This must be called once by the JavaScript host
-/// immediately after instantiating the WASM module.
+/// performance measures. The JavaScript host should call this once, immediately
+/// after instantiating the WASM module, only when tracing is explicitly enabled.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen(js_name = initializeTracing)]
-pub fn initialize_tracing(max_level: &str) -> Result<(), wasm_bindgen::JsError> {
+pub fn initialize_tracing(rust_log: &str) -> Result<(), wasm_bindgen::JsError> {
     use tracing_subscriber::{
-        filter::LevelFilter,
+        EnvFilter,
         fmt::format::{FmtSpan, Pretty},
         prelude::*,
     };
     use tracing_web::{MakeWebConsoleWriter, performance_layer};
 
-    let max_level = match max_level {
-        "DEBUG" => tracing::Level::DEBUG,
-        "WARN" => tracing::Level::WARN,
-        _ => {
-            return Err(wasm_bindgen::JsError::new(
-                "cache tracing level must be DEBUG or WARN",
-            ));
-        }
-    };
+    let filter = EnvFilter::try_new(rust_log)
+        .map_err(|error| wasm_bindgen::JsError::new(&error.to_string()))?;
     let console_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false)
         .with_span_events(FmtSpan::CLOSE)
         .with_writer(MakeWebConsoleWriter::new())
         .without_time();
     tracing_subscriber::registry()
-        .with(LevelFilter::from_level(max_level))
+        .with(filter)
         .with(console_layer)
         .with(performance_layer().with_details_from_fields(Pretty::default()))
         .try_init()
