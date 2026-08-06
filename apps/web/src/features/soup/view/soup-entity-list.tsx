@@ -58,6 +58,7 @@ type SoupActivationMetadata = {
   location?: SearchLocation;
   project?: ProjectEntity;
   openInNewSplit?: boolean;
+  replacePreview?: boolean;
 };
 
 type SoupEntityListProps = {
@@ -138,6 +139,12 @@ export function SoupEntityList(props: SoupEntityListProps) {
       location,
       openInNewSplit:
         metadata.openInNewSplit ?? metadata.event?.shiftKey ?? false,
+      replacePreview:
+        metadata.replacePreview ??
+        (panel.handle.isControllerSplit() &&
+          metadata.project === undefined &&
+          metadata.event?.shiftKey !== true &&
+          metadata.event?.altKey === true),
     });
   };
 

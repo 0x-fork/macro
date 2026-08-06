@@ -207,6 +207,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     items,
     isLoading: () => options.enabled() && browse.isLoading(),
     isFetching: () => options.enabled() && browse.isFetching(),
+    isPlaceholderData: () => options.enabled() && itemsQuery.isPlaceholderData,
     error: () => (options.enabled() ? browse.error() : undefined),
     hasMore: () => options.enabled() && browse.hasMore(),
     isLoadingMore: () => options.enabled() && browse.isLoadingMore(),
@@ -224,7 +225,10 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
       await browse.refresh();
     },
     active: groupingActive,
-  } satisfies ListDataSource<SoupRow> & { [key: string]: unknown };
+  } satisfies ListDataSource<SoupRow> & {
+    isPlaceholderData: Accessor<boolean>;
+    active: Accessor<boolean>;
+  };
 
   return dataSource;
 }

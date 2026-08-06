@@ -52,7 +52,6 @@ function AgentsEmptyState() {
     <Switch>
       <Match when={collection.state.activeTab === 'automations'}>
         <EmptyStatePanel
-          centered
           graphic={EmptyStateAutomationsGraphic}
           title="No automations to show"
           description="Automations run in the background to handle repetitive work for you — like triaging messages, updating tasks, or sending follow-ups."

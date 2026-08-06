@@ -103,6 +103,7 @@ export const SoupEntityContextMenu: FlowComponent<{
                         icon={action.icon}
                         hotkeyToken={action.hotkeyToken}
                         shortcut={action.shortcut}
+                        disabled={action.disabled}
                         onClick={() => void action.onClick()}
                         class={
                           action.destructive ? 'text-failure-ink' : undefined

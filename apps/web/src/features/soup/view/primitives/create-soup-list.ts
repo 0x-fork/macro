@@ -81,6 +81,7 @@ export function createSoupList(options: CreateSoupListOptions) {
         const preset = getViewPreset(options.view, tab, presetContext());
         if (!preset) return undefined;
         return {
+          facets: preset.initialFacets,
           groupBy: preset.groupBy,
           emailView: preset.emailView,
         };

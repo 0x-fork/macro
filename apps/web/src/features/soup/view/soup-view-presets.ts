@@ -91,7 +91,6 @@ export const VIEW_TAB_PRESETS: Record<ListView, ViewConfig> = {
             emailShared: 'exclude',
             emailUpdatedAt: { gte: cutoff },
             channelDone: false,
-            channelIsParticipant: true,
             channelThreadDone: false,
             chatDone: false,
             chatUpdatedAt: { gte: cutoff },

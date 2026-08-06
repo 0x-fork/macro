@@ -254,6 +254,9 @@ function CompaniesListViewContent() {
                     onEntityClick={(entity, event) => {
                       if (
                         !event.shiftKey &&
+                        !event.altKey &&
+                        !event.metaKey &&
+                        !event.ctrlKey &&
                         panel.handle.isControllerSplit() &&
                         preventDuplicatePreviewEntityOpen(entity, panel.handle)
                       ) {
@@ -275,6 +278,7 @@ function CompaniesListViewContent() {
                         splitHandle: panel.handle,
                         referredFrom: 'companies',
                         openInNewSplit: event.shiftKey,
+                        replacePreview: !event.shiftKey && event.altKey,
                       });
                     }}
                   />

@@ -9,13 +9,17 @@ export function useSoupPreviewAvailability(options: {
   rows: Accessor<readonly SoupRow[]>;
   isLoading: Accessor<boolean>;
   isFetching: Accessor<boolean>;
+  isPlaceholderData: Accessor<boolean>;
   splitHandle: SplitHandle;
   onPreviewRestored?: () => void;
 }): Accessor<boolean> {
   const hasPreviewItems = createMemo(() =>
     hasPreviewableSoupRows(options.rows())
   );
-  const isSettled = () => !options.isLoading() && !options.isFetching();
+  const isSettled = () =>
+    !options.isLoading() &&
+    !options.isFetching() &&
+    !options.isPlaceholderData();
   let suspended = false;
 
   createEffect(() => {

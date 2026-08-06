@@ -69,6 +69,7 @@ const createHarness = (initial: HarnessOptions = {}) => {
       rows,
       isLoading,
       isFetching,
+      isPlaceholderData: () => false,
       splitHandle: stub.handle,
       onPreviewRestored: initial.onPreviewRestored,
     });

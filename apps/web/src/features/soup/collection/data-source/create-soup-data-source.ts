@@ -30,6 +30,10 @@ import { useSoupBrowseRequest } from './use-soup-browse-request';
 
 type SoupEntity = EntityData & { notifications?: Accessor<Notification[]> };
 
+type SoupListDataSource = ListDataSource<SoupRow> & {
+  isPlaceholderData: Accessor<boolean>;
+};
+
 type EntityWithRawNotifications = EntityData & {
   notifications?: Notification[];
 };
@@ -171,6 +175,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     }),
     isLoading: () => flatEnabled() && browse.isLoading(),
     isFetching: () => flatEnabled() && browse.isFetching(),
+    isPlaceholderData: () => flatEnabled() && browse.query.isPlaceholderData,
     error: () => (flatEnabled() ? browse.error() : undefined),
     hasMore: () => flatEnabled() && browse.hasMore(),
     isLoadingMore: () => flatEnabled() && browse.isLoadingMore(),
@@ -186,9 +191,9 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
 
       await browse.refresh();
     },
-  } satisfies ListDataSource<SoupRow>;
+  } satisfies SoupListDataSource;
 
-  const activeSource = (): ListDataSource<SoupRow> => {
+  const activeSource = (): SoupListDataSource => {
     if (searchSource.active()) {
       return searchSource;
     }
@@ -204,7 +209,13 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     const source = activeSource();
     const next = [...source.items()];
     if (next.length > 0) return next;
-    if (!source.isLoading() && !source.isFetching()) return next;
+    if (
+      !source.isLoading() &&
+      !source.isFetching() &&
+      !source.isPlaceholderData()
+    ) {
+      return next;
+    }
     return previous;
   }, []);
 
@@ -212,6 +223,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     items: activeItems,
     isLoading: createMemo(() => activeSource().isLoading()),
     isFetching: () => activeSource().isFetching(),
+    isPlaceholderData: createMemo(() => activeSource().isPlaceholderData()),
     error: () => activeSource().error(),
     hasMore: () => activeSource().hasMore(),
     isLoadingMore: () => activeSource().isLoadingMore(),
@@ -226,7 +238,7 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
         invalidateUserNotifications(),
       ]);
     },
-  } satisfies ListDataSource<SoupRow>;
+  } satisfies SoupListDataSource;
 
   return dataSource;
 }

@@ -127,6 +127,7 @@ export type SoupViewContextValue = {
   isTabAvailable: (tabId: string) => boolean;
   applyTabPreset: (tabId: string) => boolean;
   activePresetFacets: Accessor<FacetSelection>;
+  filterByTag: (optionId: string) => void;
 
   viewMode: Accessor<SoupViewMode>;
   setViewMode: Setter<SoupViewMode>;
@@ -334,6 +335,7 @@ export function SoupViewProvider(
     isTabAvailable,
     applyTabPreset,
     activePresetFacets,
+    filterByTag: (optionId) => collection.facets.set('tag', [optionId]),
 
     viewMode,
     setViewMode,

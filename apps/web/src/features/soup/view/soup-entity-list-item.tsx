@@ -59,6 +59,7 @@ type SoupActivationMetadata = {
   location?: SearchLocation;
   project?: ProjectEntity;
   openInNewSplit?: boolean;
+  replacePreview?: boolean;
   focus?: () => void;
 };
 
@@ -121,10 +122,16 @@ export function SoupEntityListItem(props: {
       metadata.openInNewSplit ?? metadata.event?.shiftKey ?? false;
     const openInNewTab =
       metadata.event?.metaKey === true || metadata.event?.ctrlKey === true;
+    const replacePreview =
+      !metadata.project &&
+      !openInNewSplit &&
+      panel.handle.isControllerSplit() &&
+      (metadata.replacePreview ?? metadata.event?.altKey ?? false);
     if (
       !metadata.project &&
       !openInNewTab &&
       !openInNewSplit &&
+      !replacePreview &&
       panel.handle.isControllerSplit() &&
       preventDuplicatePreviewEntityOpen(entity, panel.handle)
     ) {
@@ -158,6 +165,7 @@ export function SoupEntityListItem(props: {
       referredFrom: view(),
       location,
       openInNewSplit,
+      replacePreview,
     });
   };
 

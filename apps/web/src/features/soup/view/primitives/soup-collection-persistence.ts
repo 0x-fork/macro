@@ -5,6 +5,7 @@ import type {
   SoupEmailView,
 } from '@app/features/soup/collection';
 import { deserializeFacets } from '@app/features/soup/filters/facet-store';
+import { legacySearchStateToFacets } from '@app/features/soup/filters/legacy-search-state';
 import type { SplitPanelContextType } from '@components/app/split-layout/context';
 import type { EntryState } from '@components/app/split-layout/layoutManager';
 import type {
@@ -48,6 +49,9 @@ const sortSchema = z
 
 const facetSelectionSchema = z.record(z.string(), z.array(z.string()));
 const emailViewSchema = z.enum(['inbox', 'drafts', 'sent', 'all']);
+const legacyFilterMetadataSchema = z
+  .object({ emailView: emailViewSchema.optional() })
+  .passthrough();
 
 const filterPreferenceSchema = z.object({
   version: z.literal(1),
@@ -58,9 +62,18 @@ const filterPreferenceSchema = z.object({
 type SoupFilterPreference = z.infer<typeof filterPreferenceSchema>;
 
 type PersistedTabDefaults = {
+  facets?: FacetSelection;
   groupBy?: string;
   emailView?: SoupEmailView;
 };
+
+const PRESET_OWNED_FACET_IDS = [
+  'scope',
+  'ownership',
+  'focus',
+  'drafts',
+  'task_status',
+] as const;
 
 const filterPreferenceKey = (view: ListView) =>
   `macro:pref:soup:${view}:filters:v1`;
@@ -117,6 +130,8 @@ const entryStateSchema = z.object({
 const legacyEntryStateSchema = z
   .object({
     'search.facets': facetSelectionSchema.optional(),
+    'search.filters': z.unknown().optional(),
+    'search.predicates': z.unknown().optional(),
     'search.text': z.string().optional(),
     'soup.sort': sortSchema.optional(),
     'soup.groupBy': z.string().nullable().optional(),
@@ -125,6 +140,8 @@ const legacyEntryStateSchema = z
   })
   .transform((state) => ({
     facets: state['search.facets'],
+    legacyFilters: state['search.filters'],
+    legacyPredicates: state['search.predicates'],
     sort: state['soup.sort'],
     groupBy: state['soup.groupBy'],
     collapsedGroups: state['soup.collapsedGroups'],
@@ -219,12 +236,50 @@ const restoreEntrySlice = (
   return next;
 };
 
-const restoreLegacyEntrySlice = (
+export const restoreLegacyEntrySlice = (
   current: SoupCollectionStore,
-  raw: unknown
+  raw: unknown,
+  view: ListView,
+  resolveTabDefaults?: (tab: string) => PersistedTabDefaults | undefined
 ): SoupCollectionStore | undefined => {
   const result = legacyEntryStateSchema.safeParse(raw);
-  return result.success ? restoreEntrySlice(current, result.data) : undefined;
+  if (!result.success) return undefined;
+
+  const restored = result.data;
+  if (!restored.facets) {
+    const migrated = legacySearchStateToFacets(
+      restored.legacyFilters,
+      restored.legacyPredicates,
+      view
+    );
+    const facets = { ...current.facets };
+    const tabDefaults = restored.activeTab
+      ? resolveTabDefaults?.(restored.activeTab)
+      : undefined;
+    if (tabDefaults) {
+      for (const id of PRESET_OWNED_FACET_IDS) delete facets[id];
+      Object.assign(facets, cloneFacetSelection(tabDefaults.facets ?? {}));
+    }
+    Object.assign(facets, migrated);
+    if (restored.activeTab) facets[view] = [restored.activeTab];
+
+    const metadata = legacyFilterMetadataSchema.safeParse(
+      restored.legacyFilters
+    );
+    return restoreEntrySlice(current, {
+      ...restored,
+      facets,
+      groupBy:
+        restored.groupBy !== undefined
+          ? restored.groupBy
+          : tabDefaults?.groupBy,
+      emailView:
+        (metadata.success ? metadata.data.emailView : undefined) ??
+        tabDefaults?.emailView,
+    });
+  }
+
+  return restoreEntrySlice(current, restored);
 };
 
 const filterPreferenceStorage = (options: {
@@ -347,7 +402,12 @@ export function createSoupCollectionPersistence(
     restore: (current, state, key) => {
       if (options.restoreEntryState === false) return undefined;
       return state[key] === undefined
-        ? restoreLegacyEntrySlice(current, state)
+        ? restoreLegacyEntrySlice(
+            current,
+            state,
+            options.view,
+            options.resolveTabDefaults
+          )
         : restoreEntrySlice(current, state[key]);
     },
     write: selectEntryState,

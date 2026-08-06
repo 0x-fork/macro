@@ -44,6 +44,7 @@ export type UnifiedFilterDropdownProps = {
   onOpenChange?: (open: boolean) => void;
   customTrigger?: JSX.Element;
   hideTrigger?: boolean;
+  hideLabel?: boolean;
   registerHotkey?: boolean;
 };
 
@@ -293,9 +294,15 @@ export function UnifiedFilterDropdown(props: UnifiedFilterDropdownProps = {}) {
             <Match when={props.customTrigger}>{props.customTrigger}</Match>
             <Match when={true}>
               <Tooltip label="Filter" hotkey={TOKENS.soup.filter}>
-                <Dropdown.Trigger depth={2} class="bg-surface">
+                <Dropdown.Trigger
+                  depth={2}
+                  class="bg-surface"
+                  aria-label={props.hideLabel ? 'Filter' : undefined}
+                >
                   <FilterIcon />
-                  <span>Filter</span>
+                  <Show when={!props.hideLabel}>
+                    <span>Filter</span>
+                  </Show>
                 </Dropdown.Trigger>
               </Tooltip>
             </Match>

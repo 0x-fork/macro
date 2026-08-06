@@ -1,5 +1,4 @@
 import { List, useList } from '@app/components/list';
-import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import type { FacetSelection, SoupRow } from '@app/features/soup/collection';
 import { NIL_UUID } from '@app/features/soup/filters/facet-store';
 import { useSoupView } from '@app/features/soup/view/context';
@@ -8,19 +7,10 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useSplitDisplayName } from '@components/app/split-layout/use-split-display-name';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { LoadingBlock } from '@core/component/LoadingBlock';
-import { ENABLE_UNIFIED_LIST_AI_INPUT } from '@core/constant/featureFlags';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
-import { isMobile } from '@core/mobile/isMobile';
 import { ListEntity } from '@entity';
 import Spinner from '@phosphor/spinner.svg';
-import {
-  createMemo,
-  createSignal,
-  onCleanup,
-  onMount,
-  Show,
-  Suspense,
-} from 'solid-js';
+import { createMemo, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { getSelectedEntities } from '../../../actions/list-action-state';
 import { SoupFileDropzone } from '../../components/actions/soup-file-dropzone';
 import { SoupSelectionToolbar } from '../../components/actions/soup-selection-toolbar';
@@ -88,116 +78,106 @@ function SearchListViewContent() {
   const selectedEntities = createMemo(() => getSelectedEntities(listState));
 
   return (
-    <>
-      <SoupFileDropzone>
-        <SoupViewRoot
-          ref={(element) => {
-            setRoot(element);
-            attachHotkeys(element);
-          }}
-          listScopeId={listScopeId}
+    <SoupFileDropzone>
+      <SoupViewRoot
+        ref={(element) => {
+          setRoot(element);
+          attachHotkeys(element);
+        }}
+        listScopeId={listScopeId}
+      >
+        <SoupViewHeader sortVisible={sortVisible()} />
+        <SoupMobileControls />
+
+        <div
+          ref={setListContent}
+          class="relative flex grow min-h-0 min-w-0 flex-col"
         >
-          <SoupViewHeader sortVisible={sortVisible()} />
-          <SoupMobileControls />
-
-          <div
-            ref={setListContent}
-            class="relative flex grow min-h-0 min-w-0 flex-col"
-          >
-            <List.Content>
-              <List.Items>
-                <SoupEntityList
-                  view="search"
-                  root={root}
-                  listScopeId={listScopeId}
-                  viewportRef={setViewport}
-                  trailing={
-                    <Show
-                      when={
-                        dataSource.isLoadingMore() || dataSource.isFetching()
+          <List.Content>
+            <List.Items>
+              <SoupEntityList
+                view="search"
+                root={root}
+                listScopeId={listScopeId}
+                viewportRef={setViewport}
+                trailing={
+                  <Show
+                    when={dataSource.isLoadingMore() || dataSource.isFetching()}
+                  >
+                    <SearchProgress
+                      label={
+                        dataSource.isLoadingMore()
+                          ? 'Loading more...'
+                          : 'Searching...'
                       }
-                    >
-                      <SearchProgress
-                        label={
-                          dataSource.isLoadingMore()
-                            ? 'Loading more...'
-                            : 'Searching...'
-                        }
+                    />
+                  </Show>
+                }
+              >
+                {(item) => (
+                  <SoupEntityListItem item={item}>
+                    {(scope) => (
+                      <ListEntity
+                        entity={scope.item().entity}
+                        highlighted={scope.highlighted()}
+                        checked={scope.selected()}
+                        entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
+                        onChecked={scope.onChecked}
+                        onClick={scope.onClick}
+                        onProjectClick={scope.onProjectClick}
+                        onContentHitClick={scope.onContentHitClick}
                       />
-                    </Show>
-                  }
-                >
-                  {(item) => (
-                    <SoupEntityListItem item={item}>
-                      {(scope) => (
-                        <ListEntity
-                          entity={scope.item().entity}
-                          highlighted={scope.highlighted()}
-                          checked={scope.selected()}
-                          entityRowConfig={SOUP_MARK_DONE_ROW_CONFIG}
-                          onChecked={scope.onChecked}
-                          onClick={scope.onClick}
-                          onProjectClick={scope.onProjectClick}
-                          onContentHitClick={scope.onContentHitClick}
-                        />
-                      )}
-                    </SoupEntityListItem>
-                  )}
-                </SoupEntityList>
-              </List.Items>
-              <List.Error>
-                {() => (
-                  <div class="size-full min-h-0">
-                    <SoupSearchErrorState />
-                  </div>
+                    )}
+                  </SoupEntityListItem>
                 )}
-              </List.Error>
-              <List.Loading>
-                <div class="flex size-full min-h-0 flex-col mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)">
-                  <LoadingBlock />
+              </SoupEntityList>
+            </List.Items>
+            <List.Error>
+              {() => (
+                <div class="size-full min-h-0">
+                  <SoupSearchErrorState />
                 </div>
-              </List.Loading>
-              <List.Empty>
-                <Show
-                  when={dataSource.isFetching()}
-                  fallback={
-                    <div class="size-full min-h-0">
-                      <SoupEmptyState />
-                    </div>
-                  }
-                >
-                  <SearchProgress label="Searching..." />
-                </Show>
-              </List.Empty>
-            </List.Content>
+              )}
+            </List.Error>
+            <List.Loading>
+              <div class="flex size-full min-h-0 flex-col mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)">
+                <LoadingBlock />
+              </div>
+            </List.Loading>
+            <List.Empty>
+              <Show
+                when={dataSource.isFetching()}
+                fallback={
+                  <div class="size-full min-h-0">
+                    <SoupEmptyState />
+                  </div>
+                }
+              >
+                <SearchProgress label="Searching..." />
+              </Show>
+            </List.Empty>
+          </List.Content>
 
-            <CustomScrollbar scrollContainer={viewport} />
-            <PullToRefresh
-              scrollContainer={() =>
-                dataSource.items().length > 0 ? viewport() : listContent()
-              }
-              onRefresh={dataSource.refresh}
+          <CustomScrollbar scrollContainer={viewport} />
+          <PullToRefresh
+            scrollContainer={() =>
+              dataSource.items().length > 0 ? viewport() : listContent()
+            }
+            onRefresh={dataSource.refresh}
+          />
+          <Show when={selectedEntities().length > 0}>
+            <SoupSelectionToolbar
+              selected={selectedEntities()}
+              onClose={listState.selection.clear}
+              onClear={() => {
+                listState.selection.clear();
+                root()?.focus();
+              }}
             />
-            <Show when={selectedEntities().length > 0}>
-              <SoupSelectionToolbar
-                selected={selectedEntities()}
-                onClose={listState.selection.clear}
-                onClear={() => {
-                  listState.selection.clear();
-                  root()?.focus();
-                }}
-              />
-            </Show>
-          </div>
-        </SoupViewRoot>
-      </SoupFileDropzone>
-
-      <Suspense>
-        <Show when={ENABLE_UNIFIED_LIST_AI_INPUT && !isMobile()}>
-          <SoupChatInput />
-        </Show>
-      </Suspense>
-    </>
+          </Show>
+        </div>
+      </SoupViewRoot>
+    </SoupFileDropzone>
   );
 }
 

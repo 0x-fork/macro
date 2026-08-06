@@ -8,7 +8,10 @@ import type { SystemSortOption } from '@app/features/soup/view/components/sortin
 import { SoupViewCreateButton } from '@app/features/soup/view/components/soup-view-create-button';
 import { useSoupView } from '@app/features/soup/view/context';
 import { usePreference } from '@app/preferences/use-preference';
-import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleItem';
+import {
+  CollapsibleHeaderItem,
+  CollapsibleToolbarItem,
+} from '@components/app/split-layout/components/CollapsibleItem';
 import { PreviewButton } from '@components/app/split-layout/components/PreviewButton';
 import {
   SplitHeaderLeft,
@@ -33,6 +36,7 @@ import { SoupActiveFacets } from './components/filters/soup-active-facets';
 import { SoupInboxSelector } from './components/filters/soup-inbox-selector';
 import { UnifiedFilterDropdown } from './components/filters/unified-filter-dropdown';
 import { soupGroupOptions } from './components/grouping/group-options';
+import { SearchAskAiButton } from './components/search-ask-ai-button';
 import { soupSortOptions } from './components/sorting/sort-options';
 import { SoupSearchbar } from './components/soup-searchbar';
 import { useSoupPreviewAvailability } from './primitives/use-soup-preview-availability';
@@ -111,6 +115,7 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
     rows: collection.dataSource.items,
     isLoading: collection.dataSource.isLoading,
     isFetching: collection.dataSource.isFetching,
+    isPlaceholderData: collection.dataSource.isPlaceholderData,
     splitHandle: panel.handle,
     onPreviewRestored: openFocusedEntityInPreview,
   });
@@ -226,10 +231,6 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
                 <Show when={view() !== 'search'}>
                   <SoupViewCreateButton view={view()} />
                 </Show>
-                <Show when={view() === 'companies'}>
-                  <CompanyViewsMenu />
-                  <CompanyDisplayMenu />
-                </Show>
                 <Show
                   when={view() === 'search'}
                   fallback={
@@ -277,6 +278,7 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
                       />
                     </div>
                   </Layer>
+                  <SearchAskAiButton />
                 </Show>
               </>
             }
@@ -297,49 +299,83 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
           <div class="flex min-w-0 flex-1 items-center gap-1">
             <Show
               when={view() === 'search'}
-              fallback={<UnifiedFilterDropdown />}
+              fallback={
+                <>
+                  <Show when={props.sortVisible}>
+                    <SortDropdown
+                      value={activeSort}
+                      onChange={(id) =>
+                        collection.setState('sort', [{ id, reversed: false }])
+                      }
+                      options={soupSortOptions(view())}
+                      open={sortOpen()}
+                      onOpenChange={setSortOpen}
+                    />
+                  </Show>
+                  <Show
+                    when={
+                      soupGroupOptions(view()).length > 0 &&
+                      !(view() === 'companies' && viewMode() === 'board')
+                    }
+                  >
+                    <CollapsibleToolbarItem
+                      id="soup-toolbar-group"
+                      priority={0}
+                    >
+                      {(isCollapsed) => (
+                        <GroupDropdown
+                          value={activeGroup}
+                          onChange={(id) => {
+                            collection.setState(
+                              'groupBy',
+                              id === 'none' ? undefined : id
+                            );
+                            collection.collapsedGroups.expandAll();
+                          }}
+                          options={soupGroupOptions(view())}
+                          open={groupOpen()}
+                          onOpenChange={setGroupOpen}
+                          hideLabel={isCollapsed()}
+                        />
+                      )}
+                    </CollapsibleToolbarItem>
+                  </Show>
+                  <CollapsibleToolbarItem id="soup-toolbar-filter" priority={1}>
+                    {(isCollapsed) => (
+                      <UnifiedFilterDropdown hideLabel={isCollapsed()} />
+                    )}
+                  </CollapsibleToolbarItem>
+                  <Show when={view() === 'companies'}>
+                    <CompanyDisplayMenu />
+                  </Show>
+                </>
+              }
             >
               <SoupSearchFacets />
-            </Show>
-            <Show when={props.sortVisible}>
-              <SortDropdown
-                value={activeSort}
-                onChange={(id) =>
-                  collection.setState('sort', [{ id, reversed: false }])
-                }
-                options={soupSortOptions(view())}
-                open={sortOpen()}
-                onOpenChange={setSortOpen}
-              />
-            </Show>
-            <Show when={soupGroupOptions(view()).length > 0}>
-              <GroupDropdown
-                value={activeGroup}
-                onChange={(id) => {
-                  collection.setState(
-                    'groupBy',
-                    id === 'none' ? undefined : id
-                  );
-                  collection.collapsedGroups.expandAll();
-                }}
-                options={soupGroupOptions(view())}
-                open={groupOpen()}
-                onOpenChange={setGroupOpen}
-              />
             </Show>
           </div>
         </SplitToolbarLeft>
         <SplitToolbarRight>
-          <PreviewButton
-            disabled={!hasPreviewItems()}
-            disabledLabel="No items to preview"
-            onEngage={openFocusedEntityInPreview}
-            onOpenChange={(open) => {
-              if (DEFAULT_PREVIEW_VIEWS.has(view())) {
-                setPreviewOpenPreference(open);
-              }
-            }}
-          />
+          <Show when={view() === 'companies'}>
+            <CollapsibleToolbarItem id="soup-toolbar-views" priority={2}>
+              {(isCollapsed) => <CompanyViewsMenu hideLabel={isCollapsed()} />}
+            </CollapsibleToolbarItem>
+          </Show>
+          <CollapsibleToolbarItem id="soup-toolbar-preview" priority={3}>
+            {(isCollapsed) => (
+              <PreviewButton
+                disabled={!hasPreviewItems()}
+                disabledLabel="No items to preview"
+                onEngage={openFocusedEntityInPreview}
+                onOpenChange={(open) => {
+                  if (DEFAULT_PREVIEW_VIEWS.has(view())) {
+                    setPreviewOpenPreference(open);
+                  }
+                }}
+                hideLabel={isCollapsed()}
+              />
+            )}
+          </CollapsibleToolbarItem>
         </SplitToolbarRight>
       </Show>
 

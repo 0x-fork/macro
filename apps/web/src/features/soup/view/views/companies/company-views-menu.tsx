@@ -180,7 +180,7 @@ export function CompanyDisplayMenu() {
   );
 }
 
-export function CompanyViewsMenu() {
+export function CompanyViewsMenu(props: { hideLabel?: boolean } = {}) {
   const { collection, viewMode } = useSoupView();
   const personal = usePersonalCrmViews();
   const team = useTeamCrmViews();
@@ -228,9 +228,16 @@ export function CompanyViewsMenu() {
         }
       }}
     >
-      <Dropdown.Trigger depth={2} class="bg-surface">
+      <Dropdown.Trigger
+        depth={2}
+        class="bg-surface"
+        label={props.hideLabel ? 'Views' : undefined}
+        aria-label={props.hideLabel ? 'Views' : undefined}
+      >
         <StackIcon />
-        <span>Views</span>
+        <Show when={!props.hideLabel}>
+          <span>Views</span>
+        </Show>
       </Dropdown.Trigger>
       <Dropdown.Content class="w-64 shadow-menu">
         <Dropdown.Group>
@@ -310,7 +317,7 @@ export function CompanyViewsMenu() {
                 placeholder="View name"
                 class={cn(
                   'w-full rounded-md border border-edge-muted bg-transparent px-2 py-1 text-sm',
-                  'outline-none focus:border-accent placeholder:text-ink-faint'
+                  'outline-none focus:border-accent placeholder:text-ink-placeholder'
                 )}
               />
               <div class="flex items-center justify-between gap-1.5">

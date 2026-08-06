@@ -1,3 +1,4 @@
+import { useSoupView } from '@app/features/soup/view/context';
 import { UserIcon } from '@core/component/UserIcon';
 import { tryMacroId, useDisplayNameParts } from '@core/user';
 import {
@@ -64,6 +65,7 @@ function buildStubProperty(col: TaskGridColumn): Property {
 }
 
 export function TaskGridLayout(props: LayoutProps) {
+  const soupView = useSoupView();
   const currentId = useUserId();
   const entity = () => props.entity as EntityWithProperties<EntityData>;
   const isShared = () => props.entity.ownerId !== currentId();
@@ -111,6 +113,7 @@ export function TaskGridLayout(props: LayoutProps) {
 
   return (
     <PropertiesProvider
+      entityId={props.entity.id}
       entityType={EntityType.TASK}
       canEdit={true}
       properties={properties}
@@ -192,6 +195,7 @@ export function TaskGridLayout(props: LayoutProps) {
             entityId={props.entity.id}
             entityType={EntityType.TASK}
             properties={entity().properties}
+            onFilterByTag={soupView.filterByTag}
             class="ml-auto"
           />
         </Entity.Slot>

@@ -635,6 +635,21 @@ export function useSoupViewHotkeys(options: UseSoupViewHotkeysOptions) {
   }).withGroup(hotkeys);
 
   registerHotkey({
+    hotkey: 'opt+enter',
+    scopeId: options.listScopeId,
+    description: 'Open to replace preview',
+    condition: () =>
+      panel.handle.isControllerSplit() &&
+      listState.focus.item()?.kind === 'entity',
+    keyDownHandler: () =>
+      activateCurrent({
+        reason: 'keyboard',
+        metadata: { replacePreview: true },
+      }) !== undefined,
+    hide: true,
+  }).withGroup(hotkeys);
+
+  registerHotkey({
     hotkey: 'cmd+enter',
     scopeId: options.listScopeId,
     description: 'Focus preview',

@@ -70,9 +70,11 @@ function SoupMobileActionDrawer(props: {
                   {(action) => (
                     <button
                       type="button"
+                      disabled={action.disabled}
                       class={cn(
                         'flex items-center gap-3 bg-surface px-4 py-3 text-left text-sm not-last:mb-px hover:bg-hover hover-transition-bg',
-                        action.destructive ? 'text-failure-ink' : 'text-ink'
+                        action.destructive ? 'text-failure-ink' : 'text-ink',
+                        action.disabled && 'opacity-50'
                       )}
                       onClick={async () => {
                         try {

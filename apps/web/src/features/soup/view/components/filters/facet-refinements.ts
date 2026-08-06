@@ -16,6 +16,15 @@ export const REFINEMENT_FACET_IDS = [
   'company_owner',
   'tag',
   'tag_mode',
+  'search_type',
+  'email_importance',
+  'email_inbox',
+  'channel_in',
+  'channel_from',
+  'call_in',
+  'call_from',
+  'call_status',
+  'task_created_by',
 ] as const;
 
 const sameIds = (left: readonly string[], right: readonly string[]) => {

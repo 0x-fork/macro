@@ -121,6 +121,7 @@ export function createSoupSearchDataSource<TEntity extends EntityData>(
       (searchQuery.isFetching ||
         search.isSearchServiceLoading() ||
         search.isLocalSearchSettling()),
+    isPlaceholderData: () => options.enabled() && searchQuery.isPlaceholderData,
     error: () => (options.enabled() ? searchQuery.error : undefined),
     hasMore: () =>
       options.enabled() && searchQuery.isEnabled && !!searchQuery.hasNextPage,
@@ -136,7 +137,9 @@ export function createSoupSearchDataSource<TEntity extends EntityData>(
 
       await searchQuery.refetch();
     },
-  } satisfies ListDataSource<SoupRow>;
+  } satisfies ListDataSource<SoupRow> & {
+    isPlaceholderData: Accessor<boolean>;
+  };
 
   return {
     ...dataSource,
