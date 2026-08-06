@@ -195,6 +195,7 @@ deny = [
     "workspace-hack",          # cargo-hakari generated crate
   ], reason = "Use macro_aws_config for AWS configuration in workspace crates" },
   { crate = "tracing-subscriber", wrappers = [
+    "cache-wasm",                # Browser/WASM tracing setup uses tracing-web
     "channels",                  # Dev logging only
     "documents",                 # Dev logging only
     "email",                     # Dev logging only
@@ -211,7 +212,6 @@ deny = [
     "tracing-panic",             # External crate allowed to use tracing-subscriber
     "tracing-tree",
     "tracing-web",               # External WASM tracing layer
-    "wasm-tracing",              # External browser tracing layer
     "worker-rs-otel",             # Cloudflare/WASM OpenTelemetry integration
     "workspace-hack",             # cargo-hakari generated crate
   ], reason = "Use macro_entrypoint for tracing setup in workspace crates" },

@@ -24,6 +24,13 @@ pub use shell::*;
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen::prelude::wasm_bindgen(js_name = initializeTracing)]
 pub fn initialize_tracing(max_level: &str) -> Result<(), wasm_bindgen::JsError> {
+    use tracing_subscriber::{
+        filter::LevelFilter,
+        fmt::format::{FmtSpan, Pretty},
+        prelude::*,
+    };
+    use tracing_web::{MakeWebConsoleWriter, performance_layer};
+
     let max_level = match max_level {
         "DEBUG" => tracing::Level::DEBUG,
         "WARN" => tracing::Level::WARN,
@@ -33,8 +40,15 @@ pub fn initialize_tracing(max_level: &str) -> Result<(), wasm_bindgen::JsError> 
             ));
         }
     };
-    let mut config = wasm_tracing::WasmLayerConfig::new();
-    config.set_max_level(max_level);
-    wasm_tracing::set_as_global_default_with_config(config)
+    let console_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false)
+        .with_span_events(FmtSpan::CLOSE)
+        .with_writer(MakeWebConsoleWriter::new())
+        .without_time();
+    tracing_subscriber::registry()
+        .with(LevelFilter::from_level(max_level))
+        .with(console_layer)
+        .with(performance_layer().with_details_from_fields(Pretty::default()))
+        .try_init()
         .map_err(|error| wasm_bindgen::JsError::new(&error.to_string()))
 }
