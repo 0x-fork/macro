@@ -13,7 +13,10 @@ import {
   entityMatchesTagFilter,
   soupItemMatchesTagFilter,
 } from '@queries/soup/tag-filter';
-import { mapApiSoupItemToEntity } from '@queries/soup/transform-utils';
+import {
+  isDisplayableSoupItem,
+  mapApiSoupItemToEntity,
+} from '@queries/soup/transform-utils';
 import type { SoupApiItem } from '@service-storage/generated/schemas';
 import { type Accessor, createMemo } from 'solid-js';
 import type { FacetCtx } from '../../filters/facets';
@@ -101,6 +104,7 @@ export function useSoupBrowseRequest(options: {
   const activeTagIds = () => controls.facets.getSelected('tag');
 
   const matchesActiveFilters = (item: SoupApiItem) =>
+    isDisplayableSoupItem(item) &&
     soupItemMatchesTagFilter(item, activeTagIds(), tagMode()) &&
     controls.facets.test(mapApiSoupItemToEntity(item), facetContext());
 

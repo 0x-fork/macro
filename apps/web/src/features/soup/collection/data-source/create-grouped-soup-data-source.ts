@@ -1,9 +1,4 @@
 import type { ListDataSource } from '@app/components/list';
-import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import {
-  ENABLE_GRAPHQL_SOUP_FLAG,
-  ENABLE_GRAPHQL_SOUP_OVERRIDE,
-} from '@core/constant/featureFlags';
 import { idToDisplayName } from '@core/user/util';
 import { type EntityData, getPropertyOptionLabel } from '@entity';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
@@ -20,7 +15,6 @@ import {
 import type { TransformSoupEntitiesOptions } from '../transform-soup-entities';
 import type { SoupRow } from '../types';
 import { createGroupedSoupQueries } from './create-grouped-soup-queries';
-import { useReactiveSoupDataSource } from './use-reactive-soup-data-source';
 import { useRestSoupDataSource } from './use-rest-soup-data-source';
 import type { useSoupBrowseRequest } from './use-soup-browse-request';
 
@@ -81,46 +75,15 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     showSupportedForeignEntities,
   } = options.request;
 
-  const graphqlSoup = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
-    enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
-  });
-
-  const clientGrouping = createMemo(
-    () => groupingActive() && serverGroupByField() === undefined
-  );
-
-  const groupedTransport = createMemo((): 'graphql' | undefined => {
-    if (!serverGroupByField() || !graphqlSoup().enabled) return;
-    return 'graphql';
-  });
-
-  const reactive = useReactiveSoupDataSource({
-    enabled: () =>
-      options.enabled() && clientGrouping() && graphqlSoup().enabled,
-    params: soupParams,
-    body: soupBody,
-    showSupportedForeignEntities,
-  });
-
-  const useReactiveSource = createMemo(
-    () => clientGrouping() && graphqlSoup().enabled && reactive.isSupported()
-  );
-
-  const rest = useRestSoupDataSource({
-    enabled: () =>
-      options.enabled() && groupingActive() && !useReactiveSource(),
+  const browse = useRestSoupDataSource({
+    enabled: () => options.enabled() && groupingActive(),
     params: soupParams,
     body: soupBody,
     groupBy: serverGroupByField,
-    transport: groupedTransport,
     showSupportedForeignEntities,
     itemFilter: matchesActiveFilters,
   });
-  const activeBrowseSource = createMemo<ListDataSource<EntityData>>(() =>
-    useReactiveSource() ? reactive : rest
-  );
-
-  const itemsQuery = rest.query;
+  const itemsQuery = browse.query;
 
   const groupedEntities = createMemo(() => {
     if (serverGroupByField()) {
@@ -128,10 +91,7 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     }
 
     return options.transformEntities(
-      [
-        ...(options.additionalEntities?.() ?? []),
-        ...activeBrowseSource().items(),
-      ],
+      [...(options.additionalEntities?.() ?? []), ...browse.items()],
       { sort: true }
     );
   });
@@ -154,7 +114,8 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
     groupByField: serverGroupByField,
     soupParams,
     soupBody,
-    transport: groupedTransport,
+    graphqlReactive: () =>
+      itemsQuery.transport === 'graphql' && serverGroupByField() !== undefined,
     queryOptions: () => ({
       enabled: options.enabled() && groupingActive(),
       filterSelectedItems: false,
@@ -244,24 +205,23 @@ export function createGroupedSoupDataSource<TEntity extends EntityData>(
 
   const dataSource = {
     items,
-    isLoading: () => options.enabled() && activeBrowseSource().isLoading(),
-    isFetching: () => options.enabled() && activeBrowseSource().isFetching(),
-    error: () => (options.enabled() ? activeBrowseSource().error() : undefined),
-    hasMore: () => options.enabled() && activeBrowseSource().hasMore(),
-    isLoadingMore: () =>
-      options.enabled() && activeBrowseSource().isLoadingMore(),
+    isLoading: () => options.enabled() && browse.isLoading(),
+    isFetching: () => options.enabled() && browse.isFetching(),
+    error: () => (options.enabled() ? browse.error() : undefined),
+    hasMore: () => options.enabled() && browse.hasMore(),
+    isLoadingMore: () => options.enabled() && browse.isLoadingMore(),
     loadMore: async () => {
       if (!options.enabled()) return;
 
-      const source = activeBrowseSource();
-      if (!source.hasMore()) return;
+      if (!browse.hasMore()) return;
 
-      await source.loadMore();
+      await browse.loadMore();
     },
     refresh: async () => {
       if (!options.enabled()) return;
 
-      await activeBrowseSource().refresh();
+      groupQueries.resetToInitialPage();
+      await browse.refresh();
     },
     active: groupingActive,
   } satisfies ListDataSource<SoupRow> & { [key: string]: unknown };

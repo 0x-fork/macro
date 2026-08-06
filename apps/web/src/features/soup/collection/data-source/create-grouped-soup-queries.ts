@@ -1,17 +1,11 @@
-import { createInfiniteQueries } from '@app/features/soup/collection/data-source/create-infinite-queries';
 import { throwOnErr } from '@core/util/result';
 import type { EntityData } from '@entity';
 import { useQueryClient } from '@queries/client';
 import { groupedCacheVersion } from '@queries/soup/cache';
 import {
-  makeGraphqlGroupedSoupContinuationInput,
-  makeGraphqlGroupedSoupInput,
-} from '@queries/soup/graphql-ast';
-import {
   parseGroupMeta,
   serializeGroupByField,
 } from '@queries/soup/grouped/api';
-import { registerGroupedSoupContinuation } from '@queries/soup/grouped/graphql-operation-registry';
 import type { GroupByField, GroupMeta } from '@queries/soup/grouped/types';
 import type {
   SoupApiItemFilter,
@@ -28,7 +22,6 @@ import {
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import { storageServiceClient } from '@service-storage/client';
 import type { SoupApiItem } from '@service-storage/generated/schemas';
-import { fetchGraphqlGroupedSoup } from '@service-storage/graphql-soup';
 import type { InfiniteData } from '@tanstack/solid-query';
 import {
   type Accessor,
@@ -39,6 +32,8 @@ import {
   on,
   untrack,
 } from 'solid-js';
+import { createGraphqlGroupedSoupQueries } from './create-graphql-grouped-soup-queries';
+import { createInfiniteQueries } from './create-infinite-queries';
 
 type InitialGroupPage = {
   items: SoupAstItemsGroupedPage['items'];
@@ -63,7 +58,8 @@ type CreateGroupedSoupQueriesArgs = {
     }
   >;
   soupBody: Accessor<SoupAstBody>;
-  transport: Accessor<'rest' | 'graphql' | undefined>;
+  /** True only when the live GraphQL grouped parent query owns the view. */
+  graphqlReactive: Accessor<boolean>;
   queryOptions: Accessor<{
     enabled?: boolean;
     /**
@@ -151,7 +147,7 @@ export function createGroupedSoupQueries(args: CreateGroupedSoupQueriesArgs) {
     const field = args.groupByField();
     const initialGroupedPage = args.initialPage();
 
-    if (!field || !initialGroupedPage) {
+    if (args.graphqlReactive() || !field || !initialGroupedPage) {
       return [];
     }
 
@@ -171,51 +167,6 @@ export function createGroupedSoupQueries(args: CreateGroupedSoupQueriesArgs) {
         queryFn: async (ctx: { pageParam: string | null }) => {
           if (ctx.pageParam == null) {
             return initialPage;
-          }
-
-          if (args.transport() === 'graphql') {
-            const continuationInput = makeGraphqlGroupedSoupContinuationInput({
-              groupBy: field,
-              groupKey: group.key,
-              cursor: ctx.pageParam,
-            });
-            registerGroupedSoupContinuation(
-              makeGraphqlGroupedSoupInput({
-                params: args.soupParams(),
-                body: args.soupBody(),
-                groupBy: field,
-              }),
-              continuationInput
-            );
-            const response = await fetchGraphqlGroupedSoup(continuationInput);
-            const nextGroup = response.groups.find(
-              (candidate) => candidate.key === group.key
-            );
-            if (!nextGroup) {
-              if (response.groups.length > 0) {
-                throw new Error(
-                  `GraphQL grouped Soup continuation omitted bin ${group.key}`
-                );
-              }
-
-              return {
-                items: {},
-                group: {
-                  ...group,
-                  itemIds: [],
-                  nextCursor: null,
-                },
-              };
-            }
-
-            return {
-              items: response.items,
-              group: {
-                ...group,
-                itemIds: nextGroup.itemIds,
-                nextCursor: nextGroup.nextCursor,
-              },
-            };
           }
 
           const response = await throwOnErr(async () =>
@@ -267,11 +218,27 @@ export function createGroupedSoupQueries(args: CreateGroupedSoupQueriesArgs) {
     GroupQueryPage,
     GroupQueryData | undefined
   >(configs);
+  const graphqlQueries = createGraphqlGroupedSoupQueries({
+    initialPage: args.initialPage,
+    groupByField: args.groupByField,
+    soupParams: args.soupParams,
+    soupBody: args.soupBody,
+    enabled: () =>
+      args.graphqlReactive() && args.queryOptions().enabled === true,
+    itemFilter: () =>
+      args.queryOptions().filterSelectedItems === false
+        ? undefined
+        : args.queryOptions().meta?.itemFilter,
+    showSupportedForeignEntities: () =>
+      args.queryOptions().showSupportedForeignEntities ?? false,
+  });
 
   const [groupDataVersion, setGroupDataVersion] = createSignal(0);
 
-  const list = createMemo(() =>
-    queries.list().map((query) => ({
+  const list = createMemo(() => {
+    if (args.graphqlReactive()) return graphqlQueries.list();
+
+    return queries.list().map((query) => ({
       ...query,
       data: () => {
         groupDataVersion();
@@ -285,8 +252,8 @@ export function createGroupedSoupQueries(args: CreateGroupedSoupQueriesArgs) {
         setGroupDataVersion((version) => version + 1);
         return result;
       },
-    }))
-  );
+    }));
+  });
 
   const map = createMemo(() => {
     const next = new Map<string, ReturnType<typeof list>[number]>();
@@ -301,7 +268,7 @@ export function createGroupedSoupQueries(args: CreateGroupedSoupQueriesArgs) {
       () => args.initialPage(),
       (initialGroupedPage) => {
         const field = args.groupByField();
-        if (!field || !initialGroupedPage) return;
+        if (args.graphqlReactive() || !field || !initialGroupedPage) return;
 
         batch(() => {
           for (const group of initialGroupedPage.groups) {
@@ -332,5 +299,8 @@ export function createGroupedSoupQueries(args: CreateGroupedSoupQueriesArgs) {
     ...queries,
     list,
     map,
+    resetToInitialPage: () => {
+      if (args.graphqlReactive()) graphqlQueries.resetToInitialPage();
+    },
   };
 }

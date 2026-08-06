@@ -6,8 +6,6 @@ import {
 } from '@app/features/soup/utils';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
-  ENABLE_GRAPHQL_SOUP_FLAG,
-  ENABLE_GRAPHQL_SOUP_OVERRIDE,
   ENABLE_NEW_INBOX_FLAG,
   ENABLE_NEW_INBOX_OVERRIDE,
 } from '@core/constant/featureFlags';
@@ -27,7 +25,6 @@ import { createSoupEntityTransformer } from '../transform-soup-entities';
 import type { SoupRow } from '../types';
 import { createGroupedSoupDataSource } from './create-grouped-soup-data-source';
 import { createSoupSearchDataSource } from './create-soup-search-data-source';
-import { useReactiveSoupDataSource } from './use-reactive-soup-data-source';
 import { useRestSoupDataSource } from './use-rest-soup-data-source';
 import { useSoupBrowseRequest } from './use-soup-browse-request';
 
@@ -69,9 +66,6 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     showSupportedForeignEntities,
   } = request;
 
-  const graphqlSoup = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
-    enabledOverride: ENABLE_GRAPHQL_SOUP_OVERRIDE,
-  });
   const newInbox = useFeatureFlag(ENABLE_NEW_INBOX_FLAG, {
     enabledOverride: ENABLE_NEW_INBOX_OVERRIDE,
   });
@@ -153,17 +147,8 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
   const flatEnabled = () =>
     enabled() && !searchSource.active() && !groupedSource.active();
 
-  const reactive = useReactiveSoupDataSource({
-    enabled: () => flatEnabled() && graphqlSoup().enabled,
-    params: soupParams,
-    body: soupBody,
-    showSupportedForeignEntities,
-  });
-  const useReactiveSource = () =>
-    graphqlSoup().enabled && reactive.isSupported();
-
-  const rest = useRestSoupDataSource({
-    enabled: () => flatEnabled() && !useReactiveSource(),
+  const browse = useRestSoupDataSource({
+    enabled: flatEnabled,
     params: soupParams,
     body: soupBody,
     groupBy: () => undefined,
@@ -171,16 +156,9 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
     itemFilter: matchesActiveFilters,
   });
 
-  const activeFlatSource = createMemo<ListDataSource<EntityData>>(() =>
-    useReactiveSource() ? reactive : rest
-  );
-
   const flatEntities = createMemo(() =>
     transformEntities(
-      [
-        ...(options.additionalEntities?.() ?? []),
-        ...activeFlatSource().items(),
-      ],
+      [...(options.additionalEntities?.() ?? []), ...browse.items()],
       { sort: true }
     )
   );
@@ -191,23 +169,22 @@ export function createSoupDataSource(options: CreateSoupDataSourceOptions) {
 
       return flatEntities().map((entity) => createSoupEntityRow(entity));
     }),
-    isLoading: () => flatEnabled() && activeFlatSource().isLoading(),
-    isFetching: () => flatEnabled() && activeFlatSource().isFetching(),
-    error: () => (flatEnabled() ? activeFlatSource().error() : undefined),
-    hasMore: () => flatEnabled() && activeFlatSource().hasMore(),
-    isLoadingMore: () => flatEnabled() && activeFlatSource().isLoadingMore(),
+    isLoading: () => flatEnabled() && browse.isLoading(),
+    isFetching: () => flatEnabled() && browse.isFetching(),
+    error: () => (flatEnabled() ? browse.error() : undefined),
+    hasMore: () => flatEnabled() && browse.hasMore(),
+    isLoadingMore: () => flatEnabled() && browse.isLoadingMore(),
     loadMore: async () => {
       if (!flatEnabled()) return;
 
-      const source = activeFlatSource();
-      if (!source.hasMore()) return;
+      if (!browse.hasMore()) return;
 
-      await source.loadMore();
+      await browse.loadMore();
     },
     refresh: async () => {
       if (!flatEnabled()) return;
 
-      await activeFlatSource().refresh();
+      await browse.refresh();
     },
   } satisfies ListDataSource<SoupRow>;
 

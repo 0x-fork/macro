@@ -8,7 +8,7 @@ import type { SystemSortOption } from '@app/features/soup/view/components/sortin
 import { SoupViewCreateButton } from '@app/features/soup/view/components/soup-view-create-button';
 import { useSoupView } from '@app/features/soup/view/context';
 import { usePreference } from '@app/preferences/use-preference';
-import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleHeaderItem';
+import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleItem';
 import { PreviewButton } from '@components/app/split-layout/components/PreviewButton';
 import {
   SplitHeaderLeft,
@@ -201,17 +201,18 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
               id="tabs"
               priority={1}
               containerClass="h-full"
-              expanded={expandedTabs}
-              collapsed={collapsedTabs}
-            />
+            >
+              {(isCollapsed) => (
+                <Show when={!isCollapsed()} fallback={collapsedTabs()}>
+                  {expandedTabs()}
+                </Show>
+              )}
+            </CollapsibleHeaderItem>
           </Show>
           <Show when={!searchOpen() && view() === 'mail'}>
-            <CollapsibleHeaderItem
-              id="inbox"
-              priority={3}
-              expanded={() => <SoupInboxSelector />}
-              collapsed={() => <SoupInboxSelector compact />}
-            />
+            <CollapsibleHeaderItem id="inbox" priority={3}>
+              {(isCollapsed) => <SoupInboxSelector compact={isCollapsed()} />}
+            </CollapsibleHeaderItem>
           </Show>
         </div>
       </SplitHeaderLeft>
@@ -236,28 +237,36 @@ export function SoupViewHeader(props: { sortVisible: boolean }) {
                       id="search"
                       priority={0}
                       onCollapsedChange={setSearchCollapsed}
-                      expanded={() => (
-                        <Layer depth={2}>
-                          <div class="w-60 ml-2">
-                            <SoupSearchbar variant="secondary" />
-                          </div>
-                        </Layer>
+                    >
+                      {(isCollapsed) => (
+                        <Show
+                          when={!isCollapsed()}
+                          fallback={
+                            <Tooltip
+                              label="Search"
+                              hotkey={TOKENS.soup.openSearch}
+                            >
+                              <Button
+                                variant="base"
+                                size="icon-sm"
+                                depth={2}
+                                class="bg-surface"
+                                label="Search"
+                                onClick={() => openSearch()}
+                              >
+                                <SearchIcon />
+                              </Button>
+                            </Tooltip>
+                          }
+                        >
+                          <Layer depth={2}>
+                            <div class="w-60 ml-2">
+                              <SoupSearchbar variant="secondary" />
+                            </div>
+                          </Layer>
+                        </Show>
                       )}
-                      collapsed={() => (
-                        <Tooltip label="Search" hotkey={TOKENS.soup.openSearch}>
-                          <Button
-                            variant="base"
-                            size="icon-sm"
-                            depth={2}
-                            class="bg-surface"
-                            label="Search"
-                            onClick={() => openSearch()}
-                          >
-                            <SearchIcon />
-                          </Button>
-                        </Tooltip>
-                      )}
-                    />
+                    </CollapsibleHeaderItem>
                   }
                 >
                   <Layer depth={2}>
