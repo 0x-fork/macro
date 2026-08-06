@@ -115,7 +115,8 @@ export function ChannelThread(props: ThreadProps) {
   // Channel navigation landed on this root message (and not on one of its
   // replies).
   const isRootNavTargeted = () =>
-    !!props.targetNavigation?.targetThreadId() &&
+    !!props.targetNavigation?.isTargetHighlighted() &&
+    !!props.targetNavigation.targetThreadId() &&
     props.targetNavigation.targetThreadId() === props.data().id &&
     !props.targetNavigation.activeTargetReplyId();
 
@@ -152,6 +153,20 @@ export function ChannelThread(props: ThreadProps) {
       return;
     }
 
+    props.onSelectMessage?.(props.data().id);
+    replySelection.select(replyId);
+  };
+
+  const focusThreadMessageFromPointer = () => {
+    if (isTouchDevice()) return;
+    if (isSelected() && !isThreadFocused()) return;
+    props.onSelectMessage?.(props.data().id);
+    replySelection.clear();
+  };
+
+  const focusReplyFromPointer = (replyId: string) => {
+    if (isTouchDevice()) return;
+    if (isSelected() && replySelection.selectedId() === replyId) return;
     props.onSelectMessage?.(props.data().id);
     replySelection.select(replyId);
   };
@@ -313,6 +328,7 @@ export function ChannelThread(props: ThreadProps) {
                 messageEditor={props.messageEditor}
                 participants={props.participants}
                 onClick={selectThreadMessage}
+                onPointerMove={focusThreadMessageFromPointer}
                 selected={isSelected() && !isThreadFocused()}
                 targeted={
                   // The unified input's reply is bound to this root, or
@@ -347,11 +363,13 @@ export function ChannelThread(props: ThreadProps) {
                       positionTarget={props.targetNavigation?.positionTarget}
                       selectedReplyId={replySelection.selectedId}
                       targetedReplyId={() =>
-                        props.targetNavigation?.activeTargetReplyId() ??
-                        unifiedReplyBinding()?.boundReplyId
+                        (props.targetNavigation?.isTargetHighlighted()
+                          ? props.targetNavigation.activeTargetReplyId()
+                          : undefined) ?? unifiedReplyBinding()?.boundReplyId
                       }
                       isThreadFocused={isThreadFocused}
                       onSelectReply={selectReply}
+                      onHoverReply={focusReplyFromPointer}
                     />
                   </DebugSuspense>
 

@@ -89,6 +89,9 @@ export function MaybeEntityRow(props: {
 }
 
 export function ListEntity(props: ListEntityProps) {
+  const splitPanel = useSplitPanel();
+  const isSplitActive = () => splitPanel?.isPanelActive() ?? true;
+  const isHighlighted = () => props.highlighted && isSplitActive();
   const unread = () => unreadFilterFn(props.entity);
   const isShared = useIsShared(props.entity);
   const bulkWakeupEnabled = useFeatureFlag(BULK_DOCUMENT_WAKEUP_FEATURE_FLAG);
@@ -154,7 +157,7 @@ export function ListEntity(props: ListEntityProps) {
 
   const draggable = createEntityDraggable({
     entity: props.entity,
-    splitId: useSplitPanel()?.handle?.id,
+    splitId: splitPanel?.handle?.id,
   });
 
   const listLayout = useListLayout();
@@ -213,11 +216,13 @@ export function ListEntity(props: ListEntityProps) {
           'min-h-10 mx-1': !isMobile() && !usesCondensedNarrowLayout(),
           'min-h-9 mx-1': !isMobile() && usesCondensedNarrowLayout(),
           'bg-accent/8': props.checked,
-          'bg-accent/16': props.checked && props.highlighted,
-          'bg-hover/30':
-            props.highlighted && !props.checked && !isTouchDevice(),
+          'bg-accent/16': props.checked && isHighlighted(),
+          'bg-hover/30': isHighlighted() && !props.checked && !isTouchDevice(),
           'hover:bg-hover/30':
-            !props.highlighted && !props.checked && !isTouchDevice(),
+            props.hovered !== false &&
+            !isHighlighted() &&
+            !props.checked &&
+            !isTouchDevice(),
         }
       )}
       onMouseMove={props.onMouseMove}

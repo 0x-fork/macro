@@ -28,6 +28,7 @@ type ChannelMessageProps = {
    */
   targeted?: boolean;
   onClick?: JSX.EventHandlerUnion<HTMLDivElement, MouseEvent>;
+  onPointerMove?: JSX.EventHandlerUnion<HTMLDivElement, PointerEvent>;
 };
 
 function isEditingMessage(
@@ -214,6 +215,7 @@ export function ChannelMessage(props: ChannelMessageProps) {
             isEditingMessage(props.messageEditor, props.message.id))
         }
         onClick={props.onClick}
+        onPointerMove={props.onPointerMove}
         ref={(el) =>
           touchHandler(el, () => ({
             touchClassName: 'channel-message-long-press-highlight',

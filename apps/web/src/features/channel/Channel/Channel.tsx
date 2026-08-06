@@ -197,6 +197,7 @@ export function Channel(props: ChannelProps) {
     messageKeys: () => [...messageIndex.keys],
     navigation: threadListNavigation,
     didInitialScroll: () => threadListScrollState()?.didInitialScroll ?? false,
+    isSplitActive: () => splitPanel?.isPanelActive() ?? true,
   });
 
   const [channelInputSnapshot, setChannelInputSnapshot] =
@@ -466,6 +467,8 @@ export function Channel(props: ChannelProps) {
   const selection = createMessageSelection({
     keys: () => messageIndex.keys,
   });
+  const [isKeyboardMessageNavigation, setIsKeyboardMessageNavigation] =
+    createSignal(false);
 
   const selectMessage = (messageId: string) => {
     selection.select(messageId);
@@ -556,19 +559,37 @@ export function Channel(props: ChannelProps) {
     navigation.scrollToBottom('end');
   });
 
-  const { messageListScopeId, attachMessageListRef, attachInputRef } =
-    createChannelHotkeys({
-      selection,
-      navigation: threadListNavigation,
-      messageById,
-      getMessageActions,
-      userId,
-      isEditing: () => !!messageEditor.state(),
-      isInputEmpty: () =>
-        (channelInputSnapshot()?.value.trim().length ?? 0) === 0,
-      onOpenFindBar: findBar.open,
-      onGoToBottom: handleScrollToBottom,
-    });
+  const {
+    messageListScopeId,
+    attachMessageListRef,
+    attachInputRef,
+    focusMessageList,
+  } = createChannelHotkeys({
+    selection,
+    navigation: threadListNavigation,
+    messageById,
+    getMessageActions,
+    userId,
+    isEditing: () => !!messageEditor.state(),
+    isInputEmpty: () =>
+      (channelInputSnapshot()?.value.trim().length ?? 0) === 0,
+    onOpenFindBar: findBar.open,
+    onGoToBottom: handleScrollToBottom,
+    onKeyboardNavigate: () => setIsKeyboardMessageNavigation(true),
+  });
+
+  // Re-entering a channel should make its highlighted message keyboard-active
+  // too. A subsequent click on an input or button will naturally take focus
+  // back to that explicit control.
+  createEffect(
+    on(
+      () => splitPanel?.isPanelActive(),
+      (isActive) => {
+        if (isActive && selection.selectedId()) focusMessageList();
+      },
+      { defer: true }
+    )
+  );
 
   createStickyScrollEffect({
     isNearBottom: () => threadListScrollState()?.isNearBottom ?? false,
@@ -694,8 +715,12 @@ export function Channel(props: ChannelProps) {
                 ref={(element) => {
                   attachMessageListRef(element);
                 }}
+                onPointerMove={() => setIsKeyboardMessageNavigation(false)}
                 tabIndex={-1}
                 data-channel-message-list
+                data-keyboard-navigation={
+                  isKeyboardMessageNavigation() ? '' : undefined
+                }
               >
                 <Show when={findBar.isOpen()}>
                   <FindBar
@@ -756,6 +781,8 @@ export function Channel(props: ChannelProps) {
                                   targetNavigation={{
                                     targetThreadId:
                                       targetMessageController.activeTargetMessageId,
+                                    isTargetHighlighted:
+                                      targetMessageController.isNavigationTargetHighlighted,
                                     targetMessageId: () =>
                                       !targetMessageController.pendingTargetReplyId()
                                         ? targetMessageController.pendingScrollTargetId()
@@ -775,9 +802,16 @@ export function Channel(props: ChannelProps) {
                                         threadRow,
                                         targetElement
                                       ) ?? false,
-                                    onTargetMessageScrolled:
-                                      targetMessageController.completePendingScroll,
+                                    onTargetMessageScrolled: (messageId) => {
+                                      selectMessage(messageId);
+                                      focusMessageList();
+                                      targetMessageController.completePendingScroll(
+                                        messageId
+                                      );
+                                    },
                                     onTargetReplyScrolled: (replyId) => {
+                                      selectMessage(item.id);
+                                      focusMessageList();
                                       targetMessageController.completePendingReplyScroll(
                                         item.id,
                                         replyId
@@ -809,7 +843,10 @@ export function Channel(props: ChannelProps) {
                                   }}
                                   isNewMessage={activityTracker.isNewMessage}
                                   selectedMessageId={selection.selectedId}
-                                  onSelectMessage={selectMessage}
+                                  onSelectMessage={(messageId) => {
+                                    selectMessage(messageId);
+                                    focusMessageList();
+                                  }}
                                   onClearSelection={clearSelection}
                                   messageListScopeId={messageListScopeId}
                                 />

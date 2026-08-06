@@ -60,6 +60,7 @@ export interface InboxCardLayoutProps {
   item: InboxCardDisplayItem;
   selected?: boolean;
   highlighted?: boolean;
+  hovered?: boolean;
   onClick?: (event: MouseEvent) => void;
 }
 
@@ -468,6 +469,7 @@ const githubAction = (notification?: Notification): string => {
 function BaseCard(props: {
   selected?: boolean;
   highlighted?: boolean;
+  hovered?: boolean;
   onClick?: (event: MouseEvent) => void;
   unread: boolean;
   leading: JSX.Element;
@@ -483,6 +485,7 @@ function BaseCard(props: {
       dimmed={!props.unread}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
     >
       <div class="col-start-1 row-start-1 row-span-2">{props.leading}</div>
@@ -617,6 +620,7 @@ export function ChannelCardLayout(props: InboxCardLayoutProps) {
       dimmed={!props.item.unread}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
     >
       <div class="col-start-1 row-start-1 row-span-2">
@@ -704,6 +708,7 @@ export function ChannelMessageCardLayout(props: InboxCardLayoutProps) {
       entityId={props.item.entity.id}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
       unread={props.item.unread}
       timestamp={props.item.timestamp}
@@ -827,6 +832,7 @@ export function ChannelThreadCardLayout(props: InboxCardLayoutProps) {
       dimmed={!props.item.unread}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
     >
       <div class="col-start-1 row-start-2">
@@ -968,6 +974,7 @@ export function DocumentCardLayout(props: InboxCardLayoutProps) {
       entityId={props.item.entity.id}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
       unread={props.item.unread}
       timestamp={props.item.timestamp}
@@ -1023,6 +1030,7 @@ export function TaskCardLayout(props: InboxCardLayoutProps) {
       entityId={props.item.entity.id}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
       unread={props.item.unread}
       timestamp={props.item.timestamp}
@@ -1071,6 +1079,7 @@ export function AiCardLayout(props: InboxCardLayoutProps) {
       entityId={props.item.entity.id}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
       unread={props.item.unread}
       timestamp={props.item.timestamp}
@@ -1134,6 +1143,7 @@ export function EmailCardLayout(props: InboxCardLayoutProps) {
       dimmed={!props.item.unread}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
     >
       <div class="col-start-1 row-start-1 row-span-3">
@@ -1245,6 +1255,7 @@ export function GithubCardLayout(props: InboxCardLayoutProps) {
       dimmed={!props.item.unread}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
     >
       <div class="col-start-1 row-start-1 row-span-3">
@@ -1369,6 +1380,7 @@ export function CallCardLayout(props: InboxCardLayoutProps) {
       dimmed={!props.item.unread}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
     >
       <div class="col-start-1 row-start-1 row-span-3">
@@ -1432,6 +1444,7 @@ export function GenericCardLayout(props: InboxCardLayoutProps) {
       entityId={props.item.entity.id}
       selected={props.selected}
       highlighted={props.highlighted}
+      hovered={props.hovered}
       onClick={props.onClick}
       unread={props.item.unread}
       timestamp={props.item.timestamp}

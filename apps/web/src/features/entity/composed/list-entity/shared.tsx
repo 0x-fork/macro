@@ -24,6 +24,7 @@ export interface BaseListEntityProps<E extends EntityData = EntityData> {
   ref?: Ref<HTMLDivElement>;
   checked?: boolean;
   highlighted?: boolean;
+  /** Whether pointer hover affordances are currently allowed for this row. */
   hovered?: boolean;
   hideContentHits?: boolean;
   /** Hide the multi-select checkbox (e.g. read-only embeds outside soup). */

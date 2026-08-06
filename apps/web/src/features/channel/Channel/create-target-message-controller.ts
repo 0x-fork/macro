@@ -3,7 +3,13 @@ import {
   getChannelMessagesQueryKey,
 } from '@queries/channel/channel-messages';
 import { queryClient } from '@queries/client';
-import { type Accessor, createEffect, on } from 'solid-js';
+import {
+  type Accessor,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+} from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { ThreadListNavigation } from './ThreadList';
 
@@ -22,6 +28,8 @@ type CreateTargetMessageControllerOptions = {
    * inside ThreadList.
    */
   didInitialScroll: Accessor<boolean>;
+  /** Whether the channel's containing split is the active split. */
+  isSplitActive?: Accessor<boolean>;
 };
 
 export type TargetMessageController = ReturnType<
@@ -36,6 +44,8 @@ type TargetMessageData = {
   pendingTargetReplyId: string | undefined;
 };
 
+const NAVIGATION_TARGET_RELEASE_DELAY_MS = 600;
+
 export function createTargetMessageController(
   options: CreateTargetMessageControllerOptions
 ) {
@@ -49,9 +59,68 @@ export function createTargetMessageController(
 
   const [targetMessageData, setTargetMessageData] =
     createStore<TargetMessageData>(initialTargetMessageData);
+  const [settledNavigationTargetId, setSettledNavigationTargetId] =
+    createSignal<string>();
+  const [isNavigationTargetHighlighted, setIsNavigationTargetHighlighted] =
+    createSignal(options.initialTargetMessageId !== undefined);
 
   const hasMessageLoaded = (messageId: string) =>
     options.messageKeys().includes(messageId);
+
+  /**
+   * Clear the active target (and any pending scroll) if it still points at
+   * `messageId`; no-op if navigation has since moved elsewhere. Leaves
+   * `loadAroundMessageId` untouched so pagination is not disturbed.
+   */
+  const clearActiveTarget = (messageId: string) => {
+    if (targetMessageData['activeTargetMessageId'] !== messageId) return;
+    setSettledNavigationTargetId(undefined);
+    setIsNavigationTargetHighlighted(false);
+    setTargetMessageData({
+      activeTargetMessageId: undefined,
+      activeTargetMessageReplyId: undefined,
+      pendingScrollTargetId: undefined,
+      pendingTargetReplyId: undefined,
+    });
+  };
+
+  // A navigation target remains the active destination after its measured
+  // scroll settles. Only its accent presentation releases once the user is
+  // looking at the active split. Composer-bound targets are separate display
+  // bindings and remain highlighted after this navigation presentation clears.
+  createEffect(
+    on(
+      [
+        settledNavigationTargetId,
+        () => targetMessageData['activeTargetMessageId'],
+        isNavigationTargetHighlighted,
+        () => options.isSplitActive?.() ?? true,
+      ],
+      ([
+        settledTargetId,
+        activeTargetId,
+        isTargetHighlighted,
+        isSplitActive,
+      ]) => {
+        if (
+          !settledTargetId ||
+          settledTargetId !== activeTargetId ||
+          !isTargetHighlighted ||
+          !isSplitActive
+        ) {
+          return;
+        }
+
+        const timer = window.setTimeout(() => {
+          if (targetMessageData['activeTargetMessageId'] !== settledTargetId)
+            return;
+          setIsNavigationTargetHighlighted(false);
+          setSettledNavigationTargetId(undefined);
+        }, NAVIGATION_TARGET_RELEASE_DELAY_MS);
+        onCleanup(() => window.clearTimeout(timer));
+      }
+    )
+  );
 
   const goToMessage = (messageId: string, replyId?: string) => {
     const isSameTarget =
@@ -62,6 +131,8 @@ export function createTargetMessageController(
 
     if (isSameTarget && isSameReplyTarget && isPending) return;
 
+    setSettledNavigationTargetId(undefined);
+    setIsNavigationTargetHighlighted(true);
     setTargetMessageData({
       activeTargetMessageId: messageId,
       activeTargetMessageReplyId: replyId,
@@ -78,12 +149,16 @@ export function createTargetMessageController(
   const completePendingScroll = (messageId: string) => {
     if (targetMessageData['pendingScrollTargetId'] !== messageId) return;
     setTargetMessageData('pendingScrollTargetId', undefined);
+    if (!targetMessageData['pendingTargetReplyId']) {
+      setSettledNavigationTargetId(messageId);
+    }
   };
 
   const completePendingReplyScroll = (messageId: string, replyId: string) => {
     if (targetMessageData['activeTargetMessageId'] !== messageId) return;
     if (targetMessageData['pendingTargetReplyId'] !== replyId) return;
     setTargetMessageData('pendingTargetReplyId', undefined);
+    setSettledNavigationTargetId(messageId);
   };
 
   createEffect(
@@ -129,25 +204,12 @@ export function createTargetMessageController(
   );
 
   const reset = () => {
+    setSettledNavigationTargetId(undefined);
+    setIsNavigationTargetHighlighted(false);
     setTargetMessageData({
       activeTargetMessageId: undefined,
       activeTargetMessageReplyId: undefined,
       loadAroundMessageId: undefined,
-      pendingScrollTargetId: undefined,
-      pendingTargetReplyId: undefined,
-    });
-  };
-
-  /**
-   * Clear the active target (and any pending scroll) if it still points at
-   * `messageId`; no-op if navigation has since moved elsewhere. Leaves
-   * `loadAroundMessageId` untouched so pagination is not disturbed.
-   */
-  const clearActiveTarget = (messageId: string) => {
-    if (targetMessageData['activeTargetMessageId'] !== messageId) return;
-    setTargetMessageData({
-      activeTargetMessageId: undefined,
-      activeTargetMessageReplyId: undefined,
       pendingScrollTargetId: undefined,
       pendingTargetReplyId: undefined,
     });
@@ -160,6 +222,7 @@ export function createTargetMessageController(
     loadAroundMessageId: () => targetMessageData['loadAroundMessageId'],
     pendingScrollTargetId: () => targetMessageData['pendingScrollTargetId'],
     pendingTargetReplyId: () => targetMessageData['pendingTargetReplyId'],
+    isNavigationTargetHighlighted,
 
     goToMessage,
     completePendingScroll,

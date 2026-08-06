@@ -39,6 +39,8 @@ export type MessageEditState = {
 /** Reactive contract for positioning and releasing a channel navigation target. */
 export type ThreadTargetNavigation = {
   targetThreadId: Accessor<string | undefined>;
+  /** Whether the active navigation destination should still receive accent styling. */
+  isTargetHighlighted: Accessor<boolean>;
   targetMessageId: Accessor<string | undefined>;
   targetReplyId: Accessor<string | undefined>;
   activeTargetReplyId: Accessor<string | undefined>;

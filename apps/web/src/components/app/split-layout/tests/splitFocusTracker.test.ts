@@ -138,4 +138,118 @@ describe('createSplitFocusTracker', () => {
 
     dispose();
   });
+
+  it('moves DOM focus when an already-mounted split is activated', async () => {
+    let dispose = () => {};
+    let manager: ReturnType<typeof createSplitLayout>;
+    let panelRefs: Map<SplitId, HTMLDivElement>;
+
+    createRoot((rootDispose) => {
+      dispose = rootDispose;
+      manager = createSplitLayout(createMockOrchestrator(), [
+        { type: 'component', id: 'inbox' },
+        { type: 'chat', id: 'chat-1' },
+      ]);
+      panelRefs = new Map(
+        manager.splits().map((split) => [split.id, createPanel()])
+      );
+      createSplitFocusTracker({
+        splitManager: manager,
+        panelRefs,
+        splits: manager.splits,
+      });
+    });
+
+    await Promise.resolve();
+
+    const [inbox, chat] = manager!.splits();
+    manager!.activateSplit(inbox.id);
+    await Promise.resolve();
+    manager!.activateSplit(chat.id);
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(panelRefs!.get(chat.id));
+    dispose();
+  });
+
+  it('restores a split child during an immediate split switch', async () => {
+    let dispose = () => {};
+    let manager: ReturnType<typeof createSplitLayout>;
+    let panelRefs: Map<SplitId, HTMLDivElement>;
+
+    createRoot((rootDispose) => {
+      dispose = rootDispose;
+      manager = createSplitLayout(createMockOrchestrator(), [
+        { type: 'component', id: 'inbox' },
+        { type: 'channel', id: 'channel-1' },
+      ]);
+      panelRefs = new Map(
+        manager.splits().map((split) => [split.id, createPanel()])
+      );
+      createSplitFocusTracker({
+        splitManager: manager,
+        panelRefs,
+        splits: manager.splits,
+      });
+    });
+
+    await Promise.resolve();
+
+    const [inbox, channel] = manager!.splits();
+    for (const split of [inbox, channel]) {
+      const panel = panelRefs!.get(split.id);
+      panel?.setAttribute('data-split-container', '');
+      panel?.setAttribute('data-split-id', split.id);
+    }
+    const messageList = document.createElement('div');
+    messageList.tabIndex = -1;
+    panelRefs!.get(channel.id)?.append(messageList);
+    messageList.focus();
+
+    manager!.activateSplit(inbox.id);
+    await Promise.resolve();
+    manager!.activateSplit(channel.id);
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(messageList);
+    dispose();
+  });
+
+  it('focuses a navigable scope instead of stranding focus on the split shell', async () => {
+    let dispose = () => {};
+    let manager: ReturnType<typeof createSplitLayout>;
+    let panelRefs: Map<SplitId, HTMLDivElement>;
+
+    createRoot((rootDispose) => {
+      dispose = rootDispose;
+      manager = createSplitLayout(createMockOrchestrator(), [
+        { type: 'component', id: 'inbox' },
+        { type: 'channel', id: 'channel-1' },
+      ]);
+      panelRefs = new Map(
+        manager.splits().map((split) => [split.id, createPanel()])
+      );
+      createSplitFocusTracker({
+        splitManager: manager,
+        panelRefs,
+        splits: manager.splits,
+      });
+    });
+
+    await Promise.resolve();
+
+    const [inbox, channel] = manager!.splits();
+    const navigationRegion = document.createElement('div');
+    navigationRegion.tabIndex = -1;
+    navigationRegion.setAttribute('data-hotkey-scope', 'channel-messages');
+    panelRefs!.get(channel.id)?.append(navigationRegion);
+
+    manager!.activateSplit(inbox.id);
+    await Promise.resolve();
+    manager!.activateSplit(channel.id);
+    await Promise.resolve();
+
+    expect(document.activeElement).toBe(navigationRegion);
+    dispose();
+  });
 });

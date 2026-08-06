@@ -17,6 +17,7 @@ import {
 
 afterEach(() => {
   queryClient.clear();
+  vi.useRealTimers();
 });
 
 function createController(
@@ -28,11 +29,15 @@ function createController(
     scrollToId: (messageId: string) => boolean;
     withNavigation: boolean;
     didInitialScroll: boolean;
+    isSplitActive: boolean;
   }>
 ) {
   const [messageKeys, setMessageKeys] = createSignal(input?.messageKeys ?? []);
   const [didInitialScroll, setDidInitialScroll] = createSignal(
     input?.didInitialScroll ?? false
+  );
+  const [isSplitActive, setIsSplitActive] = createSignal(
+    input?.isSplitActive ?? true
   );
 
   const scrollToId =
@@ -63,12 +68,14 @@ function createController(
           }
         : undefined,
     didInitialScroll,
+    isSplitActive,
   });
 
   return {
     controller,
     setMessageKeys,
     setDidInitialScroll,
+    setIsSplitActive,
   };
 }
 
@@ -152,6 +159,38 @@ describe('createTargetMessageController', () => {
 
     controller!.completePendingScroll('message-1');
     expect(controller!.pendingScrollTargetId()).toBeUndefined();
+    dispose();
+  });
+
+  it('releases a settled navigation target after the active split has shown it briefly', async () => {
+    vi.useFakeTimers();
+    let dispose = () => {};
+    let controller: ReturnType<typeof createTargetMessageController>;
+    let setIsSplitActive: (active: boolean) => boolean;
+
+    createRoot((rootDispose) => {
+      dispose = rootDispose;
+      ({ controller, setIsSplitActive } = createController({
+        initialTargetMessageId: 'message-1',
+        messageKeys: ['message-1'],
+        isSplitActive: false,
+      }));
+    });
+
+    await Promise.resolve();
+
+    controller!.completePendingScroll('message-1');
+    vi.advanceTimersByTime(600);
+    expect(controller!.activeTargetMessageId()).toBe('message-1');
+    expect(controller!.isNavigationTargetHighlighted()).toBe(true);
+
+    setIsSplitActive!(true);
+    vi.advanceTimersByTime(599);
+    expect(controller!.activeTargetMessageId()).toBe('message-1');
+
+    vi.advanceTimersByTime(1);
+    expect(controller!.activeTargetMessageId()).toBe('message-1');
+    expect(controller!.isNavigationTargetHighlighted()).toBe(false);
     dispose();
   });
 

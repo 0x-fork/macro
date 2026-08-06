@@ -763,17 +763,41 @@ a {
 /* Channel message hover + selection-cursor highlight */
 /* Suppressed on touch devices */
 /* Background-only — borders/rings are reserved for structural UI edges. */
+[data-message] {
+  transition: background-color 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 [data-message][data-selected],
 html:not([data-touch-device="true"]) [data-message]:hover{
   @apply bg-ink/5 rounded-sm;
 }
 
 [data-message][data-targeted] {
-  @apply bg-accent/30 rounded-sm;
+  @apply bg-accent/10 rounded-sm;
 }
 [data-message][data-selected][data-targeted],
 html:not([data-touch-device="true"]) [data-message][data-targeted]:hover{
-  @apply bg-accent/40 rounded-sm;
+  @apply bg-accent/10 rounded-sm;
+}
+
+/* Keyboard selection owns the message affordance until the pointer moves
+   again; otherwise a stationary pointer paints a second, stale hover row. */
+html:not([data-touch-device="true"]) [data-channel-message-list][data-keyboard-navigation] [data-message]:hover:not([data-selected]):not([data-targeted]) {
+  background-color: transparent;
+}
+
+/* A selection cursor is a keyboard affordance. Once the pointer becomes the
+   latest interaction, let its actual hover be the only message highlight. */
+html:not([data-touch-device="true"]) [data-channel-message-list]:not([data-keyboard-navigation]) [data-message][data-selected]:not([data-targeted]) {
+  background-color: transparent;
+}
+
+html:not([data-touch-device="true"]) [data-channel-message-list][data-keyboard-navigation] [data-message][data-selected] [data-message-hover-actions] {
+  display: block;
+}
+
+html:not([data-touch-device="true"]) [data-channel-message-list][data-keyboard-navigation] [data-message]:not([data-selected]) [data-message-hover-actions] {
+  display: none !important;
 }
 
 @keyframes long-press-message-highlight {

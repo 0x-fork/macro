@@ -284,6 +284,11 @@ export function SplitPanel(props: SplitPanelProps) {
               props.setPanelRef(ref);
               attachHotKeys(ref);
             }}
+            onPointerDown={(event) => {
+              if (!props.active && event.button === 0) {
+                props.handle.activate();
+              }
+            }}
             data-split-id={props.split.id}
             {...splitContainerAttribute}
             data-modal={props.handle.isSpotLight()}

@@ -38,6 +38,7 @@ export function InboxListEntity(props: BaseListEntityProps) {
           item={item()}
           selected={props.checked}
           highlighted={props.highlighted}
+          hovered={props.hovered}
           onClick={props.onClick}
         />
       </MaybeEntityRow>

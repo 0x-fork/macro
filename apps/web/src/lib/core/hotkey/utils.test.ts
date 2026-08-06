@@ -1,7 +1,13 @@
 import { describe, expect, test } from 'vitest';
+import { activeScope, setActiveScope } from './state';
 import type { HotkeyToken } from './tokens';
 import type { HotkeyCommand } from './types';
-import { removeCommandsFromTokenMap } from './utils';
+import {
+  registerScope,
+  removeCommandsFromTokenMap,
+  removeScope,
+  syncActiveScopeToElement,
+} from './utils';
 
 const makeCommand = (token: HotkeyToken | undefined): HotkeyCommand =>
   ({
@@ -71,5 +77,35 @@ describe('removeCommandsFromTokenMap', () => {
 
     expect(result.get('hotkey:a' as HotkeyToken)).toEqual([cmd3]);
     expect(result.has('hotkey:b' as HotkeyToken)).toBe(false);
+  });
+});
+
+describe('syncActiveScopeToElement', () => {
+  test('uses the closest registered DOM scope', () => {
+    const scopeId = 'test-sync-dom-scope';
+    registerScope({ parentScopeId: 'global', scopeId, type: 'dom' });
+
+    const scope = document.createElement('div');
+    scope.setAttribute('data-hotkey-scope', scopeId);
+    const target = document.createElement('button');
+    scope.append(target);
+    document.body.append(scope);
+
+    syncActiveScopeToElement(target);
+
+    expect(activeScope()).toBe(scopeId);
+
+    setActiveScope('global');
+    removeScope(scopeId);
+    scope.remove();
+  });
+
+  test('falls back to the global scope when no registered scope contains the element', () => {
+    const target = document.createElement('div');
+    target.setAttribute('data-hotkey-scope', 'missing-scope');
+
+    syncActiveScopeToElement(target);
+
+    expect(activeScope()).toBe('global');
   });
 });

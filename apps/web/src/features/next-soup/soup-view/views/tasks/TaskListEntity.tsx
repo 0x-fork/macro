@@ -78,6 +78,9 @@ function MaybeEntityRow(props: {
  * vertically across rows in a list.
  */
 export function TaskListEntity(props: TaskListEntityProps) {
+  const splitPanel = useSplitPanel();
+  const isSplitActive = () => splitPanel?.isPanelActive() ?? true;
+  const isHighlighted = () => props.highlighted && isSplitActive();
   const unread = () => unreadFilterFn(props.entity);
   const isShared = useIsShared(props.entity);
   const bulkWakeupEnabled = useFeatureFlag(BULK_DOCUMENT_WAKEUP_FEATURE_FLAG);
@@ -128,7 +131,7 @@ export function TaskListEntity(props: TaskListEntityProps) {
 
   const draggable = createEntityDraggable({
     entity: props.entity,
-    splitId: useSplitPanel()?.handle?.id,
+    splitId: splitPanel?.handle?.id,
   });
 
   const isWide = useListLayout()?.isWide ?? (() => true);
@@ -149,12 +152,13 @@ export function TaskListEntity(props: TaskListEntityProps) {
         {
           'min-h-10 mx-1': !isMobile(),
           'bg-accent/8': props.checked,
-          'bg-accent/16':
-            props.checked && props.highlighted && !isTouchDevice(),
-          'bg-active/60':
-            props.highlighted && !props.checked && !isTouchDevice(),
+          'bg-accent/16': props.checked && isHighlighted() && !isTouchDevice(),
+          'bg-active/60': isHighlighted() && !props.checked && !isTouchDevice(),
           'hover:bg-active/30':
-            !props.highlighted && !props.checked && !isTouchDevice(),
+            props.hovered !== false &&
+            !isHighlighted() &&
+            !props.checked &&
+            !isTouchDevice(),
         }
       )}
       onMouseMove={props.onMouseMove}

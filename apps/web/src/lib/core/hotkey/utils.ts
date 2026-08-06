@@ -296,6 +296,21 @@ export function activateClosestDOMScope() {
   setActiveScope(activeScopeId);
 }
 
+/**
+ * Makes the hotkey state match a DOM element that was focused
+ * programmatically.
+ *
+ * Native focus events normally do this through `useHotkeyDOMScope`, but a
+ * rapid sequence of split activations can leave that event-driven state one
+ * step behind the element that actually owns focus.
+ */
+export function syncActiveScopeToElement(element: Element | null) {
+  const scopeElement = element?.closest('[data-hotkey-scope]');
+  const scopeId = scopeElement?.getAttribute('data-hotkey-scope') ?? 'global';
+
+  setActiveScope(hotkeyScopeTree.has(scopeId) ? scopeId : 'global');
+}
+
 export function updateActiveScopeBranch(activeScopeId: string | undefined) {
   const branch = new Set<string>();
 

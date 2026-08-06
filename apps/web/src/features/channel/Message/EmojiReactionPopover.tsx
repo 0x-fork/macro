@@ -10,7 +10,7 @@ type EmojiReactionPopoverProps = {
   onOpenChange: (isOpen: boolean) => void;
   onEmojiSelect: (emoji: string) => void;
   trigger: JSX.Element;
-  triggerProps?: ButtonProps;
+  triggerProps?: ButtonProps & { 'data-message-action'?: string };
   placement?: EmojiReactionPopoverPlacement;
 };
 

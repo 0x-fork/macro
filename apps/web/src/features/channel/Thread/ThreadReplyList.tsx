@@ -38,6 +38,7 @@ export function ThreadReplyList(props: {
   targetedReplyId?: Accessor<string | undefined>;
   isThreadFocused?: Accessor<boolean>;
   onSelectReply?: (replyId: string) => void;
+  onHoverReply?: (replyId: string) => void;
 }) {
   const listMetaByReplyId = createMemo(() =>
     buildThreadReplyListMeta(props.replies, props.isNewMessage)
@@ -90,6 +91,7 @@ export function ThreadReplyList(props: {
                 messageEditor={props.messageEditor}
                 participants={props.participants}
                 onClick={() => props.onSelectReply?.(reply.id)}
+                onPointerMove={() => props.onHoverReply?.(reply.id)}
                 selected={isReplySelected()}
                 targeted={props.targetedReplyId?.() === reply.id}
               />

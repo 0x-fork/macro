@@ -750,6 +750,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
   );
 
   const { isKeypressActive } = useIsKeyPressActive();
+  const [isKeyboardNavigation, setIsKeyboardNavigation] = createSignal(false);
 
   const [virtualizerHandle, setVirtualizerHandle] =
     createSignal<VirtualizerHandle>();
@@ -850,6 +851,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
     isFetching: source.isFetching,
     isFetchingNextPage: source.isFetchingNextPage,
     fetchNextPage: source.fetchNextPage,
+    onKeyboardNavigate: () => setIsKeyboardNavigation(true),
   });
 
   // Register entity action hotkeys
@@ -1297,6 +1299,10 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                         rows={rows()}
                       >
                         {(row, i) => {
+                          const highlighted = () =>
+                            isKeyboardNavigation() &&
+                            row.isFocused() &&
+                            panel.isPanelActive();
                           const timestamp = () => {
                             if (row.original.sortTs) return row.original.sortTs;
 
@@ -1342,7 +1348,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                         groupHeaderComponent()
                                       }
                                       group={group()}
-                                      highlighted={row.isFocused()}
+                                      highlighted={highlighted()}
                                     />
                                   )}
                                 </Match>
@@ -1356,7 +1362,6 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                   }
                                 >
                                   {(group) => {
-                                    const highlighted = () => row.isFocused();
                                     return (
                                       <div
                                         class={cn(
@@ -1418,9 +1423,11 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                       component={listEntityComponent()}
                                       entity={row.original}
                                       timestamp={timestamp()}
-                                      highlighted={row.isFocused()}
+                                      highlighted={highlighted()}
+                                      hovered={!isKeyboardNavigation()}
                                       onMouseMove={() => {
                                         if (isKeypressActive()) return;
+                                        setIsKeyboardNavigation(false);
                                         if (panel.handle.isControllerSplit())
                                           return;
                                         soup.focus.setIndex(row.index);

@@ -1,3 +1,4 @@
+import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { cn } from '@ui';
 import { type JSX, splitProps } from 'solid-js';
 import { MessageActionsProvider, MessageProvider } from './context';
@@ -16,6 +17,8 @@ type RootProps = JSX.HTMLAttributes<HTMLDivElement> & {
 };
 
 export function Root(props: RootProps) {
+  const splitPanel = useSplitPanel();
+  const isSplitActive = () => splitPanel?.isPanelActive() ?? true;
   const [local, rest] = splitProps(props, [
     'children',
     'class',
@@ -30,8 +33,8 @@ export function Root(props: RootProps) {
       class={cn('group/message relative touch:no-select-children', local.class)}
       data-message
       data-message-id={local.message.id}
-      data-selected={local.selected ? '' : undefined}
-      data-targeted={local.targeted ? '' : undefined}
+      data-selected={local.selected && isSplitActive() ? '' : undefined}
+      data-targeted={local.targeted && isSplitActive() ? '' : undefined}
       {...rest}
     >
       <div class="absolute h-full w-1 left-0 top-0 bg-accent opacity-0 message-accent-bar" />

@@ -23,6 +23,7 @@ interface RootProps extends SlotProps {
   dimmed?: boolean;
   selected?: boolean;
   highlighted?: boolean;
+  hovered?: boolean;
   onClick?: (event: MouseEvent) => void;
 }
 
@@ -48,7 +49,10 @@ function Root(props: RootProps): JSX.Element {
           'bg-hover/50':
             props.highlighted && !props.selected && !isTouchDevice(),
           'hover:bg-hover/50':
-            !props.highlighted && !props.selected && !isTouchDevice(),
+            props.hovered !== false &&
+            !props.highlighted &&
+            !props.selected &&
+            !isTouchDevice(),
         },
         props.class
       )}

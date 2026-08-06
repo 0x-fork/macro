@@ -30,6 +30,7 @@ type UseSoupNavigationHotkeysOptions = {
   isFetching?: Accessor<boolean>;
   isFetchingNextPage?: Accessor<boolean>;
   fetchNextPage?: () => void;
+  onKeyboardNavigate?: () => void;
 };
 
 export const useSoupNavigationHotkeys = (
@@ -213,6 +214,7 @@ export const useSoupNavigationHotkeys = (
   };
 
   const navigateDown = () => {
+    options.onKeyboardNavigate?.();
     const rowCount = soup.rows().length;
     const next = navigateToOpenableEntity(1);
 
@@ -232,6 +234,7 @@ export const useSoupNavigationHotkeys = (
   };
 
   const navigateUp = () => {
+    options.onKeyboardNavigate?.();
     const next = navigateToOpenableEntity(-1);
 
     if (!next) return true;
@@ -302,6 +305,7 @@ export const useSoupNavigationHotkeys = (
     description: 'Select up',
     hotkeyToken: TOKENS.entity.select.start,
     keyDownHandler: () => {
+      options.onKeyboardNavigate?.();
       return handleNavigationSelection(-1);
     },
     hide: true,
@@ -314,6 +318,7 @@ export const useSoupNavigationHotkeys = (
     description: 'Select down',
     hotkeyToken: TOKENS.entity.select.end,
     keyDownHandler: () => {
+      options.onKeyboardNavigate?.();
       return handleNavigationSelection(1);
     },
     hide: true,

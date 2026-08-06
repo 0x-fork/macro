@@ -17,6 +17,7 @@ type CreateChannelHotkeysOptions = {
   isEditing: Accessor<boolean>;
   onOpenFindBar: () => void;
   onGoToBottom: () => void;
+  onKeyboardNavigate?: () => void;
 };
 
 export function canReplyToSelectedMessageFromHotkey(input: {
@@ -65,12 +66,47 @@ export function createChannelHotkeys(options: CreateChannelHotkeysOptions) {
     return options.messageById().get(id);
   };
 
+  const getSelectedMessageActionButtons = () => {
+    const id = options.selection.selectedId();
+    if (!id || !messageListEl) return [];
+    const message = Array.from(
+      messageListEl.querySelectorAll<HTMLElement>('[data-message]')
+    ).find((element) => element.dataset.messageId === id);
+    if (!message) return [];
+    return Array.from(
+      message.querySelectorAll<HTMLButtonElement>('button[data-message-action]')
+    ).filter((button) => !button.disabled);
+  };
+
+  const focusSelectedMessageAction = (direction: -1 | 1) => {
+    const buttons = getSelectedMessageActionButtons();
+    if (buttons.length === 0) return false;
+
+    const currentIndex = buttons.indexOf(
+      document.activeElement as HTMLButtonElement
+    );
+    const nextIndex =
+      currentIndex === -1
+        ? direction === 1
+          ? 0
+          : buttons.length - 1
+        : Math.max(0, Math.min(buttons.length - 1, currentIndex + direction));
+    buttons[nextIndex]?.focus();
+    return true;
+  };
+
+  const isSelectedMessageActionFocused = () =>
+    getSelectedMessageActionButtons().some(
+      (button) => button === document.activeElement
+    );
+
   registerHotkey({
     scopeId: messageListScope,
     hotkey: 'arrowup',
     hotkeyToken: TOKENS.channel.focusPreviousMessage,
     description: 'Previous message',
     keyDownHandler: () => {
+      options.onKeyboardNavigate?.();
       const id = options.selection.selectPrevious();
       if (id) {
         options.navigation()?.markUserIntent('up');
@@ -86,6 +122,7 @@ export function createChannelHotkeys(options: CreateChannelHotkeysOptions) {
     hotkeyToken: TOKENS.channel.focusNextMessage,
     description: 'Next message',
     keyDownHandler: () => {
+      options.onKeyboardNavigate?.();
       const id = options.selection.selectNext();
       if (id) {
         options.navigation()?.markUserIntent('down');
@@ -95,6 +132,46 @@ export function createChannelHotkeys(options: CreateChannelHotkeysOptions) {
       }
       return true;
     },
+  });
+
+  registerHotkey({
+    scopeId: messageListScope,
+    hotkey: 'arrowright',
+    description: 'Next message action',
+    handlerPriority: 4,
+    condition: hasSelection,
+    keyDownHandler: () => {
+      options.onKeyboardNavigate?.();
+      return focusSelectedMessageAction(1);
+    },
+    hide: true,
+  });
+
+  registerHotkey({
+    scopeId: messageListScope,
+    hotkey: 'enter',
+    description: 'Run focused message action',
+    handlerPriority: 4,
+    registrationType: 'add',
+    condition: isSelectedMessageActionFocused,
+    keyDownHandler: () => {
+      (document.activeElement as HTMLButtonElement | null)?.click();
+      return true;
+    },
+    hide: true,
+  });
+
+  registerHotkey({
+    scopeId: messageListScope,
+    hotkey: 'arrowleft',
+    description: 'Previous message action',
+    handlerPriority: 4,
+    condition: hasSelection,
+    keyDownHandler: () => {
+      options.onKeyboardNavigate?.();
+      return focusSelectedMessageAction(-1);
+    },
+    hide: true,
   });
 
   registerHotkey({
@@ -114,6 +191,7 @@ export function createChannelHotkeys(options: CreateChannelHotkeysOptions) {
     hotkey: 'enter',
     hotkeyToken: TOKENS.channel.replyToMessage,
     description: 'Reply to message',
+    registrationType: 'add',
     condition: canRunSelectionActionHotkeys,
     keyDownHandler: () => {
       const msg = getSelectedMessage();
@@ -217,6 +295,7 @@ export function createChannelHotkeys(options: CreateChannelHotkeysOptions) {
 
   return {
     messageListScopeId: messageListScope,
+    focusMessageList: () => messageListEl?.focus(),
     attachMessageListRef: (el: HTMLElement) => {
       messageListEl = el;
       attachMessageList(el);

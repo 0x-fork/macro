@@ -1,5 +1,6 @@
 import { activeElement } from '@app/signal/focus';
 import { splitContainerSelector } from '@core/dom-selectors';
+import { syncActiveScopeToElement } from '@core/hotkey/utils';
 import { type Accessor, createEffect, on, onCleanup } from 'solid-js';
 import {
   SplitEvent,
@@ -56,6 +57,23 @@ export function createSplitFocusTracker(props: {
     return panelRef === element || panelRef.contains(element);
   };
 
+  const rememberFocusedChild = (element: Element | null) => {
+    const parentId = getParentSplitId(element);
+    if (
+      !parentId ||
+      !(element instanceof HTMLElement) ||
+      element.closest('[data-no-focus-restore]')
+    ) {
+      return;
+    }
+    const panelRef = props.panelRefs.get(parentId);
+    // The panel is the fallback when a split has no meaningful child focus.
+    // Never overwrite a remembered list/editor/input with that fallback.
+    if (!panelRef || element === panelRef || !panelRef.contains(element))
+      return;
+    lastFocusedChildBySplitId.set(parentId, element);
+  };
+
   const focusSplitById = (id: SplitId) => {
     const splitPanelRef = props.panelRefs.get(id);
     if (!splitPanelRef) {
@@ -67,17 +85,33 @@ export function createSplitFocusTracker(props: {
     if (
       splitPanelRef.contains(document.activeElement) &&
       splitPanelRef !== document.activeElement
-    )
+    ) {
+      syncActiveScopeToElement(document.activeElement);
       return;
+    }
 
     // look for a child to return focus to.
     const child = lastFocusedChildBySplitId.get(id);
-    if (child && child.isConnected) {
+    if (child && child.isConnected && splitPanelRef.contains(child)) {
       child.focus();
+      syncActiveScopeToElement(document.activeElement);
+      return;
+    }
+
+    // A split shell only carries split-level commands. When it has no saved
+    // child yet, prefer its first focusable hotkey scope so inbox/channel
+    // navigation remains usable immediately after a rapid split switch.
+    const navigationRegion = splitPanelRef.querySelector<HTMLElement>(
+      '[data-hotkey-scope][tabindex]'
+    );
+    if (navigationRegion) {
+      navigationRegion.focus();
+      syncActiveScopeToElement(document.activeElement);
       return;
     }
 
     splitPanelRef.focus();
+    syncActiveScopeToElement(document.activeElement);
   };
 
   const activateFocusedSplit = (element: Element) => {
@@ -144,13 +178,22 @@ export function createSplitFocusTracker(props: {
   let focusTimeout: ReturnType<typeof setTimeout> | undefined;
   let activateTimeout: ReturnType<typeof setTimeout> | undefined;
   let lastProgrammaticActivation = 0;
+  const handleDocumentFocusIn = (event: FocusEvent) => {
+    rememberFocusedChild(event.target as Element | null);
+  };
 
   // Disposal must cancel pending debounced work so it cannot focus stale
   // panels or activate splits on a torn-down manager after unmount.
   onCleanup(() => {
     clearTimeout(focusTimeout);
     clearTimeout(activateTimeout);
+    document.removeEventListener('focusin', handleDocumentFocusIn, true);
   });
+
+  // Capture the restore target synchronously. The reactive `activeElement`
+  // signal intentionally settles after focus events, which is too late when
+  // the user switches splits again immediately.
+  document.addEventListener('focusin', handleDocumentFocusIn, true);
 
   /** Listens for explicit events from layoutManager that might trigger focus changes */
   createEffect(
@@ -181,6 +224,25 @@ export function createSplitFocusTracker(props: {
     })
   );
 
+  // `SplitHandle.activate()` updates the active split for visual state, but
+  // has no DOM side effect. Keep keyboard scope in sync when that activation
+  // selects an already-mounted split (for example, opening an already-open
+  // chat or channel from the inbox).
+  createEffect(
+    on(
+      activeSplitId,
+      (id) => {
+        if (!id) return;
+        if (isElementInPanel(id, document.activeElement)) {
+          syncActiveScopeToElement(document.activeElement);
+          return;
+        }
+        focusSplitById(id);
+      },
+      { defer: true }
+    )
+  );
+
   /** Listens for focus changes on the document */
   createEffect(
     on(activeElement, (element) => {
@@ -189,14 +251,7 @@ export function createSplitFocusTracker(props: {
       }
       if (!element) return;
 
-      const parentId = getParentSplitId(element);
-      if (
-        parentId &&
-        element instanceof HTMLElement &&
-        !element.closest('[data-no-focus-restore]')
-      ) {
-        lastFocusedChildBySplitId.set(parentId, element);
-      }
+      rememberFocusedChild(element);
 
       activateTimeout = setTimeout(() => {
         const timeSinceActivation = Date.now() - lastProgrammaticActivation;

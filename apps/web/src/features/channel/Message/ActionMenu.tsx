@@ -52,7 +52,10 @@ function ActionButton(props: {
       tooltip={props.action.label}
       size="icon-sm"
       variant="ghost"
-      class={props.action.class}
+      class={cn(
+        'focus-visible:bg-accent/15 focus-visible:text-accent focus-visible:ring-1 focus-visible:ring-accent',
+        props.action.class
+      )}
     >
       {renderIcon(
         props.action.icon,
@@ -157,6 +160,7 @@ export function ActionMenu(props: ActionMenuProps) {
                     aria-label={`React ${emoji}`}
                     data-message-action="react-quick"
                     data-emoji={emoji}
+                    class="focus-visible:bg-accent/15 focus-visible:text-accent focus-visible:ring-1 focus-visible:ring-accent"
                   >
                     <span class="text-md my-0">{emoji}</span>
                   </Button>
@@ -174,9 +178,12 @@ export function ActionMenu(props: ActionMenuProps) {
                 triggerProps={{
                   title: 'More reactions',
                   'aria-label': 'More reactions',
+                  'data-message-action': 'react-more',
                   tooltip: 'More reactions',
                   variant: 'ghost',
                   size: 'icon-sm',
+                  class:
+                    'focus-visible:bg-accent/15 focus-visible:text-accent focus-visible:ring-1 focus-visible:ring-accent',
                 }}
               />
               <Show when={visibleActions.length > 0}>
