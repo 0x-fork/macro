@@ -15,7 +15,8 @@ use uuid::Uuid;
 
 use crate::domain::models::{
     DueFiring, DueReminder, InvalidCron, NewReminder, Reminder, ReminderBatch, ReminderCron,
-    ReminderCursor, ReminderFilter, ReminderSchedule, ReminderUpdate,
+    ReminderCursor, ReminderFilter, ReminderForSoup, ReminderReference, ReminderSchedule,
+    ReminderUpdate,
 };
 use crate::domain::ports::{ReminderDispatchRepo, RemindersRepo};
 
@@ -405,6 +406,110 @@ impl RemindersRepo for PgRemindersRepo {
         Ok(batch)
     }
 
+    #[tracing::instrument(err, skip(self, user_id))]
+    async fn list_reminders_for_soup(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        ids: &[Uuid],
+        entities: &[String],
+        completed: Option<bool>,
+        limit: i64,
+    ) -> Result<Vec<ReminderForSoup>, Self::Err> {
+        // Empty means "no constraint", so bind NULL rather than an empty array
+        // — `= ANY('{}')` matches nothing.
+        let ids = (!ids.is_empty()).then_some(ids);
+        let entities = (!entities.is_empty()).then_some(entities);
+
+        let rows = sqlx::query!(
+            r#"
+            SELECT
+                r.id,
+                r.description,
+                r.entity_type,
+                r.entity_id,
+                r.remind_at,
+                r.cron,
+                r.timezone,
+                r.next_run_at,
+                r.enabled,
+                r.completed_at,
+                r.created_at,
+                r.updated_at,
+                d."fileType" as "referenced_file_type?",
+                dst.sub_type::text as "referenced_sub_type?"
+            FROM reminder r
+            -- Resolve the referenced document in the same round trip: the block
+            -- a reminder opens (and its icon) comes from the document's file
+            -- type, and the client's icon path is synchronous. "Document".id is
+            -- still TEXT while reminder.entity_id is a uuid, hence the cast.
+            LEFT JOIN "Document" d
+                ON r.entity_type = 'document'
+               AND d.id = r.entity_id::text
+               AND d."deletedAt" IS NULL
+            LEFT JOIN document_sub_type dst ON dst.document_id = d.id
+            WHERE r.user_id = $1
+              AND ($2::uuid[] IS NULL OR r.id = ANY($2))
+              AND (
+                  $3::text[] IS NULL
+                  OR (
+                      r.entity_id IS NOT NULL
+                      AND r.entity_type || ':' || r.entity_id::text = ANY($3)
+                  )
+              )
+              AND ($4::bool IS NULL OR (r.completed_at IS NOT NULL) = $4)
+            -- Descending to match Soup's global ordering, so the LIMIT keeps the
+            -- same rows Soup would keep after merging every item type.
+            ORDER BY r.next_run_at DESC, r.id DESC
+            LIMIT $5
+            "#,
+            user_id.as_ref(),
+            ids as Option<&[Uuid]>,
+            entities as Option<&[String]>,
+            completed,
+            limit,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        // Undecodable rows are skipped rather than failing the page, matching
+        // `list_reminders`.
+        Ok(rows
+            .into_iter()
+            .filter_map(|row| {
+                let reference = match (row.referenced_file_type, row.referenced_sub_type) {
+                    (None, None) => None,
+                    (file_type, sub_type) => Some(ReminderReference {
+                        file_type,
+                        sub_type,
+                    }),
+                };
+                let reminder = ReminderRow {
+                    id: row.id,
+                    description: row.description,
+                    entity_type: row.entity_type,
+                    entity_id: row.entity_id,
+                    remind_at: row.remind_at,
+                    cron: row.cron,
+                    timezone: row.timezone,
+                    next_run_at: row.next_run_at,
+                    enabled: row.enabled,
+                    completed_at: row.completed_at,
+                    created_at: row.created_at,
+                    updated_at: row.updated_at,
+                }
+                .into_reminder()
+                .inspect_err(|e| {
+                    tracing::error!(error=?e, "skipping unreadable reminder");
+                })
+                .ok()?;
+                Some(ReminderForSoup {
+                    reminder,
+                    reference,
+                })
+            })
+            .collect())
+    }
+
     #[tracing::instrument(err, skip(self, user_id, update))]
     async fn update_reminder(
         &self,
@@ -438,7 +543,15 @@ impl RemindersRepo for PgRemindersRepo {
                 timezone    = CASE WHEN $4::bool THEN $7::text ELSE timezone END,
                 next_run_at = COALESCE($8::timestamptz, next_run_at),
                 enabled     = COALESCE($9::bool, enabled),
-                completed_at = CASE WHEN $4::bool THEN NULL ELSE completed_at END,
+                -- An explicit `completed` wins over the reschedule rule above;
+                -- COALESCE keeps re-completing an already-completed reminder
+                -- from moving its timestamp.
+                completed_at = CASE
+                    WHEN $10::bool IS TRUE  THEN COALESCE(completed_at, now())
+                    WHEN $10::bool IS FALSE THEN NULL
+                    WHEN $4::bool           THEN NULL
+                    ELSE completed_at
+                END,
                 updated_at  = now()
             WHERE id = $1 AND user_id = $2
             RETURNING
@@ -464,6 +577,7 @@ impl RemindersRepo for PgRemindersRepo {
             timezone,
             next_run_at,
             update.enabled,
+            update.completed,
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -477,15 +591,37 @@ impl RemindersRepo for PgRemindersRepo {
         user_id: &MacroUserIdStr<'_>,
         id: Uuid,
     ) -> Result<bool, Self::Err> {
+        let mut tx = self.pool.begin().await?;
+
         let result = sqlx::query!(
             r#"DELETE FROM reminder WHERE id = $1 AND user_id = $2"#,
             id,
             user_id.as_ref(),
         )
-        .execute(&self.pool)
+        .execute(tx.as_mut())
         .await?;
 
-        Ok(result.rows_affected() > 0)
+        let deleted = result.rows_affected() > 0;
+
+        if deleted {
+            // Retract the firing notification in the same transaction — see the
+            // port contract. Only after confirming the reminder was the
+            // caller's, so a miss cannot delete someone else's notification.
+            // `user_notification` cascades from this row.
+            sqlx::query!(
+                r#"
+                DELETE FROM notification
+                WHERE event_item_type = 'reminder' AND event_item_id = $1
+                "#,
+                id.to_string(),
+            )
+            .execute(tx.as_mut())
+            .await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(deleted)
     }
 }
 
@@ -508,15 +644,30 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         // outgrow that, page it with a keyset cursor on (next_run_at, id) and
         // have the handler re-enqueue itself, the way the crm cleanup lister
         // does — a bare LIMIT here would silently strand the overflow.
+        //
+        // Two separate exclusions, because they mean different things. A
+        // `completed_at` reminder is one the owner has finished with and does
+        // not want. A sent occurrence is one this firing already delivered —
+        // that is what makes a delivered reminder stop being due, and it is
+        // keyed on `next_run_at`, so rescheduling makes it due again without
+        // anything having to clear it. Covered by
+        // `reminder_occurrence_firing_idx`.
         let rows = sqlx::query!(
             r#"
-            SELECT id, next_run_at
-            FROM reminder
-            WHERE enabled
-              AND completed_at IS NULL
-              AND cron IS NULL
-              AND next_run_at <= $1
-            ORDER BY next_run_at
+            SELECT r.id, r.next_run_at
+            FROM reminder r
+            WHERE r.enabled
+              AND r.completed_at IS NULL
+              AND r.cron IS NULL
+              AND r.next_run_at <= $1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM reminder_occurrence o
+                  WHERE o.reminder_id = r.id
+                    AND o.scheduled_for = r.next_run_at
+                    AND o.sent_at IS NOT NULL
+              )
+            ORDER BY r.next_run_at
             "#,
             now,
         )
@@ -639,10 +790,10 @@ impl ReminderDispatchRepo for PgRemindersRepo {
         reminder_id: Uuid,
         scheduled_for: DateTime<Utc>,
     ) -> Result<(), Self::Err> {
-        // Both halves in one transaction: a delivered firing whose reminder is
-        // still uncompleted would be sent again on the next sweep.
-        let mut tx = self.pool.begin().await?;
-
+        // Only the occurrence. Delivery is not completion: `completed_at` means
+        // the owner is finished with the reminder, and a reminder that has just
+        // arrived in their inbox plainly is not. What stops a delivered firing
+        // being sent twice is this row, which `due_firings` excludes on.
         sqlx::query!(
             r#"
             UPDATE reminder_occurrence
@@ -652,21 +803,8 @@ impl ReminderDispatchRepo for PgRemindersRepo {
             reminder_id,
             scheduled_for,
         )
-        .execute(&mut *tx)
+        .execute(&self.pool)
         .await?;
-
-        sqlx::query!(
-            r#"
-            UPDATE reminder
-            SET completed_at = now(), updated_at = now()
-            WHERE id = $1
-            "#,
-            reminder_id,
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
 
         Ok(())
     }

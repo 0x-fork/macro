@@ -5,7 +5,7 @@ mod test;
 
 use std::str::FromStr;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Timelike, Utc};
 use chrono_tz::Tz;
 use cron::Schedule as CronSchedule;
 use macro_user_id::user_id::MacroUserIdStr;
@@ -79,6 +79,13 @@ fn truncate_to_micros(at: DateTime<Utc>) -> DateTime<Utc> {
     DateTime::from_timestamp_micros(at.timestamp_micros()).unwrap_or(at)
 }
 
+/// Drop everything finer than a minute.
+fn floor_to_minute(at: DateTime<Utc>) -> DateTime<Utc> {
+    at.with_second(0)
+        .and_then(|at| at.with_nanosecond(0))
+        .unwrap_or(at)
+}
+
 /// Promote a conventional 5-field cron to the 6-field form the `cron` crate
 /// parses. Anything else is passed through for `cron` to accept or reject.
 fn normalize_cron(cron: String) -> String {
@@ -131,6 +138,25 @@ impl ReminderSchedule {
     pub fn repeats(&self) -> bool {
         matches!(self, Self::Recurring { .. })
     }
+
+    /// Drop sub-minute precision from a one-shot firing.
+    ///
+    /// "Remind me in ten minutes" at 16:06:32 means 16:16, not 16:16:32. The
+    /// seconds are an artifact of when the request happened to be sent, they
+    /// are not something the owner chose, and a reminder that fires at a ragged
+    /// time reads as a bug.
+    ///
+    /// Recurring schedules are left alone: their seconds come from a cron the
+    /// owner wrote, so `30 0 9 * * *` means 09:00:30 and flooring it would
+    /// quietly ignore what they asked for.
+    pub fn floored_to_minute(self) -> Self {
+        match self {
+            Self::Once { remind_at } => Self::Once {
+                remind_at: floor_to_minute(remind_at),
+            },
+            recurring @ Self::Recurring { .. } => recurring,
+        }
+    }
 }
 
 /// A reminder belonging to a user.
@@ -160,13 +186,23 @@ pub struct Reminder {
     pub next_run_at: DateTime<Utc>,
     /// When false, the dispatcher skips this reminder.
     pub enabled: bool,
-    /// Set once a one-shot reminder has fired.
+    /// Set once the owner marks the reminder as dealt with. Firing does not
+    /// set it — a delivered reminder is waiting on its owner, not finished.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<DateTime<Utc>>,
     /// When the reminder was created.
     pub created_at: DateTime<Utc>,
     /// When the reminder was last modified.
     pub updated_at: DateTime<Utc>,
+}
+
+/// The `"{type}:{id}"` token identifying a reminder's referenced entity.
+///
+/// Soup filters on these rather than on a pair of columns, so the format is
+/// defined here and mirrored by `entity_type || ':' || entity_id` in the
+/// repository's Soup query.
+pub fn entity_token(entity: &Entity<'_>) -> String {
+    format!("{}:{}", entity.entity_type.as_ref(), entity.entity_id)
 }
 
 impl Reminder {
@@ -177,6 +213,35 @@ impl Reminder {
             _ => None,
         }
     }
+}
+
+/// Display details of the entity a reminder is about, resolved alongside the
+/// reminder itself.
+///
+/// A reminder has no block of its own — it opens, and is iconed as, whatever it
+/// references. Which block that is depends on the referenced document's file
+/// type, so resolving it client-side would mean a second fetch per row against
+/// a synchronous icon path. Reading it here keeps Soup to one round trip.
+///
+/// Only documents populate these; every other entity type is identified by its
+/// [`EntityType`] alone.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ReminderReference {
+    /// The referenced document's file type, e.g. `md` or `pdf`.
+    pub file_type: Option<String>,
+    /// The referenced document's sub type, e.g. `task` or `snippet`.
+    pub sub_type: Option<String>,
+}
+
+/// A reminder together with what it references, as Soup needs it.
+#[derive(Debug, Clone)]
+pub struct ReminderForSoup {
+    /// The reminder itself.
+    pub reminder: Reminder,
+    /// Details of [`Reminder::entity`], when it resolves to something readable.
+    /// `None` for a standalone reminder, a non-document entity, or a reference
+    /// that no longer exists.
+    pub reference: Option<ReminderReference>,
 }
 
 /// The caller's reminders, soonest firing first.
@@ -325,12 +390,21 @@ pub struct ReminderPatch {
     pub schedule: Option<ReminderSchedule>,
     /// Whether the dispatcher should consider this reminder.
     pub enabled: Option<bool>,
+    /// Mark the reminder as dealt with (`true`) or live again (`false`).
+    ///
+    /// Separate from `enabled`: a disabled reminder is one the dispatcher
+    /// skips, while a completed one has been handled. Only the owner sets it —
+    /// firing does not, or a reminder would arrive already dealt with.
+    pub completed: Option<bool>,
 }
 
 impl ReminderPatch {
     /// Whether the patch would change anything.
     pub fn is_empty(&self) -> bool {
-        self.description.is_none() && self.schedule.is_none() && self.enabled.is_none()
+        self.description.is_none()
+            && self.schedule.is_none()
+            && self.enabled.is_none()
+            && self.completed.is_none()
     }
 }
 
@@ -388,6 +462,8 @@ pub struct ReminderUpdate {
     pub schedule: Option<ScheduleUpdate>,
     /// Replacement enabled flag.
     pub enabled: Option<bool>,
+    /// Replacement completed flag. See [`ReminderPatch::completed`].
+    pub completed: Option<bool>,
 }
 
 /// A reminder that is due to fire, with everything the dispatcher needs to

@@ -7,8 +7,8 @@ use uuid::Uuid;
 
 use crate::domain::models::{
     CreateReminder, DeliveryOutcome, DueFiring, DueReminder, NewReminder, Reminder, ReminderBatch,
-    ReminderDispatchMessage, ReminderError, ReminderFilter, ReminderPage, ReminderPatch,
-    ReminderUpdate, SweepSummary,
+    ReminderDispatchMessage, ReminderError, ReminderFilter, ReminderForSoup, ReminderPage,
+    ReminderPatch, ReminderUpdate, SweepSummary,
 };
 
 /// Source of the current time.
@@ -66,6 +66,25 @@ pub trait RemindersRepo: Send + Sync + 'static {
         limit: i64,
     ) -> impl Future<Output = Result<ReminderBatch, Self::Err>> + Send;
 
+    /// Read at most `limit` of the user's reminders for the Soup feed, ordered
+    /// by `next_run_at` descending to match Soup's global ordering.
+    ///
+    /// Deliberately separate from [`RemindersRepo::list_reminders`]: Soup pages
+    /// on its own cursor and sorts descending, whereas the CRUD list keysets
+    /// ascending on `(next_run_at, created_at, id)`. As in
+    /// [`RemindersRepo::list_reminders`], an undecodable row is skipped rather
+    /// than failing the whole read.
+    ///
+    /// An empty `ids`/`entities` slice means "no constraint", not "match none".
+    fn list_reminders_for_soup(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        ids: &[Uuid],
+        entities: &[String],
+        completed: Option<bool>,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<ReminderForSoup>, Self::Err>> + Send;
+
     /// Apply `update` to one of the user's reminders, returning the new state.
     fn update_reminder(
         &self,
@@ -74,7 +93,14 @@ pub trait RemindersRepo: Send + Sync + 'static {
         update: &ReminderUpdate,
     ) -> impl Future<Output = Result<Option<Reminder>, Self::Err>> + Send;
 
-    /// Delete one of the user's reminders. Returns `true` when a row was removed.
+    /// Delete one of the user's reminders, retracting any notification it
+    /// already produced. Returns `true` when a row was removed.
+    ///
+    /// The retraction is part of this contract rather than a separate call so
+    /// the two cannot drift apart. A reminder *is* its notification's
+    /// `event_item`, so a notification outliving it would point at a row that
+    /// no longer exists: the Inbox would keep showing it, and clicking it would
+    /// resolve nothing. Both deletes happen in one transaction.
     fn delete_reminder(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -142,10 +168,13 @@ pub trait ReminderDispatchRepo: Send + Sync + 'static {
         scheduled_for: DateTime<Utc>,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
-    /// Record the firing as delivered and complete the reminder, atomically.
+    /// Record the firing as delivered.
     ///
-    /// Both halves together: a delivered firing must never leave its reminder
-    /// still due, or the next sweep sends it again.
+    /// Marks the occurrence, not the reminder: delivery is not completion.
+    /// `completed_at` is the owner saying they are finished with a reminder,
+    /// and one that has just landed in their inbox is not. The sent occurrence
+    /// is what stops [`ReminderDispatchRepo::due_firings`] returning the firing
+    /// again.
     fn complete_occurrence(
         &self,
         reminder_id: Uuid,
@@ -256,6 +285,23 @@ pub trait RemindersService: Send + Sync + 'static {
         user_id: &MacroUserIdStr<'_>,
         filter: ReminderFilter,
     ) -> impl Future<Output = Result<ReminderPage, ReminderError>> + Send;
+
+    /// List the user's reminders for the Soup feed.
+    ///
+    /// Soup owns pagination and ordering across every item type, so this
+    /// returns a plain bounded slice rather than a [`ReminderPage`].
+    ///
+    /// Unlike the single-reminder methods this takes a user id rather than a
+    /// receipt: Soup reads many reminders at once, so there is no one entity
+    /// to have proven access to.
+    fn list_reminders_for_soup(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        ids: &[Uuid],
+        entities: &[String],
+        completed: Option<bool>,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<ReminderForSoup>, ReminderError>> + Send;
 
     /// Modify the reminder the receipt was minted for.
     fn update_reminder(

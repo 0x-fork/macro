@@ -9,7 +9,9 @@ use entity_access::domain::models::{
 use model_entity::EntityType;
 
 use super::*;
-use crate::domain::models::{MAX_PAGE_SIZE, ReminderCron, RemindersList};
+use crate::domain::models::{
+    MAX_PAGE_SIZE, ReminderCron, ReminderForSoup, RemindersList, entity_token,
+};
 
 const USER_A: &str = "macro|reminders-a@macro.com";
 const USER_B: &str = "macro|reminders-b@macro.com";
@@ -287,6 +289,46 @@ impl RemindersRepo for FakeRemindersRepo {
         Ok(batch)
     }
 
+    async fn list_reminders_for_soup(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        ids: &[Uuid],
+        entities: &[String],
+        completed: Option<bool>,
+        limit: i64,
+    ) -> Result<Vec<ReminderForSoup>, Self::Err> {
+        self.check_failing()?;
+        let mut found: Vec<Reminder> = self
+            .rows()
+            .into_iter()
+            .filter(|(owner, _)| owner == user_id.as_ref())
+            .map(|(_, reminder)| reminder)
+            .filter(|reminder| ids.is_empty() || ids.contains(&reminder.id))
+            .filter(|reminder| {
+                entities.is_empty()
+                    || reminder
+                        .entity()
+                        .is_some_and(|e| entities.iter().any(|want| *want == entity_token(&e)))
+            })
+            .filter(|reminder| match completed {
+                Some(completed) => reminder.completed_at.is_some() == completed,
+                None => true,
+            })
+            .filter(|reminder| !self.is_unreadable(reminder.id))
+            .collect();
+        // Descending, as the SQL adapter returns.
+        found.sort_by_key(|reminder| std::cmp::Reverse((reminder.next_run_at, reminder.id)));
+        found.truncate(limit.max(0) as usize);
+        // The fake has no documents to resolve against.
+        Ok(found
+            .into_iter()
+            .map(|reminder| ReminderForSoup {
+                reminder,
+                reference: None,
+            })
+            .collect())
+    }
+
     async fn update_reminder(
         &self,
         user_id: &MacroUserIdStr<'_>,
@@ -553,7 +595,15 @@ async fn accepts_a_one_shot_one_second_from_now() {
         .await
         .expect("an instant just after now should be accepted");
 
-    assert_eq!(reminder.next_run_at, remind_at);
+    // Accepted, then floored — which lands it in the current minute, so it
+    // fires on the next sweep. Validating before flooring is what keeps this
+    // from being rejected as "remindAt must be in the future": a sub-minute
+    // request is honoured at the granularity reminders actually work at.
+    assert_eq!(
+        reminder.next_run_at,
+        now(),
+        "floored into the current minute"
+    );
 }
 
 #[tokio::test]
@@ -1296,7 +1346,7 @@ async fn rescheduling_leaves_enabled_alone() {
 
 #[tokio::test]
 async fn repository_failures_surface_as_internal_errors() {
-    // Every method wraps repo errors with `anyhow::Error::from`, which the router
+    // Every method wraps repo errors in a `rootcause::Report`, which the router
     // turns into a 500 with the cause logged but not returned. Without this the
     // whole mapping is unexercised.
     let service = service();
@@ -1524,4 +1574,44 @@ async fn pages_within_an_entity_filter() {
     assert_eq!(seen.len(), 3, "all three doc-1 reminders, and only those");
     let unique: std::collections::HashSet<_> = seen.iter().collect();
     assert_eq!(unique.len(), 3);
+}
+
+#[tokio::test]
+async fn creating_floors_the_firing_to_the_minute() {
+    // What "remind me in 90 minutes" produces when the request lands at
+    // 12:00:00 and the client did the arithmetic against its own ragged clock.
+    let ragged = future() + Duration::seconds(32) + Duration::milliseconds(500);
+    let reminder = service()
+        .create_reminder(&user(USER_A), create_request(once(ragged)), None)
+        .await
+        .expect("reminder should be created");
+
+    assert_eq!(reminder.next_run_at, future());
+    // The stored schedule has to agree with the firing, or a later read would
+    // show a time the reminder will not actually fire at.
+    assert_eq!(reminder.schedule, once(future()));
+}
+
+#[tokio::test]
+async fn rescheduling_floors_the_firing_to_the_minute() {
+    let service = service();
+    let created = service
+        .create_reminder(&user(USER_A), create_request(once(future())), None)
+        .await
+        .expect("created");
+    let ragged = future() + Duration::hours(1) + Duration::seconds(45);
+
+    let reminder = service
+        .update_reminder(
+            owner_receipt(USER_A, created.id),
+            ReminderPatch {
+                schedule: Some(once(ragged)),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("reschedule should succeed");
+
+    assert_eq!(reminder.next_run_at, future() + Duration::hours(1));
+    assert_eq!(reminder.schedule, once(future() + Duration::hours(1)));
 }

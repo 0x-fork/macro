@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use crate::domain::models::{
     CreateReminder, MAX_DESCRIPTION_LEN, NewReminder, Reminder, ReminderBatch, ReminderCursor,
-    ReminderError, ReminderFilter, ReminderPage, ReminderPatch, ReminderSchedule, ReminderUpdate,
-    ScheduleUpdate,
+    ReminderError, ReminderFilter, ReminderForSoup, ReminderPage, ReminderPatch, ReminderSchedule,
+    ReminderUpdate, ScheduleUpdate,
 };
 use crate::domain::ports::{Clock, RemindersRepo, RemindersService, SystemClock};
 
@@ -87,6 +87,27 @@ fn derive_next_run_at(
             ReminderError::BadRequest("cron has no upcoming firing".to_string())
         }
     })
+}
+
+/// Check the schedule will fire, then store it at minute granularity.
+///
+/// Order matters. Flooring first would drag a request inside the current minute
+/// back into the past and reject it, but "remind me in thirty seconds" is a
+/// legitimate ask — it just fires on the next sweep rather than in thirty
+/// seconds, which is what minute granularity means.
+fn normalize_schedule(
+    schedule: ReminderSchedule,
+    now: DateTime<Utc>,
+) -> Result<(ReminderSchedule, DateTime<Utc>), ReminderError> {
+    let derived = derive_next_run_at(&schedule, now)?;
+    let schedule = schedule.floored_to_minute();
+    let next_run_at = match schedule {
+        // Same instant the schedule now carries, so the two cannot disagree.
+        ReminderSchedule::Once { remind_at } => remind_at,
+        // A cron's seconds are the owner's, so its firing is left as derived.
+        ReminderSchedule::Recurring { .. } => derived,
+    };
+    Ok((schedule, next_run_at))
 }
 
 /// The entity a reminder attaches to, taken from the access receipt.
@@ -163,7 +184,7 @@ where
 
         let description = validate_description(description)?;
         let entity = resolve_entity(user_id, entity_receipt)?;
-        let next_run_at = derive_next_run_at(&schedule, self.clock.now())?;
+        let (schedule, next_run_at) = normalize_schedule(schedule, self.clock.now())?;
 
         let new = NewReminder {
             description,
@@ -265,6 +286,24 @@ where
         })
     }
 
+    #[tracing::instrument(err, skip(self))]
+    async fn list_reminders_for_soup(
+        &self,
+        user_id: &MacroUserIdStr<'_>,
+        ids: &[Uuid],
+        entities: &[String],
+        completed: Option<bool>,
+        limit: i64,
+    ) -> Result<Vec<ReminderForSoup>, ReminderError> {
+        // No re-probing on undecodable rows: Soup merges many item types and
+        // owns its own pagination, so a short slice is not a short page.
+        self.repo
+            .list_reminders_for_soup(user_id, ids, entities, completed, limit)
+            .await
+            .map_err(|e| rootcause::Report::new(e).into_dynamic())
+            .map_err(ReminderError::from)
+    }
+
     #[tracing::instrument(err, skip(self, receipt, patch))]
     async fn update_reminder(
         &self,
@@ -280,12 +319,13 @@ where
             description,
             schedule,
             enabled,
+            completed,
         } = patch;
 
         let description = description.map(validate_description).transpose()?;
         let schedule = schedule
             .map(|schedule| {
-                let next_run_at = derive_next_run_at(&schedule, self.clock.now())?;
+                let (schedule, next_run_at) = normalize_schedule(schedule, self.clock.now())?;
                 Ok::<_, ReminderError>(ScheduleUpdate {
                     schedule,
                     next_run_at,
@@ -297,6 +337,7 @@ where
             description,
             schedule,
             enabled,
+            completed,
         };
 
         self.repo
@@ -322,5 +363,65 @@ where
         } else {
             Err(ReminderError::NotFound)
         }
+    }
+}
+
+/// No-op [`RemindersService`] for binaries that need to satisfy the bound but
+/// never surface reminders — the AI-facing services, whose tool surfaces
+/// force-filter reminders out anyway. `list_reminders_for_soup` returns empty;
+/// every other method panics. Swap for [`RemindersServiceImpl`] if you actually
+/// need reminders.
+#[derive(Clone, Debug)]
+pub struct NoOpRemindersService;
+
+impl RemindersService for NoOpRemindersService {
+    async fn create_reminder(
+        &self,
+        _user_id: &MacroUserIdStr<'_>,
+        _request: CreateReminder,
+        _entity_receipt: Option<EntityAccessReceipt<AnyEntityPermission>>,
+    ) -> Result<Reminder, ReminderError> {
+        unimplemented!("NoOpRemindersService.create_reminder")
+    }
+
+    async fn get_reminder(
+        &self,
+        _receipt: EntityAccessReceipt<OwnerAccessLevel>,
+    ) -> Result<Reminder, ReminderError> {
+        unimplemented!("NoOpRemindersService.get_reminder")
+    }
+
+    async fn list_reminders(
+        &self,
+        _user_id: &MacroUserIdStr<'_>,
+        _filter: ReminderFilter,
+    ) -> Result<ReminderPage, ReminderError> {
+        unimplemented!("NoOpRemindersService.list_reminders")
+    }
+
+    async fn list_reminders_for_soup(
+        &self,
+        _user_id: &MacroUserIdStr<'_>,
+        _ids: &[Uuid],
+        _entities: &[String],
+        _completed: Option<bool>,
+        _limit: i64,
+    ) -> Result<Vec<ReminderForSoup>, ReminderError> {
+        Ok(Vec::new())
+    }
+
+    async fn update_reminder(
+        &self,
+        _receipt: EntityAccessReceipt<OwnerAccessLevel>,
+        _patch: ReminderPatch,
+    ) -> Result<Reminder, ReminderError> {
+        unimplemented!("NoOpRemindersService.update_reminder")
+    }
+
+    async fn delete_reminder(
+        &self,
+        _receipt: EntityAccessReceipt<OwnerAccessLevel>,
+    ) -> Result<(), ReminderError> {
+        unimplemented!("NoOpRemindersService.delete_reminder")
     }
 }
