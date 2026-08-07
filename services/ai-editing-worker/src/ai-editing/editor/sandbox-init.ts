@@ -1,9 +1,9 @@
 /**
  * The snippet that bootstraps a sandbox before the writer's code runs.
  *
- * Shared by the wrangler sandbox (`src/sandbox.ts`) and the bun one
- * (`testbench/sandbox-bun.ts`) so the two cannot drift — the whole point of the
- * bench is that it executes what production executes.
+ * Shared by every sandbox host so they cannot drift: `src/sandbox.ts` under
+ * wrangler, and any other loader that needs the same context (a replay harness
+ * is only meaningful while it executes what production executes).
  *
  * `editor` is wrapped in a proxy that turns a call to a method that does not
  * exist into a suggestion. Writers reach for plausible-but-absent names

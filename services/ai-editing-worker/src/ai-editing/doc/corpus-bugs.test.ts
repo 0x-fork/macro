@@ -31,7 +31,7 @@ function build(md: string) {
     doc,
     xml: () => serializeWithXml(session),
     ids: () => [...docIds(session)],
-    /** Animated path — what prod actually runs, since the Rust caller never sets
+    /** Animated path — what prod runs, since the caller never sets
      *  typingAnimations. */
     run: (code: string, snippets?: Record<string, string>) =>
       runEditorCode({
@@ -43,7 +43,7 @@ function build(md: string) {
         sleep: () => Promise.resolve(),
         snippets,
       }),
-    /** Direct-apply path, used by the testbench. */
+    /** Direct-apply path, used when animations are disabled. */
     runInstant: (code: string) =>
       runEditorCode({
         session,

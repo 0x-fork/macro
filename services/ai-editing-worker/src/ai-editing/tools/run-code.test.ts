@@ -5,20 +5,19 @@ import { Doc } from '../doc/doc';
 import { createRunCodeTool } from './run-code';
 
 /**
- * Snippet payloads taken verbatim from the production trace corpus, shortened.
+ * The SHAPES of every non-string snippet value seen in the production corpus.
  *
- * All 51 non-string snippet values in 495 prod sessions fall into these shapes.
+ * Content is synthetic on purpose — the corpus text is real user documents, and
+ * only the shape is what the schema has to accept. All 51 non-string snippet
+ * values across 495 prod sessions are one of these.
  * The strict `Record<string, string>` schema rejected every one, and a rejected
  * tool call costs the coder its whole step — it has to retry from scratch.
  */
 const REAL_PROD_SNIPPETS = {
   'array of strings (45 of 51 occurrences)': {
-    items: [
-      'One scenario file per world: users + teams + channels',
-      'Deterministic 5eed-prefixed UUIDv8 ids',
-    ],
+    items: ['first list entry', 'second list entry'],
   },
-  'array with a single entry': { listItems: ['~7:00 AM — Wake up: pouch + milk'] },
+  'array with a single entry': { listItems: ['only entry'] },
 } as const;
 
 function setup() {

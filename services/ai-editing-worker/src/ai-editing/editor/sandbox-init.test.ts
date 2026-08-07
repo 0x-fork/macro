@@ -1,5 +1,32 @@
+import { getQuickJS } from 'quickjs-emscripten';
 import { describe, expect, it } from 'vitest';
-import { runInBunSandbox } from '../../../testbench/sandbox-bun';
+import type { DocumentOp } from '.';
+import { SANDBOX_CODE } from '../../editor-sandbox-code';
+import { sandboxInit } from './sandbox-init';
+
+/** Runs a snippet through real QuickJS, as production does. `src/sandbox.ts`
+ *  imports the emscripten wasm in a way only wrangler's bundler resolves, so the
+ *  test loads the engine via the stock loader instead. */
+async function runSnippet(
+  validIds: Set<string>,
+  code: string
+): Promise<DocumentOp[]> {
+  const QuickJS = await getQuickJS();
+  const ctx = QuickJS.newContext();
+  try {
+    const refs = Array.from({ length: 8 }, (_, i) => `ref-${i}`);
+    ctx.unwrapResult(
+      ctx.evalCode(`${SANDBOX_CODE}\n${sandboxInit(validIds, refs, undefined)}`)
+    ).dispose();
+    ctx.unwrapResult(ctx.evalCode(code)).dispose();
+    const out = ctx.unwrapResult(ctx.evalCode('JSON.stringify(editor.drain())'));
+    const json = ctx.dump(out) as string;
+    out.dispose();
+    return JSON.parse(json) as DocumentOp[];
+  } finally {
+    ctx.dispose();
+  }
+}
 
 /**
  * Writers reach for plausible-but-absent editor methods. Across 622 prod traces
@@ -15,7 +42,7 @@ const ids = new Set(['n1']);
 
 async function failureFor(code: string): Promise<string> {
   try {
-    await runInBunSandbox(ids, code);
+    await runSnippet(ids, code);
     return '<no error>';
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
@@ -24,7 +51,7 @@ async function failureFor(code: string): Promise<string> {
 
 describe('unknown editor methods', () => {
   it('still runs a real method', async () => {
-    const ops = await runInBunSandbox(ids, `editor.setText('n1', 'x');`);
+    const ops = await runSnippet(ids, `editor.setText('n1', 'x');`);
     expect(ops).toEqual([{ kind: 'setText', node: 'n1', text: 'x' }]);
   });
 
@@ -52,7 +79,7 @@ describe('unknown editor methods', () => {
   });
 
   it('keeps real methods bound so chaining still works', async () => {
-    const ops = await runInBunSandbox(
+    const ops = await runSnippet(
       ids,
       `editor.setText('n1', 'a'); editor.bold('n1', 'a');`
     );
@@ -61,7 +88,7 @@ describe('unknown editor methods', () => {
 
   it('does not intercept ordinary property reads', async () => {
     // `drain` is called by the host after the snippet; the proxy must not break it.
-    const ops = await runInBunSandbox(ids, `editor.setText('n1', 'ok');`);
+    const ops = await runSnippet(ids, `editor.setText('n1', 'ok');`);
     expect(Array.isArray(ops)).toBe(true);
   });
 });
