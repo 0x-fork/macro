@@ -30,6 +30,7 @@ rootcause = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["json"], optional = true }
+strum = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"], optional = true }
 tracing = { workspace = true, optional = true }
 uuid = { workspace = true }

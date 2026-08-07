@@ -94,8 +94,11 @@ pub struct CallStart {
 ///
 /// Tags, variants, and payload fields are never renamed or repurposed —
 /// stored activities are immutable and must decode forever. New payload
-/// fields must tolerate absence on old rows.
-#[derive(Debug, Clone, PartialEq)]
+/// fields must tolerate absence on old rows. The stored tag is derived
+/// from the variant name (strum, snake_case), so **renaming a variant is a
+/// storage migration** — the pinned codec test exists to make that loud.
+#[derive(Debug, Clone, PartialEq, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
 pub enum Action {
     /// The entity was created.
     Created,
@@ -139,10 +142,10 @@ impl Action {
         matches!(self, Action::Opened)
     }
 
-    /// Splits the action into its `(action, action_payload)` column values.
-    ///
-    /// This match IS the storage codec — exhaustive, so a new variant fails
-    /// compilation until its columns are decided.
+    /// Splits the action into its `(action, action_payload)` column values:
+    /// the tag from the variant name (strum), the payload from the shared
+    /// serde structs. Exhaustive, so a new variant fails compilation until
+    /// its payload is decided.
     pub fn to_columns(&self) -> (&'static str, Option<Value>) {
         // Payload structs are plain data (strings, options, JSON values):
         // serialization cannot fail.
@@ -150,18 +153,21 @@ impl Action {
             Some(serde_json::to_value(payload).expect("payload structs serialize infallibly"))
         }
 
-        match self {
-            Action::Created => ("created", None),
-            Action::Edited => ("edited", None),
-            Action::Opened => ("opened", None),
-            Action::Deleted => ("deleted", None),
-            Action::Messaged => ("messaged", None),
-            Action::Sent => ("sent", None),
-            Action::PropertyChanged(change) => ("property_changed", payload(change)),
-            Action::ParticipantAdded(change) => ("participant_added", payload(change)),
-            Action::ParticipantRemoved(change) => ("participant_removed", payload(change)),
-            Action::CallStarted(start) => ("call_started", payload(start)),
-        }
+        let tag: &'static str = self.into();
+        let payload = match self {
+            Action::Created
+            | Action::Edited
+            | Action::Opened
+            | Action::Deleted
+            | Action::Messaged
+            | Action::Sent => None,
+            Action::PropertyChanged(change) => payload(change),
+            Action::ParticipantAdded(change) | Action::ParticipantRemoved(change) => {
+                payload(change)
+            }
+            Action::CallStarted(start) => payload(start),
+        };
+        (tag, payload)
     }
 }
 
