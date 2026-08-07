@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Purple Todo</title>
+    <style>
+      :root {
+        --purple-950: #2e1065;
+        --purple-900: #4c1d95;
+        --purple-700: #6d28d9;
+        --purple-600: #7c3aed;
+        --purple-500: #8b5cf6;
+        --purple-300: #c4b5fd;
+        --purple-100: #ede9fe;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 48px 16px;
+        background: linear-gradient(135deg, var(--purple-950), var(--purple-700));
+        color: #1f2937;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 480px;
+        background: var(--white);
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+      }
+
+      h1 {
+        font-size: 28px;
+        color: var(--purple-700);
+        margin-bottom: 24px;
+      }
+
+      .add-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 24px;
+      }
+
+      input[type="text"] {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid var(--purple-100);
+        border-radius: 10px;
+        font-size: 16px;
+        outline: none;
+      }
+
+      input[type="text"]:focus {
+        border-color: var(--purple-500);
+      }
+
+      button {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--purple-600);
+        color: var(--white);
+        transition: background 0.15s ease;
+      }
+
+      button:hover {
+        background: var(--purple-700);
+      }
+
+      .todo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--purple-100);
+      }
+
+      .todo:last-child {
+        border-bottom: none;
+      }
+
+      .todo input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--purple-600);
+        cursor: pointer;
+      }
+
+      .todo .text {
+        flex: 1;
+        font-size: 16px;
+      }
+
+      .todo.done .text {
+        text-decoration: line-through;
+        color: #9ca3af;
+      }
+
+      .todo button {
+        padding: 6px 12px;
+        font-size: 14px;
+        background: var(--purple-500);
+      }
+
+      .todo button:hover {
+        background: var(--purple-700);
+      }
+
+      .empty {
+        text-align: center;
+        color: var(--purple-300);
+        padding: 16px 0;
+      }
+
+      .error {
+        background: #fee2e2;
+        color: #b91c1c;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>My Todo</h1>
+      <div class="error" id="error"></div>
+      <form class="add-row" id="add-form">
+        <input
+          id="new-todo"
+          type="text"
+          placeholder="What needs doing?"
+          autocomplete="off"
+          required
+        />
+        <button type="submit">Add</button>
+      </form>
+      <div id="todo-list"></div>
+    </main>
+    <script>
+      const list = document.getElementById("todo-list");
+      const error = document.getElementById("error");
+      const form = document.getElementById("add-form");
+      const input = document.getElementById("new-todo");
+
+      function showError(message) {
+        error.textContent = message;
+        error.style.display = "block";
+        setTimeout(() => {
+          error.style.display = "none";
+        }, 3000);
+      }
+
+      function todoElement(todo) {
+        const row = document.createElement("div");
+        row.className = "todo" + (todo.completed ? " done" : "");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = todo.completed;
+        checkbox.addEventListener("change", () => toggleTodo(todo.id, checkbox));
+
+        const text = document.createElement("span");
+        text.className = "text";
+        text.textContent = todo.text;
+
+        const remove = document.createElement("button");
+        remove.textContent = "Delete";
+        remove.addEventListener("click", () => deleteTodo(todo.id, row));
+
+        row.append(checkbox, text, remove);
+        return row;
+      }
+
+      async function load() {
+        const res = await fetch("/api/todos");
+        if (!res.ok) {
+          showError("Failed to load todos");
+          return;
+        }
+        const todos = await res.json();
+        list.replaceChildren();
+        if (todos.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.textContent = "No todos yet. Add one above!";
+          list.append(empty);
+          return;
+        }
+        for (const todo of todos) {
+          list.append(todoElement(todo));
+        }
+      }
+
+      async function addTodo(text) {
+        const res = await fetch("/api/todos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) {
+          showError("Failed to add todo");
+          return;
+        }
+        await load();
+      }
+
+      async function toggleTodo(id, checkbox) {
+        const res = await fetch(`/api/todos/${id}`, { method: "PATCH" });
+        if (!res.ok) {
+          checkbox.checked = !checkbox.checked;
+          showError("Failed to update todo");
+          return;
+        }
+        await load();
+      }
+
+      async function deleteTodo(id, row) {
+        const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
+        if (!res.ok) {
+          showError("Failed to delete todo");
+          return;
+        }
+        row.remove();
+        await load();
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const text = input.value.trim();
+        if (!text) {
+          return;
+        }
+        input.value = "";
+        addTodo(text);
+      });
+
+      load();
+    </script>
+  </body>
+</html>
