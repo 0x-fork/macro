@@ -48,6 +48,7 @@ import {
 } from '@components/app/sidebarVisibility';
 import { useIsAuthenticated } from '@core/auth';
 import {
+  DEV_MODE_ENV,
   ENABLE_REMINDERS_FLAG,
   ENABLE_REMINDERS_OVERRIDE,
 } from '@core/constant/featureFlags';
@@ -315,7 +316,12 @@ function NewOnboardingRedirect() {
   const onboardingV4 = useOnboardingV4Flag();
 
   createEffect(() => {
-    if (!onboardingV4().enabled || isMobile() || isNativeMobilePlatform()) {
+    if (
+      DEV_MODE_ENV ||
+      !onboardingV4().enabled ||
+      isMobile() ||
+      isNativeMobilePlatform()
+    ) {
       return;
     }
     const data = userInfoQuery.data;
