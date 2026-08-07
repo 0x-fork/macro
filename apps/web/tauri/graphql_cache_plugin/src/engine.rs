@@ -14,7 +14,7 @@
 use cache_core::deps::OpId;
 use cache_core::engine::{BeginOptimisticWrite, Engine, ReadResult, WriteResult};
 use cache_core::link_patch::{OptimisticLinkPatch, QueryRevalidation};
-use cache_core::query_inspection::{CachedQueryInstance, QueryInspection};
+use cache_core::query_inspection::{CachedQueryInstance, CachedQueryVariant, QueryInspection};
 use cache_core::queue::{ClaimedMutation, MutationClaimRequest, MutationClaimToken};
 use cache_core::record_selection::{RecordCursor, RecordSelection, SelectedRecordPage};
 use cache_core::value::EntityKey;
@@ -215,8 +215,8 @@ impl EngineHandle {
         cursor: Option<RecordCursor>,
         limit: u32,
     ) -> Result<SelectedRecordPage, String> {
-        let selection = RecordSelection::parse(&document, &fragment_name)
-            .map_err(|error| error.to_string())?;
+        let selection =
+            RecordSelection::parse(&document, &fragment_name).map_err(|error| error.to_string())?;
         self.inner
             .lock()
             .await
@@ -226,7 +226,28 @@ impl EngineHandle {
             .map_err(|error| error.to_string())
     }
 
-    /// Enumerates cached variants of one generated query field.
+    /// Recovers cached query variables without materializing each variant.
+    pub async fn inspect_query_variants(
+        &self,
+        query: String,
+        operation_name: Option<String>,
+        path: Vec<String>,
+    ) -> Result<Vec<CachedQueryVariant>, String> {
+        self.inner
+            .lock()
+            .await
+            .engine
+            .inspect_query_variants(&QueryInspection {
+                query,
+                operation_name,
+                path,
+                variable_filters: Vec::new(),
+            })
+            .await
+            .map_err(|error| error.to_string())
+    }
+
+    /// Enumerates and materializes cached variants of one generated query field.
     pub async fn inspect_query(
         &self,
         query: String,
