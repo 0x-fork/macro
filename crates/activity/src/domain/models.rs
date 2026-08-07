@@ -23,6 +23,7 @@ use std::sync::LazyLock;
 
 use chrono::{DateTime, Utc};
 use macro_user_id::user_id::MacroUserIdStr;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -52,14 +53,33 @@ pub enum CommonAction {
     /// A property value changed on the entity. `property` is the property
     /// definition id; `from` is unset until the source event carries the
     /// previous value; `to` is `None` when the value was cleared.
-    PropertyChanged {
-        /// Property definition id.
-        property: String,
-        /// Previous value, when known.
-        from: Option<Value>,
-        /// New value; `None` when cleared.
-        to: Option<Value>,
-    },
+    PropertyChanged(PropertyChange),
+}
+
+/// Payload of [`Action::PropertyChanged`]. Serde-derived so the write and
+/// (future) read codecs share one shape definition.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PropertyChange {
+    /// Property definition id.
+    pub property: String,
+    /// Previous value, when known.
+    pub from: Option<Value>,
+    /// New value; `None` when cleared.
+    pub to: Option<Value>,
+}
+
+/// Payload of [`Action::ParticipantAdded`] / [`Action::ParticipantRemoved`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ParticipantChange {
+    /// The (un)added principal.
+    pub participant: Actor<'static>,
+}
+
+/// Payload of [`Action::CallStarted`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CallStart {
+    /// The started call.
+    pub call_id: String,
 }
 
 /// The durable action vocabulary — what the `action`/`action_payload`
@@ -91,29 +111,13 @@ pub enum Action {
     Sent,
     /// A property value changed on the entity (see
     /// [`CommonAction::PropertyChanged`]).
-    PropertyChanged {
-        /// Property definition id.
-        property: String,
-        /// Previous value, when known.
-        from: Option<Value>,
-        /// New value; `None` when cleared.
-        to: Option<Value>,
-    },
+    PropertyChanged(PropertyChange),
     /// A principal was added to the entity (channel membership).
-    ParticipantAdded {
-        /// The added principal.
-        participant: Actor<'static>,
-    },
+    ParticipantAdded(ParticipantChange),
     /// A principal was removed from the entity (channel membership).
-    ParticipantRemoved {
-        /// The removed principal.
-        participant: Actor<'static>,
-    },
+    ParticipantRemoved(ParticipantChange),
     /// A call was started in the entity (channel).
-    CallStarted {
-        /// The started call.
-        call_id: String,
-    },
+    CallStarted(CallStart),
 }
 
 impl From<CommonAction> for Action {
@@ -123,9 +127,7 @@ impl From<CommonAction> for Action {
             CommonAction::Edited => Action::Edited,
             CommonAction::Opened => Action::Opened,
             CommonAction::Deleted => Action::Deleted,
-            CommonAction::PropertyChanged { property, from, to } => {
-                Action::PropertyChanged { property, from, to }
-            }
+            CommonAction::PropertyChanged(change) => Action::PropertyChanged(change),
         }
     }
 }
@@ -142,7 +144,12 @@ impl Action {
     /// This match IS the storage codec — exhaustive, so a new variant fails
     /// compilation until its columns are decided.
     pub fn to_columns(&self) -> (&'static str, Option<Value>) {
-        use serde_json::json;
+        // Payload structs are plain data (strings, options, JSON values):
+        // serialization cannot fail.
+        fn payload<T: Serialize>(payload: &T) -> Option<Value> {
+            Some(serde_json::to_value(payload).expect("payload structs serialize infallibly"))
+        }
+
         match self {
             Action::Created => ("created", None),
             Action::Edited => ("edited", None),
@@ -150,21 +157,10 @@ impl Action {
             Action::Deleted => ("deleted", None),
             Action::Messaged => ("messaged", None),
             Action::Sent => ("sent", None),
-            Action::PropertyChanged { property, from, to } => (
-                "property_changed",
-                Some(json!({ "property": property, "from": from, "to": to })),
-            ),
-            Action::ParticipantAdded { participant } => (
-                "participant_added",
-                Some(json!({ "participant": participant })),
-            ),
-            Action::ParticipantRemoved { participant } => (
-                "participant_removed",
-                Some(json!({ "participant": participant })),
-            ),
-            Action::CallStarted { call_id } => {
-                ("call_started", Some(json!({ "call_id": call_id })))
-            }
+            Action::PropertyChanged(change) => ("property_changed", payload(change)),
+            Action::ParticipantAdded(change) => ("participant_added", payload(change)),
+            Action::ParticipantRemoved(change) => ("participant_removed", payload(change)),
+            Action::CallStarted(start) => ("call_started", payload(start)),
         }
     }
 }

@@ -8,7 +8,9 @@
 #[cfg(test)]
 mod test;
 
-use ::activity::{Activity, ActivitySource, Actor, CommonAction, EntityType, Ingest, event_time};
+use ::activity::{
+    Activity, ActivitySource, Actor, CommonAction, EntityType, Ingest, PropertyChange, event_time,
+};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_properties::EntityType as PropertyEntityType;
 use uuid::Uuid;
@@ -66,7 +68,7 @@ impl ActivitySource for PropertyTopicEvent {
                 &m.actor_user_id,
                 &m.entity_type,
                 &m.entity_id,
-                CommonAction::PropertyChanged {
+                CommonAction::PropertyChanged(PropertyChange {
                     property: m.property_definition_id.to_string(),
                     // The event carries only the new value today.
                     from: None,
@@ -78,7 +80,7 @@ impl ActivitySource for PropertyTopicEvent {
                             serde_json::Value::Null
                         })
                     }),
-                },
+                }),
                 m.updated_at,
             ),
             PropertyTopicEvent::EntityPropertyDeleted(m) => attributed(
@@ -86,11 +88,11 @@ impl ActivitySource for PropertyTopicEvent {
                 &m.actor_user_id,
                 &m.entity_type,
                 &m.entity_id,
-                CommonAction::PropertyChanged {
+                CommonAction::PropertyChanged(PropertyChange {
                     property: m.property_definition_id.to_string(),
                     from: None,
                     to: None,
-                },
+                }),
                 event_time(event_id),
             ),
             // A bulk clear has no per-property detail; it is still an attributed

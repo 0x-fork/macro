@@ -20,30 +20,30 @@ fn every_action_maps_to_stable_columns() {
         (Action::Messaged, "messaged", None),
         (Action::Sent, "sent", None),
         (
-            Action::PropertyChanged {
+            Action::PropertyChanged(PropertyChange {
                 property: "prop-1".to_string(),
                 from: None,
                 to: Some(json!("Done")),
-            },
+            }),
             "property_changed",
             Some(json!({ "property": "prop-1", "from": null, "to": "Done" })),
         ),
         (
-            Action::ParticipantAdded {
+            Action::ParticipantAdded(ParticipantChange {
                 participant: participant.clone(),
-            },
+            }),
             "participant_added",
             Some(json!({ "participant": "macro|sarah@example.com" })),
         ),
         (
-            Action::ParticipantRemoved { participant },
+            Action::ParticipantRemoved(ParticipantChange { participant }),
             "participant_removed",
             Some(json!({ "participant": "macro|sarah@example.com" })),
         ),
         (
-            Action::CallStarted {
+            Action::CallStarted(CallStart {
                 call_id: "call-1".to_string(),
-            },
+            }),
             "call_started",
             Some(json!({ "call_id": "call-1" })),
         ),

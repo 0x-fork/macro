@@ -34,9 +34,9 @@ fn call_started_yields_channel_and_call_activities() {
     assert_eq!(activities[0].entity_id, channel_id.to_string());
     assert_eq!(
         activities[0].action,
-        Action::CallStarted {
+        Action::CallStarted(::activity::CallStart {
             call_id: call_id.to_string()
-        }
+        })
     );
 
     assert_eq!(activities[1].entity_type, EntityType::Call);

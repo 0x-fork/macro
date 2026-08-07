@@ -26,6 +26,6 @@ pub mod inbound;
 pub mod outbound;
 
 pub use domain::models::{
-    Action, Activity, ActivitySource, Actor, CommonAction, DomainActivity, EntityType, Ingest,
-    activity_id, event_time,
+    Action, Activity, ActivitySource, Actor, CallStart, CommonAction, DomainActivity, EntityType,
+    Ingest, ParticipantChange, PropertyChange, activity_id, event_time,
 };

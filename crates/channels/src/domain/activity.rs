@@ -9,7 +9,7 @@ mod test;
 
 use ::activity::{
     Action, Activity, ActivitySource, Actor, CommonAction, DomainActivity, EntityType, Ingest,
-    event_time,
+    ParticipantChange, event_time,
 };
 use chrono::{DateTime, Utc};
 use macro_user_id::user_id::MacroUserIdStr;
@@ -56,10 +56,10 @@ impl DomainActivity for ChannelActivity {
         match self.action {
             ChannelAction::Messaged => Action::Messaged,
             ChannelAction::ParticipantAdded { participant } => {
-                Action::ParticipantAdded { participant }
+                Action::ParticipantAdded(ParticipantChange { participant })
             }
             ChannelAction::ParticipantRemoved { participant } => {
-                Action::ParticipantRemoved { participant }
+                Action::ParticipantRemoved(ParticipantChange { participant })
             }
         }
     }

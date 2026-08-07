@@ -76,9 +76,9 @@ fn participant_added_yields_one_activity_per_user_with_stable_ordinals() {
     );
     assert_eq!(
         activities[0].action,
-        Action::ParticipantAdded {
+        Action::ParticipantAdded(::activity::ParticipantChange {
             participant: Actor::new_from_user(user("macro|a@example.com"))
-        }
+        })
     );
 
     // Replay derives identical ids.

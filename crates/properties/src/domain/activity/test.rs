@@ -42,11 +42,11 @@ fn task_property_update_maps_to_property_changed_on_the_document() {
     assert_eq!(activities[0].entity_type, ActivityEntityType::Document);
     assert_eq!(activities[0].subject_id, "macro|seamus@example.com");
     match &activities[0].action {
-        Action::PropertyChanged { property, from, to } => {
-            assert_eq!(property, &Uuid::from_u128(3).to_string());
-            assert_eq!(from, &None);
+        Action::PropertyChanged(change) => {
+            assert_eq!(change.property, Uuid::from_u128(3).to_string());
+            assert_eq!(change.from, None);
             // The event's value was None: cleared without deleting the row.
-            assert_eq!(to, &None);
+            assert_eq!(change.to, None);
         }
         other => panic!("expected property_changed, got {other:?}"),
     }

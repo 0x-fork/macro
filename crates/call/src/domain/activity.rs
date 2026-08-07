@@ -10,7 +10,8 @@
 mod test;
 
 use ::activity::{
-    Action, Activity, ActivitySource, Actor, CommonAction, DomainActivity, EntityType, Ingest,
+    Action, Activity, ActivitySource, Actor, CallStart, CommonAction, DomainActivity, EntityType,
+    Ingest,
 };
 use uuid::Uuid;
 
@@ -34,9 +35,9 @@ impl DomainActivity for CallStartedActivity {
     }
 
     fn into_action(self) -> Action {
-        Action::CallStarted {
+        Action::CallStarted(CallStart {
             call_id: self.call_id,
-        }
+        })
     }
 }
 
