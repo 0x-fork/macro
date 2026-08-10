@@ -5540,6 +5540,7 @@
       "crates/workspace-hack"
     ],
     "skills": [
+      "crates/activity",
       "crates/agent",
       "crates/ai_toolset",
       "crates/ai_usage",
