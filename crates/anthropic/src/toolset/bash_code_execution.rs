@@ -22,6 +22,10 @@ pub struct BashCodeExecution {
 impl AsyncTool<AnthropicToolContext> for BashCodeExecution {
     type Output = BashCodeExecutionResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::destructive_write()
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn call(
         &self,

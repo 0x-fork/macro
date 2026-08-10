@@ -22,6 +22,10 @@ pub struct WebFetch {
 impl AsyncTool<AnthropicToolContext> for WebFetch {
     type Output = WebFetchResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only().open_world()
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn call(
         &self,

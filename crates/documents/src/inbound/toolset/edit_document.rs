@@ -80,6 +80,10 @@ where
 {
     type Output = EditDocumentResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::destructive_write()
+    }
+
     #[tracing::instrument(skip_all, fields(document_id = %self.document_id), err)]
     async fn call(
         &self,

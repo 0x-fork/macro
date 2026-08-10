@@ -67,6 +67,10 @@ where
 {
     type Output = RenameDocumentResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write().idempotent()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, document_id=?self.document_id), err)]
     async fn call(
         &self,

@@ -65,6 +65,10 @@ where
 {
     type Output = EditTagResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write().idempotent()
+    }
+
     #[tracing::instrument(
         skip_all,
         fields(

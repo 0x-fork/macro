@@ -45,6 +45,10 @@ where
 {
     type Output = DeleteTagResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::destructive_write().idempotent()
+    }
+
     #[tracing::instrument(
         skip_all,
         fields(

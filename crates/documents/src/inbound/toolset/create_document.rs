@@ -75,6 +75,10 @@ where
 {
     type Output = CreateDocumentResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write()
+    }
+
     async fn call(
         &self,
         service_context: ServiceContext<DocumentToolContext<DSvc, ESvc, EDSvc>>,

@@ -83,6 +83,10 @@ where
 {
     type Output = ReadCallRecordResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, call_id=?self.call_id), err)]
     async fn call(
         &self,

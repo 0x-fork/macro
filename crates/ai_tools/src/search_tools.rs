@@ -80,6 +80,10 @@ pub struct SearchTools {
 impl AsyncTool<ToolServiceContext> for SearchTools {
     type Output = SearchToolsResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
+
     #[tracing::instrument(skip_all, fields(query = %self.query), err)]
     async fn call(
         &self,
@@ -125,6 +129,10 @@ pub struct LoadTools {
 #[async_trait]
 impl AsyncTool<ToolServiceContext> for LoadTools {
     type Output = LoadToolsResponse;
+
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
 
     #[tracing::instrument(skip_all, fields(names = ?self.names), err)]
     async fn call(

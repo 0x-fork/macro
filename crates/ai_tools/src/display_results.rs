@@ -37,6 +37,10 @@ pub struct DisplayResults {
 impl AsyncTool<ToolServiceContext> for DisplayResults {
     type Output = DisplayResultsResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn call(
         &self,

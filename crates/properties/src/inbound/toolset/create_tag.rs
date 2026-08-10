@@ -69,6 +69,10 @@ where
 {
     type Output = CreateTagResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, scope=?self.scope), err)]
     async fn call(
         &self,

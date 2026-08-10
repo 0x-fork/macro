@@ -257,6 +257,10 @@ pub struct CreateImportEntityResponse {
 impl<T: ImportStager> AsyncTool<ImportToolContext<T>> for CreateImportEntity {
     type Output = CreateImportEntityResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id, source = self.source.as_ref(), foreign_id = %self.foreign_id), err)]
     async fn call(
         &self,
@@ -423,6 +427,10 @@ pub struct ImportNotionPageResponse {
 impl<T: NotionPageImporter> AsyncTool<ImportToolContext<T>> for ImportNotionPage {
     type Output = ImportNotionPageResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write().open_world()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id, page_url = %self.page_url), err)]
     async fn call(
         &self,
@@ -520,6 +528,10 @@ pub struct DeleteImportEntityResponse {
 impl<T: ImportStager> AsyncTool<ImportToolContext<T>> for DeleteImportEntity {
     type Output = DeleteImportEntityResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::destructive_write().idempotent()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id, id = %self.id), err)]
     async fn call(
         &self,
@@ -584,6 +596,10 @@ pub struct ListImportEntitiesResponse {
 #[async_trait]
 impl<T: ImportStager> AsyncTool<ImportToolContext<T>> for ListImportEntities {
     type Output = ListImportEntitiesResponse;
+
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
 
     #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id), err)]
     async fn call(
@@ -652,6 +668,10 @@ pub struct FinalizeImportResponse {
 #[async_trait]
 impl<T: ImportFinalizer> AsyncTool<ImportToolContext<T>> for FinalizeImport {
     type Output = FinalizeImportResponse;
+
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write()
+    }
 
     #[tracing::instrument(skip_all, fields(user_id = %request_context.user_id, import_id = %self.import_id), err)]
     async fn call(

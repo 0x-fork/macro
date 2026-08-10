@@ -95,6 +95,10 @@ where
 {
     type Output = SendEmailResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::destructive_write().open_world()
+    }
+
     #[tracing::instrument(skip_all, fields(
         user_id=?request_context.user_id,
         subject=%self.subject,

@@ -4,6 +4,7 @@ use rmcp::{
     handler::server::ServerHandler,
     model::{
         Content, ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool,
+        ToolAnnotations,
     },
 };
 use std::sync::Arc;
@@ -42,11 +43,21 @@ impl<Context> AuthenticatedToolService<Context> {
             .tools
             .iter()
             .map(|(key, value)| {
-                Tool::new(
+                let title = title_from_tool_name(key);
+                let mut tool = Tool::new(
                     key.to_owned(),
                     value.description.to_owned(),
                     Arc::new(value.input_schema.clone()),
-                )
+                );
+                tool.title = Some(title.clone());
+                tool.annotations = Some(ToolAnnotations::from_raw(
+                    Some(title),
+                    Some(value.annotations.read_only),
+                    Some(value.annotations.destructive),
+                    Some(value.annotations.idempotent),
+                    Some(value.annotations.open_world),
+                ));
+                tool
             })
             .collect()
     }
@@ -61,6 +72,19 @@ impl<Context> AuthenticatedToolService<Context> {
                 rmcp::ErrorData::internal_error("missing user identity — is auth configured?", None)
             })
     }
+}
+
+/// Converts a PascalCase tool name into a human-readable title,
+/// e.g. `ReadChannelMessages` → `Read Channel Messages`.
+fn title_from_tool_name(name: &str) -> String {
+    let mut title = String::with_capacity(name.len() + 8);
+    for (index, character) in name.chars().enumerate() {
+        if character.is_uppercase() && index > 0 {
+            title.push(' ');
+        }
+        title.push(character);
+    }
+    title
 }
 
 #[cfg(test)]

@@ -15,6 +15,9 @@ use super::{
 pub(crate) const PENDING_AUTH_TTL: Duration = Duration::from_secs(10 * 60);
 pub(crate) const AUTHORIZATION_CODE_TTL: Duration = Duration::from_secs(5 * 60);
 
+#[cfg(test)]
+mod test;
+
 /// Domain interface for the MCP OAuth broker.
 pub trait McpAuthProxyService: Clone + Send + Sync + 'static {
     /// Returns OAuth authorization server discovery metadata.
@@ -188,6 +191,8 @@ where
             "response_types_supported": ["code"],
             "grant_types_supported": ["authorization_code", "refresh_token"],
             "code_challenge_methods_supported": ["S256"],
+            // Clients registered via /register are public clients.
+            "token_endpoint_auth_methods_supported": ["none"],
         })
     }
 
@@ -196,8 +201,13 @@ where
         tracing::debug!("oauth-protected-resource metadata requested");
         let base = &self.public_url;
         serde_json::json!({
+            // RFC 9728 requires `resource`: the canonical URI of the
+            // protected MCP endpoint this metadata describes.
+            "resource": format!("{base}/mcp"),
+            "resource_name": "Macro",
             "authorization_server": base,
             "authorization_servers": [base],
+            "bearer_methods_supported": ["header"],
         })
     }
 

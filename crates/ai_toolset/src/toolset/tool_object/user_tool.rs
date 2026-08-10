@@ -3,7 +3,7 @@
 //! A user execues a tool T by posting to /tools/call/{:tool_id} with body appliction/json T
 //! User tools are _opaque_ to the tool loop. IE it will call the `call` method like it would
 //! for any other tool, but the call method won't trigger execution
-use crate::{AsyncTool, ToolResult};
+use crate::{AsyncTool, ToolAnnotations, ToolResult};
 use crate::{RequestContext, ServiceContext};
 use async_trait::async_trait;
 use schemars::JsonSchema;
@@ -51,5 +51,9 @@ where
         _request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
         ToolResult::Ok(UserToolResponse::PendingUserExecution)
+    }
+
+    fn annotations() -> ToolAnnotations {
+        T::annotations()
     }
 }

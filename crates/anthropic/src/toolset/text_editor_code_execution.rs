@@ -22,6 +22,10 @@ pub struct TextEditorCodeExecution {
 impl AsyncTool<AnthropicToolContext> for TextEditorCodeExecution {
     type Output = TextEditorCodeExecutionResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::destructive_write()
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn call(
         &self,

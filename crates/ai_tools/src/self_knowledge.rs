@@ -122,6 +122,10 @@ pub struct SelfKnowledgeResponse {
 impl AsyncTool<ToolServiceContext> for SelfKnowledge {
     type Output = SelfKnowledgeResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn call(
         &self,

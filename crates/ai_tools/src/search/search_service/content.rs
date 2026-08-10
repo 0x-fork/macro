@@ -69,6 +69,10 @@ Ignored unless tags is set.")]
 impl AsyncTool<SearchToolContext> for ContentSearch {
     type Output = SearchToolResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?(*request_context.user_id).as_ref()), err)]
     async fn call(
         &self,

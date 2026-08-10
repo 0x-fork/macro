@@ -183,6 +183,7 @@ where
             name,
             input_schema: input_schema_json,
             description,
+            annotations: T::annotations(),
             deserializer,
             schema_registrar,
         })
@@ -264,6 +265,7 @@ where
             name: self.name,
             input_schema: self.input_schema,
             description: self.description,
+            annotations: self.annotations,
             deserializer: new_deserializer,
             schema_registrar: self.schema_registrar,
         }

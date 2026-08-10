@@ -159,6 +159,10 @@ where
 {
     type Output = ListNotificationsResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, limit=?self.limit), err)]
     async fn call(
         &self,
@@ -232,6 +236,10 @@ where
 {
     type Output = MarkNotificationsResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write().idempotent()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, count=self.notification_ids.len()), err)]
     async fn call(
         &self,
@@ -285,6 +293,10 @@ where
     T: NotificationReader,
 {
     type Output = MarkNotificationsResponse;
+
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write().idempotent()
+    }
 
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, count=self.notification_ids.len(), done=self.done), err)]
     async fn call(

@@ -111,6 +111,10 @@ where
 {
     type Output = ReadProjectResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, project_id=?self.project_id), err)]
     async fn call(
         &self,

@@ -32,6 +32,10 @@ pub struct Subagent {
 impl AsyncTool<ToolServiceContext> for Subagent {
     type Output = SubagentResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::destructive_write().open_world()
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn call(
         &self,

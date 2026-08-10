@@ -172,6 +172,10 @@ where
 {
     type Output = MoveToProjectResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::write().idempotent()
+    }
+
     #[tracing::instrument(skip_all, fields(user_id=?request_context.user_id, entity_type=?self.entity_type, entity_id=?self.entity_id), err)]
     async fn call(
         &self,

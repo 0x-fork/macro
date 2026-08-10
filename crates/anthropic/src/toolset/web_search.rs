@@ -22,6 +22,10 @@ pub struct WebSearch {
 impl AsyncTool<AnthropicToolContext> for WebSearch {
     type Output = WebSearchResponse;
 
+    fn annotations() -> ai_toolset::ToolAnnotations {
+        ai_toolset::ToolAnnotations::read_only().open_world()
+    }
+
     #[tracing::instrument(skip_all, err)]
     async fn call(
         &self,

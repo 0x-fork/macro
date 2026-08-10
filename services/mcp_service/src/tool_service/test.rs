@@ -86,6 +86,111 @@ async fn empty_toolset_lists_no_tools() {
 }
 
 #[test]
+fn titles_are_derived_from_pascal_case_tool_names() {
+    assert_eq!(title_from_tool_name("ReadContent"), "Read Content");
+    assert_eq!(
+        title_from_tool_name("BulkSetEntityPropertyOptions"),
+        "Bulk Set Entity Property Options"
+    );
+    assert_eq!(title_from_tool_name("Subagent"), "Subagent");
+}
+
+mod annotation_tools {
+    use ai_toolset::{
+        AsyncTool, RequestContext, ServiceContext, ToolAnnotations, ToolResult,
+    };
+    use schemars::JsonSchema;
+    use serde::Deserialize;
+
+    #[derive(JsonSchema, Deserialize)]
+    #[schemars(title = "ReadSomething", description = "Reads something")]
+    pub struct ReadSomething {
+        #[expect(dead_code, reason = "schema-only test fixture")]
+        #[schemars(description = "id of the thing to read")]
+        pub id: String,
+    }
+
+    #[async_trait::async_trait]
+    impl AsyncTool<()> for ReadSomething {
+        type Output = serde_json::Value;
+
+        fn annotations() -> ToolAnnotations {
+            ToolAnnotations::read_only()
+        }
+
+        async fn call(
+            &self,
+            _service_context: ServiceContext<()>,
+            _request_context: RequestContext,
+        ) -> ToolResult<Self::Output> {
+            Ok(serde_json::json!({}))
+        }
+    }
+
+    #[derive(JsonSchema, Deserialize)]
+    #[schemars(title = "DeleteSomething", description = "Deletes something")]
+    pub struct DeleteSomething {
+        #[expect(dead_code, reason = "schema-only test fixture")]
+        #[schemars(description = "id of the thing to delete")]
+        pub id: String,
+    }
+
+    #[async_trait::async_trait]
+    impl AsyncTool<()> for DeleteSomething {
+        type Output = serde_json::Value;
+
+        fn annotations() -> ToolAnnotations {
+            ToolAnnotations::destructive_write().idempotent()
+        }
+
+        async fn call(
+            &self,
+            _service_context: ServiceContext<()>,
+            _request_context: RequestContext,
+        ) -> ToolResult<Self::Output> {
+            Ok(serde_json::json!({}))
+        }
+    }
+}
+
+#[tokio::test]
+async fn tool_definitions_carry_titles_and_mcp_annotations() {
+    let toolset = AsyncToolCollection::<()>::new()
+        .add_tool::<annotation_tools::ReadSomething, ()>()
+        .add_tool::<annotation_tools::DeleteSomething, ()>();
+    let service =
+        AuthenticatedToolService::new(Arc::new(toolset), (), "https://macro.com".to_owned());
+
+    let tools = service.tool_definitions();
+    assert_eq!(tools.len(), 2);
+
+    let read = tools
+        .iter()
+        .find(|tool| tool.name == "ReadSomething")
+        .expect("ReadSomething should be listed");
+    assert_eq!(read.title.as_deref(), Some("Read Something"));
+    let read_annotations = read.annotations.as_ref().expect("annotations must be set");
+    assert_eq!(read_annotations.read_only_hint, Some(true));
+    assert_eq!(read_annotations.destructive_hint, Some(false));
+    assert_eq!(read_annotations.idempotent_hint, Some(true));
+    assert_eq!(read_annotations.open_world_hint, Some(false));
+
+    let delete = tools
+        .iter()
+        .find(|tool| tool.name == "DeleteSomething")
+        .expect("DeleteSomething should be listed");
+    assert_eq!(delete.title.as_deref(), Some("Delete Something"));
+    let delete_annotations = delete
+        .annotations
+        .as_ref()
+        .expect("annotations must be set");
+    assert_eq!(delete_annotations.read_only_hint, Some(false));
+    assert_eq!(delete_annotations.destructive_hint, Some(true));
+    assert_eq!(delete_annotations.idempotent_hint, Some(true));
+    assert_eq!(delete_annotations.open_world_hint, Some(false));
+}
+
+#[test]
 fn authenticated_user_id_is_read_from_http_request_parts() {
     let expected_user_id = MacroUserIdStr::try_from_email("User@macro.com").unwrap();
     let mut parts = http::Request::new(()).into_parts().0;
