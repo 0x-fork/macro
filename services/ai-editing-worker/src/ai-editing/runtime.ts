@@ -3,10 +3,9 @@ import type { Span } from '@macro-inc/observability';
 import { $getRoot, $isElementNode, type LexicalNode } from 'lexical';
 import type { LexicalSession } from './ai-toolkit/session';
 import type { AwarenessSource } from './awareness';
-import { describeEffect, diffNodes, snapshotNodes } from './effect-report';
 import type { Doc } from './doc';
 import type { DocumentOp } from './editor';
-import { serializeWithXml } from './utils';
+import { describeEffect, diffNodes, snapshotNodes } from './effect-report';
 import {
   type DocumentOpQueueParams,
   type OpResult,
@@ -14,6 +13,7 @@ import {
   runQueue,
   summarize,
 } from './queue';
+import { serializeWithXml } from './utils';
 
 /** Every durable id currently in the document (what the model is allowed to reference). */
 export function docIds(session: LexicalSession): Set<string> {
