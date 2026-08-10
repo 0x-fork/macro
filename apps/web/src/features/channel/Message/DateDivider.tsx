@@ -26,8 +26,7 @@ export function DateDivider(props: DateDividerProps) {
     <Show when={shouldRender()}>
       <MessageFlag
         text={formatRelativeDate(props.createdAt)}
-        highlightAbove={props.listMeta?.isNewMessage}
-        highlightBelow={props.listMeta?.isNewMessage}
+        highlight={props.listMeta?.isNewMessage}
       />
     </Show>
   );

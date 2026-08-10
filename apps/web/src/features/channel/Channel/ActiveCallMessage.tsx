@@ -39,7 +39,7 @@ export function ActiveCallMessage(props: { channelId: string }) {
     <Show when={shouldShow()}>
       {/* Full-frame mobile: place above the floating input/dock stack. */}
       <div class="w-full flex justify-center mobile:pb-(--mobile-content-inset-bottom)">
-        <div class="macro-message-width w-full relative">
+        <div class="macro-message-width relative">
           <div class="w-full pr-2 pl-(--message-padding-x)">
             <div
               class="grid min-w-0 items-start gap-x-2 py-2"

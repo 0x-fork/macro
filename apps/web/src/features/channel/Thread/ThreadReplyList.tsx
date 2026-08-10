@@ -1,7 +1,15 @@
 import type { IUser } from '@core/user/types';
 import { MarkMessageNotifications } from '@notifications/components/MarkMessageNotifications';
 import type { ApiThreadReply } from '@service-storage/generated/schemas/apiThreadReply';
-import { type Accessor, createMemo, For, onCleanup, onMount } from 'solid-js';
+import { cn } from '@ui';
+import {
+  type Accessor,
+  createMemo,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
 import type { MessageEditor } from '../Channel/create-message-editor';
 import type { NewMessageCheckable } from '../Channel/util';
 import {
@@ -11,7 +19,6 @@ import {
 } from '../Message';
 import { createTargetReplyScroller } from './create-target-reply-scroller';
 import { buildThreadReplyListMeta } from './reply-list-meta';
-import { ThreadRail } from './ThreadRail';
 
 export type ThreadReplyListHandle = {
   scrollToIndex: (index: number, onSettled: () => void) => boolean;
@@ -75,9 +82,36 @@ export function ThreadReplyList(props: {
             }}
             class="relative"
           >
-            <ThreadRail
-              newMessage={listMetaByReplyId()[reply.id].isNewMessage}
+            {/* This row's stretch of the rail spine. Contiguous rows form a
+                continuous line; the wrapper's bridge and terminal pieces
+                cover the container padding above and below. */}
+            <div
+              class={cn(
+                'pointer-events-none absolute inset-y-0 -z-1 border-l border-rail',
+                listMetaByReplyId()[reply.id].isNewMessage && 'border-accent'
+              )}
+              style={{
+                left: 'calc(var(--user-icon-width) / 2 + var(--message-padding-x) - var(--thread-shift))',
+              }}
             />
+            {/* Branch off the rail spine, curving under this reply's avatar.
+                Grouped replies (no avatar) don't branch — the spine just
+                passes them by. */}
+            <Show when={!listMetaByReplyId()[reply.id].isGroupedWithPrevious}>
+              <div
+                class={cn(
+                  'pointer-events-none absolute top-0 -z-1 border-l border-b border-rail rounded-bl-[14px]',
+                  listMetaByReplyId()[reply.id].isNewMessage && 'border-accent'
+                )}
+                style={{
+                  left: 'calc(var(--user-icon-width) / 2 + var(--message-padding-x) - var(--thread-shift))',
+                  width:
+                    'calc(var(--thread-shift) - var(--user-icon-width) / 2)',
+                  height:
+                    'calc(var(--regular-message-padding-t) + var(--user-icon-width) / 2)',
+                }}
+              />
+            </Show>
             <MarkMessageNotifications
               messageId={reply.id}
               channelId={props.channelId}

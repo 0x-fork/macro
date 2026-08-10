@@ -34,7 +34,7 @@ export function Root(props: RootProps) {
       data-targeted={local.targeted ? '' : undefined}
       {...rest}
     >
-      <div class="absolute h-full w-1 left-0 top-0 bg-accent opacity-0 message-accent-bar" />
+      <div class="absolute inset-y-1 w-1 left-1 rounded-full bg-accent opacity-0 message-accent-bar" />
       <MessageProvider value={() => local.message}>
         <MessageActionsProvider value={local.actions}>
           {props.children}

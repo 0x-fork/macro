@@ -78,10 +78,10 @@
   /* chat vars */
   --left-of-connector: calc(var(--message-padding-x) + var(--user-icon-width) * 0.5);
   --left-of-user-icon: calc(var(--left-of-connector) - var(--user-icon-width) * 0.5);
-  --regular-message-padding-t: .5rem;
+  --regular-message-padding-t: .625rem;
   --message-padding-x: .5rem;
   --thread-padding-y: .5rem;
-  --user-icon-width: 36px;
+  --user-icon-width: 32px;
   --thread-shift: 32px;
 
   /* accent - active, hover states, high chroma */
@@ -146,7 +146,11 @@ body.tauri-ios {
 
   --color-edge-muted:      var(--b3);
   --color-edge:            var(--b4);
-  --color-rail:            color-mix(in oklch, var(--b4) 90%, var(--c0));
+  /* Soft hairline rail — the single stroke color for rails, connectors, and
+     the rings of rail-attached chrome (flags, thread buttons, reaction
+     chips). Opaque (mixed over the surface base) so abutting or overlapping
+     rail segments render at a uniform weight. */
+  --color-rail:            color-mix(in oklab, var(--c0) 18%, var(--b0));
 
   --color-ink:             var(--c0);
   --color-ink-muted:       var(--c1);
@@ -697,18 +701,18 @@ a {
   max-width: 100%;
   width: 100%;
   @media (min-width: 640px) {
-    max-width: 800px;
+    max-width: 920px;
     min-width: 250px;
   }
 }
 
 @utility macro-message-padding {
-  @container (width < 816px) { padding-inline: calc(var(--spacing) * 4); }
+  @container (width < 936px) { padding-inline: calc(var(--spacing) * 4); }
   @container (width < 640px) { padding-inline: calc(var(--spacing) * 2); }
 }
 
 @utility macro-message-margin {
-  @container (width < 816px) { margin-inline: calc(var(--spacing) * 4); }
+  @container (width < 936px) { margin-inline: calc(var(--spacing) * 4); }
   @container (width < 640px) { margin-inline: calc(var(--spacing) * 2); }
 }
 
@@ -760,20 +764,26 @@ a {
   opacity: 0 !important;
 }
 
+/* Tighter channel message rhythm: the base markdown theme's first/last
+   paragraph margins (6px) read airy in a chat list. 2px puts grouped lines
+   4px apart while inter-paragraph spacing inside a message is unchanged. */
+.channel-markdown > .md-p:first-child { margin-top: --spacing(0.5); }
+.channel-markdown > .md-p:last-child { margin-bottom: --spacing(0.5); }
+
 /* Channel message hover + selection-cursor highlight */
 /* Suppressed on touch devices */
 /* Background-only — borders/rings are reserved for structural UI edges. */
 [data-message][data-selected],
 html:not([data-touch-device="true"]) [data-message]:hover{
-  @apply bg-ink/5 rounded-sm;
+  @apply bg-ink/5 rounded-md;
 }
 
 [data-message][data-targeted] {
-  @apply bg-accent/30 rounded-sm;
+  @apply bg-accent/30 rounded-md;
 }
 [data-message][data-selected][data-targeted],
 html:not([data-touch-device="true"]) [data-message][data-targeted]:hover{
-  @apply bg-accent/40 rounded-sm;
+  @apply bg-accent/40 rounded-md;
 }
 
 @keyframes long-press-message-highlight {

@@ -6,7 +6,6 @@ import {
   DateDivider,
   NewDivider,
 } from '../Message';
-import { ThreadRail } from './ThreadRail';
 
 type ThreadRowProps = ParentProps & {
   ref?: (element: HTMLDivElement) => void;
@@ -29,7 +28,7 @@ export function ThreadRow(props: ThreadRowProps) {
       data-channel-thread-row
       class="w-full flex justify-center"
     >
-      <div class="macro-message-width w-full relative">
+      <div class="macro-message-width relative">
         <Show when={channelCreatedId()}>
           {(id) => <ChannelCreatedIndicator channelId={id()} />}
         </Show>
@@ -42,7 +41,20 @@ export function ThreadRow(props: ThreadRowProps) {
           listMeta={props.listMeta}
         />
         <div class="relative isolate">
-          <ThreadRail newMessage={props.listMeta?.isNewMessage} />
+          {/* Pass-through rail: a later message in this sender run owns a
+              thread; the spine runs through this row to reach it — from the
+              avatar's center on the run's header, edge-to-edge on grouped
+              rows. */}
+          <Show when={props.listMeta?.threadRailBelow}>
+            <div
+              class="pointer-events-none absolute -z-1 border-l border-rail left-(--left-of-connector) bottom-0"
+              style={{
+                top: props.listMeta?.isGroupedWithPrevious
+                  ? '0'
+                  : 'calc(var(--regular-message-padding-t) + var(--user-icon-width) / 2)',
+              }}
+            />
+          </Show>
           {props.children}
         </div>
       </div>
