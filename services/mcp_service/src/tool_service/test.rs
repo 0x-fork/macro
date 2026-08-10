@@ -96,9 +96,7 @@ fn titles_are_derived_from_pascal_case_tool_names() {
 }
 
 mod annotation_tools {
-    use ai_toolset::{
-        AsyncTool, RequestContext, ServiceContext, ToolAnnotations, ToolResult,
-    };
+    use ai_toolset::{AsyncTool, RequestContext, ServiceContext, ToolAnnotations, ToolResult};
     use schemars::JsonSchema;
     use serde::Deserialize;
 

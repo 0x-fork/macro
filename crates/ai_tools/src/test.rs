@@ -61,12 +61,7 @@ fn mcp_tool_annotations_match_tool_behavior() {
         "BashCodeExecution",
         "TextEditorCodeExecution",
     ];
-    let open_world_tools = [
-        "WebSearch",
-        "WebFetch",
-        "ImportNotionPage",
-        "Subagent",
-    ];
+    let open_world_tools = ["WebSearch", "WebFetch", "ImportNotionPage", "Subagent"];
 
     for (name, tool) in toolset.tools.iter() {
         let annotations = tool.annotations;
