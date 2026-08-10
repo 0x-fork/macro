@@ -48,9 +48,9 @@ import {
 } from '@components/app/sidebarVisibility';
 import { useIsAuthenticated } from '@core/auth';
 import {
-  DEV_MODE_ENV,
   ENABLE_REMINDERS_FLAG,
   ENABLE_REMINDERS_OVERRIDE,
+  LOCAL_ONLY,
 } from '@core/constant/featureFlags';
 import { usePaywallState } from '@core/constant/PaywallState';
 import { isSoloSettings } from '@core/constant/SettingsState';
@@ -317,7 +317,7 @@ function NewOnboardingRedirect() {
 
   createEffect(() => {
     if (
-      DEV_MODE_ENV ||
+      LOCAL_ONLY ||
       !onboardingV4().enabled ||
       isMobile() ||
       isNativeMobilePlatform()
