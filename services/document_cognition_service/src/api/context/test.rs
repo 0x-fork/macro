@@ -404,7 +404,12 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         };
         let import_service = Arc::new(import::domain::service::ImportServiceImpl::new(
             import::outbound::pg_import_repo::PgImportRepo::new(pool.clone()),
-            Arc::new(mcp_repo.clone()),
+            Arc::new(
+                mcp_client::outbound::nango_resolving_store::NangoResolvingStore::new(
+                    Arc::new(mcp_repo.clone()),
+                    None,
+                ),
+            ),
             Arc::new(creator),
             ai_usage::pg_recorder(pool.clone()),
         ));
@@ -557,8 +562,12 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
                 mcp_client::domain::provider_registry::PreRegisteredProviders::empty(),
             );
             mcp_client::inbound::McpRouterState::new(
-                mcp_repo,
+                mcp_client::outbound::nango_resolving_store::NangoResolvingStore::new(
+                    Arc::new(mcp_repo),
+                    None,
+                ),
                 mcp_oauth,
+                None,
                 authorization_state,
                 client_metadata,
             )

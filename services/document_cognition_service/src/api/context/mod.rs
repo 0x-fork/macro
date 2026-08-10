@@ -91,13 +91,16 @@ pub type DcsAiProjectionService =
         ai_projections::outbound::gateway_notifier::GatewayProjectionNotifier,
     >;
 
-/// Concrete MCP router state for DCS.
+/// Concrete MCP router state for DCS. The store resolves fresh Nango access
+/// tokens into loaded records, so everything downstream of it (chat
+/// toolsets, imports) can connect to Nango-authorized servers.
 pub type DcsMcpRouterState = mcp_client::inbound::McpRouterState<
-    mcp_client::outbound::pg_server_repo::PgServerRepo,
+    mcp_client::outbound::nango_resolving_store::NangoResolvingPgStore,
     mcp_client::outbound::oauth::OAuthService<
         mcp_client::outbound::pg_server_repo::PgServerRepo,
         mcp_client::outbound::redis_state_store::RedisOAuthStateStore,
     >,
+    mcp_client::outbound::nango::NangoClient,
     DcsAuthorizationService,
 >;
 

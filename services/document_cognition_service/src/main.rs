@@ -455,6 +455,43 @@ async fn main() -> anyhow::Result<()> {
     let mcp_server_repo =
         mcp_client::outbound::pg_server_repo::PgServerRepo::new(db.clone(), mcp_encryption_key);
 
+    // Nango handles MCP server authorization (OAuth discovery, dynamic
+    // client registration, token storage and refresh) when configured.
+    // Without a secret key the Nango endpoints answer 501 and the legacy
+    // in-house OAuth flow keeps working.
+    let nango_client: Option<Arc<mcp_client::outbound::nango::NangoClient>> =
+        match config.nango_secret_key.value() {
+            Some(secret_key) => Some(Arc::new(
+                mcp_client::outbound::nango::NangoClient::new(
+                    mcp_client::outbound::nango::NangoConfig {
+                        secret_key: secret_key.to_owned(),
+                        base_url: config
+                            .nango_api_url
+                            .value()
+                            .unwrap_or("https://api.nango.dev")
+                            .to_owned(),
+                        integration_id: config
+                            .nango_mcp_integration_id
+                            .value()
+                            .unwrap_or("mcp-generic")
+                            .to_owned(),
+                    },
+                )
+                .context("failed to build Nango client")?,
+            )),
+            None => {
+                tracing::info!("NANGO_SECRET_KEY not set; Nango MCP connect disabled");
+                None
+            }
+        };
+
+    // Every consumer that connects to MCP servers goes through the resolving
+    // store, so Nango-authorized servers get fresh tokens transparently.
+    let mcp_resolving_store = mcp_client::outbound::nango_resolving_store::NangoResolvingStore::new(
+        Arc::new(mcp_server_repo.clone()),
+        nango_client.clone(),
+    );
+
     // Nudges the user's connected clients when import rows flip, so setup
     // sections and chat surfaces update immediately instead of on the next
     // poll (see import::outbound::gateway_notifier).
@@ -472,7 +509,7 @@ async fn main() -> anyhow::Result<()> {
     let import_service = Arc::new(
         import::domain::service::ImportServiceImpl::new(
             import::outbound::pg_import_repo::PgImportRepo::new(db.clone()),
-            Arc::new(mcp_server_repo.clone()),
+            Arc::new(mcp_resolving_store.clone()),
             Arc::new(entity_creator),
             recorder.clone(),
         )
@@ -628,8 +665,9 @@ async fn main() -> anyhow::Result<()> {
             })
         });
     let mcp_state = mcp_client::inbound::McpRouterState::new(
-        mcp_server_repo,
+        mcp_resolving_store,
         mcp_oauth,
+        nango_client,
         authorization_state.clone(),
         mcp_client_metadata,
     )

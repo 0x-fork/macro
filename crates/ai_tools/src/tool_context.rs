@@ -1066,7 +1066,7 @@ impl import::domain::ports::EntityCreator for ToolEntityCreator {
 /// Type alias for the import service implementation used by AI tools.
 pub type ToolImportService = import::domain::service::ImportServiceImpl<
     import::outbound::pg_import_repo::PgImportRepo,
-    mcp_client::outbound::pg_server_repo::PgServerRepo,
+    mcp_client::outbound::nango_resolving_store::NangoResolvingPgStore,
     ToolEntityCreator,
 >;
 

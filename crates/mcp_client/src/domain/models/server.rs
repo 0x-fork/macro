@@ -47,11 +47,43 @@ pub struct McpServerRecord {
     pub credentials: Option<StoredCredentials>,
     /// Whether the user has this toolset enabled.
     pub enabled: bool,
+    /// The Nango connection that manages this server's OAuth grant, when the
+    /// server was connected through Nango rather than the legacy OAuth flow.
+    pub nango_connection_id: Option<String>,
+    /// A fresh access token resolved from Nango at load time. Never
+    /// persisted; token refresh and storage live entirely inside Nango.
+    #[serde(skip)]
+    pub bearer_token: Option<String>,
+}
+
+impl McpServerRecord {
+    /// Whether the server has a usable auth grant (either a Nango connection
+    /// or legacy stored credentials).
+    pub fn is_authenticated(&self) -> bool {
+        self.nango_connection_id.is_some() || self.credentials.is_some()
+    }
 }
 
 impl McpConnector for McpServerRecord {
     #[tracing::instrument(skip_all, err)]
     async fn connect<S: McpServerStore>(&self, server_store: Arc<S>) -> anyhow::Result<McpServer> {
+        // A Nango-managed token takes priority: Nango owns refresh and
+        // storage, so the client just presents the token as a bearer.
+        if let Some(token) = &self.bearer_token {
+            let mut headers = reqwest::header::HeaderMap::new();
+            let mut value = reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
+                .map_err(|e| anyhow::anyhow!("invalid bearer token: {e}"))?;
+            value.set_sensitive(true);
+            headers.insert(reqwest::header::AUTHORIZATION, value);
+            let client = reqwest::Client::builder()
+                .default_headers(headers)
+                .build()?;
+
+            let config = StreamableHttpClientTransportConfig::with_uri(&*self.url);
+            let transport = StreamableHttpClientTransport::with_client(client, config);
+            return Ok(client_info().serve(transport).await?);
+        }
+
         match &self.credentials {
             Some(credentials) => {
                 let mut auth_manager = AuthorizationManager::new(&self.url).await?;

@@ -24,8 +24,8 @@ use ai_projections::inbound::axum_router::upsert_projection::{
 use ai_usage::inbound::axum_router::{self as ai_usage_api};
 use import::inbound::axum_router::{self as import_api, RunImportRequest};
 use mcp_client::inbound::axum_router::{
-    self as mcp_api, AddServerRequest, ServerResponse, StartAuthRequest, StartAuthResponse,
-    UpdateServerRequest,
+    self as mcp_api, AddServerRequest, NangoCompleteRequest, NangoSessionRequest,
+    NangoSessionResponse, ServerResponse, StartAuthRequest, StartAuthResponse, UpdateServerRequest,
 };
 use memory::inbound::axum_router::{self as memory_api, MemoryErrorBody, MemoryResponse};
 use onboarding::inbound::axum_router::{self as onboarding_api, CompleteOnboardingRequest};
@@ -100,6 +100,8 @@ use utoipa::OpenApi;
             mcp_api::update_server,
             mcp_api::delete_server,
             mcp_api::start_auth,
+            mcp_api::create_nango_session,
+            mcp_api::complete_nango_session,
             mcp_api::client_metadata,
             mcp_api::auth_callback
         ),
@@ -229,6 +231,9 @@ use utoipa::OpenApi;
                 UpdateServerRequest,
                 StartAuthRequest,
                 StartAuthResponse,
+                NangoSessionRequest,
+                NangoSessionResponse,
+                NangoCompleteRequest,
                 model_error_response::ErrorResponse,
             ),
         ),

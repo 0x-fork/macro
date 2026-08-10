@@ -72,17 +72,19 @@ impl McpServerStore for PgServerRepo {
             .map(|c| self.encrypt(c))
             .transpose()?;
 
-        // Never clobber stored credentials with NULL on conflict: re-adding
-        // an existing server (e.g. via the Add Server dialog) must not wipe
-        // a valid OAuth grant.
+        // Never clobber stored grants with NULL on conflict: re-adding an
+        // existing server (e.g. via the Add Server dialog) must not wipe a
+        // valid OAuth grant — neither legacy credentials nor a Nango
+        // connection.
         sqlx::query!(
             r#"
-            INSERT INTO mcp_servers (user_id, url, server_name, credentials, enabled)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO mcp_servers (user_id, url, server_name, credentials, enabled, nango_connection_id)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (user_id, url) DO UPDATE
             SET server_name = EXCLUDED.server_name,
                 credentials = COALESCE(EXCLUDED.credentials, mcp_servers.credentials),
                 enabled     = EXCLUDED.enabled,
+                nango_connection_id = COALESCE(EXCLUDED.nango_connection_id, mcp_servers.nango_connection_id),
                 updated_at  = NOW()
             "#,
             record.user_id.as_ref(),
@@ -90,6 +92,7 @@ impl McpServerStore for PgServerRepo {
             record.server_name,
             encrypted.as_deref(),
             record.enabled,
+            record.nango_connection_id.as_deref(),
         )
         .execute(&self.pool)
         .await?;
@@ -105,7 +108,7 @@ impl McpServerStore for PgServerRepo {
     ) -> Result<Option<McpServerRecord>, Self::Err> {
         let row = sqlx::query!(
             r#"
-            SELECT user_id, url, server_name, credentials, enabled
+            SELECT user_id, url, server_name, credentials, enabled, nango_connection_id
             FROM mcp_servers
             WHERE user_id = $1 AND url = $2
             "#,
@@ -115,8 +118,17 @@ impl McpServerStore for PgServerRepo {
         .fetch_optional(&self.pool)
         .await?;
 
-        row.map(|r| self.to_record(r.user_id, r.url, r.server_name, r.credentials, r.enabled))
-            .transpose()
+        row.map(|r| {
+            self.to_record(
+                r.user_id,
+                r.url,
+                r.server_name,
+                r.credentials,
+                r.enabled,
+                r.nango_connection_id,
+            )
+        })
+        .transpose()
     }
 
     #[tracing::instrument(skip_all, err)]
@@ -146,7 +158,7 @@ impl McpServerStore for PgServerRepo {
     ) -> Result<Vec<McpServerRecord>, Self::Err> {
         let rows = sqlx::query!(
             r#"
-            SELECT user_id, url, server_name, credentials, enabled
+            SELECT user_id, url, server_name, credentials, enabled, nango_connection_id
             FROM mcp_servers
             WHERE user_id = $1
             ORDER BY created_at
@@ -157,7 +169,16 @@ impl McpServerStore for PgServerRepo {
         .await?;
 
         rows.into_iter()
-            .map(|r| self.to_record(r.user_id, r.url, r.server_name, r.credentials, r.enabled))
+            .map(|r| {
+                self.to_record(
+                    r.user_id,
+                    r.url,
+                    r.server_name,
+                    r.credentials,
+                    r.enabled,
+                    r.nango_connection_id,
+                )
+            })
             .collect()
     }
 }
@@ -171,6 +192,7 @@ impl PgServerRepo {
         server_name: String,
         credentials: Option<Vec<u8>>,
         enabled: bool,
+        nango_connection_id: Option<String>,
     ) -> Result<McpServerRecord, sqlx::Error> {
         let user_id = MacroUserIdStr::parse_from_str(&user_id)
             .map_err(|e| sqlx::Error::Decode(Box::new(e)))?
@@ -184,6 +206,8 @@ impl PgServerRepo {
             server_name,
             credentials,
             enabled,
+            nango_connection_id,
+            bearer_token: None,
         })
     }
 }

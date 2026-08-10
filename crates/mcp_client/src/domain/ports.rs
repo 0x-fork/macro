@@ -1,4 +1,6 @@
-use super::models::{MacroUserIdStr, McpServer, McpServerRecord};
+use super::models::{
+    MacroUserIdStr, McpServer, McpServerRecord, NangoConnectSession, NangoConnection, NangoEndUser,
+};
 use std::sync::Arc;
 
 /// Port for persisting MCP server records, keyed by user.
@@ -41,6 +43,45 @@ pub trait McpConnector: Send + Sync {
         &self,
         server_store: Arc<S>,
     ) -> impl Future<Output = anyhow::Result<McpServer>> + Send;
+}
+
+/// Port for delegating MCP server authorization to Nango.
+///
+/// Nango owns the whole OAuth lifecycle for MCP servers (endpoint discovery,
+/// dynamic client registration, token storage, and refresh). The domain only
+/// ever sees short-lived session tokens, connection metadata, and fresh
+/// access tokens.
+pub trait NangoConnectService: Send + Sync + 'static {
+    /// Create a Connect session for `end_user`.
+    ///
+    /// When `mcp_server_url` is provided it is pre-filled on the integration's
+    /// connection config, so the hosted Connect UI skips the URL form and
+    /// jumps straight to the MCP server's OAuth consent screen.
+    fn create_connect_session(
+        &self,
+        end_user: NangoEndUser,
+        mcp_server_url: Option<&str>,
+    ) -> impl Future<Output = anyhow::Result<NangoConnectSession>> + Send;
+
+    /// Fetch a connection's metadata. Returns `None` if Nango doesn't know
+    /// the connection ID.
+    fn get_connection(
+        &self,
+        connection_id: &str,
+    ) -> impl Future<Output = anyhow::Result<Option<NangoConnection>>> + Send;
+
+    /// Fetch a fresh access token for a connection. Nango refreshes expired
+    /// tokens server-side before returning them.
+    fn fresh_token(
+        &self,
+        connection_id: &str,
+    ) -> impl Future<Output = anyhow::Result<String>> + Send;
+
+    /// Delete a connection from Nango (revoking our copy of the grant).
+    fn delete_connection(
+        &self,
+        connection_id: &str,
+    ) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 /// Everything needed to resume the OAuth flow on callback.

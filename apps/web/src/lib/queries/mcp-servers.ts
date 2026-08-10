@@ -1,6 +1,10 @@
-import { throwOnErr } from '@core/util/result';
+import { openNangoConnectUI } from '@core/nango/connect-ui';
+import { ThrownResultError, throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
-import { cognitionApiServiceClient } from '@service-cognition/client';
+import {
+  cognitionApiServiceClient,
+  NANGO_DISABLED,
+} from '@service-cognition/client';
 import type {
   AddServerRequest,
   ServerResponse,
@@ -117,4 +121,90 @@ export function useStartMcpAuthMutation() {
         async () => await cognitionApiServiceClient.startMcpAuth(request)
       ),
   }));
+}
+
+export type NangoConnectOutcome = 'connected' | 'closed' | 'unsupported';
+
+// Whether the backend has Nango configured, learned from the first session
+// attempt (501 → unsupported). Cached so later connect clicks on a
+// Nango-less deployment can take the legacy popup path synchronously, while
+// the click's transient activation is still live.
+let nangoUnsupported = false;
+
+/** True once a connect attempt learned that this deployment has no Nango. */
+export function isNangoKnownUnsupported(): boolean {
+  return nangoUnsupported;
+}
+
+/**
+ * Connect an MCP server through Nango's hosted Connect UI.
+ *
+ * Creates a Connect session (Nango owns OAuth discovery, dynamic client
+ * registration, and token storage), opens the Connect UI in a fullscreen
+ * iframe, and — once the user authorizes — registers the resulting
+ * connection with our backend, which verifies ownership against Nango
+ * before storing it.
+ *
+ * Resolves `'connected'` on success (server cache already refreshed),
+ * `'closed'` when the user dismissed the UI without finishing, and
+ * `'unsupported'` when the deployment has no Nango configured (callers
+ * fall back to the legacy OAuth flow). Rejects on errors.
+ */
+export async function connectMcpServerViaNango(args: {
+  /** Pre-fill the server URL so the Connect UI goes straight to OAuth. */
+  serverUrl?: string;
+  /** Display name stored on the new server row. */
+  serverName?: string;
+}): Promise<NangoConnectOutcome> {
+  if (nangoUnsupported) return 'unsupported';
+
+  const session = await cognitionApiServiceClient.createMcpNangoSession({
+    server_url: args.serverUrl,
+  });
+  if (session.isErr()) {
+    if (session.error.some((e) => e.code === NANGO_DISABLED)) {
+      nangoUnsupported = true;
+      return 'unsupported';
+    }
+    throw new ThrownResultError(session.error);
+  }
+
+  return await new Promise<NangoConnectOutcome>((resolve, reject) => {
+    let settled = false;
+    const ui = openNangoConnectUI({
+      sessionToken: session.value.session_token,
+      onEvent: (event) => {
+        if (event.type === 'connect' && !settled) {
+          settled = true;
+          void (async () => {
+            try {
+              const server = await throwOnErr(
+                async () =>
+                  await cognitionApiServiceClient.completeMcpNangoSession({
+                    connection_id: event.payload.connectionId,
+                    server_name: args.serverName,
+                  })
+              );
+              upsertServer(server);
+              await invalidateMcpServers();
+              resolve('connected');
+            } catch (error) {
+              reject(
+                error instanceof Error
+                  ? error
+                  : new Error('failed to register Nango connection')
+              );
+            } finally {
+              ui.close();
+            }
+          })();
+        } else if (event.type === 'close' && !settled) {
+          settled = true;
+          resolve('closed');
+        }
+        // 'error' events are shown inside the Connect UI itself; the user
+        // can retry there or close, so they don't settle the promise.
+      },
+    });
+  });
 }

@@ -73,6 +73,8 @@ fn record() -> McpServerRecord {
         server_name: "Linear".to_string(),
         credentials: None,
         enabled: true,
+        nango_connection_id: None,
+        bearer_token: None,
     }
 }
 

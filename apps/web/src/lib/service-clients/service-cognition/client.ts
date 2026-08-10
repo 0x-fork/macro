@@ -67,6 +67,23 @@ type Success = { success: boolean };
 
 type IdMappingResponse = { target_id: string | null };
 
+// Hand-written mirrors of the DCS OpenAPI types for the Nango MCP endpoints
+// (`create_mcp_nango_session` / `complete_mcp_nango_session`); replace with
+// the orval-generated schemas on the next client regeneration.
+export type NangoSessionRequest = { server_url?: string };
+export type NangoSessionResponse = {
+  session_token: string;
+  expires_at: string;
+  connect_link: string;
+};
+export type NangoCompleteRequest = {
+  connection_id: string;
+  server_name?: string;
+};
+
+/** Error code for deployments where Nango MCP connect is not configured. */
+export const NANGO_DISABLED = 'NANGO_DISABLED' as const;
+
 export const cognitionApiServiceClient = {
   /** Creates a mapping from source_id to target_id */
   async createIdMapping(args: { source_id: string; target_id: string }) {
@@ -353,6 +370,46 @@ export const cognitionApiServiceClient = {
   async startMcpAuth(args: StartAuthRequest) {
     return (
       await dcsFetch<StartAuthResponse>(`/mcp/servers/auth/start`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+      })
+    ).map((result) => result);
+  },
+
+  /**
+   * Create a Nango Connect session for authorizing an MCP server. Answers
+   * with the {@link NANGO_DISABLED} error code on deployments where Nango
+   * isn't configured (HTTP 501), so callers can fall back to the legacy
+   * OAuth flow.
+   */
+  async createMcpNangoSession(args: NangoSessionRequest) {
+    return (
+      await fetchWithToken<NangoSessionResponse, typeof NANGO_DISABLED>(
+        `${dcsHost}/mcp/servers/nango/session`,
+        {
+          method: 'POST',
+          body: JSON.stringify(args),
+          errorResponseHandler: async (response) => {
+            if (response.status === 501) {
+              return {
+                code: NANGO_DISABLED,
+                message: 'Nango is not configured for this deployment',
+              };
+            }
+            return {
+              code: 'HTTP_ERROR',
+              message: `HTTP error! status: ${response.status}`,
+            };
+          },
+        }
+      )
+    ).map((result) => result);
+  },
+
+  /** Attach a completed Nango connection to the user's MCP servers. */
+  async completeMcpNangoSession(args: NangoCompleteRequest) {
+    return (
+      await dcsFetch<ServerResponse>(`/mcp/servers/nango/complete`, {
         method: 'POST',
         body: JSON.stringify(args),
       })

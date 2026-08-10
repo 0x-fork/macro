@@ -94,9 +94,9 @@ where
         Ok(servers
             .into_iter()
             .map(|record| ConnectedServer {
+                authenticated: record.is_authenticated(),
                 name: record.server_name,
                 url: record.url,
-                authenticated: record.credentials.is_some(),
             })
             .collect())
     }

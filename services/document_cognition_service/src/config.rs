@@ -27,6 +27,15 @@ env_vars!(
 
 maybe_env_vars!(
     pub struct DocumentBatchLimit;
+    /// Secret key for the Nango environment used for MCP server auth.
+    /// When unset, Nango-based MCP connect is disabled and the legacy
+    /// in-house OAuth flow is the only way to authorize MCP servers.
+    pub struct NangoSecretKey;
+    /// Base URL of the Nango API. Defaults to `https://api.nango.dev`.
+    pub struct NangoApiUrl;
+    /// Nango integration ID (provider config key) for MCP server auth.
+    /// Defaults to `mcp-generic`, Nango's generic MCP OAuth2 integration.
+    pub struct NangoMcpIntegrationId;
 );
 
 /// The configuration parameters for the application.
@@ -66,6 +75,12 @@ pub struct Config {
         LocalOrRemoteSecret<DocumentStorageServiceCloudfrontSignerPrivateKey>,
     /// MCP credentials encryption key (base64-encoded, secret name or value)
     pub mcp_credentials_key_secret_name: LocalOrRemoteSecret<McpCredentialsKeySecretName>,
+    /// Secret key for the Nango environment used for MCP server auth.
+    pub nango_secret_key: NangoSecretKey,
+    /// Base URL of the Nango API.
+    pub nango_api_url: NangoApiUrl,
+    /// Nango integration ID (provider config key) for MCP server auth.
+    pub nango_mcp_integration_id: NangoMcpIntegrationId,
     /// The internal api key
     pub internal_api_key: InternalApiKey,
     /// AI editing worker URL
@@ -120,6 +135,9 @@ impl Config {
             mcp_credentials_key_secret_name: LocalOrRemoteSecret::Local(
                 McpCredentialsKeySecretName::Comptime("MCP_CREDENTIALS_KEY_SECRET_NAME"),
             ),
+            nango_secret_key: NangoSecretKey::Unset,
+            nango_api_url: NangoApiUrl::Unset,
+            nango_mcp_integration_id: NangoMcpIntegrationId::Unset,
             internal_api_key: InternalApiKey::Comptime(""),
             ai_editing_worker_url: AiEditingWorkerUrl::unwrap_new().to_string(),
             document_permission_jwt: DocumentPermissionJwt::Comptime("DOCUMENT_PERMISSION_JWT"),

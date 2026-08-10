@@ -283,6 +283,8 @@ where
             server_name: pending.server_name,
             credentials: Some(credentials.clone()),
             enabled: true,
+            nango_connection_id: None,
+            bearer_token: None,
         };
 
         self.server_store

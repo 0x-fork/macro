@@ -1,6 +1,7 @@
 import {
   FEATURED_MCP_SERVERS,
   type FeaturedMcpServer,
+  mcpUrlSupportsNango,
   QUICK_CONNECT_ICON_MAP,
   type SvgIcon,
 } from '@core/component/AI/constant/mcpServers';
@@ -10,6 +11,7 @@ import PlugIcon from '@phosphor-icons/core/regular/plug.svg?component-solid';
 import PlusIcon from '@phosphor-icons/core/regular/plus.svg?component-solid';
 import XIcon from '@phosphor-icons/core/regular/x.svg?component-solid';
 import {
+  connectMcpServerViaNango,
   useAddMcpServerMutation,
   useDeleteMcpServerMutation,
   useMcpServersQuery,
@@ -40,6 +42,7 @@ function AddServerForm(props: {
 }) {
   const [name, setName] = createSignal('');
   const [url, setUrl] = createSignal('');
+  const [nangoBusy, setNangoBusy] = createSignal(false);
   const addMutation = useAddMcpServerMutation();
   const authMutation = useStartMcpAuthMutation();
 
@@ -62,11 +65,7 @@ function AddServerForm(props: {
     );
   };
 
-  const handleSubmit = () => {
-    const n = name().trim();
-    const u = url().trim();
-    if (!n || !u) return;
-
+  const legacySubmit = (n: string, u: string) => {
     addMutation.mutate(
       { server_name: n, url: u },
       {
@@ -80,6 +79,36 @@ function AddServerForm(props: {
         },
       }
     );
+  };
+
+  const handleSubmit = async () => {
+    const n = name().trim();
+    const u = url().trim();
+    if (!n || !u || nangoBusy()) return;
+
+    // Nango first: it handles OAuth discovery, client registration, and
+    // token refresh for any spec-compliant MCP server. Deployments without
+    // Nango fall back to the legacy in-house OAuth flow.
+    setNangoBusy(true);
+    try {
+      const outcome = await connectMcpServerViaNango({
+        serverUrl: u,
+        serverName: n,
+      });
+      if (outcome === 'unsupported') {
+        legacySubmit(n, u);
+        return;
+      }
+      if (outcome === 'connected') {
+        toast.success(`${n} connected`);
+      }
+      reset();
+      props.onOpenChange(false);
+    } catch {
+      toast.failure(`Failed to connect ${n}`);
+    } finally {
+      setNangoBusy(false);
+    }
   };
 
   return (
@@ -148,11 +177,14 @@ function AddServerForm(props: {
               size="sm"
               depth={3}
               disabled={
-                !name().trim() || !url().trim() || addMutation.isPending
+                !name().trim() ||
+                !url().trim() ||
+                addMutation.isPending ||
+                nangoBusy()
               }
               onClick={handleSubmit}
             >
-              {addMutation.isPending ? 'Adding...' : 'Add'}
+              {addMutation.isPending || nangoBusy() ? 'Adding...' : 'Add'}
             </Button>
           </div>
         </Panel.Body>
@@ -188,6 +220,7 @@ function ServerRow(props: { server: ServerResponse }) {
   const deleteMutation = useDeleteMcpServerMutation();
   const authMutation = useStartMcpAuthMutation();
   const [confirmDelete, setConfirmDelete] = createSignal(false);
+  const [nangoBusy, setNangoBusy] = createSignal(false);
   const [attempted, setAttempted] = createSignal(
     readAuthAttempted(props.server.url)
   );
@@ -230,7 +263,7 @@ function ServerRow(props: { server: ServerResponse }) {
     );
   };
 
-  const handleAuth = () => {
+  const legacyAuth = () => {
     authMutation.mutate(
       {
         server_url: props.server.url,
@@ -249,6 +282,34 @@ function ServerRow(props: { server: ServerResponse }) {
         },
       }
     );
+  };
+
+  const handleAuth = async () => {
+    if (nangoBusy()) return;
+    if (!mcpUrlSupportsNango(props.server.url)) {
+      legacyAuth();
+      return;
+    }
+    setNangoBusy(true);
+    try {
+      const outcome = await connectMcpServerViaNango({
+        serverUrl: props.server.url,
+        serverName: props.server.server_name,
+      });
+      if (outcome === 'unsupported') {
+        legacyAuth();
+      } else if (outcome === 'connected') {
+        writeAuthAttempted(props.server.url, false);
+        setAttempted(false);
+        toast.success(`${props.server.server_name} connected`);
+      }
+    } catch {
+      writeAuthAttempted(props.server.url, true);
+      setAttempted(true);
+      toast.failure('Failed to connect');
+    } finally {
+      setNangoBusy(false);
+    }
   };
 
   const Icon = (): SvgIcon =>
@@ -283,10 +344,10 @@ function ServerRow(props: { server: ServerResponse }) {
           variant="active"
           size="sm"
           depth={3}
-          disabled={authMutation.isPending}
+          disabled={authMutation.isPending || nangoBusy()}
           onClick={handleAuth}
         >
-          {authMutation.isPending
+          {authMutation.isPending || nangoBusy()
             ? 'Connecting...'
             : connectionFailed()
               ? 'Try Again'
@@ -352,11 +413,12 @@ function ServerRow(props: { server: ServerResponse }) {
 function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
   const addMutation = useAddMcpServerMutation();
   const authMutation = useStartMcpAuthMutation();
+  const [nangoBusy, setNangoBusy] = createSignal(false);
 
   // Once the add lands, the cache update removes this suggestion row from the
   // list. mutate()-level callbacks are dropped for unmounted observers, so the
   // add → auth chain must run on mutateAsync promises instead.
-  const handleConnect = async () => {
+  const legacyConnect = async () => {
     try {
       await addMutation.mutateAsync({
         server_name: props.server.server_name,
@@ -377,6 +439,30 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
     }
   };
 
+  const handleConnect = async () => {
+    if (nangoBusy()) return;
+    if (props.server.supportsNango === false) {
+      await legacyConnect();
+      return;
+    }
+    setNangoBusy(true);
+    try {
+      const outcome = await connectMcpServerViaNango({
+        serverUrl: props.server.url,
+        serverName: props.server.server_name,
+      });
+      if (outcome === 'unsupported') {
+        await legacyConnect();
+      } else if (outcome === 'connected') {
+        toast.success(`${props.server.server_name} connected`);
+      }
+    } catch {
+      toast.failure(`Failed to connect ${props.server.server_name}`);
+    } finally {
+      setNangoBusy(false);
+    }
+  };
+
   return (
     <IntegrationRow
       icon={<props.server.icon class="size-5" />}
@@ -386,7 +472,7 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
       <ConnectAction
         label="Connect"
         onClick={handleConnect}
-        loading={addMutation.isPending || authMutation.isPending}
+        loading={addMutation.isPending || authMutation.isPending || nangoBusy()}
       />
     </IntegrationRow>
   );

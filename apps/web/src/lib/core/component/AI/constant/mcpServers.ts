@@ -10,11 +10,24 @@ import type { Component, JSX } from 'solid-js';
 
 export type SvgIcon = Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
 
-export const QUICK_CONNECT_SERVERS = [
+export type QuickConnectServer = {
+  server_name: string;
+  url: string;
+  icon: SvgIcon;
+  /**
+   * False for servers whose MCP OAuth needs a pre-registered client (no
+   * dynamic client registration) — Nango's generic MCP integration can't
+   * authorize those, so they connect through the legacy in-house flow.
+   */
+  supportsNango?: boolean;
+};
+
+export const QUICK_CONNECT_SERVERS: readonly QuickConnectServer[] = [
   {
     server_name: 'GitHub',
     url: 'https://api.githubcopilot.com/mcp',
     icon: IconGithub as SvgIcon,
+    supportsNango: false,
   },
   {
     server_name: 'Linear',
@@ -23,13 +36,14 @@ export const QUICK_CONNECT_SERVERS = [
   },
   // Slack is dev-only until the integration is ready for production.
   ...(DEV_MODE_ENV
-    ? ([
+    ? [
         {
           server_name: 'Slack',
           url: 'https://mcp.slack.com/mcp',
           icon: IconSlack as SvgIcon,
+          supportsNango: false,
         },
-      ] as const)
+      ]
     : []),
   {
     server_name: 'Notion',
@@ -51,9 +65,7 @@ export const QUICK_CONNECT_SERVERS = [
     url: 'https://mcp.grafana.com/mcp',
     icon: IconGrafana as SvgIcon,
   },
-] as const;
-
-export type QuickConnectServer = (typeof QUICK_CONNECT_SERVERS)[number];
+];
 
 /**
  * Preset servers surfaced directly on the Connections page (with a one-line
@@ -83,6 +95,16 @@ export const FEATURED_MCP_SERVERS: FeaturedMcpServer[] =
 export const QUICK_CONNECT_ICON_MAP: Map<string, SvgIcon> = new Map(
   QUICK_CONNECT_SERVERS.map((s) => [s.url, s.icon])
 );
+
+/**
+ * Whether a server URL can be authorized through Nango. True for anything
+ * not explicitly opted out in {@link QUICK_CONNECT_SERVERS} — custom servers
+ * are assumed spec-compliant (dynamic client registration).
+ */
+export function mcpUrlSupportsNango(url: string): boolean {
+  const preset = QUICK_CONNECT_SERVERS.find((s) => s.url === url);
+  return preset?.supportsNango !== false;
+}
 
 const SERVER_NAME_ICON_MAP: Map<string, SvgIcon> = new Map(
   QUICK_CONNECT_SERVERS.map((s) => [s.server_name.toLowerCase(), s.icon])
