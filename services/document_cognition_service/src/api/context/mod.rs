@@ -104,6 +104,13 @@ pub type DcsMcpRouterState = mcp_client::inbound::McpRouterState<
     DcsAuthorizationService,
 >;
 
+/// Concrete MCP catalog router state for DCS, backed by the public MCP
+/// registry.
+pub type DcsMcpCatalogRouterState = mcp_client::inbound::McpCatalogRouterState<
+    mcp_client::outbound::mcp_registry::McpRegistryClient,
+    DcsAuthorizationService,
+>;
+
 /// The import pipeline service, shared between the import router, the chat
 /// toolset, and the onboarding flow.
 pub type DcsImportService = ai_tools::ToolImportService;
@@ -147,6 +154,7 @@ pub struct ApiContext {
     pub message_service: Arc<DcsMessageService>,
     pub ai_stream_registry: AiStreamRegistry,
     pub mcp_state: DcsMcpRouterState,
+    pub mcp_catalog_state: DcsMcpCatalogRouterState,
     pub import_service: Arc<DcsImportService>,
     pub onboarding_service: Arc<DcsOnboardingService>,
     /// Kafka-backed macro event broker for publishing domain events.

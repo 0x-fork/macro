@@ -24,8 +24,9 @@ use ai_projections::inbound::axum_router::upsert_projection::{
 use ai_usage::inbound::axum_router::{self as ai_usage_api};
 use import::inbound::axum_router::{self as import_api, RunImportRequest};
 use mcp_client::inbound::axum_router::{
-    self as mcp_api, AddServerRequest, NangoCompleteRequest, NangoSessionRequest,
-    NangoSessionResponse, ServerResponse, StartAuthRequest, StartAuthResponse, UpdateServerRequest,
+    self as mcp_api, AddServerRequest, CatalogEntryResponse, CatalogResponse, NangoCompleteRequest,
+    NangoSessionRequest, NangoSessionResponse, ServerResponse, StartAuthRequest, StartAuthResponse,
+    UpdateServerRequest,
 };
 use memory::inbound::axum_router::{self as memory_api, MemoryErrorBody, MemoryResponse};
 use onboarding::inbound::axum_router::{self as onboarding_api, CompleteOnboardingRequest};
@@ -96,6 +97,7 @@ use utoipa::OpenApi;
             ai_usage_api::set_pricing_handler,
             ai_projections::inbound::axum_router::upsert_projection::handler::<crate::api::context::DcsAiProjectionService>,
             mcp_api::list_servers,
+            mcp_api::get_catalog,
             mcp_api::add_server,
             mcp_api::update_server,
             mcp_api::delete_server,
@@ -234,6 +236,8 @@ use utoipa::OpenApi;
                 NangoSessionRequest,
                 NangoSessionResponse,
                 NangoCompleteRequest,
+                CatalogResponse,
+                CatalogEntryResponse,
                 model_error_response::ErrorResponse,
             ),
         ),

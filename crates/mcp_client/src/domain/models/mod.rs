@@ -1,5 +1,6 @@
 mod aes_key;
 mod call_tool_result;
+mod catalog;
 mod consts;
 mod nango;
 mod oauth_client_metadata;
@@ -8,6 +9,7 @@ mod server;
 
 pub use aes_key::{AesKey, AesKeyError};
 pub use call_tool_result::CallToolResultExt;
+pub use catalog::{CatalogEntry, CatalogPage};
 pub use consts::*;
 pub use macro_user_id::user_id::MacroUserIdStr;
 pub use nango::{NangoConnectSession, NangoConnection, NangoEndUser};

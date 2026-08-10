@@ -1,8 +1,9 @@
 use crate::domain::{
-    models::{McpServerRecord, NangoEndUser, OAuthClientMetadata},
-    ports::{McpServerStore, NangoConnectService, OAuthClient},
-    service::nango_connect::{
-        NangoConnectError, complete_nango_connection, disconnect_mcp_server,
+    models::{CatalogEntry, McpServerRecord, NangoEndUser, OAuthClientMetadata},
+    ports::{McpRegistry, McpServerStore, NangoConnectService, OAuthClient},
+    service::{
+        catalog::browse_catalog,
+        nango_connect::{NangoConnectError, complete_nango_connection, disconnect_mcp_server},
     },
 };
 use axum::{
@@ -125,6 +126,57 @@ where
             "/mcp/servers/nango/complete",
             post(complete_nango_session::<S, O, N, Auth>),
         )
+        .with_state(state)
+}
+
+/// Shared state for the MCP catalog router.
+///
+/// Separate from [`McpRouterState`] because the catalog depends only on the
+/// public registry — none of the per-user store/OAuth/Nango machinery.
+pub struct McpCatalogRouterState<R, Auth> {
+    registry: Arc<R>,
+    authorization_state: MacroAuthorizationState<Auth>,
+}
+
+impl<R, Auth> Clone for McpCatalogRouterState<R, Auth> {
+    fn clone(&self) -> Self {
+        Self {
+            registry: self.registry.clone(),
+            authorization_state: self.authorization_state.clone(),
+        }
+    }
+}
+
+impl<R, Auth> FromRef<McpCatalogRouterState<R, Auth>> for MacroAuthorizationState<Auth> {
+    fn from_ref(state: &McpCatalogRouterState<R, Auth>) -> Self {
+        state.authorization_state.clone()
+    }
+}
+
+impl<R, Auth> McpCatalogRouterState<R, Auth>
+where
+    R: McpRegistry,
+    Auth: MacroAuthorizationService,
+{
+    /// Create a new catalog router state from a registry client and
+    /// authorization state.
+    pub fn new(registry: R, authorization_state: MacroAuthorizationState<Auth>) -> Self {
+        Self {
+            registry: Arc::new(registry),
+            authorization_state,
+        }
+    }
+}
+
+/// Authenticated MCP catalog route (browse/search connectable servers).
+pub fn mcp_catalog_router<R, Auth, Global>(state: McpCatalogRouterState<R, Auth>) -> Router<Global>
+where
+    R: McpRegistry,
+    Auth: MacroAuthorizationService,
+    Global: Send + Sync,
+{
+    Router::new()
+        .route("/mcp/servers/catalog", get(get_catalog::<R, Auth>))
         .with_state(state)
 }
 
@@ -251,6 +303,61 @@ pub struct NangoCompleteRequest {
     server_name: Option<String>,
 }
 
+/// Query parameters for browsing the MCP server catalog.
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct CatalogParams {
+    /// Case-insensitive substring to search server names for. Omit to browse.
+    #[serde(default)]
+    search: Option<String>,
+    /// Opaque pagination cursor from a previous response.
+    #[serde(default)]
+    cursor: Option<String>,
+    /// Page size (default 20, max 50).
+    #[serde(default)]
+    limit: Option<u32>,
+}
+
+/// One connectable MCP server in the catalog.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CatalogEntryResponse {
+    /// Stable registry identifier, e.g. `app.linear/linear`.
+    name: String,
+    /// Human-readable name to display.
+    display_name: String,
+    /// One-line description of the server.
+    description: Option<String>,
+    /// The server's streamable HTTP URL — pass this to the connect flow.
+    url: String,
+    /// URL of the server's icon, when available.
+    icon_url: Option<String>,
+    /// Curated priority connectors rank first and may be rendered as their
+    /// own featured section.
+    priority: bool,
+}
+
+impl From<CatalogEntry> for CatalogEntryResponse {
+    fn from(entry: CatalogEntry) -> Self {
+        Self {
+            name: entry.name,
+            display_name: entry.display_name,
+            description: entry.description,
+            url: entry.url,
+            icon_url: entry.icon_url,
+            priority: entry.priority,
+        }
+    }
+}
+
+/// A page of the MCP server catalog.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct CatalogResponse {
+    /// Catalog entries in display order (priority connectors first).
+    servers: Vec<CatalogEntryResponse>,
+    /// Cursor for the next page. Absent on the last page.
+    next_cursor: Option<String>,
+}
+
 /// An MCP server record as returned by the API.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ServerResponse {
@@ -366,6 +473,46 @@ where
     Ok(Json(
         records.iter().map(ServerResponse::from_record).collect(),
     ))
+}
+
+#[utoipa::path(
+    get,
+    path = "/mcp/servers/catalog",
+    tag = "mcp",
+    operation_id = "browse_mcp_catalog",
+    params(CatalogParams),
+    responses(
+        (status = 200, body = CatalogResponse),
+        (status = 401, body = String),
+        (status = 500, body = ErrorResponse),
+    )
+)]
+/// Browse or search the catalog of connectable MCP servers.
+///
+/// Curated priority connectors come first (flagged `priority`), followed by
+/// results from the public MCP registry.
+#[tracing::instrument(skip_all, err)]
+pub async fn get_catalog<R, Auth>(
+    State(state): State<McpCatalogRouterState<R, Auth>>,
+    _authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Query(params): Query<CatalogParams>,
+) -> Result<Json<CatalogResponse>, McpHandlerErr>
+where
+    R: McpRegistry,
+    Auth: MacroAuthorizationService,
+{
+    let page = browse_catalog(
+        state.registry.as_ref(),
+        params.search.as_deref(),
+        params.cursor.as_deref(),
+        params.limit,
+    )
+    .await?;
+
+    Ok(Json(CatalogResponse {
+        servers: page.entries.into_iter().map(Into::into).collect(),
+        next_cursor: page.next_cursor,
+    }))
 }
 
 #[utoipa::path(

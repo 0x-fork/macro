@@ -1,3 +1,5 @@
+/// HTTP adapter for the official MCP registry implementing [`McpRegistry`](crate::domain::ports::McpRegistry).
+pub mod mcp_registry;
 /// HTTP adapter for the Nango API implementing [`NangoConnectService`](crate::domain::ports::NangoConnectService).
 pub mod nango;
 /// Store decorator that resolves Nango access tokens into loaded records.

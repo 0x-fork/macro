@@ -673,6 +673,19 @@ async fn main() -> anyhow::Result<()> {
     )
     .with_auth_completed_hook(mcp_auth_hook);
 
+    // The connector catalog is backed by the public MCP registry — no
+    // secrets involved, so it's always on.
+    let mcp_registry = mcp_client::outbound::mcp_registry::McpRegistryClient::new(
+        config
+            .mcp_registry_url
+            .value()
+            .unwrap_or(mcp_client::outbound::mcp_registry::DEFAULT_REGISTRY_URL)
+            .to_owned(),
+    )
+    .context("failed to build MCP registry client")?;
+    let mcp_catalog_state =
+        mcp_client::inbound::McpCatalogRouterState::new(mcp_registry, authorization_state.clone());
+
     let user_permissions_service = Arc::new(
         roles_and_permissions::domain::service::UserRolesAndPermissionsServiceImpl::new(
             roles_and_permissions::outbound::pgpool::MacroDB::new(db.clone()),
@@ -712,6 +725,7 @@ async fn main() -> anyhow::Result<()> {
             redis_client.clone(),
         ),
         mcp_state,
+        mcp_catalog_state,
         import_service,
         onboarding_service,
         macro_event_broker: macro_event_broker.clone(),

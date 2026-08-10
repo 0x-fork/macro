@@ -54,6 +54,17 @@ require a pre-registered OAuth client instead of DCR (GitHub Copilot MCP,
 Slack — see `domain/provider_registry`) and for existing connections made
 before Nango.
 
+## Connector catalog
+
+`GET /mcp/servers/catalog` advertises what users can connect: a curated list
+of priority connectors (pinned first, flagged `priority` so clients can show
+them as a featured section) merged with search results from the public
+[MCP registry](https://registry.modelcontextprotocol.io), filtered to
+active, latest-version servers with a streamable HTTP remote. To promote a
+connector, add it to `PRIORITY_CONNECTORS` in `domain/service/catalog.rs`.
+Registry pages are cached in-process for 5 minutes. Optional
+`MCP_REGISTRY_URL` env var overrides the registry base URL.
+
 ## Key pieces
 
 - `domain/service/toolset.rs` — `McpToolSet` / `CombinedToolSet`: connect

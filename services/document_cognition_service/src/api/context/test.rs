@@ -568,10 +568,17 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
                 ),
                 mcp_oauth,
                 None,
-                authorization_state,
+                authorization_state.clone(),
                 client_metadata,
             )
         },
+        mcp_catalog_state: mcp_client::inbound::McpCatalogRouterState::new(
+            mcp_client::outbound::mcp_registry::McpRegistryClient::new(
+                mcp_client::outbound::mcp_registry::DEFAULT_REGISTRY_URL.to_string(),
+            )
+            .expect("valid registry client"),
+            authorization_state,
+        ),
         import_service: import_service.clone(),
         onboarding_service,
         macro_event_broker,

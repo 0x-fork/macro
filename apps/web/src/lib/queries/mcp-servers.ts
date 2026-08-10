@@ -2,6 +2,7 @@ import { openNangoConnectUI } from '@core/nango/connect-ui';
 import { ThrownResultError, throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import {
+  type CatalogResponse,
   cognitionApiServiceClient,
   NANGO_DISABLED,
 } from '@service-cognition/client';
@@ -11,11 +12,17 @@ import type {
   StartAuthRequest,
   UpdateServerRequest,
 } from '@service-cognition/generated/schemas';
-import { useMutation, useQuery } from '@tanstack/solid-query';
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+} from '@tanstack/solid-query';
 
 const KEYS = {
   all: ['mcpServers'] as const,
   list: ['mcpServers', 'list'] as const,
+  catalog: (search: string) => ['mcpServers', 'catalog', search] as const,
 };
 
 /** Stable placeholder for `neverSuspend` consumers (see below). */
@@ -46,6 +53,35 @@ export function useMcpServersQuery(options?: {
     refetchOnWindowFocus: 'always' as const,
     refetchInterval: options?.refetchInterval,
     placeholderData: options?.neverSuspend ? NO_SERVERS : undefined,
+  }));
+}
+
+/**
+ * Browse or search the catalog of connectable MCP servers, paged by cursor.
+ * Curated priority connectors arrive first (flagged `priority`), followed by
+ * organic results from the public MCP registry.
+ */
+export function useMcpCatalogQuery(search: () => string) {
+  return useInfiniteQuery(() => ({
+    queryKey: KEYS.catalog(search().trim()),
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) =>
+      throwOnErr(
+        async () =>
+          await cognitionApiServiceClient.browseMcpCatalog({
+            search: search().trim() || undefined,
+            cursor: pageParam,
+          })
+      ),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage: CatalogResponse) =>
+      lastPage.next_cursor ?? undefined,
+    staleTime: 5 * 60 * 1000,
+    // Serve the previous search's results (or nothing) instead of
+    // suspending: first load must not block the settings page on the
+    // registry, and keystrokes must not blank the list while refetching.
+    placeholderData: (
+      previous: InfiniteData<CatalogResponse, string | undefined> | undefined
+    ) => previous ?? { pages: [], pageParams: [] },
   }));
 }
 

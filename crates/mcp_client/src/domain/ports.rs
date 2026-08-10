@@ -1,7 +1,25 @@
 use super::models::{
-    MacroUserIdStr, McpServer, McpServerRecord, NangoConnectSession, NangoConnection, NangoEndUser,
+    CatalogPage, MacroUserIdStr, McpServer, McpServerRecord, NangoConnectSession, NangoConnection,
+    NangoEndUser,
 };
 use std::sync::Arc;
+
+/// Port for browsing the public registry of connectable MCP servers.
+pub trait McpRegistry: Send + Sync + 'static {
+    /// Search the registry.
+    ///
+    /// `search` is a case-insensitive substring match on server names; `None`
+    /// browses everything. `cursor` is the opaque pagination cursor from a
+    /// previous page. Implementations return only servers that are actually
+    /// connectable for us: active, latest-version entries with a plain
+    /// streamable HTTP remote.
+    fn search(
+        &self,
+        search: Option<&str>,
+        cursor: Option<&str>,
+        limit: u32,
+    ) -> impl Future<Output = anyhow::Result<CatalogPage>> + Send;
+}
 
 /// Port for persisting MCP server records, keyed by user.
 pub trait McpServerStore: Send + Sync + 'static {

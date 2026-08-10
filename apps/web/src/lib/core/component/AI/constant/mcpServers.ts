@@ -97,13 +97,36 @@ export const QUICK_CONNECT_ICON_MAP: Map<string, SvgIcon> = new Map(
 );
 
 /**
+ * Servers whose MCP OAuth needs a pre-registered client (no dynamic client
+ * registration) — Nango's generic MCP integration can't authorize those, so
+ * they always take the legacy in-house flow. Kept as a standalone set (not
+ * derived from {@link QUICK_CONNECT_SERVERS}) because entries there are
+ * environment-gated, while this routing must hold wherever the URL shows up
+ * (e.g. the connector catalog).
+ */
+const NANGO_UNSUPPORTED_URLS = new Set(
+  ['https://api.githubcopilot.com/mcp', 'https://mcp.slack.com/mcp'].map(
+    (url) => url.replace(/\/+$/, '')
+  )
+);
+
+/**
  * Whether a server URL can be authorized through Nango. True for anything
- * not explicitly opted out in {@link QUICK_CONNECT_SERVERS} — custom servers
- * are assumed spec-compliant (dynamic client registration).
+ * not in {@link NANGO_UNSUPPORTED_URLS} — custom servers are assumed
+ * spec-compliant (dynamic client registration).
  */
 export function mcpUrlSupportsNango(url: string): boolean {
-  const preset = QUICK_CONNECT_SERVERS.find((s) => s.url === url);
-  return preset?.supportsNango !== false;
+  return !NANGO_UNSUPPORTED_URLS.has(url.replace(/\/+$/, ''));
+}
+
+/**
+ * Whether a catalog connector should be offered in this environment.
+ * Mirrors the environment gating in {@link QUICK_CONNECT_SERVERS} (Slack is
+ * dev-only until the integration is ready for production).
+ */
+export function mcpUrlAvailableInEnv(url: string): boolean {
+  if (DEV_MODE_ENV) return true;
+  return url.replace(/\/+$/, '') !== 'https://mcp.slack.com/mcp';
 }
 
 const SERVER_NAME_ICON_MAP: Map<string, SvgIcon> = new Map(

@@ -68,8 +68,9 @@ type Success = { success: boolean };
 type IdMappingResponse = { target_id: string | null };
 
 // Hand-written mirrors of the DCS OpenAPI types for the Nango MCP endpoints
-// (`create_mcp_nango_session` / `complete_mcp_nango_session`); replace with
-// the orval-generated schemas on the next client regeneration.
+// (`create_mcp_nango_session` / `complete_mcp_nango_session`) and the MCP
+// catalog (`browse_mcp_catalog`); replace with the orval-generated schemas
+// on the next client regeneration.
 export type NangoSessionRequest = { server_url?: string };
 export type NangoSessionResponse = {
   session_token: string;
@@ -79,6 +80,18 @@ export type NangoSessionResponse = {
 export type NangoCompleteRequest = {
   connection_id: string;
   server_name?: string;
+};
+export type CatalogEntryResponse = {
+  name: string;
+  display_name: string;
+  description?: string | null;
+  url: string;
+  icon_url?: string | null;
+  priority: boolean;
+};
+export type CatalogResponse = {
+  servers: CatalogEntryResponse[];
+  next_cursor?: string | null;
 };
 
 /** Error code for deployments where Nango MCP connect is not configured. */
@@ -403,6 +416,28 @@ export const cognitionApiServiceClient = {
           },
         }
       )
+    ).map((result) => result);
+  },
+
+  /**
+   * Browse or search the catalog of connectable MCP servers. Curated
+   * priority connectors come first (flagged `priority`), followed by
+   * results from the public MCP registry.
+   */
+  async browseMcpCatalog(args: {
+    search?: string;
+    cursor?: string;
+    limit?: number;
+  }) {
+    const params = new URLSearchParams();
+    if (args.search) params.set('search', args.search);
+    if (args.cursor) params.set('cursor', args.cursor);
+    if (args.limit) params.set('limit', String(args.limit));
+    const query = params.size > 0 ? `?${params}` : '';
+    return (
+      await dcsFetch<CatalogResponse>(`/mcp/servers/catalog${query}`, {
+        method: 'GET',
+      })
     ).map((result) => result);
   },
 

@@ -1,6 +1,6 @@
 import {
   FEATURED_MCP_SERVERS,
-  type FeaturedMcpServer,
+  mcpUrlAvailableInEnv,
   mcpUrlSupportsNango,
   QUICK_CONNECT_ICON_MAP,
   type SvgIcon,
@@ -14,16 +14,18 @@ import {
   connectMcpServerViaNango,
   useAddMcpServerMutation,
   useDeleteMcpServerMutation,
+  useMcpCatalogQuery,
   useMcpServersQuery,
   useStartMcpAuthMutation,
   useUpdateMcpServerMutation,
 } from '@queries/mcp-servers';
+import type { CatalogEntryResponse } from '@service-cognition/client';
 import type {
   ServerResponse,
   StartAuthResponse,
 } from '@service-cognition/generated/schemas';
 import { Button, Dialog, Panel, ToggleSwitch } from '@ui';
-import { createEffect, createSignal, For, Show } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import { ConnectAction } from './integration-ui';
 import { IntegrationRow, SettingsCard, SettingsSection } from './primitives';
 
@@ -405,12 +407,11 @@ function ServerRow(props: { server: ServerResponse }) {
 }
 
 /**
- * A featured integration the user hasn't connected yet, shown inline in the
- * integrations list (rather than only inside the "Add server" dialog) to make
- * connecting a one-click affair. Once connected, the server shows up as a
- * regular {@link ServerRow} instead.
+ * A connectable server from the catalog the user hasn't connected yet, shown
+ * inline in the integrations list to make connecting a one-click affair.
+ * Once connected, the server shows up as a regular {@link ServerRow} instead.
  */
-function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
+function CatalogRow(props: { entry: CatalogEntryResponse }) {
   const addMutation = useAddMcpServerMutation();
   const authMutation = useStartMcpAuthMutation();
   const [nangoBusy, setNangoBusy] = createSignal(false);
@@ -421,17 +422,17 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
   const legacyConnect = async () => {
     try {
       await addMutation.mutateAsync({
-        server_name: props.server.server_name,
-        url: props.server.url,
+        server_name: props.entry.display_name,
+        url: props.entry.url,
       });
     } catch {
-      toast.failure(`Failed to add ${props.server.server_name}`);
+      toast.failure(`Failed to add ${props.entry.display_name}`);
       return;
     }
     try {
       const result: StartAuthResponse = await authMutation.mutateAsync({
-        server_name: props.server.server_name,
-        server_url: props.server.url,
+        server_name: props.entry.display_name,
+        server_url: props.entry.url,
       });
       window.open(result.authorization_url, '_blank');
     } catch {
@@ -441,23 +442,23 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
 
   const handleConnect = async () => {
     if (nangoBusy()) return;
-    if (props.server.supportsNango === false) {
+    if (!mcpUrlSupportsNango(props.entry.url)) {
       await legacyConnect();
       return;
     }
     setNangoBusy(true);
     try {
       const outcome = await connectMcpServerViaNango({
-        serverUrl: props.server.url,
-        serverName: props.server.server_name,
+        serverUrl: props.entry.url,
+        serverName: props.entry.display_name,
       });
       if (outcome === 'unsupported') {
         await legacyConnect();
       } else if (outcome === 'connected') {
-        toast.success(`${props.server.server_name} connected`);
+        toast.success(`${props.entry.display_name} connected`);
       }
     } catch {
-      toast.failure(`Failed to connect ${props.server.server_name}`);
+      toast.failure(`Failed to connect ${props.entry.display_name}`);
     } finally {
       setNangoBusy(false);
     }
@@ -465,9 +466,9 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
 
   return (
     <IntegrationRow
-      icon={<props.server.icon class="size-5" />}
-      title={props.server.server_name}
-      description={props.server.tagline}
+      icon={<CatalogIcon entry={props.entry} />}
+      title={props.entry.display_name}
+      description={props.entry.description ?? hostFromUrl(props.entry.url)}
     >
       <ConnectAction
         label="Connect"
@@ -479,18 +480,109 @@ function FeaturedServerRow(props: { server: FeaturedMcpServer }) {
 }
 
 /**
+ * Connector icon: our bundled SVG for the servers we ship icons for, the
+ * registry-provided icon otherwise, and a generic plug as the fallback.
+ */
+function CatalogIcon(props: { entry: CatalogEntryResponse }) {
+  const BundledIcon = () => QUICK_CONNECT_ICON_MAP.get(props.entry.url);
+  return (
+    <Show
+      when={BundledIcon()}
+      fallback={
+        <Show
+          when={props.entry.icon_url}
+          fallback={<PlugIcon class="size-5" />}
+        >
+          {(iconUrl) => (
+            <img
+              src={iconUrl()}
+              alt=""
+              loading="lazy"
+              class="size-5 rounded object-contain"
+            />
+          )}
+        </Show>
+      }
+    >
+      {(Icon) => {
+        const C = Icon();
+        return <C class="size-5" />;
+      }}
+    </Show>
+  );
+}
+
+/**
+ * Featured connectors as catalog entries, for when the catalog API is
+ * unavailable (or still loading): the same curated list the backend pins,
+ * derived from the bundled presets so the section never renders empty.
+ */
+const FALLBACK_FEATURED: CatalogEntryResponse[] = FEATURED_MCP_SERVERS.map(
+  (server) => ({
+    name: server.server_name,
+    display_name: server.server_name,
+    description: server.tagline,
+    url: server.url,
+    icon_url: null,
+    priority: true,
+  })
+);
+
+/**
  * The "MCP integrations" section of the Connections page: MCP servers the
- * user has connected, followed by the preset suggestions they haven't, with
- * custom servers behind the "Add server" dialog.
+ * user has connected, then the curated featured connectors they haven't,
+ * then a searchable catalog of every connectable server from the public MCP
+ * registry — with custom servers behind the "Add server" dialog.
  */
 export function IntegrationsSection() {
   const serversQuery = useMcpServersQuery();
   const [showAddDialog, setShowAddDialog] = createSignal(false);
 
+  const [searchInput, setSearchInput] = createSignal('');
+  const [search, setSearch] = createSignal('');
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  const onSearchInput = (value: string) => {
+    setSearchInput(value);
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => setSearch(value), 250);
+  };
+  onCleanup(() => clearTimeout(debounceTimer));
+
+  const catalogQuery = useMcpCatalogQuery(search);
+  // Separate un-searched instance backing the featured section, so it stays
+  // put while the user types in the catalog search below. Same cache entry
+  // as browsing with an empty search, so this costs no extra request.
+  const featuredQuery = useMcpCatalogQuery(() => '');
+
   const servers = () => serversQuery.data ?? [];
   const existingUrls = () => new Set(servers().map((s) => s.url));
-  const suggestions = () =>
-    FEATURED_MCP_SERVERS.filter((s) => !existingUrls().has(s.url));
+
+  const offered = (entry: CatalogEntryResponse) =>
+    mcpUrlAvailableInEnv(entry.url) && !existingUrls().has(entry.url);
+
+  const catalogEntries = () =>
+    (catalogQuery.data?.pages ?? [])
+      .flatMap((page) => page.servers)
+      .filter(offered);
+
+  // The featured section always shows the full curated list, served from the
+  // presets bundled with the app until the catalog answers — the backend
+  // pins the same list, so nothing jumps when it does.
+  const featured = () => {
+    const entries = (featuredQuery.data?.pages ?? [])
+      .flatMap((page) => page.servers)
+      .filter((entry) => entry.priority)
+      .filter(offered);
+    return entries.length > 0 ? entries : FALLBACK_FEATURED.filter(offered);
+  };
+
+  // Searching shows every match, with featured connectors ranked first by
+  // the backend (flagged `priority`); browsing shows only organic registry
+  // results, since the full featured list already sits above.
+  const browseResults = () =>
+    search().trim()
+      ? catalogEntries()
+      : catalogEntries().filter((entry) => !entry.priority);
 
   return (
     <SettingsSection
@@ -530,11 +622,75 @@ export function IntegrationsSection() {
           <For each={servers()}>
             {(server) => <ServerRow server={server} />}
           </For>
-          <For each={suggestions()}>
-            {(server) => <FeaturedServerRow server={server} />}
-          </For>
+          <For each={featured()}>{(entry) => <CatalogRow entry={entry} />}</For>
         </SettingsCard>
       </Show>
+
+      <SettingsCard>
+        <div class="px-4 py-3">
+          <input
+            type="search"
+            class="settings-input w-full"
+            placeholder="Search all connectors..."
+            value={searchInput()}
+            onInput={(e) => onSearchInput(e.currentTarget.value)}
+          />
+        </div>
+
+        <Show when={catalogQuery.isError}>
+          <div class="px-6 py-6 text-center text-sm text-ink-muted">
+            Couldn't load the connector catalog.
+            <Button
+              variant="base"
+              size="sm"
+              depth={3}
+              onClick={() => catalogQuery.refetch()}
+              class="ml-2"
+            >
+              Retry
+            </Button>
+          </div>
+        </Show>
+
+        <Show when={!catalogQuery.isError}>
+          <For each={browseResults()}>
+            {(entry) => <CatalogRow entry={entry} />}
+          </For>
+
+          <Show when={catalogQuery.isFetching && browseResults().length === 0}>
+            <div class="px-6 py-6 text-center text-sm text-ink-muted">
+              Loading connectors...
+            </div>
+          </Show>
+
+          <Show
+            when={
+              !catalogQuery.isFetching &&
+              browseResults().length === 0 &&
+              search().trim()
+            }
+          >
+            <div class="px-6 py-6 text-center text-sm text-ink-muted">
+              No connectors found for "{search().trim()}". You can still add one
+              by URL with "Add server".
+            </div>
+          </Show>
+
+          <Show when={catalogQuery.hasNextPage}>
+            <div class="px-4 py-3 text-center">
+              <Button
+                variant="base"
+                size="sm"
+                depth={3}
+                disabled={catalogQuery.isFetchingNextPage}
+                onClick={() => void catalogQuery.fetchNextPage()}
+              >
+                {catalogQuery.isFetchingNextPage ? 'Loading...' : 'Load more'}
+              </Button>
+            </div>
+          </Show>
+        </Show>
+      </SettingsCard>
 
       <AddServerForm open={showAddDialog()} onOpenChange={setShowAddDialog} />
     </SettingsSection>

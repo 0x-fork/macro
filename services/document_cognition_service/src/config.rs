@@ -36,6 +36,9 @@ maybe_env_vars!(
     /// Nango integration ID (provider config key) for MCP server auth.
     /// Defaults to `mcp-generic`, Nango's generic MCP OAuth2 integration.
     pub struct NangoMcpIntegrationId;
+    /// Base URL of the public MCP server registry backing the connector
+    /// catalog. Defaults to `https://registry.modelcontextprotocol.io`.
+    pub struct McpRegistryUrl;
 );
 
 /// The configuration parameters for the application.
@@ -81,6 +84,8 @@ pub struct Config {
     pub nango_api_url: NangoApiUrl,
     /// Nango integration ID (provider config key) for MCP server auth.
     pub nango_mcp_integration_id: NangoMcpIntegrationId,
+    /// Base URL of the public MCP server registry backing the connector catalog.
+    pub mcp_registry_url: McpRegistryUrl,
     /// The internal api key
     pub internal_api_key: InternalApiKey,
     /// AI editing worker URL
@@ -138,6 +143,7 @@ impl Config {
             nango_secret_key: NangoSecretKey::Unset,
             nango_api_url: NangoApiUrl::Unset,
             nango_mcp_integration_id: NangoMcpIntegrationId::Unset,
+            mcp_registry_url: McpRegistryUrl::Unset,
             internal_api_key: InternalApiKey::Comptime(""),
             ai_editing_worker_url: AiEditingWorkerUrl::unwrap_new().to_string(),
             document_permission_jwt: DocumentPermissionJwt::Comptime("DOCUMENT_PERMISSION_JWT"),
