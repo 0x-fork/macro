@@ -1,4 +1,6 @@
 /// Kafka event models for the `macro.chats` topic.
+/// Event-to-activity mappings for this domain.
+pub mod activity;
 pub mod events;
 /// Types used by the chat domain ports.
 pub mod models;

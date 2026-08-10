@@ -9,6 +9,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 
 [[package]]
+name = "activity"
+version = "0.1.0"
+dependencies = [
+ "channel_sender",
+ "chrono",
+ "kafka_util",
+ "macro_db_migrator",
+ "macro_event_broker",
+ "macro_user_id",
+ "model-entity",
+ "rdkafka",
+ "readonly",
+ "rootcause",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "strum 0.27.2",
+ "tokio",
+ "tracing",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2545,6 +2569,7 @@ dependencies = [
 name = "call"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "agent",
  "ai_toolset",
  "ai_usage",
@@ -2763,6 +2788,7 @@ dependencies = [
 name = "channels"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "ai_toolset",
  "anyhow",
  "async-trait",
@@ -2830,6 +2856,7 @@ dependencies = [
 name = "chat"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "agent",
  "ai_toolset",
  "anyhow",
@@ -4408,6 +4435,7 @@ dependencies = [
 name = "document_storage_service"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "ai_tools",
  "ai_usage",
  "analytics_client",
@@ -4629,6 +4657,7 @@ dependencies = [
 name = "documents"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "ai_toolset",
  "ai_usage",
  "anyhow",
@@ -4930,6 +4959,7 @@ dependencies = [
 name = "email"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "ai_toolset",
  "anyhow",
  "async-trait",
@@ -11460,6 +11490,7 @@ dependencies = [
 name = "projects"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "ai_toolset",
  "anyhow",
  "async-recursion",
@@ -11529,6 +11560,7 @@ dependencies = [
 name = "properties"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "ai_toolset",
  "anyhow",
  "async-trait",
@@ -12040,6 +12072,17 @@ dependencies = [
  "num_enum",
  "openssl-sys",
  "pkg-config",
+]
+
+[[package]]
+name = "readonly"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67a77cd6f1a55ff3cb1969c2618f73107efaa6de1daf796ad60ce8f737ae97c1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.3",
 ]
 
 [[package]]
@@ -14512,6 +14555,17 @@ name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e665b8803e7b1d2a727f4023456bbbbe74da67099c585258af0ad9c5013b9b99"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53e9bae58849f64dfa4f5d5ae372c8341f7305f82a3868709269343628b659a3"
 dependencies = [
  "proc-macro2",
  "quote",

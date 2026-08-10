@@ -2,6 +2,8 @@
 
 /// Unified entity-mutation capability impls.
 #[cfg(feature = "service")]
+/// Event-to-activity mappings for this domain.
+pub mod activity;
 pub mod entity_mutation;
 pub mod events;
 pub mod models;

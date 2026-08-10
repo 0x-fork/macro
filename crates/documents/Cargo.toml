@@ -69,6 +69,7 @@ schema = ["dep:utoipa", "macro_user_id/schema"]
 service = ["dep:entity_access_management", "dep:foreign_entity", "ports"]
 
 [dependencies]
+activity = { path = "../activity", default-features = false }
 # Core
 anyhow = { workspace = true }
 chrono = { workspace = true }
