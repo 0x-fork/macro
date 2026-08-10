@@ -59,7 +59,7 @@ fn permanent_delete_purges_the_whole_cascade() {
             parent_project_id: None,
             purged_project_ids: vec!["proj-2".to_string()],
             purged_document_ids: vec!["doc-1".to_string()],
-            purged_chat_ids: vec![],
+            purged_chat_ids: vec!["chat-1".to_string()],
         },
     ));
 
@@ -69,6 +69,7 @@ fn permanent_delete_purges_the_whole_cascade() {
             (EntityType::Project, "proj-1".to_string()),
             (EntityType::Project, "proj-2".to_string()),
             (EntityType::Document, "doc-1".to_string()),
+            (EntityType::Chat, "chat-1".to_string()),
         ])
     );
 }

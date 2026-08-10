@@ -75,19 +75,24 @@ impl ActivitySource for EmailTopicEvent {
         };
 
         match self {
-            EmailTopicEvent::MessageSent(m) => match &m.actor {
-                Some(actor) => Ingest::Insert(vec![Activity::from_domain(
-                    event_id,
-                    0,
-                    Actor::new_from_user(actor.clone()),
-                    None,
-                    EmailThreadActivity {
-                        thread_id: m.thread_id.to_string(),
-                        action: EmailThreadAction::Sent,
-                    },
-                    now(),
-                )]),
-                None => Ingest::Ignore,
+            // Sent counts only when the user sent from Macro; a send synced
+            // from another client (provider_sync) still carries the actor
+            // but is not an act performed here.
+            EmailTopicEvent::MessageSent(m) => match (&m.actor, &m.origin) {
+                (Some(actor), EmailEventOrigin::UserAction) => {
+                    Ingest::Insert(vec![Activity::from_domain(
+                        event_id,
+                        0,
+                        Actor::new_from_user(actor.clone()),
+                        None,
+                        EmailThreadActivity {
+                            thread_id: m.thread_id.to_string(),
+                            action: EmailThreadAction::Sent,
+                        },
+                        now(),
+                    )])
+                }
+                _ => Ingest::Ignore,
             },
             EmailTopicEvent::ThreadArchived(m) => user_edit(&m.actor, &m.origin, m.thread_id),
             EmailTopicEvent::ThreadTrashed(m) => user_edit(&m.actor, &m.origin, m.thread_id),

@@ -20,6 +20,13 @@ fn envelope(event: EmailTopicEvent) -> Event<EmailTopicEvent> {
 const THREAD_ID: Uuid = Uuid::from_u128(9);
 
 fn sent(actor: Option<MacroUserIdStr<'static>>) -> MessageSentMetadata {
+    sent_with_origin(actor, EmailEventOrigin::UserAction)
+}
+
+fn sent_with_origin(
+    actor: Option<MacroUserIdStr<'static>>,
+    origin: EmailEventOrigin,
+) -> MessageSentMetadata {
     MessageSentMetadata {
         link_id: Uuid::from_u128(1),
         owner: user("macro|owner@example.com"),
@@ -32,7 +39,7 @@ fn sent(actor: Option<MacroUserIdStr<'static>>) -> MessageSentMetadata {
         to_emails: vec![],
         cc_emails: vec![],
         sent_at: Utc::now(),
-        origin: EmailEventOrigin::UserAction,
+        origin,
     }
 }
 
@@ -47,6 +54,15 @@ fn user_sent_message_maps_to_sent_activity() {
     assert_eq!(activities[0].action, Action::Sent);
     assert_eq!(activities[0].entity_type, EntityType::EmailThread);
     assert_eq!(activities[0].entity_id, THREAD_ID.to_string());
+}
+
+#[test]
+fn provider_synced_send_is_dropped_even_with_an_actor() {
+    let event = envelope(EmailTopicEvent::MessageSent(sent_with_origin(
+        Some(user("macro|teo@example.com")),
+        EmailEventOrigin::ProviderSync,
+    )));
+    assert_eq!(event.event.ingest(event.event_id), Ingest::Ignore);
 }
 
 #[test]
