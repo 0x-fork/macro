@@ -2,7 +2,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import { isPlatform } from '@core/util/platform';
 import { makePersisted } from '@solid-primitives/storage';
 import { cn } from '@ui';
-import { createSignal, onCleanup, Show, splitProps } from 'solid-js';
+import { createSignal, type JSX, onCleanup, Show, splitProps } from 'solid-js';
 import { ChannelInput, type ChannelInputProps } from './ChannelInput';
 import { Input } from './Input';
 import { TaskComposer, type TaskComposerSendPayload } from './TaskComposer';
@@ -19,11 +19,18 @@ export type TaskModeChannelInputProps = Omit<
   onSendTask: (task: TaskComposerSendPayload) => void;
   /** Persistence keys for the task draft and selected input mode. */
   taskPersistence?: InputTaskPersistence;
+  /**
+   * Optional affordance rendered to the right of the task mode switch in
+   * message mode (e.g. the channel's invite-teammates action). Shares the
+   * switch's visibility so it never appears without its anchor.
+   */
+  inviteAction?: JSX.Element;
 };
 
 function MessageModeActions(props: {
   canUseTaskMode: boolean;
   onEnterTaskMode: () => void;
+  inviteAction?: JSX.Element;
 }) {
   return (
     <Show
@@ -38,6 +45,7 @@ function MessageModeActions(props: {
                 checked={false}
                 onChange={props.onEnterTaskMode}
               />
+              {props.inviteAction}
             </Show>
           </Input.Actions.Left>
           <Input.Actions.Right>
@@ -67,6 +75,7 @@ function MessageModeActions(props: {
 export function TaskModeChannelInput(props: TaskModeChannelInputProps) {
   const [local, inputProps] = splitProps(props, [
     'autofocus',
+    'inviteAction',
     'onReady',
     'onSendTask',
     'taskPersistence',
@@ -184,6 +193,7 @@ export function TaskModeChannelInput(props: TaskModeChannelInputProps) {
       <MessageModeActions
         canUseTaskMode={canUseTaskMode()}
         onEnterTaskMode={() => setTaskMode(true)}
+        inviteAction={local.inviteAction}
       />
     </ChannelInput>
   );

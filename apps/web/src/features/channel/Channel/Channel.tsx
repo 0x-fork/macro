@@ -17,6 +17,7 @@ import {
   SearchHighlightTermsProvider,
 } from '@channel/Message';
 import { MaybeMessageActionDrawerManager } from '@channel/Mobile/MessageActionDrawerManager';
+import { InviteTeammatesAction } from '@channel/Participants/InviteTeammatesAction';
 import { useChannelBotMentionUsers } from '@channel/use-channel-bot-mention-users';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { FloatRegionOrInline } from '@components/app/mobile/float-regions/FloatRegion';
@@ -927,6 +928,11 @@ export function Channel(props: ChannelProps) {
                           taskPersistence={makeTaskPersistence({
                             channelId: props.channelId,
                           })}
+                          inviteAction={
+                            <InviteTeammatesAction
+                              channelId={props.channelId}
+                            />
+                          }
                           onStartTyping={() =>
                             typingMutation.mutate({
                               channelId: props.channelId,

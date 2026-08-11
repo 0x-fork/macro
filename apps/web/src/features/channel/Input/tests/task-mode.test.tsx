@@ -290,6 +290,21 @@ describe('Channel input task mode', () => {
     expect(screen.getByTestId('task-composer')).toBeTruthy();
   });
 
+  it('renders the invite action immediately after the task mode switch', () => {
+    render(() => (
+      <TaskModeChannelInput
+        input={baseInput}
+        onSendTask={() => {}}
+        inviteAction={<button type="button" data-testid="invite-action" />}
+      />
+    ));
+
+    // The pill (Kobalte switch root) is the label's parent; the invite action
+    // slot must be its immediate sibling so it sits to the toggle's right.
+    const pill = screen.getByText('Task').parentElement as HTMLElement;
+    expect(pill.nextElementSibling).toBe(screen.getByTestId('invite-action'));
+  });
+
   it('enters task mode from clicks on the switch pill itself, not just the control', async () => {
     const user = userEvent.setup();
     render(() => (
