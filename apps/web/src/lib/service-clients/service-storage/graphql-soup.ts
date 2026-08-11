@@ -39,6 +39,9 @@ import {
   type GroupSoupQuery,
   GroupSoupDocument as GroupSoupQueryDocument,
   type GroupSoupQueryVariables,
+  SoupBackfillDocument,
+  type SoupBackfillQuery,
+  type SoupBackfillQueryVariables,
   type SoupInitialInput,
   type SoupInput,
   type SoupPropertyFieldsFragment,
@@ -799,20 +802,17 @@ export async function fetchGraphqlSoup(
 ): Promise<SoupPage> {
   const client = getGraphqlSoupClient();
   const useCache = graphqlCacheEnabled();
+  const variables: SoupQueryVariables = { input };
 
   // `cache-and-network` writes responses through the normalized cache;
   // `.toPromise()` skips the stale cache emission, so callers keep
   // network-fresh semantics. Reactive urql consumers will see the
   // stale-then-fresh stream once components migrate.
   const result = await client
-    .query<SoupQuery, SoupQueryVariables>(
-      SoupQueryDocument,
-      { input },
-      {
-        ...(useCache ? { requestPolicy: 'cache-and-network' as const } : {}),
-        ...(options.signal ? { fetchOptions: { signal: options.signal } } : {}),
-      }
-    )
+    .query<SoupQuery, SoupQueryVariables>(SoupQueryDocument, variables, {
+      ...(useCache ? { requestPolicy: 'cache-and-network' as const } : {}),
+      ...(options.signal ? { fetchOptions: { signal: options.signal } } : {}),
+    })
     .toPromise();
 
   if (result.error) {
@@ -823,11 +823,9 @@ export async function fetchGraphqlSoup(
       result.error.networkError
     ) {
       const cached = await client
-        .query<SoupQuery, SoupQueryVariables>(
-          SoupQueryDocument,
-          { input },
-          { requestPolicy: 'cache-only' }
-        )
+        .query<SoupQuery, SoupQueryVariables>(SoupQueryDocument, variables, {
+          requestPolicy: 'cache-only',
+        })
         .toPromise();
       if (cached.data) {
         return mapGraphqlSoupPage(cached.data);
@@ -842,6 +840,30 @@ export async function fetchGraphqlSoup(
   }
 
   return mapGraphqlSoupPage(data);
+}
+
+/** Fetches one network-only page for normalized-cache backfills. */
+export async function fetchGraphqlSoupBackfill(
+  input: GraphqlSoupInput,
+  options: Pick<FetchGraphqlSoupOptions, 'signal'> = {}
+): Promise<SoupPage> {
+  const result = await getGraphqlSoupClient()
+    .query<SoupBackfillQuery, SoupBackfillQueryVariables>(
+      SoupBackfillDocument,
+      { input },
+      {
+        requestPolicy: 'network-only',
+        ...(options.signal ? { fetchOptions: { signal: options.signal } } : {}),
+      }
+    )
+    .toPromise();
+
+  if (result.error) throw result.error;
+  if (!result.data) {
+    throw new Error('GraphQL Soup backfill query returned no data');
+  }
+
+  return mapGraphqlSoupPage(result.data);
 }
 
 /** Fetch grouped Soup bins through the GraphQL endpoint. */
