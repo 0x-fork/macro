@@ -16,7 +16,7 @@
  *   channel does not end up with the turn twice.
  */
 
-import type { FoldedMessage } from '@core/agent-fold/types';
+import type { FoldedMessage } from '@service-agent-fold/generated/types';
 import type { ApiChannelMessage } from '@service-storage/client';
 import type { ApiMessageSender } from '@service-storage/generated/schemas/apiMessageSender';
 import type { SessionBotDto } from '@service-storage/generated/schemas/sessionBotDto';

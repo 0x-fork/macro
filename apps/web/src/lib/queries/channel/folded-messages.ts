@@ -1,5 +1,5 @@
-import type { FoldedMessage } from '@core/agent-fold/types';
 import { throwOnErr } from '@core/util/result';
+import type { FoldedMessage } from '@service-agent-fold/generated/types';
 import { storageServiceClient } from '@service-storage/client';
 import { useQueryClient } from '@tanstack/solid-query';
 import {

@@ -1,5 +1,5 @@
-import type { FoldedMessage } from '@core/agent-fold/types';
 import type { FoldedMessageLookup } from '@queries/channel/folded-messages';
+import type { FoldedMessage } from '@service-agent-fold/generated/types';
 import { describe, expect, it } from 'vitest';
 import { duplicatePromptRowIds } from '../hide-duplicate-prompts';
 
@@ -13,8 +13,10 @@ function folded(
   return {
     agentSessionMessageId: `${SESSION}:${turn}:${kind}`,
     turn,
-    author: kind === 'user' ? { kind: 'user' } : { kind: 'agent' },
+    author:
+      kind === 'user' ? { kind: 'user', userId: null } : { kind: 'agent' },
     parts: [{ kind: 'text', text }],
+    stop: null,
   };
 }
 
