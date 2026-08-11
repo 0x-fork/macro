@@ -6280,6 +6280,7 @@ dependencies = [
  "activity",
  "async-graphql",
  "chrono",
+ "futures",
  "graphql_common",
  "macro_user_id",
  "model-entity",
