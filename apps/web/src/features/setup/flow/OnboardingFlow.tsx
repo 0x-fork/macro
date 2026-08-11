@@ -276,9 +276,7 @@ function FlowContent() {
   // bookkeeping): whether an MCP server authenticated, and which tools the
   // user connected. Drives the hero-module states and the build phrases.
   const serverAuthed = (name: string) =>
-    (serversQuery.data ?? []).some(
-      (server) => server.server_name === name && server.authenticated
-    );
+    (serversQuery.data ?? []).some((server) => server.server_name === name);
   const connectedTools = (): ConnectedTools => ({
     google: (linksQuery.data?.links.length ?? 0) > 0,
     linear: serverAuthed('Linear'),
@@ -412,9 +410,9 @@ function FlowContent() {
   const finish = createFlowFinish({
     completionRollup: () => ({
       emails_connected: linksQuery.data?.links.length ?? 0,
-      connectors_connected: (serversQuery.data ?? [])
-        .filter((server) => server.authenticated)
-        .map((server) => server.server_name.toLowerCase()),
+      connectors_connected: (serversQuery.data ?? []).map((server) =>
+        server.server_name.toLowerCase()
+      ),
     }),
   });
   const controls: StepControls = {

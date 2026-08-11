@@ -1,78 +1,66 @@
 # mcp_client
 
-Outbound MCP integration: lets users connect third-party MCP servers
-(Linear, Notion, PostHog, custom servers, …) whose tools the AI agent can
-then call. Hosted by `document_cognition_service`, which mounts the
-`/mcp/servers*` routes and builds per-request toolsets from the user's
-connected servers.
+MCP connector integration: users connect the apps their team uses (Linear,
+Notion, Slack, GitHub, …) and the AI agent calls those apps' tools. Hosted
+by `document_cognition_service`, which mounts the `/mcp/servers*` routes and
+builds per-request toolsets from the user's connected apps.
 
-## Authorization paths
+## Pipedream: the single connect path
 
-There are two ways a server's OAuth grant can be managed. Records in
-`mcp_servers` carry whichever the user connected with; both kinds work side
-by side.
+[Pipedream Connect](https://pipedream.com/docs/connect) owns the entire
+account lifecycle: the consent flow (hosted Connect UI), OAuth apps for
+~2,500 providers (no per-provider OAuth app registration on our side),
+credential storage, and token refresh. Tool calls go through Pipedream's
+remote MCP server, which injects each account's credentials server-side —
+no tokens ever transit or persist in our systems. We store only the app
+slug and the Pipedream connected-account ID per user.
 
-### Nango (preferred)
-
-[Nango](https://nango.dev) owns the entire OAuth lifecycle: endpoint
-discovery, dynamic client registration (DCR/CIMD), the consent flow (in
-Nango's hosted Connect UI), token storage, and refresh. We store only the
-`nango_connection_id` and fetch a fresh access token at connect time
-(cached in-process, see `outbound/nango.rs`), presenting it as a plain
-bearer. This works for **any** spec-compliant MCP server that supports
-automatic client registration — users can connect arbitrary servers by URL.
+There is deliberately **no fallback auth path**: no in-house OAuth, no
+per-provider client IDs. A deployment without Pipedream credentials answers
+501 on the connect/catalog endpoints and builds empty MCP toolsets.
 
 Flow:
 
-1. Frontend `POST /mcp/servers/nango/session` (optionally with a
-   `server_url` to pre-fill) → short-lived Connect session token.
-2. Frontend opens Nango's Connect UI (iframe) with that token; the user
-   authorizes; the UI reports a `connectionId`.
-3. Frontend `POST /mcp/servers/nango/complete` with the connection ID. The
-   backend verifies with Nango that the connection exists and was created
+1. Frontend `POST /mcp/servers/pipedream/token` → short-lived Connect token
+   minted for the user.
+2. Frontend opens Pipedream's hosted Connect UI (iframe) for the chosen app;
+   the user authorizes; the UI reports a connected-account ID.
+3. Frontend `POST /mcp/servers/pipedream/complete` with the account ID. The
+   backend verifies with Pipedream that the account exists and was connected
    for this user, then upserts the `mcp_servers` row and fires the
    auth-completed hook (imports start immediately).
 
-Setup (per environment):
-
-1. In the Nango dashboard, create an integration of type **MCP Server
-   OAuth2 (Generic)** with the ID `mcp-generic` (or set
-   `NANGO_MCP_INTEGRATION_ID` to whatever ID you choose).
-2. Add the environment's secret key to doppler as `NANGO_SECRET_KEY` for
-   `document_cognition_service`.
-3. Optional: `NANGO_API_URL` (defaults to `https://api.nango.dev`).
-
-Without `NANGO_SECRET_KEY` the Nango endpoints answer 501 and the frontend
-falls back to the legacy flow, so local dev works unconfigured.
-
-### Legacy in-house OAuth
-
-The original flow: this crate drives the PKCE handshake itself
-(`outbound/oauth.rs`), stores AES-256-GCM-encrypted tokens in Postgres, and
-refreshes them via `PersistingCredentialStore`. Still used for servers that
-require a pre-registered OAuth client instead of DCR (GitHub Copilot MCP,
-Slack — see `domain/provider_registry`) and for existing connections made
-before Nango.
+Tool calls: `McpToolSet` connects to `remote.mcp.pipedream.net` per enabled
+app with the project's OAuth access token (client-credentials grant, cached)
+plus `x-pd-project-id` / `x-pd-environment` / `x-pd-external-user-id` /
+`x-pd-app-slug` headers and `x-pd-tool-mode: tools-only`.
 
 ## Connector catalog
 
-`GET /mcp/servers/catalog` advertises what users can connect: a curated list
-of priority connectors (pinned first, flagged `priority` so clients can show
-them as a featured section) merged with search results from the public
-[MCP registry](https://registry.modelcontextprotocol.io), filtered to
-active, latest-version servers with a streamable HTTP remote. To promote a
-connector, add it to `PRIORITY_CONNECTORS` in `domain/service/catalog.rs`.
-Registry pages are cached in-process for 5 minutes. Optional
-`MCP_REGISTRY_URL` env var overrides the registry base URL.
+`GET /mcp/servers/catalog` advertises what users can connect: a curated
+list of priority connectors (pinned first, flagged `priority` so clients
+can show them as a featured section) merged with search results from
+Pipedream's app directory. To promote a connector, add it to
+`PRIORITY_CONNECTORS` in `domain/service/catalog.rs`.
+
+## Setup (per environment)
+
+1. Create a Pipedream Connect project (pipedream.com), one per deploy
+   environment (its `development`/`production` split maps to ours).
+2. Add to doppler for `document_cognition_service`: `PIPEDREAM_CLIENT_ID`,
+   `PIPEDREAM_CLIENT_SECRET` (project OAuth client), and
+   `PIPEDREAM_PROJECT_ID` (`proj_...`).
+3. Optional: `PIPEDREAM_ENVIRONMENT` (defaults to `production` in prd,
+   `development` elsewhere), `PIPEDREAM_API_URL`, `PIPEDREAM_MCP_URL`.
 
 ## Key pieces
 
 - `domain/service/toolset.rs` — `McpToolSet` / `CombinedToolSet`: connect
-  to the user's enabled servers, mangle tool names as
-  `mcp__<server>__<tool>`, dispatch calls.
-- `outbound/nango_resolving_store.rs` — store decorator that resolves
-  fresh Nango tokens into records at load time, so toolset and import code
-  don't know Nango exists.
-- `domain/service/nango_connect.rs` — connection-completion policy
-  (ownership verification) and server disconnect.
+  to the user's enabled apps, mangle tool names as `mcp__<name>__<tool>`,
+  dispatch calls.
+- `domain/service/pipedream_connect.rs` — connection-completion policy
+  (ownership verification) and disconnect.
+- `domain/service/catalog.rs` — the catalog merge and the curated priority
+  list.
+- `outbound/pipedream.rs` — the Pipedream REST + remote MCP adapter.
 - `inbound/axum_router.rs` — the `/mcp/servers*` HTTP surface.

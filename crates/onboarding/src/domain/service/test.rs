@@ -2,7 +2,7 @@ use super::*;
 use import::domain::models::ImportState;
 use import::domain::ports::Result as ImportResult;
 use import::domain::service::RunImportOutcome;
-use mcp_client::domain::models::{McpServerRecord, StoredCredentials};
+use mcp_client::domain::models::McpServerRecord;
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -180,16 +180,13 @@ impl ImportService for MockImport {
     }
 }
 
-fn record(url: &str, authenticated: bool) -> McpServerRecord {
+fn record(app_slug: &str) -> McpServerRecord {
     McpServerRecord {
         user_id: user(),
-        url: url.to_string(),
-        server_name: url.to_string(),
-        credentials: authenticated
-            .then(|| StoredCredentials::new("client".into(), None, Vec::new(), None)),
+        app_slug: app_slug.to_string(),
+        server_name: app_slug.to_string(),
+        account_id: format!("apn_{app_slug}"),
         enabled: true,
-        nango_connection_id: None,
-        bearer_token: None,
     }
 }
 
@@ -212,18 +209,17 @@ fn service(
 }
 
 #[tokio::test]
-async fn active_flow_starts_gathers_for_authenticated_connectors_only() {
+async fn active_flow_starts_gathers_for_connected_import_sources_only() {
     let (service, import) = service(
         OnboardingStatus::Active,
         vec![
-            record("https://mcp.linear.app/mcp", true),
-            record("https://mcp.notion.com/mcp", false), // not authed yet
-            record("https://unrelated.example/mcp", true), // not an import source
+            record("linear"),
+            record("airtable"), // not an import source
         ],
     );
 
     let state = service.get_state(user()).await.expect("state");
-    assert_eq!(state.connected_servers.len(), 3);
+    assert_eq!(state.connected_servers.len(), 2);
     assert_eq!(
         import.gathers.lock().unwrap().as_slice(),
         &[(ImportSource::Linear, true)]
@@ -232,10 +228,7 @@ async fn active_flow_starts_gathers_for_authenticated_connectors_only() {
 
 #[tokio::test]
 async fn completed_flow_never_starts_gathers() {
-    let (service, import) = service(
-        OnboardingStatus::Completed,
-        vec![record("https://mcp.linear.app/mcp", true)],
-    );
+    let (service, import) = service(OnboardingStatus::Completed, vec![record("linear")]);
 
     service.get_state(user()).await.expect("state");
     service.reconcile(user()).await.expect("reconcile");
@@ -267,7 +260,7 @@ async fn reconcile_ignores_users_who_never_entered_the_flow() {
     let service = OnboardingServiceImpl::new(
         MockRepo::missing(),
         Arc::new(MockStore {
-            records: vec![record("https://mcp.linear.app/mcp", true)],
+            records: vec![record("linear")],
         }),
         import.clone(),
     );

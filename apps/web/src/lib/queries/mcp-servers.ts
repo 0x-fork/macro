@@ -1,17 +1,13 @@
-import { openNangoConnectUI } from '@core/nango/connect-ui';
+import { openPipedreamConnectUI } from '@core/pipedream/connect-ui';
 import { ThrownResultError, throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import {
   type CatalogResponse,
   cognitionApiServiceClient,
-  NANGO_DISABLED,
+  type McpServerResponse,
+  type McpUpdateServerRequest,
+  PIPEDREAM_DISABLED,
 } from '@service-cognition/client';
-import type {
-  AddServerRequest,
-  ServerResponse,
-  StartAuthRequest,
-  UpdateServerRequest,
-} from '@service-cognition/generated/schemas';
 import {
   type InfiniteData,
   useInfiniteQuery,
@@ -26,13 +22,13 @@ const KEYS = {
 };
 
 /** Stable placeholder for `neverSuspend` consumers (see below). */
-const NO_SERVERS: ServerResponse[] = [];
+const NO_SERVERS: McpServerResponse[] = [];
 
 export function useMcpServersQuery(options?: {
   /**
-   * Poll for connection changes. OAuth finishes in another tab, and if this
-   * one stayed visible no focus refetch fires — surfaces that must flip
-   * promptly (the setup connector cards) pass a short interval.
+   * Poll for connection changes. Connecting finishes in the Connect UI
+   * iframe, but other tabs never get a focus refetch — surfaces that must
+   * flip promptly (the setup connector cards) pass a short interval.
    */
   refetchInterval?: number;
   /**
@@ -57,9 +53,9 @@ export function useMcpServersQuery(options?: {
 }
 
 /**
- * Browse or search the catalog of connectable MCP servers, paged by cursor.
+ * Browse or search the catalog of connectable MCP apps, paged by cursor.
  * Curated priority connectors arrive first (flagged `priority`), followed by
- * organic results from the public MCP registry.
+ * organic results from Pipedream's app directory.
  */
 export function useMcpCatalogQuery(search: () => string) {
   return useInfiniteQuery(() => ({
@@ -78,7 +74,7 @@ export function useMcpCatalogQuery(search: () => string) {
     staleTime: 5 * 60 * 1000,
     // Serve the previous search's results (or nothing) instead of
     // suspending: first load must not block the settings page on the
-    // registry, and keystrokes must not blank the list while refetching.
+    // directory, and keystrokes must not blank the list while refetching.
     placeholderData: (
       previous: InfiniteData<CatalogResponse, string | undefined> | undefined
     ) => previous ?? { pages: [], pageParams: [] },
@@ -89,12 +85,12 @@ function invalidateMcpServers() {
   return queryClient.invalidateQueries({ queryKey: KEYS.list });
 }
 
-function upsertServer(server: ServerResponse) {
+function upsertServer(server: McpServerResponse) {
   queryClient.setQueryData(
     KEYS.list,
-    (current: ServerResponse[] | undefined) => {
+    (current: McpServerResponse[] | undefined) => {
       if (!current) return [server];
-      const index = current.findIndex((s) => s.url === server.url);
+      const index = current.findIndex((s) => s.app_slug === server.app_slug);
       if (index === -1) return [...current, server];
       const next = [...current];
       next[index] = server;
@@ -103,34 +99,21 @@ function upsertServer(server: ServerResponse) {
   );
 }
 
-function removeServer(url: string) {
+function removeServer(appSlug: string) {
   queryClient.setQueryData(
     KEYS.list,
-    (current: ServerResponse[] | undefined) =>
-      current?.filter((s) => s.url !== url) ?? current
+    (current: McpServerResponse[] | undefined) =>
+      current?.filter((s) => s.app_slug !== appSlug) ?? current
   );
-}
-
-export function useAddMcpServerMutation() {
-  return useMutation(() => ({
-    mutationFn: async (request: AddServerRequest) =>
-      throwOnErr(
-        async () => await cognitionApiServiceClient.addMcpServer(request)
-      ),
-    onSuccess: async (server: ServerResponse) => {
-      upsertServer(server);
-      await invalidateMcpServers();
-    },
-  }));
 }
 
 export function useUpdateMcpServerMutation() {
   return useMutation(() => ({
-    mutationFn: async (request: UpdateServerRequest) =>
+    mutationFn: async (request: McpUpdateServerRequest) =>
       throwOnErr(
         async () => await cognitionApiServiceClient.updateMcpServer(request)
       ),
-    onSuccess: async (server: ServerResponse) => {
+    onSuccess: async (server: McpServerResponse) => {
       upsertServer(server);
       await invalidateMcpServers();
     },
@@ -139,87 +122,74 @@ export function useUpdateMcpServerMutation() {
 
 export function useDeleteMcpServerMutation() {
   return useMutation(() => ({
-    mutationFn: async (args: { url: string }) =>
+    mutationFn: async (args: { app_slug: string }) =>
       throwOnErr(
         async () => await cognitionApiServiceClient.deleteMcpServer(args)
       ),
-    onSuccess: async (_result: unknown, variables: { url: string }) => {
-      removeServer(variables.url);
+    onSuccess: async (_result: unknown, variables: { app_slug: string }) => {
+      removeServer(variables.app_slug);
       await invalidateMcpServers();
     },
   }));
 }
 
-export function useStartMcpAuthMutation() {
-  return useMutation(() => ({
-    mutationFn: async (request: StartAuthRequest) =>
-      throwOnErr(
-        async () => await cognitionApiServiceClient.startMcpAuth(request)
-      ),
-  }));
-}
+export type PipedreamConnectOutcome = 'connected' | 'closed' | 'unsupported';
 
-export type NangoConnectOutcome = 'connected' | 'closed' | 'unsupported';
-
-// Whether the backend has Nango configured, learned from the first session
-// attempt (501 → unsupported). Cached so later connect clicks on a
-// Nango-less deployment can take the legacy popup path synchronously, while
-// the click's transient activation is still live.
-let nangoUnsupported = false;
-
-/** True once a connect attempt learned that this deployment has no Nango. */
-export function isNangoKnownUnsupported(): boolean {
-  return nangoUnsupported;
-}
+// Whether the backend has Pipedream configured, learned from the first token
+// attempt (501 → unsupported). Cached so later connect clicks on an
+// unconfigured deployment fail fast instead of re-probing.
+let pipedreamUnsupported = false;
 
 /**
- * Connect an MCP server through Nango's hosted Connect UI.
+ * Connect an MCP app through Pipedream's hosted Connect UI — the single
+ * connect path for MCP connectors.
  *
- * Creates a Connect session (Nango owns OAuth discovery, dynamic client
- * registration, and token storage), opens the Connect UI in a fullscreen
- * iframe, and — once the user authorizes — registers the resulting
- * connection with our backend, which verifies ownership against Nango
- * before storing it.
+ * Mints a Connect token (Pipedream owns the consent flow, credential
+ * storage, and refresh), opens the hosted Connect UI in a fullscreen
+ * iframe, and — once the user authorizes — registers the resulting account
+ * with our backend, which verifies ownership against Pipedream before
+ * storing it.
  *
  * Resolves `'connected'` on success (server cache already refreshed),
  * `'closed'` when the user dismissed the UI without finishing, and
- * `'unsupported'` when the deployment has no Nango configured (callers
- * fall back to the legacy OAuth flow). Rejects on errors.
+ * `'unsupported'` when the deployment has no Pipedream configured (the
+ * connect surface should say connectors are unavailable). Rejects on errors.
  */
-export async function connectMcpServerViaNango(args: {
-  /** Pre-fill the server URL so the Connect UI goes straight to OAuth. */
-  serverUrl?: string;
-  /** Display name stored on the new server row. */
+export async function connectMcpApp(args: {
+  /** The Pipedream app to connect, by name slug (e.g. `linear`). */
+  appSlug: string;
+  /** Display name stored on the connector row. */
   serverName?: string;
-}): Promise<NangoConnectOutcome> {
-  if (nangoUnsupported) return 'unsupported';
+}): Promise<PipedreamConnectOutcome> {
+  if (pipedreamUnsupported) return 'unsupported';
 
-  const session = await cognitionApiServiceClient.createMcpNangoSession({
-    server_url: args.serverUrl,
-  });
-  if (session.isErr()) {
-    if (session.error.some((e) => e.code === NANGO_DISABLED)) {
-      nangoUnsupported = true;
+  const token = await cognitionApiServiceClient.createMcpPipedreamToken();
+  if (token.isErr()) {
+    if (token.error.some((e) => e.code === PIPEDREAM_DISABLED)) {
+      pipedreamUnsupported = true;
       return 'unsupported';
     }
-    throw new ThrownResultError(session.error);
+    throw new ThrownResultError(token.error);
   }
 
-  return await new Promise<NangoConnectOutcome>((resolve, reject) => {
+  return await new Promise<PipedreamConnectOutcome>((resolve, reject) => {
     let settled = false;
-    const ui = openNangoConnectUI({
-      sessionToken: session.value.session_token,
+    const ui = openPipedreamConnectUI({
+      token: token.value.token,
+      app: args.appSlug,
       onEvent: (event) => {
-        if (event.type === 'connect' && !settled) {
+        if (event.type === 'success' && !settled) {
           settled = true;
           void (async () => {
             try {
               const server = await throwOnErr(
                 async () =>
-                  await cognitionApiServiceClient.completeMcpNangoSession({
-                    connection_id: event.payload.connectionId,
-                    server_name: args.serverName,
-                  })
+                  await cognitionApiServiceClient.completeMcpPipedreamConnection(
+                    {
+                      account_id: event.accountId,
+                      server_name: args.serverName,
+                    }
+                  )
               );
               upsertServer(server);
               await invalidateMcpServers();
@@ -228,7 +198,7 @@ export async function connectMcpServerViaNango(args: {
               reject(
                 error instanceof Error
                   ? error
-                  : new Error('failed to register Nango connection')
+                  : new Error('failed to register Pipedream connection')
               );
             } finally {
               ui.close();

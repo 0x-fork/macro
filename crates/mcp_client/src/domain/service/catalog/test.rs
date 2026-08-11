@@ -1,13 +1,13 @@
 use super::*;
 use std::sync::Mutex;
 
-/// Fake registry returning a canned page and recording the query it got.
-struct FakeRegistry {
+/// Fake directory returning a canned page and recording the query it got.
+struct FakeDirectory {
     page: CatalogPage,
     seen: Mutex<Vec<(Option<String>, Option<String>, u32)>>,
 }
 
-impl FakeRegistry {
+impl FakeDirectory {
     fn returning(entries: Vec<CatalogEntry>) -> Self {
         Self {
             page: CatalogPage {
@@ -19,7 +19,7 @@ impl FakeRegistry {
     }
 }
 
-impl McpRegistry for FakeRegistry {
+impl ConnectorDirectory for FakeDirectory {
     async fn search(
         &self,
         search: Option<&str>,
@@ -35,81 +35,72 @@ impl McpRegistry for FakeRegistry {
     }
 }
 
-fn registry_entry(name: &str, url: &str) -> CatalogEntry {
+fn directory_entry(app_slug: &str) -> CatalogEntry {
     CatalogEntry {
-        name: name.to_owned(),
-        display_name: name.to_owned(),
-        description: Some("from the registry".to_owned()),
-        url: url.to_owned(),
+        app_slug: app_slug.to_owned(),
+        display_name: app_slug.to_owned(),
+        description: Some("from the directory".to_owned()),
         icon_url: None,
         priority: false,
     }
 }
 
 #[tokio::test]
-async fn first_page_pins_priority_connectors_before_registry_results() {
-    let registry = FakeRegistry::returning(vec![registry_entry(
-        "io.github.someone/thing",
-        "https://example.com/mcp",
-    )]);
+async fn first_page_pins_priority_connectors_before_directory_results() {
+    let directory = FakeDirectory::returning(vec![directory_entry("airtable")]);
 
-    let page = browse_catalog(&registry, None, None, None).await.unwrap();
+    let page = browse_catalog(&directory, None, None, None).await.unwrap();
 
     let split = page.entries.iter().position(|e| !e.priority).unwrap();
     assert_eq!(split, PRIORITY_CONNECTORS.len());
     assert!(page.entries[..split].iter().all(|e| e.priority));
-    assert_eq!(page.entries[split].name, "io.github.someone/thing");
+    assert_eq!(page.entries[split].app_slug, "airtable");
 }
 
 #[tokio::test]
-async fn registry_duplicates_of_priority_connectors_are_dropped() {
-    // Same server as the Linear priority connector, with a trailing slash.
-    let registry = FakeRegistry::returning(vec![
-        registry_entry("app.linear/linear", "https://mcp.linear.app/mcp/"),
-        registry_entry("io.github.someone/thing", "https://example.com/mcp"),
-    ]);
+async fn directory_duplicates_of_priority_connectors_are_dropped() {
+    let directory =
+        FakeDirectory::returning(vec![directory_entry("linear"), directory_entry("airtable")]);
 
-    let page = browse_catalog(&registry, None, None, None).await.unwrap();
+    let page = browse_catalog(&directory, None, None, None).await.unwrap();
 
     let linear: Vec<_> = page
         .entries
         .iter()
-        .filter(|e| e.display_name.eq_ignore_ascii_case("linear"))
+        .filter(|e| e.app_slug == "linear")
         .collect();
     assert_eq!(linear.len(), 1, "Linear must appear exactly once");
     assert!(linear[0].priority);
+    assert_eq!(
+        linear[0].description.as_deref(),
+        Some("Create and update issues without leaving Macro."),
+        "priority tagline wins over the directory description"
+    );
 }
 
 #[tokio::test]
 async fn search_filters_priority_connectors_and_marks_them() {
-    let registry = FakeRegistry::returning(vec![registry_entry(
-        "io.github.evozim/linear-broker",
-        "https://linear-broker.example.com/mcp",
-    )]);
+    let directory = FakeDirectory::returning(vec![directory_entry("linear_helper")]);
 
-    let page = browse_catalog(&registry, Some("linear"), None, None)
+    let page = browse_catalog(&directory, Some("linear"), None, None)
         .await
         .unwrap();
 
     assert_eq!(page.entries[0].display_name, "Linear");
     assert!(page.entries[0].priority);
-    // Non-matching priority connectors (Notion, Slack, ...) stay out.
     assert_eq!(
         page.entries.iter().filter(|e| e.priority).count(),
         1,
         "only the matching priority connector is pinned"
     );
-    assert_eq!(page.entries[1].name, "io.github.evozim/linear-broker");
+    assert_eq!(page.entries[1].app_slug, "linear_helper");
 }
 
 #[tokio::test]
 async fn later_pages_never_repeat_priority_connectors() {
-    let registry = FakeRegistry::returning(vec![registry_entry(
-        "app.linear/linear",
-        "https://mcp.linear.app/mcp",
-    )]);
+    let directory = FakeDirectory::returning(vec![directory_entry("linear")]);
 
-    let page = browse_catalog(&registry, None, Some("cursor-1"), None)
+    let page = browse_catalog(&directory, None, Some("cursor-1"), None)
         .await
         .unwrap();
 
@@ -121,29 +112,15 @@ async fn later_pages_never_repeat_priority_connectors() {
 
 #[tokio::test]
 async fn blank_search_browses_and_limit_is_clamped() {
-    let registry = FakeRegistry::returning(vec![]);
+    let directory = FakeDirectory::returning(vec![]);
 
-    browse_catalog(&registry, Some("   "), None, Some(9999))
+    browse_catalog(&directory, Some("   "), None, Some(9999))
         .await
         .unwrap();
 
-    let seen = registry.seen.lock().unwrap();
+    let seen = directory.seen.lock().unwrap();
     let (search, cursor, limit) = seen[0].clone();
     assert_eq!(search, None, "whitespace-only search means browse");
     assert_eq!(cursor, None);
     assert_eq!(limit, MAX_PAGE_SIZE);
-}
-
-#[tokio::test]
-async fn priority_taglines_override_registry_descriptions() {
-    let registry = FakeRegistry::returning(vec![]);
-
-    let page = browse_catalog(&registry, Some("notion"), None, None)
-        .await
-        .unwrap();
-
-    assert_eq!(
-        page.entries[0].description.as_deref(),
-        Some("Search your pages, databases, and wikis.")
-    );
 }

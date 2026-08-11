@@ -12,26 +12,20 @@ export type SvgIcon = Component<JSX.SvgSVGAttributes<SVGSVGElement>>;
 
 export type QuickConnectServer = {
   server_name: string;
-  url: string;
+  /** Pipedream app name slug, e.g. `linear`. */
+  app_slug: string;
   icon: SvgIcon;
-  /**
-   * False for servers whose MCP OAuth needs a pre-registered client (no
-   * dynamic client registration) — Nango's generic MCP integration can't
-   * authorize those, so they connect through the legacy in-house flow.
-   */
-  supportsNango?: boolean;
 };
 
 export const QUICK_CONNECT_SERVERS: readonly QuickConnectServer[] = [
   {
     server_name: 'GitHub',
-    url: 'https://api.githubcopilot.com/mcp',
+    app_slug: 'github',
     icon: IconGithub as SvgIcon,
-    supportsNango: false,
   },
   {
     server_name: 'Linear',
-    url: 'https://mcp.linear.app/mcp',
+    app_slug: 'linear',
     icon: IconLinear as SvgIcon,
   },
   // Slack is dev-only until the integration is ready for production.
@@ -39,40 +33,39 @@ export const QUICK_CONNECT_SERVERS: readonly QuickConnectServer[] = [
     ? [
         {
           server_name: 'Slack',
-          url: 'https://mcp.slack.com/mcp',
+          app_slug: 'slack',
           icon: IconSlack as SvgIcon,
-          supportsNango: false,
         },
       ]
     : []),
   {
     server_name: 'Notion',
-    url: 'https://mcp.notion.com/mcp',
+    app_slug: 'notion',
     icon: IconNotion as SvgIcon,
   },
   {
     server_name: 'PostHog',
-    url: 'https://mcp.posthog.com/mcp',
+    app_slug: 'posthog',
     icon: IconPostHog as SvgIcon,
   },
   {
     server_name: 'Datadog',
-    url: 'https://mcp.datadoghq.com/mcp',
+    app_slug: 'datadog',
     icon: IconDatadog as SvgIcon,
   },
   {
     server_name: 'Grafana',
-    url: 'https://mcp.grafana.com/mcp',
+    app_slug: 'grafana',
     icon: IconGrafana as SvgIcon,
   },
 ];
 
 /**
- * Preset servers surfaced directly on the Connections page (with a one-line
- * pitch) to encourage connecting — the only catalog now that the "Add server"
- * dialog is custom-URL only. Ordered by how much we want to promote each;
- * presets absent from {@link QUICK_CONNECT_SERVERS} (e.g. dev-only Slack in
- * production) are dropped automatically.
+ * Preset connectors surfaced directly on the Connections page (with a
+ * one-line pitch) to encourage connecting. Ordered by how much we want to
+ * promote each; presets absent from {@link QUICK_CONNECT_SERVERS} (e.g.
+ * dev-only Slack in production) are dropped automatically. The backend pins
+ * the same list at the top of the connector catalog.
  */
 const FEATURED_SERVER_TAGLINES: [name: string, tagline: string][] = [
   ['Linear', 'Create and update issues without leaving Macro.'],
@@ -92,41 +85,19 @@ export const FEATURED_MCP_SERVERS: FeaturedMcpServer[] =
     return server ? [{ ...server, tagline }] : [];
   });
 
+/** Bundled connector icons, keyed by Pipedream app slug. */
 export const QUICK_CONNECT_ICON_MAP: Map<string, SvgIcon> = new Map(
-  QUICK_CONNECT_SERVERS.map((s) => [s.url, s.icon])
+  QUICK_CONNECT_SERVERS.map((s) => [s.app_slug, s.icon])
 );
-
-/**
- * Servers whose MCP OAuth needs a pre-registered client (no dynamic client
- * registration) — Nango's generic MCP integration can't authorize those, so
- * they always take the legacy in-house flow. Kept as a standalone set (not
- * derived from {@link QUICK_CONNECT_SERVERS}) because entries there are
- * environment-gated, while this routing must hold wherever the URL shows up
- * (e.g. the connector catalog).
- */
-const NANGO_UNSUPPORTED_URLS = new Set(
-  ['https://api.githubcopilot.com/mcp', 'https://mcp.slack.com/mcp'].map(
-    (url) => url.replace(/\/+$/, '')
-  )
-);
-
-/**
- * Whether a server URL can be authorized through Nango. True for anything
- * not in {@link NANGO_UNSUPPORTED_URLS} — custom servers are assumed
- * spec-compliant (dynamic client registration).
- */
-export function mcpUrlSupportsNango(url: string): boolean {
-  return !NANGO_UNSUPPORTED_URLS.has(url.replace(/\/+$/, ''));
-}
 
 /**
  * Whether a catalog connector should be offered in this environment.
  * Mirrors the environment gating in {@link QUICK_CONNECT_SERVERS} (Slack is
  * dev-only until the integration is ready for production).
  */
-export function mcpUrlAvailableInEnv(url: string): boolean {
+export function mcpAppAvailableInEnv(appSlug: string): boolean {
   if (DEV_MODE_ENV) return true;
-  return url.replace(/\/+$/, '') !== 'https://mcp.slack.com/mcp';
+  return appSlug !== 'slack';
 }
 
 const SERVER_NAME_ICON_MAP: Map<string, SvgIcon> = new Map(

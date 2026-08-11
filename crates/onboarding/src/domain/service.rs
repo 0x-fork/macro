@@ -94,9 +94,8 @@ where
         Ok(servers
             .into_iter()
             .map(|record| ConnectedServer {
-                authenticated: record.is_authenticated(),
                 name: record.server_name,
-                url: record.url,
+                app_slug: record.app_slug,
             })
             .collect())
     }
@@ -108,7 +107,7 @@ where
         for source in ImportSource::all() {
             let connected = servers
                 .iter()
-                .any(|server| server.authenticated && server.url == source.mcp_server_url());
+                .any(|server| server.app_slug == source.pipedream_app_slug());
             if !connected {
                 continue;
             }

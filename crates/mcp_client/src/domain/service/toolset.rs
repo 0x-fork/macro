@@ -1,5 +1,5 @@
 use crate::domain::models::{CallToolResultExt, Error, MacroUserIdStr, McpServer, McpServerRecord};
-use crate::domain::ports::{McpConnector, McpServerStore};
+use crate::domain::ports::McpConnection;
 use ai_toolset::{
     AsyncToolCollection, RequestContext, RequestSchema, SearchableTool, ToolCallError, ToolInfo,
     ToolResult, ToolSet, ToolSetError,
@@ -61,26 +61,27 @@ pub struct McpToolSet {
 }
 
 impl McpToolSet {
-    /// Connect to every server in `records` concurrently, discover tools, and
-    /// register them. Credential updates (e.g. refreshed OAuth tokens) are
-    /// persisted through `server_store`.
+    /// Connect to every app in `records` concurrently, discover tools, and
+    /// register them. Connections go through `connection` (Pipedream's
+    /// remote MCP server), which injects each account's credentials
+    /// server-side.
     ///
-    /// Servers that fail to connect or list tools are silently skipped.
+    /// Apps that fail to connect or list tools are silently skipped.
     #[tracing::instrument(skip_all)]
-    pub async fn new<S: McpServerStore>(records: &[McpServerRecord], server_store: Arc<S>) -> Self {
+    pub async fn new<C: McpConnection>(records: &[McpServerRecord], connection: Arc<C>) -> Self {
         let user_id = records.first().map(|r| r.user_id.clone());
 
         let futs = records.iter().filter(|r| r.enabled).map(|record| {
-            let server_store = server_store.clone();
+            let connection = connection.clone();
             async move {
-                let client = record
-                    .connect(server_store)
+                let client = connection
+                    .connect(record)
                     .await
                     .inspect_err(|e| {
                         tracing::warn!(
                             user_id = %record.user_id,
                             server = %record.server_name,
-                            url = %record.url,
+                            app = %record.app_slug,
                             error = ?e,
                             "failed to connect"
                         );
@@ -93,7 +94,7 @@ impl McpToolSet {
                         tracing::warn!(
                             user_id = %record.user_id,
                             server = %record.server_name,
-                            url = %record.url,
+                            app = %record.app_slug,
                             error = ?e,
                             "failed to list tools"
                         );
@@ -283,16 +284,14 @@ pub struct CombinedToolSet<T> {
 }
 
 impl<T> CombinedToolSet<T> {
-    /// Build a combined toolset from the static tools and the user's MCP servers.
-    ///
-    /// Credential updates from the MCP connections (e.g. refreshed OAuth
-    /// tokens) are persisted through `server_store`.
-    pub async fn new<S: McpServerStore>(
+    /// Build a combined toolset from the static tools and the user's
+    /// connected MCP apps.
+    pub async fn new<C: McpConnection>(
         static_tools: Arc<AsyncToolCollection<T>>,
         records: &[McpServerRecord],
-        server_store: Arc<S>,
+        connection: Arc<C>,
     ) -> Self {
-        let mcp_tools = McpToolSet::new(records, server_store).await;
+        let mcp_tools = McpToolSet::new(records, connection).await;
         Self {
             static_tools,
             mcp_tools,

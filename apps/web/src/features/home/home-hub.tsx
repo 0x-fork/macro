@@ -220,9 +220,7 @@ function useConnectionsCount() {
 
   return () => {
     const inboxes = emailLinks.data?.links.length ?? 0;
-    const servers = (mcpServers.data ?? []).filter(
-      (server) => server.authenticated
-    ).length;
+    const servers = (mcpServers.data ?? []).length;
     return inboxes + servers;
   };
 }

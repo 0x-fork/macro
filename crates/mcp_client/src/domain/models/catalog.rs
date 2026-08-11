@@ -1,20 +1,18 @@
-//! The public catalog of connectable MCP servers.
+//! The public catalog of connectable MCP apps.
 
-/// One connectable MCP server advertised in the catalog.
+/// One connectable app advertised in the catalog.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CatalogEntry {
-    /// Stable registry identifier, e.g. `app.linear/linear`.
-    pub name: String,
+    /// Pipedream app name slug, e.g. `linear` — what gets connected.
+    pub app_slug: String,
     /// Human-readable name to display, e.g. `Linear`.
     pub display_name: String,
-    /// One-line description of what connecting the server enables.
+    /// One-line description of what connecting the app enables.
     pub description: Option<String>,
-    /// The server's streamable HTTP URL — what actually gets connected.
-    pub url: String,
-    /// URL of the server's icon, when the registry provides one.
+    /// URL of the app's icon, when the directory provides one.
     pub icon_url: Option<String>,
     /// Whether this is a curated priority connector, ranked above organic
-    /// registry results (and renderable as its own section).
+    /// directory results (and renderable as its own section).
     pub priority: bool,
 }
 

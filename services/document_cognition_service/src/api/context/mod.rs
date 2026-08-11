@@ -91,25 +91,17 @@ pub type DcsAiProjectionService =
         ai_projections::outbound::gateway_notifier::GatewayProjectionNotifier,
     >;
 
-/// Concrete MCP router state for DCS. The store resolves fresh Nango access
-/// tokens into loaded records, so everything downstream of it (chat
-/// toolsets, imports) can connect to Nango-authorized servers.
+/// Concrete MCP router state for DCS: the Postgres store plus the Pipedream
+/// client (the single connect path).
 pub type DcsMcpRouterState = mcp_client::inbound::McpRouterState<
-    mcp_client::outbound::nango_resolving_store::NangoResolvingPgStore,
-    mcp_client::outbound::oauth::OAuthService<
-        mcp_client::outbound::pg_server_repo::PgServerRepo,
-        mcp_client::outbound::redis_state_store::RedisOAuthStateStore,
-    >,
-    mcp_client::outbound::nango::NangoClient,
+    mcp_client::outbound::pg_server_repo::PgServerRepo,
+    mcp_client::outbound::pipedream::PipedreamClient,
     DcsAuthorizationService,
 >;
 
-/// Concrete MCP catalog router state for DCS, backed by the public MCP
-/// registry.
-pub type DcsMcpCatalogRouterState = mcp_client::inbound::McpCatalogRouterState<
-    mcp_client::outbound::mcp_registry::McpRegistryClient,
-    DcsAuthorizationService,
->;
+/// The single MCP connection path for toolsets: Pipedream's remote MCP
+/// server, or `None` on deployments where Pipedream isn't configured.
+pub type DcsMcpConnection = ai_tools::ToolMcpConnection;
 
 /// The import pipeline service, shared between the import router, the chat
 /// toolset, and the onboarding flow.
@@ -154,7 +146,7 @@ pub struct ApiContext {
     pub message_service: Arc<DcsMessageService>,
     pub ai_stream_registry: AiStreamRegistry,
     pub mcp_state: DcsMcpRouterState,
-    pub mcp_catalog_state: DcsMcpCatalogRouterState,
+    pub mcp_connection: Arc<DcsMcpConnection>,
     pub import_service: Arc<DcsImportService>,
     pub onboarding_service: Arc<DcsOnboardingService>,
     /// Kafka-backed macro event broker for publishing domain events.

@@ -7,7 +7,7 @@ import { createEffect, createMemo, Show } from 'solid-js';
 import { ConnectorRow } from '../ConnectorRow';
 import { ContinueButton, FeatureList, SkipButton } from './shared';
 
-/** One connector per page. OAuth runs in a popup; the polled servers query
+/** One connector per page. Auth runs in the Connect UI iframe; the polled servers query
  * flips the card, and the server starts an auto-importing gather on it. */
 export function ConnectorStep(props: {
   server: FeaturedMcpServer;
@@ -19,16 +19,17 @@ export function ConnectorStep(props: {
   onContinue: () => void;
   onSkip: () => void;
 }) {
-  // Poll: OAuth completes in a popup, and if this window never blurs no
-  // focus-refetch would ever flip the step.
+  // Poll: other tabs never get a focus refetch, so keep the step fresh.
   const serversQuery = useMcpServersQuery({
     refetchInterval: 4_000,
     neverSuspend: true,
   });
   const record = createMemo(() =>
-    serversQuery.data?.find((server) => server.url === props.server.url)
+    serversQuery.data?.find(
+      (server) => server.app_slug === props.server.app_slug
+    )
   );
-  const authenticated = () => record()?.authenticated ?? false;
+  const authenticated = () => record() !== undefined;
 
   const analytics = useAnalytics();
   let wasAuthenticated: boolean | undefined;
@@ -66,11 +67,7 @@ export function ConnectorStep(props: {
           </Layer>
         }
       >
-        <ConnectorRow
-          server={props.server}
-          connected={record() !== undefined}
-          authenticated={authenticated()}
-        />
+        <ConnectorRow server={props.server} connected={authenticated()} />
       </Show>
 
       <FeatureList features={props.features} />

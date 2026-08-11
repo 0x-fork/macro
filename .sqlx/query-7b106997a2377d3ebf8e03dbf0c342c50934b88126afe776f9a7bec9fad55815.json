@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT user_id, url, server_name, credentials, enabled, nango_connection_id\n            FROM mcp_servers\n            WHERE user_id = $1 AND url = $2\n            ",
+  "query": "\n            SELECT user_id, app_slug, server_name, account_id, enabled\n            FROM mcp_servers\n            WHERE user_id = $1 AND app_slug = $2\n            ",
   "describe": {
     "columns": [
       {
@@ -10,7 +10,7 @@
       },
       {
         "ordinal": 1,
-        "name": "url",
+        "name": "app_slug",
         "type_info": "Text"
       },
       {
@@ -20,18 +20,13 @@
       },
       {
         "ordinal": 3,
-        "name": "credentials",
-        "type_info": "Bytea"
+        "name": "account_id",
+        "type_info": "Text"
       },
       {
         "ordinal": 4,
         "name": "enabled",
         "type_info": "Bool"
-      },
-      {
-        "ordinal": 5,
-        "name": "nango_connection_id",
-        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -44,10 +39,9 @@
       false,
       false,
       false,
-      true,
       false,
-      true
+      false
     ]
   },
-  "hash": "010b819e5647a61f2a6f6065a63d91b0396be735410ae9497c91920e1b53a65b"
+  "hash": "7b106997a2377d3ebf8e03dbf0c342c50934b88126afe776f9a7bec9fad55815"
 }

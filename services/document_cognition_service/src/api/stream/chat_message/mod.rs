@@ -494,6 +494,7 @@ fn stream_and_save_message(
     let tool_context = ctx.tool_service_context.clone();
     let static_tools = ctx.all_tools.clone();
     let mcp_store = ctx.mcp_state.store();
+    let mcp_connection = ctx.mcp_connection.clone();
 
     let ctx_outer = ctx.clone();
     // Pull the token out so the select below can reference it without moving
@@ -525,7 +526,7 @@ fn stream_and_save_message(
             mcp_client::domain::service::CombinedToolSet::new(
                 static_tools,
                 &mcp_records,
-                mcp_store.clone(),
+                mcp_connection,
             )
             .await,
         );

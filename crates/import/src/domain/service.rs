@@ -25,7 +25,7 @@ use ai_toolset::{RequestContext, ToolResult, ToolSet, ToolSetError};
 use futures::StreamExt;
 use macro_user_id::user_id::MacroUserIdStr;
 use mcp_client::domain::models::McpServerRecord;
-use mcp_client::domain::ports::McpServerStore;
+use mcp_client::domain::ports::{McpConnection, McpServerStore};
 use mcp_client::domain::service::McpToolSet;
 use std::collections::HashSet;
 use std::pin::Pin;
@@ -302,19 +302,21 @@ pub trait NotionPageImporter: Send + Sync + 'static {
 
 /// Concrete orchestrator wiring the repo, the user's MCP servers, the
 /// entity creator, and usage recording together.
-pub struct ImportServiceImpl<R, S, C> {
+pub struct ImportServiceImpl<R, S, C, P> {
     repo: R,
     mcp_store: Arc<S>,
+    mcp_connection: Arc<P>,
     creator: Arc<C>,
     recorder: Arc<dyn ai_usage::UsageRecorder>,
     notifier: Option<ImportNotify>,
 }
 
-impl<R: Clone, S, C> Clone for ImportServiceImpl<R, S, C> {
+impl<R: Clone, S, C, P> Clone for ImportServiceImpl<R, S, C, P> {
     fn clone(&self) -> Self {
         Self {
             repo: self.repo.clone(),
             mcp_store: self.mcp_store.clone(),
+            mcp_connection: self.mcp_connection.clone(),
             creator: self.creator.clone(),
             recorder: self.recorder.clone(),
             notifier: self.notifier.clone(),
@@ -322,17 +324,19 @@ impl<R: Clone, S, C> Clone for ImportServiceImpl<R, S, C> {
     }
 }
 
-impl<R, S, C> ImportServiceImpl<R, S, C> {
+impl<R, S, C, P> ImportServiceImpl<R, S, C, P> {
     /// Build the orchestrator.
     pub fn new(
         repo: R,
         mcp_store: Arc<S>,
+        mcp_connection: Arc<P>,
         creator: Arc<C>,
         recorder: Arc<dyn ai_usage::UsageRecorder>,
     ) -> Self {
         Self {
             repo,
             mcp_store,
+            mcp_connection,
             creator,
             recorder,
             notifier: None,
@@ -352,11 +356,12 @@ impl<R, S, C> ImportServiceImpl<R, S, C> {
     }
 }
 
-impl<R, S, C> ImportServiceImpl<R, S, C>
+impl<R, S, C, P> ImportServiceImpl<R, S, C, P>
 where
     R: ImportRepo + Clone,
     S: McpServerStore,
     C: EntityCreator,
+    P: McpConnection,
 {
     /// Spawn the gather session for one source; finishes the run row either
     /// way and nudges the client.
@@ -719,18 +724,18 @@ where
         user: &MacroUserIdStr<'static>,
         source: ImportSource,
     ) -> anyhow::Result<Arc<McpToolSet>> {
-        let url = source.mcp_server_url();
+        let app_slug = source.pipedream_app_slug();
         let records: Vec<McpServerRecord> = self
             .mcp_store
             .list(user)
             .await
             .map_err(|e| anyhow::anyhow!("mcp store: {e:?}"))?
             .into_iter()
-            .filter(|r| r.url == url)
+            .filter(|r| r.app_slug == app_slug)
             .collect();
         anyhow::ensure!(!records.is_empty(), "no {} connection", source.as_ref());
 
-        let mcp_tools = McpToolSet::new(&records, self.mcp_store.clone()).await;
+        let mcp_tools = McpToolSet::new(&records, self.mcp_connection.clone()).await;
         anyhow::ensure!(
             !mcp_tools.is_empty(),
             "could not load tools from {}",
@@ -990,11 +995,12 @@ where
     }
 }
 
-impl<R, S, C> ImportService for ImportServiceImpl<R, S, C>
+impl<R, S, C, P> ImportService for ImportServiceImpl<R, S, C, P>
 where
     R: ImportRepo + Clone,
     S: McpServerStore,
     C: EntityCreator,
+    P: McpConnection,
 {
     #[tracing::instrument(skip(self, user), err)]
     async fn state(&self, user: MacroUserIdStr<'static>) -> Result<ImportState> {
@@ -1168,11 +1174,12 @@ where
     }
 }
 
-impl<R, S, C> ImportStager for ImportServiceImpl<R, S, C>
+impl<R, S, C, P> ImportStager for ImportServiceImpl<R, S, C, P>
 where
     R: ImportRepo + Clone,
     S: McpServerStore,
     C: EntityCreator,
+    P: McpConnection,
 {
     #[tracing::instrument(skip(self, user, metadata), err)]
     async fn stage(
@@ -1311,11 +1318,12 @@ where
     }
 }
 
-impl<R, S, C> NotionPageImporter for ImportServiceImpl<R, S, C>
+impl<R, S, C, P> NotionPageImporter for ImportServiceImpl<R, S, C, P>
 where
     R: ImportRepo + Clone,
     S: McpServerStore,
     C: EntityCreator,
+    P: McpConnection,
 {
     #[tracing::instrument(skip(self, user), fields(page = page_url_or_id), err)]
     async fn import_notion_page(
@@ -1441,11 +1449,12 @@ where
     }
 }
 
-impl<R, S, C> ImportFinalizer for ImportServiceImpl<R, S, C>
+impl<R, S, C, P> ImportFinalizer for ImportServiceImpl<R, S, C, P>
 where
     R: ImportRepo + Clone,
     S: McpServerStore,
     C: EntityCreator,
+    P: McpConnection,
 {
     #[tracing::instrument(skip(self, user, content_markdown), err)]
     async fn finalize_document(

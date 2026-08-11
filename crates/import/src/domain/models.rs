@@ -48,12 +48,12 @@ impl ImportSource {
         ]
     }
 
-    /// The MCP server URL backing this source's connector.
-    pub fn mcp_server_url(self) -> &'static str {
+    /// The Pipedream app slug backing this source's connector.
+    pub fn pipedream_app_slug(self) -> &'static str {
         match self {
-            ImportSource::Linear => "https://mcp.linear.app/mcp",
-            ImportSource::Notion => "https://mcp.notion.com/mcp",
-            ImportSource::Slack => "https://mcp.slack.com/mcp",
+            ImportSource::Linear => "linear",
+            ImportSource::Notion => "notion",
+            ImportSource::Slack => "slack",
         }
     }
 

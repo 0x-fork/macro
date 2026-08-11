@@ -8,17 +8,15 @@ import { createConnectorConnect } from './useConnectorConnect';
 
 /**
  * One connector in the onboarding flow: brand icon, name, and an explicit
- * trailing status. Clicking an unconnected row starts OAuth in a popup.
+ * trailing status. Clicking an unconnected row opens the Pipedream Connect UI.
  */
 export function ConnectorRow(props: {
   server: FeaturedMcpServer;
   connected: boolean;
-  authenticated: boolean;
 }) {
   const { connect, busy } = createConnectorConnect({
     server: props.server,
     connected: () => props.connected,
-    authenticated: () => props.authenticated,
   });
 
   return (
@@ -26,7 +24,7 @@ export function ConnectorRow(props: {
       <button
         type="button"
         title={
-          props.authenticated
+          props.connected
             ? `${props.server.server_name} is connected`
             : props.server.tagline
         }
@@ -34,7 +32,7 @@ export function ConnectorRow(props: {
         class={cn(
           'group flex h-11 w-full items-center gap-2.5 rounded-xl border border-ink/[0.05] bg-surface px-3.5 text-sm',
           'cursor-default outline-none focus-visible:ring-1 focus-visible:ring-accent/50',
-          !props.authenticated && 'hover:border-ink/10'
+          !props.connected && 'hover:border-ink/10'
         )}
       >
         <span class="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
@@ -52,7 +50,7 @@ export function ConnectorRow(props: {
               </span>
             }
           >
-            <Match when={props.authenticated}>
+            <Match when={props.connected}>
               <span class="flex items-center gap-1.5 text-xs text-ink-muted">
                 <StatusDot state="connected" />
                 Connected

@@ -34,8 +34,8 @@ use macro_authorization::{
 };
 use macro_entrypoint::MacroEntrypoint;
 use macro_service_urls::{
-    ConnectionGatewayUrl, DocumentCognitionServiceUrl, DocumentStorageServiceUrl, EmailServiceUrl,
-    LexicalServiceUrl, StaticFileServiceUrl, SyncServiceUrl,
+    ConnectionGatewayUrl, DocumentStorageServiceUrl, EmailServiceUrl, LexicalServiceUrl,
+    StaticFileServiceUrl, SyncServiceUrl,
 };
 use notification::domain::service::{
     NotificationReaderService, PlatformArnConfig, SqsNotificationIngress,
@@ -448,49 +448,52 @@ async fn main() -> anyhow::Result<()> {
     // The import pipeline: staged/imported external items, gather jobs over
     // the user's connectors, and the Haiku import job. Built before the tool
     // service context so the chat toolset gets a wired import context.
-    let mcp_encryption_key = mcp_client::domain::models::AesKey::try_from(
-        config.mcp_credentials_key_secret_name.as_ref(),
-    )
-    .context("invalid MCP credentials encryption key")?;
-    let mcp_server_repo =
-        mcp_client::outbound::pg_server_repo::PgServerRepo::new(db.clone(), mcp_encryption_key);
+    let mcp_server_repo = mcp_client::outbound::pg_server_repo::PgServerRepo::new(db.clone());
 
-    // Nango handles MCP server authorization (OAuth discovery, dynamic
-    // client registration, token storage and refresh) when configured.
-    // Without a secret key the Nango endpoints answer 501 and the legacy
-    // in-house OAuth flow keeps working.
-    let nango_client: Option<Arc<mcp_client::outbound::nango::NangoClient>> =
-        match config.nango_secret_key.value() {
-            Some(secret_key) => Some(Arc::new(
-                mcp_client::outbound::nango::NangoClient::new(
-                    mcp_client::outbound::nango::NangoConfig {
-                        secret_key: secret_key.to_owned(),
-                        base_url: config
-                            .nango_api_url
-                            .value()
-                            .unwrap_or("https://api.nango.dev")
-                            .to_owned(),
-                        integration_id: config
-                            .nango_mcp_integration_id
-                            .value()
-                            .unwrap_or("mcp-generic")
-                            .to_owned(),
-                    },
-                )
-                .context("failed to build Nango client")?,
-            )),
-            None => {
-                tracing::info!("NANGO_SECRET_KEY not set; Nango MCP connect disabled");
-                None
-            }
-        };
-
-    // Every consumer that connects to MCP servers goes through the resolving
-    // store, so Nango-authorized servers get fresh tokens transparently.
-    let mcp_resolving_store = mcp_client::outbound::nango_resolving_store::NangoResolvingStore::new(
-        Arc::new(mcp_server_repo.clone()),
-        nango_client.clone(),
-    );
+    // Pipedream Connect is the single MCP connect path: it owns the OAuth
+    // grants, tokens, and refresh, and its remote MCP server serves the
+    // connected apps' tools. Without credentials the MCP connect/catalog
+    // endpoints answer 501 and toolsets come up empty — there is no
+    // fallback flow.
+    let pipedream_client: Option<Arc<mcp_client::outbound::pipedream::PipedreamClient>> = match (
+        config.pipedream_client_id.value(),
+        config.pipedream_client_secret.value(),
+        config.pipedream_project_id.value(),
+    ) {
+        (Some(client_id), Some(client_secret), Some(project_id)) => Some(Arc::new(
+            mcp_client::outbound::pipedream::PipedreamClient::new(
+                mcp_client::outbound::pipedream::PipedreamConfig {
+                    client_id: client_id.to_owned(),
+                    client_secret: client_secret.to_owned(),
+                    project_id: project_id.to_owned(),
+                    environment: config
+                        .pipedream_environment
+                        .value()
+                        .unwrap_or(match config.environment {
+                            Environment::Production => "production",
+                            _ => "development",
+                        })
+                        .to_owned(),
+                    api_url: config
+                        .pipedream_api_url
+                        .value()
+                        .unwrap_or(mcp_client::outbound::pipedream::DEFAULT_API_URL)
+                        .to_owned(),
+                    mcp_url: config
+                        .pipedream_mcp_url
+                        .value()
+                        .unwrap_or(mcp_client::outbound::pipedream::DEFAULT_MCP_URL)
+                        .to_owned(),
+                },
+            )
+            .context("failed to build Pipedream client")?,
+        )),
+        _ => {
+            tracing::info!("Pipedream credentials not set; MCP connectors disabled");
+            None
+        }
+    };
+    let mcp_connection: ai_tools::ToolMcpConnection = pipedream_client.clone();
 
     // Nudges the user's connected clients when import rows flip, so setup
     // sections and chat surfaces update immediately instead of on the next
@@ -509,7 +512,8 @@ async fn main() -> anyhow::Result<()> {
     let import_service = Arc::new(
         import::domain::service::ImportServiceImpl::new(
             import::outbound::pg_import_repo::PgImportRepo::new(db.clone()),
-            Arc::new(mcp_resolving_store.clone()),
+            Arc::new(mcp_server_repo.clone()),
+            Arc::new(mcp_connection.clone()),
             Arc::new(entity_creator),
             recorder.clone(),
         )
@@ -633,21 +637,6 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("initialized onboarding service");
 
-    let mcp_public_url = DocumentCognitionServiceUrl::new()?;
-    let mcp_client_metadata = mcp_client::domain::models::OAuthClientMetadata::new(
-        format!("{mcp_public_url}/mcp/servers/auth/client-metadata"),
-        format!("{mcp_public_url}/mcp/servers/auth/callback"),
-    );
-    let mcp_oauth_state_store =
-        mcp_client::outbound::redis_state_store::RedisOAuthStateStore::new(redis_client.clone());
-    let mcp_pre_registered =
-        mcp_client::domain::provider_registry::PreRegisteredProviders::from_env()?;
-    let mcp_oauth = mcp_client::outbound::oauth::OAuthService::new(
-        mcp_server_repo.clone(),
-        mcp_oauth_state_store,
-        mcp_client_metadata.clone(),
-        mcp_pre_registered,
-    );
     // The moment a connector finishes OAuth, reconcile onboarding for that
     // user — gather jobs start before the user even returns to their
     // original tab. Spawned so the callback response never waits on them.
@@ -665,26 +654,11 @@ async fn main() -> anyhow::Result<()> {
             })
         });
     let mcp_state = mcp_client::inbound::McpRouterState::new(
-        mcp_resolving_store,
-        mcp_oauth,
-        nango_client,
+        mcp_server_repo.clone(),
+        pipedream_client,
         authorization_state.clone(),
-        mcp_client_metadata,
     )
     .with_auth_completed_hook(mcp_auth_hook);
-
-    // The connector catalog is backed by the public MCP registry — no
-    // secrets involved, so it's always on.
-    let mcp_registry = mcp_client::outbound::mcp_registry::McpRegistryClient::new(
-        config
-            .mcp_registry_url
-            .value()
-            .unwrap_or(mcp_client::outbound::mcp_registry::DEFAULT_REGISTRY_URL)
-            .to_owned(),
-    )
-    .context("failed to build MCP registry client")?;
-    let mcp_catalog_state =
-        mcp_client::inbound::McpCatalogRouterState::new(mcp_registry, authorization_state.clone());
 
     let user_permissions_service = Arc::new(
         roles_and_permissions::domain::service::UserRolesAndPermissionsServiceImpl::new(
@@ -725,7 +699,7 @@ async fn main() -> anyhow::Result<()> {
             redis_client.clone(),
         ),
         mcp_state,
-        mcp_catalog_state,
+        mcp_connection: Arc::new(mcp_connection),
         import_service,
         onboarding_service,
         macro_event_broker: macro_event_broker.clone(),

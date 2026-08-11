@@ -122,14 +122,10 @@ fn api_router(api_context: ApiContext) -> Router {
                 authorization_state,
             },
         ))
-        .merge(mcp_client::inbound::mcp_router(mcp_state.clone()))
-        .merge(mcp_client::inbound::mcp_catalog_router(
-            api_context.mcp_catalog_state.clone(),
-        ))
+        .merge(mcp_client::inbound::mcp_router(mcp_state))
         .with_state(api_context.clone());
 
     Router::new()
         .nest("/{version}", internal_router.clone())
         .merge(internal_router)
-        .merge(mcp_client::inbound::mcp_oauth_callback_router(mcp_state))
 }

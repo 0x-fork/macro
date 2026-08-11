@@ -11,7 +11,6 @@ import type { SafeFetchInit } from '@core/util/safeFetch';
 import type { DocumentTextPart } from '@service-cognition/generated/schemas/documentTextPart';
 import { err, ok, type Result } from 'neverthrow';
 import type OpenAI from 'openai';
-import type { AddServerRequest } from './generated/schemas/addServerRequest';
 import type { CreateChatRequest } from './generated/schemas/createChatRequest';
 import type { GetBatchPreviewRequest } from './generated/schemas/getBatchPreviewRequest';
 import type { GetBatchPreviewResponse } from './generated/schemas/getBatchPreviewResponse';
@@ -22,15 +21,11 @@ import type { HttpSendChatMessageRequest } from './generated/schemas/httpSendCha
 import type { PatchChatRequest } from './generated/schemas/patchChatRequest';
 import type { ProjectionStateResponse } from './generated/schemas/projectionStateResponse';
 import type { SendChatMessageResponse } from './generated/schemas/sendChatMessageResponse';
-import type { ServerResponse } from './generated/schemas/serverResponse';
-import type { StartAuthRequest } from './generated/schemas/startAuthRequest';
-import type { StartAuthResponse } from './generated/schemas/startAuthResponse';
 import type { StopChatStreamRequest } from './generated/schemas/stopChatStreamRequest';
 import type { StopChatStreamResponse } from './generated/schemas/stopChatStreamResponse';
 import type { StringIDResponse } from './generated/schemas/stringIDResponse';
 import type { StructuredCompletionRequest } from './generated/schemas/structuredCompletionRequest';
 import type { StructuredCompletionResponse } from './generated/schemas/structuredCompletionResponse';
-import type { UpdateServerRequest } from './generated/schemas/updateServerRequest';
 import type { UpsertProjectionRequest } from './generated/schemas/upsertProjectionRequest';
 import type * as toolTypes from './generated/tools/tool.ts';
 
@@ -67,25 +62,32 @@ type Success = { success: boolean };
 
 type IdMappingResponse = { target_id: string | null };
 
-// Hand-written mirrors of the DCS OpenAPI types for the Nango MCP endpoints
-// (`create_mcp_nango_session` / `complete_mcp_nango_session`) and the MCP
-// catalog (`browse_mcp_catalog`); replace with the orval-generated schemas
-// on the next client regeneration.
-export type NangoSessionRequest = { server_url?: string };
-export type NangoSessionResponse = {
-  session_token: string;
-  expires_at: string;
-  connect_link: string;
+// Hand-written mirrors of the DCS OpenAPI types for the MCP connector
+// endpoints (Pipedream connect flow + catalog); replace with the
+// orval-generated schemas on the next client regeneration.
+export type McpServerResponse = {
+  app_slug: string;
+  server_name: string;
+  enabled: boolean;
 };
-export type NangoCompleteRequest = {
-  connection_id: string;
+export type McpUpdateServerRequest = {
+  app_slug: string;
+  server_name?: string;
+  enabled?: boolean;
+};
+export type ConnectTokenResponse = {
+  token: string;
+  expires_at: string;
+  connect_link_url: string;
+};
+export type PipedreamCompleteRequest = {
+  account_id: string;
   server_name?: string;
 };
 export type CatalogEntryResponse = {
-  name: string;
+  app_slug: string;
   display_name: string;
   description?: string | null;
-  url: string;
   icon_url?: string | null;
   priority: boolean;
 };
@@ -94,8 +96,8 @@ export type CatalogResponse = {
   next_cursor?: string | null;
 };
 
-/** Error code for deployments where Nango MCP connect is not configured. */
-export const NANGO_DISABLED = 'NANGO_DISABLED' as const;
+/** Error code for deployments where Pipedream MCP connect is not configured. */
+export const PIPEDREAM_DISABLED = 'PIPEDREAM_DISABLED' as const;
 
 export const cognitionApiServiceClient = {
   /** Creates a mapping from source_id to target_id */
@@ -352,61 +354,43 @@ export const cognitionApiServiceClient = {
 
   async listMcpServers() {
     return (
-      await dcsFetch<ServerResponse[]>(`/mcp/servers`, { method: 'GET' })
+      await dcsFetch<McpServerResponse[]>(`/mcp/servers`, { method: 'GET' })
     ).map((result) => result);
   },
 
-  async addMcpServer(args: AddServerRequest) {
+  async updateMcpServer(args: McpUpdateServerRequest) {
     return (
-      await dcsFetch<ServerResponse>(`/mcp/servers`, {
-        method: 'POST',
-        body: JSON.stringify(args),
-      })
-    ).map((result) => result);
-  },
-
-  async updateMcpServer(args: UpdateServerRequest) {
-    return (
-      await dcsFetch<ServerResponse>(`/mcp/servers`, {
+      await dcsFetch<McpServerResponse>(`/mcp/servers`, {
         method: 'PUT',
         body: JSON.stringify(args),
       })
     ).map((result) => result);
   },
 
-  async deleteMcpServer(args: { url: string }) {
-    return await dcsFetch(`/mcp/servers?url=${encodeURIComponent(args.url)}`, {
-      method: 'DELETE',
-    });
-  },
-
-  async startMcpAuth(args: StartAuthRequest) {
-    return (
-      await dcsFetch<StartAuthResponse>(`/mcp/servers/auth/start`, {
-        method: 'POST',
-        body: JSON.stringify(args),
-      })
-    ).map((result) => result);
+  async deleteMcpServer(args: { app_slug: string }) {
+    return await dcsFetch(
+      `/mcp/servers?app_slug=${encodeURIComponent(args.app_slug)}`,
+      { method: 'DELETE' }
+    );
   },
 
   /**
-   * Create a Nango Connect session for authorizing an MCP server. Answers
-   * with the {@link NANGO_DISABLED} error code on deployments where Nango
-   * isn't configured (HTTP 501), so callers can fall back to the legacy
-   * OAuth flow.
+   * Create a Pipedream Connect token for authorizing an MCP connector.
+   * Answers with the {@link PIPEDREAM_DISABLED} error code on deployments
+   * where Pipedream isn't configured (HTTP 501).
    */
-  async createMcpNangoSession(args: NangoSessionRequest) {
+  async createMcpPipedreamToken() {
     return (
-      await fetchWithToken<NangoSessionResponse, typeof NANGO_DISABLED>(
-        `${dcsHost}/mcp/servers/nango/session`,
+      await fetchWithToken<ConnectTokenResponse, typeof PIPEDREAM_DISABLED>(
+        `${dcsHost}/mcp/servers/pipedream/token`,
         {
           method: 'POST',
-          body: JSON.stringify(args),
+          body: JSON.stringify({}),
           errorResponseHandler: async (response) => {
             if (response.status === 501) {
               return {
-                code: NANGO_DISABLED,
-                message: 'Nango is not configured for this deployment',
+                code: PIPEDREAM_DISABLED,
+                message: 'Pipedream is not configured for this deployment',
               };
             }
             return {
@@ -419,10 +403,20 @@ export const cognitionApiServiceClient = {
     ).map((result) => result);
   },
 
+  /** Register a connected account reported by the Pipedream Connect UI. */
+  async completeMcpPipedreamConnection(args: PipedreamCompleteRequest) {
+    return (
+      await dcsFetch<McpServerResponse>(`/mcp/servers/pipedream/complete`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+      })
+    ).map((result) => result);
+  },
+
   /**
-   * Browse or search the catalog of connectable MCP servers. Curated
-   * priority connectors come first (flagged `priority`), followed by
-   * results from the public MCP registry.
+   * Browse or search the catalog of connectable MCP apps. Curated priority
+   * connectors come first (flagged `priority`), followed by results from
+   * Pipedream's app directory.
    */
   async browseMcpCatalog(args: {
     search?: string;
@@ -437,16 +431,6 @@ export const cognitionApiServiceClient = {
     return (
       await dcsFetch<CatalogResponse>(`/mcp/servers/catalog${query}`, {
         method: 'GET',
-      })
-    ).map((result) => result);
-  },
-
-  /** Attach a completed Nango connection to the user's MCP servers. */
-  async completeMcpNangoSession(args: NangoCompleteRequest) {
-    return (
-      await dcsFetch<ServerResponse>(`/mcp/servers/nango/complete`, {
-        method: 'POST',
-        body: JSON.stringify(args),
       })
     ).map((result) => result);
   },

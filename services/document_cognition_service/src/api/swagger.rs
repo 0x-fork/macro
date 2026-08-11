@@ -24,9 +24,8 @@ use ai_projections::inbound::axum_router::upsert_projection::{
 use ai_usage::inbound::axum_router::{self as ai_usage_api};
 use import::inbound::axum_router::{self as import_api, RunImportRequest};
 use mcp_client::inbound::axum_router::{
-    self as mcp_api, AddServerRequest, CatalogEntryResponse, CatalogResponse, NangoCompleteRequest,
-    NangoSessionRequest, NangoSessionResponse, ServerResponse, StartAuthRequest, StartAuthResponse,
-    UpdateServerRequest,
+    self as mcp_api, CatalogEntryResponse, CatalogResponse, ConnectTokenResponse,
+    PipedreamCompleteRequest, ServerResponse, UpdateServerRequest,
 };
 use memory::inbound::axum_router::{self as memory_api, MemoryErrorBody, MemoryResponse};
 use onboarding::inbound::axum_router::{self as onboarding_api, CompleteOnboardingRequest};
@@ -98,14 +97,10 @@ use utoipa::OpenApi;
             ai_projections::inbound::axum_router::upsert_projection::handler::<crate::api::context::DcsAiProjectionService>,
             mcp_api::list_servers,
             mcp_api::get_catalog,
-            mcp_api::add_server,
             mcp_api::update_server,
             mcp_api::delete_server,
-            mcp_api::start_auth,
-            mcp_api::create_nango_session,
-            mcp_api::complete_nango_session,
-            mcp_api::client_metadata,
-            mcp_api::auth_callback
+            mcp_api::create_connect_token,
+            mcp_api::complete_connection
         ),
         components(
             schemas(
@@ -229,13 +224,9 @@ use utoipa::OpenApi;
 
                 // MCP
                 ServerResponse,
-                AddServerRequest,
                 UpdateServerRequest,
-                StartAuthRequest,
-                StartAuthResponse,
-                NangoSessionRequest,
-                NangoSessionResponse,
-                NangoCompleteRequest,
+                ConnectTokenResponse,
+                PipedreamCompleteRequest,
                 CatalogResponse,
                 CatalogEntryResponse,
                 model_error_response::ErrorResponse,

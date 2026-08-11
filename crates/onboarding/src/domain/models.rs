@@ -42,12 +42,10 @@ pub struct OnboardingRow {
 /// One of the user's MCP server connections, as the setup page sees it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ConnectedServer {
-    /// The server's display name.
+    /// The connector's display name.
     pub name: String,
-    /// The server URL.
-    pub url: String,
-    /// Whether the user has completed OAuth against it.
-    pub authenticated: bool,
+    /// The Pipedream app slug, e.g. `linear`.
+    pub app_slug: String,
 }
 
 /// The onboarding aggregate served to the setup page. Import runs and

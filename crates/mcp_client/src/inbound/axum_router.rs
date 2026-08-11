@@ -1,9 +1,11 @@
 use crate::domain::{
-    models::{CatalogEntry, McpServerRecord, NangoEndUser, OAuthClientMetadata},
-    ports::{McpRegistry, McpServerStore, NangoConnectService, OAuthClient},
+    models::{CatalogEntry, McpServerRecord},
+    ports::{ConnectorDirectory, McpServerStore, PipedreamConnect},
     service::{
         catalog::browse_catalog,
-        nango_connect::{NangoConnectError, complete_nango_connection, disconnect_mcp_server},
+        pipedream_connect::{
+            PipedreamConnectError, complete_pipedream_connection, disconnect_mcp_server,
+        },
     },
 };
 use axum::{
@@ -21,10 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::{IntoParams, ToSchema};
 
-#[cfg(test)]
-mod test;
-
-/// Hook invoked after an OAuth flow completes and the credentials are saved.
+/// Hook invoked after a connect flow completes and the record is saved.
 /// Hosts use this to react to a connection the moment it exists (e.g. start
 /// import gather jobs); implementations must be quick or spawn.
 pub type McpAuthCompletedHook = Arc<
@@ -32,64 +31,57 @@ pub type McpAuthCompletedHook = Arc<
 >;
 
 /// Shared state for the MCP router.
-pub struct McpRouterState<S, O, N, Auth> {
+///
+/// `pipedream` is the single connect path. When it is `None` (deployment not
+/// configured), the connect and catalog endpoints answer 501; there is no
+/// fallback flow.
+pub struct McpRouterState<S, P, Auth> {
     store: Arc<S>,
-    oauth: Arc<O>,
-    nango: Option<Arc<N>>,
+    pipedream: Option<Arc<P>>,
     authorization_state: MacroAuthorizationState<Auth>,
-    client_metadata: OAuthClientMetadata,
     on_auth_completed: Option<McpAuthCompletedHook>,
 }
 
-impl<S, O, N, Auth> Clone for McpRouterState<S, O, N, Auth> {
+impl<S, P, Auth> Clone for McpRouterState<S, P, Auth> {
     fn clone(&self) -> Self {
         Self {
             store: self.store.clone(),
-            oauth: self.oauth.clone(),
-            nango: self.nango.clone(),
+            pipedream: self.pipedream.clone(),
             authorization_state: self.authorization_state.clone(),
-            client_metadata: self.client_metadata.clone(),
             on_auth_completed: self.on_auth_completed.clone(),
         }
     }
 }
 
-impl<S, O, N, Auth> FromRef<McpRouterState<S, O, N, Auth>> for MacroAuthorizationState<Auth> {
-    fn from_ref(state: &McpRouterState<S, O, N, Auth>) -> Self {
+impl<S, P, Auth> FromRef<McpRouterState<S, P, Auth>> for MacroAuthorizationState<Auth> {
+    fn from_ref(state: &McpRouterState<S, P, Auth>) -> Self {
         state.authorization_state.clone()
     }
 }
 
-impl<S, O, N, Auth> McpRouterState<S, O, N, Auth>
+impl<S, P, Auth> McpRouterState<S, P, Auth>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
 {
-    /// Create a new router state from a server store, OAuth client, optional
-    /// Nango client, and authorization state.
-    ///
-    /// When `nango` is `None` the Nango endpoints answer 501 and connecting
-    /// falls back to the legacy in-house OAuth flow.
+    /// Create a new router state from a server store, the Pipedream client
+    /// (None when the deployment has no Pipedream configured), and
+    /// authorization state.
     pub fn new(
         store: S,
-        oauth: O,
-        nango: Option<Arc<N>>,
+        pipedream: Option<Arc<P>>,
         authorization_state: MacroAuthorizationState<Auth>,
-        client_metadata: OAuthClientMetadata,
     ) -> Self {
         Self {
             store: Arc::new(store),
-            oauth: Arc::new(oauth),
-            nango,
+            pipedream,
             authorization_state,
-            client_metadata,
             on_auth_completed: None,
         }
     }
 
-    /// Invoke `hook` whenever an OAuth flow completes (see
+    /// Invoke `hook` whenever a connect flow completes (see
     /// [`McpAuthCompletedHook`]).
     pub fn with_auth_completed_hook(mut self, hook: McpAuthCompletedHook) -> Self {
         self.on_auth_completed = Some(hook);
@@ -100,214 +92,111 @@ where
     pub fn store(&self) -> Arc<S> {
         self.store.clone()
     }
+
+    fn pipedream(&self) -> Result<&Arc<P>, McpHandlerErr> {
+        self.pipedream
+            .as_ref()
+            .ok_or(McpHandlerErr::PipedreamNotConfigured)
+    }
 }
 
-/// Authenticated MCP routes (CRUD + start auth + Nango Connect).
-pub fn mcp_router<S, O, N, Auth, Global>(state: McpRouterState<S, O, N, Auth>) -> Router<Global>
+/// Authenticated MCP routes: connected-app CRUD, the Pipedream connect flow,
+/// and the connector catalog.
+pub fn mcp_router<S, P, Auth, Global>(state: McpRouterState<S, P, Auth>) -> Router<Global>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
     anyhow::Error: From<S::Err>,
     Global: Send + Sync,
 {
     Router::new()
-        .route("/mcp/servers", get(list_servers::<S, O, N, Auth>))
-        .route("/mcp/servers", post(add_server::<S, O, N, Auth>))
-        .route("/mcp/servers", put(update_server::<S, O, N, Auth>))
-        .route("/mcp/servers", delete(delete_server::<S, O, N, Auth>))
-        .route("/mcp/servers/auth/start", post(start_auth::<S, O, N, Auth>))
+        .route("/mcp/servers", get(list_servers::<S, P, Auth>))
+        .route("/mcp/servers", put(update_server::<S, P, Auth>))
+        .route("/mcp/servers", delete(delete_server::<S, P, Auth>))
         .route(
-            "/mcp/servers/nango/session",
-            post(create_nango_session::<S, O, N, Auth>),
+            "/mcp/servers/pipedream/token",
+            post(create_connect_token::<S, P, Auth>),
         )
         .route(
-            "/mcp/servers/nango/complete",
-            post(complete_nango_session::<S, O, N, Auth>),
+            "/mcp/servers/pipedream/complete",
+            post(complete_connection::<S, P, Auth>),
         )
-        .with_state(state)
-}
-
-/// Shared state for the MCP catalog router.
-///
-/// Separate from [`McpRouterState`] because the catalog depends only on the
-/// public registry — none of the per-user store/OAuth/Nango machinery.
-pub struct McpCatalogRouterState<R, Auth> {
-    registry: Arc<R>,
-    authorization_state: MacroAuthorizationState<Auth>,
-}
-
-impl<R, Auth> Clone for McpCatalogRouterState<R, Auth> {
-    fn clone(&self) -> Self {
-        Self {
-            registry: self.registry.clone(),
-            authorization_state: self.authorization_state.clone(),
-        }
-    }
-}
-
-impl<R, Auth> FromRef<McpCatalogRouterState<R, Auth>> for MacroAuthorizationState<Auth> {
-    fn from_ref(state: &McpCatalogRouterState<R, Auth>) -> Self {
-        state.authorization_state.clone()
-    }
-}
-
-impl<R, Auth> McpCatalogRouterState<R, Auth>
-where
-    R: McpRegistry,
-    Auth: MacroAuthorizationService,
-{
-    /// Create a new catalog router state from a registry client and
-    /// authorization state.
-    pub fn new(registry: R, authorization_state: MacroAuthorizationState<Auth>) -> Self {
-        Self {
-            registry: Arc::new(registry),
-            authorization_state,
-        }
-    }
-}
-
-/// Authenticated MCP catalog route (browse/search connectable servers).
-pub fn mcp_catalog_router<R, Auth, Global>(state: McpCatalogRouterState<R, Auth>) -> Router<Global>
-where
-    R: McpRegistry,
-    Auth: MacroAuthorizationService,
-    Global: Send + Sync,
-{
-    Router::new()
-        .route("/mcp/servers/catalog", get(get_catalog::<R, Auth>))
-        .with_state(state)
-}
-
-/// Unauthenticated OAuth callback and client metadata routes.
-pub fn mcp_oauth_callback_router<S, O, N, Auth, Global>(
-    state: McpRouterState<S, O, N, Auth>,
-) -> Router<Global>
-where
-    S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
-    Auth: MacroAuthorizationService,
-    anyhow::Error: From<S::Err>,
-    Global: Send + Sync,
-{
-    Router::new()
-        .route(
-            "/mcp/servers/auth/callback",
-            get(auth_callback::<S, O, N, Auth>),
-        )
-        .route(
-            "/mcp/servers/auth/client-metadata",
-            get(client_metadata::<S, O, N, Auth>),
-        )
+        .route("/mcp/servers/catalog", get(get_catalog::<S, P, Auth>))
         .with_state(state)
 }
 
 // -- request / response types ------------------------------------------------
 
-/// Request body for adding a new MCP server.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct AddServerRequest {
-    /// The MCP server's streamable HTTP URL.
-    url: String,
-    /// Human-readable name for the server.
-    server_name: String,
-}
-
-/// Request body for updating an MCP server.
+/// Request body for updating a connected app.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateServerRequest {
-    /// The server URL to update.
-    url: String,
-    /// New name for the server.
+    /// The app slug to update.
+    app_slug: String,
+    /// New display name for the connector.
     #[serde(default)]
     server_name: Option<String>,
-    /// Enable or disable the server.
+    /// Enable or disable the connector.
     #[serde(default)]
     enabled: Option<bool>,
 }
 
-/// Query parameters for deleting an MCP server.
+/// Query parameters for deleting a connected app.
 #[derive(Debug, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct DeleteServerParams {
-    /// The server URL to delete.
-    url: String,
+    /// The app slug to disconnect.
+    app_slug: String,
 }
 
-/// Request body for starting an OAuth authorization flow.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct StartAuthRequest {
-    /// The MCP server URL to authorize against.
-    server_url: String,
-    /// Human-readable name for the server.
-    server_name: String,
-}
-
-/// Response from starting an OAuth authorization flow.
+/// Response from creating a Pipedream Connect token.
 #[derive(Debug, Serialize, ToSchema)]
-pub struct StartAuthResponse {
-    /// The OAuth authorization URL to redirect the user to.
-    authorization_url: String,
-}
-
-/// Query parameters received on the OAuth callback redirect.
-///
-/// Providers redirect here on both success (`code` + `state`) and failure
-/// (`error` [+ `error_description`], per RFC 6749 §4.1.2.1). All fields are
-/// optional so a rejected authorization can still be parsed and logged
-/// instead of failing Axum's query extraction before the handler runs.
-#[derive(Debug, Deserialize, IntoParams)]
-#[into_params(parameter_in = Query)]
-pub struct AuthCallbackParams {
-    /// Authorization code from the OAuth provider. Present on success.
-    code: Option<String>,
-    /// CSRF state parameter.
-    state: Option<String>,
-    /// OAuth error code from the provider, e.g. `access_denied`. Present on failure.
-    error: Option<String>,
-    /// Human-readable error description from the provider.
-    error_description: Option<String>,
-}
-
-/// Request body for creating a Nango Connect session.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct NangoSessionRequest {
-    /// The MCP server URL to authorize against. When set, the hosted Connect
-    /// UI skips its URL form and goes straight to the server's OAuth consent
-    /// screen. When omitted, the Connect UI prompts the user for a URL.
-    #[serde(default)]
-    server_url: Option<String>,
-}
-
-/// Response from creating a Nango Connect session.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct NangoSessionResponse {
-    /// Short-lived session token to open the Nango Connect UI with.
-    session_token: String,
-    /// RFC 3339 expiry of the session token.
+pub struct ConnectTokenResponse {
+    /// Short-lived token to open the Pipedream Connect UI with.
+    token: String,
+    /// RFC 3339 expiry of the token.
     expires_at: String,
-    /// Shareable link that opens the same auth flow in a browser tab.
-    connect_link: String,
+    /// Shareable link that opens the same connect flow in a browser tab.
+    connect_link_url: String,
 }
 
-/// Request body for completing a Nango Connect flow.
+/// Request body for completing a Pipedream connect flow.
 #[derive(Debug, Deserialize, ToSchema)]
-pub struct NangoCompleteRequest {
-    /// The connection ID reported by the Nango Connect UI on success.
-    connection_id: String,
-    /// Optional human-readable name for the server. Defaults to the server's
-    /// host for new servers; existing servers keep their name.
+pub struct PipedreamCompleteRequest {
+    /// The connected-account ID reported by the Connect UI on success.
+    account_id: String,
+    /// Optional display name for the connector. Defaults to the app's name
+    /// for new connections; existing connections keep their name.
     #[serde(default)]
     server_name: Option<String>,
 }
 
-/// Query parameters for browsing the MCP server catalog.
+/// A connected MCP app as returned by the API.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ServerResponse {
+    /// Pipedream app name slug, e.g. `linear`.
+    app_slug: String,
+    /// Human-readable display name.
+    server_name: String,
+    /// Whether the connector is enabled for tool use.
+    enabled: bool,
+}
+
+impl ServerResponse {
+    fn from_record(record: &McpServerRecord) -> Self {
+        Self {
+            app_slug: record.app_slug.clone(),
+            server_name: record.server_name.clone(),
+            enabled: record.enabled,
+        }
+    }
+}
+
+/// Query parameters for browsing the connector catalog.
 #[derive(Debug, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct CatalogParams {
-    /// Case-insensitive substring to search server names for. Omit to browse.
+    /// Search query to filter apps by name. Omit to browse.
     #[serde(default)]
     search: Option<String>,
     /// Opaque pagination cursor from a previous response.
@@ -318,18 +207,16 @@ pub struct CatalogParams {
     limit: Option<u32>,
 }
 
-/// One connectable MCP server in the catalog.
+/// One connectable app in the catalog.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CatalogEntryResponse {
-    /// Stable registry identifier, e.g. `app.linear/linear`.
-    name: String,
+    /// Pipedream app name slug — pass this to the connect flow.
+    app_slug: String,
     /// Human-readable name to display.
     display_name: String,
-    /// One-line description of the server.
+    /// One-line description of the app.
     description: Option<String>,
-    /// The server's streamable HTTP URL — pass this to the connect flow.
-    url: String,
-    /// URL of the server's icon, when available.
+    /// URL of the app's icon, when available.
     icon_url: Option<String>,
     /// Curated priority connectors rank first and may be rendered as their
     /// own featured section.
@@ -339,17 +226,16 @@ pub struct CatalogEntryResponse {
 impl From<CatalogEntry> for CatalogEntryResponse {
     fn from(entry: CatalogEntry) -> Self {
         Self {
-            name: entry.name,
+            app_slug: entry.app_slug,
             display_name: entry.display_name,
             description: entry.description,
-            url: entry.url,
             icon_url: entry.icon_url,
             priority: entry.priority,
         }
     }
 }
 
-/// A page of the MCP server catalog.
+/// A page of the connector catalog.
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CatalogResponse {
     /// Catalog entries in display order (priority connectors first).
@@ -358,61 +244,27 @@ pub struct CatalogResponse {
     next_cursor: Option<String>,
 }
 
-/// An MCP server record as returned by the API.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct ServerResponse {
-    /// The MCP server URL.
-    url: String,
-    /// Human-readable server name.
-    server_name: String,
-    /// Whether the server is enabled for tool use.
-    enabled: bool,
-    /// Whether the server has valid stored credentials.
-    authenticated: bool,
-}
-
-impl ServerResponse {
-    fn from_record(record: &McpServerRecord) -> Self {
-        Self {
-            url: record.url.clone(),
-            server_name: record.server_name.clone(),
-            enabled: record.enabled,
-            authenticated: record.is_authenticated(),
-        }
-    }
-}
-
 // -- error --------------------------------------------------------------------
 
 /// Error type for MCP HTTP handlers.
 #[derive(Debug, thiserror::Error)]
 pub enum McpHandlerErr {
-    /// The requested server was not found.
-    #[error("server not found")]
+    /// The requested record was not found.
+    #[error("not found")]
     NotFound,
-    /// The OAuth provider rejected the authorization request.
-    #[error("authorization rejected by provider: {0}")]
-    OAuthRejected(String),
-    /// The callback was missing both a code and an error parameter.
-    #[error("malformed OAuth callback: missing code and error parameters")]
-    MalformedCallback,
-    /// The request referenced something invalid.
-    #[error("{0}")]
-    InvalidRequest(String),
-    /// Nango is not configured for this deployment.
-    #[error("Nango is not configured")]
-    NangoNotConfigured,
+    /// Pipedream is not configured for this deployment.
+    #[error("Pipedream is not configured")]
+    PipedreamNotConfigured,
     /// An internal error occurred.
     #[error("{0}")]
     Internal(#[from] anyhow::Error),
 }
 
-impl From<NangoConnectError> for McpHandlerErr {
-    fn from(err: NangoConnectError) -> Self {
+impl From<PipedreamConnectError> for McpHandlerErr {
+    fn from(err: PipedreamConnectError) -> Self {
         match err {
-            NangoConnectError::NotFound => McpHandlerErr::NotFound,
-            NangoConnectError::MissingServerUrl => McpHandlerErr::InvalidRequest(err.to_string()),
-            NangoConnectError::Internal(e) => McpHandlerErr::Internal(e),
+            PipedreamConnectError::NotFound => McpHandlerErr::NotFound,
+            PipedreamConnectError::Internal(e) => McpHandlerErr::Internal(e),
         }
     }
 }
@@ -421,10 +273,7 @@ impl IntoResponse for McpHandlerErr {
     fn into_response(self) -> axum::response::Response {
         let status = match &self {
             McpHandlerErr::NotFound => StatusCode::NOT_FOUND,
-            McpHandlerErr::OAuthRejected(_)
-            | McpHandlerErr::MalformedCallback
-            | McpHandlerErr::InvalidRequest(_) => StatusCode::BAD_REQUEST,
-            McpHandlerErr::NangoNotConfigured => StatusCode::NOT_IMPLEMENTED,
+            McpHandlerErr::PipedreamNotConfigured => StatusCode::NOT_IMPLEMENTED,
             McpHandlerErr::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
         (
@@ -450,16 +299,15 @@ impl IntoResponse for McpHandlerErr {
         (status = 500, body = ErrorResponse),
     )
 )]
-/// List all MCP servers configured for the authenticated user.
+/// List the MCP apps connected by the authenticated user.
 #[tracing::instrument(skip_all, err)]
-pub async fn list_servers<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
+pub async fn list_servers<S, P, Auth>(
+    State(state): State<McpRouterState<S, P, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
 ) -> Result<Json<Vec<ServerResponse>>, McpHandlerErr>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
     anyhow::Error: From<S::Err>,
 {
@@ -476,95 +324,6 @@ where
 }
 
 #[utoipa::path(
-    get,
-    path = "/mcp/servers/catalog",
-    tag = "mcp",
-    operation_id = "browse_mcp_catalog",
-    params(CatalogParams),
-    responses(
-        (status = 200, body = CatalogResponse),
-        (status = 401, body = String),
-        (status = 500, body = ErrorResponse),
-    )
-)]
-/// Browse or search the catalog of connectable MCP servers.
-///
-/// Curated priority connectors come first (flagged `priority`), followed by
-/// results from the public MCP registry.
-#[tracing::instrument(skip_all, err)]
-pub async fn get_catalog<R, Auth>(
-    State(state): State<McpCatalogRouterState<R, Auth>>,
-    _authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Query(params): Query<CatalogParams>,
-) -> Result<Json<CatalogResponse>, McpHandlerErr>
-where
-    R: McpRegistry,
-    Auth: MacroAuthorizationService,
-{
-    let page = browse_catalog(
-        state.registry.as_ref(),
-        params.search.as_deref(),
-        params.cursor.as_deref(),
-        params.limit,
-    )
-    .await?;
-
-    Ok(Json(CatalogResponse {
-        servers: page.entries.into_iter().map(Into::into).collect(),
-        next_cursor: page.next_cursor,
-    }))
-}
-
-#[utoipa::path(
-    post,
-    path = "/mcp/servers",
-    tag = "mcp",
-    operation_id = "add_mcp_server",
-    request_body = AddServerRequest,
-    responses(
-        (status = 201, body = ServerResponse),
-        (status = 401, body = String),
-        (status = 500, body = ErrorResponse),
-    )
-)]
-/// Add a new MCP server for the authenticated user.
-#[tracing::instrument(skip_all, err)]
-pub async fn add_server<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
-    authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Json(body): Json<AddServerRequest>,
-) -> Result<(StatusCode, Json<ServerResponse>), McpHandlerErr>
-where
-    S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
-    Auth: MacroAuthorizationService,
-    anyhow::Error: From<S::Err>,
-{
-    let user = &authorization.authorization.user;
-    let record = McpServerRecord {
-        user_id: user.macro_user_id.clone(),
-        url: body.url,
-        server_name: body.server_name,
-        credentials: None,
-        enabled: true,
-        nango_connection_id: None,
-        bearer_token: None,
-    };
-
-    state
-        .store
-        .save(&record)
-        .await
-        .map_err(anyhow::Error::from)?;
-
-    Ok((
-        StatusCode::CREATED,
-        Json(ServerResponse::from_record(&record)),
-    ))
-}
-
-#[utoipa::path(
     put,
     path = "/mcp/servers",
     tag = "mcp",
@@ -577,24 +336,23 @@ where
         (status = 500, body = ErrorResponse),
     )
 )]
-/// Update an existing MCP server's name or enabled status.
+/// Rename or enable/disable a connected app.
 #[tracing::instrument(skip_all, err)]
-pub async fn update_server<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
+pub async fn update_server<S, P, Auth>(
+    State(state): State<McpRouterState<S, P, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     Json(body): Json<UpdateServerRequest>,
 ) -> Result<Json<ServerResponse>, McpHandlerErr>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
     anyhow::Error: From<S::Err>,
 {
     let user = &authorization.authorization.user;
     let mut record = state
         .store
-        .load(&user.macro_user_id, &body.url)
+        .load(&user.macro_user_id, &body.app_slug)
         .await
         .map_err(anyhow::Error::from)?
         .ok_or(McpHandlerErr::NotFound)?;
@@ -627,26 +385,26 @@ where
         (status = 500, body = ErrorResponse),
     )
 )]
-/// Delete an MCP server by URL.
+/// Disconnect an app, revoking its Pipedream account.
 #[tracing::instrument(skip_all, err)]
-pub async fn delete_server<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
+pub async fn delete_server<S, P, Auth>(
+    State(state): State<McpRouterState<S, P, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
     Query(params): Query<DeleteServerParams>,
 ) -> Result<StatusCode, McpHandlerErr>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
     anyhow::Error: From<S::Err>,
 {
     let user = &authorization.authorization.user;
+    let pipedream = state.pipedream()?;
     disconnect_mcp_server(
         state.store.as_ref(),
-        state.nango.as_deref(),
+        pipedream.as_ref(),
         &user.macro_user_id,
-        &params.url,
+        &params.app_slug,
     )
     .await?;
 
@@ -655,232 +413,128 @@ where
 
 #[utoipa::path(
     post,
-    path = "/mcp/servers/nango/session",
+    path = "/mcp/servers/pipedream/token",
     tag = "mcp",
-    operation_id = "create_mcp_nango_session",
-    request_body = NangoSessionRequest,
+    operation_id = "create_mcp_pipedream_token",
     responses(
-        (status = 200, body = NangoSessionResponse),
+        (status = 200, body = ConnectTokenResponse),
         (status = 401, body = String),
-        (status = 501, body = ErrorResponse, description = "Nango is not configured for this deployment"),
+        (status = 501, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
 )]
-/// Create a Nango Connect session for authorizing an MCP server.
+/// Create a short-lived Pipedream Connect token for the authenticated user.
 ///
-/// The frontend opens the Nango Connect UI with the returned session token;
-/// Nango then drives the MCP server's OAuth flow (endpoint discovery, dynamic
-/// client registration, consent) and stores the resulting tokens.
+/// The frontend opens Pipedream's hosted Connect UI with this token; the
+/// user picks (or is deep-linked into) an app and authorizes it there.
 #[tracing::instrument(skip_all, err)]
-pub async fn create_nango_session<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
+pub async fn create_connect_token<S, P, Auth>(
+    State(state): State<McpRouterState<S, P, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Json(body): Json<NangoSessionRequest>,
-) -> Result<Json<NangoSessionResponse>, McpHandlerErr>
+) -> Result<Json<ConnectTokenResponse>, McpHandlerErr>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
 {
-    let nango = state
-        .nango
-        .as_ref()
-        .ok_or(McpHandlerErr::NangoNotConfigured)?;
     let user = &authorization.authorization.user;
-
-    let session = nango
-        .create_connect_session(
-            NangoEndUser {
-                id: user.macro_user_id.as_ref().to_owned(),
-                display_name: None,
-            },
-            body.server_url.as_deref(),
-        )
+    let token = state
+        .pipedream()?
+        .create_connect_token(user.macro_user_id.as_ref())
         .await?;
 
-    Ok(Json(NangoSessionResponse {
-        session_token: session.token,
-        expires_at: session.expires_at,
-        connect_link: session.connect_link,
+    Ok(Json(ConnectTokenResponse {
+        token: token.token,
+        expires_at: token.expires_at,
+        connect_link_url: token.connect_link_url,
     }))
 }
 
 #[utoipa::path(
     post,
-    path = "/mcp/servers/nango/complete",
+    path = "/mcp/servers/pipedream/complete",
     tag = "mcp",
-    operation_id = "complete_mcp_nango_session",
-    request_body = NangoCompleteRequest,
+    operation_id = "complete_mcp_pipedream_connection",
+    request_body = PipedreamCompleteRequest,
     responses(
-        (status = 201, body = ServerResponse),
-        (status = 400, body = ErrorResponse, description = "The connection has no MCP server URL"),
+        (status = 200, body = ServerResponse),
         (status = 401, body = String),
-        (status = 404, body = ErrorResponse, description = "Unknown connection, or owned by another user"),
-        (status = 501, body = ErrorResponse, description = "Nango is not configured for this deployment"),
+        (status = 404, body = ErrorResponse),
+        (status = 501, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
 )]
-/// Complete a Nango Connect flow by attaching the new connection to the
-/// user's MCP servers.
+/// Register a connected account reported by the Pipedream Connect UI.
 ///
-/// The connection is verified against Nango (it must exist and belong to the
-/// calling user) before anything is stored, so a caller can't attach
-/// someone else's connection by guessing IDs.
+/// Verifies with Pipedream that the account exists and was connected for
+/// the authenticated user before persisting anything.
 #[tracing::instrument(skip_all, err)]
-pub async fn complete_nango_session<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
+pub async fn complete_connection<S, P, Auth>(
+    State(state): State<McpRouterState<S, P, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Json(body): Json<NangoCompleteRequest>,
-) -> Result<(StatusCode, Json<ServerResponse>), McpHandlerErr>
+    Json(body): Json<PipedreamCompleteRequest>,
+) -> Result<Json<ServerResponse>, McpHandlerErr>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
     anyhow::Error: From<S::Err>,
 {
-    let nango = state
-        .nango
-        .as_ref()
-        .ok_or(McpHandlerErr::NangoNotConfigured)?;
     let user = &authorization.authorization.user;
-
-    let record = complete_nango_connection(
+    let record = complete_pipedream_connection(
         state.store.as_ref(),
-        nango.as_ref(),
+        state.pipedream()?.as_ref(),
         &user.macro_user_id,
-        &body.connection_id,
-        body.server_name,
+        &body.account_id,
+        body.server_name.as_deref(),
     )
     .await?;
 
-    // Same contract as the legacy OAuth callback: let the host react to the
-    // brand-new connection (e.g. kick off import gather jobs).
     if let Some(hook) = &state.on_auth_completed {
         hook(record.clone()).await;
     }
 
-    Ok((
-        StatusCode::CREATED,
-        Json(ServerResponse::from_record(&record)),
-    ))
+    Ok(Json(ServerResponse::from_record(&record)))
 }
 
 #[utoipa::path(
-    post,
-    path = "/mcp/servers/auth/start",
+    get,
+    path = "/mcp/servers/catalog",
     tag = "mcp",
-    operation_id = "start_mcp_auth",
-    request_body = StartAuthRequest,
+    operation_id = "browse_mcp_catalog",
+    params(CatalogParams),
     responses(
-        (status = 200, body = StartAuthResponse),
+        (status = 200, body = CatalogResponse),
         (status = 401, body = String),
+        (status = 501, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
 )]
-/// Start the OAuth authorization flow for an MCP server.
+/// Browse or search the catalog of connectable apps.
+///
+/// Curated priority connectors come first (flagged `priority`), followed by
+/// results from Pipedream's app directory.
 #[tracing::instrument(skip_all, err)]
-pub async fn start_auth<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
-    authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Json(body): Json<StartAuthRequest>,
-) -> Result<Json<StartAuthResponse>, McpHandlerErr>
+pub async fn get_catalog<S, P, Auth>(
+    State(state): State<McpRouterState<S, P, Auth>>,
+    _authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Query(params): Query<CatalogParams>,
+) -> Result<Json<CatalogResponse>, McpHandlerErr>
 where
     S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
+    P: PipedreamConnect + ConnectorDirectory,
     Auth: MacroAuthorizationService,
 {
-    let user = &authorization.authorization.user;
-    let authorization_url = state
-        .oauth
-        .start_authorization(&user.macro_user_id, &body.server_url, &body.server_name)
-        .await?;
-
-    Ok(Json(StartAuthResponse { authorization_url }))
-}
-
-#[utoipa::path(
-    get,
-    path = "/mcp/servers/auth/client-metadata",
-    tag = "mcp",
-    operation_id = "mcp_oauth_client_metadata",
-    responses(
-        (status = 200, description = "Macro OAuth client metadata document"),
+    let page = browse_catalog(
+        state.pipedream()?.as_ref(),
+        params.search.as_deref(),
+        params.cursor.as_deref(),
+        params.limit,
     )
-)]
-/// Return Macro's public OAuth Client ID Metadata Document.
-pub async fn client_metadata<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
-) -> Json<OAuthClientMetadata>
-where
-    S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
-    Auth: MacroAuthorizationService,
-{
-    Json(state.client_metadata.clone())
-}
+    .await?;
 
-/// Classify a callback as a successful `(code, state)` pair or a handler
-/// error, logging provider rejections and malformed callbacks along the way.
-fn parse_callback_params(params: AuthCallbackParams) -> Result<(String, String), McpHandlerErr> {
-    if let Some(error) = params.error {
-        let reason = match params.error_description {
-            Some(description) => format!("{error}: {description}"),
-            None => error,
-        };
-        tracing::warn!(reason, "MCP OAuth provider rejected authorization");
-        return Err(McpHandlerErr::OAuthRejected(reason));
-    }
-
-    match (params.code, params.state) {
-        (Some(code), Some(state)) => Ok((code, state)),
-        _ => {
-            tracing::warn!("MCP OAuth callback missing both code and error parameters");
-            Err(McpHandlerErr::MalformedCallback)
-        }
-    }
-}
-
-#[utoipa::path(
-    get,
-    path = "/mcp/servers/auth/callback",
-    tag = "mcp",
-    operation_id = "mcp_auth_callback",
-    params(AuthCallbackParams),
-    responses(
-        (status = 200, description = "OAuth flow completed successfully"),
-        (status = 400, body = ErrorResponse, description = "Provider rejected authorization, or the callback was malformed"),
-        (status = 500, body = ErrorResponse),
-    )
-)]
-/// OAuth callback endpoint — receives code and state, or an error, from the
-/// authorization server.
-#[tracing::instrument(skip_all, err, fields(state = ?params.state))]
-pub async fn auth_callback<S, O, N, Auth>(
-    State(state): State<McpRouterState<S, O, N, Auth>>,
-    Query(params): Query<AuthCallbackParams>,
-) -> Result<String, McpHandlerErr>
-where
-    S: McpServerStore,
-    O: OAuthClient,
-    N: NangoConnectService,
-    Auth: MacroAuthorizationService,
-{
-    let (code, csrf_state) = parse_callback_params(params)?;
-
-    let record = state
-        .oauth
-        .exchange_authorization_code(&code, &csrf_state)
-        .await?;
-
-    // Let the host react to the brand-new connection (e.g. kick off import
-    // gather jobs) before the user even returns to their original tab.
-    if let Some(hook) = &state.on_auth_completed {
-        hook(record).await;
-    }
-
-    Ok("Authorization successful. You can close this tab.".to_string())
+    Ok(Json(CatalogResponse {
+        servers: page.entries.into_iter().map(Into::into).collect(),
+        next_cursor: page.next_cursor,
+    }))
 }

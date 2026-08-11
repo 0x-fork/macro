@@ -1,13 +1,12 @@
-/// Browsing the catalog of connectable MCP servers.
+/// Browsing the catalog of connectable MCP apps.
 pub mod catalog;
-/// Completion of Nango-managed MCP authorizations.
-pub mod nango_connect;
-/// Write-through OAuth credential store for MCP connections.
-pub mod persisting_credential_store;
+/// Completion and revocation of Pipedream-managed MCP connections.
+pub mod pipedream_connect;
 /// MCP tool set and combined tool set for the AI loop.
 pub mod toolset;
 
 pub use catalog::browse_catalog;
-pub use nango_connect::{NangoConnectError, complete_nango_connection};
-pub use persisting_credential_store::PersistingCredentialStore;
+pub use pipedream_connect::{
+    PipedreamConnectError, complete_pipedream_connection, disconnect_mcp_server,
+};
 pub use toolset::{CombinedToolSet, McpToolSet};

@@ -91,7 +91,7 @@ pub async fn structured_completion(
         mcp_client::domain::service::CombinedToolSet::new(
             ctx.all_tools.clone(),
             &mcp_records,
-            mcp_store.clone(),
+            ctx.mcp_connection.clone(),
         )
         .await,
     );

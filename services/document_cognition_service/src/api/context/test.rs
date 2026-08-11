@@ -383,10 +383,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         Arc::new(all_tools.prompt.to_string());
 
     let (import_service, onboarding_service) = {
-        let mcp_key =
-            mcp_client::domain::models::AesKey::try_from(vec![0u8; 32]).expect("valid test key");
-        let mcp_repo =
-            mcp_client::outbound::pg_server_repo::PgServerRepo::new(pool.clone(), mcp_key);
+        let mcp_repo = mcp_client::outbound::pg_server_repo::PgServerRepo::new(pool.clone());
         let creator = ai_tools::ToolEntityCreator {
             document_creator: document_tool_context.creator.clone(),
             entity_access_service: entity_access_service.clone(),
@@ -404,12 +401,8 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         };
         let import_service = Arc::new(import::domain::service::ImportServiceImpl::new(
             import::outbound::pg_import_repo::PgImportRepo::new(pool.clone()),
-            Arc::new(
-                mcp_client::outbound::nango_resolving_store::NangoResolvingStore::new(
-                    Arc::new(mcp_repo.clone()),
-                    None,
-                ),
-            ),
+            Arc::new(mcp_repo.clone()),
+            Arc::new(None),
             Arc::new(creator),
             ai_usage::pg_recorder(pool.clone()),
         ));
@@ -542,43 +535,12 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         ai_stream_registry: crate::service::ai_stream_registry::AiStreamRegistry::new(Arc::new(
             redis::Client::open("redis://127.0.0.1:6379/").expect("valid redis url"),
         )),
-        mcp_state: {
-            let redis_client =
-                Arc::new(redis::Client::open("redis://127.0.0.1:6379/").expect("valid redis url"));
-            let mcp_key = mcp_client::domain::models::AesKey::try_from(vec![0u8; 32])
-                .expect("valid test key");
-            let mcp_repo =
-                mcp_client::outbound::pg_server_repo::PgServerRepo::new(pool.clone(), mcp_key);
-            let mcp_state_store =
-                mcp_client::outbound::redis_state_store::RedisOAuthStateStore::new(redis_client);
-            let client_metadata = mcp_client::domain::models::OAuthClientMetadata::new(
-                "http://localhost/mcp/servers/auth/client-metadata".to_string(),
-                "http://localhost/mcp/servers/auth/callback".to_string(),
-            );
-            let mcp_oauth = mcp_client::outbound::oauth::OAuthService::new(
-                mcp_repo.clone(),
-                mcp_state_store,
-                client_metadata.clone(),
-                mcp_client::domain::provider_registry::PreRegisteredProviders::empty(),
-            );
-            mcp_client::inbound::McpRouterState::new(
-                mcp_client::outbound::nango_resolving_store::NangoResolvingStore::new(
-                    Arc::new(mcp_repo),
-                    None,
-                ),
-                mcp_oauth,
-                None,
-                authorization_state.clone(),
-                client_metadata,
-            )
-        },
-        mcp_catalog_state: mcp_client::inbound::McpCatalogRouterState::new(
-            mcp_client::outbound::mcp_registry::McpRegistryClient::new(
-                mcp_client::outbound::mcp_registry::DEFAULT_REGISTRY_URL.to_string(),
-            )
-            .expect("valid registry client"),
+        mcp_state: mcp_client::inbound::McpRouterState::new(
+            mcp_client::outbound::pg_server_repo::PgServerRepo::new(pool.clone()),
+            None,
             authorization_state,
         ),
+        mcp_connection: Arc::new(None),
         import_service: import_service.clone(),
         onboarding_service,
         macro_event_broker,

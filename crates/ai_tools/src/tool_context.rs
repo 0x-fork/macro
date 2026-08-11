@@ -1063,11 +1063,17 @@ impl import::domain::ports::EntityCreator for ToolEntityCreator {
     }
 }
 
+/// The single MCP connection path: Pipedream's remote MCP server, or `None`
+/// on deployments where Pipedream isn't configured (toolsets come up empty).
+pub type ToolMcpConnection =
+    Option<std::sync::Arc<mcp_client::outbound::pipedream::PipedreamClient>>;
+
 /// Type alias for the import service implementation used by AI tools.
 pub type ToolImportService = import::domain::service::ImportServiceImpl<
     import::outbound::pg_import_repo::PgImportRepo,
-    mcp_client::outbound::nango_resolving_store::NangoResolvingPgStore,
+    mcp_client::outbound::pg_server_repo::PgServerRepo,
     ToolEntityCreator,
+    ToolMcpConnection,
 >;
 
 /// Type alias for the import tool context. Built `unwired` by the shared

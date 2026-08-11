@@ -161,11 +161,11 @@ function GettingStartedContent() {
           description: 'Link your inbox, GitHub, Linear, Notion & more',
           onActivate: () => openSettingsTab('Connected'),
           // Any real connection counts: a second inbox (onboarding links the
-          // first), the GitHub account link, or any authenticated MCP server.
+          // first), the GitHub account link, or any connected MCP app.
           isComplete: () =>
             (emailLinks.data?.links.length ?? 0) > 1 ||
             githubLink.data?.status === 'linked' ||
-            (mcpServers.data ?? []).some((server) => server.authenticated),
+            (mcpServers.data ?? []).length > 0,
         },
       ],
     },

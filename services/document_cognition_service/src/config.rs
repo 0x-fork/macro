@@ -19,7 +19,6 @@ env_vars!(
     pub struct DocumentStorageServiceCloudfrontDistributionUrl;
     pub struct DocumentStorageServiceCloudfrontSignerPublicKeyId;
     pub struct DocumentStorageServiceCloudfrontSignerPrivateKey;
-    pub struct McpCredentialsKeySecretName;
     pub struct DocumentPermissionJwt;
     /// Comma-separated Kafka bootstrap servers for the macro event broker.
     pub struct KafkaBrokers;
@@ -27,18 +26,23 @@ env_vars!(
 
 maybe_env_vars!(
     pub struct DocumentBatchLimit;
-    /// Secret key for the Nango environment used for MCP server auth.
-    /// When unset, Nango-based MCP connect is disabled and the legacy
-    /// in-house OAuth flow is the only way to authorize MCP servers.
-    pub struct NangoSecretKey;
-    /// Base URL of the Nango API. Defaults to `https://api.nango.dev`.
-    pub struct NangoApiUrl;
-    /// Nango integration ID (provider config key) for MCP server auth.
-    /// Defaults to `mcp-generic`, Nango's generic MCP OAuth2 integration.
-    pub struct NangoMcpIntegrationId;
-    /// Base URL of the public MCP server registry backing the connector
-    /// catalog. Defaults to `https://registry.modelcontextprotocol.io`.
-    pub struct McpRegistryUrl;
+    /// OAuth client ID for the Pipedream API (Pipedream project settings).
+    /// Pipedream Connect is the single MCP connect path; when unset (along
+    /// with the other Pipedream credentials), MCP connectors are disabled.
+    pub struct PipedreamClientId;
+    /// OAuth client secret for the Pipedream API.
+    pub struct PipedreamClientSecret;
+    /// The Pipedream Connect project ID (`proj_...`).
+    pub struct PipedreamProjectId;
+    /// The Pipedream project environment (`development` or `production`).
+    /// Defaults by deploy environment: production in prd, development
+    /// elsewhere.
+    pub struct PipedreamEnvironment;
+    /// Base URL of the Pipedream API. Defaults to `https://api.pipedream.com`.
+    pub struct PipedreamApiUrl;
+    /// URL of Pipedream's remote MCP server. Defaults to
+    /// `https://remote.mcp.pipedream.net`.
+    pub struct PipedreamMcpUrl;
 );
 
 /// The configuration parameters for the application.
@@ -76,16 +80,18 @@ pub struct Config {
     /// CloudFront signer private key (secret name or value)
     pub document_storage_service_cloudfront_signer_private_key:
         LocalOrRemoteSecret<DocumentStorageServiceCloudfrontSignerPrivateKey>,
-    /// MCP credentials encryption key (base64-encoded, secret name or value)
-    pub mcp_credentials_key_secret_name: LocalOrRemoteSecret<McpCredentialsKeySecretName>,
-    /// Secret key for the Nango environment used for MCP server auth.
-    pub nango_secret_key: NangoSecretKey,
-    /// Base URL of the Nango API.
-    pub nango_api_url: NangoApiUrl,
-    /// Nango integration ID (provider config key) for MCP server auth.
-    pub nango_mcp_integration_id: NangoMcpIntegrationId,
-    /// Base URL of the public MCP server registry backing the connector catalog.
-    pub mcp_registry_url: McpRegistryUrl,
+    /// OAuth client ID for the Pipedream API.
+    pub pipedream_client_id: PipedreamClientId,
+    /// OAuth client secret for the Pipedream API.
+    pub pipedream_client_secret: PipedreamClientSecret,
+    /// The Pipedream Connect project ID.
+    pub pipedream_project_id: PipedreamProjectId,
+    /// The Pipedream project environment.
+    pub pipedream_environment: PipedreamEnvironment,
+    /// Base URL of the Pipedream API.
+    pub pipedream_api_url: PipedreamApiUrl,
+    /// URL of Pipedream's remote MCP server.
+    pub pipedream_mcp_url: PipedreamMcpUrl,
     /// The internal api key
     pub internal_api_key: InternalApiKey,
     /// AI editing worker URL
@@ -137,13 +143,12 @@ impl Config {
                     "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY",
                 ),
             ),
-            mcp_credentials_key_secret_name: LocalOrRemoteSecret::Local(
-                McpCredentialsKeySecretName::Comptime("MCP_CREDENTIALS_KEY_SECRET_NAME"),
-            ),
-            nango_secret_key: NangoSecretKey::Unset,
-            nango_api_url: NangoApiUrl::Unset,
-            nango_mcp_integration_id: NangoMcpIntegrationId::Unset,
-            mcp_registry_url: McpRegistryUrl::Unset,
+            pipedream_client_id: PipedreamClientId::Unset,
+            pipedream_client_secret: PipedreamClientSecret::Unset,
+            pipedream_project_id: PipedreamProjectId::Unset,
+            pipedream_environment: PipedreamEnvironment::Unset,
+            pipedream_api_url: PipedreamApiUrl::Unset,
+            pipedream_mcp_url: PipedreamMcpUrl::Unset,
             internal_api_key: InternalApiKey::Comptime(""),
             ai_editing_worker_url: AiEditingWorkerUrl::unwrap_new().to_string(),
             document_permission_jwt: DocumentPermissionJwt::Comptime("DOCUMENT_PERMISSION_JWT"),

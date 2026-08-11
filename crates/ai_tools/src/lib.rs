@@ -52,7 +52,7 @@ pub use tool_context::{
     ToolCrmToolContext, ToolDocumentService, ToolDocumentToolContext, ToolEmailService,
     ToolEmailToolContext, ToolEntityAccessManagementService, ToolEntityAccessService,
     ToolEntityCreator, ToolForeignEntityService, ToolFrecencyService, ToolImportService,
-    ToolImportToolContext, ToolNotificationQueue, ToolNotificationService,
+    ToolImportToolContext, ToolMcpConnection, ToolNotificationQueue, ToolNotificationService,
     ToolNotificationToolContext, ToolProjectService, ToolProjectToolContext, ToolPropertiesService,
     ToolPropertiesToolContext, ToolServiceContext, ToolSoupService, ToolSystemPropertiesService,
     ToolTeamService, ToolTeamToolContext, ToolUserEmailService,

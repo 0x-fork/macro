@@ -1,81 +1,64 @@
-//! Browsing the catalog of connectable MCP servers.
+//! Browsing the catalog of connectable MCP apps.
 //!
 //! The catalog merges two sources: a curated list of priority connectors we
-//! actively promote, and the public MCP registry. Priority connectors rank
-//! above organic registry results (clients may also render them as their own
-//! section, via [`CatalogEntry::priority`]).
+//! actively promote, and Pipedream's app directory. Priority connectors rank
+//! above organic directory results (clients may also render them as their
+//! own section, via [`CatalogEntry::priority`]).
 
 use crate::domain::models::{CatalogEntry, CatalogPage};
-use crate::domain::ports::McpRegistry;
+use crate::domain::ports::ConnectorDirectory;
 
 #[cfg(test)]
 mod test;
 
-/// A curated connector we promote above organic registry results.
+/// A curated connector we promote above organic directory results.
 struct PriorityConnector {
-    /// Registry identifier, used to dedupe against registry results.
-    name: &'static str,
+    /// Pipedream app name slug (see the app's page at pipedream.com/apps).
+    app_slug: &'static str,
     display_name: &'static str,
-    /// Product-voice tagline shown instead of the registry's description.
+    /// Product-voice tagline shown instead of the directory's description.
     tagline: &'static str,
-    url: &'static str,
-    icon_url: Option<&'static str>,
 }
 
 /// The promoted connectors, in the order they should rank.
 ///
 /// This is the place to "advertise" a connector: entries here are pinned to
-/// the top of the catalog (or shown in a dedicated featured section) whether
-/// or not the registry lists them.
+/// the top of the catalog (or shown in a dedicated featured section).
 const PRIORITY_CONNECTORS: &[PriorityConnector] = &[
     PriorityConnector {
-        name: "app.linear/linear",
+        app_slug: "linear",
         display_name: "Linear",
         tagline: "Create and update issues without leaving Macro.",
-        url: "https://mcp.linear.app/mcp",
-        icon_url: None,
     },
     PriorityConnector {
-        name: "com.slack/slack",
+        app_slug: "slack",
         display_name: "Slack",
         tagline: "Search conversations and post updates to channels.",
-        url: "https://mcp.slack.com/mcp",
-        icon_url: None,
     },
     PriorityConnector {
-        name: "com.notion/mcp",
+        app_slug: "notion",
         display_name: "Notion",
         tagline: "Search your pages, databases, and wikis.",
-        url: "https://mcp.notion.com/mcp",
-        icon_url: None,
     },
     PriorityConnector {
-        name: "io.github.PostHog/mcp",
+        app_slug: "posthog",
         display_name: "PostHog",
         tagline: "Query product analytics and user insights.",
-        url: "https://mcp.posthog.com/mcp",
-        icon_url: None,
     },
     PriorityConnector {
-        name: "com.github/github-mcp-server",
+        app_slug: "github",
         display_name: "GitHub",
         tagline: "Give the agent access to your repos, PRs, and issues.",
-        url: "https://api.githubcopilot.com/mcp",
-        icon_url: None,
     },
     PriorityConnector {
-        name: "com.datadoghq/datadog",
+        app_slug: "datadog",
         display_name: "Datadog",
         tagline: "Query metrics, logs, and monitors.",
-        url: "https://mcp.datadoghq.com/mcp",
-        icon_url: None,
     },
     PriorityConnector {
-        name: "io.github.grafana/mcp-grafana",
+        app_slug: "grafana",
         display_name: "Grafana",
         tagline: "Search dashboards and query your data sources.",
-        url: "https://mcp.grafana.com/mcp",
-        icon_url: None,
     },
 ];
 
@@ -83,37 +66,31 @@ const PRIORITY_CONNECTORS: &[PriorityConnector] = &[
 const MAX_PAGE_SIZE: u32 = 50;
 const DEFAULT_PAGE_SIZE: u32 = 20;
 
-/// Two URLs count as the same server if they differ only by a trailing slash.
-fn urls_match(a: &str, b: &str) -> bool {
-    a.trim_end_matches('/') == b.trim_end_matches('/')
-}
-
 fn matches_priority(entry: &CatalogEntry) -> bool {
     PRIORITY_CONNECTORS
         .iter()
-        .any(|p| p.name == entry.name || urls_match(p.url, &entry.url))
+        .any(|p| p.app_slug == entry.app_slug)
 }
 
 fn priority_entry(connector: &PriorityConnector) -> CatalogEntry {
     CatalogEntry {
-        name: connector.name.to_owned(),
+        app_slug: connector.app_slug.to_owned(),
         display_name: connector.display_name.to_owned(),
         description: Some(connector.tagline.to_owned()),
-        url: connector.url.to_owned(),
-        icon_url: connector.icon_url.map(str::to_owned),
+        icon_url: None,
         priority: true,
     }
 }
 
 /// Browse the connector catalog: curated priority connectors first, then
-/// organic registry results, deduplicated.
+/// organic directory results, deduplicated.
 ///
 /// Priority connectors matching `search` (or all of them, when browsing) are
-/// pinned to the front of the first page; registry entries duplicating a
+/// pinned to the front of the first page; directory entries duplicating a
 /// priority connector are dropped on every page so they never show up twice.
-#[tracing::instrument(skip(registry), err)]
-pub async fn browse_catalog<R: McpRegistry>(
-    registry: &R,
+#[tracing::instrument(skip(directory), err)]
+pub async fn browse_catalog<D: ConnectorDirectory>(
+    directory: &D,
     search: Option<&str>,
     cursor: Option<&str>,
     limit: Option<u32>,
@@ -121,7 +98,7 @@ pub async fn browse_catalog<R: McpRegistry>(
     let search = search.map(str::trim).filter(|s| !s.is_empty());
     let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE).clamp(1, MAX_PAGE_SIZE);
 
-    let mut page = registry.search(search, cursor, limit).await?;
+    let mut page = directory.search(search, cursor, limit).await?;
     page.entries.retain(|entry| !matches_priority(entry));
 
     // Priority connectors lead the first page only; on later pages they'd be
@@ -133,7 +110,7 @@ pub async fn browse_catalog<R: McpRegistry>(
             .filter(|p| match &needle {
                 Some(needle) => {
                     p.display_name.to_lowercase().contains(needle)
-                        || p.name.to_lowercase().contains(needle)
+                        || p.app_slug.to_lowercase().contains(needle)
                 }
                 None => true,
             })
