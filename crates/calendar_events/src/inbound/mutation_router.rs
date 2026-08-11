@@ -25,7 +25,8 @@ use uuid::Uuid;
 use crate::domain::{
     models::{
         AttendeeResponseStatus, CalendarAttendeeInput, CalendarEvent, CalendarEventDraft,
-        CalendarEventPatch, EventTime, EventTransparency, EventVisibility, VisibleCalendar,
+        CalendarEventPatch, ConferenceChange, EventTime, EventTransparency, EventVisibility,
+        VisibleCalendar,
     },
     ports::{
         CalendarDeletionScope, CalendarMutationError, CalendarMutationService, CalendarRsvpScope,
@@ -135,6 +136,8 @@ pub struct CreateCalendarEventRequest {
     pub visibility: Option<EventVisibility>,
     /// Availability behavior.
     pub transparency: Option<EventTransparency>,
+    /// Conference to attach to the new event; omit to create it without one.
+    pub conference: Option<ConferenceChange>,
 }
 
 /// Request body patching an event; omitted fields are left untouched.
@@ -157,6 +160,10 @@ pub struct UpdateCalendarEventRequest {
     pub visibility: Option<EventVisibility>,
     /// Replacement transparency.
     pub transparency: Option<EventTransparency>,
+    /// Conference change: `google_meet` attaches a freshly generated Meet,
+    /// `none` detaches the current conference, and omitting it leaves the
+    /// conference untouched.
+    pub conference: Option<ConferenceChange>,
 }
 
 /// How much of a recurring series a deletion removes.
@@ -359,6 +366,7 @@ where
         recurrence_lines: request.recurrence_lines,
         visibility: request.visibility,
         transparency: request.transparency,
+        conference: request.conference,
     };
     let event = state
         .service
@@ -446,6 +454,7 @@ where
         recurrence_lines: request.recurrence_lines,
         visibility: request.visibility,
         transparency: request.transparency,
+        conference: request.conference,
     };
     let event = state
         .service

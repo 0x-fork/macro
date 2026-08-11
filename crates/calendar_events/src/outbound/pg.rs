@@ -16,10 +16,10 @@ use crate::domain::{
         CalendarBackfillJobKey, CalendarBackfillKind, CalendarCreationTarget, CalendarEvent,
         CalendarEventMutationTarget, CalendarEventOverride, CalendarEventSource,
         CalendarEventUpsert, CalendarLinkTokenIdentity, CalendarOccurrence,
-        CalendarOccurrenceCursor, CalendarSyncStatus, EventStart, EventStatus, EventTime,
-        EventTransparency, EventVisibility, GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot,
-        GoogleScopeSet, GoogleWatchChannel, OccurrenceRange, ProviderCalendar,
-        StoredGoogleCalendar, VisibleCalendar,
+        CalendarOccurrenceCursor, CalendarSyncStatus, ConferenceProvider, EventStart, EventStatus,
+        EventTime, EventTransparency, EventVisibility, GOOGLE_CALENDAR_SCOPES,
+        GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel, OccurrenceRange,
+        ProviderCalendar, StoredGoogleCalendar, VisibleCalendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventWrite, CalendarRepository,
@@ -293,6 +293,7 @@ struct OccurrenceJoinRow {
     organizer_email: Option<String>,
     organizer_name: Option<String>,
     conference_url: Option<String>,
+    conference_provider: Option<String>,
     sequence: i32,
     is_read_only: bool,
     created_at: DateTime<Utc>,
@@ -546,7 +547,8 @@ impl CalendarRepository for PgCalendarRepository {
                 status, visibility, transparency,
                 starts_at, ends_at, start_date, end_date, time_zone,
                 recurrence_lines, organizer_email, organizer_name,
-                conference_url, sequence, is_read_only, canonical_source_kind,
+                conference_url, conference_provider, sequence, is_read_only,
+                canonical_source_kind,
                 canonical_source_updated_at,
                 created_at, updated_at
             )
@@ -555,7 +557,7 @@ impl CalendarRepository for PgCalendarRepository {
                 $8, $9, $10,
                 $11, $12, $13, $14, $15,
                 $16, $17, $18,
-                $19, $20, $21, $22, $24,
+                $19, $25, $20, $21, $22, $24,
                 $23, $24
             )
             ON CONFLICT (owner_id, source_link_id, ical_uid) DO UPDATE SET
@@ -574,6 +576,7 @@ impl CalendarRepository for PgCalendarRepository {
                 organizer_email = EXCLUDED.organizer_email,
                 organizer_name = EXCLUDED.organizer_name,
                 conference_url = EXCLUDED.conference_url,
+                conference_provider = EXCLUDED.conference_provider,
                 sequence = EXCLUDED.sequence,
                 is_read_only = EXCLUDED.is_read_only,
                 canonical_source_kind = EXCLUDED.canonical_source_kind,
@@ -612,6 +615,10 @@ impl CalendarRepository for PgCalendarRepository {
             source_kind,
             upsert.event.created_at,
             upsert.event.updated_at,
+            upsert
+                .event
+                .conference_provider
+                .map(ConferenceProvider::as_str),
         )
         .fetch_optional(&mut *tx)
         .await
@@ -691,6 +698,7 @@ impl CalendarRepository for PgCalendarRepository {
                 event.organizer_email,
                 event.organizer_name,
                 event.conference_url,
+                event.conference_provider,
                 event.sequence,
                 event.is_read_only,
                 event.created_at,
@@ -2158,6 +2166,7 @@ async fn restore_best_source_or_delete(
             organizer_email = $14,
             organizer_name = $15,
             conference_url = $16,
+            conference_provider = $23,
             sequence = $17,
             is_read_only = $18,
             canonical_source_kind = $19,
@@ -2188,6 +2197,10 @@ async fn restore_best_source_or_delete(
         source.source_updated_at,
         projection.event.created_at,
         projection.event.updated_at,
+        projection
+            .event
+            .conference_provider
+            .map(ConferenceProvider::as_str),
     )
     .execute(&mut **tx)
     .await
@@ -2541,6 +2554,7 @@ fn event_from_join(
         organizer_email: row.organizer_email,
         organizer_name: row.organizer_name,
         conference_url: row.conference_url,
+        conference_provider: row.conference_provider.as_deref().map(conference_provider),
         sequence: u32::try_from(row.sequence).unwrap_or_default(),
         is_read_only: row.is_read_only,
         attendees,
@@ -2579,6 +2593,17 @@ fn event_visibility(value: &str) -> EventVisibility {
         "private" => EventVisibility::Private,
         "confidential" => EventVisibility::Confidential,
         _ => EventVisibility::Default,
+    }
+}
+
+/// Parse the stored provider, treating an unknown value as a third-party
+/// conference so a row written by a newer deployment stays joinable and is
+/// never mistaken for one Macro may detach.
+fn conference_provider(value: &str) -> ConferenceProvider {
+    if value == "google_meet" {
+        ConferenceProvider::GoogleMeet
+    } else {
+        ConferenceProvider::Other
     }
 }
 

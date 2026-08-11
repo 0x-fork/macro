@@ -600,6 +600,7 @@ export type CalendarEvent = {
      * projections stored before calendars were attributed.
      */
     calendarId?: string | null;
+    conferenceProvider?: null | ConferenceProvider;
     /**
      * Direct join URL when known.
      */
@@ -706,6 +707,22 @@ export type CancelBackfillParams = {
     job_id: string;
 };
 
+/**
+ * A requested change to an event's conferencing. Omitting the field leaves
+ * the existing conference untouched; only these values change it.
+ */
+export type ConferenceChange = 'google_meet' | 'none';
+
+/**
+ * The conferencing system backing an event's join URL.
+ *
+ * Only Google Meet is attachable and detachable by Macro. Everything else —
+ * Zoom and friends arriving as `addOn` conference data, or a legacy classic
+ * Hangout — is surfaced for joining but never rewritten, so a third-party
+ * conference is not silently destroyed by a Macro edit.
+ */
+export type ConferenceProvider = 'google_meet' | 'other';
+
 export type Contact = {
     email_address?: string | null;
     id: string;
@@ -745,6 +762,7 @@ export type CreateCalendarEventRequest = {
      * inbox default.
      */
     calendarId?: string | null;
+    conference?: null | ConferenceChange;
     /**
      * Optional event body.
      */
@@ -1347,6 +1365,7 @@ export type UpdateCalendarEventRequest = {
      * Replacement attendee list.
      */
     attendees?: Array<CalendarAttendeeInputBody> | null;
+    conference?: null | ConferenceChange;
     /**
      * Replacement description; an empty string clears it.
      */

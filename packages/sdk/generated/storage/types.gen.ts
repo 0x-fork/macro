@@ -1209,6 +1209,7 @@ export type CalendarEvent = {
      * projections stored before calendars were attributed.
      */
     calendarId?: string | null;
+    conferenceProvider?: null | ConferenceProvider;
     /**
      * Direct join URL when known.
      */
@@ -2424,6 +2425,16 @@ export type CommentThread = {
     comments: Array<Comment>;
     thread: Thread;
 };
+
+/**
+ * The conferencing system backing an event's join URL.
+ *
+ * Only Google Meet is attachable and detachable by Macro. Everything else —
+ * Zoom and friends arriving as `addOn` conference data, or a legacy classic
+ * Hangout — is surfaced for joining but never rewritten, so a third-party
+ * conference is not silently destroyed by a Macro edit.
+ */
+export type ConferenceProvider = 'google_meet' | 'other';
 
 /**
  * Query parameters for the copy document endpoint.
@@ -6597,6 +6608,10 @@ export type SoupCalendarEventTime = {
  * A canonical calendar event entity in Soup.
  */
 export type SoupCalendarEventSoupPropertiesField = {
+    /**
+     * Which conferencing system backs `conference_url`.
+     */
+    conferenceProvider?: string | null;
     /**
      * Direct conference join URL.
      */
