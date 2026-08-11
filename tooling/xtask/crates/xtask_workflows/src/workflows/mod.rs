@@ -19,6 +19,7 @@ mod cargo_deny;
 mod cargo_workspace_dependency_check;
 mod check_generated;
 mod check_node_modules_nix;
+mod cla;
 mod cleanup_preview;
 mod code_check_cloud_storage;
 mod code_check_conventions;
@@ -262,6 +263,11 @@ const WORKFLOWS: &[WorkflowFile] = &[
         slug: "check_generated",
         file_name: "check_generated.yml",
         render_yaml: || render_gh_workflow(check_generated::check_generated_workflows)(),
+    },
+    WorkflowFile {
+        slug: "cla",
+        file_name: "cla.yml",
+        render_yaml: || render_gh_workflow(cla::cla)(),
     },
     WorkflowFile {
         slug: "web_app_check_main",

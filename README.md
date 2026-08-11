@@ -256,9 +256,11 @@ Enterprise-grade security. Zero data retention with model providers, including n
 
 # License
 
-Macro is fully open source — not "open core" — under the GNU Affero General Public License v3.0. See `LICENSE.txt` for details.
+Macro is fully open source — not "open core" — under the GNU Affero General Public License v3.0. See `LICENSE.txt` for details. The code that runs macro.com is the code in this repository; there is no proprietary edition with the good parts held back.
 
-You can self-host Macro under the terms of the AGPLv3; the [FAQ](https://docs.macro.com/faq) covers what that involves. If you want to build on top of Macro under a different license, contact [licensing@macro.com](mailto:licensing@macro.com). For managed hosting or commercial arrangements, contact [self-host@macro.com](mailto:self-host@macro.com).
+Macro is dual licensed. You can run, modify, and self-host it under the AGPLv3 at no cost; the [FAQ](https://docs.macro.com/faq) covers what self-hosting involves. Companies that can't work within the AGPLv3's reciprocity terms — building a proprietary product on top of Macro, embedding it, reselling it — can buy a commercial license instead: [licensing@macro.com](mailto:licensing@macro.com). For managed hosting or commercial arrangements, contact [self-host@macro.com](mailto:self-host@macro.com).
+
+[LICENSING.md](LICENSING.md) has the whole picture: which license applies to you, why contributions need a [CLA](CLA.md), and what we commit to in exchange — Macro stays AGPLv3, nothing moves into a proprietary edition, and a permissive release if we ever stop developing it as open source.
 
 <br />
 
@@ -267,8 +269,10 @@ You can self-host Macro under the terms of the AGPLv3; the [FAQ](https://docs.ma
 Have an idea, want to contribute, or want to work on Macro?
 
 - Feature requests: [contact@macro.com](mailto:contact@macro.com)
-- Contributions: see our [contribution guidelines](CONTRIBUTING.md)
+- Contributions: see our [contribution guidelines](CONTRIBUTING.md) and sign the [CLA](CLA.md)
 - Hiring: [teo@macro.com](mailto:teo@macro.com)
+
+Commercial licenses and hosted Macro are what fund the open side: bounties on community-reported issues, grants for sustained contributors, paid maintainer time on outside PRs, self-hosting as a first-class target, and sponsorship of the upstream projects Macro is built on. We publish the totals once a year — see [reinvesting commercial revenue in the community](LICENSING.md#reinvesting-commercial-revenue-in-the-community).
 
 <br />
 

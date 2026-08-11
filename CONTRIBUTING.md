@@ -4,6 +4,11 @@ Thanks for your interest in contributing! Macro is fully open source under the
 [AGPLv3](LICENSE.txt), and we welcome outside contributions. This guide covers
 how to get a change from idea to merged PR.
 
+One piece of paperwork before your first PR merges: we need you to sign the
+[Contributor License Agreement](CLA.md). It takes one comment on your pull
+request. See [Contributor License Agreement](#contributor-license-agreement)
+below for what it says and why we ask.
+
 ## Start with an issue
 
 Open an issue before putting up a PR. This applies to both features and fixes. It lets us confirm the change is wanted and agree on an approach before you invest time into it. PRs that show up without a linked issue may be closed.
@@ -54,7 +59,38 @@ locally. The short version: use the Nix shell, then `just run_local`.
 - If you changed SQL queries or migrations, run `just prepare_db` from the
   repository root to refresh the sqlx cache.
 
-## License
+## Contributor License Agreement
 
-By contributing, you agree that your contributions will be licensed under the
-[AGPLv3](LICENSE.txt), the same license that covers the project.
+Macro is dual licensed: everyone gets it under the [AGPLv3](LICENSE.txt), and
+companies that can't work within the AGPLv3's terms can buy a commercial
+license. Selling that commercial license means licensing the whole codebase —
+including your contribution — under terms other than the AGPLv3, and we can only
+do that with your permission. So we ask contributors to sign a CLA:
+
+- **[CLA.md](CLA.md)** if you're contributing as an individual.
+- **[CLA-ENTITY.md](CLA-ENTITY.md)** if your employer owns your work, or you're
+  contributing on a company's behalf. Email
+  [legal@macro.com](mailto:legal@macro.com) to get one countersigned.
+
+**How to sign.** Open your pull request as usual. Our CLA bot comments on it
+with a link and instructions; you accept by leaving one comment. It's a one-time
+thing that covers all your future contributions, and the check turns green
+within a minute or so. Signatures are recorded in
+[macro-inc/cla-signatures](https://github.com/macro-inc/cla-signatures).
+
+**What it does and doesn't do.** You keep the copyright in your work and can
+reuse it anywhere, under any license, without asking us — it's a license grant,
+not an assignment. What you're granting is the right to relicense your
+contribution, including under proprietary terms. We'd rather say that plainly
+than hide it. What we commit to in return — Macro stays AGPLv3, nothing gets
+moved into a proprietary edition, and a permissive release if we ever stop
+maintaining it as open source — is written down in
+[LICENSING.md](LICENSING.md#what-we-commit-to), along with how commercial
+revenue gets reinvested in the community.
+
+Not everything needs a CLA. Bug reports, reproductions, design feedback, and
+discussion don't — only contributions of copyrightable work do.
+
+Already contributed before we introduced this? We'll ask you to sign on your
+next PR, and we may reach out about earlier ones. Questions:
+[legal@macro.com](mailto:legal@macro.com).
