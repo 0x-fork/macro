@@ -258,6 +258,25 @@ pub(super) fn push_filter(
             builder.push_bind(email.clone());
             builder.push(")");
         }
+        // Bind-free on purpose: `$1` is the requesting user in every query
+        // that renders this clause (`cursor_soup` binds it first; the grouped
+        // dynamic query renders the whole filter bind-free via
+        // `build_calendar_event_filter` for the same reason), the contract
+        // the other arms' notification clauses rely on.
+        Expr::Literal(CalendarEventLiteral::NotificationDone(done)) => {
+            builder.push(super::expanded::dynamic::build_notification_done_clause(
+                "event.id",
+                "calendar_event",
+                *done,
+            ));
+        }
+        Expr::Literal(CalendarEventLiteral::NotificationSeen(seen)) => {
+            builder.push(super::expanded::dynamic::build_notification_seen_clause(
+                "event.id",
+                "calendar_event",
+                *seen,
+            ));
+        }
     }
 }
 
