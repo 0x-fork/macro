@@ -18,9 +18,12 @@ import { getOrCreateCacheScope } from '@graphql-cache/scope';
 import { getMacroApiToken } from '@service-auth/fetch';
 import type { ApiUserNotification } from '@service-notification/generated/schemas/apiUserNotification';
 import {
+  type AnyVariables,
   type Client,
   createClient,
+  type DocumentInput,
   fetchExchange,
+  type RequestPolicy,
   subscriptionExchange,
 } from '@urql/core';
 import { print } from 'graphql';
@@ -42,16 +45,11 @@ import {
   type GroupSoupQuery,
   GroupSoupDocument as GroupSoupQueryDocument,
   type GroupSoupQueryVariables,
-  SoupBackfillDocument,
-  type SoupBackfillQuery,
-  type SoupBackfillQueryVariables,
   type SoupInitialInput,
   type SoupInput,
   type SoupNotificationFieldsFragment,
   type SoupPropertyFieldsFragment,
   type SoupQuery,
-  SoupDocument as SoupQueryDocument,
-  type SoupQueryVariables,
 } from './graphql/generated/graphql';
 import {
   createGraphqlSoupWebSocketUrlResolver,
@@ -790,6 +788,17 @@ export type FetchGraphqlSoupOptions = {
   signal?: AbortSignal;
   /** Defaults to true for normal foreground Soup reads. */
   allowOfflineFallback?: boolean;
+  /** Overrides cache selection for callers such as durable backfills. */
+  requestPolicy?: RequestPolicy;
+};
+
+type GraphqlSoupPageData = {
+  user: {
+    soup: {
+      items: GraphqlSoupItem[];
+      nextCursor: string | null;
+    };
+  };
 };
 
 /**
@@ -797,7 +806,7 @@ export type FetchGraphqlSoupOptions = {
  * the existing soup pipeline (both the imperative fetch below and the
  * reactive urql subscriptions).
  */
-export function mapGraphqlSoupPage(data: SoupQuery): SoupPage {
+export function mapGraphqlSoupPage(data: GraphqlSoupPageData): SoupPage {
   return {
     items: data.user.soup.items
       .map(mapGraphqlSoupItem)
@@ -832,21 +841,22 @@ export function mapGraphqlGroupedSoupPage(
   return { items, groups };
 }
 
-export async function fetchGraphqlSoup(
-  input: GraphqlSoupInput,
+/** Executes any Soup-shaped query and maps its result to the shared page type. */
+export async function fetchGraphqlSoup<
+  Data extends GraphqlSoupPageData,
+  Variables extends AnyVariables,
+>(
+  document: DocumentInput<Data, Variables>,
+  variables: Variables,
   options: FetchGraphqlSoupOptions = {}
 ): Promise<SoupPage> {
   const client = getGraphqlSoupClient();
   const useCache = graphqlCacheEnabled();
-  const variables: SoupQueryVariables = { input };
-
-  // `cache-and-network` writes responses through the normalized cache;
-  // `.toPromise()` skips the stale cache emission, so callers keep
-  // network-fresh semantics. Reactive urql consumers will see the
-  // stale-then-fresh stream once components migrate.
+  const requestPolicy =
+    options.requestPolicy ?? (useCache ? 'cache-and-network' : undefined);
   const result = await client
-    .query<SoupQuery, SoupQueryVariables>(SoupQueryDocument, variables, {
-      ...(useCache ? { requestPolicy: 'cache-and-network' as const } : {}),
+    .query<Data, Variables>(document, variables, {
+      ...(requestPolicy ? { requestPolicy } : {}),
       ...(options.signal ? { fetchOptions: { signal: options.signal } } : {}),
     })
     .toPromise();
@@ -859,44 +869,17 @@ export async function fetchGraphqlSoup(
       result.error.networkError
     ) {
       const cached = await client
-        .query<SoupQuery, SoupQueryVariables>(SoupQueryDocument, variables, {
+        .query<Data, Variables>(document, variables, {
           requestPolicy: 'cache-only',
         })
         .toPromise();
-      if (cached.data) {
-        return mapGraphqlSoupPage(cached.data);
-      }
+      if (cached.data) return mapGraphqlSoupPage(cached.data);
     }
     throw result.error;
   }
 
-  const data = result.data;
-  if (!data) {
-    throw new Error('GraphQL Soup query returned no data');
-  }
-
-  return mapGraphqlSoupPage(data);
-}
-
-/** Fetches one network-only page for normalized-cache backfills. */
-export async function fetchGraphqlSoupBackfill(
-  input: GraphqlSoupInput,
-  options: Pick<FetchGraphqlSoupOptions, 'signal'> = {}
-): Promise<SoupPage> {
-  const result = await getGraphqlSoupClient()
-    .query<SoupBackfillQuery, SoupBackfillQueryVariables>(
-      SoupBackfillDocument,
-      { input },
-      {
-        requestPolicy: 'network-only',
-        ...(options.signal ? { fetchOptions: { signal: options.signal } } : {}),
-      }
-    )
-    .toPromise();
-
-  if (result.error) throw result.error;
   if (!result.data) {
-    throw new Error('GraphQL Soup backfill query returned no data');
+    throw new Error('GraphQL Soup query returned no data');
   }
 
   return mapGraphqlSoupPage(result.data);
