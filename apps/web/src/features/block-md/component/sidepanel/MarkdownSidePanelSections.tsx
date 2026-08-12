@@ -1,3 +1,4 @@
+import { EntityActivitySectionConditional } from '@app/features/activity/EntityActivitySection';
 import {
   EntityPropertiesSection,
   EntityTagsSection,
@@ -126,6 +127,11 @@ export function MarkdownSidePanelSections(
           <HistorySectionContent />
         </SidePanel.Section>
       </Show>
+      <EntityActivitySectionConditional
+        entityId={blockId}
+        entityType={propertiesEntityType()}
+        order={40}
+      />
       <GithubSectionConditional documentId={blockId} isTask={isTask()} />
       <NotificationsSectionConditional entity={entity()} />
       <ReferencesSectionConditional documentId={blockId} />
