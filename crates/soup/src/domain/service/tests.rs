@@ -1090,7 +1090,7 @@ async fn it_should_not_query_frecency() {
                 && assert_matches!(
                     a,
                     SimpleSortRequest {
-                        limit: 20,
+                        limit: 5,
                         user_id,
                         cursor: SimpleSortQuery::NoFilter(Query::Sort(SimpleSortMethod::ViewedUpdated, ())),
                     } => {
@@ -1145,7 +1145,7 @@ async fn it_should_not_query_frecency() {
 
     dbg!(&res);
 
-    assert_eq!(res.items.len(), 10)
+    assert_eq!(res.items.len(), 5)
 }
 
 #[tokio::test]
