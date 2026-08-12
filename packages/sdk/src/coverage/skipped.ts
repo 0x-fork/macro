@@ -303,7 +303,6 @@ export const storageBacklog = [
   'getEntityPermission',
   'getProjectPermissionsV2',
   'getProjectUserAccessLevel',
-  'getRecentActivityHandler',
   'getReminder',
   'listOccurrences',
   'listReminders',
