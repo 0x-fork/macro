@@ -2337,7 +2337,7 @@ async fn it_should_preserve_is_completed_for_mixed_items() {
             ),
             link_ids: vec![Uuid::new_v4()],
             soup_type: SoupType::UnExpanded,
-            limit: 0,
+            limit: 3,
             cursor: SoupQuery::new_sort_simple(
                 SimpleSortMethod::ViewedUpdated,
                 EntityFilters::default(),
