@@ -195,6 +195,51 @@ impl EventTransparency {
     }
 }
 
+/// The conferencing system backing an event's join URL.
+///
+/// Macro generates only Google Meet conferences, so this distinguishes one it
+/// created from a third party's — Zoom and friends arriving as `addOn`
+/// conference data, or a legacy classic Hangout. Clients use it to label the
+/// conference and to tell whether the Meet toggle reflects a Macro-managed
+/// conference.
+///
+/// It does not gate mutation. An explicit request replaces or detaches any
+/// conference, third-party included, exactly as deleting the event would;
+/// what protects a conference is that omitting the field leaves it untouched,
+/// so an unrelated edit never disturbs it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ConferenceProvider {
+    /// Google Meet.
+    GoogleMeet,
+    /// A third-party or legacy conference Macro leaves untouched.
+    Other,
+}
+
+impl ConferenceProvider {
+    /// Database representation.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::GoogleMeet => "google_meet",
+            Self::Other => "other",
+        }
+    }
+}
+
+/// A requested change to an event's conferencing. Omitting the field leaves
+/// the existing conference untouched; only these values change it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ConferenceChange {
+    /// Generate a new Google Meet conference and attach it.
+    GoogleMeet,
+    /// Detach whatever conference is currently attached.
+    #[serde(rename = "none")]
+    Removed,
+}
+
 /// An attendee on a calendar event.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
@@ -358,6 +403,10 @@ pub struct CalendarEvent {
     pub organizer_name: Option<String>,
     /// Direct join URL when known.
     pub conference_url: Option<String>,
+    /// Which conferencing system backs `conference_url`. `None` whenever no
+    /// conference is attached.
+    #[serde(default)]
+    pub conference_provider: Option<ConferenceProvider>,
     /// Provider/iCalendar sequence number.
     pub sequence: u32,
     /// Whether the current user can edit the canonical source.
@@ -659,6 +708,8 @@ pub struct CalendarEventDraft {
     pub transparency: Option<EventTransparency>,
     /// Reminder configuration; `None` keeps the provider default.
     pub reminders: Option<EventReminders>,
+    /// Conference to attach on creation. `None` creates the event without one.
+    pub conference: Option<ConferenceChange>,
 }
 
 /// User-supplied changes to an existing provider event. `None` fields are
@@ -683,6 +734,8 @@ pub struct CalendarEventPatch {
     pub transparency: Option<EventTransparency>,
     /// Replacement reminder configuration.
     pub reminders: Option<EventReminders>,
+    /// Conference change to apply; `None` leaves the conference untouched.
+    pub conference: Option<ConferenceChange>,
 }
 
 impl CalendarEventPatch {

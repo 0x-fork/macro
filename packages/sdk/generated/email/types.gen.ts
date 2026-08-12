@@ -600,6 +600,7 @@ export type CalendarEvent = {
      * projections stored before calendars were attributed.
      */
     calendarId?: string | null;
+    conferenceProvider?: null | ConferenceProvider;
     /**
      * Direct join URL when known.
      */
@@ -712,6 +713,28 @@ export type CancelBackfillParams = {
     job_id: string;
 };
 
+/**
+ * A requested change to an event's conferencing. Omitting the field leaves
+ * the existing conference untouched; only these values change it.
+ */
+export type ConferenceChange = 'google_meet' | 'none';
+
+/**
+ * The conferencing system backing an event's join URL.
+ *
+ * Macro generates only Google Meet conferences, so this distinguishes one it
+ * created from a third party's — Zoom and friends arriving as `addOn`
+ * conference data, or a legacy classic Hangout. Clients use it to label the
+ * conference and to tell whether the Meet toggle reflects a Macro-managed
+ * conference.
+ *
+ * It does not gate mutation. An explicit request replaces or detaches any
+ * conference, third-party included, exactly as deleting the event would;
+ * what protects a conference is that omitting the field leaves it untouched,
+ * so an unrelated edit never disturbs it.
+ */
+export type ConferenceProvider = 'google_meet' | 'other';
+
 export type Contact = {
     email_address?: string | null;
     id: string;
@@ -751,6 +774,7 @@ export type CreateCalendarEventRequest = {
      * inbox default.
      */
     calendarId?: string | null;
+    conference?: null | ConferenceChange;
     /**
      * Optional event body.
      */
@@ -1386,6 +1410,7 @@ export type UpdateCalendarEventRequest = {
      * Replacement attendee list.
      */
     attendees?: Array<CalendarAttendeeInputBody> | null;
+    conference?: null | ConferenceChange;
     /**
      * Replacement description; an empty string clears it.
      */
