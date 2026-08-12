@@ -55,7 +55,7 @@ pub(crate) async fn register_watch(
         // with a 403. Typed so callers can treat it as a missing grant, matching
         // the 403 mapping elsewhere in this client.
         if status == reqwest::StatusCode::FORBIDDEN {
-            return Err(GmailError::Forbidden);
+            return Err(GmailError::Forbidden(error_body));
         }
 
         return Err(GmailError::ApiError(format!(

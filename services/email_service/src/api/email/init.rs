@@ -894,8 +894,11 @@ async fn register_watch_recovering(
 /// token fetch and is first rejected here with a 403 — an expected outcome
 /// (scope declined at consent), logged at debug so it doesn't page.
 fn classify_watch_error(e: GmailError) -> InitError {
-    if matches!(e, GmailError::Forbidden) {
-        tracing::debug!("gmail watch rejected for insufficient scope, no usable gmail grant");
+    if let GmailError::Forbidden(body) = &e {
+        tracing::debug!(
+            error_body = %body,
+            "gmail watch rejected for insufficient scope, no usable gmail grant"
+        );
         return InitError::NoGmailGrant;
     }
     e.into()

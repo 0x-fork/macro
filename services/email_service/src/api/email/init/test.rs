@@ -112,7 +112,9 @@ fn other_token_fetch_failures_stay_bad_request() {
 #[test]
 fn watch_forbidden_classifies_as_no_gmail_grant() {
     assert!(matches!(
-        classify_watch_error(GmailError::Forbidden),
+        classify_watch_error(GmailError::Forbidden(
+            "ACCESS_TOKEN_SCOPE_INSUFFICIENT".to_string()
+        )),
         InitError::NoGmailGrant
     ));
 }

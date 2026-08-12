@@ -43,7 +43,7 @@ impl IntoResponse for ListBlockedError {
 impl From<GmailError> for ListBlockedError {
     fn from(e: GmailError) -> Self {
         match e {
-            GmailError::Forbidden => ListBlockedError::Forbidden,
+            GmailError::Forbidden(_) => ListBlockedError::Forbidden,
             _ => ListBlockedError::GmailError(e.to_string()),
         }
     }

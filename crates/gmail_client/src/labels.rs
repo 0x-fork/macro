@@ -49,7 +49,7 @@ pub async fn modify_message_labels(
 
         return Err(match status.as_u16() {
             401 => GmailError::Unauthorized,
-            403 => GmailError::Forbidden,
+            403 => GmailError::Forbidden(error_body),
             404 => GmailError::NotFound(error_body),
             429 => GmailError::RateLimitExceeded,
             s if s >= 500 => GmailError::ServerError(s, error_body),

@@ -8,8 +8,8 @@ pub enum GmailError {
     #[error("Unauthorized: The access token is invalid or expired (401)")]
     Unauthorized,
 
-    #[error("Forbidden: Insufficient permissions (403)")]
-    Forbidden,
+    #[error("Forbidden: Insufficient permissions (403): {0}")]
+    Forbidden(String),
 
     #[error("Server Error ({0}): {1}")]
     ServerError(u16, String),
