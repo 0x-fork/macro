@@ -8,7 +8,7 @@ import type {
 import type { ResizeZoneCtx } from '@core/component/Resize/types';
 import { isBlockAlias, resolveBlockAlias } from '@core/constant/allBlocks';
 import { settingsTabToSlug } from '@core/constant/settingsTabsConfig';
-import { isMobile } from '@core/mobile/isMobile';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type {
   BlockInstanceHandle,
   BlockOrchestrator,
@@ -1364,7 +1364,7 @@ export function createSplitLayout(
    * Reactive.
    */
   function canEngagePreview(controllerId: SplitId): boolean {
-    if (isMobile()) return false;
+    if (isTouchDevice()) return false;
     const controller = findSplitById(controllerId);
     if (
       !controller ||
@@ -1383,7 +1383,7 @@ export function createSplitLayout(
     controllerId: SplitId,
     viewerId: SplitId
   ): boolean {
-    if (isMobile()) return false;
+    if (isTouchDevice()) return false;
     const controllerIndex = splitIndexById(controllerId);
     const controller = state.splits[controllerIndex];
     const viewer = state.splits[controllerIndex + 1];
@@ -1455,7 +1455,7 @@ export function createSplitLayout(
 
   function engagePreviewMode(controllerId: SplitId) {
     // Mobile shows one panel at a time; a side-by-side viewer cannot exist.
-    if (isMobile()) return;
+    if (isTouchDevice()) return;
     const controller = findSplitById(controllerId);
     if (!controller || !isPreviewControllerContent(controller.content)) return;
     if (state.previewPairs[controllerId] !== undefined) return;
