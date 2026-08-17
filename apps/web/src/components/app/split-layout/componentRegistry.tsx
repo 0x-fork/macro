@@ -574,6 +574,10 @@ registerComponent('settings', () => <SettingsPanelComponentWrapper />);
 
 if (LOCAL_ONLY) {
   registerComponent(
+    'theme-edit-3',
+    lazy(() => import('@theme/components/ThemeEdit3'))
+  );
+  registerComponent(
     'theme-debug',
     lazy(() => import('@core/internal/ThemeDebug'))
   );
