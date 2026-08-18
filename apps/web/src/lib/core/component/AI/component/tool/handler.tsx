@@ -55,6 +55,12 @@ import { readContentHandler } from './ReadContent';
 import { readMetadataHandler } from './ReadMetadata';
 import { readProjectHandler } from './ReadProject';
 import { readThreadHandler } from './ReadThread';
+import {
+  createReminderHandler,
+  deleteReminderHandler,
+  listRemindersHandler,
+  updateReminderHandler,
+} from './Reminders';
 import { renameDocumentHandler } from './RenameDocument';
 import { contentSearchHandler, nameSearchHandler } from './Search';
 import { listSkillsHandler, searchSkillsHandler } from './SearchSkills';
@@ -93,6 +99,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ListLabels: listLabelsHandler,
   ListSkills: listSkillsHandler,
   ListNotifications: listNotificationsHandler,
+  ListReminders: listRemindersHandler,
   ListTags: listTagsHandler,
   ListTeamMembers: listTeamMembersHandler,
   LoadTools: loadToolsHandler,
@@ -104,7 +111,9 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ContentSearch: contentSearchHandler,
   CreateDocument: createDocumentHandler,
   CreateProject: createProjectHandler,
+  CreateReminder: createReminderHandler,
   CreateTag: createTagHandler,
+  DeleteReminder: deleteReminderHandler,
   DeleteTag: deleteTagHandler,
   EditDocument: editDocumentHandler,
   EditTag: editTagHandler,
@@ -129,6 +138,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   BulkSetEntityPropertyOptions: bulkSetEntityPropertyOptionsHandler,
   Subagent: subagentHandler,
   TextEditorCodeExecution: textEditorCodeExecutionHandler,
+  UpdateReminder: updateReminderHandler,
   UpdateThreadLabels: updateThreadLabelsHandler,
   WebFetch: webFetchHandler,
   WebSearch: webSearchHandler,

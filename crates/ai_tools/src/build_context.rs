@@ -405,6 +405,10 @@ pub async fn build_tool_service_context_from_env(
         call_tool_context,
         calendar_tool_context,
         notification_tool_context,
+        reminders_tool_context: crate::tool_context::build_reminders_tool_context(
+            pool.clone(),
+            entity_access_service.clone(),
+        ),
         import_tool_context: ToolImportToolContext::unwired(),
         chat_tool_context,
         channel_tool_context,
