@@ -6563,7 +6563,7 @@ export type SoupApiItem = SoupItem & {
 /**
  * Sort options accepted by non-grouped soup API endpoints.
  */
-export type SoupApiSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'frecency';
+export type SoupApiSort = 'viewed_at' | 'created_at' | 'updated_at' | 'viewed_updated' | 'frecency' | 'touched_by_me';
 
 /**
  * Sort direction accepted by non-grouped soup API endpoints.
@@ -11584,7 +11584,8 @@ export type GetItemsSoupData = {
          */
         limit?: number;
         /**
-         * Sort method. Options are viewed_at, created_at, updated_at, viewed_updated. Defaults to viewed_at.
+         * Sort method. Options are viewed_at, created_at, updated_at,
+         * viewed_updated, frecency, touched_by_me. Defaults to viewed_at.
          */
         sort_method?: SoupApiSort;
         /**

@@ -14430,6 +14430,7 @@ checksum = "45e14297decde697ddf377c25752aead0927d5cfc89c2684d2af96901a4ceeea"
 name = "soup"
 version = "0.1.0"
 dependencies = [
+ "activity",
  "ai_toolset",
  "anyhow",
  "async-trait",
