@@ -120,7 +120,7 @@ fn entity_resolvers_cross_the_native_engine_boundary() {
 }
 
 #[test]
-fn record_selection_returns_native_cache_entities() {
+fn explicit_key_selection_returns_native_cache_entities() {
     let handle = spawn_handle();
     let query = r#"query Soup($input: SoupInput!) {
         user {
@@ -167,18 +167,71 @@ fn record_selection_returns_native_cache_entities() {
     ))
     .unwrap();
 
-    let page = block_on(handle.read_records(
+    let records = block_on(handle.read_records_by_keys(
         "fragment Document on GraphqlSoupDocument { id name }".to_string(),
         "Document".to_string(),
-        None,
-        10,
+        vec!["GraphqlSoupDocument:doc-1".to_string()],
     ))
     .unwrap();
     assert_eq!(
-        page.records,
-        vec![serde_json::json!({"id": "doc-1", "name": "A note"})]
+        records[0].record,
+        serde_json::json!({"id": "doc-1", "name": "A note"})
     );
-    assert!(page.next_cursor.is_none());
+}
+
+#[test]
+fn search_uses_native_materialized_projection() {
+    let handle = spawn_handle();
+    let query = r#"query Soup($input: SoupInput!) {
+        user {
+            id
+            soup(input: $input) {
+                items {
+                    __typename
+                    id
+                    ... on GraphqlSoupDocument { name updatedAt }
+                }
+                nextCursor
+            }
+        }
+    }"#;
+    block_on(handle.write(
+        None,
+        query.to_string(),
+        Some("Soup".to_string()),
+        variables(),
+        serde_json::json!({
+            "user": {
+                "id": "user-1",
+                "soup": {
+                    "items": [{
+                        "__typename": "GraphqlSoupDocument",
+                        "id": "doc-1",
+                        "name": "Quarterly Plan",
+                        "updatedAt": "2025-01-02T03:04:05Z"
+                    }],
+                    "nextCursor": null
+                }
+            }
+        }),
+        None,
+    ))
+    .unwrap();
+
+    let page = block_on(handle.search(SearchRequest {
+        profile: cache_core::search::SearchProfile::QuickAccessV1,
+        buckets: vec!["document".into()],
+        query: "quarter".into(),
+        cursor: None,
+        limit: 20,
+        now_ms: 1_735_787_046_000,
+    }))
+    .unwrap();
+    assert_eq!(page.documents.len(), 1);
+    assert_eq!(
+        page.documents[0].record_key.as_ref(),
+        "GraphqlSoupDocument:doc-1"
+    );
 }
 
 #[test]
