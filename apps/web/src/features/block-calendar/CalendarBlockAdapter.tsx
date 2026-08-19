@@ -47,6 +47,23 @@ function targetRequestFromParams(
   };
 }
 
+function isSameTargetRequest(
+  current: CalendarBlockTargetRequest | undefined,
+  next: CalendarBlockTargetRequest | undefined
+): boolean {
+  if (!current || !next) return current === next;
+  if (current.eventId !== next.eventId) return false;
+  if (current.occurrenceKey !== undefined || next.occurrenceKey !== undefined) {
+    return current.occurrenceKey === next.occurrenceKey;
+  }
+  return (
+    current.range.start === next.range.start &&
+    current.range.end === next.range.end &&
+    current.range.startDate === next.range.startDate &&
+    current.range.endDate === next.range.endDate
+  );
+}
+
 /**
  * A target with an event id but no usable range — a copied `/app/calendar`
  * link or a mention without preview data — resolves through the calendar
@@ -141,7 +158,12 @@ function CalendarBlockAdapter(props: CalendarBlockProps) {
   // Preview resolution is async, so a stale answer must never clobber a
   // target the user has since re-aimed or cleared.
   const applyResolvedTarget = (request: CalendarBlockTargetRequest) => {
-    if (request.requestId < latestRequestId) return;
+    if (
+      request.requestId < latestRequestId ||
+      isSameTargetRequest(targetRequest(), request)
+    ) {
+      return;
+    }
     setTargetRequest(request);
   };
 
@@ -150,7 +172,7 @@ function CalendarBlockAdapter(props: CalendarBlockProps) {
     latestRequestId = requestId;
     const direct = targetRequestFromParams(params, requestId);
     if (direct) {
-      setTargetRequest(direct);
+      applyResolvedTarget(direct);
       return;
     }
     if (typeof params.eventId === 'string' && params.eventId.length > 0) {
@@ -159,7 +181,7 @@ function CalendarBlockAdapter(props: CalendarBlockProps) {
       });
       return;
     }
-    setTargetRequest(undefined);
+    if (targetRequest() !== undefined) setTargetRequest(undefined);
   };
 
   if (
