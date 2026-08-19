@@ -25,7 +25,7 @@ fn soup_data(has_next_page: bool) -> serde_json::Value {
 }
 
 fn spawn_handle() -> EngineHandle {
-    let storage = SqliteStorage::open_in_memory("scope-1").unwrap();
+    let storage = TursoStorage::open_in_memory("scope-1").unwrap();
     EngineHandle::new(storage, None)
 }
 
@@ -418,6 +418,11 @@ fn clear_wipes_everything() {
     write(&handle, None, soup_data(false), None);
     block_on(handle.clear()).unwrap();
     assert!(matches!(read(&handle, None), ReadResultWire::Miss));
+}
+
+#[test]
+fn sole_engine_handle_shuts_turso_down_explicitly() {
+    spawn_handle().shutdown().unwrap();
 }
 
 #[test]
