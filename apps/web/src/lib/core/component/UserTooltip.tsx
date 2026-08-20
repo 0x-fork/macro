@@ -14,9 +14,10 @@ import WideTask from '@icon/wide-task.svg';
 import IconCheck from '@phosphor/check.svg';
 import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-create-dm';
 import { fetchCrmContactByEmail } from '@queries/crm/contacts';
+import { useCurrentTeamQuery } from '@queries/team/teams';
 import { debounce } from '@solid-primitives/scheduled';
 import { cn, Surface } from '@ui';
-import { createSignal, type JSX, Show } from 'solid-js';
+import { createSignal, type JSX, Show, Suspense } from 'solid-js';
 import { UserIcon } from './UserIcon';
 
 type UserTooltipProps = {
@@ -30,7 +31,6 @@ type UserTooltipProps = {
 
 export function UserTooltip(props: UserTooltipProps) {
   const [copied, setCopied] = createSignal(false);
-  const [openingContact, setOpeningContact] = createSignal(false);
   const resetCopied = debounce(() => setCopied(false), 800);
 
   function handleCopyEmail(e: MouseEvent) {
@@ -71,28 +71,6 @@ export function UserTooltip(props: UserTooltipProps) {
     } catch {
       // The mutation's onError callback handles the toast.
     } finally {
-      props.onClose?.();
-    }
-  };
-
-  const openContact = async (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const email = props.email;
-    if (!email || openingContact()) return;
-
-    const preferNewSplit = e.shiftKey;
-    setOpeningContact(true);
-    try {
-      const contact = await fetchCrmContactByEmail(email);
-      openWithSplit(
-        { type: 'contact', id: contact.id },
-        { preferNewSplit, reopen: 'latest' }
-      );
-    } catch {
-      toast.failure('Failed to open contact');
-    } finally {
-      setOpeningContact(false);
       props.onClose?.();
     }
   };
@@ -156,11 +134,12 @@ export function UserTooltip(props: UserTooltipProps) {
                 Copy email
               </ActionItem>
             </Show>
-            <Show when={crmFlag().enabled && props.email}>
-              <ActionItem onClick={openContact} disabled={openingContact()}>
-                <WideContact class="size-3.5" />
-                Open contact
-              </ActionItem>
+            <Show when={crmFlag().enabled ? props.email : undefined}>
+              {(email) => (
+                <Suspense fallback={<div class="h-8" />}>
+                  <OpenContactAction email={email()} onClose={props.onClose} />
+                </Suspense>
+              )}
             </Show>
             <Show when={canTreatAsUser() && props.id !== currentUserId()}>
               <ActionItem onClick={openDM}>
@@ -178,6 +157,47 @@ export function UserTooltip(props: UserTooltipProps) {
         </Show>
       </div>
     </Surface>
+  );
+}
+
+/**
+ * Inner action: lives inside a local `<Suspense>` so reading
+ * `useCurrentTeamQuery().data` suspends only this button, not the tooltip.
+ */
+function OpenContactAction(props: { email: string; onClose?: () => void }) {
+  const [openingContact, setOpeningContact] = createSignal(false);
+  const { openWithSplit } = useSplitLayout();
+  const currentTeamQuery = useCurrentTeamQuery();
+  const crmEnabled = () => currentTeamQuery.data?.team.crm_enabled === true;
+
+  const openContact = async (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (openingContact() || !crmEnabled()) return;
+
+    const preferNewSplit = e.shiftKey;
+    setOpeningContact(true);
+    try {
+      const contact = await fetchCrmContactByEmail(props.email);
+      openWithSplit(
+        { type: 'contact', id: contact.id },
+        { preferNewSplit, reopen: 'latest' }
+      );
+    } catch {
+      toast.failure('Failed to open contact');
+    } finally {
+      setOpeningContact(false);
+      props.onClose?.();
+    }
+  };
+
+  return (
+    <Show when={crmEnabled()}>
+      <ActionItem onClick={openContact} disabled={openingContact()}>
+        <WideContact class="size-3.5" />
+        Open contact
+      </ActionItem>
+    </Show>
   );
 }
 
