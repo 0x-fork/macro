@@ -2805,6 +2805,7 @@ dependencies = [
  "maybe_send",
  "pollster",
  "postcard",
+ "predicate-index",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -2818,6 +2819,7 @@ dependencies = [
  "cache-core",
  "maybe_send",
  "pollster",
+ "predicate-index",
  "serde_json",
  "tempfile",
  "thiserror 2.0.18",
@@ -2828,15 +2830,17 @@ dependencies = [
 
 [[package]]
 name = "cache-wasm"
-version = "0.4.2"
+version = "0.6.3"
 dependencies = [
  "async-lock",
  "cache-core",
  "cache-turso",
  "js-sys",
+ "predicate-index",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "soup-filter-cache-adapter",
  "turso-opfs",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5002,7 +5006,6 @@ dependencies = [
  "strum 0.27.2",
  "thiserror 2.0.18",
  "utoipa",
- "workspace-hack",
 ]
 
 [[package]]
@@ -6126,7 +6129,6 @@ version = "0.1.0"
 dependencies = [
  "recursion",
  "serde",
- "workspace-hack",
 ]
 
 [[package]]
@@ -6795,6 +6797,7 @@ dependencies = [
  "model_user",
  "models_properties",
  "rootcause",
+ "serde",
  "tokio",
  "tracing",
  "uuid",
@@ -6923,6 +6926,7 @@ dependencies = [
  "graphql_common",
  "graphql_email",
  "graphql_permission",
+ "graphql_soup_filter_input",
  "item_filters",
  "macro_authorization",
  "macro_user_id",
@@ -6940,6 +6944,24 @@ dependencies = [
  "tokio",
  "uuid",
  "workspace-hack",
+]
+
+[[package]]
+name = "graphql_soup_filter_input"
+version = "0.1.0"
+dependencies = [
+ "async-graphql",
+ "chrono",
+ "document_sub_type",
+ "filter_ast",
+ "graphql_common",
+ "item_filters",
+ "macro_user_id",
+ "model_file_type",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "uuid",
 ]
 
 [[package]]
@@ -8256,6 +8278,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "item-filter-index"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "filter_ast",
+ "item_filters",
+ "predicate-index",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
 name = "item_filters"
 version = "0.1.0"
 dependencies = [
@@ -8276,7 +8310,6 @@ dependencies = [
  "thiserror 2.0.18",
  "utoipa",
  "uuid",
- "workspace-hack",
 ]
 
 [[package]]
@@ -10094,7 +10127,6 @@ dependencies = [
  "strum 0.27.2",
  "thiserror 2.0.18",
  "utoipa",
- "workspace-hack",
 ]
 
 [[package]]
@@ -12003,6 +12035,16 @@ name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+
+[[package]]
+name = "predicate-index"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "predicates"
@@ -14766,6 +14808,37 @@ dependencies = [
  "tower 0.5.3",
  "tracing",
  "utoipa",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "soup-filter-cache-adapter"
+version = "0.1.0"
+dependencies = [
+ "cache-core",
+ "chrono",
+ "graphql_soup_filter_input",
+ "indexmap 2.14.0",
+ "item-filter-index",
+ "predicate-index",
+ "serde_json",
+ "soup-filter-projection",
+ "thiserror 2.0.18",
+ "uuid",
+]
+
+[[package]]
+name = "soup-filter-projection"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "item-filter-index",
+ "macro_user_id",
+ "model_file_type",
+ "models_soup",
+ "predicate-index",
+ "thiserror 2.0.18",
  "uuid",
  "workspace-hack",
 ]
