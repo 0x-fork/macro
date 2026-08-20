@@ -633,6 +633,8 @@ export * from './getChannelMessagesParams';
 export * from './getChannelParams';
 export * from './getChannelsParams';
 export * from './getContactByEmailParams';
+export * from './getContactByEmailResponse';
+export * from './getContactByEmailResponseContact';
 export * from './getDocumentKeyResponse';
 export * from './getDocumentKeyResponseData';
 export * from './getDocumentListResult';
