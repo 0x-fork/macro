@@ -11,6 +11,7 @@
 //! Design invariant: Docker never compiles Rust. Binaries are built on the host
 //! and bind-mounted read-only into the runtime image at `/app/out`.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 pub mod arch;
@@ -157,7 +158,36 @@ use anyhow::Result;
 use instance::Instance;
 use stage::Stage;
 
-const AUX_SERVICE_IMAGES: &[&str] = &["websocket_service", "sync_service", "lexical_service"];
+/// Every non-Rust local service whose image is built from this repository.
+/// `docker compose up` builds a missing image implicitly, but an Environment
+/// Build must materialize all of them so a fresh agent never discovers one at
+/// stack-start time.
+const LOCAL_BUILD_SERVICE_IMAGES: &[&str] = &[
+    "websocket_service",
+    "sync_service",
+    "lexical_service",
+    "ai_editing_worker",
+    "analytics_proxy",
+    "sdk-webhook-relay",
+    "search",
+];
+
+/// Repository-built app containers safe to recreate during `stack update`.
+/// OpenSearch is built for cold-stack correctness but remains under the infra
+/// lifecycle, which waits for health before Rust services can reconnect.
+const LOCAL_RECREATE_SERVICE_IMAGES: &[&str] = &[
+    "websocket_service",
+    "sync_service",
+    "lexical_service",
+    "ai_editing_worker",
+    "analytics_proxy",
+    "sdk-webhook-relay",
+];
+
+/// Image-only app services that infra-only bake mode does not otherwise start.
+/// Infra images are pulled by `bring_up_infra`; the Rust runtime image is built
+/// separately by [`build::ensure_runtime_image`].
+const LOCAL_PULL_SERVICE_IMAGES: &[&str] = &["proxy", "mailpit", "static_file_cdn"];
 
 /// The artifact-driven preview updater can refresh every Docker-built app
 /// service. Keep this separate so enabling local aux rebuilds does not make the
@@ -210,7 +240,7 @@ pub fn run_stack(mode: Mode, args: &cli::RunArgs) -> Result<()> {
     // Foreground: resolve env, build binaries + runtime image, generate the
     // compose override / Caddyfile / kickstart. None of this touches the volumes
     // or containers the teardown is removing, so it's safe to overlap.
-    let (env, target) = prepare(&stage, mode, &instance, args, false)?;
+    let (env, target) = prepare(&stage, mode, &instance, args, false, false)?;
 
     // Join the background teardown before we (re)create volumes + bring infra up,
     // surfaced as a live spinner so it's clear what we're blocked on. It
@@ -474,6 +504,7 @@ fn prepare(
     instance: &Instance,
     args: &cli::RunArgs,
     static_frontend: bool,
+    pull_app_images: bool,
 ) -> Result<(env_layer::ResolvedEnv, arch::Target)> {
     let env = env_layer::resolve(
         mode,
@@ -516,6 +547,9 @@ fn prepare(
     if args.build.build_aux_services {
         build_aux_service_images(stage, instance, &env)?;
     }
+    if pull_app_images {
+        pull_app_service_images(stage, instance, &env)?;
+    }
     Ok((env, target))
 }
 
@@ -523,7 +557,17 @@ fn prepare(
 /// generated env. Shared by bring-up and the binary-reload restart.
 fn compose_cmd(instance: &Instance, env: &env_layer::ResolvedEnv) -> Command {
     let files = gen_compose::compose_files(instance);
-    gen_compose::docker_compose(instance, &files, &env.generated_path)
+    let mut command = gen_compose::docker_compose(instance, &files, &env.generated_path);
+    if agent_harness_enabled(&env.merged) {
+        command.args(["--profile", "agent-harness"]);
+    }
+    command
+}
+
+fn agent_harness_enabled(env: &BTreeMap<String, String>) -> bool {
+    ["DAYTONA_API_KEY", "GITHUB_TOKEN"]
+        .iter()
+        .all(|key| env.get(*key).is_some_and(|value| !value.trim().is_empty()))
 }
 
 fn build_aux_service_images(
@@ -532,8 +576,18 @@ fn build_aux_service_images(
     env: &env_layer::ResolvedEnv,
 ) -> Result<()> {
     let mut build = compose_cmd(instance, env);
-    build.arg("build").args(AUX_SERVICE_IMAGES);
+    build.arg("build").args(LOCAL_BUILD_SERVICE_IMAGES);
     stage.run("Building auxiliary service images", &mut build)
+}
+
+fn pull_app_service_images(
+    stage: &Stage,
+    instance: &Instance,
+    env: &env_layer::ResolvedEnv,
+) -> Result<()> {
+    let mut pull = compose_cmd(instance, env);
+    pull.arg("pull").args(LOCAL_PULL_SERVICE_IMAGES);
+    stage.run("Pulling image-only app services", &mut pull)
 }
 
 fn recreate_aux_service_containers(
@@ -543,7 +597,7 @@ fn recreate_aux_service_containers(
 ) -> Result<()> {
     let mut up = compose_cmd(instance, env);
     up.args(["up", "-d", "--force-recreate", "--no-deps"])
-        .args(AUX_SERVICE_IMAGES);
+        .args(LOCAL_RECREATE_SERVICE_IMAGES);
     stage.run("Recreating auxiliary service containers", &mut up)
 }
 
