@@ -55,6 +55,7 @@ fn ensure_snapshot() -> Job {
                       echo "::error::DAYTONA_API_KEY repository secret is not configured"
                       exit 1
                     fi
+                    daytona login --api-key "$DAYTONA_API_KEY"
                     just --justfile crates/agent_harness/justfile ensure-daytona
                 "#})
                 .shell("bash")
