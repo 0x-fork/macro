@@ -52,6 +52,9 @@ use system_properties::{
 use teams::{inbound::toolset::TeamToolContext, outbound::team_repo::TeamRepositoryImpl};
 use tokio_util::task::TaskTracker;
 
+mod activity_metadata;
+
+use activity_metadata::ToolActivityMetadataResolver;
 pub use ai_toolset::RequestContext;
 
 /// Type alias for the frecency service implementation
@@ -1184,6 +1187,24 @@ pub type ToolImportService = import::domain::service::ImportServiceImpl<
 /// with a wired one after constructing the import service.
 pub type ToolImportToolContext = import::inbound::toolset::ImportToolContext<ToolImportService>;
 
+pub type ToolActivityToolContext = activity::inbound::toolset::ActivityToolContext<
+    activity::outbound::pg_activity_repo::PgActivityRepo,
+>;
+
+pub fn build_activity_tool_context(
+    pool: sqlx::PgPool,
+    properties: Arc<ToolPropertiesService>,
+    entity_access_service: Arc<ToolEntityAccessService>,
+) -> ToolActivityToolContext {
+    activity::inbound::toolset::ActivityToolContext::new(
+        activity::outbound::pg_activity_repo::PgActivityRepo::new(pool),
+    )
+    .with_metadata_resolver(ToolActivityMetadataResolver::new(
+        properties,
+        entity_access_service,
+    ))
+}
+
 #[derive(Clone, Default)]
 pub struct NoOpScheduleContext;
 
@@ -1200,6 +1221,7 @@ pub struct ToolServiceContext {
     pub email_service_client: Arc<email_service_client::EmailServiceClientExternal>,
     pub soup_service: Arc<ToolSoupService>,
     pub email_service: Arc<ToolEmailService>,
+    pub activity_tool_context: ToolActivityToolContext,
     pub document_tool_context: ToolDocumentToolContext,
     pub properties_tool_context: ToolPropertiesToolContext,
     pub email_tool_context: ToolEmailToolContext,
