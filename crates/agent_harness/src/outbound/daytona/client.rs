@@ -124,7 +124,7 @@ impl DaytonaClient {
     /// Resource fields must be omitted: Daytona returns 400 ("Cannot specify
     /// Sandbox resources when using a snapshot") if `cpu` / `memory` / `disk`
     /// are sent with `snapshot`. Size is applied after start via [`Self::resize`].
-    #[tracing::instrument(err, skip(self, env))]
+    #[tracing::instrument(name = "daytona.sandbox.create", err, skip(self, env))]
     pub async fn create(&self, snapshot: &Snapshot, env: Env, labels: Labels) -> Result<String> {
         let request = configuration_parameters(snapshot, env, labels);
         let sandbox: SandboxDto = self
@@ -184,7 +184,7 @@ impl DaytonaClient {
     }
 
     /// Find one sandbox carrying the supplied label.
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(name = "daytona.sandbox.find", err, skip(self))]
     pub async fn find_by_label(&self, label: &str, value: &str) -> Result<Option<String>> {
         let labels = Labels::from(HashMap::from([(label.to_owned(), value.to_owned())]));
         let filter = serde_json::to_string(&labels).map_err(DaytonaError::EncodeLabelFilter)?;
@@ -211,7 +211,7 @@ impl DaytonaClient {
     }
 
     /// Poll a sandbox until it has started or the deadline passes.
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(name = "daytona.sandbox.wait_started", err, skip(self))]
     pub async fn wait_for_started(&self, sandbox_id: &str, timeout: Duration) -> Result<()> {
         let deadline = Instant::now() + timeout;
         loop {
@@ -373,7 +373,7 @@ impl DaytonaClient {
     }
 
     /// Execute one command in a sandbox.
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(name = "daytona.command.execute", err, skip(self, command))]
     pub async fn exec(&self, sandbox_id: &str, command: &str, timeout: Duration) -> Result<String> {
         let toolbox: ToolboxProxyUrlDto = self
             .json(
@@ -451,7 +451,7 @@ impl DaytonaClient {
     }
 
     /// Poll the sidecar readiness endpoint until it succeeds.
-    #[tracing::instrument(err, skip(self))]
+    #[tracing::instrument(name = "daytona.sidecar.wait_ready", err, skip(self))]
     pub async fn wait_for_ping(
         &self,
         ping_url: &str,
@@ -461,6 +461,9 @@ impl DaytonaClient {
         let deadline = Instant::now() + timeout;
         loop {
             let mut request = self.http.get(ping_url);
+            let mut trace_headers = reqwest::header::HeaderMap::new();
+            macro_tower_layers::inject_trace_headers(&mut trace_headers);
+            request = request.headers(trace_headers);
             if let Some(token) = preview_token {
                 request = request.header("x-daytona-preview-token", token);
             }
@@ -485,7 +488,10 @@ impl DaytonaClient {
         request: reqwest::RequestBuilder,
         operation: &'static str,
     ) -> Result<T> {
+        let mut trace_headers = reqwest::header::HeaderMap::new();
+        macro_tower_layers::inject_trace_headers(&mut trace_headers);
         let response = request
+            .headers(trace_headers)
             .bearer_auth(self.api_key.expose())
             .send()
             .await
