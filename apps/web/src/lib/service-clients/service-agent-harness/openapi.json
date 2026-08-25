@@ -913,7 +913,7 @@
       },
       "SandboxSize": {
         "type": "string",
-        "description": "Named compute tier for a managed sandbox.\n\nDisk is always 96 GiB; CPU and RAM vary. The API and database store the\nname, never raw resource integers.",
+        "description": "Named compute tier for a managed sandbox.\n\nThe API and database store the name. CPU, RAM, and disk live in\n`crates/agent_harness/sandbox_sizes.json`.",
         "enum": ["small", "default", "large"]
       },
       "SandboxSizeBody": {
