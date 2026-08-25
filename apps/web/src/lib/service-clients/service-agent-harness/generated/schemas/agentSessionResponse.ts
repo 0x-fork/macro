@@ -32,6 +32,8 @@ export interface AgentSessionResponse {
   model: string;
   /** When the session was last modified. */
   modifiedAt: string;
+  /** User-facing session name. */
+  name: string;
   /** The exact message that invoked the bot, if any. */
   originatingMessageId?: AgentSessionResponseOriginatingMessageId;
   /** The user who created and owns the session. */

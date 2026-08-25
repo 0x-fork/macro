@@ -95,6 +95,7 @@ fn parse_message(direction: &str, content: serde_json::Value) -> anyhow::Result<
 
 struct AgentSessionRow {
     id: Uuid,
+    name: String,
     owner_id: String,
     thread_id: Option<Uuid>,
     thread_channel_id: Option<Uuid>,
@@ -119,6 +120,7 @@ impl TryFrom<AgentSessionRow> for AgentSession {
         let status = parse_status(&row.status, row.status_event_name)?;
         Ok(Self {
             id: AgentSessionId::new_from_uuid(row.id),
+            name: row.name,
             owner_id: MacroUserIdStr::try_from(row.owner_id)
                 .context("agent session has an unparseable owner")?,
             thread_id: row.thread_id,
@@ -173,7 +175,7 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING
-                id, owner_id, thread_id, originating_message_id, bot_id,
+                id, name, owner_id, thread_id, originating_message_id, bot_id,
                 model, harness, repo_url, workspace, sandbox_size, acp_session_id, status,
                 status_event_name, created_at, modified_at,
                 (SELECT channel_id FROM comms_messages WHERE id = agent_session.thread_id)
@@ -258,7 +260,7 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             AgentSessionRow,
             r#"
             SELECT
-                id, owner_id, thread_id, originating_message_id, bot_id,
+                id, name, owner_id, thread_id, originating_message_id, bot_id,
                 model, harness, repo_url, workspace, sandbox_size, acp_session_id, status,
                 status_event_name, created_at, modified_at,
                 (SELECT channel_id FROM comms_messages WHERE id = agent_session.thread_id)
@@ -291,7 +293,7 @@ impl AgentSessionRepo for PgAgentSessionRepo {
             AgentSessionRow,
             r#"
             SELECT
-                id, owner_id, thread_id, originating_message_id, bot_id,
+                id, name, owner_id, thread_id, originating_message_id, bot_id,
                 model, harness, repo_url, workspace, sandbox_size, acp_session_id, status,
                 status_event_name, created_at, modified_at,
                 (SELECT channel_id FROM comms_messages WHERE id = agent_session.thread_id)
@@ -383,6 +385,49 @@ impl AgentSessionRepo for PgAgentSessionRepo {
         .await
         .context("failed to persist agent session model")?;
         Ok(())
+    }
+
+    async fn set_name(&self, id: AgentSessionId, name: &str) -> Result<()> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE agent_session
+            SET name = $2,
+                modified_at = CASE
+                    WHEN name IS DISTINCT FROM $2 THEN NOW()
+                    ELSE modified_at
+                END
+            WHERE id = $1
+            "#,
+            id.as_uuid(),
+            name,
+        )
+        .execute(&self.pool)
+        .await
+        .context("failed to persist agent session name")?;
+
+        if result.rows_affected() == 0 {
+            return Err(anyhow::anyhow!("agent session not found").into());
+        }
+        Ok(())
+    }
+
+    async fn set_name_if_default(&self, id: AgentSessionId, name: &str) -> Result<bool> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE agent_session
+            SET name = $2,
+                modified_at = NOW()
+            WHERE id = $1
+              AND name = $3
+            "#,
+            id.as_uuid(),
+            name,
+            crate::domain::model::DEFAULT_AGENT_SESSION_NAME,
+        )
+        .execute(&self.pool)
+        .await
+        .context("failed to persist generated agent session name")?;
+        Ok(result.rows_affected() == 1)
     }
 
     async fn set_sandbox_size(&self, id: AgentSessionId, size: SandboxSize) -> Result<()> {

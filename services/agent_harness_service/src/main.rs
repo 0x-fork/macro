@@ -26,12 +26,12 @@ use agent_harness::outbound::daytona::{
 };
 use agent_harness::outbound::local::{LocalContainerManager, LocalSettings};
 use agent_harness::outbound::runtime_registry::RuntimeRegistry;
-use agent_session::domain::ports::NoOpRealtime;
 use agent_session::domain::service::AgentSessionServiceImpl;
 use agent_session::inbound::axum_router::{
     AgentSessionControlState, AgentSessionRouterState, CreateSessionState,
 };
 use agent_session::outbound::connection_gateway_realtime::ConnectionGatewayAgentSessionRealtime;
+use agent_session::outbound::name_generator::HaikuAgentSessionNameGenerator;
 use agent_session::outbound::postgres::PgAgentSessionRepo;
 use agent_trigger::domain::broker_events::AgentSessionMacroEvent;
 use anyhow::Context as _;
@@ -121,7 +121,10 @@ async fn main() -> anyhow::Result<()> {
             connection_gateway.clone(),
             session_repo.clone(),
         ),
-    );
+    )
+    .with_name_generator(HaikuAgentSessionNameGenerator::new(ai_usage::pg_recorder(
+        pool.clone(),
+    )));
 
     // Containers: local Docker when a developer has opted in, Daytona otherwise.
     let containers = if config.dev_dangerous_local_containers {
@@ -182,7 +185,7 @@ async fn main() -> anyhow::Result<()> {
     );
     let side_effects = ChannelSideEffectService::new(
         PgChannelSideEffectContext::new(pool.clone()),
-        ConnectionGatewayChannelRealtimePublisher::new(connection_gateway),
+        ConnectionGatewayChannelRealtimePublisher::new(connection_gateway.clone()),
         NotificationChannelSender::new(notifications),
         ContactsChannelDispatcher::new(contacts_ingress),
     )
@@ -245,7 +248,7 @@ async fn main() -> anyhow::Result<()> {
         AgentSessionServiceImpl::new(
             session_repo.clone(),
             FoldedMessageService::new(session_repo.clone()),
-            NoOpRealtime,
+            ConnectionGatewayAgentSessionRealtime::new(connection_gateway, session_repo.clone()),
         ),
         entity_access.clone(),
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),

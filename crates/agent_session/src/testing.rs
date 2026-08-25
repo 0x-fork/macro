@@ -7,7 +7,8 @@
 use crate::domain::error::{AgentSessionError, Result};
 use crate::domain::model::{
     AgentSession, AgentSessionId, AgentSessionLog, ChannelSession, CreateAgentSessionParams,
-    LogAppended, SandboxSize, SessionBot, SessionStatus, StoredAgentSessionLog,
+    DEFAULT_AGENT_SESSION_NAME, LogAppended, SandboxSize, SessionBot, SessionStatus,
+    StoredAgentSessionLog,
 };
 use crate::domain::ports::{AgentSessionLogRepo, AgentSessionRealtime, AgentSessionRepo};
 use agent_client_protocol::schema::v1::SessionId;
@@ -102,6 +103,7 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         let now = chrono::Utc::now();
         let session = AgentSession {
             id: params.id,
+            name: DEFAULT_AGENT_SESSION_NAME.to_owned(),
             owner_id: params.owner_id,
             thread_id: params.thread_id,
             // The in-memory repo has no comms rows to derive a channel from.
@@ -191,6 +193,38 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         session.model = model.to_owned();
         session.modified_at = chrono::Utc::now();
         Ok(())
+    }
+
+    async fn set_name(&self, id: AgentSessionId, name: &str) -> Result<()> {
+        let mut sessions = self
+            .sessions
+            .lock()
+            .expect("in-memory session store is not poisoned");
+        let session = sessions.get_mut(&id).ok_or_else(|| {
+            AgentSessionError::Unknown(anyhow::anyhow!("no agent session {}", id.as_uuid()))
+        })?;
+        if session.name == name {
+            return Ok(());
+        }
+        session.name = name.to_owned();
+        session.modified_at = chrono::Utc::now();
+        Ok(())
+    }
+
+    async fn set_name_if_default(&self, id: AgentSessionId, name: &str) -> Result<bool> {
+        let mut sessions = self
+            .sessions
+            .lock()
+            .expect("in-memory session store is not poisoned");
+        let session = sessions.get_mut(&id).ok_or_else(|| {
+            AgentSessionError::Unknown(anyhow::anyhow!("no agent session {}", id.as_uuid()))
+        })?;
+        if session.name != DEFAULT_AGENT_SESSION_NAME {
+            return Ok(false);
+        }
+        session.name = name.to_owned();
+        session.modified_at = chrono::Utc::now();
+        Ok(true)
     }
 
     async fn set_sandbox_size(&self, id: AgentSessionId, size: SandboxSize) -> Result<()> {
@@ -328,6 +362,7 @@ pub fn test_agent_session(id: AgentSessionId) -> AgentSession {
     let now = chrono::Utc::now();
     AgentSession {
         id,
+        name: DEFAULT_AGENT_SESSION_NAME.to_owned(),
         owner_id: macro_user_id::user_id::MacroUserIdStr::try_from_email("owner@example.com")
             .expect("valid macro user id"),
         thread_id: None,

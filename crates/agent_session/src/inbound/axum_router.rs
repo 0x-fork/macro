@@ -2,8 +2,8 @@
 //!
 //! Every route authenticates its caller and then authorizes them with
 //! [`AgentSessionAccessLevelExtractor`], checked before the handler body
-//! runs: viewing a session or its log needs `View`, controlling or deleting
-//! one needs `Owner`. Permission comes from the session's own `entity_access`
+//! runs: viewing a session or its log needs `View`; renaming, controlling, or
+//! deleting one needs `Owner`. Permission comes from the session's own `entity_access`
 //! rows - the owner with owner access, the mention's channel as editor - never
 //! from any channel the session was once rendered in. Handlers only map
 //! transport DTOs to domain types and call the [`AgentSessionService`]; they
@@ -176,6 +176,10 @@ where
             "/{session_id}/log",
             get(get_agent_session_log_handler::<T, Access, Auth>),
         )
+        .route(
+            "/{session_id}/name",
+            put(rename_agent_session_handler::<T, Access, Auth>),
+        )
         .with_state(state)
 }
 
@@ -245,6 +249,9 @@ impl IntoResponse for AgentSessionApiError {
     fn into_response(self) -> Response {
         match self {
             Self::Domain(error) => {
+                if let AgentSessionError::InvalidName(message) = error {
+                    return (StatusCode::BAD_REQUEST, Json(message)).into_response();
+                }
                 tracing::error!(error = ?error, "agent session request failed");
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal server error").into_response()
             }
@@ -289,6 +296,13 @@ impl From<SessionStatusDto> for SessionStatus {
     }
 }
 
+/// Request body for renaming an agent session.
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct RenameAgentSessionRequest {
+    /// New user-facing name. Leading and trailing whitespace is discarded.
+    pub name: String,
+}
+
 /// Request body for a control operation on a live session.
 ///
 /// A wrapper around the operation rather than the bare enum so that fields
@@ -313,6 +327,8 @@ pub struct ControlRequest {
 pub struct AgentSessionResponse {
     /// The session id.
     pub id: Uuid,
+    /// User-facing session name.
+    pub name: String,
     /// The user who created and owns the session.
     pub owner_id: String,
     /// The root message of the thread the session was created from, if any.
@@ -349,6 +365,7 @@ impl From<AgentSession> for AgentSessionResponse {
     fn from(session: AgentSession) -> Self {
         Self {
             id: session.id.as_uuid(),
+            name: session.name,
             owner_id: session.owner_id.to_string(),
             thread_id: session.thread_id,
             thread_channel_id: session.thread_channel_id,
@@ -397,6 +414,40 @@ pub async fn get_agent_session_handler<
         .await?;
 
     Ok(Json(session.into()))
+}
+
+#[utoipa::path(
+    put,
+    path = "/agent-sessions/{session_id}/name",
+    tag = "agent-sessions",
+    operation_id = "rename_agent_session",
+    params(("session_id" = Uuid, Path, description = "ID of the agent session")),
+    request_body = RenameAgentSessionRequest,
+    responses(
+        (status = 204),
+        (status = 400, body = String),
+        (status = 401, body = String),
+        (status = 403, body = String),
+        (status = 500, body = String),
+    )
+)]
+/// Rename an agent session.
+#[tracing::instrument(skip_all, fields(session_id = %session_id), err(Debug))]
+pub async fn rename_agent_session_handler<
+    T: AgentSessionService,
+    Access: EntityAccessService,
+    Auth: MacroAuthorizationService,
+>(
+    access: AgentSessionAccessLevelExtractor<OwnerAccessLevel, Access, Auth>,
+    State(state): State<AgentSessionRouterState<T, Access, Auth>>,
+    Path(session_id): Path<Uuid>,
+    Json(request): Json<RenameAgentSessionRequest>,
+) -> Result<StatusCode, AgentSessionApiError> {
+    state
+        .service
+        .rename_session(&access.entity_access_receipt, &request.name)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(
