@@ -59,6 +59,10 @@ import {
 } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import {
+  NATIVE_OFFLINE_ERROR_MESSAGE,
+  nativeNetworkStatus,
+} from '@core/mobile/native-network-status';
 import { idToDisplayName } from '@core/user/util';
 import {
   COMPANY_STAGE_OPTIONS,
@@ -103,6 +107,10 @@ import { unwrap } from 'solid-js/store';
 
 type DataSource<T> = {
   data: Accessor<T[]>;
+  error: Accessor<Error | null>;
+  /** True when the active request has local or network data, including an
+   * intentionally empty result. */
+  hasData: Accessor<boolean>;
   isLoading: Accessor<boolean>;
   isFetching: Accessor<boolean>;
   /**
@@ -281,6 +289,15 @@ const VALID_API_SORT_METHODS: ApiSortMethod[] = [
 type EntityWithRawNotifications = EntityData & {
   notifications?: Notification[];
 };
+
+const NATIVE_OFFLINE_LOAD_ERROR = new Error(NATIVE_OFFLINE_ERROR_MESSAGE);
+
+/** Retryable load error for a data-less view once iOS reports no network path. */
+function nativeOfflineLoadError(hasData: () => boolean): Error | null {
+  return nativeNetworkStatus() === 'offline' && !hasData()
+    ? NATIVE_OFFLINE_LOAD_ERROR
+    : null;
+}
 
 function rawEntityNotifications(
   entity: EntityData
@@ -986,9 +1003,15 @@ export const SoupViewContextProvider: FlowComponent<
   // Read loading first so REST fallback leaves the view shell rendered.
   const itemsQueryData = () =>
     itemsQuery.isLoading ? undefined : itemsQuery.data;
+  const itemsQueryHasData = () =>
+    itemsQueryData() !== undefined && !itemsQuery.isPlaceholderData;
+  const itemsQueryError = () =>
+    itemsQuery.error ?? nativeOfflineLoadError(itemsQueryHasData);
 
   const itemsSource = {
     data: itemsQueryData,
+    error: itemsQueryError,
+    hasData: itemsQueryHasData,
     isLoading: () => itemsQuery.isLoading,
     isFetching: () => itemsQuery.isFetching,
     isPlaceholderData: () => itemsQuery.isPlaceholderData,
@@ -1006,20 +1029,26 @@ export const SoupViewContextProvider: FlowComponent<
 
       if (!searching) {
         const data = itemsSource.data();
+        const extras = config().additionalEntities?.() ?? [];
+        const extraEntities = extras.map((e) =>
+          isWithNotification(e) ? e : attachNotifications(e)
+        ) as SoupEntity[];
 
-        if (!data || data.groups) return prev;
+        if (!data) {
+          // Query rebinding can temporarily produce no data without an
+          // error; keep the previous rows to avoid a flash on back
+          // navigation. Once the active query fails, those rows belong to
+          // the previous query and must go so the load-error state can
+          // render — only client-local rows remain valid.
+          return itemsSource.error() ? extraEntities : prev;
+        }
+        if (data.groups) return prev;
 
         const base = data.entities.map((e) =>
           isWithNotification(e) ? e : attachNotifications(e)
         ) as SoupEntity[];
 
-        const extras = config().additionalEntities?.() ?? [];
-
-        if (extras.length === 0) return base;
-
-        const extraEntities = extras.map((e) =>
-          isWithNotification(e) ? e : attachNotifications(e)
-        ) as SoupEntity[];
+        if (extraEntities.length === 0) return base;
 
         return [...extraEntities, ...base];
       }
@@ -1416,12 +1445,30 @@ export const SoupViewContextProvider: FlowComponent<
   });
 
   const { searchQuery } = search;
+  const searchSourceHasData = () =>
+    (searchQuery.data !== undefined && !searchQuery.isPlaceholderData) ||
+    (!searchQuery.isPlaceholderData && entities().length > 0);
+  const searchSourceError = () =>
+    (searchQuery.error as Error | null) ??
+    nativeOfflineLoadError(searchSourceHasData);
 
   const context = {
     soup,
     initialize,
     source: {
       data: entities,
+      error: () =>
+        search.isSearching() ? searchSourceError() : itemsSource.error(),
+      hasData: () =>
+        search.isSearching()
+          ? searchSourceHasData()
+          : itemsSource.hasData() ||
+            // Rows retained across a query rebind count as data so the view
+            // doesn't flash, but once the query errors only client-local
+            // rows remain and must not suppress the load-error state.
+            (!itemsSource.error() &&
+              !itemsSource.isPlaceholderData() &&
+              entities().length > 0),
       isLoading: () => itemsSource.isLoading(),
       isFetching: () => itemsSource.isFetching() || searchQuery.isFetching,
       isPlaceholderData: () =>
