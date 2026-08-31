@@ -1,4 +1,4 @@
-//! Versioned direct-field Soup projections for `soup-flat-v1`.
+//! Direct-field Soup projection helpers and typed server-fact supplements.
 #![deny(missing_docs)]
 
 use std::str::FromStr;
@@ -11,7 +11,20 @@ use predicate_index::{
     ExactAttributePatch, ExactFact, ExactValue, IndexDocument, IntegerAttributePatch, IntegerFact,
     OptimisticProjectionMutation, RecordKey, Token, ValidationError, utc_timestamp_micros,
 };
+#[cfg(feature = "models")]
+use soup::domain::models::SoupProjectionHydration;
 use thiserror::Error;
+
+mod profile;
+mod wire;
+
+pub use profile::{ProfileValidationError, validate_soup_flat_v2};
+pub use wire::{
+    MAX_SOUP_CACHE_PROJECTION_BYTES, MAX_SOUP_CACHE_PROJECTION_ENCODED_BYTES,
+    SOUP_CACHE_PROJECTION_WIRE_VERSION, SoupCacheProjectionCapsuleV1,
+    SoupCacheProjectionSupplement, SoupCacheProjectionWireError,
+    decode_cache_projection_supplement, encode_cache_projection_supplement,
+};
 
 #[cfg(test)]
 mod test;
@@ -22,6 +35,9 @@ pub enum ProjectionError {
     /// The authoritative document contained an unknown file-type value.
     #[error("invalid authoritative Soup document file type `{0}`")]
     InvalidFileType(String),
+    /// Document server facts do not match the accompanying item variant.
+    #[error("document server facts do not match Soup item variant")]
+    SourceMismatch,
     /// The generic projection violated bounded IR invariants.
     #[error(transparent)]
     Validation(#[from] ValidationError),
@@ -106,6 +122,7 @@ pub fn project_direct_fields(
     }
     projection(
         input.record_key,
+        vocabulary::profile(),
         input.kind.partition(),
         exact_facts,
         input.created_at,
@@ -264,6 +281,30 @@ pub fn project_chat<T>(
     })
 }
 
+/// Compile an authorized item/server-facts pair into a typed supplement.
+///
+/// Only documents hydrated with authoritative `document_email` relation state
+/// produce a supplement. Direct entity fields, including document subtype,
+/// are deliberately excluded and must be projected from the same GraphQL
+/// response by the browser. A document supplement attached to another entity
+/// variant is rejected.
+#[cfg(feature = "models")]
+pub fn project_soup_cache_supplement(
+    record_key: RecordKey,
+    hydration: &SoupProjectionHydration,
+) -> Result<Option<SoupCacheProjectionSupplement>, ProjectionError> {
+    let Some(server_facts) = hydration.document_server_facts else {
+        return Ok(None);
+    };
+    if !matches!(&hydration.item, SoupItem::Document(_)) {
+        return Err(ProjectionError::SourceMismatch);
+    }
+    Ok(Some(SoupCacheProjectionSupplement::document(
+        record_key,
+        server_facts.is_email_attachment,
+    )))
+}
+
 fn common_exact_facts(id: uuid::Uuid, owner: String) -> Result<Vec<ExactFact>, ValidationError> {
     Ok(vec![
         uuid_fact(vocabulary::id(), id)?,
@@ -273,6 +314,7 @@ fn common_exact_facts(id: uuid::Uuid, owner: String) -> Result<Vec<ExactFact>, V
 
 fn projection(
     record_key: RecordKey,
+    profile: predicate_index::Profile,
     partition: Token,
     exact_facts: Vec<ExactFact>,
     created_at: chrono::DateTime<chrono::Utc>,
@@ -288,7 +330,7 @@ fn projection(
     };
     let document = IndexDocument {
         record_key,
-        profile: vocabulary::profile(),
+        profile,
         partition,
         exact_facts,
         integer_facts: vec![created_at.clone(), updated_at.clone()],

@@ -7133,12 +7133,15 @@ dependencies = [
  "models_pagination",
  "models_properties",
  "models_soup",
+ "predicate-index",
  "rootcause",
  "serde",
  "serde_json",
  "soup",
+ "soup-filter-projection",
  "soup_realtime",
  "tokio",
+ "tracing",
  "uuid",
  "workspace-hack",
 ]
@@ -8481,6 +8484,7 @@ name = "item-filter-index"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "document_sub_type",
  "filter_ast",
  "item_filters",
  "predicate-index",
@@ -15039,6 +15043,7 @@ dependencies = [
  "indexmap 2.14.0",
  "item-filter-index",
  "predicate-index",
+ "serde",
  "serde_json",
  "soup-filter-projection",
  "thiserror 2.0.18",
@@ -15049,12 +15054,16 @@ dependencies = [
 name = "soup-filter-projection"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "item-filter-index",
  "macro_user_id",
  "model_file_type",
  "models_soup",
+ "postcard",
  "predicate-index",
+ "serde",
+ "soup",
  "thiserror 2.0.18",
  "uuid",
  "workspace-hack",
