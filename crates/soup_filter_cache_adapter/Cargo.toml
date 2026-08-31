@@ -18,3 +18,7 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 serde = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+cache-turso = { path = "../client/cache-turso" }
+pollster = { workspace = true }

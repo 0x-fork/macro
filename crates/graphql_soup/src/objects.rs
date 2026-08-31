@@ -429,27 +429,25 @@ where
     /// authoritative hydration value.
     pub fn new_with_projection(hydration: SoupProjectionHydration) -> Self {
         let entity = hydration.item.entity();
-        let supplement: Result<Option<SoupCacheProjection>, String> =
-            Self::graphql_type_name_for(entity.entity_type)
-                .ok_or_else(|| "Soup item has no GraphQL entity type".to_owned())
-                .and_then(|type_name| {
-                    RecordKey::new(format!("{type_name}:{}", entity.entity_id))
-                        .map_err(|error| error.to_string())
-                })
-                .and_then(|record_key| {
-                    project_soup_cache_supplement(record_key, &hydration)
-                        .map_err(|error| error.to_string())
-                })
-                .and_then(|supplement| {
-                    supplement
-                        .map(|supplement| {
-                            encode_cache_projection_supplement(&supplement)
-                                .map(SoupCacheProjection)
-                                .map_err(|error| error.to_string())
-                        })
-                        .transpose()
-                });
-        let supplement = supplement
+        let supplement = Self::graphql_type_name_for(entity.entity_type)
+            .ok_or_else(|| "Soup item has no GraphQL entity type".to_owned())
+            .and_then(|type_name| {
+                RecordKey::new(format!("{type_name}:{}", entity.entity_id))
+                    .map_err(|error| error.to_string())
+            })
+            .and_then(|record_key| {
+                project_soup_cache_supplement(record_key, &hydration)
+                    .map_err(|error| error.to_string())
+            })
+            .and_then(|supplement| {
+                supplement
+                    .map(|supplement| {
+                        encode_cache_projection_supplement(&supplement)
+                            .map(SoupCacheProjection)
+                            .map_err(|error| error.to_string())
+                    })
+                    .transpose()
+            })
             .inspect_err(|error| {
                 tracing::error!(error = ?error, "failed to compile Soup cache projection supplement");
             })

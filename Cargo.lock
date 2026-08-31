@@ -2956,6 +2956,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "soup-filter-cache-adapter",
+ "soup-filter-projection",
  "turso-opfs",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -15038,10 +15039,12 @@ name = "soup-filter-cache-adapter"
 version = "0.1.0"
 dependencies = [
  "cache-core",
+ "cache-turso",
  "chrono",
  "graphql_soup_filter_input",
  "indexmap 2.14.0",
  "item-filter-index",
+ "pollster",
  "predicate-index",
  "serde",
  "serde_json",
@@ -15056,6 +15059,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "document_sub_type",
  "item-filter-index",
  "macro_user_id",
  "model_file_type",
