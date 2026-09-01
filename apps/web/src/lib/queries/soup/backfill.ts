@@ -29,6 +29,8 @@ const EMAIL_CONTENT_PAGE_LIMIT = 5;
 const PAGE_DELAY_MS = 2_000;
 const BACKFILL_RETRY_COUNT = 5;
 const BACKFILL_RETRY_SCHEDULE = Schedule.exponential('1 second');
+const CACHE_HOST_RETRY_COUNT = 6;
+const CACHE_HOST_RETRY_SCHEDULE = Schedule.exponential('100 millis');
 const BACKFILL_PROGRESS_PAGE_INTERVAL = 10;
 const EXCLUDED_ENTITY_ID = '00000000-0000-0000-0000-000000000000';
 
@@ -469,9 +471,21 @@ export const runSoupBackfills = Effect.fn('runSoupBackfills')(function* (
   );
 });
 
+const waitForGraphqlSoupCacheHost = Effect.suspend(() =>
+  getGraphqlSoupCacheHost() === undefined
+    ? Effect.fail('cache-host-unavailable' as const)
+    : Effect.void
+).pipe(
+  Effect.retry({
+    times: CACHE_HOST_RETRY_COUNT,
+    schedule: CACHE_HOST_RETRY_SCHEDULE,
+  })
+);
+
 /**
  * Runs the checkpointed backfill Effect while this tab owns leadership.
- * Interrupting the fiber cancels the active fetch or inter-page sleep.
+ * Interrupting the fiber cancels cache readiness waits, active fetches, and
+ * inter-page sleeps.
  */
 export function useSoupBackfills(userId: string): void {
   const graphqlSoupFlag = useFeatureFlag(ENABLE_GRAPHQL_SOUP_FLAG, {
@@ -482,18 +496,16 @@ export function useSoupBackfills(userId: string): void {
   );
 
   createEffect(() => {
-    // Read reactive gates before the non-reactive cache-host lookup so a host
-    // that becomes available after flag loading or leader election is retried.
-    if (
-      !ENABLE_GRAPHQL_BACKFILL ||
-      !graphqlSoupFlag().enabled ||
-      !isLeader() ||
-      getGraphqlSoupCacheHost() === undefined
-    ) {
+    if (!ENABLE_GRAPHQL_BACKFILL || !graphqlSoupFlag().enabled || !isLeader()) {
       return;
     }
 
-    const fiber = Effect.runFork(runSoupBackfills(userId));
+    const fiber = Effect.runFork(
+      waitForGraphqlSoupCacheHost.pipe(
+        Effect.flatMap(() => runSoupBackfills(userId)),
+        Effect.ignore
+      )
+    );
     onCleanup(() => {
       Effect.runFork(Fiber.interrupt(fiber));
     });
