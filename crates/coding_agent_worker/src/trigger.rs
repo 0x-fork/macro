@@ -1,27 +1,18 @@
-//! Signed webhook ingest: agent-trigger events delivered over HTTP, driving
-//! sessions the same way a human driving the API by hand would - create,
-//! dial, prompt.
+//! Translate agent-trigger broker events into the work this daemon serves.
 //!
-//! Non-2xx responses make the deliverer redeliver, so failures are only
-//! signalled for work worth retrying: an undecodable payload or an event
-//! this daemon has nothing to do for is acked and dropped.
-
-use std::sync::Arc;
+//! Pure event vocabulary, split out so it can be tested without a live stream
+//! or harness - the same shape as the harness service's own Kafka inbound.
 
 use agent_session::domain::model::AgentSessionId;
 use agent_trigger::domain::broker_events::{
-    AgentTriggerTopicEvent, ExistingAgentSessionEvent, NewAgentSessionEvent,
+    AgentTriggerEventName, AgentTriggerTopicEvent, ExistingAgentSessionEvent, NewAgentSessionEvent,
 };
-use axum::Router;
-use axum::body::Bytes;
-use axum::extract::State;
-use axum::http::{HeaderMap, StatusCode};
-use axum::routing::post;
 use bot_id::BotId;
 use macro_event_broker::Event;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
-use webhook_signature::{SIGNATURE_HEADER, TIMESTAMP_HEADER};
+use strum::IntoEnumIterator as _;
+use webhook::domain::models::WebhookFilter;
 
 #[cfg(test)]
 mod test;
@@ -65,7 +56,7 @@ pub enum TriggerWork {
 }
 
 /// Why an event yielded no work. Only for logging - none of these are
-/// errors, and the deliverer is acked either way.
+/// errors, and the stream is left open either way.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Skipped {
     /// The sender is not a user, so there is nobody to act for.
@@ -113,81 +104,47 @@ pub fn trigger_to_work(event: AgentTriggerTopicEvent) -> Result<TriggerWork, Ski
     }
 }
 
-/// Executes translated work. The one capability the route needs, so tests
-/// can drive it without a live service or harness.
+/// Every event this daemon's stream asks for, scoped to the bound bots.
+///
+/// A name this daemon does not yet handle is still worth subscribing to -
+/// it arrives, is recognised as unsupported, and is skipped - which beats
+/// silently never being sent it.
+pub fn trigger_filters(bots: impl IntoIterator<Item = impl ToString>) -> Vec<WebhookFilter> {
+    let ids: Vec<String> = bots.into_iter().map(|bot| bot.to_string()).collect();
+    vec![WebhookFilter {
+        events: AgentTriggerEventName::iter()
+            .map(|event| event.to_string())
+            .collect(),
+        ids: Some(ids),
+    }]
+}
+
+/// Executes translated work. The one capability the stream listener needs,
+/// so tests can drive it without a live service or harness.
 pub trait WorkExecutor: Send + Sync + 'static {
-    /// Do one event's work; an error is worth a redelivery.
+    /// Do one event's work. SSE has no redelivery, so the listener logs a
+    /// failure and keeps the stream open.
     fn execute(
         &self,
         work: TriggerWork,
     ) -> impl Future<Output = Result<(), crate::dispatch::DispatchError>> + Send;
 }
 
-/// State for the events route.
-pub struct WebhookState<Executor> {
-    /// Where translated work goes.
-    pub executor: Executor,
-    /// The webhook's signing secret, shared with the deliverer. Behind a lock
-    /// because feed reconciliation replaces the feed - and its secret - when
-    /// the bound-agent set changes.
-    pub signing_secret: std::sync::Arc<std::sync::RwLock<String>>,
-}
+/// The envelope the stream delivers: the broker's, carrying a trigger event.
+pub type TriggerEvent = Event<AgentTriggerTopicEvent>;
 
-/// Build the router serving `POST /macro-events`.
-pub fn webhook_router<Executor: WorkExecutor>(state: WebhookState<Executor>) -> Router {
-    Router::new()
-        .route("/macro-events", post(ingest::<Executor>))
-        .with_state(Arc::new(state))
-}
-
-/// Verify, decode, translate, execute.
-async fn ingest<Executor: WorkExecutor>(
-    State(state): State<Arc<WebhookState<Executor>>>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> StatusCode {
-    let header = |name: &str| headers.get(name).and_then(|value| value.to_str().ok());
-    let (Some(timestamp), Some(signature)) = (header(TIMESTAMP_HEADER), header(SIGNATURE_HEADER))
-    else {
-        return StatusCode::UNAUTHORIZED;
-    };
-    let signing_secret = state
-        .signing_secret
-        .read()
-        .expect("signing secret lock")
-        .clone();
-    if !webhook_signature::verify(&signing_secret, timestamp, &body, signature) {
-        return StatusCode::UNAUTHORIZED;
-    }
-
-    let Ok(event) = serde_json::from_slice::<Event<AgentTriggerTopicEvent>>(&body) else {
-        // The webhook service's validation probe is the everyday case here:
-        // signed, not a trigger event, and answered 200 - which is exactly
-        // what marks the feed valid. Anything else undecodable will not
-        // improve on redelivery either: ack and drop.
-        if serde_json::from_slice::<serde_json::Value>(&body)
-            .ok()
-            .and_then(|value| value.get("event").cloned())
-            .is_some_and(|name| name == "webhook.validation.test")
-        {
-            tracing::info!("acknowledged the feed validation probe");
-        } else {
-            tracing::warn!("undecodable agent-trigger webhook payload; acked");
-        }
-        return StatusCode::OK;
-    };
-
+/// Translate one delivered event and execute it. Skippable events are
+/// ignored; an execute failure is returned so the caller can log it.
+#[tracing::instrument(skip(executor, event), fields(event_id = %event.event_id), err)]
+pub async fn handle_event<Executor: WorkExecutor>(
+    event: TriggerEvent,
+    executor: &Executor,
+) -> Result<(), crate::dispatch::DispatchError> {
     match trigger_to_work(event.event) {
-        Ok(work) => match state.executor.execute(work).await {
-            Ok(()) => StatusCode::OK,
-            Err(error) => {
-                tracing::error!(error = ?error, "agent-trigger webhook work failed");
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-        },
+        Ok(work) => executor.execute(work).await,
         Err(skipped) => {
-            tracing::debug!(?skipped, "agent-trigger webhook event skipped");
-            StatusCode::OK
+            tracing::debug!(?skipped, "agent-trigger stream event skipped");
+            Ok(())
         }
     }
 }
