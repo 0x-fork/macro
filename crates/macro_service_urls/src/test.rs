@@ -83,6 +83,18 @@ fn contacts_service_url_parses() {
 }
 
 #[test]
+fn contacts_service_url_has_no_trailing_slash() {
+    for environment in ENVS {
+        let url = ContactsServiceUrl::default_for_environment(environment);
+        assert!(
+            !url.as_ref().ends_with('/'),
+            "clients concatenate paths, so {} must not end with /",
+            url.as_ref()
+        );
+    }
+}
+
+#[test]
 fn email_service_url_parses() {
     assert_parses_for_all_environments(EmailServiceUrl::default_for_environment);
 }
@@ -348,7 +360,7 @@ fn exported_service_urls_match_dev_values() {
     );
     assert_eq!(
         service_urls.contacts_service_url.as_ref(),
-        "https://contacts-dev.macro.com",
+        "https://dev-gateway.macro.com/contacts",
     );
     assert_eq!(
         service_urls.email_service_url.as_ref(),
@@ -407,7 +419,7 @@ fn exported_service_urls_match_prod_values() {
     );
     assert_eq!(
         service_urls.contacts_service_url.as_ref(),
-        "https://contacts.macro.com",
+        "https://gateway.macro.com/contacts",
     );
     assert_eq!(
         service_urls.email_service_url.as_ref(),
