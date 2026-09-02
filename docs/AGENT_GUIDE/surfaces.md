@@ -5,8 +5,10 @@
 Unified triage list (emails, channel messages, task assignments, doc mentions, agent
 results). Filter radios: `Signal` (default, AI-filtered "needs attention") / `Noise` / `All`
 / `Reminders`; plus `Filter` menu and `Preview` toggle (split list + preview pane; the empty
-preview shows "No content selected"). Keyboard: `j`/`k` move, `space` preview, `enter` open,
-`e` mark done. Rows are buttons named `<channel> <sender>:<snippet> <time>`.
+preview shows "No content selected"). `Signal` and `Noise` order rows (and their date
+headers) by when you were last notified about the item, so a fresh comment on an old task
+sits under "Today". `All` and `Reminders` order by recency. Keyboard: `j`/`k` move, `space` preview, `enter` open, `e` mark done.
+Rows are buttons named `<channel> <sender>:<snippet> <time>`.
 
 ## Email — `/app/component/mail`
 
