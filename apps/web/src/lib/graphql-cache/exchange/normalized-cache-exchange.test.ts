@@ -289,6 +289,7 @@ function makeFakeHost(): FakeHost {
       host.cacheActions.push({ kind: 'write', value: args.data });
       return {
         revision: INITIAL_CACHE_REVISION,
+        revisionAdvanced: true,
         changed: [],
         affectedOps: [],
         reset: false,
@@ -318,6 +319,7 @@ function makeFakeHost(): FakeHost {
       return {
         transactionId,
         revision: INITIAL_CACHE_REVISION,
+        revisionAdvanced: true,
         changed: [],
         affectedOps: [],
         reset: false,
@@ -363,6 +365,7 @@ function makeFakeHost(): FakeHost {
       return {
         kind: 'committed',
         revision: INITIAL_CACHE_REVISION,
+        revisionAdvanced: true,
         changed: [],
         affectedOps: [],
         reset: false,
@@ -374,6 +377,7 @@ function makeFakeHost(): FakeHost {
       return {
         kind: 'rolled-back' as const,
         revision: INITIAL_CACHE_REVISION,
+        revisionAdvanced: true,
         changed: [],
         affectedOps: [],
         reset: false,
@@ -721,6 +725,7 @@ describe('normalizedCacheExchange', () => {
       cacheContainsDocument = true;
       return {
         revision: INITIAL_CACHE_REVISION,
+        revisionAdvanced: true,
         changed: [],
         affectedOps: [],
         reset: false,
@@ -1361,6 +1366,7 @@ describe('normalizedCacheExchange', () => {
       cached = args.data;
       return {
         revision: INITIAL_CACHE_REVISION,
+        revisionAdvanced: true,
         changed: [],
         affectedOps: [],
         reset: false,
@@ -2030,6 +2036,68 @@ describe('normalizedCacheExchange', () => {
         },
       ]);
       expect(results[0]?.data).toBe(data);
+    });
+
+    it('skips stale explicit effects and revalidations for a superseded commit', async () => {
+      const deletion = {
+        __typename: 'GraphqlCacheDeletion',
+        graphqlTypeName: 'GraphqlSoupDocument',
+        entityId: 'document-1',
+      };
+      const update = {
+        __typename: 'SoupUpdated',
+        item: {
+          __typename: 'GraphqlSoupDocument',
+          id: 'document-1',
+          displayName: 'Stale rename',
+        },
+      };
+      const data = {
+        renameEntities: {
+          results: [
+            {
+              __typename: 'GraphqlMutationSuccess',
+              effects: [deletion, update],
+            },
+          ],
+        },
+      };
+      const commit = host.commitOptimisticWrite.bind(host);
+      host.commitOptimisticWrite = async (transactionId, claim, args) => ({
+        ...(await commit(transactionId, claim, args)),
+        kind: 'committed-superseded',
+        replacementTransactionId: 'txn-2',
+        revalidations: [
+          {
+            query: stringifyDocument(QUERY),
+            operationName: 'Soup',
+            variablesJson: '{"input":{"limit":2}}',
+          },
+        ],
+      });
+      const base = makeRenameMutationOp(11);
+      const operation = makeOperation(base.kind, base, {
+        ...base.context,
+        normalizedCacheOptimistic: {
+          uuid: crypto.randomUUID(),
+          optimisticResponse: { renameEntities: { results: [] } },
+        },
+      });
+      const { ops, results, client } = harness(host, (op) =>
+        op.kind === 'mutation' ? { data } : {}
+      );
+
+      ops.next(operation);
+      await tick();
+
+      expect(host.commits).toHaveLength(1);
+      expect(host.cacheActions).toEqual([]);
+      expect(vi.mocked(client.query)).not.toHaveBeenCalled();
+      expect(results[0]?.data).toBeUndefined();
+      expect(optimisticMutationDispositionOf(results[0])).toEqual({
+        kind: 'queued',
+        transactionId: 'txn-2',
+      });
     });
 
     it('fires commit revalidations with network-only policy', async () => {
