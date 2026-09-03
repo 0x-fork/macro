@@ -522,6 +522,11 @@ export const ENABLE_SUPPORTED_SOUP_FOREIGN_ENTITIES_OVERRIDE = DEV_MODE_ENV
   ? true
   : undefined;
 
+export const ENABLE_INBOX_NOTIFIED_SORT_FLAG = 'enable-inbox-notified-sort';
+export const ENABLE_INBOX_NOTIFIED_SORT_OVERRIDE =
+  getFeatureFlagOverride('ENABLE_INBOX_NOTIFIED_SORT') ??
+  (DEV_MODE_ENV ? true : undefined);
+
 export const ENABLE_GRAPHQL_SOUP_FLAG = 'enable-graphql-soup';
 export const ENABLE_GRAPHQL_SOUP_OVERRIDE = getFeatureFlagOverride(
   'ENABLE_GRAPHQL_SOUP'
