@@ -1,6 +1,7 @@
 import { useActivityFeedFlag } from '@app/features/activity/use-activity-feed-flag';
 import type { EventEditorInitialValues } from '@app/features/calendar/components/composer/event-form-model';
 import type { CalendarEvent } from '@app/features/calendar/types';
+import { ChannelsView } from '@app/features/channels-view/channels-view';
 import { GettingStarted } from '@app/features/getting-started';
 import { Home } from '@app/features/home';
 import { InboxView } from '@app/features/inbox-view/inbox-view';
@@ -38,6 +39,7 @@ import {
   LOCAL_ONLY,
 } from '@core/constant/featureFlags';
 import { useUserContext } from '@core/context/user';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { ViewId } from '@core/types/view';
 import EmptyStatePreviewIcon from '@design/empty-state-doc.svg';
 import { useAutomationEntities } from '@queries/agent-schedule/entities';
@@ -47,8 +49,10 @@ import {
   createRenderEffect,
   type JSXElement,
   lazy,
+  Match,
   onMount,
   Show,
+  Switch,
 } from 'solid-js';
 import type { SplitContent } from './layoutManager';
 import { useSplitPanelOrThrow } from './layoutUtils';
@@ -441,21 +445,47 @@ registerComponent(
   })
 );
 
-registerComponent(
-  'channels',
-  withAuth(() => {
-    usePageViewTracking('channels');
-    const preset = getViewPreset('channels');
-    return (
-      <SoupView
-        viewName="Channels"
-        initialFilters={preset?.filters}
-        initialClientFilters={preset?.clientFilters}
-        initialGroupBy={preset?.groupBy}
-      />
-    );
-  })
-);
+function LegacyChannelsView() {
+  const preset = getViewPreset('channels');
+
+  return (
+    <SoupView
+      viewName="Channels"
+      initialFilters={preset?.filters}
+      initialClientFilters={preset?.clientFilters}
+      initialGroupBy={preset?.groupBy}
+    />
+  );
+}
+
+function FeatureGatedChannelsView() {
+  const newAppViews = useNewAppViews();
+
+  return (
+    <Show when={newAppViews.ready()} fallback={<LoadingBlock />}>
+      <Show when={newAppViews.enabled()} fallback={<LegacyChannelsView />}>
+        <ChannelsView />
+      </Show>
+    </Show>
+  );
+}
+
+function RegisteredChannelsView() {
+  usePageViewTracking('channels');
+
+  return (
+    <Switch>
+      <Match when={isTouchDevice()}>
+        <LegacyChannelsView />
+      </Match>
+      <Match when={!isTouchDevice()}>
+        <FeatureGatedChannelsView />
+      </Match>
+    </Switch>
+  );
+}
+
+registerComponent('channels', withAuth(RegisteredChannelsView));
 
 registerComponent(
   'calls',
