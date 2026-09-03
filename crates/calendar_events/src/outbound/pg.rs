@@ -1971,6 +1971,71 @@ impl GoogleCalendarSyncRepository for PgCalendarRepository {
         .map_err(report)?;
         Ok(due_count as usize)
     }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn reap_wedged_google_syncs(
+        &self,
+        stalled_before: DateTime<Utc>,
+    ) -> Result<usize, Report> {
+        let required_scopes = GOOGLE_CALENDAR_SCOPES.map(str::to_owned);
+        let reaped = sqlx::query_scalar!(
+            r#"
+            WITH wedged AS (
+                UPDATE calendar_backfill_jobs job
+                SET status = 'pending',
+                    last_error = NULL,
+                    started_at = NULL,
+                    completed_at = NULL,
+                    lease_token = NULL,
+                    lease_expires_at = NULL,
+                    updated_at = now()
+                FROM calendar_sync_outbox outbox,
+                     calendar_accounts account,
+                     email_link_google_scopes scopes
+                WHERE outbox.backfill_job_id = job.id
+                  AND account.id = job.account_id
+                  AND account.email_link_id = job.email_link_id
+                  AND scopes.link_id = job.email_link_id
+                  AND job.kind = 'google_calendar'
+                  AND job.grant_version = scopes.grant_version
+                  AND scopes.granted_scopes @> $2::text[]
+                  AND account.sync_status <> 'disabled'
+                  AND (
+                        -- Dead-lettered: a delivery reached a worker at least
+                        -- once (started_at is set) and failed back to pending,
+                        -- and nothing has touched the job since. started_at
+                        -- separates this from a job merely waiting its turn in a
+                        -- backed-up queue — the drain publishes that one without
+                        -- ever claiming it, so republishing would only duplicate
+                        -- the message still in flight.
+                        (job.status = 'pending'
+                         AND job.started_at IS NOT NULL
+                         AND outbox.published_at IS NOT NULL
+                         AND job.updated_at <= $1)
+                        -- Abandoned: a worker claimed the job and died without
+                        -- releasing or renewing the lease.
+                        OR (job.status = 'running'
+                            AND job.lease_expires_at IS NOT NULL
+                            AND job.lease_expires_at <= $1)
+                  )
+                RETURNING job.id
+            ),
+            republished AS (
+                UPDATE calendar_sync_outbox outbox
+                SET published_at = NULL
+                FROM wedged
+                WHERE outbox.backfill_job_id = wedged.id
+            )
+            SELECT count(*) AS "reaped!" FROM wedged
+            "#,
+            stalled_before,
+            &required_scopes,
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(report)?;
+        Ok(reaped as usize)
+    }
 }
 
 async fn fence_google_mutation_tx(
@@ -2986,6 +3051,14 @@ async fn replace_occurrences(
                 starts_at, ends_at, start_date, end_date, is_cancelled
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (event_id, occurrence_key) DO UPDATE SET
+                owner_id = EXCLUDED.owner_id,
+                recurrence_id = EXCLUDED.recurrence_id,
+                starts_at = EXCLUDED.starts_at,
+                ends_at = EXCLUDED.ends_at,
+                start_date = EXCLUDED.start_date,
+                end_date = EXCLUDED.end_date,
+                is_cancelled = EXCLUDED.is_cancelled
             "#,
             event_id,
             owner_id,
