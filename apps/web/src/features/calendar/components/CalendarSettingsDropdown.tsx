@@ -7,6 +7,7 @@ import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import GearIcon from '@phosphor/gear.svg';
 import PlusIcon from '@phosphor/plus.svg';
+import RssIcon from '@phosphor/rss.svg';
 import { Button, Checkbox, Dropdown } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { match } from 'ts-pattern';
@@ -15,6 +16,10 @@ import {
   useCalendarAccounts,
 } from '../hooks/use-calendar-accounts';
 import type { CalendarTimeFormat, CalendarWeekStart } from '../types';
+import {
+  type CalendarAccountGroup,
+  groupCalendarSourcesByAccount,
+} from '../utils/calendar-source-groups';
 import { useCalendarView } from './CalendarViewContext';
 import { MobilePeriodControls } from './PeriodSelector';
 import {
@@ -68,6 +73,22 @@ function createCalendarSettingsControls(isNarrow: () => boolean) {
     calendarView.setSourceVisibility(sourceId, visible);
   };
 
+  // The account header checkbox shows or hides every calendar in the group.
+  const changeAccountVisibility = (
+    group: CalendarAccountGroup,
+    visible: boolean
+  ) => {
+    calendarView.closeEventDetails();
+    for (const source of group.calendars) {
+      calendarView.setSourceVisibility(source.id, visible);
+    }
+  };
+  const isAccountVisible = (group: CalendarAccountGroup) =>
+    group.calendars.every((source) => calendarView.isSourceVisible(source.id));
+  const isAccountPartiallyVisible = (group: CalendarAccountGroup) =>
+    !isAccountVisible(group) &&
+    group.calendars.some((source) => calendarView.isSourceVisible(source.id));
+
   const changeShowWeekends = (showWeekends: boolean) => {
     calendarView.closeEventDetails();
     calendarView.setShowWeekends(showWeekends);
@@ -117,6 +138,9 @@ function createCalendarSettingsControls(isNarrow: () => boolean) {
     weekStartLabel,
     timeFormatLabel,
     changeSourceVisibility,
+    changeAccountVisibility,
+    isAccountVisible,
+    isAccountPartiallyVisible,
     changeShowWeekends,
     changeWeekStartsOn,
     changeTimeFormat,
@@ -151,27 +175,52 @@ function DesktopCalendarSettings(props: {
       </Dropdown.Trigger>
       <Dropdown.Content class="w-60 max-w-[calc(100vw-1rem)]">
         <Show when={controls.showCalendarVisibility()}>
-          <Dropdown.Group>
-            <Dropdown.GroupLabel>Calendars</Dropdown.GroupLabel>
-            <For each={calendarView.sources()}>
-              {(source) => (
+          <For each={groupCalendarSourcesByAccount(calendarView.sources())}>
+            {(group) => (
+              <Dropdown.Group>
                 <Dropdown.CheckboxItem
-                  checked={calendarView.isSourceVisible(source.id)}
+                  checked={controls.isAccountVisible(group)}
                   closeOnSelect={false}
                   onChange={(checked) =>
-                    controls.changeSourceVisibility(source.id, checked)
+                    controls.changeAccountVisibility(group, checked)
                   }
                 >
-                  <span
-                    aria-hidden="true"
-                    class="size-2.5 shrink-0 rounded-sm"
-                    style={{ 'background-color': source.color }}
-                  />
-                  <span class="min-w-0 flex-1 truncate">{source.name}</span>
+                  <span class="min-w-0 flex-1 truncate font-medium">
+                    {group.emailAddress}
+                  </span>
                 </Dropdown.CheckboxItem>
-              )}
-            </For>
-          </Dropdown.Group>
+                <For each={group.calendars}>
+                  {(source) => (
+                    <Dropdown.CheckboxItem
+                      checked={calendarView.isSourceVisible(source.id)}
+                      closeOnSelect={false}
+                      onChange={(checked) =>
+                        controls.changeSourceVisibility(source.id, checked)
+                      }
+                    >
+                      <span
+                        aria-hidden="true"
+                        class="size-2.5 shrink-0 rounded-sm"
+                        style={{ 'background-color': source.color }}
+                      />
+                      <span class="min-w-0 flex-1 truncate">{source.name}</span>
+                      <Show when={source.isSubscription}>
+                        <span
+                          title="Subscription calendar"
+                          class="flex shrink-0 text-ink-muted"
+                        >
+                          <RssIcon
+                            class="size-3"
+                            aria-label="Subscription calendar"
+                          />
+                        </span>
+                      </Show>
+                    </Dropdown.CheckboxItem>
+                  )}
+                </For>
+              </Dropdown.Group>
+            )}
+          </For>
         </Show>
 
         <Dropdown.Group>
@@ -336,30 +385,61 @@ function MobileCalendarSettings(props: { controls: CalendarSettingsControls }) {
           <MobilePeriodControls onSelect={() => setOpen(false)} />
 
           <Show when={controls.showCalendarVisibility()}>
-            <MobileDrawer.Label>Calendars</MobileDrawer.Label>
-            <MobileDrawer.Section class="flex shrink-0 flex-col">
-              <For each={calendarView.sources()}>
-                {(source) => (
-                  <Checkbox
-                    checked={calendarView.isSourceVisible(source.id)}
-                    onChange={(checked) =>
-                      controls.changeSourceVisibility(source.id, checked)
-                    }
-                    class={DRAWER_ROW_CLASS}
-                  >
-                    <Checkbox.Label class="flex min-w-0 flex-1 items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        class="size-2.5 shrink-0 rounded-sm"
-                        style={{ 'background-color': source.color }}
-                      />
-                      <span class="min-w-0 flex-1 truncate">{source.name}</span>
-                    </Checkbox.Label>
-                    <Checkbox.Control />
-                  </Checkbox>
-                )}
-              </For>
-            </MobileDrawer.Section>
+            <For each={groupCalendarSourcesByAccount(calendarView.sources())}>
+              {(group, index) => (
+                <div class={index() > 0 ? 'pt-4' : undefined}>
+                  <MobileDrawer.Section class="flex shrink-0 flex-col">
+                    <Checkbox
+                      checked={controls.isAccountVisible(group)}
+                      indeterminate={controls.isAccountPartiallyVisible(group)}
+                      onChange={(checked) =>
+                        controls.changeAccountVisibility(group, checked)
+                      }
+                      class={DRAWER_ROW_CLASS}
+                    >
+                      <Checkbox.Label class="min-w-0 flex-1 truncate font-medium">
+                        {group.emailAddress}
+                      </Checkbox.Label>
+                      <Checkbox.Control />
+                    </Checkbox>
+                    <For each={group.calendars}>
+                      {(source) => (
+                        <Checkbox
+                          checked={calendarView.isSourceVisible(source.id)}
+                          onChange={(checked) =>
+                            controls.changeSourceVisibility(source.id, checked)
+                          }
+                          class={DRAWER_ROW_CLASS}
+                        >
+                          <Checkbox.Label class="flex min-w-0 flex-1 items-center gap-2">
+                            <span
+                              aria-hidden="true"
+                              class="size-2.5 shrink-0 rounded-sm"
+                              style={{ 'background-color': source.color }}
+                            />
+                            <span class="min-w-0 flex-1 truncate">
+                              {source.name}
+                            </span>
+                            <Show when={source.isSubscription}>
+                              <span
+                                title="Subscription calendar"
+                                class="flex shrink-0 text-ink-muted"
+                              >
+                                <RssIcon
+                                  class="size-4"
+                                  aria-label="Subscription calendar"
+                                />
+                              </span>
+                            </Show>
+                          </Checkbox.Label>
+                          <Checkbox.Control />
+                        </Checkbox>
+                      )}
+                    </For>
+                  </MobileDrawer.Section>
+                </div>
+              )}
+            </For>
             <div class="mt-4" />
           </Show>
 
