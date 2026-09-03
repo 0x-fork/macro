@@ -11,25 +11,15 @@ import { analytics } from '@app/lib/analytics';
  */
 export const LOCAL_ONLY = !!import.meta.hot;
 
-type FeatureFlagValue = 'true' | 'false' | undefined;
+const parseBooleanOverride = (value: unknown): boolean | undefined =>
+  value === 'true' ? true : value === 'false' ? false : undefined;
 
 /**
  * Reads a `VITE_<flagName>` env override. Returns `undefined` when unset, so
  * callers can fall through to PostHog rather than forcing the flag off.
  */
 export function getFeatureFlagOverride(flagName: string): boolean | undefined {
-  const envKey = `VITE_${flagName}` as const;
-  const value = import.meta.env[envKey] as FeatureFlagValue;
-
-  if (value === 'true') {
-    return true;
-  }
-
-  if (value === 'false') {
-    return false;
-  }
-
-  return undefined;
+  return parseBooleanOverride(import.meta.env[`VITE_${flagName}`]);
 }
 
 export function resolveFeatureFlag(
@@ -45,6 +35,75 @@ export function resolveFeatureFlag(
  * @returns true in dev.macro.com and bun run dev, false otherwise
  */
 export const DEV_MODE_ENV = import.meta.env.MODE === 'development';
+
+type EnvFlagConfig = {
+  key?: never;
+  env?: string;
+  default: boolean;
+};
+
+type RemoteFlagConfig = {
+  key: string;
+  env?: string;
+  default?: boolean;
+};
+
+/** Compile-time / env-only flag. Read with `isFeatureEnabled`. */
+export type EnvFlag = {
+  enabled: boolean;
+};
+
+/** PostHog-backed flag. Read with `useFeatureFlag` or `isFeatureEnabled`. */
+export type RemoteFlag = {
+  key: string;
+  override: boolean | undefined;
+};
+
+export type Flag = EnvFlag | RemoteFlag;
+
+function envOverride(env: string | undefined): boolean | undefined {
+  return env === undefined ? undefined : getFeatureFlagOverride(env);
+}
+
+/**
+ * Define a feature flag. Pass `key` for PostHog, or `default` (and no `key`)
+ * for env-only. `env` is the name after `VITE_`, e.g. `'ENABLE_REMINDERS'`.
+ *
+ * `default` is used when env is unset. For remote flags, omit it (or pass
+ * `undefined`) to defer to PostHog. The caller decides when that default
+ * applies, e.g. `DEV_MODE_ENV || undefined` or `LOCAL_ONLY || undefined`.
+ *
+ * Remote: `useFeatureFlag(flag)` or `isFeatureEnabled(flag)`.
+ * Env-only: `isFeatureEnabled(flag)` only.
+ */
+export function defineFlag(config: RemoteFlagConfig): RemoteFlag;
+export function defineFlag(config: EnvFlagConfig): EnvFlag;
+export function defineFlag(config: RemoteFlagConfig | EnvFlagConfig): Flag {
+  if (config.key !== undefined) {
+    return {
+      key: config.key,
+      override: envOverride(config.env) ?? config.default,
+    };
+  }
+
+  return {
+    enabled: envOverride(config.env) ?? config.default,
+  };
+}
+
+/**
+ * Imperative snapshot. Env/`default` override wins. Otherwise PostHog,
+ * or `false` if flags have not loaded or the key is unknown.
+ */
+export function isFeatureEnabled(flag: Flag): boolean {
+  if ('key' in flag) {
+    if (flag.override !== undefined) {
+      return flag.override;
+    }
+    return analytics.posthog.isFeatureEnabled(flag.key) ?? false;
+  }
+  return flag.enabled;
+}
 
 /**
  * Switches Inbox, Tasks, and Channels from the current SoupView implementations
@@ -531,9 +590,6 @@ export const ENABLE_GRAPHQL_SOUP_FLAG = 'enable-graphql-soup';
 export const ENABLE_GRAPHQL_SOUP_OVERRIDE = getFeatureFlagOverride(
   'ENABLE_GRAPHQL_SOUP'
 );
-
-const parseBooleanOverride = (value: unknown): boolean | undefined =>
-  value === 'true' ? true : value === 'false' ? false : undefined;
 
 /** Controls the cache-warming GraphQL soup backfill. */
 export const ENABLE_GRAPHQL_BACKFILL = resolveFeatureFlag(
