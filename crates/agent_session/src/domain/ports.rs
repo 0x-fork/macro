@@ -12,6 +12,7 @@ use agent_runtime_protocol::domain::schema::v0::{ToRuntimeMessage, ToServerMessa
 use bots::domain::models::BotId;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
+use std::num::NonZeroUsize;
 
 /// A bidirectional connection to an agent runtime.
 pub trait AgentConnector:
@@ -292,6 +293,13 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
         ids: &[AgentSessionId],
     ) -> impl Future<Output = Result<Vec<AgentSessionPreview>>> + Send;
 
+    /// Replace the session credential when attaching an external runtime.
+    fn set_egress_token_hash(
+        &self,
+        id: AgentSessionId,
+        hash: &str,
+    ) -> impl Future<Output = Result<()>> + Send;
+
     /// The session a sandbox's egress token stands for, if any still does.
     ///
     /// `egress_token_hash` is the SHA-256 hex of the token as presented, never
@@ -332,6 +340,13 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
         thread_id: Uuid,
     ) -> impl Future<Output = Result<Vec<AgentSession>>> + Send;
 
+    /// The owner's newest sessions, newest first, at most `limit`.
+    fn recent_for_owner<'owner>(
+        &self,
+        owner: &MacroUserIdStr<'owner>,
+        limit: NonZeroUsize,
+    ) -> impl Future<Output = Result<Vec<AgentSession>>> + Send;
+
     /// The agent behind a session, for rendering the messages it sent.
     ///
     /// A bot that has been deleted still has messages in the channel, so this
@@ -344,6 +359,20 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
         &self,
         id: AgentSessionId,
         acp_session_id: SessionId,
+    ) -> impl Future<Output = Result<()>> + Send;
+
+    /// Persist the repository the session works on, or clear it. Idempotent.
+    ///
+    /// Written after the session is open, because for some runtimes the
+    /// repository is not known at creation: a Cursor session's repository
+    /// follows from what its first prompt asks for. The row is authoritative
+    /// once written - the egress proxy pins the sandbox's git traffic to it -
+    /// so `None` is a real answer meaning "this session works on no
+    /// repository", not "leave whatever is there".
+    fn set_repo_url(
+        &self,
+        id: AgentSessionId,
+        repo_url: Option<String>,
     ) -> impl Future<Output = Result<()>> + Send;
 
     /// Persist the model the session is running on. Idempotent.
@@ -635,6 +664,14 @@ pub trait AgentSessionRealtime {
         &self,
         event: LogAppended,
     ) -> impl Future<Output = Result<(), rootcause::Report>> + Send;
+
+    /// Tell viewers to refetch changed session metadata.
+    fn publish_updated(
+        &self,
+        _session: AgentSessionId,
+    ) -> impl Future<Output = Result<(), rootcause::Report>> + Send {
+        async { Ok(()) }
+    }
 
     /// Publish a user-facing name change to the session's viewers.
     fn publish_renamed(

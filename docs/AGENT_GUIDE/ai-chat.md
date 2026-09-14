@@ -352,3 +352,10 @@ defaulting to Claude. A recognized per-chat selection takes precedence over the
 server model. New sends record that selection before navigation or a background
 send, so list icons can update immediately. Restoring a draft without a valid
 model lets the composer use the chat's saved model before applying its default.
+
+Agent header PR chips resolve their GitHub URL once and receive saved PR metadata
+through connection gateway. A newly opened PR can remain unresolved until its
+webhook sync completes; its chip should then appear without a page refresh.
+Verify status changes (open/merged/closed) while the chip stays mounted, and
+verify that reconnecting the gateway catches up changes missed while disconnected.
+There is no periodic PR lookup polling.

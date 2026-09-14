@@ -85,6 +85,36 @@ cropped at the chip's height with a fade at its foot; clicking it expands it in 
 clicking again collapses it. Before anything is there to expand, clicking the area also
 opens the session.
 
+Cursor sessions choose a repository from the mentioning user's linked GitHub App
+installations on their first prompt. A session without a repository can still use
+Macro and connected MCP tools, but cannot use the Git proxy. For a PR smoke test,
+link the GitHub account and App installation in the same environment first, then
+name the repository explicitly in a new session's prompt.
+
+PR status in an open Magic Chip updates from connection-gateway events after
+webhook sync. Reconnecting refreshes active PR lookups to recover missed updates.
+A late webhook does not require reloading the page.
+
+Coding agents use `macro_internal.set_pull_request` to register an existing or
+new GitHub PR with their session. Macro Internal MCP is hosted by the harness
+service at `/mcp/internal` on its egress listener, separately from workspace MCP.
+Cursor, sandbox, and macrod sessions receive session-scoped credentials; the
+model supplies only the URL. The tool records the link, not the GitHub PR itself.
+Every harness receives a shared prompt instruction to register PRs. Cursor
+enables automatic PR creation when a repository is selected. Its returned URL
+is also recorded because
+automatic creation can finish after the agent stops. Repeated registration is
+idempotent. The PR URL is stored on the session row, independently of conversation
+history. Registration sends a session-update gateway notification so mounted
+chips reload the current link; reconnecting also refreshes it. Multiple chips
+for the same session share its metadata, and loading it leaves the surrounding
+editor visible.
+
+When Cursor opens a pull request, the chip header shows its GitHub link as soon
+as the run reports it, including after restoring a session. The link remains
+usable while the webhook mapping is loading or absent, then becomes a Macro PR
+entity link once synced.
+
 When the agent stops to ask a question the question takes the area in the passage's
 place, cropped and expandable the same way: the prompt, then what is asked - a form's
 fields (choice rows with an accent box, an `Other` row when the agent allows a free-text
