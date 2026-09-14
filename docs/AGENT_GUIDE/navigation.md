@@ -159,10 +159,10 @@ the static highlight.
 
 ## Command menu (Ctrl+K)
 
-Opens a dialog with a focused `Search...` textbox and category radios
+Opens a dialog with a focused `Search...` textbox and bubble-style category radios
 (All / Command / Agents / Files / Tasks / Channels / People). Type a name, press Enter to open
 the top hit. Also exposes commands: `Create`, `Change theme`, `MCP setup`. Keys: Tab cycles
-category, Esc closes.
+category, Esc closes. The category strip and footer have transparent backgrounds.
 
 ## Keyboard model (from the in-app guide; verified partially)
 
