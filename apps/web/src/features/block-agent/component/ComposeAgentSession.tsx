@@ -132,7 +132,8 @@ function ComposeAgentSessionContent(props: ComposeAgentSessionProps) {
   const shouldAutofocusPrompt = () =>
     canAutofocusSplitContent && !isTouchDevice();
 
-  // The two first-party agents lead, then the user's own personas.
+  // First-party agents lead, then saved personas the caller can start —
+  // their own, team-shared, and selected-channel personas they can `@`.
   const personas = createMemo<PersonaOption[]>(() => [
     {
       id: MACRO_PERSONA_ID,
