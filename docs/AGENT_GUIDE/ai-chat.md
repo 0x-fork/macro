@@ -66,8 +66,8 @@ and arrow send button, with a three-line editing area. It names the
 current selection:
 `What would you like Macro to work on?` becomes
 `What would you like Cursor to work on?` when Cursor is selected. Its aria-label
-is `Task for the agent`. The dialog's default autofocus lands on the selected
-agent row, its first tabbable control.
+is `Task for the agent`. Autofocus lands on that prompt so you can type
+immediately; skip it on touch so the keyboard does not jump up unsolicited.
 The prompt and agent strip share the same surface layer and background.
 A centered caption below the prompt describes the selected runtime: Macro
 shows “Starts quickly and runs in-memory. Great for workspace tasks”; Cursor
@@ -82,10 +82,21 @@ While a default is unknown, the selector reads `default`. Changing agent resets
 the override. Tab order is selected agent row (and any connection action) →
 **Create agent** → prompt → model → **Start session**.
 Escape in the prompt first blurs to the dialog; a second Escape closes it.
-Press the arrow send button (labelled **Start session**) or `Cmd/Ctrl+Enter`;
-the button shows a spinner and is labelled **Starting…**
+The prompt footer’s start control is a **Live / Background** dropdown
+(`aria-label="Session start mode"`) to the left of the circular send button.
+**Live** (default) opens the new session; **Background** closes the composer
+and shows a bottom-right toast **Session started in background** with an
+**Open session** action. The send button starts the selected mode. The
+dropdown lists both options; **Background** shows `Cmd` / `Ctrl`. The choice
+persists per user in localStorage.
+Holding `Cmd`/`Ctrl` previews Background on the dropdown and send button only
+while Live is selected; releasing restores Live. If Background is already
+selected, the modifier does nothing.
+`Enter` starts the selected mode (`Shift+Enter` still inserts a newline).
+`Cmd`/`Ctrl+Enter` starts in the background when Live is selected.
+The send button shows a spinner and is labelled **Starting…**
 while the server creates the session, applies the model override, and accepts the
-first prompt. It then closes
+first prompt. Live mode then closes
 and opens the real `/app/agent/<uuid>` URL. It never navigates to a temporary
 `pending-…` URL. Creation failures keep the prompt in the modal and show **Retry**.
 If model setup or prompt delivery fails after creation, **Retry** reuses that
