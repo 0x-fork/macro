@@ -71,6 +71,7 @@ import {
   cancelAiEdit,
   hasActiveAiEdit,
   requestAiEdit,
+  toastAiEditResult,
 } from '@service-ai-editing/client';
 import { makeResizeObserver } from '@solid-primitives/resize-observer';
 import { Button, Toolbar } from '@ui';
@@ -357,15 +358,15 @@ export function MarkdownPopup(props: {
     // The highlight is already tracking the selection; flagging the run
     // keeps it alive (as the loading indicator) after the popup closes.
     setAiEditRunning(true);
+    // Fast mode: one model edits the whole document directly, no supervisor.
     // Apply ops locally so the edit lands in this client's undo stack.
     requestAiEdit({
       documentId: blockId,
       prompt: `Request: ${instruction}\nUser is selecting nodes ${nodeIds.join(' ')}. Proceed with requested edit`,
+      mode: 'fast',
       onOps: (ops) => applyAiOps(editor, props.lexicalMapping, ops),
     })
-      .then((result) => {
-        if (result === 'failed') toast.failure('AI edit failed');
-      })
+      .then(toastAiEditResult)
       .finally(() => {
         setAiEditLocation(null);
         setAiEditRunning(false);
