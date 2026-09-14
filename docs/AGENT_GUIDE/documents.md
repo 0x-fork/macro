@@ -55,11 +55,49 @@ unavailable label. Mounted references refresh every 30 seconds while the tab is
 active to update titles and check access.
 
 Hover a document reference chip to open its preview without navigating. With
-`ENABLE_GRAPHQL_SOUP` enabled, the popup reuses the reference's live `ItemPreviews`
+the preview open, the compact header shows a tinted icon, title, and author/time
+byline. Click the title to open the document; the Reference actions ellipsis menu contains copy
+link, split, embed/collapse, AI, and delete actions when applicable. The preview
+stays open while this menu is active. Images use an inset frame and task chips
+appear below the header. Long titles wrap in place without a full-name tooltip.
+
+With `ENABLE_GRAPHQL_SOUP` enabled, the popup reuses the reference's live `ItemPreviews`
 batch, including task properties and viewer permission, without another fetch.
 Explicit refreshes may revalidate that batch, but requests must settle while the
 pointer stays over the same reference; cache updates must not cause a continuous
 fetch cascade.
+
+## Embedded document cards
+
+Document cards use a compact icon/title row and an actions menu. Full previews
+sit inside an inset surface; the author's display name and update time appear
+under the title as a byline. The plain 1rem icon sits in a column to the left
+of the title, aligned with its first line. Wrapped title lines, the byline,
+and task chips share the title's left edge. Full previews use the card's full
+content width with equal left and right insets. Title and byline share a text
+stack with a consistent 4px gap and 20px title leading, including when the title wraps.
+Titles and bylines use text-sm, differentiated by semibold and regular weight;
+smaller details use text-xs.
+Item.Icon provides the plain first-line-aligned icon slot. The small ellipsis button
+sits at the top right. Full embeds have a 320px minimum
+card height and a smaller rounded inset frame.
+The document-preview overlay uses the same plain icon, title/byline stack,
+small actions button, and task status control; image previews keep equal side insets.
+Metadata-only references omit the preview. Tasks replace the type icon with an
+icon-only status control; click it to change status when you have edit access.
+Priority and assignee chips remain below, without a duplicate status chip.
+Status and detail slots share one TaskPropertiesPreviewProvider per card:
+GraphQL preview data is reused, and REST fallback property/access queries are
+owned once, not separately by each slot. Non-task cards do not load task properties.
+Use the title to open the referenced document and the
+actions menu to copy its link, convert it to an inline mention, or delete the card.
+Title navigation preserves the reference's block parameters, including message,
+thread, annotation, and document locations.
+Click the card frame to select its editor node; controls and embedded content
+handle their own clicks. Full embeds remain vertically resizable and scroll
+inside the inset preview. When verifying, check a canvas embed, a metadata-only
+reference, and an editable task, including resize, menu actions, and keyboard
+access to the title and property controls.
 
 ## AI edit
 
