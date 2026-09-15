@@ -74,7 +74,7 @@ const AGENT_FAVORITES_FILTER = {
 
 function FavoriteRow(props: {
   favorite: Favorite;
-  onOpen: (favorite: Favorite) => void;
+  onOpen: (favorite: Favorite, event: MouseEvent) => void;
 }) {
   const name = useFavoriteDisplayName(props.favorite);
 
@@ -83,7 +83,7 @@ function FavoriteRow(props: {
       <ViewSidebar.Item
         class="font-normal"
         title={name()}
-        onClick={() => props.onOpen(props.favorite)}
+        onClick={(event) => props.onOpen(props.favorite, event)}
       >
         <span class="flex size-4 shrink-0 items-center justify-center">
           <FavoriteIcon favorite={props.favorite} class="size-4" />
@@ -95,7 +95,10 @@ function FavoriteRow(props: {
 }
 
 function AgentFavorites(props: {
-  onOpenConversation: (conversation: AgentConversationTarget) => void;
+  onOpenConversation: (
+    conversation: AgentConversationTarget,
+    event?: MouseEvent
+  ) => void;
 }) {
   const favoritesData = useFavoritesData(AGENT_FAVORITES_FILTER);
   const [open, setOpen] = createSignal(true);
@@ -105,7 +108,7 @@ function AgentFavorites(props: {
     )
   );
 
-  const openFavorite = (favorite: Favorite) => {
+  const openFavorite = (favorite: Favorite, event: MouseEvent) => {
     if (
       favorite.entityType !== 'agent_session' &&
       favorite.entityType !== 'chat'
@@ -113,10 +116,13 @@ function AgentFavorites(props: {
       return;
     }
 
-    props.onOpenConversation({
-      id: favorite.entityId,
-      type: favorite.entityType,
-    });
+    props.onOpenConversation(
+      {
+        id: favorite.entityId,
+        type: favorite.entityType,
+      },
+      event
+    );
   };
 
   return (
@@ -143,7 +149,7 @@ function AgentFavorites(props: {
 function ConversationRow(props: {
   conversation: AgentConversationEntity;
   active: boolean;
-  onOpen: () => void;
+  onOpen: (event: MouseEvent) => void;
 }) {
   const timestamp = () =>
     props.conversation.updatedAt ?? props.conversation.createdAt;
@@ -224,29 +230,39 @@ export type AgentsSidebarProps = {
   loadMoreError: boolean;
   onNavigate: (page: AgentsPage) => void;
   onSearchChange: (search: string) => void;
-  onOpenConversation: (conversation: AgentConversationTarget) => void;
+  onOpenConversation: (
+    conversation: AgentConversationTarget,
+    event?: MouseEvent
+  ) => void;
   onRetry: () => void;
   onLoadMore: () => void;
 };
 
 export function AgentsSidebar(props: AgentsSidebarProps) {
   const panel = useSplitPanelOrThrow();
+
   const forceEmptyState = useDebugSetting(
     DEBUG_SETTING_KEYS.FORCE_EMPTY_STATES
   );
+
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [recentChatsOpen, setRecentChatsOpen] = createSignal(true);
+
   const [scrollRoot, setScrollRoot] = createSignal<HTMLElement>();
   const [loadMoreSentinel, setLoadMoreSentinel] =
     createSignal<HTMLDivElement>();
+
   let searchInput: HTMLInputElement | undefined;
+
   const visibleConversations = () =>
     forceEmptyState() ? [] : props.conversations;
+
   const actionController = createListController({
     items: visibleConversations,
     getKey: (conversation) => conversation.id,
     isSelectable: () => false,
   });
+
   const actionList = toEntityActionListState({
     controller: actionController,
     getEntity: (conversation) => conversation,
@@ -414,8 +430,8 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
                           active={
                             props.activeConversationId === conversation().id
                           }
-                          onOpen={() =>
-                            props.onOpenConversation(conversation())
+                          onOpen={(event) =>
+                            props.onOpenConversation(conversation(), event)
                           }
                         />
                       </SoupEntityContextMenu>
