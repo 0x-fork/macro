@@ -203,8 +203,19 @@ artwork and wraps long queries.
 Collapsing a section does not discard its loaded pages. Recent has its own
 pagination cursor. Each list is virtualized, so offscreen conversations may not
 exist in the DOM.
-Rows and section headers act on primary-button mousedown, so the selection
-and highlight change before the click completes; a normal click still works.
+Channels and DMs each have a sort action before their create action. They can be
+sorted by last viewed, last updated, or date created, and each choice persists
+independently as a user preference.
+In slim mode, Favorites remains a separate collapsible section, while Channels
+and DMs render in one continuous list without section headings. The gear action
+in the footer controls whether each group appears and exposes the same
+independently persisted sort choices.
+Compact channel and DM rows in All have the same height. Section headings place
+their caret immediately after the title and reveal it on hover or while the
+section is collapsed; hovering only undims the heading text, while
+keyboard-focusing the heading with Arrow keys or `j` / `k` gives it a background.
+Clicking a section heading toggles it without moving the keyboard highlight;
+keyboard activation still toggles the highlighted section.
 
 Arrow Down / `j` at the last loaded conversation holds focus while that
 section loads its next page. Once loading finishes, the next press advances
