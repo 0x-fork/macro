@@ -6319,6 +6319,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "entity_registry"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "macro_db_migrator",
+ "model-entity",
+ "model_owner",
+ "rootcause",
+ "shared_entity_registry",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
+name = "entity_registry_db_utils"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "macro_db_migrator",
+ "model_owner",
+ "rootcause",
+ "shared_entity_registry",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "uuid",
+ "workspace-hack",
+]
+
+[[package]]
 name = "enum-as-inner"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15228,6 +15261,19 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.18",
  "tokio",
+ "workspace-hack",
+]
+
+[[package]]
+name = "shared_entity_registry"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "model-entity",
+ "model_owner",
+ "rootcause",
+ "thiserror 2.0.18",
+ "uuid",
  "workspace-hack",
 ]
 
