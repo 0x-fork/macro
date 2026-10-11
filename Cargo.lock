@@ -7171,6 +7171,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "unfurl",
+ "unicode-segmentation",
  "url",
  "urlencoding",
  "utoipa",
