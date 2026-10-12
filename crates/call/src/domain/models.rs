@@ -689,6 +689,7 @@ impl From<TeamSharePolicyError> for CallError {
 
 /// Team memory may only include calls associated with a channel.
 /// Standalone invitations and their records always keep team sharing disabled.
+#[cfg(feature = "ports")]
 pub(crate) fn permitted_team_memory_intent(channel_id: Option<Uuid>, enabled: bool) -> bool {
     channel_id.is_some() && enabled
 }
