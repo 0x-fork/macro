@@ -12884,6 +12884,7 @@ export const SendConfirmedEmail = z.object({
     .optional(),
   replyingToId: z.union([z.string().uuid(), z.null()]).optional(),
   includeSignature: z.union([z.boolean(), z.null()]).optional(),
+  attachments: z.array(z.object({ documentId: z.string().uuid() })).optional(),
   userConfirmation: z.string(),
 });
 
@@ -12946,6 +12947,7 @@ export const SendEmail = z.object({
     .optional(),
   replyingToId: z.union([z.string().uuid(), z.null()]).optional(),
   includeSignature: z.union([z.boolean(), z.null()]).optional(),
+  attachments: z.array(z.object({ documentId: z.string().uuid() })).optional(),
 });
 
 export const UserToolResponseForSendEmailResponse = z
