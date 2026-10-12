@@ -1044,6 +1044,10 @@ export type DiscoveryResult =
       operation: 'inspect';
     };
 /**
+ * The kind of item to duplicate.
+ */
+export type DuplicableEntityType = 'document' | 'chat';
+/**
  * Targeted layout operations. Removing placements always retains response columns.
  */
 export type Change =
@@ -3724,6 +3728,14 @@ export type ParticipantAction = 'add' | 'remove';
  */
 export type MoveableEntityType = 'document' | 'chat' | 'email' | 'project';
 /**
+ * The kind of item to move to the trash.
+ */
+export type TrashableEntityType = 'document' | 'chat' | 'project';
+/**
+ * What to do with an item's notifications.
+ */
+export type MuteAction = 'mute' | 'snooze' | 'unmute';
+/**
  * Presentation hint for a query result; it does not affect SQL execution.
  */
 export type QueryDatabaseDisplay =
@@ -3875,6 +3887,10 @@ export type SqlStatement =
       to: string;
       kind: 'alterColumnType';
     };
+/**
+ * Whether to add or remove a reaction.
+ */
+export type ReactionAction = 'add' | 'remove';
 /**
  * One activity action returned to the AI.
  */
@@ -4243,6 +4259,10 @@ export type AccessLevel = 'view' | 'comment' | 'edit' | 'owner';
  */
 export type ProjectItemType = 'document' | 'chat' | 'project';
 /**
+ * The kind of item to rename.
+ */
+export type RenameableEntityType = 'project' | 'chat';
+/**
  * A sort direction. Empty cells sort last either way.
  */
 export type SortDirection = 'ascending' | 'descending';
@@ -4347,6 +4367,18 @@ export type ToolEntityType =
   | 'company'
   | 'contact';
 /**
+ * The kinds of item a user can favorite.
+ */
+export type FavoritableEntityType =
+  | 'document'
+  | 'project'
+  | 'chat'
+  | 'channel'
+  | 'email'
+  | 'call'
+  | 'crm_company'
+  | 'crm_contact';
+/**
  * An explicit channel grant delta; omitted channels stay unchanged.
  */
 export type GrantChange =
@@ -4440,6 +4472,18 @@ export type RoutineChange =
       configuration: RoutineConfiguration;
       type: 'configuration';
     };
+/**
+ * The kind of item whose sharing changes.
+ */
+export type SharingEntityType = 'document' | 'chat' | 'project';
+/**
+ * Who an item's share link admits.
+ */
+export type ShareLinkScope = 'off' | 'public' | 'team';
+/**
+ * A share can be disabled or grant a non-owner permission.
+ */
+export type ShareAccess = 'off' | 'view' | 'comment' | 'edit';
 /**
  * Content of a web fetch response - either a successful result or an error
  */
@@ -6547,6 +6591,37 @@ export interface CreateChannelResponse {
   summary: string;
 }
 /**
+ * Add a company to the user's team CRM by name and web domain, as New Company in the CRM does. Companies a team emails are usually added automatically, so check ListCompanies first. Set its stage, owner, and other properties afterwards with SetEntityProperty (entity type company).
+ */
+export interface CreateCompany {
+  /**
+   * The company's display name, e.g. "Acme".
+   */
+  name: string;
+  /**
+   * The company's web domain, e.g. "acme.com" — no scheme or path. Contacts are matched to the company by this domain.
+   */
+  domain: string;
+}
+/**
+ * The created company.
+ */
+export interface CreateCompanyResponse {
+  /**
+   * The new CRM company id (usable with GetCompany, CreateContact, and
+   * SetEntityProperty).
+   */
+  companyId: string;
+  /**
+   * The company's display name.
+   */
+  name?: string | null;
+  /**
+   * The company's domains.
+   */
+  domains: string[];
+}
+/**
  * Create a calendar event immediately, with no review card or composer. Only for a prompt that came from a channel or document thread (the context block says so), where there is nothing to review a draft in. The event is always shown before it is created, even when the user's request already spelled the whole thing out: in one turn write it into the thread - title, date and time with its time zone, duration, guests, location, Google Meet or Macro call, recurrence - ask whether to create it, and stop there. Call this tool only in a later turn, once the user has replied approving that specific event, quoting that reply verbatim in userConfirmation. Being asked to schedule something is a request to draft the event, never approval to create it, so a userConfirmation quoting the request that asked you to set it up - rather than the reply approving the event you wrote out - is wrong. Never call it in the agent session view or in chat: use CreateCalendarEvent there, whose review card or composer is the confirmation. Takes the same fields as CreateCalendarEvent; the event is written to Google Calendar at once and any attendees receive invitations.
  */
 export interface CreateConfirmedCalendarEvent {
@@ -6596,6 +6671,44 @@ export interface CreateConfirmedCalendarEvent {
    * The user's own message approving this specific event, quoted verbatim - for example their "yes, go ahead" in reply to the event you wrote out for them. It is a reply to your draft, never the earlier request that asked you to schedule something: if the user has not yet seen this event, there is nothing to quote here and the tool must not be called. Required: do not paraphrase it, and never supply it yourself.
    */
   userConfirmation: string;
+}
+/**
+ * Add a contact person to a company in the user's team CRM, as Add Contact on a company does. The email's domain must be one of the company's domains. Find the company with ListCompanies, or add it first with CreateCompany.
+ */
+export interface CreateContact {
+  /**
+   * The CRM company id to add the contact to.
+   */
+  companyId: string;
+  /**
+   * The contact's name.
+   */
+  name: string;
+  /**
+   * The contact's email address, e.g. "jane@acme.com".
+   */
+  email: string;
+}
+/**
+ * The created contact.
+ */
+export interface CreateContactResponse {
+  /**
+   * The new CRM contact id.
+   */
+  contactId: string;
+  /**
+   * The company the contact belongs to.
+   */
+  companyId: string;
+  /**
+   * The contact's email.
+   */
+  email: string;
+  /**
+   * The contact's display name.
+   */
+  name?: string | null;
 }
 /**
  * Create a plaintext document or a native Macro spreadsheet. For a workbook use fileExtension spreadsheet, empty fileContent, and isTask false; then ReadSpreadsheet and EditSpreadsheet to populate cells, formulas and sheets. Works without an open editor.
@@ -7208,6 +7321,32 @@ export interface RoutineInfo {
   nextRunAt?: string | null;
 }
 /**
+ * Create a skill: a markdown document of reusable instructions that AI reads and follows when the skill is referenced, as Compose Skill in the app does. Write the instructions as the markdown body. Edit an existing skill with EditDocument; find skills with ListSkills or SearchSkills.
+ */
+export interface CreateSkill {
+  /**
+   * The skill's name.
+   */
+  skillName: string;
+  /**
+   * The skill's instructions, in markdown.
+   */
+  markdown: string;
+  /**
+   * The id of the project (shown as a folder in the app UI) to create the skill in. Requires edit access to the project. Omit to create it at the top level of the user's files.
+   */
+  projectId?: string | null;
+}
+/**
+ * The created skill.
+ */
+export interface CreateSkillResponse {
+  /**
+   * The id of the skill document.
+   */
+  documentId: string;
+}
+/**
  * Create a new tag — a colored label the user can apply to documents, emails, tasks, AI chats, and projects — in the user's personal set or their team's shared set. The set is provisioned automatically the first time a tag is created. Tags are matched by label, so call ListTags first and avoid creating one whose label duplicates an existing tag in the same set. Returns the new tag's id and its set's propertyDefinitionId, which you can pass straight to SetEntityProperty (add_option_ids) to apply the tag to an item. Use this only to create a brand-new tag; to apply an existing tag to an item, use ListTags then SetEntityProperty instead.
  */
 export interface CreateTag {
@@ -7304,6 +7443,54 @@ export interface DeleteCalendarEventResponse {
   summary: string;
 }
 /**
+ * Permanently delete a finished call with its recording and transcript, as Delete on a call does. This cannot be undone. Requires edit access to the call; calls still in progress cannot be deleted. Use only when the user explicitly asks to delete a call.
+ */
+export interface DeleteCallRecord {
+  /**
+   * The id of the call to delete.
+   */
+  callId: string;
+}
+/**
+ * The deleted call.
+ */
+export interface DeleteCallRecordResponse {
+  /**
+   * The deleted call.
+   */
+  callId: string;
+}
+/**
+ * Delete a channel message or thread reply. The channel keeps a 'message deleted' placeholder; this cannot be undone. Users can delete their own messages and messages sent by bots; channel admins and owners can delete any message. Find message ids with ReadChannelMessages or ReadChannelThread. Use only when the user explicitly asks to delete a message.
+ */
+export interface DeleteChannelMessage {
+  /**
+   * Channel id containing the message.
+   */
+  channelId: string;
+  /**
+   * Id of the message to delete.
+   */
+  messageId: string;
+}
+/**
+ * Response from [`DeleteChannelMessage`].
+ */
+export interface DeleteChannelMessageResponse {
+  /**
+   * Channel containing the message.
+   */
+  channelId: string;
+  /**
+   * Deleted message.
+   */
+  messageId: string;
+  /**
+   * Human-readable result summary.
+   */
+  summary: string;
+}
+/**
  * Delete a saved table or board view of a Macro database by its id, from DescribeDatabase. Views are shared with everyone who can open the database, so deleting one needs edit access and removes it for everyone. The table and its records stay; a board's hand-arranged card order goes with it. Only do it when the user asked for that view to go.
  */
 export interface DeleteDatabaseView {
@@ -7336,6 +7523,36 @@ export interface DeletedDatabaseView {
    * The name it went by.
    */
   name: string;
+}
+/**
+ * Delete a comment or reply on a document. Deleting the first comment of a thread deletes the whole thread with its replies. Authors can delete their own comments, and the document owner can delete any comment. This cannot be undone. Comment ids come from the comments ReadContent returns. Use only when the user explicitly asks to delete a comment; use ResolveDocumentComment to close a thread instead.
+ */
+export interface DeleteDocumentComment {
+  /**
+   * The id of the document the comment is on.
+   */
+  documentId: string;
+  /**
+   * The id of the comment or reply to delete, from ReadContent. Pass the thread id to delete the whole thread.
+   */
+  commentId: string;
+}
+/**
+ * The deleted comment.
+ */
+export interface DeleteDocumentCommentResponse {
+  /**
+   * The document the comment was on.
+   */
+  documentId: string;
+  /**
+   * The deleted comment.
+   */
+  commentId: string;
+  /**
+   * Whether the whole thread was deleted.
+   */
+  deletedThread: boolean;
 }
 /**
  * Decline a staged import candidate on the user's behalf. The item is remembered as declined so it won't be proposed again; only the user's own staged items can be declined.
@@ -7376,6 +7593,24 @@ export interface ProjectOperationComplete {
    * True when the operation completed.
    */
   success: boolean;
+}
+/**
+ * Permanently delete a routine owned by the authenticated user, stopping all future runs. This cannot be undone; to stop it temporarily, pause it with UpdateRoutine instead. Use only when the user explicitly asks to delete a routine.
+ */
+export interface DeleteRoutine {
+  /**
+   * Routine UUID.
+   */
+  routineId: string;
+}
+/**
+ * The deleted routine.
+ */
+export interface DeletedRoutine {
+  /**
+   * Routine UUID.
+   */
+  routineId: string;
 }
 /**
  * Permanently delete a tag from the user's personal set or their team's shared set. This removes the tag from every item it is currently applied to, so it is destructive and cannot be undone — confirm with the user first. Both ids come from a ListTags result: `id` is the tag's option id, and `property_definition_id` is the propertyDefinitionId of the set that contains it. To simply remove a tag from a single item without deleting the tag itself, use SetEntityProperty with remove_option_ids instead.
@@ -7644,6 +7879,38 @@ export interface DisplayResultsResponse {
   message: string;
 }
 /**
+ * Make a copy of a document (including a task) or an AI chat, owned by the user, as the Duplicate action in the app does. Requires view access to the original. Returns the copy's id.
+ */
+export interface DuplicateItem {
+  entityType: DuplicableEntityType;
+  /**
+   * The id of the item to duplicate.
+   */
+  entityId: string;
+  /**
+   * Name for the copy of a document. Omit to use "<original name> copy". AI chat copies always keep the original name.
+   */
+  name?: string | null;
+}
+/**
+ * The duplicate item response.
+ */
+export interface DuplicateItemResponse {
+  entityType: DuplicableEntityType;
+  /**
+   * The id of the original item.
+   */
+  sourceId: string;
+  /**
+   * The id of the new copy.
+   */
+  copyId: string;
+  /**
+   * A human-readable result message.
+   */
+  message: string;
+}
+/**
  * Edit exactly one existing booking link. First read it with ListBookingLinks, preserve all settings the user did not request changing, and pass its revision and full edited draft. Changed availability applies only to this link; other links and personal default hours remain unchanged. A stale revision fails: read again and confirm the updated proposal in conversation instead of overwriting concurrent edits. Create or edit booking links only after conversational confirmation, with no review card or interactive form. First explain all proposed details clearly in your reply: personal or team ownership, named hosts and who attends, meeting name, description, duration, location or Google Meet, time zone, weekly hours and date exceptions, link name, buffers, minimum notice, booking window, slot interval, daily limit, guest questions and whether bookings are enabled. Ask whether to proceed and stop. Only in a later turn after the user approves that specific proposal, call this tool with their approving reply quoted verbatim in userConfirmation. The original request is not confirmation; never invent or paraphrase approval. Never ask the user for teamId, host IDs, schedule IDs, revisions or JSON: discover IDs with ListBookingLinks and ListTeamMembers. Default to personal ownership unless a team is requested, and clarify ambiguous choices by name. Return the saved URL after execution. Returns actual saved IDs, revision, full draft and shareable URL. Manual approval must be false; guest booking requires a connected, synced writable calendar.
  */
 export interface EditBookingLink {
@@ -7665,6 +7932,40 @@ export interface EditBookingLink {
    * Never use their original request, paraphrase their reply, or invent approval.
    */
   userConfirmation: string;
+}
+/**
+ * Replace the content of an existing channel message or thread reply. Only the message's author can edit it, so this edits messages the user sent and messages this assistant sent for them; channel admins and owners may also edit others' messages. Find message ids with ReadChannelMessages or ReadChannelThread. Use only when the user asks to edit or correct a message.
+ */
+export interface EditChannelMessage {
+  /**
+   * Channel id containing the message.
+   */
+  channelId: string;
+  /**
+   * Id of the message to edit.
+   */
+  messageId: string;
+  /**
+   * The full replacement message content in macro markdown format. This replaces the whole message, not a fragment of it.
+   */
+  content: string;
+}
+/**
+ * Response from [`EditChannelMessage`].
+ */
+export interface EditChannelMessageResponse {
+  /**
+   * Channel containing the message.
+   */
+  channelId: string;
+  /**
+   * Edited message.
+   */
+  messageId: string;
+  /**
+   * Human-readable result summary.
+   */
+  summary: string;
 }
 /**
  * Apply AI-driven edits to a Macro markdown document in place -- rewriting, inserting, formatting, or restructuring. Use EditSpreadsheet for native Macro spreadsheets. Markdown documents only: these are authored in Macro's collaborative editor, and are the only documents whose content this tool can rewrite. Edit uploaded Word (.docx) files with ReadWordDocument and EditWordDocument instead. Other uploaded files -- PDFs, images, source files such as .py or .ts -- are readable but not editable, and are rejected. If the response contains a `clarification` field, invoke again with the requested info appended to `instructions`. To insert @-mention chips, include each referenced item's ids and details in `instructions`: userId/email for people; documentId/documentName/blockName (and blockParams when needed) for documents, channels, chats, projects, tasks, emails, calendar events, skills, calls, and routines; session id (and optional expanded card) for agent sessions; ISO datetime plus displayFormat for time chips. To insert document-card(s), include each document's documentId and documentName.
@@ -7693,6 +7994,36 @@ export interface EditDocumentResponse {
    * If present, invoke this tool again with this information appended to `instructions`.
    */
   clarification?: string | null;
+}
+/**
+ * Replace the text of a comment or reply on a document. Only a comment's author can edit it, so this edits comments the user wrote and comments this assistant wrote for them. Comment ids come from the comments ReadContent returns. Use only when the user asks to edit a comment.
+ */
+export interface EditDocumentComment {
+  /**
+   * The id of the document the comment is on.
+   */
+  documentId: string;
+  /**
+   * The id of the comment or reply to edit, from ReadContent. For the first comment of a thread this is the thread id.
+   */
+  commentId: string;
+  /**
+   * The full replacement text of the comment, in markdown.
+   */
+  content: string;
+}
+/**
+ * The edited comment.
+ */
+export interface EditDocumentCommentResponse {
+  /**
+   * The document the comment is on.
+   */
+  documentId: string;
+  /**
+   * The edited comment.
+   */
+  commentId: string;
 }
 /**
  * Edit the live form using typed targeted operations. ReadForm provides stable question/section IDs. Edits produce granular CRDT updates; concurrent changes merge using the same rules as the builder. Omitted fields stay unchanged. Invalid merged layouts are refused. Changes can add or move questions/sections, edit requiredness/help/screeners and attach an existing booking target. New columns use explicit stable IDs. Question labels follow backing column names; rename them through database tools. Removing a question keeps its column and answers. Schema retyping and conditional column cleanup are unsupported. Keep screeners after the questions they test and booking last. Read the current form after a timeout or partial result before proceeding. Opening and sharing require SetFormAccess.
@@ -9632,6 +9963,10 @@ export interface ListEntities {
    * Filter returned items to specific item types. If not provided, returns all types. Example: ["document", "email"] returns only documents and emails. Macro tasks are returned as document items, so use includeTypes=["document"] with df subtype task for task requests. This is folded into the AST and applied as part of cursor-level filtering.
    */
   includeTypes?: ItemType[] | null;
+  /**
+   * Only return items the user has favorited (starred). Use for requests like "my favorites" or "what have I starred". Combine with includeTypes and the other filters as usual. Favorite or unfavorite an item with SetFavorite.
+   */
+  favoritesOnly?: boolean;
   sortBy?: SortBy;
   /**
    * Full soup AST document filter (df). Use the same shape as /items/soup/ast, e.g. {"l":{"id":"..."}}. For Macro tasks, use {"l":{"dst":"task"}}; for skills, {"l":{"dst":"skill"}}. For "completed yesterday", AND the task subtype with updatedAt bounds, e.g. {"&":[{"l":{"dst":"task"}},{"&":[{"l":{"ua":{"gte":"<start>"}}},{"l":{"ua":{"lt":"<end>"}}}]}]} using ISO timestamps.
@@ -10399,6 +10734,59 @@ export interface MoveToProjectResponse {
   message: string;
 }
 /**
+ * Delete a document (including a task), an AI chat, or a project (folder) by moving it to the trash, as the Delete action in the app does. Trashing a project also trashes everything inside it. Only the item's owner can trash it. Use only when the user explicitly asks to delete an item. Channels, email threads, and calendar events are not deleted with this tool.
+ */
+export interface MoveToTrash {
+  entityType: TrashableEntityType;
+  /**
+   * The id of the item to move to the trash.
+   */
+  entityId: string;
+}
+/**
+ * The move to trash response.
+ */
+export interface MoveToTrashResponse {
+  entityType: TrashableEntityType;
+  /**
+   * The trashed item's id.
+   */
+  entityId: string;
+  /**
+   * A human-readable result message.
+   */
+  message: string;
+}
+/**
+ * Mute, snooze, or unmute notifications about one item for the user only, as Mute and Snooze in the app do. Muting never changes anyone else's notifications or the item itself. Use the entity type and id from ListNotifications or other tools.
+ */
+export interface MuteNotifications {
+  entityType: NotificationEntityType;
+  /**
+   * The item's id.
+   */
+  entityId: string;
+  action: MuteAction;
+  /**
+   * When notifications resume, as an ISO 8601 timestamp in the future. Required for snooze; omit otherwise.
+   */
+  snoozeUntil?: string | null;
+}
+/**
+ * The item's notification state after the change.
+ */
+export interface MuteNotificationsResponse {
+  /**
+   * The item's id.
+   */
+  entityId: string;
+  action: MuteAction;
+  /**
+   * When a snooze ends.
+   */
+  snoozeUntil?: string | null;
+}
+/**
  * Search items by their name or title: document name, email subject, chat title, channel name, project name, or call-record name. This is keyword search, not semantic search: queries only match literal words/tokens, prefixes, or exact quoted terms that appear in the indexed title/name. Use this for targeted name/title lookup, not for activity-summary questions like "what happened today", "what's going on", "catch me up", or "what happened in standup today"; those should start with ListEntities using time/type/channel filters. For emails, whitespace-separated terms are ANDed and each is a prefix match against the subject. For all other types the whole query is matched as a single adjacent phrase prefix — so pass 1-3 targeted keywords drawn from words that would literally appear in the title, not the user's natural-language description; long phrases will not match. Matching defaults to prefix; set matchType to 'exact' to match whole tokens/phrases with no prefix expansion. Wrap a multi-word phrase in double quotes to keep it together as one adjacent phrase. If the user's request combines a person with a topic, run separate searches (NameSearch for the person, ContentSearch for the topic) rather than one combined query. Leave entityTypes empty by default; only filter when the user explicitly scopes to a type. Results for documents, emails, AI chats, projects, and call records include the tags visible to the user as {label, scope} pairs; to restrict a search to tagged items, pass the tag labels in the tags argument (ListTags shows which tags exist).
  */
 export interface NameSearch {
@@ -10420,6 +10808,36 @@ export interface NameSearch {
    */
   tags?: TagFilter[] | null;
   tagsMatch?: TagMatch;
+}
+/**
+ * Find the user's direct-message conversation with one or more people, creating it if it does not exist yet, and return its channel id. One person opens a 1:1 DM; several open a group DM with exactly that set of people. Use this before SendChannelMessage when the user asks to message someone directly and no channel id is known. Find people with ListTeamMembers.
+ */
+export interface OpenDirectMessage {
+  /**
+   * The other people in the conversation, as Macro user ids (`macro|<email>`) or emails. Do not include the user.
+   */
+  participants: string[];
+}
+/**
+ * Response from [`OpenDirectMessage`].
+ */
+export interface OpenDirectMessageResponse {
+  /**
+   * The direct-message channel.
+   */
+  channelId: string;
+  /**
+   * Whether the conversation was newly created.
+   */
+  created: boolean;
+  /**
+   * Canonical ids of the other participants.
+   */
+  participants: string[];
+  /**
+   * Human-readable result summary.
+   */
+  summary: string;
 }
 /**
  * Run SQL against the current user's Macro databases — the only way to read or change their rows. SELECT to answer a question, INSERT/UPDATE/DELETE to change data, CREATE/ALTER/DROP to edit schema. One statement per call.
@@ -10599,6 +11017,46 @@ export interface SelectOption {
    * The label users type in SQL.
    */
   label: string;
+}
+/**
+ * Add or remove the user's own emoji reaction on a channel message or thread reply. The reaction is shown as coming from the user. Find message ids with ReadChannelMessages or ReadChannelThread. Use only when the user asks to react to a message.
+ */
+export interface ReactToChannelMessage {
+  /**
+   * Channel id containing the message.
+   */
+  channelId: string;
+  /**
+   * Id of the message to react to.
+   */
+  messageId: string;
+  /**
+   * The emoji itself as a Unicode character, for example 👍 or 🎉 — not a shortcode like :thumbsup:.
+   */
+  emoji: string;
+  action?: ReactionAction & string;
+}
+/**
+ * Response from [`ReactToChannelMessage`].
+ */
+export interface ReactToChannelMessageResponse {
+  /**
+   * Channel containing the message.
+   */
+  channelId: string;
+  /**
+   * Message reacted to.
+   */
+  messageId: string;
+  /**
+   * Emoji added or removed.
+   */
+  emoji: string;
+  action: ReactionAction;
+  /**
+   * How many people reacted with this emoji after the change.
+   */
+  count: number;
 }
 /**
  * Read actions attributed to the authenticated user within a time range, newest first. Use this for questions about what the user did, including actions an agent performed on their behalf. Property changes include propertyName/propertyType plus fromLabels/toLabels for resolved select and tag values; use those human-readable fields in the answer and never expose property or option ids. Do not use this for organization-wide updates or everything that happened to entities the user can access; use ListEntities for those. Returns at most 100 activities and reports when the result was truncated.
@@ -12045,6 +12503,34 @@ export interface RenameDocumentResponse {
   message: string;
 }
 /**
+ * Rename a project (shown as a folder in the app) or an AI chat. Renaming a project requires edit access; renaming an AI chat requires owning it. Use RenameDocument for documents and tasks, and RenameChannel for channels.
+ */
+export interface RenameItem {
+  entityType: RenameableEntityType;
+  /**
+   * The id of the item to rename.
+   */
+  entityId: string;
+  /**
+   * The new name.
+   */
+  name: string;
+}
+/**
+ * The rename item response.
+ */
+export interface RenameItemResponse {
+  entityType: RenameableEntityType;
+  /**
+   * The renamed item's id.
+   */
+  entityId: string;
+  /**
+   * The new name.
+   */
+  name: string;
+}
+/**
  * Resolve or reopen a comment thread on a document on behalf of the user. Only use this when explicitly asked to resolve or reopen a comment. Thread ids come from the comments ReadContent returns.
  */
 export interface ResolveDocumentComment {
@@ -12077,6 +12563,30 @@ export interface ResolveDocumentCommentResponse {
    * Whether the thread is now resolved.
    */
   resolved: boolean;
+}
+/**
+ * Start a routine owned by the authenticated user now, outside its schedule, as Run Now in the app does. The run continues after this returns; check its result later with ReadRoutine. Fails if the routine is already running.
+ */
+export interface RunRoutine {
+  /**
+   * Routine UUID.
+   */
+  routineId: string;
+}
+/**
+ * A run started on demand; it continues after the call returns.
+ */
+export interface RoutineRunStarted {
+  /**
+   * The routine that is running.
+   */
+  routineId: string;
+  /**
+   * The chat or agent session the run writes to, when the scheduler reports one.
+   */
+  resource?: {
+    [k: string]: unknown;
+  };
 }
 /**
  * Save a read-only SELECT as a live question and get back the block that shows its answer. Paste the returned `markdown` verbatim, into your reply or into a document with CreateDocument/EditDocument, and it renders as a live number, table, or chart that re-runs for whoever views it, with their permissions, so it stays current as the data changes.
@@ -12534,6 +13044,34 @@ export interface SetEntityPropertyResponse {
   message: string;
 }
 /**
+ * Add an item to the user's favorites (shown starred in the app sidebar) or remove it, as the Favorite action does. Requires view access to add an item. List favorites with ListEntities and favoritesOnly.
+ */
+export interface SetFavorite {
+  entityType: FavoritableEntityType;
+  /**
+   * The id of the item.
+   */
+  entityId: string;
+  /**
+   * True to add the item to favorites, false to remove it.
+   */
+  favorite: boolean;
+}
+/**
+ * The item's favorite state after the change.
+ */
+export interface SetFavoriteResponse {
+  entityType: FavoritableEntityType;
+  /**
+   * The item's id.
+   */
+  entityId: string;
+  /**
+   * Whether the item is now a favorite.
+   */
+  favorite: boolean;
+}
+/**
  * Open, close or share a saved form immediately. Requires Form Owner. Supply complete audience/status/deadline/tally settings and explicit channel grant deltas; empty deltas change no grants. Public allows anonymous responses. View allows responding without database access; channel Edit grants editing of the entire backing database. Uses the existing Forms settings and sharing services without a review step. This never posts a message or sends invitations. Settings and channel grants are separate writes; inspect partial results before retrying. Returns actual access, canonical links and acceptingResponses; a URL alone does not mean the form is open.
  */
 export interface SetFormAccess {
@@ -12800,6 +13338,36 @@ export interface UpdateCalendarEvent {
   outOfOffice?: OutOfOfficeInput | null;
 }
 /**
+ * Rename a recorded call or change whether it is shared with the team, as the call's header menu does. Requires edit access to the call; only the call's creator can change team sharing on a finished call. Find calls with ListEntities or NameSearch.
+ */
+export interface UpdateCallRecord {
+  /**
+   * The id of the call.
+   */
+  callId: string;
+  /**
+   * New display name for the call. An empty string clears the custom name. Omit to leave it unchanged.
+   */
+  name?: string | null;
+  /**
+   * True to share the call with the creator's team (view access), false to stop sharing it. Omit to leave it unchanged.
+   */
+  shareWithTeam?: boolean | null;
+}
+/**
+ * The changed call.
+ */
+export interface UpdateCallRecordResponse {
+  /**
+   * The changed call.
+   */
+  callId: string;
+  /**
+   * Human-readable result summary.
+   */
+  summary: string;
+}
+/**
  * Rename a project with edit access, or replace its collaboration member list as the owner. Members control sharing independently of the assignee property. Assigning a user grants collaboration access; removing an assignment retains that access. For status, priority, assignees and due date use SetEntityProperty with entity_type='initiative'.
  */
 export interface UpdateInitiative {
@@ -12860,6 +13428,56 @@ export interface UpdateRoutine {
    */
   routineId: string;
   change: RoutineChange;
+}
+/**
+ * Change who can access a document (including a task), an AI chat, or a project (folder), as the Share menu in the app does: link sharing, team access, and per-channel access. Each omitted field stays unchanged; off disables that share. Requires edit access to a document, or owning an AI chat or project; only the owner can change team access. Use ShareWithChannel to post an item into a channel, and UpdateInitiativeSharing for Tasks projects (initiatives).
+ */
+export interface UpdateSharing {
+  entityType: SharingEntityType;
+  /**
+   * The id of the item whose sharing changes.
+   */
+  entityId: string;
+  /**
+   * Who the item's share link admits: public (anyone with the link), team (the owner's team members with the link), or off to disable link sharing.
+   */
+  linkScope?: ShareLinkScope | null;
+  /**
+   * Permission granted by an enabled share link. Off resets it to the default level.
+   */
+  linkAccess?: ShareAccess | null;
+  /**
+   * Access for everyone on the owner's team; off removes it.
+   */
+  teamAccess?: ShareAccess | null;
+  /**
+   * Individual channel grants to set or remove; other channel grants stay unchanged.
+   */
+  channels?: SharingChannel[] | null;
+}
+/**
+ * One channel's grant to set or remove.
+ */
+export interface SharingChannel {
+  /**
+   * Channel id to share with or revoke.
+   */
+  channelId: string;
+  access: ShareAccess;
+}
+/**
+ * The update sharing response.
+ */
+export interface UpdateSharingResponse {
+  entityType: SharingEntityType;
+  /**
+   * The item's id.
+   */
+  entityId: string;
+  /**
+   * A human-readable summary of the change.
+   */
+  message: string;
 }
 /**
  * Add or remove a single label from every message in a Gmail thread. In Gmail, nearly all inbox operations are just label add/remove operations, so this tool is the primitive for archiving, marking read/unread, starring, trashing, marking important/spam, and applying or removing custom labels.

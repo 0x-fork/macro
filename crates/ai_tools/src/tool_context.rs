@@ -1162,6 +1162,21 @@ pub type ToolNotificationService = notification::domain::service::NotificationRe
 /// Type alias for the notification tool context.
 pub type ToolNotificationToolContext = NotificationToolContext<ToolNotificationService>;
 
+/// Type alias for the user's per-item notification mute and snooze tool context.
+pub type ToolItemNotificationPreferenceToolContext =
+    notification::inbound::ai_tool::ItemNotificationPreferenceToolContext<
+        notification::outbound::item_preferences::PgItemNotificationPreferenceRepository,
+    >;
+
+/// Build the per-item notification preference tool context.
+pub fn build_item_notification_preference_tool_context(
+    pool: sqlx::PgPool,
+) -> ToolItemNotificationPreferenceToolContext {
+    notification::inbound::ai_tool::ItemNotificationPreferenceToolContext::new(
+        notification::outbound::item_preferences::PgItemNotificationPreferenceRepository(pool),
+    )
+}
+
 /// Table-changed fan-out for AI tool hosts, the databases crate's publisher.
 pub use databases::outbound::gateway_event_publisher::MaybeGatewayTableEventPublisher as ToolTableEventPublisher;
 
@@ -1295,6 +1310,41 @@ pub fn build_project_tool_context(
         chat_service,
         email_service,
     )
+}
+
+/// Type alias for the favorites service used by AI tools and soup's
+/// favorites-only filter.
+pub type ToolFavoritesService = favorites::domain::service::FavoritesServiceImpl<
+    favorites::outbound::pg_favorites_repo::PgFavoritesRepo,
+>;
+
+/// Type alias for the favorites tool context.
+pub type ToolFavoritesToolContext = favorites::inbound::toolset::FavoritesToolContext<
+    favorites::domain::mutation_service::FavoritesMutationServiceImpl<
+        ToolFavoritesService,
+        ToolEntityAccessService,
+    >,
+>;
+
+/// Build the favorites service shared by the favorites tools and soup.
+pub fn build_favorites_service(pool: sqlx::PgPool) -> Arc<ToolFavoritesService> {
+    Arc::new(favorites::domain::service::FavoritesServiceImpl::new(
+        favorites::outbound::pg_favorites_repo::PgFavoritesRepo::new(pool),
+    ))
+}
+
+/// Build the favorites tool context, authorizing favorites with the same
+/// entity access service as the other tools.
+pub fn build_favorites_tool_context(
+    favorites: Arc<ToolFavoritesService>,
+    entity_access_service: Arc<ToolEntityAccessService>,
+) -> ToolFavoritesToolContext {
+    favorites::inbound::toolset::FavoritesToolContext::new(Arc::new(
+        favorites::domain::mutation_service::FavoritesMutationServiceImpl::new(
+            favorites,
+            entity_access_service,
+        ),
+    ))
 }
 
 /// Type alias for the chat tool context
@@ -1661,6 +1711,8 @@ pub struct ToolServiceContext {
     /// Calendar-service-backed booking administration.
     pub booking_management_tool_context: ToolBookingManagementToolContext,
     pub notification_tool_context: ToolNotificationToolContext,
+    /// The user's own per-item notification mutes and snoozes.
+    pub item_notification_preference_tool_context: ToolItemNotificationPreferenceToolContext,
     pub databases_tool_context: ToolDatabasesToolContext,
     pub forms_tool_context: ToolFormsToolContext,
     pub databases_sql_tool_context: ToolDatabasesSqlToolContext,
@@ -1676,6 +1728,8 @@ pub struct ToolServiceContext {
     pub bot_tool_context: ToolBotToolContext,
     pub coding_agent_tool_context: ToolCodingAgentToolContext,
     pub project_tool_context: ToolProjectToolContext,
+    /// Favorite toggles; the same favorites back `soup_service`'s favorites filter.
+    pub favorites_tool_context: ToolFavoritesToolContext,
     /// Native task project lifecycle, properties, sharing and history.
     pub initiative_tool_context: ToolInitiativeToolContext,
     pub team_tool_context: ToolTeamToolContext,

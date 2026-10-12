@@ -205,17 +205,21 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(db.clone())),
         PgGithubPullRequestRepo::new(db.clone()),
     );
-    let soup_service = Arc::new(SoupImpl::new(
-        PgSoupRepo::new(readonly_pool::ReadOnlyPool(db.clone())),
-        frecency_service,
-        ReadonlyEmailPreviewAdapter(email_service),
-        channels_service,
-        call::domain::service::CallRecordQueryServiceImpl::new(
-            call::outbound::pg_call_repo::PgCallRepo::new(db.clone()),
-        ),
-        crm::domain::service::NoOpCrmService,
-        github_pull_request_service,
-    ));
+    let favorites_service = ai_tools::build_favorites_service(db.clone());
+    let soup_service = Arc::new(
+        SoupImpl::new(
+            PgSoupRepo::new(readonly_pool::ReadOnlyPool(db.clone())),
+            frecency_service,
+            ReadonlyEmailPreviewAdapter(email_service),
+            channels_service,
+            call::domain::service::CallRecordQueryServiceImpl::new(
+                call::outbound::pg_call_repo::PgCallRepo::new(db.clone()),
+            ),
+            crm::domain::service::NoOpCrmService,
+            github_pull_request_service,
+        )
+        .with_favorites(favorites_service.clone()),
+    );
 
     let s3_client = macro_aws_config::s3_client().await;
     let document_files = documents::outbound::s3_document_files::S3DocumentFiles::new(
@@ -559,6 +563,8 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
                 .unwrap_or(false),
         ),
         notification_tool_context,
+        item_notification_preference_tool_context:
+            ai_tools::build_item_notification_preference_tool_context(db.clone()),
         databases_tool_context,
         forms_tool_context,
         databases_sql_tool_context,
@@ -577,6 +583,10 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
             config.internal_api_key.to_string(),
         )?,
         project_tool_context,
+        favorites_tool_context: ai_tools::build_favorites_tool_context(
+            favorites_service,
+            entity_access_service.clone(),
+        ),
         initiative_tool_context,
         team_tool_context: ai_tools::build_team_tool_context(db.clone()),
         crm_tool_context: ai_tools::build_crm_tool_context(db.clone()),

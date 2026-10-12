@@ -962,6 +962,7 @@ dependencies = [
  "entity_access_management",
  "entity_registry",
  "entity_registry_db_utils",
+ "favorites",
  "foreign_entity",
  "forms",
  "frecency",
@@ -7663,7 +7664,9 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 name = "favorites"
 version = "0.1.0"
 dependencies = [
+ "ai_toolset",
  "anyhow",
+ "async-trait",
  "axum",
  "axum-extra",
  "chrono",
@@ -7678,6 +7681,7 @@ dependencies = [
  "model-error-response",
  "model_user",
  "rootcause",
+ "schemars 1.2.1",
  "serde",
  "serde_json",
  "sqlx",

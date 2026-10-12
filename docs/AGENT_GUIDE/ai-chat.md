@@ -100,6 +100,19 @@ mutations refresh the project views.
 Deleting a project shows its result without a link to the deleted project.
 Failed project deletions show `Not deleted`.
 
+## Acting on items
+
+The assistant can take the same item actions as the app's menus. Messages
+and comments: edit, delete, or react to channel messages; edit or delete
+document comments; open a DM. Items: move to trash, duplicate, rename, change
+sharing, favorite, and mute or snooze notifications. Also: create CRM companies
+and contacts, rename or delete calls, create skills, and run or delete routines.
+Edits and deletes act as the message or comment's author, so the assistant
+changes its own messages as itself and the user's as the user. Reactions are
+always the user's. Each row names the item with a chip that opens it; edit and
+sharing rows expand to show the new text or settings. Verify with throwaway
+items, since these mutate real data.
+
 ## Phones with new agents enabled
 
 With `enable-chat-v3-agents`, **Agents** opens the new conversation list on phones,
