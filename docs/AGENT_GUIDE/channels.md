@@ -158,6 +158,10 @@ attachment, delete-reply, and send controls have their own space.
 Attachment controls use a paperclip in both expanded and collapsed composers,
 including the iOS media picker. Input action and formatting buttons show the
 app tooltip without a second native browser tooltip.
+On desktop, select draft text to open the floating formatting toolbar. Its
+compact frame uses 4px outer padding with concentric button corners, a white
+light-mode background, a thin border, and a soft downward shadow. Check
+Bold and the text-style dropdown in both light and dark mode.
 When checking this transition, type a long draft without pressing Enter, then
 shorten it and resize the pane. It should expand when the text no longer fits
 beside the buttons and collapse when it fits again, without flickering between
