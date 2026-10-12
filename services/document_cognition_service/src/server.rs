@@ -45,8 +45,9 @@ use macro_authorization::{
     MacroAuthorizationState, PgUserApiKeyAuthorizationRepo, PgUserApiKeyAuthorizer,
 };
 use macro_service_urls::{
-    AuthServiceUrl, CalendarServiceUrl, ConnectionGatewayUrl, DocumentStorageServiceUrl,
-    EmailServiceUrl, LexicalServiceUrl, StaticFileServiceUrl, SyncServiceUrl,
+    AppServiceUrl, AuthServiceUrl, CalendarServiceUrl, ConnectionGatewayUrl,
+    DocumentStorageServiceUrl, EmailServiceUrl, LexicalServiceUrl, StaticFileServiceUrl,
+    SyncServiceUrl,
 };
 use notification::domain::service::{
     NotificationReaderService, PlatformArnConfig, SqsNotificationIngress,
@@ -698,6 +699,8 @@ pub async fn run() -> anyhow::Result<()> {
         db.clone(),
         CalendarServiceUrl::new()?,
         internal_api_key.clone(),
+        call_tool_context.service.clone(),
+        AppServiceUrl::new()?,
     );
     let forms_tool_context = ai_tools::build_forms_tool_context(
         db.clone(),

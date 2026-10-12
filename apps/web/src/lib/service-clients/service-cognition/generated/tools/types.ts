@@ -6193,7 +6193,9 @@ export interface BotWebhook {
  *
  * The event lands on the user's primary calendar unless `calendarId` (from ListCalendars) targets another one. For recurring events pass RFC 5545 lines in `recurrenceLines`, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=MO"]. Returns the created event with its `eventId` for later updates or deletion. Fails if the user has no writable calendar connected.
  *
- * Set `eventType` to "out_of_office" to mark the user as out of office (e.g. "mark me out of office Thursday"). Out-of-office events must land on the user's primary calendar (omit `calendarId`), must be timed rather than all-day, and take no attendees or Google Meet (leave `addGoogleMeet` false); use `outOfOffice` to control whether conflicting meetings are auto-declined. The type cannot be changed afterward.
+ * For video conferencing pick at most one of `addMacroCall` (a Macro meeting link, the default choice for a Macro user's meeting) or `addGoogleMeet` (a Google Meet conference). A Macro call is created for the user, scheduled to the event's times, and its join link is appended to the event's description so every attendee's invitation carries it; it also becomes the event's `location` unless a physical `location` was supplied. The returned event's `macroCallUrl` holds the link.
+ *
+ * Set `eventType` to "out_of_office" to mark the user as out of office (e.g. "mark me out of office Thursday"). Out-of-office events must land on the user's primary calendar (omit `calendarId`), must be timed rather than all-day, and take no attendees or video conferencing (leave `addMacroCall` and `addGoogleMeet` false); use `outOfOffice` to control whether conflicting meetings are auto-declined. The type cannot be changed afterward.
  */
 export interface CreateCalendarEvent {
   /**
@@ -6226,7 +6228,11 @@ export interface CreateCalendarEvent {
    */
   reminders?: EventRemindersInput | null;
   /**
-   * Attach a freshly generated Google Meet video conference to the event.
+   * Attach a freshly created Macro call to the event: a Macro meeting link scheduled to the event's times, written into the event's location and description. Mutually exclusive with `addGoogleMeet`.
+   */
+  addMacroCall?: boolean;
+  /**
+   * Attach a freshly generated Google Meet video conference to the event. Mutually exclusive with `addMacroCall`.
    */
   addGoogleMeet?: boolean;
   eventType?: CalendarEventTypeInput;
@@ -6355,6 +6361,11 @@ export interface ToolCalendarEvent {
    */
   conferenceUrl?: string | null;
   /**
+   * Join URL of the Macro call created with the event, when
+   * CreateCalendarEvent was asked for one.
+   */
+  macroCallUrl?: string | null;
+  /**
    * Whether the user's calendar prohibits modifying this event.
    */
   isReadOnly: boolean;
@@ -6421,7 +6432,7 @@ export interface CreateChannelResponse {
   summary: string;
 }
 /**
- * Create a calendar event immediately, with no review card or composer. Only for a prompt that came from a channel or document thread (the context block says so), where there is nothing to review a draft in. The event is always shown before it is created, even when the user's request already spelled the whole thing out: in one turn write it into the thread - title, date and time with its time zone, duration, guests, location, Google Meet, recurrence - ask whether to create it, and stop there. Call this tool only in a later turn, once the user has replied approving that specific event, quoting that reply verbatim in userConfirmation. Being asked to schedule something is a request to draft the event, never approval to create it, so a userConfirmation quoting the request that asked you to set it up - rather than the reply approving the event you wrote out - is wrong. Never call it in the agent session view or in chat: use CreateCalendarEvent there, whose review card or composer is the confirmation. Takes the same fields as CreateCalendarEvent; the event is written to Google Calendar at once and any attendees receive invitations.
+ * Create a calendar event immediately, with no review card or composer. Only for a prompt that came from a channel or document thread (the context block says so), where there is nothing to review a draft in. The event is always shown before it is created, even when the user's request already spelled the whole thing out: in one turn write it into the thread - title, date and time with its time zone, duration, guests, location, Google Meet or Macro call, recurrence - ask whether to create it, and stop there. Call this tool only in a later turn, once the user has replied approving that specific event, quoting that reply verbatim in userConfirmation. Being asked to schedule something is a request to draft the event, never approval to create it, so a userConfirmation quoting the request that asked you to set it up - rather than the reply approving the event you wrote out - is wrong. Never call it in the agent session view or in chat: use CreateCalendarEvent there, whose review card or composer is the confirmation. Takes the same fields as CreateCalendarEvent; the event is written to Google Calendar at once and any attendees receive invitations.
  */
 export interface CreateConfirmedCalendarEvent {
   /**
@@ -6454,7 +6465,11 @@ export interface CreateConfirmedCalendarEvent {
    */
   reminders?: EventRemindersInput | null;
   /**
-   * Attach a freshly generated Google Meet video conference to the event.
+   * Attach a freshly created Macro call to the event: a Macro meeting link scheduled to the event's times, written into the event's location and description. Mutually exclusive with `addGoogleMeet`.
+   */
+  addMacroCall?: boolean;
+  /**
+   * Attach a freshly generated Google Meet video conference to the event. Mutually exclusive with `addMacroCall`.
    */
   addGoogleMeet?: boolean;
   eventType?: CalendarEventTypeInput;
