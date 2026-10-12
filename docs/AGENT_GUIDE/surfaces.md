@@ -2007,8 +2007,14 @@ available in the embedded company and contact breadcrumb header.
 A company is laid out like a project. Its split header or embedded breadcrumb
 header shows inset `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
 tabs, collapsing to icons when narrow. Overview shows the name, pills
-for each domain and `Last interacted`, the generated description and the
-Discussion. Team lists the contacts with `Add contact`. Emails keeps the
+for each domain and `Last interacted`, the generated description, a
+**Pipelines** section and the Discussion. Pipelines stacks one full-width card
+per row of a pipeline you can open that references the record. A card's header
+strip names the pipeline (a lock marks a private one); below it, the row's first
+four fields sit side by side, label over value, and the rest wait behind
+`Show N more`. Cells edit like the pipeline table's when you can edit that
+pipeline. Inside Customers, the header's `Open <pipeline>` button opens it. The
+section is absent when the record is in no pipeline. Team lists the contacts with `Add contact`. Emails keeps the
 `Signal`/`All` and `Team`/`Me` toggles. Files lists non-task documents whose
 `Companies` property references the company, plus attachments of emails with
 its domains. Tasks is the Tasks list scoped to the `Companies` property; its
@@ -2017,7 +2023,7 @@ company, including those linked automatically from their participants. The side
 panel keeps Properties and Sharing.
 A contact has the same layout with `Overview`, `Emails`, `Files`, `Tasks` and
 `Calls`: Overview pills show the email, the company (opens it) and `Last
-interacted`. Files and Calls match on the contact's `Contacts` property and, for
+interacted`, followed by the contact's Pipelines cards. Files and Calls match on the contact's `Contacts` property and, for
 files, attachments of emails with its address. Tasks created from a contact also
 reference its company. The side panel keeps Sharing (admins only).
 
