@@ -1327,14 +1327,14 @@ so invitees can open those links.
 
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Scheduling lives in the separate **Settings → Booking links** item
-(`/app/settings/booking-links`), with Booking links, Availability, Booking pages,
-Teams, Bookings, and Insights in one scrolling page. The calendar toolbar’s
-booking actions open Booking links; email and integration connection shortcuts
-continue to open Calendar.
-There is no second sidebar or global owner switch. Personal and team booking links
-appear together with ownership badges. New booking link and New schedule ask which
-owner to create for when multiple editable owners are available, then open inline editors;
-event options are stacked sections. Save changes or Cancel returns to the list.
+(`/app/settings/booking-links`). Use the owner menu at the top right to choose
+**Personal** or **Team · team name**,
+then use **Links**, **Availability**, **Booking page**, **Bookings**, or **Insights**.
+Every section and creation action applies to that selected owner. The default is
+Personal. **Manage teams** in that menu opens team settings. The calendar toolbar’s booking
+actions open Booking links; connection shortcuts continue to open Calendar.
+**New booking link** and **New schedule** create for the selected owner and open
+inline editors. Save changes or Cancel returns to that owner's list.
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. Disconnect removes calendar access/data, not the Gmail connection.
@@ -1350,11 +1350,12 @@ Booking status filters use the same segmented control as the CRM sidebar.
 In Availability, each weekday has an enable switch, time ranges, an add button,
 and a copy-hours menu; select target days and Apply before saving the schedule.
 Date overrides and the searchable timezone picker sit below the weekly hours.
-Ownership badges identify Personal or Team · team name on links and availability.
-Public booking pages, bookings, and insights are grouped by owner and remain visible
-together; editing one owner does not switch the rest of the page. Search booking
-links by title, slug, or owner. Team owners/admins can edit team links; ordinary members can view them. `Event types` creates, edits,
-pauses, duplicates, previews, and copies booking links. Event settings include
+The header shows the selected owner; team owners have an explicit **Team** label.
+Links and availability use flat rows, with actions beside each item.
+Booking pages, bookings, and insights show only the selected owner. Search filters
+that owner’s links and clears when switching owners. Team owners/admins can edit
+team links; ordinary members can view them. `Links` creates, edits, pauses,
+duplicates, previews, and copies booking links. Event settings include
 weekly availability, collective/all-host or round-robin/one-host assignment,
 notice, buffers, booking horizon, daily limits, and custom questions. New event
 types stay paused until `Accept bookings` is selected and changes are saved.
@@ -1362,8 +1363,8 @@ types stay paused until `Accept bookings` is selected and changes are saved.
 zone. Set a default schedule for new event types; a schedule cannot be deleted
 until its event types use another one. Collective and round-robin team meetings
 respect each host’s personal default hours when configured, plus busy calendars.
-`Teams` summarizes connected teams and links to team settings; the member roster
-lives in team settings. Choose hosts for a team booking link inside its editor.
+**Manage teams** opens team settings, where the member roster lives. Choose hosts
+for a team booking link inside its editor.
 `Booking page` edits the public name and description. `Bookings` shows
 upcoming, unconfirmed, past, and cancelled meetings; admins can confirm requests,
 reschedule, or cancel them. Choose From/Through dates to load bookings (initially 30 days before and after today), then search by guest/title/email and filter by event type. Dates use your browser time zone; shorten the range if more than 5,000 bookings match.

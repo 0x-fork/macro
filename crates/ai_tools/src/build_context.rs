@@ -608,6 +608,11 @@ pub async fn build_tool_service_context_from_env(
                 .and_then(|value| value.parse::<bool>().ok())
                 .unwrap_or(false),
         ),
+        booking_management_tool_context: crate::tool_context::build_booking_management_tool_context(
+            CalendarServiceUrl::new()?,
+            env.internal_api_key.to_string(),
+            environment,
+        ),
         booking_link_tool_context: crate::tool_context::build_booking_link_tool_context(
             pool.clone(),
             environment,

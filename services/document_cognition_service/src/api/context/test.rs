@@ -501,6 +501,11 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         properties_tool_context: properties_tool_context.clone(),
         email_tool_context: email_tool_context.clone(),
         call_tool_context: call_tool_context.clone(),
+        booking_management_tool_context: ai_tools::build_booking_management_tool_context(
+            macro_service_urls::ServiceUrl::owned("http://localhost:0").into(),
+            "test-internal-api-key".to_string(),
+            macro_env::Environment::Local,
+        ),
         booking_link_tool_context: ai_tools::build_booking_link_tool_context(
             pool.clone(),
             macro_env::Environment::Local,

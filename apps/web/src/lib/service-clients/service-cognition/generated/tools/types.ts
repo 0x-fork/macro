@@ -157,6 +157,44 @@ export type SpreadsheetValueKind =
   | 'boolean'
   | 'error';
 /**
+ * A host's requested change to a booked meeting.
+ */
+export type BookingChange =
+  | {
+      action: 'approve';
+    }
+  | {
+      action: 'cancel';
+    }
+  | {
+      attendance: BookingAttendance;
+      action: 'attendance';
+    }
+  | {
+      /**
+       * Absolute start chosen from available replacement slots.
+       */
+      startsAt: string;
+      action: 'reschedule';
+    };
+/**
+ * Attendance recorded by an assigned host or profile administrator after a meeting.
+ */
+export type BookingAttendance =
+  | 'unknown'
+  | 'attended'
+  | 'guestNoShow'
+  | 'hostNoShow';
+/**
+ * Booking lifecycle state.
+ */
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'cancelled'
+  | 'processing'
+  | 'failed';
+/**
  * The runtimes an agent can be moved onto.
  */
 export type AgentHarnessOption =
@@ -4964,6 +5002,83 @@ export interface SpreadsheetChange {
   range?: string | null;
 }
 /**
+ * Manage an existing Booking Links meeting found with ListBookings: cancel it, approve a legacy pending booking, record or clear attendance, or reschedule to a start returned by GetBookingRescheduleSlots. Cancellation, approval and rescheduling can notify attendees; explain the action and act only on user authorization. Attendance is available only after a confirmed meeting ends. Existing host/admin permissions and availability rules apply. Returns the actual saved booking; a failed or processing status requires reconciliation, not blind retries. This does not edit the reusable booking link.
+ */
+export interface ChangeBooking {
+  /**
+   * Existing booking ID discovered through ListBookings.
+   */
+  bookingId: string;
+  change: BookingChange;
+}
+/**
+ * Public booking details, also visible to authorized profile members.
+ */
+export interface Booking {
+  /**
+   * Booking identity.
+   */
+  id: string;
+  /**
+   * Booking link identity.
+   */
+  eventTypeId: string;
+  /**
+   * Snapshot of the meeting title.
+   */
+  title: string;
+  /**
+   * Booker's name.
+   */
+  name: string;
+  /**
+   * Booker's email.
+   */
+  email: string;
+  /**
+   * Absolute meeting start.
+   */
+  startsAt: string;
+  /**
+   * Absolute meeting end.
+   */
+  endsAt: string;
+  /**
+   * Booker's display time zone.
+   */
+  timeZone: string;
+  /**
+   * Assigned hosts.
+   */
+  hosts: string[];
+  status: BookingStatus;
+  attendance?: BookingAttendance & string;
+  /**
+   * Number of successfully completed moves to a different start time.
+   */
+  rescheduleCount?: number;
+  /**
+   * When the most recent successful reschedule completed.
+   */
+  rescheduledAt?: string | null;
+  /**
+   * Final location or conference URL.
+   */
+  location: string;
+  /**
+   * Answers keyed by question identity.
+   */
+  answers: {
+    [k: string]: string;
+  };
+  /**
+   * Original labels for answers, independent of later event-type edits.
+   */
+  questionLabels?: {
+    [k: string]: string;
+  };
+}
+/**
  * Comment on a document on behalf of the user. Pass threadId to reply in an existing inline or Discussion thread; pass quote to start a new inline comment on a passage of a Macro markdown or Word (DOCX) document; omit both to start a new Discussion comment on the document as a whole. Replies and Discussion comments support any document type. Only use this when explicitly asked to reply to or comment on a document. Thread ids come from the comments ReadContent returns. For an inline comment, quote the passage exactly as the document reads, as plain text without markdown syntax, within a single paragraph, heading, list item or table cell. If the passage appears more than once the tool refuses and lists each occurrence so you can choose one with occurrence, counting from 1; if the text is not found, read the document again rather than guessing. Do not combine threadId with quote. occurrence only applies with quote. Comments made here stay in Macro and are not written into a Word file; for comments that must travel with a Word document to its recipient (a redline for a counterparty), use EditWordDocument's addComment operation instead.
  */
 export interface CommentOnDocument {
@@ -8348,6 +8463,160 @@ export interface GenerateImageResponse {
   note?: string | null;
 }
 /**
+ * Get the same Booking Links summary statistics and chart data as Insights, for inclusive local dates in an IANA time zone (maximum 366 days). Returns current and equally long previous periods: total, completed, rescheduled, cancelled, host/guest no-shows, scheduled meeting minutes, average duration, daily trends, popular hours, and counts by link and host. Optional eventTypeId and hostId filters apply to both periods. Failed and processing requests are excluded. Completed means confirmed and ended without an explicit no-show, not verified attendance. Minutes are scheduled duration, not actual call duration. Rescheduled is counted once per booking. Dates use the booking current start. No guest contact information is returned.
+ */
+export interface GetBookingInsights {
+  /**
+   * Existing team ID, or null for personal insights.
+   */
+  teamId?: string | null;
+  query: InsightQuery;
+}
+/**
+ * Inclusive local dates and optional booking/host filters.
+ */
+export interface InsightQuery {
+  /**
+   * First local date, inclusive.
+   */
+  from: string;
+  /**
+   * Last local date, inclusive; maximum 366 days.
+   */
+  to: string;
+  /**
+   * IANA zone used for dates and hour-of-day grouping.
+   */
+  timeZone: string;
+  /**
+   * Restrict to one booking link; omit for all links.
+   */
+  eventTypeId?: string | null;
+  /**
+   * Restrict to one assigned host; omit for all hosts.
+   */
+  hostId?: string | null;
+}
+/**
+ * Current and equally long preceding local-calendar periods.
+ */
+export interface BookingInsights {
+  /**
+   * Time at which completion was evaluated.
+   */
+  asOf: string;
+  /**
+   * Preceding period's first local date.
+   */
+  previousFrom: string;
+  /**
+   * Preceding period's last local date.
+   */
+  previousTo: string;
+  current: InsightPeriod;
+  previous: InsightPeriod;
+}
+/**
+ * One complete period of metrics and chart data, with no guest contact information.
+ */
+export interface InsightPeriod {
+  counts: InsightCounts;
+  /**
+   * Scheduled minutes of completed meetings, not actual call duration.
+   */
+  meetingMinutes: number;
+  /**
+   * Average scheduled duration of all confirmed bookings, including future ones.
+   */
+  averageMinutes: number;
+  /**
+   * Local-date counts, including dates with zero bookings.
+   */
+  days: {
+    [k: string]: InsightCounts;
+  };
+  /**
+   * Booking counts by local hour, indexed from 0 to 23.
+   */
+  hours: number[];
+  /**
+   * Booking counts by link identity.
+   */
+  eventCounts: {
+    [k: string]: number;
+  };
+  /**
+   * Booking counts by host; collective bookings count once for each host.
+   */
+  hostCounts: {
+    [k: string]: number;
+  };
+}
+/**
+ * Counts can overlap: a rescheduled event can also be completed or cancelled.
+ */
+export interface InsightCounts {
+  /**
+   * All bookings except failed and processing requests.
+   */
+  total: number;
+  /**
+   * Confirmed, ended bookings excluding explicit no-shows.
+   */
+  completed: number;
+  /**
+   * Bookings with at least one completed reschedule, counted once.
+   */
+  rescheduled: number;
+  /**
+   * Cancelled bookings, grouped by their scheduled start.
+   */
+  cancelled: number;
+  /**
+   * Explicit guest no-shows only.
+   */
+  guestNoShow: number;
+  /**
+   * Explicit host no-shows only.
+   */
+  hostNoShow: number;
+}
+/**
+ * Find available replacement times for a booking discovered through ListBookings. The date is in the booking schedule time zone. Only the personal owner or team administrators may reschedule it. Returns absolute start/end times for ChangeBooking reschedule; availability is checked again when moving the meeting.
+ */
+export interface GetBookingRescheduleSlots {
+  /**
+   * Existing booking ID from ListBookings.
+   */
+  bookingId: string;
+  /**
+   * Date in the booking schedule time zone.
+   */
+  date: string;
+}
+/**
+ * Authorized booking slots.
+ */
+export interface BookingSlotsResult {
+  /**
+   * Complete list of matching slots.
+   */
+  slots: Slot[];
+}
+/**
+ * Available slot and the hosts who can satisfy it.
+ */
+export interface Slot {
+  /**
+   * Absolute start.
+   */
+  startsAt: string;
+  /**
+   * Absolute end.
+   */
+  endsAt: string;
+}
+/**
  * Get the channel-specific webhook URLs for a bot the current user can manage. A bot has one URL per channel it can access. POST message content to a returned webhookUrl and authenticate with a token minted from the chat card or bot settings after IssueBotCredential or CreateBot; send it in the returned credentialHeader and send credentialScope in credentialScopeHeader. If no URLs are returned, add the bot to a channel with ManageBotChannelAccess or recreate it with CreateBot and channelId.
  */
 export interface GetBotWebhooks {
@@ -8941,6 +9210,32 @@ export interface Schedule {
    * Date-specific replacements.
    */
   overrides: DateOverride[];
+}
+/**
+ * Read every booking starting in a half-open timestamp range for personal or team Booking Links. Returns IDs, status, hosts, guest details, answers, attendance and reschedule history; use these IDs to manage meetings. Both timestamps are required, with an explicit UTC offset. Maximum range 733 days. Oversized result sets fail rather than silently truncating: narrow the range. Use GetBookingInsights for aggregate statistics.
+ */
+export interface ListBookings {
+  /**
+   * Existing team ID, or null for personal bookings.
+   */
+  teamId?: string | null;
+  /**
+   * Inclusive start timestamp.
+   */
+  from: string;
+  /**
+   * Exclusive end timestamp.
+   */
+  to: string;
+}
+/**
+ * Authorized booking bookings.
+ */
+export interface BookingsResult {
+  /**
+   * Complete list of matching bookings.
+   */
+  bookings: Booking[];
 }
 /**
  * List every active bot the current user can manage, including user-owned bots and bots owned by teams they belong to. Use this to discover a botId before issuing credentials, reading webhook URLs, changing channel access, configuring, or deleting a bot.
@@ -10352,6 +10647,136 @@ export interface ToolActivityEvent {
    * When the action occurred.
    */
   occurredAt: string;
+}
+/**
+ * Read the full personal or team Booking Links configuration: booking-page name and introduction, reusable schedules, default availability, and all link settings with IDs and revision. Omit teamId for personal. Discover team IDs using ListBookingLinks. This read does not create a profile. Use the returned profile with UpdateBookingSettings to change shared availability or page settings.
+ */
+export interface ReadBookingSettings {
+  /**
+   * Existing team ID from ListBookingLinks, or null for personal settings.
+   */
+  teamId?: string | null;
+}
+/**
+ * Editable settings together with the public booking-page address.
+ */
+export interface BookingSettingsResult {
+  profile: Profile;
+  /**
+   * Public booking page; a revision-zero profile must be saved before sharing.
+   */
+  pageUrl: string;
+}
+/**
+ * Editable configuration for a person or team.
+ */
+export interface Profile {
+  /**
+   * Public, opaque profile identity.
+   */
+  id: string;
+  /**
+   * Display name on the public page.
+   */
+  name: string;
+  /**
+   * Public introduction.
+   */
+  description: string;
+  /**
+   * Reusable schedules.
+   */
+  schedules: Schedule[];
+  /**
+   * Personal hours used by team events; absent legacy profiles use their first schedule.
+   */
+  defaultScheduleId?: string | null;
+  /**
+   * Booking links.
+   */
+  eventTypes: EventType[];
+  /**
+   * Optimistic concurrency version.
+   */
+  revision: number;
+}
+/**
+ * A reusable booking link.
+ */
+export interface EventType {
+  /**
+   * Stable identity.
+   */
+  id: string;
+  /**
+   * Public title.
+   */
+  title: string;
+  /**
+   * Unique link segment within a profile.
+   */
+  slug: string;
+  /**
+   * Public description.
+   */
+  description: string;
+  /**
+   * Meeting duration.
+   */
+  durationMinutes: number;
+  /**
+   * Meeting location.
+   */
+  location: string;
+  /**
+   * Generate a Google Meet conference.
+   */
+  googleMeet: boolean;
+  /**
+   * Whether new bookings are accepted.
+   */
+  enabled: boolean;
+  /**
+   * Referenced availability schedule.
+   */
+  scheduleId: string;
+  mode: SchedulingMode;
+  /**
+   * Current Macro user identities selected as hosts.
+   */
+  hosts: string[];
+  /**
+   * Protected time before a meeting.
+   */
+  beforeMinutes: number;
+  /**
+   * Protected time after a meeting.
+   */
+  afterMinutes: number;
+  /**
+   * Minimum notice in minutes.
+   */
+  noticeMinutes: number;
+  /**
+   * Maximum days ahead.
+   */
+  horizonDays: number;
+  /**
+   * Spacing of offered start times.
+   */
+  intervalMinutes: number;
+  /**
+   * Maximum bookings for this event on one schedule-local day.
+   */
+  dailyLimit?: number | null;
+  /**
+   * Hold bookings for host approval.
+   */
+  requiresConfirmation: boolean;
+  /**
+   * Additional form fields.
+   */
+  questions: Question[];
 }
 /**
  * Retrieve the transcript for a specific call record. Use ListEntities with includeTypes: ["call"] first to find the callId. Only the transcript is returned — other metadata (participants, duration, etc.) is already available from ListEntities. In transcript segments, speakerId is the associated user/track, not guaranteed speaker identity; use diarizedSpeakerId to distinguish actual voices, and treat different diarizedSpeakerIds as potentially different speakers even if speakerId is the caller/"you".
@@ -12295,6 +12720,20 @@ export interface TextEditorCodeExecutionResult {
  */
 export interface TextEditorCodeExecutionToolError {
   error_code: CodeExecutionErrorCode;
+}
+/**
+ * Update Booking Links settings after reading ReadBookingSettings. Pass the full profile with its current revision, preserving fields the user did not request changing. Supports booking-page name and introduction; adding, editing and deleting reusable schedules and date overrides; changing defaultScheduleId; reassigning link schedules; duplicating, deleting, enabling or pausing links. Generate new UUIDs for new schedules, links and questions; preserve existing IDs. Changing a shared schedule affects every link referencing it and personal default hours affect team hosting. Deleting a link does not cancel existing bookings. Explain affected links before changing shared hours or deleting. A stale revision fails: re-read and reconcile rather than overwriting. Use CreateBookingLink or EditBookingLink for ordinary single-link authoring and their conversational confirmation contract. Team edits require owner/admin access. Before saving, explain the proposed changes and their personal/team scope, ask whether to proceed, and wait for the user's approving reply in a later turn. Quote that reply verbatim in userConfirmation. Do not use the original request as confirmation.
+ */
+export interface UpdateBookingSettings {
+  /**
+   * Existing team ID from discovery, or null for personal settings.
+   */
+  teamId?: string | null;
+  profile: Profile;
+  /**
+   * Verbatim user reply approving the proposed settings and affected links.
+   */
+  userConfirmation: string;
 }
 /**
  * Update an existing calendar event. Only the supplied fields change; omitted fields keep their current values. The change is written to Google immediately and attendees are notified of it, so confirm details with the user first. Get the `eventId` from ListCalendarEvents.

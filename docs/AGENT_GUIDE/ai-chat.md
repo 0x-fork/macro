@@ -1618,3 +1618,29 @@ a rejected configuration must retain the unsent draft and attachments.
 Usage records follow the provider's delivered speed for each call, including tool
 loops. OpenAI prompts exceeding 272,000 tokens use the long-context rate for that
 call. Standard and accelerated rates have separate pricing keys.
+
+### Booking settings, meetings, and reporting through MCP
+
+All AI hosts, including MCP, also provide:
+
+- `ReadBookingSettings`: full personal/team page, shared schedules, default hours,
+  link settings and revision. Discover team IDs with `ListBookingLinks`.
+- `UpdateBookingSettings`: save a complete profile at the read revision. Preserve
+  unrelated settings; explain the proposal and quote the user’s later approving
+  reply in `userConfirmation`, as with link authoring. Supports page text,
+  schedule CRUD, default hours, link schedule assignments, duplication, deletion
+  and enabled state. Shared-hours
+  changes affect all referencing links; deleting a link keeps existing meetings.
+  Use the existing confirmed create/edit tools for ordinary link authoring.
+- `ListBookings`: complete meetings and answers in a half-open timestamp range.
+  Narrow the range on overflow; do not treat an error as an empty report.
+- `GetBookingRescheduleSlots` and `ChangeBooking`: discover replacements, move or
+  cancel meetings, approve legacy pending requests, and record/clear attendance.
+  Rescheduling requires the personal owner or team admin. Attendance also allows
+  assigned hosts after confirmed meetings end. Changes can notify attendees.
+- `GetBookingInsights`: inclusive local dates, IANA time zone, optional link/host
+  filters, current and previous period metrics, daily/hourly trends, and link/host
+  counts. Uses the same definitions as the visual Insights page. Meeting minutes
+  measure scheduled duration; completion does not claim verified attendance.
+
+These tools use the same domain permissions and booking lifecycle as the UI.

@@ -544,6 +544,27 @@ pub fn build_booking_link_tool_context(
     }
 }
 
+/// Booking administration is executed by the calendar service, including provider recovery.
+pub type ToolBookingManagementToolContext =
+    calendar_scheduling::inbound::toolset::BookingManagementToolContext<
+        calendar_scheduling::outbound::administration_client::SchedulingAdministrationClient,
+    >;
+/// Construct the authenticated scheduling client at the host composition root.
+pub fn build_booking_management_tool_context(
+    calendar_url: macro_service_urls::CalendarServiceUrl,
+    internal_api_key: String,
+    environment: macro_env::Environment,
+) -> ToolBookingManagementToolContext {
+    calendar_scheduling::inbound::toolset::BookingManagementToolContext {
+        service: Arc::new(calendar_scheduling::outbound::administration_client::SchedulingAdministrationClient::new(calendar_url.to_string(), internal_api_key)),
+        public_origin: match environment {
+            macro_env::Environment::Production => "https://macro.com",
+            macro_env::Environment::Develop => "https://dev.macro.com",
+            macro_env::Environment::Local => "",
+        }.into(),
+    }
+}
+
 /// Type alias for the CRM AI tool context.
 pub type ToolCrmToolContext =
     CrmToolContext<ToolCrmService, ToolEntityAccessService, ToolPropertiesService>;
@@ -1637,6 +1658,8 @@ pub struct ToolServiceContext {
     pub calendar_tool_context: ToolCalendarToolContext,
     pub team_calendar_tool_context: ToolTeamCalendarToolContext,
     pub booking_link_tool_context: ToolBookingLinkToolContext,
+    /// Calendar-service-backed booking administration.
+    pub booking_management_tool_context: ToolBookingManagementToolContext,
     pub notification_tool_context: ToolNotificationToolContext,
     pub databases_tool_context: ToolDatabasesToolContext,
     pub forms_tool_context: ToolFormsToolContext,

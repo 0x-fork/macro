@@ -542,6 +542,11 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         properties_tool_context,
         email_tool_context,
         call_tool_context,
+        booking_management_tool_context: ai_tools::build_booking_management_tool_context(
+            CalendarServiceUrl::new()?,
+            config.internal_api_key.to_string(),
+            config.environment,
+        ),
         booking_link_tool_context: ai_tools::build_booking_link_tool_context(
             db.clone(),
             config.environment,
