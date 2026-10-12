@@ -278,7 +278,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         cloudfront_config,
         sync_service_client: sync_service_client.clone(),
         upload_url_service: s3_upload_adapter,
-        task_properties_service,
+        task_properties_service: task_properties_service.clone(),
         connection_service: NoOpConnectionService,
         entity_access_management_service:
             entity_access_management::domain::service::EntityAccessManagementServiceImpl::new(
@@ -467,6 +467,58 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         config.ai_pricing(),
         config.settlement_route()?,
     );
+    let admission = ai_billing::composition::pg_admission_service(
+        db.clone(),
+        config.enable_ai_usage_enforcement,
+        config.ai_pricing(),
+    );
+
+    // Import tools need the same ledger, connector credentials and entity
+    // creation services as chat; advertising an unwired context makes every
+    // Notion import and Linear tracking call fail before it can do any work.
+    let mcp_credentials_key = LocalOrRemoteSecret::new_from_secret_manager(
+        config.mcp_credentials_key_secret_name.as_ref().to_owned(),
+        secretsmanager_client,
+    )
+    .await
+    .context("failed to load MCP credentials encryption key")?;
+    let mcp_encryption_key =
+        mcp_client::domain::models::AesKey::try_from(mcp_credentials_key.as_ref())
+            .context("invalid MCP credentials encryption key")?;
+    let pipedream_client = ai_tools::pipedream_client_from_env()?;
+    let mcp_selector = Arc::new(mcp_select::McpToolSelector::new(
+        Arc::new(mcp_client::outbound::pg_server_repo::PgServerRepo::new(
+            db.clone(),
+            mcp_encryption_key,
+        )),
+        Arc::new(pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo::new(db.clone())),
+        Arc::new(pipedream_client.clone()),
+    ));
+    let import_service = Arc::new(
+        import::domain::service::ImportServiceImpl::new(
+            import::outbound::pg_import_repo::PgImportRepo::new(db.clone()),
+            mcp_selector.clone(),
+            Arc::new(ai_tools::ToolEntityCreator {
+                document_creator: document_tool_context.creator.clone(),
+                entity_access_service: entity_access_service.clone(),
+                channel_service: channel_tool_context.service.clone(),
+                task_properties: task_properties_service,
+                document_properties:
+                    import::outbound::document_properties::DocumentPropertiesApplicator::new(
+                        properties_service.clone(),
+                    ),
+                team_repository: ai_tools::build_team_repository(db.clone()),
+            }),
+            recorder.clone(),
+        )
+        .with_slack_source(Arc::new(
+            import::outbound::mcp_slack_source::McpSlackSource::new(mcp_selector),
+        ))
+        .with_admission(admission.clone())
+        .with_notifier(import::outbound::gateway_notifier::gateway_import_notify(
+            side_effect_clients.connection_gateway.clone(),
+        )),
+    );
 
     let tool_context = ToolServiceContext {
         connector_tool_context: ai_tools::build_connector_tool_context(db.clone(), None),
@@ -505,7 +557,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         databases_tool_context,
         forms_tool_context,
         databases_sql_tool_context,
-        import_tool_context: ToolImportToolContext::unwired(),
+        import_tool_context: ToolImportToolContext::wired(import_service),
         chat_tool_context,
         channel_tool_context,
         bot_tool_context: ai_tools::build_bot_tool_context(
@@ -513,7 +565,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
             ai_tools::MaybeToolEventBroker::Real(macro_event_broker.clone()),
             entity_access_service.clone(),
             dss_url,
-            ai_tools::pipedream_client_from_env()?,
+            pipedream_client,
         ),
         coding_agent_tool_context: ai_tools::build_coding_agent_tool_context(
             macro_service_urls::AgentHarnessServiceUrl::new()?,
@@ -526,11 +578,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         skill_tool_context,
         schedule_tool_context: ai_tools::build_routine_tool_context()?,
         anthropic_tool_context: ai_tools::build_anthropic_tool_context(),
-        admission: ai_billing::composition::pg_admission_service(
-            db.clone(),
-            config.enable_ai_usage_enforcement,
-            config.ai_pricing(),
-        ),
+        admission,
         recorder,
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
     };

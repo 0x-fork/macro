@@ -1573,9 +1573,7 @@ pub type ToolImportService = import::domain::service::ImportServiceImpl<
     import::outbound::mcp_slack_source::McpSlackSource<ToolMcpSelector>,
 >;
 
-/// Type alias for the import tool context. Built `unwired` by the shared
-/// context builder; hosts that can run the import pipeline (DCS) replace it
-/// with a wired one after constructing the import service.
+/// Type alias for the import tool context, wired by hosts with connector access.
 pub type ToolImportToolContext = import::inbound::toolset::ImportToolContext<ToolImportService>;
 
 pub type ToolActivityToolContext = activity::inbound::toolset::ActivityToolContext<

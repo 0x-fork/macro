@@ -2578,6 +2578,17 @@ a separate section. Discover offers featured providers, a searchable catalog,
 and `Add custom MCP`. Slack discovery retains its development-only gate.
 Provider Back returns to the tab that opened it; navigation is local to each
 Connections page and starts at Connected on a fresh visit.
+
+Macro agents and external AI clients using Macro's MCP server can run
+`ImportNotionPage` and the shared import ledger tools against the user's
+connections saved in Macro.
+Verify a Notion import returns a document and a repeated import returns the
+existing document; Linear imports recorded with `CreateImportEntity` should
+appear in `ListImportEntities`. These calls must not report that import tracking
+is unavailable.
+On hosts without Pipedream credentials, saved Pipedream accounts must not hide
+native Notion, Linear, or Slack connections when selecting import tools.
+
 Provider and custom-server More menus contain Disable, Reconnect, and Disconnect;
 custom servers also offer Rename. Disabled grants show Enable. Unauthenticated
 custom servers show Connect and Remove. Disconnect/Remove require confirmation.

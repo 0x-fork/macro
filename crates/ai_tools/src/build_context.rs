@@ -78,6 +78,7 @@ maybe_env_var! {
         EnableEmailScheduledQueue,
         EnableGmailOpsQueue,
         EnableNotificationQueue,
+        McpCredentialsKeySecretName,
     }
 }
 
@@ -119,6 +120,9 @@ pub fn build_image_generator_from_env() -> Arc<dyn ImageGenerator> {
 /// `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME`,
 /// `INTERNAL_API_KEY` (presented to the lexical service and to the
 /// connection gateway for realtime channel side effects), `KAFKA_BROKERS`.
+///
+/// `MCP_CREDENTIALS_KEY_SECRET_NAME` enables import tools on hosts with access
+/// to the shared connector encryption key; hosts without it remain unwired.
 ///
 /// Service URLs are resolved through the `macro_service_urls` crate, and queue
 /// names through the `macro_queues` crate (both using optional `OVERRIDE_*` env
@@ -516,10 +520,68 @@ pub async fn build_tool_service_context_from_env(
         },
     );
 
+    let admission =
+        ai_billing::composition::pg_admission_service(pool.clone(), enforcement, pricing);
+    let pipedream_client = crate::mcp_app_catalog::pipedream_client_from_env()?;
+    let import_tool_context = if let Some(secret_name) = maybe_env
+        .mcp_credentials_key_secret_name
+        .as_ref()
+        .and_then(|key| key.value())
+    {
+        let mcp_credentials_key = secretsmanager_client
+            .get_maybe_secret_value(environment, secret_name)
+            .await
+            .context("failed to load MCP credentials encryption key")?;
+        let mcp_encryption_key =
+            mcp_client::domain::models::AesKey::try_from(mcp_credentials_key.as_ref())
+                .context("invalid MCP credentials encryption key")?;
+        let mcp_selector = Arc::new(mcp_select::McpToolSelector::new(
+            Arc::new(mcp_client::outbound::pg_server_repo::PgServerRepo::new(
+                pool.clone(),
+                mcp_encryption_key,
+            )),
+            Arc::new(
+                pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo::new(pool.clone()),
+            ),
+            Arc::new(pipedream_client.clone()),
+        ));
+        let import_service = Arc::new(
+            import::domain::service::ImportServiceImpl::new(
+                import::outbound::pg_import_repo::PgImportRepo::new(pool.clone()),
+                mcp_selector.clone(),
+                Arc::new(crate::ToolEntityCreator {
+                    document_creator: document_tool_context.creator.clone(),
+                    entity_access_service: entity_access_service.clone(),
+                    channel_service: channel_tool_context.service.clone(),
+                    task_properties: document_tool_context
+                        .service
+                        .task_properties_service
+                        .clone(),
+                    document_properties:
+                        import::outbound::document_properties::DocumentPropertiesApplicator::new(
+                            properties_service.clone(),
+                        ),
+                    team_repository: crate::tool_context::build_team_repository(pool.clone()),
+                }),
+                recorder.clone(),
+            )
+            .with_slack_source(Arc::new(
+                import::outbound::mcp_slack_source::McpSlackSource::new(mcp_selector),
+            ))
+            .with_admission(admission.clone())
+            .with_notifier(import::outbound::gateway_notifier::gateway_import_notify(
+                side_effect_clients.connection_gateway.clone(),
+            )),
+        );
+        ToolImportToolContext::wired(import_service)
+    } else {
+        ToolImportToolContext::unwired()
+    };
+
     Ok(ToolServiceContext {
         connector_tool_context: crate::tool_context::build_connector_tool_context(
             pool.clone(),
-            crate::mcp_app_catalog::pipedream_client_from_env()?,
+            pipedream_client.clone(),
         ),
         search_service_client: search_client.clone(),
         email_service_client: email_ext_client,
@@ -554,7 +616,7 @@ pub async fn build_tool_service_context_from_env(
         databases_tool_context,
         forms_tool_context,
         databases_sql_tool_context,
-        import_tool_context: ToolImportToolContext::unwired(),
+        import_tool_context,
         chat_tool_context,
         channel_tool_context,
         bot_tool_context: crate::tool_context::build_bot_tool_context(
@@ -562,7 +624,7 @@ pub async fn build_tool_service_context_from_env(
             crate::tool_context::MaybeToolEventBroker::Real(macro_event_broker.clone()),
             entity_access_service.clone(),
             document_storage_service_url,
-            crate::mcp_app_catalog::pipedream_client_from_env()?,
+            pipedream_client,
         ),
         coding_agent_tool_context: crate::build_coding_agent_tool_context(
             macro_service_urls::AgentHarnessServiceUrl::new()?,
@@ -575,11 +637,7 @@ pub async fn build_tool_service_context_from_env(
         skill_tool_context,
         schedule_tool_context: crate::build_routine_tool_context()?,
         anthropic_tool_context,
-        admission: ai_billing::composition::pg_admission_service(
-            pool.clone(),
-            enforcement,
-            pricing,
-        ),
+        admission,
         recorder,
         usage_context: ai_usage::UsageContext::system(ai_usage::AiFeature::Chat),
     })
