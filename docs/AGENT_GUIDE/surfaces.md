@@ -2669,9 +2669,9 @@ session were not exercised by that UI check.
 ## Notifications
 
 In the desktop app, **Settings → Notifications → Delivery → Desktop notifications**
-controls system notification delivery for this installation. When the Notifications
-page is disabled by its feature flag, the existing **Account → Notifications**
-switch controls the same preference.
+controls system notification delivery for this installation. The Notifications
+page is always present, in the same place on web, desktop, and mobile; Account
+has no notification switch.
 Turning it off takes effect immediately and persists across app restarts; turning
 it on requests permission and resumes delivery when authorized. On macOS the
 switch reads the actual system authorization, and enabling it requests macOS
