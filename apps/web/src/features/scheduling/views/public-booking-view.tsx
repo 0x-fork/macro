@@ -1,6 +1,11 @@
 import { For, Show } from 'solid-js';
 import { BookingPicker } from '../components/booking-picker';
-import type { BookingReceipt, PublicEvent, PublicProfile } from '../core/types';
+import {
+  type BookingReceipt,
+  meetingPlaceLabel,
+  type PublicEvent,
+  type PublicProfile,
+} from '../core/types';
 import type { BookingSource } from '../primitives/booking-flow';
 
 export function PublicBookingView(props: {
@@ -50,9 +55,7 @@ export function PublicBookingView(props: {
                       </h2>
                       <p class="mt-2 text-sm text-ink-muted">
                         {event.durationMinutes} minutes ·{' '}
-                        {event.googleMeet
-                          ? 'Google Meet'
-                          : event.location || 'Meeting'}
+                        {meetingPlaceLabel(event)}
                       </p>
                       <p class="mt-3 text-sm text-ink-muted">
                         {event.description}

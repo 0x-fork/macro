@@ -1370,7 +1370,10 @@ Links and availability use flat rows, with actions beside each item.
 Booking pages, bookings, and insights show only the selected owner. Search filters
 that owner’s links and clears when switching owners. Team owners/admins can edit
 team links; ordinary members can view them. `Links` creates, edits, pauses,
-duplicates, previews, and copies booking links. Event settings include
+duplicates, previews, and copies booking links. Event settings include a
+video choice. New links default to a Macro call, which is created when
+someone books and attached to the calendar invitation. Google Meet and no
+video link remain available. Event settings also include
 weekly availability, collective/all-host or round-robin/one-host assignment,
 notice, buffers, booking horizon, daily limits, and custom questions. New event
 types stay paused until `Accept bookings` is selected and changes are saved.
