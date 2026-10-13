@@ -11,6 +11,19 @@ const domain = config.require('domain');
 const subdomain = config.require('subdomain');
 const domainName = `${subdomain}.${domain}`;
 const stack = pulumi.getStack();
+// Every CloudFront alias must be covered by certArn, even for redirect-only hosts.
+const enableChatRedirect = config.getBoolean('enableChatRedirect') ?? false;
+const chatSubdomain = enableChatRedirect
+  ? stack === 'prod'
+    ? 'chat'
+    : stack === 'dev'
+      ? `chat-${subdomain}`
+      : undefined
+  : undefined;
+const aliases = stack === 'prod' ? [domainName, domain] : [domainName];
+if (chatSubdomain) {
+  aliases.push(`${chatSubdomain}.${domain}`);
+}
 const staticSiteDir = '../../../apps/marketing/dist';
 
 // The sync never deletes, so an unbuilt dist would "deploy" nothing and still invalidate.
@@ -350,12 +363,7 @@ const cdn = new aws.cloudfront.Distribution(`cdn-${stack}`, {
     },
   },
   priceClass: stack === 'prod' ? 'PriceClass_All' : 'PriceClass_100',
-  aliases:
-    stack === 'prod'
-      ? [domainName, domain, `chat.${domain}`]
-      : stack === 'dev'
-        ? [domainName, `chat-${domainName}`]
-        : [domainName],
+  aliases,
   viewerCertificate: {
     cloudfrontDefaultCertificate: false,
     acmCertificateArn: certArn,
@@ -390,19 +398,6 @@ if (stack === 'prod') {
       },
     ],
   });
-
-  new aws.route53.Record('chat', {
-    name: 'chat',
-    zoneId: zone.zoneId,
-    type: 'A',
-    aliases: [
-      {
-        name: cdn.domainName,
-        zoneId: cdn.hostedZoneId,
-        evaluateTargetHealth: true,
-      },
-    ],
-  });
 }
 
 if (stack === 'dev') {
@@ -413,9 +408,11 @@ if (stack === 'dev') {
     records: ['macro-site-solidify.pages.dev'],
     ttl: 300,
   });
+}
 
-  new aws.route53.Record('chat-dev', {
-    name: 'chat-dev',
+if (chatSubdomain) {
+  new aws.route53.Record(chatSubdomain, {
+    name: chatSubdomain,
     zoneId: zone.zoneId,
     type: 'A',
     aliases: [
