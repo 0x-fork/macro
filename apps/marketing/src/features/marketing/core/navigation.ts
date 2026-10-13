@@ -19,9 +19,31 @@ export const RESOURCE_PAGES = [
   { href: '/posts', label: 'Blog' },
 ] as const;
 
+const MOBILE_SIGNUP_HREF = '/mobile-signup';
+
+/** Same test as the app's `isMobile()`: a touch-first, phone-width screen. */
+function isPhoneBrowser() {
+  return (
+    window.innerWidth < 640 &&
+    window.matchMedia?.('(pointer: coarse)').matches === true
+  );
+}
+
+/**
+ * Phones skip signup and leave an email on `/mobile-signup` instead. For links
+ * whose href is fixed at prerender time; `/app/signup` redirects phones there
+ * too, this just spares them the app download.
+ */
+export function routePhoneToMobileSignup(event: MouseEvent) {
+  if (!isPhoneBrowser()) return;
+  event.preventDefault();
+  window.location.href = MOBILE_SIGNUP_HREF;
+}
+
 /** Full document navigation keeps the app and marketing CSS independent. */
 export function journeyHref() {
   if (typeof window === 'undefined') return '/app/signup';
+  if (isPhoneBrowser()) return MOBILE_SIGNUP_HREF;
   try {
     const active = JSON.parse(
       sessionStorage.getItem('onboarding-flow-step') ?? 'null'

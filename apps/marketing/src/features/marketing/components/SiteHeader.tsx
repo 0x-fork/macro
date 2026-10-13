@@ -6,7 +6,11 @@ import {
   onMount,
   Show,
 } from 'solid-js';
-import { FEATURE_PAGES, RESOURCE_PAGES } from '../core/navigation';
+import {
+  FEATURE_PAGES,
+  RESOURCE_PAGES,
+  routePhoneToMobileSignup,
+} from '../core/navigation';
 import './site-navigation.css';
 
 const EXPLORE_PAGES = [
@@ -181,6 +185,7 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
             class="site-nav-start"
             target="_self"
             href="/app/signup"
+            onClick={routePhoneToMobileSignup}
             onPointerEnter={moveGlow}
             onPointerMove={moveGlow}
             onPointerLeave={stopGlow}
