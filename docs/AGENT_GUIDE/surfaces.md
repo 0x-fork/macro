@@ -1338,7 +1338,8 @@ Calendar scheduling is on by default in dev. Production uses the PostHog flag
 While off, the Calendar settings tab and calendar booking shortcuts are hidden;
 public booking and receipt links show an unavailable page without fetching
 scheduling data. When enabling a production rollout, include anonymous visitors
-so invitees can open those links.
+so invitees can open those links. A public booking link stays available when
+the flag request gets no answer, for example when a browser blocks it.
 
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Scheduling lives in the separate **Settings → Booking links** item
@@ -1403,7 +1404,10 @@ Oversized result sets return an error instead of silently truncating insights.
 
 The calendar header includes `Copy booking link` and `Open calendar scheduling
 settings`. Copy opens settings when no active personal link exists. Public
-`/app/book/:profile/:slug?` pages accept bookings without Macro sign-in. Uncertain
+`/app/book/:profile/:slug?` pages accept bookings without Macro sign-in. The website
+opens them in its own dialog; framed there, a booking page and its receipt drop their
+Macro heading and footer, and the booking page tells the website when a booking is
+made. Only macro.com can frame them. Uncertain
 calendar writes retain the booking and show its private receipt while automatic recovery runs.
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. Visitors

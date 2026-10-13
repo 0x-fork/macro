@@ -180,6 +180,33 @@ const securityHeadersPolicy = new aws.cloudfront.ResponseHeadersPolicy(
   }
 );
 
+// Booking links open in a dialog on the website, so macro.com may frame them.
+// Otherwise the same headers as the shared app policy, which denies framing.
+const bookingPageHeadersPolicy = new aws.cloudfront.ResponseHeadersPolicy(
+  `booking-page-headers-${stack}`,
+  {
+    securityHeadersConfig: {
+      frameOptions: {
+        frameOption: 'SAMEORIGIN',
+        override: true,
+      },
+      contentSecurityPolicy: {
+        contentSecurityPolicy: "frame-ancestors 'self'",
+        override: true,
+      },
+    },
+    customHeadersConfig: {
+      items: [
+        {
+          header: 'Cross-Origin-Opener-Policy',
+          value: 'same-origin-allow-popups',
+          override: true,
+        },
+      ],
+    },
+  }
+);
+
 const compressibleCachePolicy = new aws.cloudfront.CachePolicy(
   `cache-policy-${stack}`,
   {
@@ -316,6 +343,15 @@ const cdn = new aws.cloudfront.Distribution(`cdn-${stack}`, {
       cachePolicyId: compressibleCachePolicy.id,
       compress: true,
     },
+    ...['/app/book/*', '/app/booking/*'].map((pathPattern) => ({
+      pathPattern,
+      targetOriginId: macroWebAppRouteLambdaId,
+      cachePolicyId: CACHING_DISABLED,
+      responseHeadersPolicyId: bookingPageHeadersPolicy.id,
+      viewerProtocolPolicy: 'redirect-to-https',
+      allowedMethods: ['GET', 'HEAD', 'OPTIONS'],
+      cachedMethods: ['GET', 'HEAD', 'OPTIONS'],
+    })),
     {
       pathPattern: '/app',
       targetOriginId: macroWebAppBucketArn,
