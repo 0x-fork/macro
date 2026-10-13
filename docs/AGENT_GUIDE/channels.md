@@ -10,6 +10,13 @@
 Team channels are always discoverable to the team. Private channels can only be viewed or joined by invitation. A DM is a channel between two users.
 An external email can be selected as a channel participant. For an unregistered recipient, clicking `Add` sends an email invite.
 
+The first message in a DM to an unregistered recipient sends an email saying
+`<sender email> sent you a message on Macro`, with the message and a **View message**
+button leading to signup. It must not invite the recipient to `#<their own name>`.
+Named-channel invites still show `#<channel name>` and **Join channel**.
+Verify both emails in local Mailpit using distinct, unregistered test addresses;
+repeat with a plus-addressed DM recipient to check the email-name fallback.
+
 ## Imported Slack history
 
 Import starts from the **Import from Slack** chip below the Chat sidebar tabs,
