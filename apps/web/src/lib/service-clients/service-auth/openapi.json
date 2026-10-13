@@ -6838,7 +6838,7 @@
         "properties": {
           "apiKey": {
             "type": "string",
-            "description": "A `crsr_…` Cursor API key."
+            "description": "A Cursor API key: `grok_…`, or `crsr_…` for older keys."
           }
         }
       },
