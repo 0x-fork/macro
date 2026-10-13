@@ -21,7 +21,7 @@ use crate::domain::agent::{AgentState, serve};
 use crate::domain::engine::{AgentIdentity, TurnEngine};
 use crate::domain::mcp::DynMcpToolConnector;
 use crate::domain::replay::{FrameSource, replay_history, replay_reasoning_effort, replay_speed};
-use crate::domain::session::{SessionState, SessionStore};
+use crate::domain::session::{SessionState, SessionStore, Summarizing};
 
 #[cfg(test)]
 mod test;
@@ -176,6 +176,7 @@ impl InMemAgentManager {
                 identity: facts.identity.clone(),
                 instructions: facts.instructions.clone(),
                 history,
+                summarizing: Summarizing::default(),
             });
         }
 

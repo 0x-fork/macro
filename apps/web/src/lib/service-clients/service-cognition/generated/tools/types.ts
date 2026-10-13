@@ -5511,6 +5511,10 @@ export interface ContentSearch {
    */
   entityTypes?: UnifiedSearchIndex[];
   /**
+   * Search only the transcripts of these agent sessions, by id, and nothing else. Use it with your own session id to find the exact words of something said earlier in your conversation, including parts that were summarized to keep it within your context. Omit to search every type.
+   */
+  agentSessionIds?: string[];
+  /**
    * Restrict email results to a single connected inbox, given as that inbox's email address (from ListInboxes). Omit to search every inbox the user can access. Only set this when the user scopes the request to a specific mailbox. Only affects email results.
    */
   inbox?: string | null;
