@@ -2038,6 +2038,8 @@ strip names the pipeline (a lock marks a private one); below it, the row's first
 four fields sit side by side, label over value, and the rest wait behind
 `Show N more`. Cells edit like the pipeline table's when you can edit that
 pipeline. Inside Customers, the header's `Open <pipeline>` button opens it. The
+`Pipelines` caret header collapses and expands the cards, like the Discussion
+header; both start expanded on each visit. The
 section is absent when the record is in no pipeline. Team lists the contacts with `Add contact`. Emails keeps the
 `Signal`/`All` and `Team`/`Me` toggles. Files lists non-task documents whose
 `Companies` property references the company, plus attachments of emails with
