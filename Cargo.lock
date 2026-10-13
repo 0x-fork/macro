@@ -7712,6 +7712,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "feature_flags"
+version = "0.1.0"
+dependencies = [
+ "macro_user_id",
+ "reqwest 0.13.4",
+ "rootcause",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "wiremock",
+]
+
+[[package]]
 name = "ff"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
