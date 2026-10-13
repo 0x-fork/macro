@@ -823,6 +823,13 @@ fn parse_pull_request_mention_by_github_url() {
 }
 
 #[test]
+fn pull_request_github_ref_reads_a_url_written_as_the_id() {
+    let input = r#"<m-pr-mention>{"id":"https://github.com/macro-inc/macro/pull/7945","url":null}</m-pr-mention>"#;
+    let rendered = PlainTextFormatter::format_xml_text(ParsedXmlText::parse(input).unwrap()).0;
+    assert_eq!(rendered, "macro-inc/macro#7945");
+}
+
+#[test]
 fn pull_request_github_ref_ignores_non_pull_urls() {
     for url in [
         "https://github.com/macro-inc/macro/issues/7945",

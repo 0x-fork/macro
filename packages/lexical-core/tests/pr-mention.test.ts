@@ -39,6 +39,14 @@ describe('PullRequestMentionNode', () => {
     );
   });
 
+  it('reads a GitHub URL written as the id as the mention URL', () => {
+    const markdown = `<m-pr-mention>{"id":"${PR_URL}","label":""}</m-pr-mention>`;
+    const state = markdownToSerializedEditorStateWithIds(markdown);
+    expect(state.root.children[0]).toMatchObject({
+      children: [{ type: 'pr-mention', id: '', url: PR_URL }],
+    });
+  });
+
   it('rejects a mention with neither an id nor a GitHub PR URL', () => {
     const markdown =
       '<m-pr-mention>{"url":"https://example.com/pull/1","label":""}</m-pr-mention>';

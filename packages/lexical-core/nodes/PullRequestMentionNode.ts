@@ -84,10 +84,13 @@ export class PullRequestMentionNode extends DecoratorNode<
     key?: NodeKey
   ) {
     super(key);
-    this.__id = id;
+    // Agents sometimes put the PR's GitHub URL in `id`. It is not a Macro id,
+    // so treat it as the mention's URL.
+    const idIsUrl = isGithubPullRequestUrl(id);
+    this.__id = idIsUrl ? '' : id;
     this.__label = label;
     this.__mentionUuid = mentionUuid;
-    this.__url = url;
+    this.__url = url || (idIsUrl ? id : undefined);
   }
 
   static importJSON(serializedNode: SerializedPullRequestMentionNode) {

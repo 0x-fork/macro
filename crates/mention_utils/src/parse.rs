@@ -178,9 +178,14 @@ pub struct ParsedPullRequestMention<'a> {
 }
 
 impl ParsedPullRequestMention<'_> {
-    /// `owner/repo#123` from the mention's GitHub URL, if it has one.
+    /// `owner/repo#123` from the mention's GitHub URL, if it has one. Agents
+    /// sometimes write that URL in `id`, so it is read from there too.
     pub fn github_ref(&self) -> Option<String> {
-        let url = self.url.as_deref()?;
+        let url = self
+            .url
+            .as_deref()
+            .filter(|url| !url.is_empty())
+            .unwrap_or(&self.id);
         let path = url
             .strip_prefix("https://")
             .or_else(|| url.strip_prefix("http://"))?;
