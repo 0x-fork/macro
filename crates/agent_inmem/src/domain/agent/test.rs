@@ -2535,7 +2535,11 @@ async fn changing_speed_applies_to_next_turn_and_rejects_unsupported_models() {
     struct SpeedEngine(ScriptedEngine);
     impl TurnEngine for SpeedEngine {
         fn supported_models(&self) -> &[&str] {
-            &["anthropic/claude-sonnet-5-5", "anthropic/claude-opus-5-5"]
+            &[
+                "anthropic/claude-sonnet-5-5",
+                "anthropic/claude-opus-5-5",
+                "openai/gpt-6-astra",
+            ]
         }
         fn run_turn(
             &self,
@@ -2566,11 +2570,31 @@ async fn changing_speed_applies_to_next_turn_and_rejects_unsupported_models() {
             .block_task()
             .await
             .unwrap();
+        assert!(
+            connection
+                .send_request(SetSessionConfigOptionRequest::new(
+                    session.clone(),
+                    "speed",
+                    "fast",
+                ))
+                .block_task()
+                .await
+                .is_err()
+        );
+        connection
+            .send_request(SetSessionConfigOptionRequest::new(
+                session.clone(),
+                MODEL_CONFIG_ID,
+                "openai/gpt-6-astra",
+            ))
+            .block_task()
+            .await
+            .unwrap();
         connection
             .send_request(SetSessionConfigOptionRequest::new(
                 session.clone(),
                 "speed",
-                "fast",
+                "ultrafast",
             ))
             .block_task()
             .await
@@ -2597,6 +2621,6 @@ async fn changing_speed_applies_to_next_turn_and_rejects_unsupported_models() {
     })
     .await;
     let requests = engine.0.requests();
-    assert_eq!(requests[0].speed, agent::ModelSpeed::Fast);
+    assert_eq!(requests[0].speed, agent::ModelSpeed::Ultrafast);
     assert_eq!(requests[1].speed, agent::ModelSpeed::Standard);
 }

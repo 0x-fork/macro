@@ -1631,11 +1631,12 @@ choose a vision model or start a conversation without images.
 ## Accelerated model speed
 
 The lightning button beside the model selector enables Ultrafast for GPT-6 Astra
-and GPT-6.1 Sol (6× token pricing), or Fast for Claude Opus 5.5 (2× token pricing).
-Its tooltip shows the mode, state, and usage multiplier before sending. Other
-models keep standard speed. The preference is saved in browser local storage and
-shared by legacy chat and native Macro agent composers. External coding agents
-use their own speed controls.
+and GPT-6.1 Sol (6× token pricing). Its tooltip shows the mode, state, and usage
+multiplier before sending. Claude models, including Opus 5.5, stay on standard
+speed until Anthropic approves fast mode for this account. Other models keep
+standard speed. The preference is saved in browser local storage and shared by
+legacy chat and native Macro agent composers. External coding agents use their
+own speed controls.
 
 Preview the controls at `/app/debug/ui?ui=speed-toggle`.
 Click the bolt and verify its brief scale/rotation animation and highlighted state.
