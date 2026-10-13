@@ -1960,6 +1960,13 @@ not the workspace path or pane-local search state. A copied multi-pane URL
 entity, the URL remains an ordinary link. Project task comment targets, Home PRs,
 and agent chat links also convert to their respective entity mentions.
 
+Pasting a bare GitHub pull request URL (`github.com/<owner>/<repo>/pull/<n>`,
+including subpages such as `/files`) inserts a link that becomes a PR mention
+once Macro finds the synced PR, usually within a moment. Hovering the mention
+shows its status, diff size, comments, and checks; clicking opens the PR in a
+split. A PR Macro has not synced stays an ordinary link, and pasting inside a
+code block or over a selection keeps the default behavior.
+
 1. `Create` → `Document D`. The app navigates to `/app/md/<uuid>` with the **title field
    focused**.
 2. `type_text` the title, then `submitKey: "Enter"` to drop into the body.

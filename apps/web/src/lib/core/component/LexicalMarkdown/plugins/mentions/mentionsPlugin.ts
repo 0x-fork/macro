@@ -184,6 +184,11 @@ function $isMentionNode(
   );
 }
 
+/** A PR mention authored from a GitHub URL alone has no entity to track. */
+function $isUntrackedPullRequestMention(node: LexicalNode): boolean {
+  return $isPullRequestMentionNode(node) && !node.getId();
+}
+
 function $mentionItemFromNode(node: MentionNode): ItemMention {
   if ($isDocumentMentionNode(node)) {
     let fileType = '';
@@ -398,7 +403,7 @@ function registerMentionsPlugin(
     const mentions: ItemMention[] = [];
     editor.read(() => {
       $traverseNodes($getRoot(), (node) => {
-        if ($isMentionNode(node)) {
+        if ($isMentionNode(node) && !$isUntrackedPullRequestMention(node)) {
           mentions.push($mentionItemFromNode(node));
         }
       });
@@ -1034,7 +1039,7 @@ function registerMentionsPlugin(
             nodeKey
           ) as PullRequestMentionNode | null;
 
-          if (!node) continue;
+          if (!node || $isUntrackedPullRequestMention(node)) continue;
 
           if (mutation === 'destroyed') {
             const mentionUuid = node.getMentionUuid();
