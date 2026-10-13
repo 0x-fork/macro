@@ -144,6 +144,13 @@ export type ViewShellRootProps = Omit<
    * open the overlay, which stays dismissible.
    */
   asideRequired?: boolean;
+  /**
+   * Keep navigation docked in wide layouts, for views that are unusable
+   * without it. Like `asideRequired`, it withholds the collapse control and
+   * ignores the saved preference there; narrow layouts still start with the
+   * overlay closed.
+   */
+  asidePinned?: boolean;
   main?: Partial<MainLayout>;
   detail?: Partial<DetailLayout>;
   /** Controlled detail open state. Omit for uncontrolled. */
@@ -168,6 +175,7 @@ function Root(props: ViewShellRootProps) {
     'aside',
     'asidePreferenceKey',
     'asideRequired',
+    'asidePinned',
     'main',
     'detail',
     'detailOpen',
@@ -252,7 +260,8 @@ function Root(props: ViewShellRootProps) {
   );
   // Only a docked aside can be pinned open: a pinned overlay would hide Main
   // behind a backdrop with no way to dismiss it.
-  const asidePinned = () => asideRequired() && !atLayoutBreakpoint();
+  const asidePinned = () =>
+    (asideRequired() || (local.asidePinned ?? false)) && !atLayoutBreakpoint();
 
   const asideMode = (): AsideMode =>
     local.aside === false ||

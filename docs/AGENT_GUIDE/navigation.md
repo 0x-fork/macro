@@ -269,6 +269,8 @@ Shrinking again starts with the overlay closed. Chat is the exception while no
 conversation is selected: its navigation stays docked with no **Hide
 navigation** control, and narrow Chat opens the overlay on its own (see
 [Chat navigation rail](channels.md#chat-navigation-rail)).
+Settings navigation always stays docked at desktop width with no **Hide
+navigation** control; only its narrow overlay opens and closes.
 The overlay never contains the split's **Close** button. Mobile keeps
 its existing navigation controls. Block detail panels (including Calendar) have
 **Hide side panel** in their own header and a hamburger **Show side panel** beside
