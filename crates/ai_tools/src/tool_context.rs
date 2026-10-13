@@ -589,6 +589,61 @@ pub fn build_crm_tool_context(pool: sqlx::PgPool) -> ToolCrmToolContext {
     }
 }
 
+/// CRM pipelines over the databases service and access the database tools
+/// use, so a pipeline write reaches open clients the same way.
+pub type ToolPipelineService = crm::domain::pipelines::PipelineServiceImpl<
+    crm::outbound::pipelines::PgPipelineRepo<
+        databases::outbound::pg_cell_store::PgCellStore<properties::PropertiesPgRepo>,
+    >,
+    ToolDatabasesService,
+    ToolEntityAccessService,
+    crm::outbound::stage_definitions::PropertiesStageDefinitionStore<ToolPropertiesService>,
+>;
+
+/// Pipeline workflows: entries by record and fields by name, for agents.
+pub type ToolPipelineWorkflows = crm::domain::pipeline_workflows::PipelineWorkflowServiceImpl<
+    ToolPipelineService,
+    ToolCrmService,
+    ToolEntityAccessService,
+>;
+
+/// Type alias for the CRM pipeline AI tool context.
+pub type ToolPipelineToolContext =
+    crm::inbound::toolset::pipelines::PipelineToolContext<ToolPipelineWorkflows>;
+
+/// Build the pipeline tools over the database tools' service and access and
+/// the CRM tools' records and stage template.
+pub fn build_pipeline_tool_context(
+    pool: sqlx::PgPool,
+    databases: &ToolDatabasesToolContext,
+    crm: &ToolCrmToolContext,
+) -> ToolPipelineToolContext {
+    let pipelines = crm::domain::pipelines::PipelineServiceImpl::new(
+        crm::outbound::pipelines::PgPipelineRepo::new(
+            pool.clone(),
+            databases::outbound::pg_cell_store::PgCellStore::new(
+                pool.clone(),
+                properties::PropertiesPgRepo::new(pool),
+            ),
+        ),
+        databases.service.clone(),
+        databases.entity_access_service.clone(),
+        crm::outbound::stage_definitions::PropertiesStageDefinitionStore::new(
+            crm.properties.clone(),
+        ),
+    );
+    crm::inbound::toolset::pipelines::PipelineToolContext {
+        service: Arc::new(
+            crm::domain::pipeline_workflows::PipelineWorkflowServiceImpl::new(
+                Arc::new(pipelines),
+                crm.service.clone(),
+                databases.entity_access_service.clone(),
+            ),
+        ),
+        actor: databases.actor,
+    }
+}
+
 /// Type alias for the skill service implementation used by AI tools.
 pub type ToolSkillService = skills::domain::service::SkillServiceImpl<
     skills::outbound::search_service_searcher::SearchServiceSkillSearcher,
@@ -1734,6 +1789,8 @@ pub struct ToolServiceContext {
     pub initiative_tool_context: ToolInitiativeToolContext,
     pub team_tool_context: ToolTeamToolContext,
     pub crm_tool_context: ToolCrmToolContext,
+    /// CRM pipelines: deals by record, fields by name.
+    pub pipeline_tool_context: ToolPipelineToolContext,
     pub skill_tool_context: ToolSkillToolContext,
     pub schedule_tool_context: RoutineToolContext,
     #[from_ref(skip)]
@@ -1803,6 +1860,7 @@ impl ToolServiceContext {
         self.channel_tool_context = self.channel_tool_context.with_actor(actor);
         self.databases_tool_context = self.databases_tool_context.with_actor(actor);
         self.forms_tool_context.actor = actor;
+        self.pipeline_tool_context.actor = actor;
         self.databases_sql_tool_context = self.databases_sql_tool_context.with_actor(actor);
         self
     }

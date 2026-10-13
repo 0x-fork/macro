@@ -706,6 +706,12 @@ pub async fn run() -> anyhow::Result<()> {
         soup_service.clone(),
         db.clone(),
     );
+    let crm_tool_context = ai_tools::build_crm_tool_context(db.clone());
+    let pipeline_tool_context = ai_tools::build_pipeline_tool_context(
+        db.clone(),
+        &databases_tool_context,
+        &crm_tool_context,
+    );
 
     let calendar_tool_context = ai_tools::build_calendar_tool_context(
         db.clone(),
@@ -792,7 +798,8 @@ pub async fn run() -> anyhow::Result<()> {
         ),
         initiative_tool_context,
         team_tool_context: ai_tools::build_team_tool_context(db.clone()),
-        crm_tool_context: ai_tools::build_crm_tool_context(db.clone()),
+        crm_tool_context,
+        pipeline_tool_context,
         skill_tool_context: ai_tools::build_skill_tool_context(
             search_service_client.clone(),
             soup_service.clone(),

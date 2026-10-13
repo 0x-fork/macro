@@ -103,6 +103,21 @@ adapter and shared provider against local test responses.
 Pipelines poll every five seconds. A poll that returns unchanged data must not
 remount company previews or request them again.
 
+### Pipelines from AI chat
+
+Chats and agent sessions manage pipelines with their own tools, not the database
+tools: `ListPipelines`, `FindPipelineEntries`, `AddToPipeline`,
+`UpdatePipelineEntries`, `RemoveFromPipeline`, `CreatePipeline`, and `EditPipeline`.
+They address entries by the company or contact they track, fields by name, and
+stages by label, so "move Acme to Negotiation in Sales" or "how many deals are in
+Demo?" work without ids. Each tool row shows a kanban icon and expands to the
+entries it read or changed; an update lists every field before and after.
+To verify, ask a chat to move a company between stages and check that the pipeline
+row (within the five-second poll) and the company page's **Pipelines** card both
+show the new stage. The company's own Stage, Owner and Revenue properties in the
+side panel are a separate field these tools do not change. A pipeline created or
+renamed from chat appears in the CRM sidebar as soon as the tool finishes.
+
 ## Properties and records
 
 An embedded records editor can allow cell edits while its host controls the
