@@ -51,7 +51,9 @@ export function DemoBookingDialog() {
         return;
       if (!(event.target instanceof Element)) return;
       const link = event.target.closest('a');
-      if (link?.href !== DEMO_BOOKING_URL) return;
+      // Compared without the query: analytics scripts append tracking
+      // parameters to a link as it is pressed.
+      if (!link || link.origin + link.pathname !== DEMO_BOOKING_URL) return;
       event.preventDefault();
       opener = link;
       changeOpen(true);

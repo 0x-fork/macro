@@ -97,6 +97,16 @@ it('books in a dialog on the page and returns focus to the link when closed', as
   await waitFor(() => expect(document.activeElement).toBe(link));
 });
 
+it('opens for a link an analytics script has added tracking parameters to', async () => {
+  const link = renderSite() as HTMLAnchorElement;
+  link.href = `${DEMO_BOOKING_URL}?_gl=1*abc`;
+
+  const { frame, followed } = await openDialog();
+
+  expect(followed).toBe(false);
+  expect(frame.getAttribute('src')).toBe(BOOKING_PATH);
+});
+
 it('leaves new-tab clicks and other links to the browser', () => {
   const link = renderSite();
 
