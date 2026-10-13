@@ -6279,6 +6279,7 @@ dependencies = [
  "entity_registry",
  "entity_registry_db_utils",
  "favorites",
+ "flate2",
  "foreign_entity",
  "forms",
  "frecency",
@@ -6293,6 +6294,8 @@ dependencies = [
  "harnesses",
  "hex",
  "http-body-util",
+ "hyper 1.9.0",
+ "hyper-util",
  "import",
  "initiative",
  "initiative_description",
@@ -6372,10 +6375,12 @@ dependencies = [
  "teams",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-tungstenite 0.27.0",
  "tokio-util",
  "tower 0.5.3",
  "tower-http",
  "tracing",
+ "tungstenite 0.27.0",
  "unicode-segmentation",
  "urlencoding",
  "user_api_key",
@@ -7816,6 +7821,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "843fba2746e448b37e26a819579957415c8cef339bf08564fe8b7ddbd959573c"
 dependencies = [
  "crc32fast",
+ "libz-sys",
  "miniz_oxide",
  "zlib-rs",
 ]
@@ -19492,6 +19498,18 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "489a59b6730eda1b0171fcfda8b121f4bee2b35cba8645ca35c5f7ba3eb736c1"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite 0.27.0",
+]
+
+[[package]]
+name = "tokio-tungstenite"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d25a406cddcc431a75d3d9afc6a7c0f7428d4891dd973e4d54c56b46127bf857"
@@ -19932,6 +19950,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "911e93158bf80bbc94bad533b2b16e3d711e1132d69a6a6980c3920a63422c19"
 dependencies = [
  "unicode-width 0.2.0",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.27.0"
+source = "git+https://github.com/signalapp/tungstenite-rs?rev=a1837ccfe96b6895a57352d7f0112e4557516c27#a1837ccfe96b6895a57352d7f0112e4557516c27"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "flate2",
+ "headers",
+ "http 1.4.0",
+ "httparse",
+ "log",
+ "rand 0.9.4",
+ "sha1 0.10.6",
+ "thiserror 2.0.18",
+ "utf-8",
 ]
 
 [[package]]
@@ -21803,6 +21839,7 @@ dependencies = [
  "itertools 0.13.0",
  "lazy_static",
  "libc",
+ "libz-sys",
  "linux-raw-sys 0.12.1",
  "log",
  "memchr",
