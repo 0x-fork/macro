@@ -1186,9 +1186,10 @@ is restricted to your own files. Recent offers only file-scope filtering.
 Hold Shift while selecting or deselecting Type options to keep the submenu open
 and combine several file types without reopening it. Desktop filter submenus allow a
 250 ms grace period when the mouse crosses the parent menu's padding; entering
-the submenu cancels the pending close. Hovering another category immediately
-switches to that category, including when the submenu opens to the left.
-Escape and outside clicks still dismiss immediately.
+the submenu cancels the pending close. While the mouse heads toward an open
+submenu, including one that opens to the left, the categories it crosses on the
+way do not take over. A category the mouse moves to directly, or rests on for
+300 ms, opens in its place. Escape and outside clicks still dismiss immediately.
 `Sort files` offers modified, created, and viewed dates.
 Recent uses the viewer's own interaction order and does not offer a sort override.
 The New menu and drag/drop uploads target the selected folder. **New → Folder**
