@@ -170,8 +170,9 @@ export const enableTasksReviews = defineFlag({
   default: onInDev,
 });
 
-// Claude Cloud demo onboarding and harness/model discovery. Off until PostHog
-// enables it, including in dev; override locally with VITE_CLAUDE_CLOUD.
+// Claude Cloud: the built-in @claude mention and agent assignee, its Runtimes
+// connection card, and harness/model discovery. Off until PostHog enables it,
+// including in dev; override locally with VITE_CLAUDE_CLOUD.
 export const claudeCloud = defineFlag({
   key: 'claude-cloud',
   env: 'CLAUDE_CLOUD',

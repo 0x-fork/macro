@@ -287,13 +287,18 @@ Draft PRs, PRs with no checks, and PRs whose checks are still running or failing
 show no Merge button. Merged and closed PRs show no Merge button. Expanded session mentions retain their
 collapse control. The card never expands in place.
 
-`@codex` and `@claude` are offered to every user before account setup. The built-in
-`@cursor` entry requires the `enable-cursor-agents` rollout flag (local override:
-`VITE_ENABLE_CURSOR_AGENTS`). Custom agents keep their channel visibility rules
+Built-in provider agents are offered before account setup, each within its own
+rollout: `@cursor` requires the `enable-cursor-agents` flag (local override:
+`VITE_ENABLE_CURSOR_AGENTS`), `@claude` requires the `claude-cloud` flag
+(local override: `VITE_CLAUDE_CLOUD`), and `@codex` requires both
+`enable-chat-v3-agents` and `enable-codex-agents` (local override:
+`VITE_ENABLE_CODEX_AGENTS`). Outside a rollout the entry is absent from
+the mention menu and from task agent assignees, even when that bot is already a
+channel participant. Custom agents keep their channel visibility rules
 regardless of which harness they use.
 A mention without a connected account creates no session and replies in the thread
 with a **Connect Cursor**, **Connect Codex**, or **Connect Claude** chip. Each chip
-opens Settings → Agents → Runtimes, where all three connection cards are visible. The same
+opens Settings → Agents → Runtimes, where the connection cards in the reader's rollout are visible. The same
 chip reads **connected** after setup; mention the bot again to start a session.
 Codex also prompts for a cloud environment when ChatGPT is connected but no
 environment has been saved. New sessions use that environment on

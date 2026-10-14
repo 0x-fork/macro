@@ -1,3 +1,5 @@
+import { useClaudeAgentsAccess } from '@core/claude/flag';
+import { useCodexAgentsAccess } from '@core/codex/flag';
 import { ModelCatalogPicker } from '@core/component/AI/component/input/ModelCatalogPicker';
 import { isLargeModelCatalog } from '@core/component/AI/component/input/modelCatalog';
 import { toast } from '@core/component/Toast/Toast';
@@ -47,6 +49,8 @@ function lastConnectedText(harness: RegisteredHarness): string {
 export function Harness(
   props: { navigation?: JSX.Element; startPairing?: boolean } = {}
 ) {
+  const canUseClaude = useClaudeAgentsAccess();
+  const canUseCodex = useCodexAgentsAccess();
   const [cursorApiKey, setCursorApiKey] = createSignal('');
   const cursorStatus = useCursorApiKeyStatusQuery();
   const saveCursorApiKey = useSaveCursorApiKey();
@@ -217,7 +221,9 @@ export function Harness(
                 </div>
               </section>
 
-              <ClaudeConnection />
+              <Show when={canUseClaude()}>
+                <ClaudeConnection />
+              </Show>
 
               <section class="flex gap-4 px-6 py-5">
                 <HarnessIcon>
@@ -406,7 +412,9 @@ export function Harness(
                 </div>
               </section>
 
-              <CodexHarness />
+              <Show when={canUseCodex()}>
+                <CodexHarness />
+              </Show>
             </SettingsCard>
           </div>
 
