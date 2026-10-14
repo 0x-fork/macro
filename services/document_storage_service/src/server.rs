@@ -17,7 +17,8 @@ use crate::{
     service::{self, s3::S3},
 };
 use agent_session_realtime::{
-    domain::service::AgentSessionLogConsumerService, outbound::log_topic_consumer::LogTopicConsumer,
+    domain::service::AgentSessionLogConsumerService,
+    outbound::redis_stream::consumer::RedisLogStreamConsumer,
 };
 use analytics_client::{AnalyticsClient, AnalyticsClientConfig, MetaConfig};
 use anyhow::Context;
@@ -1673,10 +1674,14 @@ pub async fn run() -> anyhow::Result<()> {
         }
     });
 
+    // Reads the harness' agent session log stream through a consumer group of
+    // this process' own, and fans each run out to GraphQL log subscribers.
     let agent_session_log_realtime = Arc::new(AgentSessionLogConsumerService::new(
-        LogTopicConsumer::from_env(config.kafka_brokers.as_ref()).map_err(|error| {
-            anyhow::anyhow!("failed to create agent session log topic consumer: {error:?}")
-        })?,
+        RedisLogStreamConsumer::connect(redis_client.clone())
+            .await
+            .map_err(|error| {
+                anyhow::anyhow!("failed to create agent session log stream consumer: {error:?}")
+            })?,
     ));
     consumer_tracker.spawn({
         let service = Arc::clone(&agent_session_log_realtime);
@@ -1706,6 +1711,13 @@ pub async fn run() -> anyhow::Result<()> {
                     _ = tokio::time::sleep(Duration::from_secs(1)) => {}
                 }
             }
+            // Nothing reads this process' group once it stops.
+            let _ = service.consumer().close().await.inspect_err(|error| {
+                tracing::warn!(
+                    error = ?error,
+                    "failed to close the agent session log stream consumer group"
+                );
+            });
         }
     });
 

@@ -440,6 +440,7 @@
       "crates/agent_inmem",
       "crates/agent_runtime_protocol",
       "crates/agent_session",
+      "crates/agent_session_realtime",
       "crates/agent_trigger",
       "crates/ai_billing",
       "crates/ai_engine",
