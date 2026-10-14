@@ -19,6 +19,22 @@ must load through the webview, not native HTTP. A `vite:preloadError` with
 `scheme tauri not supported` indicates an asset-routing failure; reloading the
 same bundle does not resolve it.
 
+## External links in the native app
+
+Desktop external links open in the system browser, whether activated by a normal
+anchor, a `target="_blank"` anchor, or `window.open(url)`. Native webview navigation
+handles this, not a window-level DOM click listener. Each activation should open
+exactly once, without replacing the app or creating another app window. Macro app
+links (including same-origin popup links) route inside the existing SPA.
+
+Verify the `owner/repo#number` footer link in a pull request's floating details
+panel with both a click and keyboard activation. The panel stops click propagation;
+that must not prevent the link from opening or dismiss the panel. Also verify a
+prevented click does nothing. Browser-only URLs such as `about:blank`, `data:`,
+`blob:` and `javascript:` must not launch an external handler. Web browser anchor
+behavior is unchanged. iOS/Android retain their existing JS opener fallback because
+Tauri's native popup callback is desktop-only.
+
 ## Returning from another page
 
 A browser back/forward-cache restore reconnects the GraphQL cache worker and
