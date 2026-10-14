@@ -752,7 +752,12 @@ after typing stops and pages 100 contacts at a time, so contacts beyond the firs
 usual recency lists without contacts. A contact whose email belongs to a Macro user
 appears as that person instead, even when only the CRM name matched: their existing
 direct message when you have one, otherwise the person, and selecting them opens a
-direct message. Other contacts show their email and open the contact page; Enter and
+direct message. Matching direct messages and Macro users rank ahead of CRM contacts,
+even when the conversation is old or has no recorded activity. Relevance and recency
+still order results within each group; other result types keep their positions.
+Verify this in both People and All with a recent CRM contact and a matching DM last
+viewed more than 30 days ago, including when server contacts arrive after the DM.
+Other contacts show their email and open the contact page; Enter and
 click open in place, Shift+Enter in a new split. A server match that arrives after
 typing takes the default selection from the Search for… row. Global Search does not
 list CRM contacts; Search for… from People still opens the Channels search. Verify
