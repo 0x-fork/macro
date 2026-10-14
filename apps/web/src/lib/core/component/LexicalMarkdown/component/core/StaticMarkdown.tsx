@@ -1201,15 +1201,34 @@ export function StaticMarkdown(props: {
   // TODO: Move citations to bulk query when built in backend
   createEffect(() => {
     const editor = currentEditor();
+    const markdown = props.markdown;
+    const target = props.target;
+    const singleLine = props.singleLine;
+    // Without citations the replacement is identical; re-rendering it would
+    // parse the markdown again and rebuild the same DOM.
+    if (!markdown.includes('[[')) return;
+
+    // A newer render owns the editor state; drop this lookup's late result.
+    let current = true;
+    onCleanup(() => {
+      current = false;
+    });
 
     // Handle citations without affecting mentions
-    replaceCitations(props.markdown).then((content: string) => {
-      setEditorStateFromMarkdown(editor, content, props.target);
-      if (props.singleLine) {
-        forceSingleLine(editor);
+    const renderCitations = async () => {
+      try {
+        const content = await replaceCitations(markdown);
+        if (!current || content === markdown) return;
+        setEditorStateFromMarkdown(editor, content, target);
+        if (singleLine) {
+          forceSingleLine(editor);
+        }
+        setEditorState(editor.getEditorState());
+      } catch (error) {
+        console.error('Failed to resolve markdown citations', error);
       }
-      setEditorState(editor.getEditorState());
-    });
+    };
+    void renderCitations();
   });
 
   const domTree = createMemo(() => {

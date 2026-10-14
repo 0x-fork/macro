@@ -2,12 +2,18 @@ import { ChatMessageMarkdown } from '@core/component/AI/component/message/ChatMe
 import { render, waitFor } from '@solidjs/testing-library';
 import { createSignal, type JSX } from 'solid-js';
 import { describe, expect, it, vi } from 'vitest';
+import { replaceCitations } from '../../citationsUtils';
 import { StaticMarkdown, StaticMarkdownContext } from './StaticMarkdown';
 
 const agentPreview = vi.hoisted(() => ({
   label: (): string => 'Loading session',
   mounted: vi.fn(),
 }));
+
+vi.mock('../../citationsUtils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../citationsUtils')>();
+  return { ...actual, replaceCitations: vi.fn(actual.replaceCitations) };
+});
 
 vi.mock('../decorator/AgentSessionMention', () => ({
   AgentSessionMention: () => {
@@ -193,6 +199,53 @@ describe('static pull request mentions', () => {
         .querySelector('[data-pr-chip]')
         ?.getAttribute('data-pr-chip')
     ).toBe(target);
+    rendered.unmount();
+  });
+});
+
+describe('static markdown citations', () => {
+  it('keeps the rendered DOM for markdown without citations', async () => {
+    vi.mocked(replaceCitations).mockClear();
+    const rendered = render(() => (
+      <StaticMarkdownContext>
+        <StaticMarkdown markdown="plain **reply**" lazy={false} />
+      </StaticMarkdownContext>
+    ));
+    const paragraph = rendered.container.querySelector('p');
+    expect(paragraph?.textContent).toBe('plain reply');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(rendered.container.querySelector('p')).toBe(paragraph);
+    expect(replaceCitations).not.toHaveBeenCalled();
+    rendered.unmount();
+  });
+
+  it('ignores a citation lookup that finishes after newer markdown', async () => {
+    const lookups = new Map<string, (content: string) => void>();
+    vi.mocked(replaceCitations).mockImplementation(
+      (input) =>
+        new Promise((resolve) => {
+          lookups.set(input, resolve);
+        })
+    );
+    const [markdown, setMarkdown] = createSignal('first [[old]]');
+    const rendered = render(() => (
+      <StaticMarkdownContext>
+        <StaticMarkdown markdown={markdown()} lazy={false} />
+      </StaticMarkdownContext>
+    ));
+    setMarkdown('second [[new]]');
+
+    lookups.get('second [[new]]')?.('second resolved');
+    await waitFor(() => {
+      expect(rendered.container.textContent).toBe('second resolved');
+    });
+    lookups.get('first [[old]]')?.('first resolved');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(rendered.container.textContent).toBe('second resolved');
+    vi.mocked(replaceCitations).mockReset();
     rendered.unmount();
   });
 });

@@ -224,11 +224,19 @@ function legacyProjectionRequest(
   }
 }
 
+// Matches the JSON-encoded body, where the field's quotes are escaped.
+const LEGACY_PROJECTION_ERROR_TEXT =
+  /(?:Cannot query|Unknown) field \\?["']cacheProjection/;
+
 async function isLegacyProjectionValidationError(
   response: Response
 ): Promise<boolean> {
   try {
-    const payload: unknown = await response.clone().json();
+    // Every projection response passes through here and urql parses the body
+    // again, so only parse one whose text names the rejected field.
+    const text = await response.clone().text();
+    if (!LEGACY_PROJECTION_ERROR_TEXT.test(text)) return false;
+    const payload: unknown = JSON.parse(text);
     if (
       payload === null ||
       typeof payload !== 'object' ||
@@ -293,10 +301,14 @@ export async function dssGraphqlFetch(
       span.setAttr('graphql.response_headers_ms', performance.now() - started);
       span.setAttr('http.response.status_code', response.status);
       span.event('response_headers');
-      const legacyInit = legacyProjectionRequest(transportInit);
-      if (legacyInit === undefined) return response;
+      if (
+        typeof transportInit?.body !== 'string' ||
+        !transportInit.body.includes('cacheProjection')
+      ) {
+        return response;
+      }
 
-      // This includes body delivery and JSON parsing, not just validation CPU.
+      // This includes body delivery and the text scan, not just validation CPU.
       const inspectStarted = performance.now();
       const legacy = await isLegacyProjectionValidationError(response);
       span.setAttr(
@@ -304,8 +316,11 @@ export async function dssGraphqlFetch(
         performance.now() - inspectStarted
       );
       span.event('response_inspected');
-      span.setAttr('graphql.legacy_retry', legacy);
-      if (!legacy) return response;
+      const legacyInit = legacy
+        ? legacyProjectionRequest(transportInit)
+        : undefined;
+      span.setAttr('graphql.legacy_retry', legacyInit !== undefined);
+      if (legacyInit === undefined) return response;
 
       // A mixed deployment remains network-correct: retry without the additive
       // metadata field and suppress v2 local authority for this session. Backfill
