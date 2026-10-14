@@ -9407,7 +9407,7 @@ export interface InsightCounts {
   hostNoShow: number;
 }
 /**
- * Find available replacement times for a booking discovered through ListBookings. The date is in the booking schedule time zone. Only the personal owner or team administrators may reschedule it. Returns absolute start/end times for ChangeBooking reschedule; availability is checked again when moving the meeting.
+ * Find available replacement times for a booking discovered through ListBookings. The date is in the booking schedule time zone. Only the personal owner, a host of the meeting or team administrators may reschedule it. Returns absolute start/end times for ChangeBooking reschedule; availability is checked again when moving the meeting.
  */
 export interface GetBookingRescheduleSlots {
   /**
@@ -13813,7 +13813,7 @@ export interface TextEditorCodeExecutionToolError {
   error_code: CodeExecutionErrorCode;
 }
 /**
- * Update Booking Links settings after reading ReadBookingSettings. Pass the full profile with its current revision, preserving fields the user did not request changing. Supports booking-page name and introduction; adding, editing and deleting reusable schedules and date overrides; changing defaultScheduleId; reassigning link schedules; duplicating, deleting, enabling or pausing links. Generate new UUIDs for new schedules, links and questions; preserve existing IDs. Changing a shared schedule affects every link referencing it and personal default hours affect team hosting. Deleting a link does not cancel existing bookings. Explain affected links before changing shared hours or deleting. A stale revision fails: re-read and reconcile rather than overwriting. Use CreateBookingLink or EditBookingLink for ordinary single-link authoring and their conversational confirmation contract. Team edits require owner/admin access. Before saving, explain the proposed changes and their personal/team scope, ask whether to proceed, and wait for the user's approving reply in a later turn. Quote that reply verbatim in userConfirmation. Do not use the original request as confirmation.
+ * Update Booking Links settings after reading ReadBookingSettings. Pass the full profile with its current revision, preserving fields the user did not request changing. Supports booking-page name and introduction; adding, editing and deleting reusable schedules and date overrides; changing defaultScheduleId; reassigning link schedules; duplicating, deleting, enabling or pausing links. Generate new UUIDs for new schedules, links and questions; preserve existing IDs. Changing a shared schedule affects every link referencing it and personal default hours affect team hosting. Deleting a link does not cancel existing bookings. Explain affected links before changing shared hours or deleting. A stale revision fails: re-read and reconcile rather than overwriting. Use CreateBookingLink or EditBookingLink for ordinary single-link authoring and their conversational confirmation contract. Any team member can edit team settings. Before saving, explain the proposed changes and their personal/team scope, ask whether to proceed, and wait for the user's approving reply in a later turn. Quote that reply verbatim in userConfirmation. Do not use the original request as confirmation.
  */
 export interface UpdateBookingSettings {
   /**
