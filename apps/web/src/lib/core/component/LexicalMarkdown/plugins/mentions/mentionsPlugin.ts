@@ -100,7 +100,8 @@ export const CLOSE_INLINE_SEARCH_COMMAND: LexicalCommand<void> = createCommand(
   'CLOSE_INLINE_SEARCH_COMMAND'
 );
 
-const TYPE_AT_SYMBOL_COMMAND: LexicalCommand<void> = createCommand(
+/** Opens the mention typeahead at the caret, as typing `@` there does. */
+export const TYPE_AT_SYMBOL_COMMAND: LexicalCommand<void> = createCommand(
   'TYPE_AT_SYMBOL_COMMAND'
 );
 
