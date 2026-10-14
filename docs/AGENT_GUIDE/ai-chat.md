@@ -435,15 +435,31 @@ the shimmer.
   its mode and conversation. Newly created sessions replace their temporary
   URL with the real id without remounting the composer or adding a temporary
   history step.
-- **Agents page** uses the same **Agents** management screen as Settings.
-  **Agents** lists Team and Private agents with Edit / Delete actions; **Runtimes**
-  configures built-in providers and paired machines. **New agent** and **New runtime**
-  replace the list with full-page forms, not dialogs. Back/Cancel returns to the list;
-  use **New conversation** in the sidebar to return to the composer. The animated
-  **Bring your own agent** card appears only in **Runtimes**, below the tabs and
-  above the runtime lists. It links directly to runtime pairing and its setup guide.
-  The **Paired runtimes** section appears once you have a paired runtime; an empty
-  list does not repeat the pairing action from **Bring your own agent**.
+- **Agents page** uses the same **Agents** management screen as Settings. Two
+  slim strips sit above the list: **Connect Cursor** (**Manage** once connected)
+  and **Bring your own agent** (**Set up**, or **Paired** + **Manage** once a
+  machine is paired). One **Your agents** list shows Macro, team agents, then
+  private agents, each with a TEAM/PRIVATE pill and an "In Macro / In Cursor /
+  In your harness · model · channels" subtitle, plus Edit / Delete actions.
+  **Add agent**, the setup strips, and Edit replace the list with full pages,
+  not dialogs; Back/Cancel returns to the list. Use **New conversation** in the
+  sidebar to return to the composer.
+  The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
+  Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
+  Claude lists models) and **Who can use it** (Private / Team). The selected
+  place opens its Model picker inside its card; In your harness adds a Harness
+  picker beside it. An unconnected Cursor or unpaired harness is disabled with
+  **Connect** / **Set up**, which open the setup guide in place and return to the
+  editor with that option selected. Mention style, permission requests,
+  connections, and channels sit in a collapsed **Advanced** section whose
+  description summarizes the current choices.
+  **Connect Cursor** is a three-step guide: a screenshot of Cursor's API & SSH
+  Keys page with **Open API & SSH Keys** (cursor.com/dashboard/api), an API key
+  field focused on open, and a default model picker that enables once the key is
+  saved. Connected, the same page shows the saved date, **Disconnect**, and
+  **Done**. **Manage** on a paired machine opens **Runtimes** (Back returns to
+  Agents): built-in providers, **New runtime**, and the **Paired runtimes** list,
+  which appears once you have a paired runtime.
   **New runtime** shows three steps: install macrod from the linked release,
   run `./macrod` and configure your agent in Quickstart, then enter your pairing
   code and click **Look up**. Review the request and click **Approve** to connect.
