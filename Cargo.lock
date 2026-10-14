@@ -1973,6 +1973,7 @@ dependencies = [
  "foreign_entity",
  "fusionauth",
  "futures",
+ "generic_email_domains",
  "github",
  "github_pull_requests",
  "gtm_invite",
