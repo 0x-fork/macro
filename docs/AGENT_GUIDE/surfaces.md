@@ -2619,7 +2619,9 @@ With `pipedream-mcp` enabled, Connections (in Agents or Settings) has `Connected
 tabs. Connected groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
 a separate section. Discover offers featured providers, a searchable catalog,
-and `Add custom MCP`. Slack discovery retains its development-only gate.
+and `Add custom MCP`. Pipedream Slack OAuth is available in production and
+development from the featured Slack provider. Connecting Slack here grants tool
+access; channel import is a separate action where the user chooses channels.
 Provider Back returns to the tab that opened it; navigation is local to each
 Connections page and starts at Connected on a fresh visit.
 
