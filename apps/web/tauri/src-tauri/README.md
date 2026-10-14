@@ -5,6 +5,25 @@ single Vite build that runs identically for web, desktop, iOS, and Android — t
 platform is detected at runtime via `getPlatform()` rather than baked into the
 bundle.
 
+## macOS app icon
+
+The macOS icon reuses the iOS marketing artwork through the Icon Composer source
+in `icons/macos/Macro.icon`. The macOS-only Tauri configuration bundles its
+compiled `Assets.car` and `Macro.icns`, and merges the generated icon names into
+Info.plist. Tahoe uses the icon composition; older macOS uses the generated
+fallback. The mobile artwork has no baked-in rounded tile or transparent border
+for macOS to place inside another enclosure.
+
+After changing the mobile artwork or composition, regenerate with Xcode 26.2:
+
+```sh
+bash icons/macos/regenerate.sh
+```
+
+Commit the source and generated files together. They are checked in so desktop
+release builds do not need Icon Composer. Verify Finder and Dock rendering at
+both 1× and 2× display scale on Tahoe, and on a pre-Tahoe Mac.
+
 ## Running in development
 
 ```sh
