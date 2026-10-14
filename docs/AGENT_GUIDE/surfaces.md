@@ -2830,6 +2830,9 @@ A newly arrived scheduling update shows RSVP and Join only once its calendar sta
 been checked. A series invitation shows its current or next live occurrence.
 
 A connected, resolved invitation shows the responding address and Yes / Maybe / No.
+Calendars connected through a linked inbox also resolve here, using that inbox's
+address for responses. Access is limited to the delegated inbox; another inbox owned
+by the same account stays private, and removing the link removes invitation access.
 Local verification requires both email and calendar services: email supplies saved
 snapshots and resolves them against the synced calendar, while calendar service handles
 the RSVP write. With calendar service's `CALENDAR_SYNC_ENABLED` off, its RSVP route is
