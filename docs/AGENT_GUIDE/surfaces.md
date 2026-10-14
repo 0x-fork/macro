@@ -400,9 +400,8 @@ longer notifies the thread. Settings → notifications lists them under `AI`.
 ## Tasks — `/app/component/tasks`
 
 Task navigation uses `My Tasks`, `All Tasks`, and `Created by me`. The desktop
-sidebar has a full-width `New task` action, a collapsible list of task favorites,
-and a collapsible list of tags. Selecting a tag filters the current task view;
-selecting it again clears that tag filter. Favorite rows open their tasks.
+sidebar has a full-width `New task` action and a collapsible list of task favorites;
+tag filtering lives in the `Filter` menu. Favorite rows open their tasks.
 Normal row and favorite activation replaces the list with the editable task
 document; its originating-tab breadcrumb returns to the list and its
 header exposes Share and the task Details/Properties panel. Shift-click opens
@@ -425,10 +424,10 @@ The mobile task drawer retains its existing layout.
 
 ## Email — `/app/component/mail`
 
-Email's Tags sidebar uses the same [nested tag tree as Tasks](tasks.md#nested-sidebar-tags).
+Email's Tags sidebar uses the [nested tag tree](tasks.md#nested-sidebar-tags).
 Carets and folder-only parents expand branches; actual tags select their exact ID
 and switch the mailbox to All. Parent selection does not include descendant tags.
-Unlike Tasks and Drive, it lists only personal tags; team-shared tags are hidden,
+Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
 Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
@@ -1132,13 +1131,9 @@ touch uses the global search overlay and creation uses the dock's New button.
 The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
 selecting another pill leaves the folder tree. The sidebar contains `New file or folder`, `My Files`, `Recent`,
-`Shared with me`, collapsible Favorites, a searchable folder hierarchy, and a
-collapsible Tags section beneath the folders. Tags lists every tag you can apply,
-nested by `/` in the tag name, with a `New tag` action in its header. Choosing a
-tag shows only that tag's files within the current tab or folder and exits any
-inline file detail; choosing the highlighted tag again clears it, and the same
-selection appears under the **Filter** menu's Tags submenu. Navigating to another
-tab or folder clears tag filters. A folder with no files matching the active tag
+`Shared with me`, collapsible Favorites, and a searchable folder hierarchy. Filter
+by tag from the **Filter** menu's Tags submenu; navigating to another tab or folder
+clears tag filters. A folder with no files matching the active tag
 shows the list's no-match state rather than `This folder is empty`.
 Drive omits split-history back/forward buttons in both wide and narrow layouts;
 the split close button remains available when multiple splits are open.
