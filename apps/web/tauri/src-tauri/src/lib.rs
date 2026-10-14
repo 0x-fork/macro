@@ -280,6 +280,8 @@ pub fn run() {
             macos_notification_permission::get_macos_notification_permission,
             #[cfg(target_os = "macos")]
             macos_notification_permission::request_macos_notification_permission,
+            #[cfg(target_os = "macos")]
+            macos_notification_permission::send_macos_notification,
             graphql_cache_plugin::commands::graphql_cache_init,
             graphql_cache_plugin::commands::graphql_cache_init_with_schema,
             graphql_cache_plugin::commands::graphql_cache_current_revision,
