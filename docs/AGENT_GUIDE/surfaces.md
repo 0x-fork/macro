@@ -2148,7 +2148,9 @@ editable table. Team members can edit shared pipelines; the creator owns them
 and can change access later through the standard **Share** dialog. Under
 **Team access**, choose **Edit** to share with the team or **None** to make the
 pipeline private. **Copy Link** copies a CRM link that opens this pipeline for
-anyone who has access. On mobile, team access is in the **Team** tab.
+anyone who has access; pasted into an editor it becomes a pipeline mention (see
+[CRM pipeline mentions](documents.md#crm-pipeline-mentions)). On mobile, team
+access is in the **Team** tab.
 
 The first column is a required company/contact reference. Clicking a filled
 reference, or pressing Enter on it, opens that company or contact; on desktop it
