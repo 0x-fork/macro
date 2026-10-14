@@ -1020,6 +1020,33 @@ search field, filter menu and preview control. The sidebar lists the inboxes abo
 `Connect another account` starts the add-inbox flow from its own row below the
 scrolling list. `New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.
+The From menu groups each connected inbox with its verified Gmail send-as aliases.
+Replies default to an address on the thread's own inbox: preserve an outgoing
+message's From, otherwise match To before Cc/Bcc (prefer an alias within each
+recipient group). A manual choice or saved draft takes precedence over late
+account refreshes. Reply-all excludes the inbox's primary address and its aliases.
+Aliases are scoped to their owning inbox, even when two inboxes share an address.
+A failed alias lookup for one inbox does not hide other inboxes' aliases. An
+invalid or unavailable selected alias is rejected on save/send, never silently
+replaced with the primary address.
+
+The sidebar and mobile inbox picker also list aliases beneath their inbox.
+Selecting one scopes mail to that inbox and the exact address in From/To/Cc/Bcc;
+search candidates are checked against the same GraphQL scope. Search and Reminders
+automatically advance nonmatching candidate pages until a match or exhaustion;
+while alias membership is loading, wait rather than treating it as an empty inbox.
+Refresh retries both search and alias membership. A failed retained membership
+lookup shows an error without discarding already-confirmed rows. If a saved alias
+disappears from the catalog, the primary address must not look selected; use
+`All inboxes` or choose an available address to clear that scope. Scheduled mail
+matches its saved sender. `All inboxes` clears both the inbox and alias selection,
+and the selection survives reloads. With one inbox **and aliases**, the All row
+and address pickers remain available. To check without sending real mail, open
+both pickers, select an alias, switch to the primary address, reopen a saved alias
+draft, and confirm the address remains unchanged. Alias discovery uses
+`MailAccounts`, draft saves use `saveEmailDraft`, and delivery uses
+`sendEmailMessage` in GraphQL; the existing undo-send window still applies.
+
 If an explicitly selected sending inbox is unavailable, Send reports
 `Unable to find linked email account. Select a sending inbox.` without delivering
 through another account. The From picker stays available as `Select sending inbox`,
@@ -1029,7 +1056,7 @@ sending; the picker never displays another inbox as selected before that choice.
 With no explicit selection, an unavailable primary still falls back to
 the first linked inbox.
 Sidebar rows, including `All inboxes`, replace their icon with an accent-colored checkmark when
-selected. With exactly one connected inbox, only its address appears as the selected
+selected. With exactly one connected inbox and no aliases, only its address appears as the selected
 row, followed by `Connect another account`; there is no `All inboxes` row, title
 inbox dropdown, or inbox section in the mobile filter drawer. The inbox section shows up to four rows (including `All inboxes`), then
 scrolls independently without overscroll so the email tabs stay in place. With many
