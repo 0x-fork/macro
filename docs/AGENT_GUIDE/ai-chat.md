@@ -1623,12 +1623,14 @@ calling `CreateBookingLink` or `EditBookingLink`. An initial request to create a
 link is not approval of the proposal. IDs and revisions are discovered through
 tools; you should never be asked to enter a team ID, host ID or JSON.
 
-A successful result returns the saved URL. Link creation itself sends no calendar
-invitations; guests receive an invitation when they book. Editing hours affects
-only that link. If another edit makes the revision stale, the AI reads the latest
-settings and confirms a fresh proposal. Identical retries reuse the saved link.
-Old pending booking review requests can be dismissed so the agent can resume with
-conversational confirmation.
+A successful result returns the saved URL, which the AI shares as a booking-link
+mention chip (`<m-booking-link-mention>`) rather than a bare URL. Pasting that
+same `/app/book/…` URL into chat, channels, or a document also becomes a chip.
+Link creation itself sends no calendar invitations; guests receive an invitation
+when they book. Editing hours affects only that link. If another edit makes the
+revision stale, the AI reads the latest settings and confirms a fresh proposal.
+Identical retries reuse the saved link. Old pending booking review requests can
+be dismissed so the agent can resume with conversational confirmation.
 
 ## Image attachments and model selection
 
