@@ -26,6 +26,15 @@ outline surface and border with semibold text, without inverted colors. Disabled
 and pending primary actions retain the strong variant. Mobile confirmation drawers
 use the same action hierarchy.
 
+## List-item sharing
+
+Right-click a shareable list row and choose **Share**. The sharing dialog must
+remain open after the context menu closes, with recipient selection and the
+optional message available. Dismiss it with Cancel, then reopen Share on the
+same row and confirm focus enters the recipient selector again. Opening or
+cancelling the dialog does not change access; do not submit shares on real dev
+data unless authorized.
+
 ## User cards
 
 Avatar and user-mention cards open on hover on pointer devices and as a bottom
