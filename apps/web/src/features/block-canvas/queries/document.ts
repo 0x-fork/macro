@@ -1,6 +1,6 @@
-import { saveCanvasDocument } from '../../queries/canvas-document';
 import type { CanvasDocumentSource } from '../context/document-source';
 import { readCanvasFile } from '../core/document-format';
+import { saveCanvasDocument } from './canvas-document';
 
 export function canvasDocumentSource(
   documentId: string,

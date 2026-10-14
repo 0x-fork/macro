@@ -6,31 +6,18 @@ import {
 import { type LegacyTextCodec, migrateLegacyCanvas } from './migrate-legacy';
 
 export type CanvasLoadResult =
-  | { kind: 'legacy' }
   | { kind: 'next'; file: CanvasFile }
-  | { kind: 'error'; message: string; canOpenLegacy: boolean };
+  | { kind: 'error'; message: string };
 
 export function loadCanvasFile(
   value: unknown,
-  enabled: boolean,
   text: LegacyTextCodec
 ): CanvasLoadResult {
-  let version: 1 | 2 | undefined;
   try {
-    version = canvasVersion(value);
-    if (!enabled)
-      return version === 1
-        ? { kind: 'legacy' }
-        : {
-            kind: 'error',
-            message:
-              'This canvas requires Canvas Next. Enable Canvas Next to open it.',
-            canOpenLegacy: false,
-          };
     return {
       kind: 'next',
       file:
-        version === 2
+        canvasVersion(value) === 2
           ? readCanvasFile(value)
           : migrateLegacyCanvas(value, text),
     };
@@ -38,7 +25,6 @@ export function loadCanvasFile(
     return {
       kind: 'error',
       message: error instanceof Error ? error.message : 'Could not open canvas',
-      canOpenLegacy: version === 1,
     };
   }
 }

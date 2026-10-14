@@ -5,8 +5,8 @@
  */
 export function createNumericParser<T extends Record<string, number>>(
   mappings: Record<keyof T, string[]>
-): (params: Record<string, any>) => T | null {
-  return (params: Record<string, any>) => {
+): (params: Record<string, unknown>) => T | null {
+  return (params: Record<string, unknown>) => {
     const result = {} as T;
     let hasValidProperty = false;
     for (const [outputKey, inputKeys] of Object.entries(mappings)) {
@@ -16,7 +16,7 @@ export function createNumericParser<T extends Record<string, number>>(
           const parsedValue = Number(value);
 
           if (!isNaN(parsedValue)) {
-            (result as any)[outputKey] = parsedValue;
+            (result as Record<string, number>)[outputKey] = parsedValue;
             hasValidProperty = true;
             break;
           }

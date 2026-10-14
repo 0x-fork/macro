@@ -8,13 +8,13 @@ import {
   translation,
 } from '@macro-inc/graphics';
 import { match } from 'ts-pattern';
+import { CANVAS_VERSION, type CanvasFile, isRecord } from './document-format';
 import {
   type Canvas,
   type CanvasEntityStyle,
   CanvasSchema,
   type EdgeEnd,
-} from '../../model/CanvasModel';
-import { CANVAS_VERSION, type CanvasFile, isRecord } from './document-format';
+} from './legacy-format';
 import {
   plainRichText,
   validCanvasText,
@@ -177,7 +177,7 @@ function migrateNode(
       };
     })
     .with({ type: 'link' }, (): never => {
-      throw new Error(`Link ${node.id} requires the legacy editor`);
+      throw new Error(`Link ${node.id} cannot be migrated yet`);
     })
     .exhaustive();
 }
@@ -265,7 +265,7 @@ function legacyLayout(canvas: Canvas) {
     const root = parent ?? item.id;
     if (root !== previous) {
       if (rootOrder.includes(root))
-        throw new Error('Interleaved group layers require the legacy editor');
+        throw new Error('Interleaved group layers cannot be migrated yet');
       rootOrder.push(root);
       previous = root;
     }
@@ -330,7 +330,7 @@ function migrateEdges(
   const routes = ['straight', 'stepped', 'smooth'] as const;
   for (const edge of edges) {
     if (edge.label)
-      throw new Error(`Connector label ${edge.id} requires the legacy editor`);
+      throw new Error(`Connector label ${edge.id} cannot be migrated yet`);
     const startHead = heads[edge.style?.fromEndStyle ?? 0],
       endHead = heads[edge.style?.toEndStyle ?? 0],
       route = routes[edge.style?.connectionStyle ?? 0];
@@ -355,7 +355,7 @@ function migrateEdges(
 }
 
 /** One-way migration at the application boundary. Never mutate the source or
- * discard an unsupported record. Callers keep the legacy editor available on error. */
+ * discard an unsupported record. Callers report migration errors without writing data. */
 export function migrateLegacyCanvas(
   source: unknown,
   text: LegacyTextCodec
@@ -396,7 +396,7 @@ export function migrateLegacyCanvas(
     ]),
   });
   if (!validCanvasTextDocument(document))
-    throw new Error('Canvas text requires the legacy editor');
+    throw new Error('Canvas text cannot be migrated yet');
   return {
     version: CANVAS_VERSION,
     document,

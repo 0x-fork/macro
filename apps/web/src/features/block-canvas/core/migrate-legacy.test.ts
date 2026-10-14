@@ -9,7 +9,6 @@ import { loadCanvasFile } from './load-document';
 import { migrateLegacyCanvas } from './migrate-legacy';
 import { plainRichText } from './text-codec';
 
-vi.mock('@core/constant/featureFlags', () => ({ ENABLE_CANVAS_VIDEO: true }));
 const shape = (id = 'box', extra = {}) => ({
   id,
   type: 'shape',
@@ -237,30 +236,38 @@ describe('versioned canvas migration', () => {
     });
     const updated = { ...file, document: editor.document };
     const text = vi.fn();
-    expect(
-      loadCanvasFile(JSON.parse(JSON.stringify(updated)), true, text)
-    ).toEqual({ kind: 'next', file: updated });
+    expect(loadCanvasFile(JSON.parse(JSON.stringify(updated)), text)).toEqual({
+      kind: 'next',
+      file: updated,
+    });
     expect(text).not.toHaveBeenCalled();
     editor.dispose();
   });
 
   it.each([undefined, 1])(
-    'opens legacy version %s unchanged with the flag off',
+    'opens legacy version %s in the current editor without changing the source',
     (version) => {
-      const text = vi.fn();
-      expect(
-        loadCanvasFile({ version, nodes: [shape()] }, false, text)
-      ).toEqual({ kind: 'legacy' });
-      expect(text).not.toHaveBeenCalled();
+      const source = {
+        version,
+        nodes: [shape('text', { type: 'text', text: '**Hello**' })],
+      };
+      const original = structuredClone(source);
+      const text = vi.fn(plainRichText);
+      const result = loadCanvasFile(source, text);
+      expect(result).toMatchObject({
+        kind: 'next',
+        file: { version: 2, legacy: { source: original } },
+      });
+      expect(text).toHaveBeenCalledWith('**Hello**');
+      expect(source).toEqual(original);
     }
   );
 
   it.each([2, 3, '2', null])(
-    'protects version %s from the legacy editor',
+    'rejects invalid or unsupported version %s',
     (version) => {
-      expect(loadCanvasFile({ version }, false, plainRichText)).toMatchObject({
+      expect(loadCanvasFile({ version }, plainRichText)).toMatchObject({
         kind: 'error',
-        canOpenLegacy: false,
       });
     }
   );
@@ -279,19 +286,20 @@ describe('versioned canvas migration', () => {
       ],
     },
   ])(
-    'offers the original legacy editor instead of discarding unsupported records (%j)',
+    'rejects unsupported records without changing the source (%j)',
     (source) => {
-      expect(loadCanvasFile(source, true, plainRichText)).toMatchObject({
+      const original = structuredClone(source);
+      expect(loadCanvasFile(source, plainRichText)).toMatchObject({
         kind: 'error',
-        canOpenLegacy: true,
       });
+      expect(source).toEqual(original);
     }
   );
 
   it('rejects malformed v2 files without a legacy fallback', () => {
     expect(
-      loadCanvasFile({ version: 2, document: {} }, true, plainRichText)
-    ).toMatchObject({ kind: 'error', canOpenLegacy: false });
+      loadCanvasFile({ version: 2, document: {} }, plainRichText)
+    ).toMatchObject({ kind: 'error' });
   });
 
   it('handles empty canvases and root-id collisions', () => {
