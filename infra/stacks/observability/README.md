@@ -289,7 +289,7 @@ From `infra/stacks/observability`, on an x86_64 Linux Nix builder:
 
 ```bash
 nix build . --cores 2
-python3 nixos/publish-image.py result '<private Ohio image-artifact bucket>'
+python3 nixos/publish-image.py result macro-observability-images-569036502058-us-east-2 --role macro-observability-vmimport
 ```
 
 The build produces a UEFI VHD with the complete host configuration. KVM speeds up

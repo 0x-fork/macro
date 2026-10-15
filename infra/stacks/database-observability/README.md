@@ -29,6 +29,10 @@ separately before expanding it.
    the reader. The script grants statistics access via `pg_monitor`, not
    application-table SELECT; it sets connection and query timeouts and defaults
    to read-only transactions. It doesn't install extensions or restart RDS.
+   Existing privileged roles are rejected; the script does not attempt to alter
+   superuser-only attributes that the RDS administrator cannot change.
+   Schema `USAGE` permits resolving the public extension views without granting
+   SELECT on application tables.
    `pg_monitor` can read activity/query information, so treat this credential as
    sensitive.
 3. On the same dev writer / macrodb connection, run
@@ -50,8 +54,10 @@ separately before expanding it.
 5. Build the pinned collector image:
    `nix build ./infra/stacks/observability#database-collector --out-link result-database-collector`.
    Publish with
-   `python3 infra/stacks/observability/nixos/publish-image.py result-database-collector VIRGINIA_PRIVATE_IMAGE_BUCKET --region us-east-1 --name-prefix macro-database-collector`.
+   `python3 infra/stacks/observability/nixos/publish-image.py result-database-collector macro-observability-images-569036502058-us-east-1 --region us-east-1 --name-prefix macro-database-collector --role macro-observability-vmimport`.
    The image is fixed; EC2 user data carries validated nonsecret settings only.
+   AMI registration inherits the imported snapshot's minimum root volume size;
+   the collector stack expands it to 12 GiB at launch.
 6. Initialize the separate Pulumi project here with a `dev` stack. Configure
    `aws:region=us-east-1`, `amiId`, `subnetId`, `secretArn`, and `ingestSecretArn`.
    The subnet must be private, in the database VPC, with outbound NAT/HTTPS
