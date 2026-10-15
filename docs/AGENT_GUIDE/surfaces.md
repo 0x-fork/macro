@@ -2789,6 +2789,18 @@ can still suppress alerts even when authorization is granted.
 Verify off/on and persistence after restarting; on the Notifications page, a failed
 toggle should show an error toast and allow retry.
 
+On Linux desktop builds with native notification activation, clicking a system
+notification (or its **Open** action) restores/presents Macro and opens that
+notification's target using the normal in-app navigation. Dismissing or expiring
+an alert must not navigate. With two alerts, click the older one to check that the
+correct target opens. Also test with Macro hidden/minimized and on another
+workspace: Wayland focus requires the notification daemon to supply an activation
+token. This needs a native AppImage update, not just a frontend update; an older
+binary reports **Update Macro to receive desktop notifications.** Activation is
+supported while the app process is running, not after quitting it. The isolated
+Linux WebKit/D-Bus regression is `bun run native:e2e:notifications`; compositor
+focus behavior still needs a real Wayland/X11 desktop check.
+
 On native Android, enable notifications in Settings while signed in. Android 13+
 also asks for system permission; the system's **Activity** notification channel
 must be enabled. Remote push owns system notification display after registration,

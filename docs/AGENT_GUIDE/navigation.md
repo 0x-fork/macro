@@ -25,7 +25,9 @@ Desktop external links open in the system browser, whether activated by a normal
 anchor, a `target="_blank"` anchor, or `window.open(url)`. Native webview navigation
 handles this, not a window-level DOM click listener. Each activation should open
 exactly once, without replacing the app or creating another app window. Macro app
-links (including same-origin popup links) route inside the existing SPA.
+links (including same-origin popup links) route inside the existing SPA. Standalone
+`.html` documents on trusted app origins, such as `/billing-lab.html`, instead open
+in a native popup without replacing the app or emitting an SPA navigation event.
 
 Verify the `owner/repo#number` footer link in a pull request's floating details
 panel with both a click and keyboard activation. The panel stops click propagation;
