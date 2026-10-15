@@ -143,10 +143,15 @@ only when `apps/web/tauri/` differs from the closest ancestor release with a
 complete AAB, R8 mapping, and checksums. The first release without
 such a baseline builds an AAB. Frontend-only releases skip native builds and Play
 uploads; their app updates use the bundle updater. The comparison covers the
-entire Tauri directory, including Android, iOS, Rust, and native config files.
-Changes outside that directory do not trigger a native release. If an external
-dependency or build-script change needs a new binary, bump the native version code
-in the Tauri directory as part of that change.
+entire Tauri directory, including Android, iOS, Rust, and native config files,
+plus one signal outside it: the `version` of the client cache wasm package in
+`crates/client/cache-wasm/Cargo.toml`. The app compiles the client cache
+crates natively, and the team bumps that version when a cache change must
+ship, so a bump since the baseline release counts as a native change (other
+edits under `crates/client` do not). Other changes outside the Tauri
+directory do not trigger a native release. If an external dependency or
+build-script change needs a new binary, bump the native version code in the
+Tauri directory as part of that change.
 
 Failed/incomplete artifact uploads do not advance the baseline. A rerun whose
 release already has complete artifacts skips rebuilding; retry a failed Play
