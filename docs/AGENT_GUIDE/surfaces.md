@@ -2888,6 +2888,11 @@ after the feature shipped gets a card; older invitations render as plain email.
 A newly arrived scheduling update shows RSVP and Join only once its calendar state has
 been checked. A series invitation shows its current or next live occurrence.
 
+Descriptions render sanitized rich text, including emphasis, links, and lists.
+Plain-text line breaks and literal angle brackets (such as `<bob@example.com>`)
+remain readable. Use `Show more` / `Show less` to expand or collapse the description;
+description links use the host's normal link-opening behavior.
+
 A connected, resolved invitation shows the responding address and Yes / Maybe / No.
 Calendars connected through a linked inbox also resolve here, using that inbox's
 address for responses. Access is limited to the delegated inbox; another inbox owned
