@@ -444,6 +444,14 @@ Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled`
 shows `Connect your email` (Gmail/Google Workspace OAuth) — most functionality needs a
 connected account. Search is `Ctrl+F` within the surface.
 
+Sender names use each message's `From` display name, falling back to the
+address-book name when it is absent. Multiple people or bots sending through
+one address (such as GitHub notifications) retain distinct names within and
+across threads. Verify in Mail and in Search with the Email filter and an empty
+query: load more threads from the same address, then check that existing row
+names and their hover cards do not change. Repeat with a text query to exercise
+the search-service results.
+
 `Favorites`, directly below Noise, lists starred Macro emails across Signal,
 Noise, and archived mail. It respects the selected inboxes and filters; search
 within the tab is also restricted to favorites. Removing a star removes the row
