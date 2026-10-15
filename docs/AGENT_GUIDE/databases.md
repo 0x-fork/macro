@@ -15,7 +15,9 @@ it before the module loads cancels creation.
 A successful create opens its new editor while database discovery refreshes in
 the background; a slow discovery refresh must not delay the new database card.
 Databases open at
-`/app/database/<uuid>`. A database contains tables; records belong to a table and
+`/app/database/<uuid>`; from Drive (its list, favorites, or **New → Database**)
+they open inline at `/app/drive/database/<uuid>` with Drive's sidebar in place.
+A database contains tables; records belong to a table and
 its properties describe each record. The database name in the split header is an
 inline input for editors: click it to rename. Enter or leaving it saves; Escape
 cancels, and a failed rename shows a toast. Viewers without edit access see the

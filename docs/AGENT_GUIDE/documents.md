@@ -149,7 +149,10 @@ flag in every environment. Team targeting is configured in PostHog; ordinary
 document permissions continue to control access to each workbook.
 
 Choose **Create → Spreadsheet**, or **New → Spreadsheet** in Files or a folder.
-Native workbooks open at `/app/spreadsheet/<uuid>` and use the normal document
+From Files the new workbook opens inline in the open folder or tab
+(`/app/drive/.../spreadsheet/<uuid>`) without reloading Drive.
+`/app/spreadsheet/<uuid>` links redirect into Drive on desktop. Native workbooks
+use the normal document
 title bar with **Ask Macro** and **Share** at the top right. The **File actions**
 ellipsis beside the title uses the same menu as documents, including rename,
 favorite, move, copy, and permission-appropriate file actions. Native spreadsheets
