@@ -138,6 +138,7 @@ async fn append_system_event<B: entity_registry::BotFacts + 'static>(
             agent_session_id,
             user_id: None,
             content: Message::ToServer(ToServerMessage::Event { event }),
+            logged_at: None,
         },
     )
     .await
@@ -900,6 +901,7 @@ async fn log_create_and_list_by_session_orders_chronologically(pool: PgPool) {
             content: Message::ToServer(ToServerMessage::Event {
                 event: SystemEvent::AcpReady,
             }),
+            logged_at: None,
         },
     )
     .await
@@ -919,6 +921,7 @@ async fn log_create_and_list_by_session_orders_chronologically(pool: PgPool) {
             agent_session_id: session_id,
             user_id: None,
             content: Message::ToRuntime(ToRuntimeMessage::Acp(acp_notification())),
+            logged_at: None,
         },
     )
     .await
@@ -1621,6 +1624,7 @@ fn fenced_log(id: AgentSessionId) -> AgentSessionLog {
         agent_session_id: id,
         user_id: None,
         content: Message::ToRuntime(ToRuntimeMessage::Acp(acp_notification())),
+        logged_at: None,
     }
 }
 
@@ -1642,6 +1646,7 @@ fn cursor_checkpoint_log(id: AgentSessionId, run: &str) -> AgentSessionLog {
             )
             .expect("valid checkpoint notification"),
         ))),
+        logged_at: None,
     }
 }
 
@@ -2293,6 +2298,7 @@ async fn participants_are_the_distinct_users_the_log_attributes(pool: PgPool) {
                 agent_session_id: session_id,
                 user_id: user,
                 content: Message::ToRuntime(ToRuntimeMessage::Acp(acp_notification())),
+                logged_at: None,
             },
         )
         .await
@@ -2787,6 +2793,7 @@ async fn create_batch_fenced_writes_in_order_under_the_given_ids(pool: PgPool) {
             )
             .unwrap(),
         ))),
+        logged_at: None,
     };
     let frames: Vec<AgentSessionLog> = ["one", "two", "three"].into_iter().map(streamed).collect();
     let ids: Vec<Uuid> = (0..frames.len())

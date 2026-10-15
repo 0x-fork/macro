@@ -5,6 +5,15 @@ User-sent messages in chat and agent transcripts use an ink-colored bubble with
 lighter bubble with the normal text palette. Preview Markdown and controls at
 `/app/debug/ui?ui=invert-util` under **User-sent AI message**.
 
+A prompt shows a quiet line under its bubble (`data-testid="prompt-footer"`):
+when it was posted, and, for a prompt delivered from elsewhere (a mention, a
+follow-up in a discussion, an assigned task, a handoff, a routine run), where
+it came from, such as `via @mention in #eng · 2:02 PM`. A prompt typed in the
+session shows only its time. Click the origin to open that place: the message
+in its channel or comment thread, the task, the email, the call, the routine,
+or the session that handed the work off. The context the agent was given stays
+hidden. A prompt still sending shows no line until the log confirms it.
+
 ## Connecting an app from an agent session
 
 When existing tools cannot handle a request, agent sessions can use

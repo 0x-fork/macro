@@ -956,6 +956,7 @@ where
                 content: Message::ToServer(ToServerMessage::Event {
                     event: SystemEvent::Disconnected,
                 }),
+                logged_at: None,
             }),
         )
         .await
@@ -978,6 +979,7 @@ where
                 agent_session_id: id,
                 user_id: None,
                 content: Message::ToServer(message),
+                logged_at: None,
             })
             .await?;
             logs.flush().await
