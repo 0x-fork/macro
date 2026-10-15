@@ -2075,6 +2075,19 @@ the toggle to dismiss it; the open state is not restored on a later visit.
 It copies the record's direct URL and shows a confirmation toast; this is also
 available in the embedded company and contact breadcrumb header.
 
+The Team, Emails, Files, Tasks, and Calls tabs share a compact toolbar: search on
+the left, with available filters and actions on the right. Search remains visible
+for empty lists. `Add contact` and `New task` match the project task list's
+creation button: a rounded outline, standard height, and leading plus icon.
+The associated-tab search fields match the creation buttons' height.
+Team rows show a profile photo when available, otherwise a
+letter avatar at the same 16px size as channel list icons. Team uses the same Soup
+row component as Emails, Files, and Calls: the avatar, name, and email are inline,
+the last-contacted timestamp sits at the right, and the side gutters and row
+spacing match. There is no column-heading row.
+Emails, Files, and Calls search the loaded row titles and supporting text and
+continue loading pages when the current pages have no match.
+
 A company is laid out like a project. Its split header or embedded breadcrumb
 header shows inset `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
 tabs, collapsing to icons when narrow. Overview shows the name, pills
