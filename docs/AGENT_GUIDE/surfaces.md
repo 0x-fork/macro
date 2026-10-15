@@ -2001,9 +2001,15 @@ On desktop, the local sidebar uses the same navigation primitives as Email and T
 Its **New** menu creates a **Company**, a **Contact**, or a **Pipeline** (Pipeline
 only when pipelines are enabled; disabled until the team's CRM is enabled). The
 **Records** section lists **Companies** and **People**; Pipelines and Lists follow.
-There are no built-in company views or Board/List layout: Companies and People
+There are no built-in company views or Board/List layout. Companies and People
 are plain soup lists with the shared pagination. Existing personal/team saved
 views stay in the toolbar's Views menu.
+
+The selected Customers tab is stored on the pane as `sN.crm.tab`. People uses
+`people`, a pipeline uses `pipeline:<uuid>`, a list uses `list:<uuid>`, and
+hidden companies use `hidden`. Companies is the default and omits the key.
+Choosing Companies, People, a pipeline, or a list updates that parameter.
+Browser Back and Forward restore the tab and close an open record.
 
 Companies lists every visible company, grouped by Stage by default, with Owner,
 Revenue and Last Interaction columns. A Stage column is off by default; turn it
