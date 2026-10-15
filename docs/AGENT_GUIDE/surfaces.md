@@ -2150,10 +2150,13 @@ Choose **New pipeline**, enter a name in the dialog's first row, pick
 **Companies** (the default) or **Contacts** from the record-type pill, and tick
 **Share with my team** to share it (unticked keeps it private). **Create
 pipeline** or Command-Enter submits. Creating opens the pipeline's
-editable table. Team members can edit shared pipelines; the creator owns them
-and can change access later through the standard **Share** dialog. Under
-**Team access**, choose **Edit** to share with the team or **None** to make the
-pipeline private. **Copy Link** copies a CRM link that opens this pipeline for
+editable table. Team members can edit shared pipelines; the creator owns them.
+Anyone who can edit a pipeline can share it from the standard **Share** dialog.
+Pick people or channels and an access level, and the message carries the pipeline.
+The **People** list changes or removes their access. A teammate who receives a private
+pipeline sees it in their Customers sidebar. Only the owner sees **Team access**:
+choose **Edit** to share with the team or **None** to make the pipeline private.
+Viewers see only **Copy Link**. **Copy Link** copies a CRM link that opens this pipeline for
 anyone who has access; pasted into an editor it becomes a pipeline mention (see
 [CRM pipeline mentions](documents.md#crm-pipeline-mentions)). On mobile, team
 access is in the **Team** tab.
