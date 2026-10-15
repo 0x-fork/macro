@@ -14,7 +14,14 @@ BEGIN
     RAISE EXCEPTION 'compute_query_id is off; review the RDS configuration separately';
   END IF;
 END $$;
+-- RDS engine upgrades can leave older extension views installed. PostgreSQL 17+
+-- exporters need the shared/local I/O columns supplied by the current views.
+BEGIN;
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '15s';
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+ALTER EXTENSION pg_stat_statements UPDATE;
+COMMIT;
 -- Allow bounded concurrent health, statement and activity collection.
 ALTER ROLE grafana_monitor CONNECTION LIMIT 8;
 -- Confirm statistics visibility without reading application rows.

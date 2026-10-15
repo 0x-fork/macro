@@ -35,15 +35,23 @@ separately before expanding it.
    SELECT on application tables.
    `pg_monitor` can read activity/query information, so treat this credential as
    sensitive.
+   Timeouts and read-only defaults come from the role; the connection URI keeps
+   TLS verification and connection timeout settings without libpq `options`.
 3. On the same dev writer / macrodb connection, run
    `psql --file query-monitoring.sql`. It checks `pg_stat_statements` is already
    preloaded and query IDs are enabled, installs the standard extension if needed,
+   updates its SQL views/functions to the installed engine's default version,
    and raises the monitoring role's connection limit from five to eight. The
    extension and role changes replicate; do not run this on the reader. It does
    not reset query statistics or change RDS settings. If the preload check fails,
    review the existing RDS parameter group and plan a reboot separately; this
    stack never restarts the database. Confirm the extension is visible on both
    endpoints before starting Alloy.
+   Review custom extension-view consumers before upgrading: old I/O column names
+   and object-specific grants can change. RDS can retain an older extension version
+   after an engine upgrade; dev PostgreSQL 18 required version 1.12 for the
+   exporter's shared/local I/O columns. The SQL update uses bounded lock/statement
+   timeouts and does not reset statistics.
 4. Save that password in Doppler `observability/dev` as
    `GRAFANA_POSTGRES_PASSWORD` and an AWS-managed-key Secrets Manager secret in
    Virginia with JSON shape `{"password":"..."}`. Use the existing raw-string
@@ -129,6 +137,10 @@ writer and replica must be collected separately.
 
 Alloy samples `pg_stat_activity` every 15 seconds, emitting query samples and
 wait events as observed queries end or change state. Short queries can be missed.
+Sample/wait records use collection time as their Loki timestamp; original timing
+fields remain in the body. Old idle sessions can retain query-start times beyond
+Loki's acceptance window, so forwarding those timestamps could reject a batch
+containing fresh observations.
 `disable_query_redaction = false` omits raw SQL from activity samples; SQL text
 comes from `pg_stat_statements`. Monitoring/system users and system databases
 are excluded. The pipeline drops non-DML SQL associations because utility

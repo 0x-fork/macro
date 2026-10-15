@@ -228,6 +228,22 @@ loki.relabel "replica" {
 
 loki.process "database_queries" {
 	forward_to = [loki.write.ohio.receiver]
+	// Activity records are observations. Idle sessions can retain a query-start
+	// timestamp older than Loki accepts; preserve durations in the log body.
+	stage.match {
+		selector = "{job=\"integrations/postgres-queries\",op=~\"query_sample|wait_event\"}"
+
+		stage.template {
+			source   = "observed_at"
+			template = "{{ now | unixEpoch }}"
+		}
+
+		stage.timestamp {
+			source            = "observed_at"
+			format            = "Unix"
+			action_on_failure = "skip"
+		}
+	}
 	// pg_stat_statements normalizes DML, but utility statements can retain literals.
 	// Keep only DML associations and activity/wait samples; SQL is never a stream label.
 	stage.match {
