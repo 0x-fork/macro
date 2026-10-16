@@ -185,7 +185,11 @@ current choices. Agents add the same dropdowns with `EditSpreadsheet`'s
 Every cell with a dropdown (from the dialog, an agent, or an Excel list rule) shows
 a small arrow at its right edge; clicking it selects the cell and opens its
 choices. The selected cell's arrow sits just outside its right edge (**Choose a
-value for B2**); click it or press Alt+Down. Typing a value the rule does not allow
+value for B2**); click it or press Alt+Down. The list opens below the cell, or
+above or beside it when there is no room, without covering the cell or dimming the
+sheet. Up/Down and Enter pick a choice and Escape closes it. While a list is open,
+one click or tap on another dropdown cell opens that cell's list; any other cell
+closes it. Typing a value the rule does not allow
 shows the rule's message in the footer, and a "stop" rule keeps the previous value.
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.

@@ -281,6 +281,16 @@ export function SpreadsheetGrid(props: {
         column >= bounds.left &&
         column <= bounds.right
     );
+  const opensListOnPress = (position: CellPosition) =>
+    listOpenAt() !== undefined &&
+    listOpenAt() !== cellAddress(position) &&
+    hasDropdown(position.row, position.column);
+  /** Pressing a cell closes an open list, or opens that dropdown cell's list. */
+  function closeOrMoveList(position: CellPosition, extend = false) {
+    const opens = !extend && opensListOnPress(position);
+    setListOpenAt(undefined);
+    if (opens) queueMicrotask(() => setListOpenAt(cellAddress(position)));
+  }
   const [selectedDrawing, setSelectedDrawing] = createSignal<string>();
   const [resizing, setResizing] = createSignal<{
     column: number;
@@ -644,6 +654,7 @@ export function SpreadsheetGrid(props: {
         time - lastTap.time <= 500 &&
         cellAddress(props.selection.anchor) === address &&
         cellAddress(props.selection.focus) === address;
+      closeOrMoveList(position);
       props.onSelect(position);
       if (repeat && !props.readonly) {
         props.onEdit();
@@ -1775,6 +1786,7 @@ export function SpreadsheetGrid(props: {
                               false;
                             if (keepReferenceFocus) return;
                             dragging = true;
+                            closeOrMoveList({ row, column }, event.shiftKey);
                             props.onSelect({ row, column }, event.shiftKey);
                             focusGrid();
                           }}
@@ -2099,10 +2111,28 @@ export function SpreadsheetGrid(props: {
                       setListOpenAt(open ? address() : undefined)
                     }
                     style={{
-                      left: `${columnOffsets()[props.selection.anchor.column + 1] + 1}px`,
-                      top: `${rowOffsets()[props.selection.anchor.row + 1] - size()}px`,
-                      width: `${size()}px`,
-                      height: `${size()}px`,
+                      left: `${columnOffsets()[props.selection.anchor.column]}px`,
+                      top: `${rowOffsets()[props.selection.anchor.row]}px`,
+                      width: `${columnOffsets()[props.selection.anchor.column + 1] - columnOffsets()[props.selection.anchor.column] + 1 + size()}px`,
+                      height: `${rowHeights()[props.selection.anchor.row]}px`,
+                    }}
+                    buttonSize={size()}
+                    onPointerDownOutside={(event) => {
+                      const cell =
+                        event.target instanceof Element
+                          ? event.target.closest<HTMLElement>('[data-address]')
+                          : null;
+                      const position =
+                        cell && grid.contains(cell)
+                          ? parseCellAddress(cell.dataset.address ?? '')
+                          : undefined;
+                      // That cell's press handler opens its list instead.
+                      if (
+                        position &&
+                        !event.detail.isContextMenu &&
+                        opensListOnPress(position)
+                      )
+                        event.preventDefault();
                     }}
                     onPick={(item) => props.onPickListItem?.(item)}
                     onRestoreFocus={focusGrid}

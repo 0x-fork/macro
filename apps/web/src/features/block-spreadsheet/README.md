@@ -378,6 +378,9 @@ Import keeps what Excel calculates and shows:
   rejects the entry, warnings and information accept it, and each shows the
   rule's message in the footer. List rules offer their values in a dropdown on the
   active cell (Alt+Down), and every cell they cover shows an arrow that opens it.
+  `components/CellListMenu.tsx` anchors the non-modal list to the cell: below it,
+  or above or beside it when there is no room, never over it. While a list is
+  open, pressing another dropdown cell opens that cell's list instead.
   `components/DropdownDialog.tsx` (Format and data → Dropdown…, or the cell menu)
   adds, edits and removes list rules on the selection through
   `packages/spreadsheet/src/data-validation.ts`, which the AI `set_dropdown` and

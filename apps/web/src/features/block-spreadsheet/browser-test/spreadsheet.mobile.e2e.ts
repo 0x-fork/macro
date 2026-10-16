@@ -280,6 +280,43 @@ test('touch formatting and sheet navigation preserve workbook state', async ({
   await expect(addressBar(page)).toHaveValue('A2');
 });
 
+test('tapping another dropdown cell moves the open list there, and other cells close it', async ({
+  page,
+}) => {
+  for (const address of ['C4', 'C2']) {
+    await cell(page, address).tap();
+    await tapMenu(page, 'Format and data', 'Dropdown…');
+    const dialog = page.getByRole('dialog', { name: 'Dropdown' });
+    await dialog
+      .getByRole('textbox', { name: 'Choices, one per line' })
+      .fill('Low\nMedium\nHigh');
+    await button(page, 'Save').tap();
+    await expect(dialog).toBeHidden();
+  }
+  const list = page.getByRole('menu');
+  const marker = (address: string) =>
+    cell(page, address).locator('[data-dropdown-marker]');
+
+  await marker('C4').tap();
+  await expect(list).toBeVisible();
+  await cell(page, 'C2').tap();
+  await expect(button(page, 'Choose a value for C2')).toHaveAttribute(
+    'aria-expanded',
+    'true'
+  );
+  await list.getByRole('menuitem', { name: 'High' }).tap();
+  await expect(list).toBeHidden();
+  await expect(cell(page, 'C2')).toHaveText('High');
+
+  await marker('C4').tap();
+  await expect(list).toBeVisible();
+  await cell(page, 'E8').tap();
+  await expect(list).toBeHidden();
+  await cell(page, 'C4').tap();
+  await expect(cell(page, 'C4')).toHaveAttribute('aria-selected', 'true');
+  await expect(list).toBeHidden();
+});
+
 test('viewer touch controls keep editing disabled while allowing selection and downloads', async ({
   page,
 }) => {
