@@ -377,6 +377,15 @@ compare formula, error, and formatting behavior before replacing it.
   numbers in the `date` format (formula results only from the year 2000 on, so day
   counts stay numbers). A cell holding one `<m-date-mention>` pill calculates as
   that local calendar date.
+  Results shown as a calendar date (not a time) carry `date: true`. Editing such a
+  literal cell, or any cell under a date validation rule, without typing
+  (double-click, double-tap, Enter or F2) opens `components/CellDatePicker.tsx`
+  below the editor in the shared `EditorPopup`, so the editor keeps focus. The
+  grid sends it arrows (a day or a week), Page Up/Down (a month, Shift a year),
+  Enter (pick and move down) and Escape (close); typing closes it. A picked day
+  goes through the normal commit and validation, written the way the cell stores
+  dates (`core/cell-date.ts`): a serial keeps its time of day, a date pill stays a
+  pill, ISO text stays ISO, and other text becomes month/day/year.
   Plain text treats formula-looking input literally. Wrapped rows grow to 160px at
   100% zoom; larger content remains available in the formula bar/editor.
 - Internal copying preserves formatting and translates relative/mixed references
@@ -443,6 +452,7 @@ Import keeps what Excel calculates and shows:
   rejects the entry, warnings and information accept it, and each shows the
   rule's message in the footer. List rules offer their values in a dropdown on the
   active cell (Alt+Down), and every cell they cover shows an arrow that opens it.
+  Date rules open the date calendar on their cells, empty ones included.
   `components/CellListMenu.tsx` anchors the non-modal list to the cell: below it,
   or above or beside it when there is no room, never over it. While a list is
   open, pressing another dropdown cell opens that cell's list instead.
@@ -591,6 +601,7 @@ The [browser fixture](browser-test/README.md) runs the composed editor with real
 calculation and Excel workers. Its Playwright suite covers formula autocomplete
 and range picking, dragging a selection to move it, menu/dialog focus, sheet navigation, read-only transitions,
 Excel round trips, imported conditional formatting, data validation and notes,
+date cell calendars,
 imported charts and images (following edits, Delete and undo, and download),
 radar, bubble, stock and contour charts, shapes, SmartArt and EMF images,
 workbook import undo, and formatting without remounts or flashes.

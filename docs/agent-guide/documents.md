@@ -203,6 +203,19 @@ shows the rule's message in the footer, and a "stop" rule keeps the previous val
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.
 
+Double-clicking a cell that holds a date (typed, imported or a date pill, but not
+a formula), or pressing Enter or F2 on it, opens a calendar below its editor; an
+Excel date validation rule opens it on its cells even when they are empty,
+starting at today. The editor keeps focus: arrows move the outlined day by a day
+or a week, Page Up and Page Down by a month (with Shift, a year), Enter writes the
+day and moves down, and Escape closes the calendar (a second Escape cancels the
+edit). Clicking a day writes it and keeps the cell selected. Typing closes the
+calendar and edits the text as usual. The day is written the way the cell stores
+dates, so its format stays: a serial number keeps its time of day, a date pill
+stays a pill and ISO text stays ISO. The calendar is `[data-cell-date-picker]`;
+its days are `gridcell` buttons marked `data-active` (the keyboard's day),
+`data-selected` (the cell's date) and `data-today`.
+
 Images and charts (column, bar, line and area, each clustered, stacked or
 100% stacked, plus pie, doughnut, scatter, combo, radar, bubble, stock and
 surface, drawn as a contour) are drawn over their cells and move with them;

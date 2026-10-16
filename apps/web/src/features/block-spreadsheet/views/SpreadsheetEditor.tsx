@@ -52,6 +52,7 @@ import {
 } from '../components/SpreadsheetWorkbookDialogs';
 import type { SpreadsheetCommentsCapability } from '../context/spreadsheet-comments';
 import type { SpreadsheetMentions } from '../context/spreadsheet-mentions';
+import { cellDateInput, serialDay } from '../core/cell-date';
 import { cellEditValue } from '../core/cell-input';
 import { chartData, createChartReader } from '../core/chart-data';
 import { encodeCsv } from '../core/csv-export';
@@ -365,6 +366,17 @@ export function SpreadsheetEditor(props: {
     spreadsheetCursors(props.store.peers(), props.store.rowCount())
   );
   const activeCell = () => props.store.cells()[grid.activeAddress()];
+  // A calendar edits literal dates, and any value of a date-validated cell.
+  const activeDatePicker = createMemo(() => {
+    const cell = activeCell();
+    if (cell?.value.startsWith('=') && cell.format !== 'text') return;
+    const result = values()[grid.activeAddress()];
+    const date =
+      result?.date && result.number !== undefined
+        ? serialDay(result.number)
+        : undefined;
+    if (date || activeValidation()?.type === 'date') return { date };
+  });
   const footerNotice = () =>
     workbookActions.busy() ||
     workbookActions.notice() ||
@@ -1083,6 +1095,12 @@ export function SpreadsheetEditor(props: {
                 value: item.startsWith('=') ? `'${item}` : item,
               },
             });
+          }}
+          datePicker={activeDatePicker()}
+          onPickDate={(day) => {
+            if (day.getTime() !== activeDatePicker()?.date?.getTime())
+              grid.setDraft(cellDateInput(activeCell()?.value ?? '', day));
+            grid.commit();
           }}
           pendingFormulas={
             calculation.busy() &&

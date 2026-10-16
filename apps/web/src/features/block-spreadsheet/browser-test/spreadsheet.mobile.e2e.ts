@@ -195,6 +195,27 @@ test('touch taps select, edit, apply, and cancel cell drafts', async ({
   await expect(formulaBar(page)).toHaveValue('42');
 });
 
+test('editing a date cell by touch opens its calendar, and a tapped day is written', async ({
+  page,
+}) => {
+  await cell(page, 'C2').tap();
+  await cell(page, 'C2').tap();
+  await page.getByRole('textbox', { name: 'Edit C2' }).fill('10/16/2026');
+  await button(page, 'Apply edit').tap();
+  await expect(cell(page, 'C2')).toHaveText('10/16/2026');
+
+  await cell(page, 'C2').tap();
+  await cell(page, 'C2').tap();
+  const picker = page.locator('[data-cell-date-picker]');
+  await expect(picker).toBeVisible();
+  await expectInsideViewport(page, picker);
+  await picker
+    .getByRole('gridcell', { name: '20', exact: true, disabled: false })
+    .tap();
+  await expect(cell(page, 'C2')).toHaveText('10/20/2026');
+  await expect(picker).toBeHidden();
+});
+
 test('selection handles extend a range (WebKit drag uses a mouse pointer)', async ({
   page,
   browserName,

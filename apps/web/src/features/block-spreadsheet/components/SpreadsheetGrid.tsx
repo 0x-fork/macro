@@ -54,6 +54,7 @@ import {
 } from '../core/spreadsheet-document';
 import type { SpreadsheetCursor } from '../core/spreadsheet-presence';
 import type { CompleteFormula } from '../primitives/create-formula-assistance';
+import { CellDatePicker, datePickerKeyDay } from './CellDatePicker';
 import { CellListMenu } from './CellListMenu';
 import { ChoiceChip } from './ChoiceChip';
 import { ConditionalIcon } from './ConditionalIcon';
@@ -210,6 +211,9 @@ export function SpreadsheetGrid(props: {
   /** The active cell's list of allowed values, offered in a dropdown. */
   listItems?: string[];
   onPickListItem?: (item: string) => void;
+  /** The active cell offers a calendar while it is edited; `date` is its day. */
+  datePicker?: { date?: Date };
+  onPickDate?: (day: Date) => void;
   /**
    * Dropdown rules: their ranges (Excel sqrefs), whose cells show an arrow,
    * and their choice colors by lowercase text.
@@ -288,6 +292,27 @@ export function SpreadsheetGrid(props: {
     !props.editing &&
     !props.formulaEditing &&
     !!props.listItems?.length;
+  // Opening an editor without typing asks for a calendar, shown once the cell
+  // is known to offer one. Typing, Escape and ending the edit close it.
+  const [pickerOpen, setPickerOpen] = createSignal(false);
+  // The day its keys moved to; it starts at the cell's day, or today.
+  const [pickerDay, setPickerDay] = createSignal<Date>();
+  const shownPickerDay = () => {
+    if (!props.editing || !pickerOpen() || !props.datePicker) return;
+    const now = new Date();
+    return (
+      pickerDay() ??
+      props.datePicker.date ??
+      new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    );
+  };
+  function openDatePicker() {
+    setPickerDay(undefined);
+    setPickerOpen(props.editing);
+  }
+  createEffect(() => {
+    if (!props.editing) setPickerOpen(false);
+  });
   const dropdownAreas = createMemo(() =>
     (props.dropdowns ?? []).map((dropdown) => ({
       bounds: sqrefBounds(dropdown.range),
@@ -695,6 +720,7 @@ export function SpreadsheetGrid(props: {
       props.onSelect(position);
       if (repeat && !props.readonly) {
         props.onEdit();
+        openDatePicker();
         // iOS may synthesize mousedown on the old cell after mounting its editor.
         keepReferenceFocus = true;
         lastTap = undefined;
@@ -1042,6 +1068,8 @@ export function SpreadsheetGrid(props: {
   function editKeyDown(event: KeyboardEvent) {
     event.stopPropagation();
     if (event.isComposing) return;
+    const day = shownPickerDay();
+    if (day && datePickerKeyDown(event, day)) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       props.onCancel();
@@ -1059,6 +1087,28 @@ export function SpreadsheetGrid(props: {
       focusGrid();
       revealSelection();
     }
+  }
+
+  /** Keys of an open date picker. Others, such as typing, stay the editor's. */
+  function datePickerKeyDown(event: KeyboardEvent, day: Date) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setPickerOpen(false);
+      return true;
+    }
+    if (event.key === 'Enter' && !event.altKey) {
+      event.preventDefault();
+      props.onPickDate?.(day);
+      props.onMove(event.shiftKey ? -1 : 1, 0);
+      focusGrid();
+      revealSelection();
+      return true;
+    }
+    const next = datePickerKeyDay(event, day);
+    if (!next) return false;
+    event.preventDefault();
+    setPickerDay(next);
+    return true;
   }
 
   function copyCells(event: ClipboardEvent) {
@@ -1337,6 +1387,7 @@ export function SpreadsheetGrid(props: {
               (event.metaKey || event.ctrlKey) &&
               event.key.toLowerCase() === 'a';
             props.onKeyDown(event);
+            if (event.key === 'Enter' || event.key === 'F2') openDatePicker();
             // Select all ends at the last cell; revealing it would scroll away
             // from the cells the user is looking at.
             if (
@@ -1878,8 +1929,9 @@ export function SpreadsheetGrid(props: {
                             else dragging = false;
                           }}
                           onDblClick={() => {
-                            if (!touchMode() && !props.referenceSelection)
-                              props.onEdit();
+                            if (touchMode() || props.referenceSelection) return;
+                            props.onEdit();
+                            openDatePicker();
                           }}
                         >
                           <Show when={look()?.dataBar}>
@@ -1999,7 +2051,10 @@ export function SpreadsheetGrid(props: {
                                     : 'text-left'
                               }`}
                               value={props.draft}
-                              onInput={props.onDraft}
+                              onInput={(value) => {
+                                setPickerOpen(false);
+                                props.onDraft(value);
+                              }}
                               onKeyDown={editKeyDown}
                               onBlur={() => {
                                 if (props.editing) props.onCommit();
@@ -2265,6 +2320,30 @@ export function SpreadsheetGrid(props: {
                   />
                 );
               }}
+            </Show>
+            <Show when={shownPickerDay()}>
+              {(day) => (
+                <Show
+                  when={renderedSelectionCell(grid, {
+                    anchor: props.selection.anchor,
+                    focus: props.selection.anchor,
+                  })}
+                >
+                  {(anchor) => (
+                    <CellDatePicker
+                      anchor={anchor()}
+                      value={props.datePicker?.date}
+                      day={day()}
+                      onDayChange={setPickerDay}
+                      onPick={(picked) => {
+                        props.onPickDate?.(picked);
+                        focusGrid();
+                      }}
+                      onDismiss={() => setPickerOpen(false)}
+                    />
+                  )}
+                </Show>
+              )}
             </Show>
             <Show
               when={
