@@ -242,6 +242,80 @@ test('lays accounting figures across the cell with parentheses, dashes and digit
   ).toBeLessThanOrEqual(1);
 });
 
+test('reads typed partial dates as dates and restyles them from Date formats', async ({
+  page,
+}) => {
+  for (const [address, value, shown] of [
+    ['F2', '01/2026', 'Jan 2026'],
+    ['F3', 'Jan 01 2026', 'Jan 01, 2026'],
+    ['F4', '1/1/26', '1/1/2026'],
+    ['F5', '=F2+31', '2/1/2026'],
+  ]) {
+    await page.locator(`[data-address="${address}"]`).dblclick();
+    const editor = page.getByRole('textbox', {
+      name: `Edit ${address}`,
+      exact: true,
+    });
+    await editor.fill(value);
+    await editor.press('Enter');
+    await expect(page.locator(`[data-address="${address}"]`)).toHaveText(shown);
+  }
+  const saved = await page.evaluate(
+    () => window.spreadsheetFixture.snapshot()[0].cells
+  );
+  expect(saved.F2).toEqual({
+    value: '46023',
+    format: 'date',
+    numberFormat: 'mmm yyyy',
+  });
+  await page.locator('[data-address="F2"]').click();
+  await expect(
+    page.getByRole('textbox', { name: 'Formula bar', exact: true })
+  ).toHaveText('1/1/2026');
+
+  await page.locator('[data-address="F4"]').click({ modifiers: ['Shift'] });
+  await page
+    .getByRole('button', { name: 'Number format', exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', { name: 'Date formats', exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', {
+      name: 'Thursday, September 17, 2026',
+      exact: true,
+    })
+    .click();
+  await expect(page.getByRole('grid', { name: 'Spreadsheet' })).toBeFocused();
+  await expect(page.locator('[data-address="F3"]')).toHaveText(
+    'Thursday, January 1, 2026'
+  );
+
+  await page
+    .getByRole('button', { name: 'Number format', exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', { name: 'Date formats', exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', { name: 'Custom date and time…', exact: true })
+    .click();
+  const code = page.getByRole('textbox', { name: 'Format code', exact: true });
+  await expect(code).toHaveValue('dddd, mmmm d, yyyy');
+  await code.fill('d mmmm yyyy');
+  await expect(page.getByRole('status')).toHaveText('Preview: 1 January 2026');
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
+  await expect(page.getByRole('grid', { name: 'Spreadsheet' })).toBeFocused();
+  for (const address of ['F2', 'F3', 'F4'])
+    await expect(page.locator(`[data-address="${address}"]`)).toHaveText(
+      '1 January 2026'
+    );
+  expect(
+    (await page.evaluate(() => window.spreadsheetFixture.snapshot()[0].cells))
+      .F4
+  ).toEqual({ value: '46023', format: 'date', numberFormat: 'd mmmm yyyy' });
+});
+
 test('edits formula-bar text and formulas directly with the production mention editor enabled', async ({
   page,
 }) => {

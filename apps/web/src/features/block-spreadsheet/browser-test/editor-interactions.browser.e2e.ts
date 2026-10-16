@@ -199,11 +199,16 @@ test('drag fill continues numbers and month-end dates and undo restores the empt
     page.getByRole('button', { name: 'Drag to fill selection' }),
     page.locator('[data-address="E4"]')
   );
+  await expect(page.locator('[data-address="E3"]')).toHaveText('2026-03-31');
+  await expect(page.locator('[data-address="E4"]')).toHaveText('2026-04-30');
   const cells = await page.evaluate(
     () => window.spreadsheetFixture.snapshot()[0].cells
   );
-  expect(cells.E3.value).toBe('2026-03-31');
-  expect(cells.E4.value).toBe('2026-04-30');
+  expect(cells.E4).toEqual({
+    value: '46142',
+    format: 'date',
+    numberFormat: 'yyyy-mm-dd',
+  });
 });
 
 test('types a spaced formula, picks another sheet by pointer, and returns to the source', async ({

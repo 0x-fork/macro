@@ -14,7 +14,7 @@ import {
   rangeCopies,
   readCopiedRange,
 } from '../core/cell-copy';
-import { cellEditValue, normalizeCellInput } from '../core/cell-input';
+import { cellEditValue, cellInputEdit } from '../core/cell-input';
 import {
   type FormulaTextSelection,
   formulaRangeReference,
@@ -299,7 +299,7 @@ export function createGridController(source: GridSource) {
         }
       }
       const edits = {
-        [address]: { value: normalizeCellInput(value, originalCell) },
+        [address]: cellInputEdit(value, originalCell, navigator.language),
       };
       if (target && source.setSheetCells)
         source.setSheetCells(target.sheetId, edits);
@@ -342,7 +342,7 @@ export function createGridController(source: GridSource) {
       return;
     }
     originalCell = source.cells()[activeAddress()];
-    originalValue = cellEditValue(originalCell);
+    originalValue = cellEditValue(originalCell, navigator.language);
     editTarget = source.sheetId
       ? { sheetId: source.sheetId(), address: activeAddress() }
       : undefined;
@@ -464,13 +464,17 @@ export function createGridController(source: GridSource) {
     );
   }
 
-  function format(patch: Partial<SpreadsheetCell>) {
+  /** Styles `target`, by default the current selection. */
+  function format(
+    patch: Partial<SpreadsheetCell>,
+    target: CellSelection = selection()
+  ) {
     commit();
     if (!source.canEdit()) return;
     cancelPendingCopy();
     source.setCells(
       Object.fromEntries(
-        selectionAddresses(selection()).map((address) => [address, patch])
+        selectionAddresses(target).map((address) => [address, patch])
       )
     );
   }

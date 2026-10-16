@@ -407,6 +407,23 @@ describe('spreadsheet clipboard and formatting', () => {
       B1: { value: '=A1*2', format: 'percent', bold: true },
     });
   });
+
+  it('formats a captured range after the selection has moved', () => {
+    const { grid, cells } = setup({
+      A1: { value: '1' },
+      A2: { value: '2' },
+      C3: { value: '3' },
+    });
+    grid.selectRange({ row: 0, column: 0 }, { row: 1, column: 0 });
+    const captured = grid.selection();
+    grid.selectRange({ row: 2, column: 2 }, { row: 2, column: 2 });
+    grid.format({ format: 'date', numberFormat: 'yyyy-mm-dd' }, captured);
+    expect(cells()).toEqual({
+      A1: { value: '1', format: 'date', numberFormat: 'yyyy-mm-dd' },
+      A2: { value: '2', format: 'date', numberFormat: 'yyyy-mm-dd' },
+      C3: { value: '3' },
+    });
+  });
 });
 
 describe('spreadsheet read-only permissions', () => {

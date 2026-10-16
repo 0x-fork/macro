@@ -199,6 +199,36 @@ describe('Excel workbook files', () => {
     });
   });
 
+  it('exports date and time formats as their Excel codes and imports them back', async () => {
+    const sheet = simpleSheet();
+    sheet.cells = {
+      A1: { value: '46023', format: 'date', numberFormat: 'mmm yyyy' },
+      A2: { value: '46023', format: 'date', numberFormat: 'mmm dd, yyyy' },
+      A3: { value: '46023', format: 'date', numberFormat: 'mm/dd/yyyy' },
+      A4: { value: '46023', format: 'date', numberFormat: 'dd/mm/yyyy' },
+      A5: { value: '46023', format: 'date', numberFormat: 'yyyy-mm-dd' },
+      A6: {
+        value: '46023',
+        format: 'date',
+        numberFormat: 'dddd, mmmm d, yyyy',
+      },
+      A7: { value: '46023', format: 'date' },
+      A8: { value: '0.5', format: 'time', numberFormat: 'h:mm AM/PM' },
+    };
+    const encoded = await encodeXlsx({ sheets: [sheet] });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(encoded.bytes.slice().buffer);
+    const exported = workbook.worksheets[0];
+    expect(exported.getCell('A1').value).toEqual(
+      new Date(Date.UTC(2026, 0, 1))
+    );
+    expect(exported.getCell('A1').numFmt).toBe('mmm yyyy');
+    expect(exported.getCell('A6').numFmt).toBe('dddd, mmmm d, yyyy');
+    expect(exported.getCell('A7').numFmt).toBe('m/d/yyyy');
+    const decoded = await decodeXlsx(encoded.bytes);
+    expect(decoded.sheets[0].cells).toEqual(sheet.cells);
+  });
+
   it('imports dollar formats with a repeated fill as accounting, keeping variants for export', async () => {
     const variant = '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)';
     const workbook = new ExcelJS.Workbook();

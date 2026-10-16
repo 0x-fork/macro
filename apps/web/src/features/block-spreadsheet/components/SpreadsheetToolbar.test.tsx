@@ -240,6 +240,30 @@ describe('spreadsheet toolbar', () => {
   });
 
   it.each([
+    ['Sep 2026', { style: { format: 'date', numberFormat: 'mmm yyyy' } }],
+    [
+      'Thursday, September 17, 2026',
+      { style: { format: 'date', numberFormat: 'dddd, mmmm d, yyyy' } },
+    ],
+    ['Custom date and time…', { command: 'custom-date-format' }],
+  ])('offers %s under Number format → Date formats', async (item, expected) => {
+    const view = toolbar();
+    fireEvent.keyDown(view.getByRole('button', { name: 'Number format' }), {
+      key: 'ArrowDown',
+    });
+    fireEvent.keyDown(
+      await screen.findByRole('menuitem', { name: 'Date formats' }),
+      { key: 'ArrowRight' }
+    );
+    fireEvent.keyDown(await screen.findByRole('menuitem', { name: item }), {
+      key: 'Enter',
+    });
+    if ('style' in expected)
+      expect(view.onStyle).toHaveBeenCalledWith(expected.style);
+    else expect(view.onCommand).toHaveBeenCalledWith(expected.command);
+  });
+
+  it.each([
     {
       role: 'button',
       trigger: 'Functions',

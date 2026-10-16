@@ -375,10 +375,20 @@ Formula references to mention cells use literal labels, never execute a label as
 Dates: `@tomorrow`, `@next friday` or `@sep 28` offer a **Dates** bucket and insert
 the same clock chip as docs; hover it for the full date, and edit the cell to change
 it. A cell holding only a date chip is a date value: `=A1+7` produces a date, and
-Excel export writes a dated number rather than the label. Typed dates such as
-`9/28/2026` or `2026-09-28`, `=DATE(...)`, and arithmetic on date cells display as
-dates without choosing the Date number format. A difference of two dates stays a
-plain day count, and an explicit number format from the toolbar always wins.
+Excel export writes a dated number rather than the label. Typing a date stores it
+as a date in a matching format: `01/2026` or `Jan 2026` shows `Jan 2026`,
+`Jan 01 2026` shows `Jan 01, 2026`, `2026-01-01` stays ISO and `1/1/26` shows
+`1/1/2026` (day first in day-first browser locales). The snapshot value is the
+serial (`46023`) with `format: 'date'` and a `numberFormat` such as `mmm yyyy`;
+the formula bar and cell editor show `1/1/2026`. A cell already formatted as a
+date keeps its format, and text without a year (`Jan 26`, `1/2`) stays text.
+`=DATE(...)` and arithmetic on date cells display as dates without choosing the
+Date number format. A difference of two dates stays a plain day count, and an
+explicit number format from the toolbar always wins. **Number format → Date
+formats** lists presets (`Sep 2026`, `Sep 17, 2026`, `09/17/2026`, `17/09/2026`,
+`2026-09-17`, `17 Sep 2026`, `Thursday, September 17, 2026`) and **Custom date and
+time…**, a dialog with a **Format code** field, a live `Preview:` status of the
+active cell, and **Apply** (disabled for codes that are not dates or times).
 
 CSV imports a file up to 20 MB into the selection, adding rows if needed within the
 100,000 × 16,384 limit. Existing cells in that rectangle
@@ -532,6 +542,8 @@ formulas, typed results, errors, and formatting. **CalculateSpreadsheet** evalua
 scratch formulas and what-if inputs without changing the workbook.
 **EditSpreadsheet** applies a validated batch of cell/formula/format edits, fill,
 row additions, column resizing, and sheet creation/rename/duplication/deletion.
+`format_cells` shows dates in any Excel date code with
+`{ "format": "date", "numberFormat": "mmm yyyy" }`.
 Edits require a revision from a fresh read; a concurrent change rejects the entire
 batch so the AI can reread. Tool rows expand to show the actual results and warnings.
 

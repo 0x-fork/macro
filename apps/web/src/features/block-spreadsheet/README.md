@@ -315,10 +315,26 @@ compare formula, error, and formatting behavior before replacing it.
   show in parentheses and zero as a dash. It exports as Excel's built-in accounting
   format, and imported dollar formats with a repeated fill (`*`) open as accounting.
   Date/time displays are deterministic UTC.
+  **Number format → Date formats** offers date presets (`mmm yyyy`, `mmm dd, yyyy`,
+  `mm/dd/yyyy`, `dd/mm/yyyy`, `yyyy-mm-dd`, `d mmm yyyy`, `dddd, mmmm d, yyyy`) and
+  **Custom date and time…** (`components/DateFormatDialog.tsx`), which takes any
+  Excel date or time code with a live preview. Both store the code as the cell's
+  `numberFormat` with the `date` or `time` format, so they export to Excel as that
+  code and import back unchanged.
+  Typing a date into a cell (`core/cell-dates.ts`) stores its serial number with the
+  `date` format and a code like the typed text: `01/2026` and `Jan 2026` show as
+  `Jan 2026`, `Jan 01 2026` as `Jan 01, 2026`, `2026-01-01` as `2026-01-01`, and
+  `1/1/26` in the default `m/d/yyyy`. All-numeric dates read day and month in the
+  browser locale's order, once at entry, so collaborators in other locales see the
+  same date; month and weekday names are English, and a year is required. A cell
+  that already shows dates keeps its format, Plain text keeps the typed text, and
+  API and import values stay raw. Editing a date cell shows a numeric date in the
+  locale's order that reads back as the same day.
   Cells without an explicit format honor the date/time formats IronCalc infers for
-  typed dates, `DATE()`-style results and arithmetic on date cells (formula results
-  only from the year 2000 on, so day counts stay numbers). A cell holding one
-  `<m-date-mention>` pill calculates as that local calendar date.
+  typed dates, `DATE()`-style results and arithmetic on date cells, including
+  numbers in the `date` format (formula results only from the year 2000 on, so day
+  counts stay numbers). A cell holding one `<m-date-mention>` pill calculates as
+  that local calendar date.
   Plain text treats formula-looking input literally. Wrapped rows grow to 160px at
   100% zoom; larger content remains available in the formula bar/editor.
 - Internal copying preserves formatting and translates relative/mixed references
