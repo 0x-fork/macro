@@ -21,6 +21,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import CloseIcon from '@phosphor/x.svg';
+import { Key } from '@solid-primitives/keyed';
 import { Checkbox, cn, Calendar as MiniCalendar } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { format } from 'date-fns';
@@ -153,7 +154,7 @@ function TeamOooSkeleton() {
   );
 }
 
-function TeamOooUpcomingList() {
+export function TeamOooUpcomingList() {
   const calendarPager = useCalendarPager();
   const shell = useViewShell();
   const upcoming = useUpcomingTeamOoo();
@@ -179,19 +180,22 @@ function TeamOooUpcomingList() {
           </span>
         </Match>
         <Match when={windows().length > 0}>
-          <For each={windows().slice(0, UPCOMING_SHOWN_MAX)}>
+          <Key
+            each={windows().slice(0, UPCOMING_SHOWN_MAX)}
+            by={(window) => window.event.id}
+          >
             {(window) => (
               <button
                 type="button"
                 class={cn(
                   'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs',
-                  isActive(window) ? 'bg-active' : 'hover:bg-hover'
+                  isActive(window()) ? 'bg-active' : 'hover:bg-hover'
                 )}
-                aria-current={isActive(window) ? 'true' : undefined}
+                aria-current={isActive(window()) ? 'true' : undefined}
                 onClick={(event) => {
-                  calendarPager.gotoDate(window.start);
+                  calendarPager.gotoDate(window().start);
                   calendarView.selectEvent(
-                    window.event,
+                    window().event,
                     event.currentTarget,
                     'agenda'
                   );
@@ -199,7 +203,7 @@ function TeamOooUpcomingList() {
                 }}
               >
                 <UserIcon
-                  id={window.ownerId}
+                  id={window().ownerId}
                   size="md"
                   suppressClick
                   showTooltip={false}
@@ -207,21 +211,21 @@ function TeamOooUpcomingList() {
                 <span class="flex min-w-0 flex-1 flex-col">
                   <span class="flex w-full items-baseline gap-2">
                     <span class="min-w-0 flex-1 truncate text-ink">
-                      {window.name}
+                      {window().name}
                     </span>
                     <span class="shrink-0 text-ink-muted">
-                      {windowDateLabel(window)}
+                      {windowDateLabel(window())}
                     </span>
                   </span>
-                  <Show when={window.title}>
+                  <Show when={window().title}>
                     <span class="w-full truncate text-ink-muted">
-                      {window.title}
+                      {window().title}
                     </span>
                   </Show>
                 </span>
               </button>
             )}
-          </For>
+          </Key>
           <Show when={windows().length > UPCOMING_SHOWN_MAX}>
             <span class="px-2 py-1 text-xs text-ink-muted">
               +{windows().length - UPCOMING_SHOWN_MAX} more
