@@ -205,8 +205,10 @@ Collapsible `Upcoming events` and `Calendars` sections follow; calendar
 account rows use Drive-style trailing disclosure buttons and animated nested
 branches. Their 14px visibility checkboxes precede the swatch and label, with
 separate account and individual-calendar visibility controls. `Team out of office`
-is feature-gated and lists teammates with 24px avatars; it is a plain
-collapsible section, and the grid overlay always shows. Clicking a teammate's row navigates to that
+is feature-gated and lists teammates with 24px avatars; its header has the same
+14px checkbox before the title, which shows or hides the grid overlay and is saved
+with the calendar visibility preferences. The teammate rows have no checkboxes and
+stay listed while the overlay is hidden. Clicking a teammate's row navigates to that
 date, opens read-only event details, and marks the row active. The icon-only
 `Calendar settings` control fills the sidebar footer.
 An account checkbox toggles its calendars together in one update. The checkbox
@@ -440,9 +442,9 @@ touch devices — and is hidden when you are the only guest.
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's
 `Team out of office` section (shown only when the user belongs to a team with other members)
-is a collapsible list of the next 90 days of teammate absences, with no switch: the overlay
-always shows; clicking a row navigates the grid to
-that date. Coverage depends on each teammate having connected their own calendar and using
+is a collapsible list of the next 90 days of teammate absences. The checkbox in its header
+shows or hides the overlay (the list itself always shows); clicking a row navigates the grid
+to that date. Coverage depends on each teammate having connected their own calendar and using
 Google's out-of-office event type.
 
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's

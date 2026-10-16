@@ -13,6 +13,7 @@ import {
   useHasTeammates,
   useUpcomingTeamOoo,
 } from '@app/features/calendar/hooks/use-team-ooo';
+import { TEAM_OOO_SOURCE_ID } from '@app/features/calendar/types';
 import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
 import { UserIcon } from '@core/component/UserIcon';
 import { enableCalendarTeamOoo } from '@core/constant/featureFlags';
@@ -20,7 +21,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import CloseIcon from '@phosphor/x.svg';
-import { cn, Calendar as MiniCalendar } from '@ui';
+import { Checkbox, cn, Calendar as MiniCalendar } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { format } from 'date-fns';
 import {
@@ -233,16 +234,34 @@ function TeamOooUpcomingList() {
 }
 
 function CalendarTeamOooSection() {
+  const calendarView = useCalendarView();
   const hasTeammates = useHasTeammates();
   const [open, setOpen] = createSignal(true);
 
   return (
     <Show when={hasTeammates()}>
       <CollapsibleSection.Root open={open()} onOpenChange={setOpen}>
-        <CollapsibleSection.Trigger>
-          <span class="min-w-0 truncate">Team out of office</span>
-          <CollapsibleSection.Indicator />
-        </CollapsibleSection.Trigger>
+        <CollapsibleSection.Header>
+          <Checkbox
+            checked={calendarView.isSourceVisible(TEAM_OOO_SOURCE_ID)}
+            onChange={(visible) =>
+              calendarView.setSourceVisibility(TEAM_OOO_SOURCE_ID, visible)
+            }
+            title="Show on calendar"
+            class="h-full shrink-0 pr-1 pl-(--sidebar-item-inset)"
+          >
+            <Checkbox.Control class="size-3.5 [&_svg]:size-2.5" />
+            <Checkbox.Label class="absolute inset-0">
+              <span class="sr-only">
+                Show team out of office on the calendar
+              </span>
+            </Checkbox.Label>
+          </Checkbox>
+          <CollapsibleSection.Trigger class="min-w-0 flex-1 pl-1">
+            <span class="min-w-0 truncate">Team out of office</span>
+            <CollapsibleSection.Indicator />
+          </CollapsibleSection.Trigger>
+        </CollapsibleSection.Header>
         <CollapsibleSection.Content>
           <TeamOooUpcomingList />
         </CollapsibleSection.Content>
