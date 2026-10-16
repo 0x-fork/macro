@@ -280,9 +280,12 @@ Drag across row/column headers or Shift-click a second header to select multiple
 whole rows/columns. Arrow keys then move from the selection's active cell. The
 focused grid owns typing and navigation; app navigation shortcuts do not run while
 it has focus.
-The active cell keeps a complete border while editing; a range has a shaded
-fill and an outer border. Verify selection in both drag directions and after
-scrolling, including near the last row and column.
+The active cell keeps a complete border while editing; a range has a translucent
+tint over its cells' own fills and an outer border. The active cell is never
+tinted: selected or being edited, it keeps its fill, font, text color, and
+explicit alignment (automatic alignment edits from the left, as in Excel).
+Verify selection in both drag directions and after scrolling, including near
+the last row and column.
 Only nearby rows are mounted. Use **Go to cell** or keyboard navigation to reach
 off-screen cells; verify the target is visible below the sticky column header.
 

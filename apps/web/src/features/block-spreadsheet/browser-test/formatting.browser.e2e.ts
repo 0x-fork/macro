@@ -63,6 +63,72 @@ test('formats a mixed whole column from ribbon menus without losing selection or
   await expect(top).toBeInViewport();
 });
 
+test('keeps a styled cell looking the same while it is selected, in a range and edited', async ({
+  page,
+}) => {
+  const styled = page.locator('[data-address="A2"]');
+  await styled.click();
+  await page.locator('[data-address="B2"]').click({ modifiers: ['Shift'] });
+  await choose(page, 'Fill color', 'Fill color: Blue');
+  await choose(page, 'Text color', 'Text color: Light yellow');
+  await choose(page, 'Font family', 'Serif');
+  await choose(page, 'Horizontal alignment', 'Center');
+  for (const label of [
+    'Bold',
+    'Italic',
+    'Underline',
+    'Increase font size',
+    'Increase font size',
+  ])
+    await page.getByRole('button', { name: label, exact: true }).click();
+  // Pixels inside the selection outline and clear of the fill handle.
+  const inside = async (address: string) => {
+    const box = await page.locator(`[data-address="${address}"]`).boundingBox();
+    if (!box) throw new Error(`${address} is not rendered.`);
+    return page.screenshot({
+      clip: {
+        x: box.x + 6,
+        y: box.y + 6,
+        width: box.width - 12,
+        height: box.height - 12,
+      },
+    });
+  };
+  await page.locator('[data-address="D7"]').click();
+  const unselected = await inside('A2');
+  const neighbor = await inside('B2');
+
+  await styled.click();
+  expect((await inside('A2')).equals(unselected)).toBe(true);
+
+  // A range tints the cells around the active one, over their own fill.
+  await page.locator('[data-address="B3"]').click({ modifiers: ['Shift'] });
+  expect((await inside('A2')).equals(unselected)).toBe(true);
+  expect((await inside('B2')).equals(neighbor)).toBe(false);
+  await expect(page.locator('[data-address="B2"]')).toHaveCSS(
+    'background-color',
+    'rgb(66, 133, 244)'
+  );
+
+  await styled.dblclick();
+  const editor = page.getByRole('textbox', { name: 'Edit A2', exact: true });
+  await expect(editor).toBeFocused();
+  for (const [property, value] of [
+    ['background-color', 'rgb(66, 133, 244)'],
+    ['color', 'rgb(255, 242, 204)'],
+    ['font-family', /Georgia/],
+    ['font-size', '16px'],
+    ['font-weight', '600'],
+    ['font-style', 'italic'],
+    ['text-align', 'center'],
+    ['text-decoration-line', 'underline'],
+  ] as const) {
+    await expect(styled).toHaveCSS(property, value);
+    await expect(editor).toHaveCSS(property, value);
+  }
+  expect((await inside('A2')).equals(unselected)).toBe(true);
+});
+
 test('treats direct typing and formula-bar edits as percentage points while preserving formula math', async ({
   page,
 }) => {

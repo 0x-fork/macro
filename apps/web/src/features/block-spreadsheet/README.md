@@ -262,9 +262,11 @@ Selection does not recalculate the workbook. A bounded row window mounts visible
 rows and a small buffer, keeping the active editor mounted while scrolling. Shared
 row offsets account for wrapped text, font size, and zoom. Two overlays
 draw the selected range and active cell, while Solid selectors update only
-changed cell selection attributes. Footer aggregates run outside urgent pointer
-updates, and collaborator presence is limited to ten updates per second with a
-trailing update for the final selection.
+changed cell selection attributes. The range's tint has a hole at the active
+cell, and the in-cell editor inherits the cell's fill, font and color, so a
+styled cell looks the same selected, editing and unselected. Footer aggregates
+run outside urgent pointer updates, and collaborator presence is limited to ten
+updates per second with a trailing update for the final selection.
 
 IronCalc handles formula parsing, ranges, relative and absolute references,
 dependency evaluation, functions, circular references, Excel errors, and array

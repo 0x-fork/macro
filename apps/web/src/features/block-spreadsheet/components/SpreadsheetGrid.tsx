@@ -638,6 +638,19 @@ export function SpreadsheetGrid(props: {
     width: width(props.selection.anchor.column),
     height: `${rowHeights()[props.selection.anchor.row]}px`,
   });
+  // As in Excel, the active cell shows its own fill: the range's tint has a
+  // hole there, and the active outline draws that edge.
+  const rangeClip = () => {
+    const area = bounds();
+    const { row, column } = props.selection.anchor;
+    const columns = columnOffsets();
+    const rows = rowOffsets();
+    const left = columns[column] - columns[area.left];
+    const right = columns[column + 1] - columns[area.left];
+    const top = rows[row] - rows[area.top];
+    const bottom = rows[row + 1] - rows[area.top];
+    return `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px ${top}px)`;
+  };
 
   function stopTouchGesture() {
     if (autoScrollFrame !== undefined) cancelAnimationFrame(autoScrollFrame);
@@ -1913,7 +1926,15 @@ export function SpreadsheetGrid(props: {
                                 (isTouchDevice() && !!props.referenceSelection)
                               }
                               onSelectionChange={props.onTextSelection}
-                              class="absolute inset-0 size-full resize-none overflow-hidden bg-panel px-[var(--spreadsheet-cell-padding)] py-[var(--spreadsheet-cell-padding-y)] font-normal text-left text-ink outline-none select-text"
+                              // Inherits the cell's fill, font and color; automatic
+                              // alignment edits from the left, as in Excel.
+                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit px-[var(--spreadsheet-cell-padding)] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
+                                cell()?.horizontalAlign === 'center'
+                                  ? 'text-center'
+                                  : cell()?.horizontalAlign === 'right'
+                                    ? 'text-right'
+                                    : 'text-left'
+                              }`}
                               value={props.draft}
                               onInput={props.onDraft}
                               onKeyDown={editKeyDown}
@@ -2090,7 +2111,7 @@ export function SpreadsheetGrid(props: {
               aria-hidden="true"
               data-selection-range
               class="pointer-events-none absolute z-[1] border border-accent bg-accent/10"
-              style={rangeStyle()}
+              style={{ ...rangeStyle(), 'clip-path': rangeClip() }}
             />
             <div
               aria-hidden="true"
