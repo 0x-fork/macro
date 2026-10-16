@@ -434,10 +434,17 @@ or use the formula bar to edit link text. AI `set_cells` accepts Macro URLs or t
 same `<m-user-mention>` / `<m-document-mention>` / `<m-date-mention>` encoding as docs.
 Formula references to mention cells use literal labels, never execute a label as a formula.
 
-Dates: `@tomorrow`, `@next friday` or `@sep 28` offer a **Dates** bucket and insert
-the same clock chip as docs; hover it for the full date, and edit the cell to change
-it. A cell holding only a date chip is a date value: `=A1+7` produces a date, and
-Excel export writes a dated number rather than the label. Typing a date stores it
+Dates: `@today`, `@tomorrow`, `@next friday` or `@sep 28` offer a **Dates** bucket.
+Choosing one enters the date as text such as `10/16/2026` (in the browser locale's
+day/month order), not a chip, so a cell holding only that date becomes a date value
+like any typed date; around other text it stays text. Typing `@date` shows a
+calendar (`[data-cell-date-picker]`) in place of the menu, starting at today: arrow
+keys and Page Up/Down move the highlighted day, Enter or a click enters it, Escape
+closes it, and the cell editor keeps focus throughout. Date chips written earlier,
+or by AI `set_cells`, still show as clock chips; hover one for the full date, and
+edit the cell to change it. A cell holding only a date chip is a date value:
+`=A1+7` produces a date, and Excel export writes a dated number rather than the
+label. Typing a date stores it
 as a date in a matching format: `01/2026` or `Jan 2026` shows `Jan 2026`,
 `Jan 01 2026` shows `Jan 01, 2026`, `2026-01-01` stays ISO and `1/1/26` shows
 `1/1/2026` (day first in day-first browser locales). The snapshot value is the

@@ -117,6 +117,10 @@ explicit test document/socket query parameters are supplied.
 
 ## Editor interaction regressions
 
+`spreadsheet.browser.e2e.ts` also enters `@` dates (a menu pick, and the `@date`
+calendar by keyboard, pointer and Escape) as date values that `=A6+30`, `DATEDIF`
+and the Excel download read as dates; the phone suite taps an `@date` day.
+
 `range-move.browser.e2e.ts` drags a selection by its border: the destination
 outline and label, formulas following the moved cells, a single undo, the
 confirmation before replacing values, auto-scroll past the grid's bottom edge,

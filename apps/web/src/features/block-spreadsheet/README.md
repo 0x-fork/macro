@@ -386,6 +386,12 @@ compare formula, error, and formatting behavior before replacing it.
   goes through the normal commit and validation, written the way the cell stores
   dates (`core/cell-date.ts`): a serial keeps its time of day, a date pill stays a
   pill, ISO text stays ISO, and other text becomes month/day/year.
+  Dates from the cell editor's `@` menu (`@today`, `@tomorrow`, `@friday` and so
+  on) enter as typed date text in the locale's order, not a pill, so a cell
+  holding only that date commits as a date value like any typed date; around
+  other text it stays text. `@date` shows the same calendar in place of the menu
+  (`views/DateMentionMenu.tsx`), starting at today: it takes the calendar's keys
+  before the editor, Enter or a click enters the day, and Escape closes it.
   Plain text treats formula-looking input literally. Wrapped rows grow to 160px at
   100% zoom; larger content remains available in the formula bar/editor.
 - Internal copying preserves formatting and translates relative/mixed references

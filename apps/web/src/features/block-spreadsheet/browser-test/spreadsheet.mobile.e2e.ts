@@ -348,6 +348,32 @@ test('touch formatting and sheet navigation preserve workbook state', async ({
   await expect(addressBar(page)).toHaveValue('A2');
 });
 
+test('touch taps pick an @date day on screen without dropping the cell editor', async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date(2026, 9, 16, 12));
+  await page.goto('/?mentions');
+  await expect(cell(page, 'B4')).toHaveText('30');
+  await cell(page, 'A6').tap();
+  await cell(page, 'A6').tap();
+  const input = page.getByRole('textbox', { name: 'Edit A6' });
+  await expect(input).toBeFocused();
+  await input.pressSequentially('@date');
+  const picker = page.locator('[data-cell-date-picker]');
+  await expectInsideViewport(page, picker);
+  await picker
+    .getByRole('gridcell', { name: '15', exact: true, disabled: false })
+    .tap();
+  await expect(picker).toBeHidden();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveText('10/15/2026 ');
+  await button(page, 'Apply edit').tap();
+  await expect(cell(page, 'A6')).toHaveText('10/15/2026');
+  expect(
+    await page.evaluate(() => window.spreadsheetFixture.snapshot()[0].cells.A6)
+  ).toEqual({ value: '46310', format: 'date' });
+});
+
 test('tapping another dropdown cell moves the open list there, and other cells close it', async ({
   page,
 }) => {
