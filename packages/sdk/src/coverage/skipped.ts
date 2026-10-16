@@ -83,6 +83,8 @@ export const authExcluded = [
   // Renewal and scheduled-plan details are part of the app's billing settings.
   'getSubscriptionStatus',
   'getTeamInvites',
+  // Introductory offers belong to the app's subscription checkout flow.
+  'getTrialEligibility',
   'getUserInvites',
   'getUserLinkExists',
   'getUserName',

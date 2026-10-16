@@ -100,6 +100,16 @@ the startup bundle, and Lexical nodes.
 ## Notes
 - Don't shy away from pulling good examples into context. In the case of solid-primtiives/kobalte try reading documentation, or just temp clone into /tmp to reference
 
+## Subscription offers
+
+Use `useTrialEligibilityQuery` for trial copy and checkout terms in Billing,
+paywall, and onboarding. Never infer first-subscription eligibility from Free
+access or legacy `hasTrialed`; show trial copy only for confirmed eligibility,
+and keep Pro checkout disabled while eligibility is unknown. Refresh the offer
+on focus/reconnect; route existing subscriptions to billing management. Keep
+known management access through refetch failures, but hide unconfirmed trials.
+Reset rejected checkout offers before refetching eligibility.
+
 ## iOS gotcha: Web Workers must be lazy
 On iOS WKWebView, eagerly constructing an ES module Web Worker (`new Worker(url, { type: 'module' })`) whose script is served via the `tauri://` custom URL scheme **deadlocks the WebContent process**. The worker thread parks in WebKit's sync module loader waiting for an IPC response that never wakes it; JS execution silently stops after that point.
 
