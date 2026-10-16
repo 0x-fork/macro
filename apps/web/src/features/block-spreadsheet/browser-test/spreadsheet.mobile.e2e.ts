@@ -17,8 +17,16 @@ async function center(locator: Locator): Promise<Point> {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** Chromium delivers trusted touch input, including native scroll/pointercancel. */
-async function androidDrag(page: Page, from: Point, to: Point) {
+/**
+ * Chromium delivers trusted touch input, including native scroll/pointercancel.
+ * `hold` runs with the finger still down at `to`.
+ */
+async function androidDrag(
+  page: Page,
+  from: Point,
+  to: Point,
+  hold?: () => Promise<void>
+) {
   const session = await page.context().newCDPSession(page);
   const touch = (point: Point) => ({ ...point, id: 1, radiusX: 4, radiusY: 4 });
   try {
@@ -40,6 +48,7 @@ async function androidDrag(page: Page, from: Point, to: Point) {
       // does not exercise the browser's scroll recognition.
       await page.waitForTimeout(16);
     }
+    await hold?.();
     await session.send('Input.dispatchTouchEvent', {
       type: 'touchEnd',
       touchPoints: [],
@@ -50,13 +59,19 @@ async function androidDrag(page: Page, from: Point, to: Point) {
 }
 
 /** WebKit exposes touch taps, but no trusted touch drag API. */
-async function webkitPointerHandleDrag(page: Page, handle: Locator, to: Point) {
+async function webkitPointerHandleDrag(
+  page: Page,
+  handle: Locator,
+  to: Point,
+  hold?: () => Promise<void>
+) {
   const from = await center(handle);
   // A browser mouse pointer exercises handle hit-testing and pointer capture;
   // it does not prove iOS native touch scrolling or gesture arbitration.
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps: 12 });
+  await hold?.();
   await page.mouse.up();
 }
 
@@ -195,6 +210,38 @@ test('selection handles extend a range (WebKit drag uses a mouse pointer)', asyn
   await expect(cell(page, 'A2')).toHaveAttribute('aria-selected', 'true');
   await expect(cell(page, 'B4')).toHaveAttribute('aria-selected', 'true');
   await expect(cell(page, 'B5')).toHaveAttribute('aria-selected', 'false');
+});
+
+test('a selection handle held past the bottom edge scrolls and extends the range (WebKit drag uses a mouse pointer)', async ({
+  page,
+  browserName,
+}) => {
+  await cell(page, 'A2').tap();
+  const handle = button(page, 'Move selection end');
+  await expect(handle).toBeVisible();
+  const grid = page.getByRole('grid', { name: 'Spreadsheet' });
+  const box = await grid.boundingBox();
+  if (!box) throw new Error('Grid is missing.');
+  const from = await center(handle);
+  // Over the footer, below the grid, in column A.
+  const to = {
+    x: (await center(cell(page, 'A2'))).x,
+    y: box.y + box.height + 20,
+  };
+  const lastRow = async () =>
+    Number((await addressBar(page).inputValue()).match(/^A2:A(\d+)$/)?.[1]);
+  const scrollsDown = async () => {
+    await expect.poll(lastRow).toBeGreaterThanOrEqual(80);
+  };
+  if (browserName === 'chromium')
+    await androidDrag(page, from, to, scrollsDown);
+  else await webkitPointerHandleDrag(page, handle, to, scrollsDown);
+  const row = await lastRow();
+  await expect(cell(page, `A${row}`)).toBeInViewport();
+  await expect(cell(page, `A${row}`)).toHaveAttribute('aria-selected', 'true');
+  expect(await grid.evaluate((element) => element.scrollTop)).toBeGreaterThan(
+    1000
+  );
 });
 
 test('touch formula suggestions and reference handles retain the editor (WebKit drag uses a mouse pointer)', async ({

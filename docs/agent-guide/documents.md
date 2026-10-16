@@ -229,6 +229,12 @@ that read a kept pivot table calculate from its cells, so editing a value in the
 Deleting a sheet whose data a chart on another sheet reads keeps the chart: it
 shows the values it had, which no longer change.
 
+Drag across cells to select a range. Holding the pointer near or past an edge of
+the grid (including over the row numbers or column letters) scrolls it, faster
+the farther out it is, so one drag reaches off-screen cells; the fill handle,
+header drags, formula reference picking, and phone selection handles scroll the
+same way.
+
 Select a cell to inspect its address and input in the formula bar. Double-click
 a cell, start typing, or use the formula bar to edit its value. Formulas begin
 with `=` and may refer to cells or ranges, for example `=SUM(B2:B5)`. Check both

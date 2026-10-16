@@ -91,6 +91,115 @@ test('selects multiple rows and columns by dragging and shift-clicking headers',
   await expect(address).toHaveValue('A4');
 });
 
+test('drag-selecting past the bottom edge scrolls to the last row in one gesture', async ({
+  page,
+}) => {
+  const grid = page.getByRole('grid', { name: 'Spreadsheet' });
+  const gridBox = await grid.boundingBox();
+  const start = await page.locator('[data-address="B2"]').boundingBox();
+  if (!gridBox || !start) throw new Error('Grid is not visible');
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  // Below the grid, over the footer. Scrolling continues while it rests there.
+  await page.mouse.move(
+    start.x + start.width / 2,
+    gridBox.y + gridBox.height + 12,
+    { steps: 8 }
+  );
+  const address = page.getByRole('textbox', { name: 'Go to cell' });
+  await expect(address).toHaveValue('B2:B200');
+  await page.mouse.up();
+  await expect(page.locator('[data-address="B200"]')).toBeInViewport();
+  await expect(page.locator('[data-address="B200"]')).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+  await expect(address).toHaveValue('B2:B200');
+});
+
+test('drag-selecting into the right edge scrolls to the last column', async ({
+  page,
+}) => {
+  const grid = page.getByRole('grid', { name: 'Spreadsheet' });
+  const gridBox = await grid.boundingBox();
+  const start = await page.locator('[data-address="B2"]').boundingBox();
+  if (!gridBox || !start) throw new Error('Grid is not visible');
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  // Inside the grid, within the edge zone before its right edge.
+  await page.mouse.move(
+    gridBox.x + gridBox.width - 6,
+    start.y + start.height / 2,
+    { steps: 8 }
+  );
+  const address = page.getByRole('textbox', { name: 'Go to cell' });
+  await expect(address).toHaveValue('B2:Z2');
+  await page.mouse.up();
+  await expect(page.locator('[data-address="Z2"]')).toBeInViewport();
+  await expect(address).toHaveValue('B2:Z2');
+});
+
+test('dragging over the sticky headers scrolls back to the first row and column', async ({
+  page,
+}) => {
+  const grid = page.getByRole('grid', { name: 'Spreadsheet' });
+  await grid.evaluate((element) => {
+    element.scrollTop = 630;
+    element.scrollLeft = 500;
+  });
+  const cell = page.locator('[data-address="H40"]');
+  await expect(cell).toBeInViewport();
+  const gridBox = await grid.boundingBox();
+  const start = await cell.boundingBox();
+  if (!gridBox || !start) throw new Error('Grid is not visible');
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  // The corner where the column letters meet the row numbers.
+  await page.mouse.move(gridBox.x + 8, gridBox.y + 8, { steps: 8 });
+  const address = page.getByRole('textbox', { name: 'Go to cell' });
+  await expect(address).toHaveValue('A1:H40');
+  await page.mouse.up();
+  expect(
+    await grid.evaluate((element) => [element.scrollTop, element.scrollLeft])
+  ).toEqual([0, 0]);
+  await expect(address).toHaveValue('A1:H40');
+});
+
+test('dragging the fill handle past the bottom edge fills down to the last row', async ({
+  page,
+}) => {
+  await edit(page, 'D1', 'Paid');
+  await page.locator('[data-address="D1"]').click();
+  const grid = page.getByRole('grid', { name: 'Spreadsheet' });
+  const gridBox = await grid.boundingBox();
+  const handle = await page
+    .getByRole('button', { name: 'Drag to fill selection' })
+    .boundingBox();
+  if (!gridBox || !handle) throw new Error('Fill handle is not visible');
+  await page.mouse.move(
+    handle.x + handle.width / 2,
+    handle.y + handle.height / 2
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    handle.x + handle.width / 2,
+    gridBox.y + gridBox.height + 12,
+    { steps: 8 }
+  );
+  await expect(page.locator('[data-address="D200"]')).toHaveAttribute(
+    'aria-selected',
+    'true'
+  );
+  await page.mouse.up();
+  await expect(page.locator('[data-address="D200"]')).toHaveText('Paid');
+  const cells = await page.evaluate(
+    () => window.spreadsheetFixture.snapshot()[0].cells
+  );
+  expect(cells.D2.value).toBe('Paid');
+  expect(cells.D200.value).toBe('Paid');
+  expect(cells.E200).toBeUndefined();
+});
+
 test('resizes row height with a pointer, saves it, and restores automatic height', async ({
   page,
 }) => {

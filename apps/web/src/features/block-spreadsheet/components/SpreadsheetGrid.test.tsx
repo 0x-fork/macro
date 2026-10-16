@@ -152,6 +152,11 @@ function renderGrid(
     );
   });
   const element = view.getByRole('grid');
+  // Coordinates map to cells within the grid's client box, the mocked viewport.
+  Object.defineProperties(element, {
+    clientWidth: { configurable: true, value: 1000 },
+    clientHeight: { configurable: true, value: 960 },
+  });
   // jsdom has no layout or scrolling; only the selected cells need this DOM API.
   for (const address of ['A1', 'A2']) {
     const cell = view.container.querySelector<HTMLElement>(
@@ -561,6 +566,130 @@ describe('spreadsheet pointer gestures across sheet changes', () => {
     expect(view.controller.selection()).toEqual({
       anchor: { row: 0, column: 0 },
       focus: { row: 0, column: 0 },
+    });
+  });
+});
+
+describe('spreadsheet drag auto-scroll', () => {
+  function mouse(
+    target: Element | Window,
+    type: string,
+    x: number,
+    y: number,
+    buttons = type === 'pointerup' ? 0 : 1
+  ) {
+    fireEvent(
+      target,
+      new MouseEvent(type, {
+        button: 0,
+        buttons,
+        clientX: x,
+        clientY: y,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+  }
+
+  it('scrolls once a drag moves, faster the farther past the edge, until release', () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const view = renderGrid({}, { rowCount: 200 });
+    // B45 spans y 948-969; the grid's client box ends at 960.
+    mouse(view.getByRole('gridcell', { name: 'B45' }), 'pointerdown', 196, 950);
+    mouse(window, 'pointermove', 196, 953);
+    vi.advanceTimersToNextFrame();
+    expect(view.element.scrollTop).toBe(0);
+
+    // 34px into the bottom edge zone for a 16ms frame is 10.88px, then 134px
+    // is 42.88px plus the carried 0.88px.
+    mouse(window, 'pointermove', 196, 970);
+    vi.advanceTimersToNextFrame();
+    expect(view.element.scrollTop).toBe(10);
+    mouse(window, 'pointermove', 196, 1070);
+    vi.advanceTimersToNextFrame();
+    expect(view.element.scrollTop).toBe(53);
+    expect(view.controller.selection()).toEqual({
+      anchor: { row: 44, column: 1 },
+      focus: { row: 47, column: 1 },
+    });
+
+    mouse(window, 'pointerup', 196, 1070);
+    vi.advanceTimersToNextFrame();
+    expect(view.element.scrollTop).toBe(53);
+  });
+
+  it('keeps the scroll rate at slow speeds by carrying partial pixels between frames', () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const view = renderGrid({}, { rowCount: 200 });
+    mouse(view.getByRole('gridcell', { name: 'B45' }), 'pointerdown', 196, 950);
+    // 1px into the bottom edge zone: 20px a second, 0.32px a 16ms frame.
+    mouse(window, 'pointermove', 196, 937);
+    for (let frame = 0; frame < 60; frame++) vi.advanceTimersToNextFrame();
+    expect(view.element.scrollTop).toBe(19);
+  });
+
+  it('scrolls a column header drag only across, and stops when the release was missed', () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const view = renderGrid();
+    mouse(
+      view.getByRole('button', { name: 'Select column B' }),
+      'pointerdown',
+      196,
+      12
+    );
+    mouse(window, 'pointermove', 1010, 1000);
+    vi.advanceTimersToNextFrame();
+    expect(view.element.scrollTop).toBe(0);
+    expect(view.element.scrollLeft).toBe(10);
+    expect(view.controller.selection()).toEqual({
+      anchor: { row: 0, column: 1 },
+      focus: { row: 29, column: 9 },
+    });
+
+    mouse(window, 'pointermove', 1010, 1000, 0);
+    vi.advanceTimersToNextFrame();
+    mouse(window, 'pointermove', 400, 500);
+    vi.advanceTimersToNextFrame();
+    expect(view.element.scrollLeft).toBe(10);
+    expect(view.controller.selection().focus).toEqual({ row: 29, column: 9 });
+  });
+
+  it('cancels a fill whose release the window missed instead of applying it to the next drag', () => {
+    const onFill = vi.fn();
+    const view = renderGrid({}, { onFill });
+    mouse(
+      view.getByRole('button', { name: 'Drag to fill selection' }),
+      'pointerdown',
+      146,
+      45
+    );
+    mouse(window, 'pointermove', 146, 80);
+    fireEvent(
+      view.getByRole('gridcell', { name: 'A3' }),
+      new MouseEvent('pointerenter', { buttons: 1 })
+    );
+    // Released outside the window: the next move arrives without the button.
+    mouse(window, 'pointermove', 146, 80, 0);
+
+    mouse(view.getByRole('gridcell', { name: 'B2' }), 'pointerdown', 196, 55);
+    fireEvent(
+      view.getByRole('gridcell', { name: 'B3' }),
+      new MouseEvent('pointerenter', { buttons: 1 })
+    );
+    mouse(window, 'pointerup', 196, 76);
+    expect(onFill).not.toHaveBeenCalled();
+    expect(view.controller.selection()).toEqual({
+      anchor: { row: 1, column: 1 },
+      focus: { row: 2, column: 1 },
     });
   });
 });

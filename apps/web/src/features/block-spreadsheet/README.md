@@ -261,6 +261,19 @@ formula awaits a reference keeps its draft, even when the formula's row is past
 the other sheet's last row, and every tab change scrolls to that sheet's own
 selection.
 
+Dragging a range, row or column headers, the fill handle, a formula reference, or
+a touch selection handle scrolls the grid while the pointer is within 24 pixels
+of an edge of the cells or past it, and extends the drag to the cell under the
+pointer or the nearest one in view. Speed grows with the pointer's depth into
+that edge (20 pixels per second per pixel), and a header drag scrolls only along
+its own axis. `components/drag-auto-scroll.ts` scrolls; the grid maps the
+pointer to a cell and extends whichever drag is in progress. The sticky headers lie outside the cells, so scrolling up or left
+starts at their inner edges and never selects a cell hidden beneath them. The
+grid does not draw imported frozen panes, so the headers are its only fixed area.
+A press scrolls only after it moves 8 pixels, so a click beside an edge does not.
+When the window misses a drag's release (the pointer next moves without its
+button), the drag is cancelled rather than finished, so no fill is applied.
+
 Selection does not recalculate the workbook. A bounded row window mounts visible
 rows and a small buffer, keeping the active editor mounted while scrolling. Shared
 row offsets account for wrapped text, font size, and zoom. Two overlays
@@ -359,8 +372,8 @@ compare formula, error, and formatting behavior before replacing it.
 - **Format and data → Goal Seek…** finds the number that makes a formula cell
   reach a typed value, then writes it when confirmed. The search runs on a copy
   of the calculated workbook, so cancel leaves every cell as it was.
-- Filters, editing named ranges, automatic spill expansion, and drag
-  auto-scroll remain future work.
+- Filters, editing named ranges, and automatic spill expansion remain future
+  work.
 - CSV import writes a validated rectangle at the active cell, appending rows when
   needed. It preserves existing cell styles and supports quoted multiline fields.
   CSV exports values and drops formatting. XLSX import/export converts supported

@@ -71,8 +71,8 @@ bunx playwright test --config src/features/block-spreadsheet/browser-test/playwr
 ```
 
 The `android-chrome` (Pixel 7) and `iphone-webkit` (iPhone 13) projects exercise
-touch taps, edit/apply/cancel, formula suggestions, selection/reference handles,
-formatting menus, sheet creation/rename, find, viewer permissions, the narrow
+touch taps, edit/apply/cancel, formula suggestions, selection/reference handles
+(including a selection handle held past the bottom edge to scroll), formatting menus, sheet creation/rename, find, viewer permissions, the narrow
 footer, and tapping between dropdown cells while a list is open. Landscape and reduced viewport checks cover layout with less vertical
 space. Chromium swipes and handle drags use CDP's trusted touch input, including
 native scrolling and pointer cancellation; ribbon swipes must not format cells.
@@ -112,4 +112,4 @@ explicit test document/socket query parameters are supplied.
 
 ## Editor interaction regressions
 
-`editor-interactions.browser.e2e.ts` mounts the real global hotkey listener to verify that selected-cell typing and arrows beat app navigation shortcuts. It also exercises multi-header drag/Shift selection, persistent row resizing and auto-fit, cross-sheet formula reference picking (including after comparison operators, from a row past the other sheet's end), and numeric/month-end date fill with undo. `formatting.browser.e2e.ts` checks mixed whole-column formatting, style persistence, viewport stability, a styled cell's pixels staying the same when selected, in a range and edited, and percentage entry through both editors against the real calculation worker.
+`editor-interactions.browser.e2e.ts` mounts the real global hotkey listener to verify that selected-cell typing and arrows beat app navigation shortcuts. It also exercises multi-header drag/Shift selection, drags that scroll the grid past its bottom and right edges and back over the sticky headers to reach off-screen cells (including a fill-handle drag down to the last row), persistent row resizing and auto-fit, cross-sheet formula reference picking (including after comparison operators, from a row past the other sheet's end), and numeric/month-end date fill with undo. `formatting.browser.e2e.ts` checks mixed whole-column formatting, style persistence, viewport stability, a styled cell's pixels staying the same when selected, in a range and edited, and percentage entry through both editors against the real calculation worker.
