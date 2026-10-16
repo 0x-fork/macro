@@ -84,6 +84,8 @@ the last-contacted timestamp sits at the right, and the side gutters and row
 spacing match. There is no column-heading row.
 Emails, Files, and Calls search the loaded row titles and supporting text and
 continue loading pages when the current pages have no match.
+Emails, Files, Calls, and References rows open their items without selection
+checkboxes, including on touch devices.
 
 A company is laid out like a project. Its split header or embedded breadcrumb
 header shows inset `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
