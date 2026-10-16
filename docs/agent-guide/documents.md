@@ -4,6 +4,38 @@ The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
 
+Opening a private file link while signed in shows **You don't have access to
+this file**, the signed-in email, and **Request access**. View is selected by
+default; choose View, Comment, or Edit where supported, submit, then verify
+**Request sent** and **Cancel request**.
+On touch devices, document links open the full-page document route; the same
+request controls appear there, including at phone widths.
+The document stays unavailable until its owner approves. The open denied view
+reloads when it receives the grant update. Signed-out visitors are prompted to
+sign in first; ordinary load failures retain **Try again**.
+An already-open document reloads after a permission upgrade on desktop and touch
+devices. Removing its last grant closes the editor and returns to Request access;
+a failed background refresh must not restore the revoked document.
+
+In **People with access**, a non-owner can use **Request access** beneath the
+owner to request a supported upgrade (**Comment** or **Edit**). PDFs offer
+Comment; view-only email sharing has no upgrade. Requests can be sent or changed
+once per minute; cancellation stays available immediately. Approval allows a
+further upgrade immediately. After a denial, the requester must wait 24 hours
+to request again.
+This workflow also applies to the existing chat, folder, project, database, call,
+and agent-session Share menus, using the access levels that each supports.
+
+Reviewers see a pending count on **Share**. Entering an item with pending requests
+opens Share once for that visit; requests arriving during the visit update the
+badge. On mobile, review requests in the **People** tab. **Permission requests**
+lets a reviewer choose an access level and **Grant access**, or **Deny**. Team
+owners/admins and the human responsible for a bot-owned item review on its behalf.
+Only the first review of a request succeeds. Grants notify the requester; denials
+do not. Approved users appear in People with access, with controls to change or
+remove their direct grant. Opening a permission-request notification navigates
+to its item and opens Share.
+
 Both **Edit with AI** and selected-text AI edits open the shared usage-limit dialog
 when the backend refuses a request with a usage-limit code. Free users can choose
 **View plans**; paid users can choose **Open usage settings** to add credits. The
