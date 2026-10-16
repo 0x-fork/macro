@@ -287,6 +287,8 @@ export function CanvasView(props: {
                   onFitSelection={fitSelection}
                   snapMode={state.snapMode()}
                   onSnapMode={state.setSnapMode}
+                  snapToObjects={state.snapToObjects()}
+                  onSnapToObjects={state.setSnapToObjects}
                 />
               </header>
               <Show when={state.selection().length > 0}>
