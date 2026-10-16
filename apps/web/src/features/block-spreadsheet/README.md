@@ -10,7 +10,12 @@ spreadsheet, then choose **Import…**.
 
 The document title sits above a compact formatting ribbon. **Paste special** offers
 paste and values-only paste; **View options** toggles gridlines, the formula bar,
-and formula display. **Functions** inserts formulas, while **Format and data**
+and formula display. Gridlines are saved with each sheet (`metadata.gridlines`,
+Excel's `showGridLines`), so only editors change them; the formula bar and
+formula display are local. Gridlines are the app's ink at 12% over the cell
+background (Google Sheets' `#e2e3e3` on white), in every theme. A fill hides the
+gridlines around its cell, and a border replaces the gridline it lies on.
+**Functions** inserts formulas, while **Format and data**
 contains sorting, whitespace trimming, Goal Seek, fill, and clear actions. **Find and replace**
 is a direct ribbon button. The footer's **Import and export** button also contains
 Excel and CSV downloads and stays visible beside horizontally scrolling sheet tabs.

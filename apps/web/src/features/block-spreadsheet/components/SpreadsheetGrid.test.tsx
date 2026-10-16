@@ -895,6 +895,27 @@ describe('spreadsheet presentation', () => {
     );
   });
 
+  it('hides the gridlines a fill covers and those a neighboring border replaces', () => {
+    const view = renderGrid({
+      B2: { value: '', fillColor: '#fff2cc' },
+      B5: { value: 'Total', borderTop: true, borderTopColor: '#123456' },
+      E2: { value: '', borderLeft: true, borderLeftColor: '#123456' },
+    });
+    const style = (address: string) =>
+      view.container.querySelector<HTMLElement>(`[data-address="${address}"]`)!
+        .style;
+    expect(style('B2').borderRightColor).toBe('transparent');
+    expect(style('B2').borderBottomColor).toBe('transparent');
+    expect(style('A2').borderRightColor).toBe('transparent');
+    expect(style('B1').borderBottomColor).toBe('transparent');
+    expect(style('B4').borderBottomColor).toBe('transparent');
+    expect(style('D2').borderRightColor).toBe('transparent');
+    expect(style('B5').borderTopStyle).toBe('solid');
+    expect(style('E2').borderLeftStyle).toBe('solid');
+    expect(style('C3').borderRight).toBe('');
+    expect(style('C3').borderBottom).toBe('');
+  });
+
   it('uses wrapped row geometry for active and range outlines at different zoom levels', () => {
     const view = renderGrid(
       { A1: { value: 'one\ntwo\nthree', wrap: true } },

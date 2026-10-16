@@ -324,8 +324,10 @@ Excel black text and borders on unfilled cells follow the app's foreground color
 so imported sheets remain readable in dark mode. Explicit text/fill color pairs
 remain unchanged; theme changes never alter saved or exported workbook colors.
 
-**View options** directly toggles gridlines, the formula bar, and formula display;
-these settings and zoom are local to the editor. **Go to cell** accepts ranges such
+**View options** directly toggles gridlines, the formula bar, and formula display.
+Gridlines are saved with the active sheet, undo like an edit, export as Excel's
+`showGridLines`, and are disabled for viewers; the formula bar, formula display,
+and zoom are local to the editor. **Go to cell** accepts ranges such
 as `A3:E7`.
 Escape from the address or font-size field returns keyboard navigation to the grid.
 **Functions** starts an editable formula: for a selected range it proposes

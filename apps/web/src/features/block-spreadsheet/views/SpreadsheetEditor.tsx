@@ -97,7 +97,8 @@ export function SpreadsheetEditor(props: {
   let editorElement!: HTMLElement;
   let importInput!: HTMLInputElement;
   const [zoom, setZoom] = createSignal(100);
-  const [showGridlines, setShowGridlines] = createSignal(true);
+  const showGridlines = () =>
+    props.store.activeSheet().metadata?.gridlines !== false;
   const [showFormulaBar, setShowFormulaBar] = createSignal(true);
   const [showFormulas, setShowFormulas] = createSignal(false);
   const [structureBusy, setStructureBusy] = createSignal(false);
@@ -524,7 +525,13 @@ export function SpreadsheetEditor(props: {
         void workbookActions.exportExcel();
       })
       .with('add-rows', () => props.store.appendRows(100))
-      .with('toggle-gridlines', () => setShowGridlines((value) => !value))
+      .with('toggle-gridlines', () => {
+        if (!editable()) return;
+        props.store.setMetadata({
+          ...props.store.activeSheet().metadata,
+          gridlines: showGridlines() ? false : undefined,
+        });
+      })
       .with('toggle-formula-bar', () => setShowFormulaBar((value) => !value))
       .with('toggle-formulas', () => setShowFormulas((value) => !value))
       .with('sort-asc', () => {

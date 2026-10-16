@@ -177,6 +177,23 @@ describe('spreadsheet toolbar', () => {
     expect(view.onCommand).toHaveBeenCalledWith('toggle-gridlines');
   });
 
+  it('keeps view-only display settings available but not the saved gridlines', async () => {
+    const view = toolbar({ readonly: true });
+    fireEvent.keyDown(view.getByRole('button', { name: 'View options' }), {
+      key: 'ArrowDown',
+    });
+    const gridlines = await screen.findByRole('menuitemcheckbox', {
+      name: 'Gridlines',
+    });
+    expect(gridlines.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.keyDown(gridlines, { key: 'Enter' });
+    fireEvent.keyDown(
+      screen.getByRole('menuitemcheckbox', { name: 'Formula bar' }),
+      { key: 'Enter' }
+    );
+    expect(view.onCommand.mock.calls).toEqual([['toggle-formula-bar']]);
+  });
+
   it('closes a top menu with Escape and restores editor focus without executing a command', async () => {
     const editor = document.createElement('textarea');
     document.body.append(editor);

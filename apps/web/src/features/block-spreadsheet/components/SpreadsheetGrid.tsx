@@ -1320,7 +1320,7 @@ export function SpreadsheetGrid(props: {
               <div
                 role="columnheader"
                 aria-label="Select all cells"
-                class="sticky left-0 z-30 shrink-0 border-b border-r border-edge bg-panel"
+                class="sticky left-0 z-30 shrink-0 border-b border-r border-ink/12 bg-panel"
                 style={{ width: `${headerWidth()}px` }}
               >
                 <button
@@ -1347,7 +1347,7 @@ export function SpreadsheetGrid(props: {
                       width: width(column),
                       left: `${columnOffsets()[column]}px`,
                     }}
-                    class="absolute top-0 bottom-0 border-b border-r border-edge-muted"
+                    class="absolute top-0 bottom-0 border-b border-r border-ink/12"
                     classList={{
                       'bg-accent-bg text-accent':
                         column >= bounds().left && column <= bounds().right,
@@ -1472,7 +1472,7 @@ export function SpreadsheetGrid(props: {
                 >
                   <div
                     role="rowheader"
-                    class="sticky left-0 z-10 shrink-0 border-b border-r border-edge-muted bg-panel text-center text-ink-muted select-none"
+                    class="sticky left-0 z-10 shrink-0 border-b border-r border-ink/12 bg-panel text-center text-ink-muted select-none"
                     style={{
                       width: `${headerWidth()}px`,
                       'font-size': `${11 * scale()}px`,
@@ -1612,8 +1612,9 @@ export function SpreadsheetGrid(props: {
                                 : 'solid';
                         return `${width}px ${line} ${cellBorderColor(cell()?.[`border${edge}Color`], fill())}`;
                       };
-                      // A fill covers the gridlines around its cell, as in
-                      // Excel; the right and bottom lines are drawn here.
+                      // A fill covers the gridlines around its cell and a
+                      // border replaces the gridline it lies on, as in Excel;
+                      // the right and bottom lines are drawn here.
                       const gridline = (edge: 'Right' | 'Bottom') => {
                         const next = cellAddress(
                           edge === 'Right'
@@ -1623,7 +1624,10 @@ export function SpreadsheetGrid(props: {
                         return props.showGridlines === false ||
                           fill() ||
                           props.values[next]?.conditional?.fillColor ||
-                          props.cells[next]?.fillColor
+                          props.cells[next]?.fillColor ||
+                          props.cells[next]?.[
+                            edge === 'Right' ? 'borderLeft' : 'borderTop'
+                          ]
                           ? '1px solid transparent'
                           : undefined;
                       };
@@ -1745,7 +1749,7 @@ export function SpreadsheetGrid(props: {
                               'var(--spreadsheet-cell-padding-y)',
                             'line-height': CELL_LINE_HEIGHT,
                           }}
-                          class="absolute top-0 bottom-0 flex flex-col border-b border-r border-edge-muted bg-panel text-ink select-none"
+                          class="absolute top-0 bottom-0 flex flex-col border-b border-r border-ink/12 bg-panel text-ink select-none"
                           classList={{
                             'font-semibold': look()?.bold ?? cell()?.bold,
                             'tabular-nums': numeric(),
