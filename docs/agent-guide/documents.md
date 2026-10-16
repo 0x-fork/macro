@@ -262,10 +262,12 @@ to `=SUM(B4:B7` without committing or moving the active cell. A dashed outline s
 the referenced range. Release, type `)`, and press Enter to calculate. This works
 in both the cell editor and formula bar, including reverse drags, replacement of
 an existing reference, and subsequent arguments after a comma or operator. To reference another sheet,
-click its tab while the formula is awaiting a reference, then click or drag the
-source cells. The draft stays in the formula bar; Enter commits it to the original
-sheet and cell. Names with spaces are quoted automatically. Escape cancels and
-returns to the original sheet.
+click its tab while the formula is awaiting a reference (for example after
+`=IF(D2 <`), then click or drag the source cells. The other sheet opens at its
+own selection, even when the formula's row is past that sheet's last row. The
+draft stays in the formula bar; Enter commits it to the original sheet and cell.
+Names with spaces are quoted automatically. Escape cancels and returns to the
+original sheet.
 While a formula is being edited, each cell or range it refers to, including whole
 columns or rows such as `D:D`, is outlined in its own color on the grid, and the
 reference text in both editors uses the same color. A repeated reference keeps

@@ -350,6 +350,13 @@ export function SpreadsheetEditor(props: {
     gridElement
       ?.querySelector(`[data-address="${cellAddress(grid.selection().focus)}"]`)
       ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  // One grid shows every sheet, so each opens scrolled to its own selection,
+  // including while a formula draft picks a reference there or returns home.
+  createEffect(
+    on(props.store.activeSheetId, () => queueMicrotask(revealSelection), {
+      defer: true,
+    })
+  );
   const goalSeek = createGoalSeek({
     sheets: () =>
       props.store.workbook().map((sheet) => ({
@@ -1132,25 +1139,16 @@ export function SpreadsheetEditor(props: {
             actions.clearNotice();
             workbookActions.clearNotice();
             if (grid.editing()) queueMicrotask(restoreEditorFocus);
-            else {
-              focusGrid();
-              queueMicrotask(revealSelection);
-            }
+            else focusGrid();
           }}
           onAdd={() => {
             workbookActions.addSheet();
-            queueMicrotask(() => {
-              focusGrid();
-              revealSelection();
-            });
+            queueMicrotask(focusGrid);
           }}
           onRename={(id) => workbookActions.openSheetDialog('rename', id)}
           onDuplicate={(id) => {
             workbookActions.duplicateSheet(id);
-            queueMicrotask(() => {
-              focusGrid();
-              revealSelection();
-            });
+            queueMicrotask(focusGrid);
           }}
           onDelete={(id) => workbookActions.openSheetDialog('delete', id)}
           onMove={workbookActions.moveSheet}

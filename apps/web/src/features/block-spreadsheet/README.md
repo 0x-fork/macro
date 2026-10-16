@@ -256,7 +256,10 @@ Formula point selection keeps the original cell and textarea focused while a
 pointer drag inserts or replaces an A1 reference at the caret. Only the local
 draft and a single dashed reference overlay update during dragging; the shared
 document and calculation worker receive the formula on commit. Quoted text and
-completed expressions retain normal click-away behavior.
+completed expressions retain normal click-away behavior. Changing tabs while a
+formula awaits a reference keeps its draft, even when the formula's row is past
+the other sheet's last row, and every tab change scrolls to that sheet's own
+selection.
 
 Selection does not recalculate the workbook. A bounded row window mounts visible
 rows and a small buffer, keeping the active editor mounted while scrolling. Shared

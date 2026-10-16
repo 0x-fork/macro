@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createRoot, createSignal } from 'solid-js';
+import { createMemo, createRoot, createSignal } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CellCopy } from '../core/calculation';
 import {
@@ -649,6 +649,9 @@ function crossSheetSetup() {
       },
     });
     const [canEdit, setCanEdit] = createSignal(true);
+    // Subscribing before the controller makes row-count reactions run before
+    // its tab-change handling, an order the store's subscriptions can produce.
+    const rowCount = createMemo(() => (sheetId() === 'summary' ? 300 : 200));
     const setSheetCells = vi.fn((id: string, edits: SpreadsheetCellEdits) => {
       if (!sheets().some((sheet) => sheet.id === id)) return;
       const cells = { ...books()[id] };
@@ -665,6 +668,7 @@ function crossSheetSetup() {
       setSheetCells,
       setCells: (edits) => setSheetCells(sheetId(), edits),
       canEdit,
+      rowCount,
       undo: () => {},
       redo: () => {},
     });
@@ -702,6 +706,25 @@ describe('cross-sheet formula editing', () => {
     expect(view.books().inputs.B4.value).toBe('leave me');
     expect(view.sheetId()).toBe('summary');
     expect(view.grid.activeAddress()).toBe('B4');
+  });
+
+  it('keeps a draft from a row the picked sheet does not have and returns to it on commit', () => {
+    const view = crossSheetSetup();
+    view.grid.select({ row: 249, column: 2 });
+    view.grid.beginEdit('cell', '=IF(D2 <');
+    view.grid.switchSheet('inputs');
+    expect(view.sheetId()).toBe('inputs');
+    expect(view.grid.editing()).toBe('formula');
+    expect(view.grid.editingAddress()).toBe('C250');
+    expect(view.grid.beginReference({ row: 3, column: 1 })).toBe(true);
+    view.grid.endReference();
+    expect(view.grid.draft()).toBe("=IF(D2 <'Owner''s budget'!B4");
+    view.grid.commit();
+    expect(view.books().summary.C250.value).toBe(
+      "=IF(D2 <'Owner''s budget'!B4"
+    );
+    expect(view.sheetId()).toBe('summary');
+    expect(view.grid.activeAddress()).toBe('C250');
   });
 
   it('replaces a prior reference when choosing another sheet and omits the qualifier on the origin', () => {

@@ -239,16 +239,22 @@ export function createGridController(source: GridSource) {
 
   // A local undo or remote layout operation can remove the selected empty row.
   // End its draft before moving focus so it cannot commit into a different cell.
+  // A tab change bounds the new sheet's selection itself, and may keep a
+  // cross-sheet formula draft that this would otherwise cancel.
   createEffect(
-    on(rowCount, (count, previous) => {
-      // A fill preview can extend past the current selection. Shrinking the
-      // sheet invalidates that pending copy even when selection stays in bounds.
-      if (previous !== undefined && count < previous) cancelPendingCopy();
-      const current = selection();
-      if (current.anchor.row < count && current.focus.row < count) return;
-      cancel();
-      selectRange(current.anchor, current.focus);
-    })
+    on(
+      () => [source.sheetId?.(), rowCount()] as const,
+      ([sheetId, count], previous) => {
+        if (previous && previous[0] !== sheetId) return;
+        // A fill preview can extend past the current selection. Shrinking the
+        // sheet invalidates that pending copy even when selection stays in bounds.
+        if (previous && count < previous[1]) cancelPendingCopy();
+        const current = selection();
+        if (current.anchor.row < count && current.focus.row < count) return;
+        cancel();
+        selectRange(current.anchor, current.focus);
+      }
+    )
   );
 
   function cancelPendingCopy() {

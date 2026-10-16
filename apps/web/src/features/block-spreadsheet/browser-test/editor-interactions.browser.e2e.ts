@@ -168,6 +168,52 @@ test('picks a range on a second sheet and commits the formula back to its origin
   expect(sheets[1].cells.A1.value).toBe('12');
 });
 
+test('picks a reference after a comparison operator on a shorter sheet and returns on Enter', async ({
+  page,
+}) => {
+  await page.getByRole('button', { name: 'Add sheet', exact: true }).click();
+  await edit(page, 'B4', '25');
+  await page.getByRole('tab', { name: 'Sheet2', exact: true }).dblclick();
+  await page.getByRole('textbox', { name: 'Sheet name' }).fill('Other Sheet');
+  await page.getByRole('button', { name: 'Save name' }).click();
+  await page.getByRole('tab', { name: 'Sheet1', exact: true }).click();
+  // The formulas sit below the other sheet's last row.
+  await page.getByRole('button', { name: 'Add 100 rows', exact: true }).click();
+  const goTo = page.getByRole('textbox', { name: 'Go to cell' });
+  const formula = page.getByRole('textbox', {
+    name: 'Formula bar',
+    exact: true,
+  });
+  for (const [address, operator] of [
+    ['C250', '<'],
+    ['C251', '>='],
+    ['C252', '<>'],
+  ]) {
+    await goTo.fill(address);
+    await goTo.press('Enter');
+    await page.keyboard.type(`=IF(B2 ${operator}`);
+    await page.getByRole('tab', { name: 'Other Sheet', exact: true }).click();
+    await expect(formula).toHaveValue(`=IF(B2 ${operator}`);
+    await page.locator('[data-address="B4"]').click();
+    await expect(formula).toHaveValue(`=IF(B2 ${operator}'Other Sheet'!B4`);
+    await expect(formula).toBeFocused();
+    await page.keyboard.type(',1,0)');
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByRole('tab', { name: 'Sheet1', exact: true })
+    ).toHaveAttribute('aria-selected', 'true');
+  }
+  await expect(page.locator('[data-address="C252"]')).toHaveText('1');
+  await expect(page.locator('[data-address="C251"]')).toHaveText('0');
+  await expect(page.locator('[data-address="C250"]')).toHaveText('1');
+  const cells = await page.evaluate(
+    () => window.spreadsheetFixture.snapshot()[0].cells
+  );
+  expect(cells.C250.value).toBe("=IF(B2 <'Other Sheet'!B4,1,0)");
+  expect(cells.C251.value).toBe("=IF(B2 >='Other Sheet'!B4,1,0)");
+  expect(cells.C252.value).toBe("=IF(B2 <>'Other Sheet'!B4,1,0)");
+});
+
 test('drag fill continues numbers and month-end dates and undo restores the empty destination', async ({
   page,
 }) => {
