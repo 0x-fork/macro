@@ -31,7 +31,7 @@ import {
   type SpreadsheetCells,
 } from './spreadsheet-document';
 import type { WorkbookSheetMetadata } from './workbook-metadata';
-import { changeWorkbookAxis } from './workbook-structure';
+import { changeWorkbookAxis, moveWorkbookRange } from './workbook-structure';
 
 export type CalculatedCell = {
   display: string;
@@ -84,6 +84,7 @@ export type SpreadsheetCalculator = {
     context?: CalculationContext
   ) => CompletionContext;
   changeAxis: typeof changeWorkbookAxis;
+  moveRange: typeof moveWorkbookRange;
   /** An incremental calculation for a workbook that is edited repeatedly. */
   session: () => WorkbookCalculationSession;
   /**
@@ -1540,6 +1541,7 @@ export function createInitializedSpreadsheetCalculator(): SpreadsheetCalculator 
 
   return {
     changeAxis: changeWorkbookAxis,
+    moveRange: moveWorkbookRange,
     session() {
       if (disposed) throw new Error('The spreadsheet calculator is disposed.');
       return createWorkbookCalculationSession();

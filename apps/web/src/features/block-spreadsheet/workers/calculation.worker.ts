@@ -135,6 +135,11 @@ self.onmessage = async (event: MessageEvent<CalculationRequest>) => {
         type: 'change-axis',
         sheets: engine.changeAxis(operation.sheets, operation.change),
       }))
+      .with({ type: 'move-range' }, (operation) => ({
+        id: operation.id,
+        type: 'move-range',
+        sheets: engine.moveRange(operation.sheets, operation.move),
+      }))
       .with({ type: 'calculate' }, (operation) => ({
         id: operation.id,
         type: 'calculate',

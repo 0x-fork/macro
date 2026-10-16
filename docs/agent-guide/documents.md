@@ -316,6 +316,19 @@ irregular patterns repeat; relative formula references translate. Keyboard/menu
 Fill down/right explicitly copies the starting row/column. Plain-text paste from
 other apps keeps formulas as supplied.
 
+With a mouse, hover the selection's border until the cursor becomes a move
+cursor, then drag it to move the cells; a dashed outline and its address (for
+example `D6:E9`) show where they will land, and the grid scrolls when the pointer
+nears or passes its edge. Escape cancels the drag. Values, formatting, notes and
+validation go with the cells, the moved cells stay selected, and formulas that
+refer to them follow: `=SUM(B2:B3)` becomes `=SUM(D6:D7)` after moving B2:B3 to
+D6. Moving onto cells that hold values asks **Replace cells?** first (Cancel is
+focused); formulas that referred to the replaced cells show `#REF!`. One undo
+reverses the move. Like insert/delete, moving is unavailable while a saved
+workbook is offline, and a collaborator's edit made meanwhile cancels it with a
+footer notice. Moving part of a merged cell is refused. Touch screens keep the
+selection handles instead.
+
 Drag a column header's right boundary or row header's bottom boundary to resize;
 double-click the boundary to auto-fit. Row separators support Up/Down arrows and
 Enter to restore automatic height. Explicit row heights take precedence over wrap.

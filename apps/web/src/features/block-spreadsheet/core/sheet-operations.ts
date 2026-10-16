@@ -2,6 +2,7 @@ import {
   cellPlainText,
   cellTextParts,
 } from '@macro-inc/spreadsheet/cell-mentions';
+import type { RangeMove } from '@macro-inc/spreadsheet/workbook-structure';
 import type { CellCopy, SpreadsheetCalculation } from './calculation';
 import { csvCellValue } from './csv-value';
 import {
@@ -94,6 +95,31 @@ export function borderEdits(
       ];
     })
   );
+}
+
+/** Whether moving cells would replace values that are not among them. */
+export function moveReplacesValues(cells: SpreadsheetCells, move: RangeMove) {
+  const { source, rows, columns } = move;
+  for (const address in cells) {
+    if (!cells[address].value) continue;
+    const position = positionFromAddress(address);
+    if (
+      !position ||
+      position.row < source.top + rows ||
+      position.row > source.bottom + rows ||
+      position.column < source.left + columns ||
+      position.column > source.right + columns
+    )
+      continue;
+    if (
+      position.row < source.top ||
+      position.row > source.bottom ||
+      position.column < source.left ||
+      position.column > source.right
+    )
+      return true;
+  }
+  return false;
 }
 
 /** Sort entire selected rows together using the active column as the key. */

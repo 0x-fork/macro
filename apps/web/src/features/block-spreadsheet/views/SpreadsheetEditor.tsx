@@ -30,7 +30,10 @@ import {
 } from '../components/DropdownDialog';
 import { SpreadsheetFileMenu } from '../components/SpreadsheetActionMenus';
 import { SpreadsheetDialog } from '../components/SpreadsheetDialog';
-import { SpreadsheetFindDialog } from '../components/SpreadsheetDialogs';
+import {
+  SpreadsheetFindDialog,
+  SpreadsheetMoveDialog,
+} from '../components/SpreadsheetDialogs';
 import { SpreadsheetGoalSeekDialog } from '../components/SpreadsheetGoalSeekDialog';
 import {
   renderedSelectionCell,
@@ -85,11 +88,14 @@ import { createCalculationStatus } from '../primitives/create-calculation-status
 import { createDrawingActions } from '../primitives/create-drawing-actions';
 import { createGoalSeek } from '../primitives/create-goal-seek';
 import { createGridController } from '../primitives/create-grid-controller';
+import { createRangeMove } from '../primitives/create-range-move';
 import { createSheetActions } from '../primitives/create-sheet-actions';
 import type { SpreadsheetStore } from '../primitives/create-spreadsheet-store';
 import { createWorkbookActions } from '../primitives/create-workbook-actions';
 
 export function SpreadsheetEditor(props: {
+  /** A saved workbook's document, recorded on traces. */
+  documentId?: string;
   store: SpreadsheetStore;
   mentions?: SpreadsheetMentions;
   name: string;
@@ -345,6 +351,16 @@ export function SpreadsheetEditor(props: {
     },
     grid
   );
+  const canMoveCells = () => editable() && props.store.canChangeStructure();
+  const rangeMove = createRangeMove({
+    documentId: props.documentId,
+    store: props.store,
+    canMove: canMoveCells,
+    moveRange: calculation.moveRange,
+    setBusy: setStructureBusy,
+    setNotice: actions.setNotice,
+    select: grid.selectRange,
+  });
   const remoteCursors = createMemo(() =>
     spreadsheetCursors(props.store.peers(), props.store.rowCount())
   );
@@ -1017,6 +1033,15 @@ export function SpreadsheetEditor(props: {
           onResizeColumn={props.store.resizeColumn}
           onFill={grid.fill}
           onCopyMetadata={grid.copyMetadata}
+          onMoveSelection={
+            canMoveCells()
+              ? (selection, rows, columns) => {
+                  grid.commit();
+                  actions.clearNotice();
+                  void rangeMove.move(selection, rows, columns);
+                }
+              : undefined
+          }
           values={values()}
           notes={props.store.activeSheet().metadata?.notes}
           drawings={props.store.activeSheet().metadata?.drawings}
@@ -1326,6 +1351,12 @@ export function SpreadsheetEditor(props: {
           if (id) showDrawing(id);
           else focusGrid();
         }}
+      />
+      <SpreadsheetMoveDialog
+        open={!!rangeMove.confirming()}
+        onConfirm={() => void rangeMove.confirm()}
+        onClose={rangeMove.cancel}
+        onRestoreFocus={focusGrid}
       />
       <DropdownDialog
         dialog={dropdownDialog()}

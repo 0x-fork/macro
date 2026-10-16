@@ -2,7 +2,7 @@
 
 A native Macro document with multiple worksheets of up to 100,000 rows and
 16,384 columns (A–XFD), Excel-style formulas, keyboard navigation, rectangular selection, formula-aware copying and
-fill, resizable columns, added rows, rich cell formatting, Excel workbook
+fill, dragging a selection to move it, resizable columns, added rows, rich cell formatting, Excel workbook
 import/export, CSV import/value export, find and replace, range sorting, local
 undo/redo, and live collaboration. Existing uploaded `.xlsx` files are not
 automatically converted; open **Import and export** at the bottom right of a native
@@ -130,6 +130,27 @@ only while connected, so an offline coordinate shift cannot merge later over
 collaborators' edits. Rows and columns have no stable identities: an edit that a
 collaborator commits to old coordinates after the shift arrives still lands at
 those coordinates.
+
+Dragging the selection's border (`components/SelectionMoveHandle.tsx`, mouse or
+pen only) moves its cells the same way: `moveWorkbookRange` in
+`packages/spreadsheet/src/workbook-structure.ts` runs in the calculation worker,
+and `primitives/create-range-move.ts` commits the result as one revision-checked
+structural change, so it is one undo step, needs a connection in saved
+workbooks, and is cancelled by a collaborator's edit made meanwhile. It follows
+Excel's cut and paste: values, formats, notes, merges, legacy arrays, pivot
+table locations and data validation and conditional formatting ranges go with
+the cells (a rule that only partly moves is split in two), and replace what was
+at the destination after a confirmation when that held values. References to
+the moved cells from every sheet's formulas, names, rules, charts and pivot
+sources follow them; a range follows only when all of it moves, and moving
+whole rows or columns of the sheet also moves references like `1:2` or `A:A`. References
+inside moved formulas keep their cells, and references to replaced cells become
+`#REF!`. Moving part of a merge, array or pivot table is refused. Drawings,
+row heights and column widths stay, and comments stay on their addresses.
+While dragging, the grid scrolls near or past its edges and the cells land at
+the last visible row or column. Each move records a `spreadsheet.move_range`
+span (document, sheet, size, whether it replaced values, and any error) with
+`calculate` (the worker) and `commit` phases.
 
 ### Workbook sheets
 
@@ -261,8 +282,8 @@ formula awaits a reference keeps its draft, even when the formula's row is past
 the other sheet's last row, and every tab change scrolls to that sheet's own
 selection.
 
-Dragging a range, row or column headers, the fill handle, a formula reference, or
-a touch selection handle scrolls the grid while the pointer is within 24 pixels
+Dragging a range, row or column headers, the fill handle, a selection's move
+border, a formula reference, or a touch selection handle scrolls the grid while the pointer is within 24 pixels
 of an edge of the cells or past it, and extends the drag to the cell under the
 pointer or the nearest one in view. Speed grows with the pointer's depth into
 that edge (20 pixels per second per pixel), and a header drag scrolls only along
@@ -568,7 +589,7 @@ production transport.
 
 The [browser fixture](browser-test/README.md) runs the composed editor with real
 calculation and Excel workers. Its Playwright suite covers formula autocomplete
-and range picking, menu/dialog focus, sheet navigation, read-only transitions,
+and range picking, dragging a selection to move it, menu/dialog focus, sheet navigation, read-only transitions,
 Excel round trips, imported conditional formatting, data validation and notes,
 imported charts and images (following edits, Delete and undo, and download),
 radar, bubble, stock and contour charts, shapes, SmartArt and EMF images,

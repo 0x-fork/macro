@@ -113,4 +113,10 @@ explicit test document/socket query parameters are supplied.
 
 ## Editor interaction regressions
 
+`range-move.browser.e2e.ts` drags a selection by its border: the destination
+outline and label, formulas following the moved cells, a single undo, the
+confirmation before replacing values, auto-scroll past the grid's bottom edge,
+clicks, double-clicks and the cell menu on the border, and Escape cancelling
+a drag.
+
 `editor-interactions.browser.e2e.ts` mounts the real global hotkey listener to verify that selected-cell typing and arrows beat app navigation shortcuts. It also exercises multi-header drag/Shift selection, drags that scroll the grid past its bottom and right edges and back over the sticky headers to reach off-screen cells (including a fill-handle drag down to the last row), persistent row resizing and auto-fit, cross-sheet formula reference picking (including after comparison operators, from a row past the other sheet's end), and numeric/month-end date fill with undo. `formatting.browser.e2e.ts` checks mixed whole-column formatting, style persistence, viewport stability, a styled cell's pixels staying the same when selected, in a range and edited, percentage entry through both editors against the real calculation worker, the accounting layout, and indented line items measured from their aligned edge.
