@@ -203,6 +203,22 @@ shows the rule's message in the footer, and a "stop" rule keeps the previous val
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.
 
+To add checkboxes, select the cells and choose **Checkbox** in the toolbar's
+**Insert chart, image or checkbox** menu (chart icon), or **Insert checkbox** in
+the cell context menu. Blank cells become unchecked boxes backed by `FALSE`;
+cells holding `TRUE` or `FALSE` keep their value, and other values stay visible as
+text. Each box is a `checkbox` named after its cell (`B2`) and sits centered in
+the cell unless the cell is aligned left or right; it takes the cell's text color
+and font size. Click a box, or press Space, to toggle it; Space over a range checks
+every box, or unchecks them all once all are checked. Shift+click on a box extends
+the selection without toggling it. Delete unchecks any checked boxes and, pressed
+again, removes them; **Remove checkbox** in the cell menu (or Clear formatting)
+removes them and keeps their values. Formulas read the values, so
+`=COUNTIF(C:C,TRUE)` counts checked boxes. Agents add them with
+`EditSpreadsheet`'s `insert_checkboxes` operation and toggle them by setting
+`TRUE` or `FALSE`. Downloads use Excel's checkbox format, and imported Excel
+checkboxes stay checkboxes.
+
 Double-clicking a cell that holds a date (typed, imported or a date pill, but not
 a formula), or pressing Enter or F2 on it, opens a calendar below its editor; an
 Excel date validation rule opens it on its cells even when they are empty,
@@ -224,7 +240,7 @@ category to 100% of its positive values and to 100% of its negative values.
 Scatter charts plot markers without connecting lines. A combo chart draws
 every series but the last as columns and the last series as a line on a second
 axis. Each is a `figure` named after the chart title ("Chart: Revenue") or the
-image description. The toolbar's **Insert chart or image** menu (chart icon)
+image description. The toolbar's **Insert chart, image or checkbox** menu (chart icon)
 adds a chart of the selected cells — or, from one cell, of the table around
 it, placed beside it — or an image file (PNG, JPEG, GIF, WebP or BMP up to
 2 MB) at the active cell. Its **More charts** submenu holds Radar, Filled

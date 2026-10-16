@@ -635,6 +635,8 @@ export function SpreadsheetEditor(props: {
       .with('insert-count', () => actions.insertFunction('COUNT'))
       .with('insert-min', () => actions.insertFunction('MIN'))
       .with('insert-max', () => actions.insertFunction('MAX'))
+      .with('insert-checkbox', grid.insertCheckboxes)
+      .with('remove-checkbox', () => grid.format({ checkbox: false }))
       .exhaustive();
   }
 
@@ -1086,6 +1088,11 @@ export function SpreadsheetEditor(props: {
           inputMessage={inputMessage()}
           listItems={activeList()}
           dropdowns={dropdowns()}
+          onToggleCheckbox={(position) => {
+            actions.clearNotice();
+            grid.select(position);
+            grid.toggleCheckboxes();
+          }}
           onPickListItem={(item) => {
             if (!editable()) return;
             grid.commit();

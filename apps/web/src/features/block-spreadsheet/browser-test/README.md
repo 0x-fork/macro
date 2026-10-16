@@ -38,6 +38,8 @@ Dropdowns added, used and removed from the toolbar and cell menus (with
 choice colors drawn as chips in cells and in the open list), open lists
 kept clear of their cell (above it near the bottom edge) and moved to another
 dropdown cell with one click,
+checkboxes inserted, toggled by click and Space, counted by formulas, removed
+with Delete and the cell menu, and downloaded in Excel's checkbox format,
 date calendars on typed, imported and date-validated cells (keys, clicks and
 the stored form of the picked day),
 imported conditional formatting, validation lists and notes, imported charts
