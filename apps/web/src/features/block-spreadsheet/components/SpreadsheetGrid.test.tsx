@@ -1024,6 +1024,33 @@ describe('spreadsheet presentation', () => {
     );
   });
 
+  it('indents from the aligned edge by three spaces of the default font per level', () => {
+    const view = renderGrid(
+      {
+        A1: { value: 'Product', indent: 2 },
+        A2: { value: '1200', indent: 1 },
+        A3: { value: '1200', indent: 1, horizontalAlign: 'right' },
+        A4: { value: 'Title', indent: 2, horizontalAlign: 'center' },
+        A5: { value: 'Revenue' },
+      },
+      { zoom: 150 }
+    );
+    const cell = (address: string) =>
+      view.container.querySelector<HTMLElement>(`[data-address="${address}"]`)!;
+    // 10 pt is 13⅓ px; three spaces are 10 px per level, zoomed by 150%.
+    expect(cell('A1').style.paddingLeft).toBe('30px');
+    expect(cell('A1').style.paddingRight).toBe('');
+    // An indented automatic number aligns left, as Excel's Increase Indent does.
+    expect(cell('A2').style.textAlign).toBe('left');
+    expect(cell('A2').style.paddingLeft).toBe('15px');
+    expect(cell('A3').style.textAlign).toBe('right');
+    expect(cell('A3').style.paddingRight).toBe('15px');
+    expect(cell('A3').style.paddingLeft).toBe('');
+    expect(cell('A4').style.paddingLeft).toBe('');
+    expect(cell('A4').style.paddingRight).toBe('');
+    expect(cell('A5').style.paddingLeft).toBe('');
+  });
+
   it('hides the gridlines a fill covers and those a neighboring border replaces', () => {
     const view = renderGrid({
       B2: { value: '', fillColor: '#fff2cc' },

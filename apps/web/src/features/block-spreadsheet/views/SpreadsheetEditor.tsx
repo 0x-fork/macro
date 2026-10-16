@@ -590,6 +590,8 @@ export function SpreadsheetEditor(props: {
       .with('border-all', () => actions.borders('all'))
       .with('border-outer', () => actions.borders('outer'))
       .with('border-none', () => actions.borders('none'))
+      .with('indent-decrease', () => actions.indent(-1))
+      .with('indent-increase', () => actions.indent(1))
       .with('insert-sum', () => actions.insertFunction('SUM'))
       .with('insert-average', () => actions.insertFunction('AVERAGE'))
       .with('insert-count', () => actions.insertFunction('COUNT'))

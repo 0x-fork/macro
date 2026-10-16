@@ -152,6 +152,7 @@ describe('spreadsheet document', () => {
       textColor: '#123aBc',
       fillColor: '#FEDCBA',
       horizontalAlign: 'center',
+      indent: 3,
       verticalAlign: 'bottom',
       wrap: true,
       borderTop: true,

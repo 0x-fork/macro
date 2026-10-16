@@ -199,6 +199,62 @@ describe('Excel workbook files', () => {
     });
   });
 
+  it('round trips indented line items through Excel alignment', async () => {
+    const sheet = simpleSheet();
+    sheet.cells = {
+      A1: { value: 'Revenue' },
+      A2: { value: 'Product', indent: 1 },
+      A3: { value: 'Hardware', indent: 2, horizontalAlign: 'left' },
+      B2: { value: '1200', indent: 1, horizontalAlign: 'right' },
+      C2: { value: 'Centered', indent: 3, horizontalAlign: 'center' },
+    };
+    const encoded = await encodeXlsx({ sheets: [sheet] });
+    const external = new ExcelJS.Workbook();
+    await external.xlsx.load(encoded.bytes.slice().buffer);
+    const exported = external.worksheets[0];
+    // Excel indents only left- and right-aligned text.
+    expect(exported.getCell('A2').alignment).toMatchObject({
+      horizontal: 'left',
+      indent: 1,
+    });
+    expect(exported.getCell('A3').alignment).toMatchObject({
+      horizontal: 'left',
+      indent: 2,
+    });
+    expect(exported.getCell('B2').alignment).toMatchObject({
+      horizontal: 'right',
+      indent: 1,
+    });
+    expect(exported.getCell('C2').alignment.indent).toBeUndefined();
+    const decoded = await decodeXlsx(encoded.bytes);
+    expect(decoded.sheets[0].cells).toEqual({
+      A1: { value: 'Revenue' },
+      A2: { value: 'Product', indent: 1, horizontalAlign: 'left' },
+      A3: { value: 'Hardware', indent: 2, horizontalAlign: 'left' },
+      B2: { value: '1200', indent: 1, horizontalAlign: 'right' },
+      C2: { value: 'Centered', horizontalAlign: 'center' },
+    });
+  });
+
+  it('imports indents only where Excel shows them, up to its limit', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Ledger');
+    for (const [address, alignment] of [
+      ['A1', { horizontal: 'left', indent: 3 }],
+      ['A2', { horizontal: 'right', indent: 400 }],
+      ['A3', { indent: 2 }],
+      ['A4', { horizontal: 'distributed', indent: 2 }],
+    ] as const) {
+      sheet.getCell(address).value = 'Line item';
+      sheet.getCell(address).alignment = alignment;
+    }
+    const cells = (await decodeXlsx(await file(workbook))).sheets[0].cells;
+    expect(cells.A1).toMatchObject({ horizontalAlign: 'left', indent: 3 });
+    expect(cells.A2).toMatchObject({ horizontalAlign: 'right', indent: 250 });
+    expect(cells.A3.indent).toBeUndefined();
+    expect(cells.A4.indent).toBeUndefined();
+  });
+
   it('exports date and time formats as their Excel codes and imports them back', async () => {
     const sheet = simpleSheet();
     sheet.cells = {

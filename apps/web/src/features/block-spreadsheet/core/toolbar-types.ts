@@ -30,6 +30,8 @@ export type SpreadsheetCommand =
   | 'border-all'
   | 'border-outer'
   | 'border-none'
+  | 'indent-decrease'
+  | 'indent-increase'
   | 'insert-sum'
   | 'insert-average'
   | 'insert-count'

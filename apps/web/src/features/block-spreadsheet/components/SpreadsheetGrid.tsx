@@ -86,6 +86,8 @@ const ROW_HEADER_WIDTH = 46;
 const CELL_PADDING_X = 3;
 const CELL_PADDING_Y = 2;
 const CELL_LINE_HEIGHT = 1.2;
+/** Excel indents each level by three spaces of the workbook's default font. */
+const INDENT_EMS = 0.75;
 const MAX_ROW_HEIGHT = 160;
 
 export function renderedSelectionCell(
@@ -262,6 +264,11 @@ export function SpreadsheetGrid(props: {
   const hiddenColumns = createMemo(() => new Set(props.hiddenColumns));
   const hiddenRows = createMemo(() => new Set(props.hiddenRows));
   const defaultFontSize = () => props.defaultFont?.size ?? 10;
+  /** Unzoomed pixels a cell's indent takes from its content. */
+  const indentWidth = (cell?: SpreadsheetCell) =>
+    cell?.indent && cell.horizontalAlign !== 'center'
+      ? cell.indent * fontPixels(undefined, defaultFontSize()) * INDENT_EMS
+      : 0;
   const [fillTarget, setFillTarget] = createSignal<CellSelection>();
   // The cell whose list is open; moving the selection closes it.
   const [listOpenAt, setListOpenAt] = createSignal<string>();
@@ -419,7 +426,10 @@ export function SpreadsheetGrid(props: {
           context.font = `${cell.italic ? 'italic ' : ''}${cell.bold ? 600 : 400} ${pixels}px ${fontFamily(cell)}`;
         lines = wrappedLines(
           display(address),
-          columnWidth(position.column) - CELL_PADDING_X * 2 - borderInset,
+          columnWidth(position.column) -
+            CELL_PADDING_X * 2 -
+            borderInset -
+            indentWidth(cell),
           (text) =>
             context?.measureText(text).width ?? text.length * pixels * 0.6,
           Math.ceil((MAX_ROW_HEIGHT - verticalInset) / lineHeight)
@@ -801,7 +811,10 @@ export function SpreadsheetGrid(props: {
       for (const line of text.split('\n'))
         measured = Math.max(
           measured,
-          context.measureText(line).width + CELL_PADDING_X * 2 + 1 / scale()
+          context.measureText(line).width +
+            CELL_PADDING_X * 2 +
+            indentWidth(cell) +
+            1 / scale()
         );
     }
     props.onResizeColumn?.(
@@ -1662,15 +1675,24 @@ export function SpreadsheetGrid(props: {
                           : literalNumber(cell()) !== undefined;
                       const horizontalAlign = () => {
                         const align = cell()?.horizontalAlign;
+                        // Indenting an automatic cell aligns it left, as in Excel.
                         return align && align !== 'auto'
                           ? align
                           : numeric() &&
+                              !cell()?.indent &&
                               !(
                                 props.showFormulas &&
                                 cell()?.value.startsWith('=')
                               )
                             ? 'right'
                             : 'left';
+                      };
+                      const indentPadding = (side: 'left' | 'right') => {
+                        const width = indentWidth(cell()) * scale();
+                        return width > 0 &&
+                          (horizontalAlign() === 'right') === (side === 'right')
+                          ? `${width}px`
+                          : undefined;
                       };
                       const pending = () =>
                         !!props.pendingFormulas &&
@@ -1770,6 +1792,12 @@ export function SpreadsheetGrid(props: {
                                   : 'center',
                             'padding-block':
                               'var(--spreadsheet-cell-padding-y)',
+                            'padding-left': indentPadding('left'),
+                            'padding-right': indentPadding('right'),
+                            '--spreadsheet-cell-indent-left':
+                              indentPadding('left'),
+                            '--spreadsheet-cell-indent-right':
+                              indentPadding('right'),
                             'line-height': CELL_LINE_HEIGHT,
                           }}
                           class="absolute top-0 bottom-0 flex flex-col border-b border-r border-ink/12 bg-panel text-ink select-none"
@@ -1928,9 +1956,9 @@ export function SpreadsheetGrid(props: {
                                 (isTouchDevice() && !!props.referenceSelection)
                               }
                               onSelectionChange={props.onTextSelection}
-                              // Inherits the cell's fill, font and color; automatic
-                              // alignment edits from the left, as in Excel.
-                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit px-[var(--spreadsheet-cell-padding)] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
+                              // Inherits the cell's fill, font, color and indent;
+                              // automatic alignment edits from the left, as in Excel.
+                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit pl-[calc(var(--spreadsheet-cell-padding)_+_var(--spreadsheet-cell-indent-left,0px))] pr-[calc(var(--spreadsheet-cell-padding)_+_var(--spreadsheet-cell-indent-right,0px))] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
                                 cell()?.horizontalAlign === 'center'
                                   ? 'text-center'
                                   : cell()?.horizontalAlign === 'right'

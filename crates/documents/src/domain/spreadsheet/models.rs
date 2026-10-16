@@ -164,6 +164,10 @@ pub struct SpreadsheetStyle {
     /// Horizontal alignment.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub horizontal_align: Option<SpreadsheetHorizontalAlign>,
+    /// Indent level, 0 through 250, as Excel's Increase Indent: each level is three spaces from the
+    /// left edge, or from the right edge of right-aligned cells. Centered cells ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub indent: Option<u8>,
     /// Vertical alignment.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vertical_align: Option<SpreadsheetVerticalAlign>,

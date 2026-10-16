@@ -3,6 +3,7 @@ import { strFromU8 } from 'fflate';
 import { SaxesParser, type SaxesTagNS } from 'saxes';
 import {
   SPREADSHEET_DEFAULT_STYLE,
+  SPREADSHEET_MAX_INDENT,
   type SpreadsheetCellStyle,
 } from './spreadsheet-document';
 import { readNumberFormat } from './xlsx-styles';
@@ -513,6 +514,14 @@ export function readXlsxStylesheet(
         result.horizontalAlign = 'center';
       else if (horizontal === 'justify' || horizontal === 'fill')
         result.horizontalAlign = 'left';
+      // Excel ignores the indent of other alignments.
+      const indent = Number(alignment.indent ?? 0);
+      if (
+        (horizontal === 'left' || horizontal === 'right') &&
+        Number.isInteger(indent) &&
+        indent > 0
+      )
+        result.indent = Math.min(SPREADSHEET_MAX_INDENT, indent);
       const vertical = alignment.vertical;
       if (vertical === 'top' || vertical === 'bottom')
         result.verticalAlign = vertical;

@@ -20,6 +20,8 @@ export const MIN_COLUMN_WIDTH = 8;
 export const MAX_COLUMN_WIDTH = 640;
 export const SPREADSHEET_FORMAT_VERSION = 1;
 export const SPREADSHEET_MAX_CELL_LENGTH = 10_000;
+/** Excel's limit for a cell's indent level. */
+export const SPREADSHEET_MAX_INDENT = 250;
 
 export type SpreadsheetFormat =
   | 'general'
@@ -42,6 +44,9 @@ export type SpreadsheetCell = {
   textColor?: string;
   fillColor?: string;
   horizontalAlign?: 'auto' | 'left' | 'center' | 'right';
+  /** Excel's indent level: three spaces each, from the right edge of
+   * right-aligned cells and the left edge otherwise. Centered text ignores it. */
+  indent?: number;
   verticalAlign?: 'top' | 'middle' | 'bottom';
   wrap?: boolean;
   borderTop?: boolean;
@@ -76,6 +81,7 @@ export const SPREADSHEET_DEFAULT_STYLE: Required<SpreadsheetCellStyle> = {
   textColor: '',
   fillColor: '',
   horizontalAlign: 'auto',
+  indent: 0,
   verticalAlign: 'middle',
   wrap: false,
   borderTop: false,
@@ -157,6 +163,11 @@ const styleFields: {
       value === 'left' ||
       value === 'center' ||
       value === 'right',
+  },
+  indent: {
+    map: 'spreadsheetIndent',
+    valid: (value): value is number =>
+      integerStyle(value, 0, SPREADSHEET_MAX_INDENT),
   },
   verticalAlign: {
     map: 'spreadsheetVerticalAlign',

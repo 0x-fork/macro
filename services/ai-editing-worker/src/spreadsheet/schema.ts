@@ -55,6 +55,7 @@ const style = z
     textColor: color.optional(),
     fillColor: color.optional(),
     horizontalAlign: z.enum(['auto', 'left', 'center', 'right']).optional(),
+    indent: z.number().int().min(0).max(250).optional(),
     verticalAlign: z.enum(['top', 'middle', 'bottom']).optional(),
     wrap: z.boolean().optional(),
     borderTop: z.boolean().optional(),

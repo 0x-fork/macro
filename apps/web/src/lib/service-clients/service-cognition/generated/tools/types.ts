@@ -5080,6 +5080,11 @@ export interface SpreadsheetStyle {
    */
   horizontalAlign?: SpreadsheetHorizontalAlign | null;
   /**
+   * Indent level, 0 through 250, as Excel's Increase Indent: each level is three spaces from the
+   * left edge, or from the right edge of right-aligned cells. Centered cells ignore it.
+   */
+  indent?: number | null;
+  /**
    * Vertical alignment.
    */
   verticalAlign?: SpreadsheetVerticalAlign | null;

@@ -216,6 +216,7 @@ class StyleTable {
     const alignment = [
       style.alignment.horizontal &&
         `horizontal="${style.alignment.horizontal}"`,
+      style.alignment.indent && `indent="${style.alignment.indent}"`,
       style.alignment.vertical !== 'bottom' &&
         `vertical="${style.alignment.vertical}"`,
       style.alignment.wrapText && 'wrapText="1"',

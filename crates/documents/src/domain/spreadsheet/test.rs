@@ -278,3 +278,32 @@ fn imported_styles_round_trip_through_the_ai_contract() {
         .is_err()
     );
 }
+
+#[test]
+fn indented_cells_read_back_with_their_level() {
+    let parsed: SpreadsheetResponse = serde_json::from_value(serde_json::json!({
+        "action":"read", "revision":"r", "warnings":[], "sheets":[],
+        "ranges":[{"sheetId":"sheet1","sheetName":"Sheet1","range":"A2","truncated":false,
+            "cells":[{"address":"A2","source":"Product revenue","type":"text","value":"Product revenue",
+                "display":"Product revenue","style":{"indent":2,"horizontalAlign":"left"}}]}]
+    }))
+    .unwrap();
+    let SpreadsheetResponse::Read { ranges, .. } = parsed else {
+        panic!("expected a read response");
+    };
+    assert_eq!(
+        ranges[0].cells[0]
+            .style
+            .as_ref()
+            .and_then(|style| style.indent),
+        Some(2)
+    );
+    let operation: SpreadsheetOperation = serde_json::from_value(serde_json::json!({
+        "type": "format_cells", "sheetId": "sheet1", "range": "A2:A4", "style": {"indent": 1}
+    }))
+    .unwrap();
+    assert!(matches!(
+        operation,
+        SpreadsheetOperation::FormatCells { style, .. } if style.indent == Some(1)
+    ));
+}

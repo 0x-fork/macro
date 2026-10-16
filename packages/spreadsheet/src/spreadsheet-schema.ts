@@ -100,6 +100,9 @@ export const SPREADSHEET_LORO_SCHEMA = schema({
   spreadsheetVerticalAlign: schema.LoroMap(
     {} as Record<string, ReturnType<typeof schema.String>>
   ),
+  spreadsheetIndent: schema.LoroMap(
+    {} as Record<string, ReturnType<typeof schema.Number>>
+  ),
   spreadsheetFontSize: schema.LoroMap(
     {} as Record<string, ReturnType<typeof schema.Number>>
   ),

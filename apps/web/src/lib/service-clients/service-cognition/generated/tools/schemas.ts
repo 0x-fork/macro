@@ -454,6 +454,9 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                           z.null(),
                         ])
                         .optional(),
+                      indent: z
+                        .union([z.number().int().gte(0).lte(255), z.null()])
+                        .optional(),
                       verticalAlign: z
                         .union([
                           z.any().superRefine((x, ctx) => {
@@ -7976,6 +7979,9 @@ export const EditSpreadsheet = z.object({
                     }),
                     z.null(),
                   ])
+                  .optional(),
+                indent: z
+                  .union([z.number().int().gte(0).lte(255), z.null()])
                   .optional(),
                 verticalAlign: z
                   .union([

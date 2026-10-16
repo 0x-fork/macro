@@ -323,8 +323,13 @@ compare formula, error, and formatting behavior before replacing it.
 - Array results are shown within the visible grid. There is no grid expansion for
   an array that spills beyond its edges.
 - The ribbon exposes font family/size, bold/italic/underline/strikethrough,
-  text/fill colors, per-edge borders, horizontal/vertical alignment, and wrapping.
-  All cell styles persist, sync independently, copy/fill, and undo. Number formats
+  text/fill colors, per-edge borders, horizontal/vertical alignment, indent, and
+  wrapping. All cell styles persist, sync independently, copy/fill, and undo.
+  Increase and Decrease indent move each selected cell one level from its own,
+  as in Excel. A level is three spaces of the workbook's default font, measured
+  from the right edge of right-aligned cells and the left edge otherwise; an
+  indented cell with automatic alignment aligns left, and indenting centered text
+  makes it left-aligned. Indents round-trip as Excel's alignment `indent`. Number formats
   include general, number, USD currency, USD accounting, percent, scientific, date,
   time, and plain text, with adjustable decimal places. Accounting follows Excel:
   the grid pins `$` to the cell's left edge and the amount to its right, negatives
@@ -400,7 +405,7 @@ Import keeps what Excel calculates and shows:
   cached values with a warning.
 - Theme and indexed colors with tints, built-in and custom number formats, the
   workbook's default font (cells store only differences from it), borders, fills,
-  alignment, column widths, row heights, hidden rows/columns/sheets, merges,
+  alignment and indent, column widths, row heights, hidden rows/columns/sheets, merges,
   frozen panes, gridlines, tab colors and autofilters.
 - 1904-based dates are converted. Unknown error literals, rich text, phonetic
   runs, and invalid cell or merge references degrade to text or warnings rather
