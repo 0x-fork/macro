@@ -146,6 +146,17 @@ const operation = z.discriminatedUnion('type', [
       items: z.array(z.string().min(1).max(255)).min(1).max(1_000).optional(),
       source: z.string().min(2).max(300).optional(),
       rejectInvalid: z.boolean().optional(),
+      colors: z
+        .array(
+          z
+            .object({
+              item: z.string().min(1).max(1_024),
+              color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+            })
+            .strict()
+        )
+        .max(1_000)
+        .optional(),
     })
     .strict(),
   z.object({ type: z.literal('clear_validation'), sheetId, range }).strict(),

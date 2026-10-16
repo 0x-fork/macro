@@ -49,7 +49,7 @@ function renderGrid(
     | 'sheetId'
     | 'onFill'
     | 'onResizeColumn'
-    | 'dropdownRanges'
+    | 'dropdowns'
     | 'ownsClipboard'
   > & {
     values?: ComponentProps<typeof SpreadsheetGrid>['values'];
@@ -118,7 +118,7 @@ function renderGrid(
           hiddenColumns={options.hiddenColumns}
           onFill={options.onFill}
           onResizeColumn={options.onResizeColumn}
-          dropdownRanges={options.dropdownRanges}
+          dropdowns={options.dropdowns}
           values={options.values ?? {}}
           remoteCursors={[]}
           selection={controller.selection()}
@@ -221,7 +221,7 @@ describe('spreadsheet dropdown cells', () => {
     );
 
   it('shows an arrow in each dropdown cell that selects the cell', () => {
-    const view = renderGrid({}, { dropdownRanges: ['B2:B3 D1'] });
+    const view = renderGrid({}, { dropdowns: [{ range: 'B2:B3 D1' }] });
     expect(marker(view, 'B2')?.tagName).toBe('BUTTON');
     expect(marker(view, 'B3')).not.toBeNull();
     expect(marker(view, 'D1')).not.toBeNull();
@@ -236,9 +236,47 @@ describe('spreadsheet dropdown cells', () => {
   });
 
   it('marks dropdown cells without a control in a view-only sheet', () => {
-    const view = renderGrid({}, { dropdownRanges: ['B2'], readonly: true });
+    const view = renderGrid(
+      {},
+      { dropdowns: [{ range: 'B2' }], readonly: true }
+    );
     expect(marker(view, 'B2')?.tagName).toBe('SPAN');
     expect(marker(view, 'B2')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('draws a colored choice as a chip in its cells, matching case-insensitively', () => {
+    const view = renderGrid(
+      {
+        B2: { value: 'done' },
+        B3: { value: 'Open' },
+        B4: { value: 'Elsewhere' },
+        C2: { value: 'Done' },
+      },
+      {
+        dropdowns: [
+          {
+            range: 'B2:B4',
+            colors: new Map([
+              ['done', '#bbf7d0'],
+              ['open', '#1e3a8a'],
+            ]),
+          },
+        ],
+      }
+    );
+    const chip = (address: string) =>
+      view.container.querySelector<HTMLElement>(
+        `[data-address="${address}"] [data-choice-chip]`
+      );
+    expect(chip('B2')?.textContent).toBe('done');
+    expect(chip('B2')?.style.backgroundColor).toBe('rgb(187, 247, 208)');
+    expect(chip('B2')?.style.color).toBe('rgb(0, 0, 0)');
+    // Dark choices keep their text legible.
+    expect(chip('B3')?.style.color).toBe('rgb(255, 255, 255)');
+    expect(chip('B4')).toBeNull();
+    expect(view.getByRole('gridcell', { name: 'B4: Elsewhere' })).toBeTruthy();
+    // Outside the dropdown the same text stays plain.
+    expect(chip('C2')).toBeNull();
   });
 });
 

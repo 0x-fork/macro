@@ -174,13 +174,22 @@ values change.
 
 To add an in-cell dropdown, select the cells and choose **Format and data →
 Dropdown…** in the toolbar (sliders icon), or **Dropdown…** in the cell context
-menu. The **Dropdown** dialog takes **Type the choices** (one per line in
-**Choices, one per line**) or **Use the values of a range** (**Range of choices**,
-such as `A2:A10` or `'Sheet 2'!A2:A10`), and **Reject values that are not a
-choice** (on by default). **Save** replaces any validation on the selected cells;
+menu. The **Dropdown** dialog takes **Type the choices** (one per row, **Choice 1**,
+**Choice 2**, …: Enter on a filled choice adds the next one and Enter on an empty
+one saves, **Add choice** appends a row, and pasting several lines adds a row for
+each) or **Use the values of a range** (**Range of choices**, such as `A2:A10` or
+`'Sheet 2'!A2:A10`, whose current values are listed below it), and **Reject values
+that are not a choice** (on by default). Each choice has a color button (**Color
+of Low**) offering **No color** and nine light colors. New choices take the next
+unused color; a dropdown saved without colors stays plain until one of its choices
+is colored. Cells showing a colored choice draw it as a chip, and the open list
+shows the same chips. **Save** replaces any validation on the selected cells;
 **Remove** clears it from them. Reopening the dialog on a dropdown cell shows its
-current choices. Agents add the same dropdowns with `EditSpreadsheet`'s
-`set_dropdown` operation and remove them with `clear_validation`.
+current choices and colors. Agents add the same dropdowns with `EditSpreadsheet`'s
+`set_dropdown` operation (choice colors in `colors: [{ item, color }]`), see them
+in `ReadSpreadsheet`, and remove them with `clear_validation`. Excel downloads
+write choice colors as conditional formatting fills; importing such a file
+restores them as choice colors.
 
 Every cell with a dropdown (from the dialog, an agent, or an Excel list rule) shows
 a small arrow at its right edge; clicking it selects the cell and opens its

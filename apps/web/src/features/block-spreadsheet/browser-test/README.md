@@ -34,7 +34,8 @@ without a calculation-status flash or grid remount. Further regressions cover
 immediate typing after the workbook loads (without taking focus from a control
 reached while loading) and after adding or duplicating sheets, returning focus from toolbar
 fields, range formatting/sorting, and footer controls down to a 360-pixel panel.
-Dropdowns added, used and removed from the toolbar and cell menus, open lists
+Dropdowns added, used and removed from the toolbar and cell menus (with
+choice colors drawn as chips in cells and in the open list), open lists
 kept clear of their cell (above it near the bottom edge) and moved to another
 dropdown cell with one click,
 imported conditional formatting, validation lists and notes, imported charts

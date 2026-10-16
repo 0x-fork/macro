@@ -40,6 +40,7 @@ import {
 } from './xlsx-formula';
 import { connectionsPart, pivotParts, pivotTableName } from './xlsx-pivots';
 import {
+  choiceColorFormats,
   conditionalFormattingXml,
   dataValidationsXml,
   differentialXml,
@@ -846,7 +847,10 @@ export function writeXlsxWorkbook(
       }<dimension ref="${dimension}"/><sheetViews><sheetView workbookViewId="0"${sheetIndex === firstVisible ? ' tabSelected="1"' : ''}${metadata.gridlines === false ? ' showGridLines="0"' : ''}${pane ? `>${pane}</sheetView>` : '/>'}</sheetViews><sheetFormatPr defaultColWidth="${DEFAULT_COLUMN_CHARACTERS}" defaultRowHeight="${defaultRowHeight}"/>${cols ? `<cols>${cols}</cols>` : ''}<sheetData>${rowXml}</sheetData>${
         metadata.autoFilter ? `<autoFilter ref="${metadata.autoFilter}"/>` : ''
       }${merges.length ? `<mergeCells count="${merges.length}">${merges.join('')}</mergeCells>` : ''}${conditionalFormattingXml(
-        metadata.conditionalFormats,
+        [
+          ...(metadata.conditionalFormats ?? []),
+          ...choiceColorFormats(metadata.validations),
+        ],
         (style) => styles.dxf(style),
         addFunctionPrefixes
       )}${dataValidationsXml(metadata.validations, addFunctionPrefixes)}<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>${drawingId ? `<drawing r:id="${drawingId}"/>` : ''}${notesId ? `<legacyDrawing r:id="${notesId}"/>` : ''}</worksheet>`

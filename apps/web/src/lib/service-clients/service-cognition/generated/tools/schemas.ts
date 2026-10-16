@@ -575,6 +575,14 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                 formulas: z.union([z.array(z.string()), z.null()]).optional(),
                 dropdown: z.union([z.boolean(), z.null()]).optional(),
                 rejectInvalid: z.boolean(),
+                colors: z
+                  .union([
+                    z.array(
+                      z.object({ item: z.string(), color: z.string() }).strict()
+                    ),
+                    z.null(),
+                  ])
+                  .optional(),
               })
             )
             .optional(),
@@ -8120,6 +8128,14 @@ export const EditSpreadsheet = z.object({
             items: z.union([z.array(z.string()), z.null()]).optional(),
             source: z.union([z.string(), z.null()]).optional(),
             rejectInvalid: z.union([z.boolean(), z.null()]).optional(),
+            colors: z
+              .union([
+                z.array(
+                  z.object({ item: z.string(), color: z.string() }).strict()
+                ),
+                z.null(),
+              ])
+              .optional(),
             type: z.literal('set_dropdown'),
           })
           .strict(),

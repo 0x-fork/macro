@@ -240,6 +240,16 @@ pub struct SpreadsheetColumnWidth {
     pub width: u16,
 }
 
+/// A dropdown choice's color. Cells showing the choice draw it as a chip of this color.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SpreadsheetDropdownColor {
+    /// The choice, matched to cell text ignoring case.
+    pub item: String,
+    /// Chip color as #RRGGBB. Light colors such as #D9EAD3 keep dark text legible.
+    pub color: String,
+}
+
 /// One operation in an atomic workbook edit. All operations validate before any write.
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(
@@ -339,6 +349,9 @@ pub enum SpreadsheetOperation {
         /// Defaults to true: reject typed entries that are not a choice. False only suggests the choices.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         reject_invalid: Option<bool>,
+        /// Optional color per choice, shown as a colored chip in cells and in the open list. With typed items, each must name one of them.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        colors: Option<Vec<SpreadsheetDropdownColor>>,
     },
     /// Remove dropdowns and any other data validation from a rectangle.
     ClearValidation {
@@ -507,6 +520,9 @@ pub struct SpreadsheetReadValidation {
     pub dropdown: Option<bool>,
     /// Whether entries that break the rule are rejected.
     pub reject_invalid: bool,
+    /// A dropdown's choice colors.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub colors: Option<Vec<SpreadsheetDropdownColor>>,
 }
 
 /// One hypothetical formula result.

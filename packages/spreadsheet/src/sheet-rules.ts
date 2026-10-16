@@ -87,6 +87,9 @@ export const DATA_VALIDATION_TYPES = [
   'custom',
 ] as const;
 
+/** A dropdown choice's color, as #RRGGBB. */
+export type DropdownColor = { item: string; color: string };
+
 /** An Excel data validation rule. Formulas are stored without `=`. */
 export type DataValidation = {
   range: string;
@@ -104,6 +107,11 @@ export type DataValidation = {
   showPrompt?: boolean;
   promptTitle?: string;
   prompt?: string;
+  /**
+   * Macro's colors for a list's choices, matched to cell text ignoring case.
+   * Excel has no equivalent; export writes them as conditional formatting.
+   */
+  colors?: DropdownColor[];
 };
 
 export const CONDITIONAL_FORMAT_TYPES = [
@@ -311,6 +319,7 @@ export function validDataValidation(value: unknown) {
       'showPrompt',
       'promptTitle',
       'prompt',
+      'colors',
     ]) &&
     validSqref(value.range) &&
     (DATA_VALIDATION_TYPES as readonly unknown[]).includes(value.type) &&
@@ -328,7 +337,21 @@ export function validDataValidation(value: unknown) {
     optional(value.error, text) &&
     flag(value.showPrompt) &&
     optional(value.promptTitle, (title) => text(title, 64)) &&
-    optional(value.prompt, text)
+    optional(value.prompt, text) &&
+    optional(
+      value.colors,
+      (colors) =>
+        Array.isArray(colors) &&
+        colors.length <= 1_000 &&
+        colors.every(
+          (entry) =>
+            record(entry) &&
+            onlyKeys(entry, ['item', 'color']) &&
+            text(entry.item) &&
+            entry.item !== '' &&
+            color(entry.color)
+        )
+    )
   );
 }
 

@@ -334,9 +334,13 @@ test('tapping another dropdown cell moves the open list there, and other cells c
     await cell(page, address).tap();
     await tapMenu(page, 'Format and data', 'Dropdown…');
     const dialog = page.getByRole('dialog', { name: 'Dropdown' });
-    await dialog
-      .getByRole('textbox', { name: 'Choices, one per line' })
-      .fill('Low\nMedium\nHigh');
+    const choice = (number: number) =>
+      dialog.getByRole('textbox', { name: `Choice ${number}`, exact: true });
+    await choice(1).fill('Low');
+    for (const [index, value] of ['Medium', 'High'].entries()) {
+      await button(page, 'Add choice').tap();
+      await choice(index + 2).fill(value);
+    }
     await button(page, 'Save').tap();
     await expect(dialog).toBeHidden();
   }

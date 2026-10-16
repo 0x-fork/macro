@@ -61,6 +61,7 @@ import {
 } from '../core/grid-selection';
 import { selectionToggleStyles } from '../core/selection-formatting';
 import {
+  choiceColors,
   dropdownOptions,
   listItems,
   type RangeValues,
@@ -200,15 +201,24 @@ export function SpreadsheetEditor(props: {
       ? { title: rule.promptTitle, message: rule.prompt ?? '' }
       : undefined;
   };
-  const dropdownRanges = createMemo(() =>
+  const dropdowns = createMemo(() =>
     (props.store.activeSheet().metadata?.validations ?? [])
       .filter((rule) => rule.type === 'list' && rule.dropdown !== false)
-      .map((rule) => rule.range)
+      .map((rule) => ({ range: rule.range, colors: choiceColors(rule) }))
   );
   const [dropdownDialog, setDropdownDialog] = createSignal<
     DropdownDialogState & { sheetId: string }
   >();
   const [dropdownError, setDropdownError] = createSignal<string>();
+  const rangeChoices = (range: string) => {
+    const dialog = dropdownDialog();
+    if (!dialog) return;
+    return listItems(
+      { range: dialog.range, type: 'list', formulas: [range] },
+      rangeValues(dialog.sheetId),
+      definedNames(dialog.sheetId)
+    );
+  };
   const selectionRange = () => {
     const bounds = selectionBounds(grid.selection());
     const first = cellAddress({ row: bounds.top, column: bounds.left });
@@ -1038,7 +1048,7 @@ export function SpreadsheetEditor(props: {
           revealDrawing={revealDrawing()}
           inputMessage={inputMessage()}
           listItems={activeList()}
-          dropdownRanges={dropdownRanges()}
+          dropdowns={dropdowns()}
           onPickListItem={(item) => {
             if (!editable()) return;
             grid.commit();
@@ -1320,6 +1330,7 @@ export function SpreadsheetEditor(props: {
       <DropdownDialog
         dialog={dropdownDialog()}
         error={dropdownError()}
+        rangeChoices={rangeChoices}
         onSave={changeDropdown}
         onRemove={() => changeDropdown()}
         onClose={() => setDropdownDialog(undefined)}

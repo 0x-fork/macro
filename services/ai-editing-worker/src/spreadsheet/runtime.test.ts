@@ -437,4 +437,12 @@ it('accepts dropdown operations and rejects unknown dropdown fields', () => {
   expect(edit({ type: 'set_dropdown', items: ['a'], formula: '=1' })).toBe(
     false
   );
+  const colored = (colors: unknown) =>
+    edit({ type: 'set_dropdown', items: ['Open', 'Done'], colors });
+  expect(colored([{ item: 'Done', color: '#B7E1CD' }])).toBe(true);
+  expect(colored([{ item: 'Done', color: 'green' }])).toBe(false);
+  expect(colored([{ item: 'Done', color: '#b7e1cd', text: '#000' }])).toBe(
+    false
+  );
+  expect(colored({ Done: '#b7e1cd' })).toBe(false);
 });

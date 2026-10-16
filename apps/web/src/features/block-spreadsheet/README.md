@@ -429,7 +429,14 @@ Import keeps what Excel calculates and shows:
   adds, edits and removes list rules on the selection through
   `packages/spreadsheet/src/data-validation.ts`, which the AI `set_dropdown` and
   `clear_validation` operations share: a new rule takes its range out of the rules
-  it overlaps, since a cell has one rule. Input messages and notes show beside the active cell.
+  it overlaps, since a cell has one rule. A list rule's `colors` are Macro's own,
+  keyed by choice text ignoring case: cells showing a colored choice, and the open
+  list, draw it as a chip (`components/ChoiceChip.tsx`). The dialog gives new
+  choices the next unused color of a light palette and lists a range source's
+  current values to color. Excel has no such colors, so export writes each as a
+  `cellIs` equal rule filling the dropdown's range, after the sheet's own
+  conditional formats; import folds fill-only equal rules over exactly a
+  dropdown's range, naming one of its choices, back into its colors. Input messages and notes show beside the active cell.
   Inserting or deleting rows and columns moves rule ranges, rule formulas and
   notes.
 - Images and charts. `core/xlsx-drawings.ts` reads a sheet's drawing part

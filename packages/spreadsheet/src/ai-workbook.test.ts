@@ -431,6 +431,10 @@ describe('spreadsheet AI atomic editing', () => {
         sheetId: 'sheet1',
         range: 'b2:b10',
         items: ['Open', 'In progress', 'Done', 'Open'],
+        colors: [
+          { item: 'Open', color: '#F4CCCC' },
+          { item: 'Done', color: '#d9ead3' },
+        ],
       },
       {
         type: 'set_dropdown',
@@ -438,6 +442,7 @@ describe('spreadsheet AI atomic editing', () => {
         range: 'C2:C10',
         source: 'Lists!A1:A2',
         rejectInvalid: false,
+        colors: [{ item: 'Grace', color: '#c9daf8' }],
       },
     ]);
     expect(added.changes.map((change) => change.summary)).toEqual([
@@ -452,12 +457,17 @@ describe('spreadsheet AI atomic editing', () => {
         allowBlank: true,
         showError: true,
         errorStyle: 'stop',
+        colors: [
+          { item: 'Open', color: '#f4cccc' },
+          { item: 'Done', color: '#d9ead3' },
+        ],
       },
       {
         range: 'C2:C10',
         type: 'list',
         formulas: ["'Lists'!$A$1:$A$2"],
         allowBlank: true,
+        colors: [{ item: 'Grace', color: '#c9daf8' }],
       },
     ]);
     const read = () =>
@@ -474,6 +484,10 @@ describe('spreadsheet AI atomic editing', () => {
         items: ['Open', 'In progress', 'Done'],
         dropdown: true,
         rejectInvalid: true,
+        colors: [
+          { item: 'Open', color: '#f4cccc' },
+          { item: 'Done', color: '#d9ead3' },
+        ],
       },
       {
         range: 'C2:C10',
@@ -481,6 +495,7 @@ describe('spreadsheet AI atomic editing', () => {
         source: "'Lists'!$A$1:$A$2",
         dropdown: true,
         rejectInvalid: false,
+        colors: [{ item: 'Grace', color: '#c9daf8' }],
       },
     ]);
     expect(read().ranges[1].validations).toBeUndefined();
@@ -493,11 +508,12 @@ describe('spreadsheet AI atomic editing', () => {
       readSpreadsheetWorkbook(doc)[0].metadata?.validations?.map((rule) => [
         rule.range,
         rule.formulas?.[0],
+        rule.colors?.map((entry) => entry.item),
       ])
     ).toEqual([
-      ['B2:B3 B5:B9', '"Open,In progress,Done"'],
-      ['C2:C3 C5:C9', "'Lists'!$A$1:$A$2"],
-      ['B4:C4', '"X"'],
+      ['B2:B3 B5:B9', '"Open,In progress,Done"', ['Open', 'Done']],
+      ['C2:C3 C5:C9', "'Lists'!$A$1:$A$2", ['Grace']],
+      ['B4:C4', '"X"', undefined],
     ]);
     // The list's source sheet keeps its name while the rule reads it.
     expect(() =>
@@ -545,6 +561,12 @@ describe('spreadsheet AI atomic editing', () => {
     expect(() => edit({ items: ['x'.repeat(300)] })).toThrow('253 characters');
     expect(() => edit({ source: 'SUM(B1:B2)' })).toThrow('Invalid dropdown');
     expect(() => edit({ source: 'Missing!B1:B2' })).toThrow('does not exist');
+    expect(() =>
+      edit({ items: ['a'], colors: [{ item: 'b', color: '#ffffff' }] })
+    ).toThrow('“b” is not one of the dropdown');
+    expect(() =>
+      edit({ items: ['a'], colors: [{ item: 'a', color: 'green' }] })
+    ).toThrow('Invalid color');
     expect(() => edit({ range: 'A1:A999', items: ['a'] })).toThrow(
       'Append rows'
     );
