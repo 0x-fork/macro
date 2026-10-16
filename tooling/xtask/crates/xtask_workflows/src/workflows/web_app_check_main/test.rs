@@ -1,26 +1,31 @@
 use super::*;
 
 #[test]
-fn android_version_is_an_unconditional_required_merge_check() {
+fn android_native_check_is_an_unconditional_required_merge_check() {
     let yaml = web_app_check_main().to_string().expect("workflow yaml");
-    let android = job(&yaml, "android-version", "typescript");
+    let android = job(&yaml, "android-native-check", "typescript");
     assert!(
-        !android.contains("if:"),
-        "native enforcement must always run"
+        !android.contains("\n    if:"),
+        "native enforcement must always run (steps may be gated, the job may not): {android}"
     );
     assert!(
         !android.contains("fetch-depth"),
         "shallow checkout; the base commit is fetched by the step: {android}"
     );
-    assert!(android.contains("github.event.pull_request.base.sha"));
-    assert!(android.contains("git fetch -q --depth=1 origin \"$BASE_SHA\""));
+    assert!(
+        android.contains("git cat-file -p HEAD | sed -n 's/^parent //p' | head -1")
+            && !android.contains("github.event.pull_request.base.sha"),
+        "the base is the merge commit's first parent, not the event payload: {android}"
+    );
     assert!(android.contains("bun scripts/android-version-check.mjs"));
+    assert!(android.contains("bun scripts/android-play-status.mjs --version-code"));
+    assert!(android.contains("id-token: write"));
     let status = yaml
         .split("\n  status-check:\n")
         .nth(1)
         .expect("status job");
-    assert!(status.contains("- android-version"));
-    assert!(status.contains("needs.android-version.result }}\" != \"success\""));
+    assert!(status.contains("- android-native-check"));
+    assert!(status.contains("needs.android-native-check.result }}\" != \"success\""));
 }
 
 fn filters(yaml: &str) -> (&str, &str) {
