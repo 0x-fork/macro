@@ -230,11 +230,13 @@ scope only when the coordinator explicitly proves storage was untouched, not fro
 a page's last-seen phase. Missing/broken transports remain conservatively
 uncertain.
 
-A build's coordinator is usually a separate SharedWorker (its script URL is
-content-hashed), so after a deploy two builds can target one database. The newer
-build takes it over. Pages report their build time (`__APP_BUILD_TIME__`,
-stamped by Vite) when they register. When the lock stays busy while tabs of
-another build are alive (liveness locks of tabs this coordinator never
+A build's coordinator has its build time in the SharedWorker name, so builds
+use separate coordinators even when their coordinator script URL is identical.
+This keeps each build's tabs attached to its matching engine and GraphQL schema.
+The database identity stays shared across compatible builds; the newer build
+takes it over. Pages use the same build time (`__APP_BUILD_TIME__`, stamped by
+Vite) in the worker name and when they register. When the lock stays busy while
+tabs of another build are alive (liveness locks of tabs this coordinator never
 registered; a departed tab's lock can outlast it), the coordinator posts a
 takeover request on the cross-build channel
 `graphql-cache-takeover:{database name}` (`coordinator-takeover.ts`, a contract
