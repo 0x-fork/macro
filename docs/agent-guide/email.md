@@ -249,6 +249,28 @@ The first scenario covers Signal → Noise → All after disconnecting both nati
 HTTP and WebSockets. iOS shares the native cache code but is not yet covered by
 that driver.
 
+**Reading pane.** On desktop the header's columns button (or `Shift+V`) shows
+threads beside the list instead of in its place; the choice is remembered per
+browser. The list keeps its own keys: j/k and arrows move the cursor and the
+pane follows it (replacing history rather than adding entries) while the list
+keeps focus, even if the thread is still loading; Mark done on
+the open row follows the next row (an action on another row, such as the one
+under the pointer, leaves the pane alone), and the open row keeps an accent
+marker while the pointer highlights others. Enter or a click opens the row and
+moves the keyboard into the reader, as does any click inside the reader. Its
+keys live in a child hotkey scope so they never replace the list's, and while
+it has the keyboard the list's keys stand down, so `x`, `Cmd+A`, `End` or
+`Shift+Enter` in the reader never act on the list. j/k in the reader step
+threads and move the list cursor with them, replacing history. Escape in the
+reader, once there is nothing to unwind, hands the keyboard back to the list
+without closing the thread. Narrow rows stack sender, subject and snippet.
+Without room for both (narrow split, collapsed window) the pane folds away and
+a thread replaces the list as usual; the thread remounts, but a reply draft
+survives. The divider can be dragged; the list width is remembered. Verify that
+list `e` still works after switching threads in the pane (the reader's `e` must
+not replace it), and that after j/k the grid still has focus: the next Enter
+moves into the reader without opening a reply.
+
 In the new Email view, ordinary row activation opens the thread inside
 `/app/component/mail`; the view breadcrumb (for example Signal) has a hover
 background and returns to the filtered list. Pressing `Escape` in the open thread
@@ -295,6 +317,9 @@ does not add an accent-colored ring; keyboard focus has a neutral outline.
 Replies appear inline on desktop and in a composer drawer on touch devices.
 On touch, a saved reply shows as a **Draft** row with its opening words under the
 message it answers (which stays expanded); tapping it reopens the draft.
+On desktop, a saved reply that reappears with its thread (opening it, stepping
+to it with j/k, the reading pane following the list) stays unfocused, so the
+next j moves on instead of typing into it; `r` or a click continues it.
 Desktop draft bodies and app-controlled message text use 15px, matching channels.
 HTML messages with preserved sender typography retain their explicit sizes.
 Desktop reply actions sit together at the bottom right: discard, attach, schedule,
