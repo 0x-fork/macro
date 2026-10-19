@@ -1,5 +1,19 @@
 # Email
 
+## Thread motion
+
+Message cards animate their height when expanding or collapsing a message or
+its inline reply draft. Hidden messages unfold with the shared collapse
+transition. Check repeated toggles during motion: the card should continue from
+its visible height and settle to natural sizing, with no clipped editor or
+attachments. Resizing the viewport and enabling reduced motion should settle
+immediately. Touch replies keep their existing drawer behavior.
+
+For an isolated check without account data, open
+`/src/features/email-message/browser-test/motion.html` on the Vite server. It
+uses the real message card and collapse transition with local sample content;
+it does not exercise draft persistence or delivery.
+
 ## Email reminder delivery
 
 An email snooze returns its original conversation to the inbox and adds a
