@@ -8,6 +8,7 @@ import { PullToRefresh } from '@components/app/mobile/PullToRefresh';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import EmptyStateNoSearchMatchGraphic from '@design/empty-state-no-search-match.svg';
 import type { ChannelEntity } from '@entity';
 import { isMutedItem } from '@entity/utils/notification';
@@ -88,7 +89,7 @@ export function ChannelsMobileView(props: {
       return;
     }
 
-    void props.source.loadMore();
+    fireAndForget(props.source.loadMore(), 'channels-view');
   }
 
   function checkNearEnd(offset?: number) {

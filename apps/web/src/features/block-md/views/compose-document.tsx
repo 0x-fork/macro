@@ -6,6 +6,7 @@ import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownS
 import { toast } from '@core/component/Toast/Toast';
 import { blockNameToDefaultFile } from '@core/constant/allBlocks';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowsOutIcon from '@phosphor/arrows-out.svg';
 import XIcon from '@phosphor/x.svg';
 import { InlineTagsPill } from '@property/tags';
@@ -119,7 +120,10 @@ export function ComposeDocument(props: ComposeDocumentProps) {
       applyTargetLabel: 'Document',
       isApplied: (tag) => tags.composerTags.isApplied(tag.optionId),
       onCreate: (tag) => {
-        void tags.composerTags.applyTag(tag.scope, tag.optionId);
+        fireAndForget(
+          tags.composerTags.applyTag(tag.scope, tag.optionId),
+          'compose-document'
+        );
       },
     })
     .withEmojis()
@@ -151,7 +155,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
     scopeId: scope,
     description: 'Create document',
     keyDownHandler: () => {
-      void submit();
+      fireAndForget(submit(), 'compose-document');
       return true;
     },
     runWithInputFocused: true,
@@ -193,7 +197,10 @@ export function ComposeDocument(props: ComposeDocumentProps) {
             containerRef={container}
             onUserInput={() => {}}
             onTagSelected={(tag) => {
-              void tags.composerTags.applyTag(tag.scope, tag.optionId);
+              fireAndForget(
+                tags.composerTags.applyTag(tag.scope, tag.optionId),
+                'compose-document'
+              );
             }}
             onDeleteTagsAtStart={() => false}
             portalScope={portalScope()}

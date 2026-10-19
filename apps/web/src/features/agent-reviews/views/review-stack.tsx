@@ -1,6 +1,7 @@
 import { CalendarDraftComposer } from '@core/component/AI/component/tool/calendar/DraftComposer';
 import { EmailDraftComposer } from '@core/component/AI/component/tool/email/DraftComposer';
 import type { UserToolReviewSink } from '@core/component/AI/component/tool/user-tool-review';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   CreateCalendarEvent,
   SendEmail,
@@ -353,7 +354,7 @@ export function ReviewStack(props: {
             const items = confirmingBatch();
             if (items.length === 0 || !confirmationOpen()) return;
             setConfirmationOpen(false);
-            void submitAll(items);
+            fireAndForget(submitAll(items), 'agent-reviews');
           }}
         />
       </Show>

@@ -18,6 +18,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { fileSelector } from '@core/directive/fileSelector';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   handleFileFolderDrop,
   type UploadInput,
@@ -114,10 +115,13 @@ const Block: Component = () => {
           onDragStart: () => setIsDragging(true),
           onDragEnd: () => setIsDragging(false),
           onDrop: (fileEntries, folderEntries) => {
-            void handleFileFolderDrop(
-              fileEntries,
-              folderEntries,
-              handleFileUpload
+            fireAndForget(
+              handleFileFolderDrop(
+                fileEntries,
+                folderEntries,
+                handleFileUpload
+              ),
+              'project-upload'
             );
           },
           disabled: isSpecialProject,

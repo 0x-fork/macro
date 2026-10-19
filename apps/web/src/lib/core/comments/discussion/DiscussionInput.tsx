@@ -25,6 +25,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { IUser } from '@core/user/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import PaperclipIcon from '@phosphor/paperclip.svg';
 import { isIOS } from '@solid-primitives/platform';
@@ -63,7 +64,7 @@ function AttachImagesAction() {
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = '';
     if (files.length === 0) return;
-    void commands.attachFiles(files);
+    fireAndForget(commands.attachFiles(files), 'discussion-input');
   };
 
   return (
@@ -159,7 +160,7 @@ export function DiscussionInput(props: DiscussionInputProps) {
     },
     onEnter: () => {
       if (isMobile()) return false;
-      void commands.send();
+      fireAndForget(commands.send(), 'discussion-input');
       return true;
     },
   });

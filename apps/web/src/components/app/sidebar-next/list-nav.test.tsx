@@ -442,12 +442,13 @@ describe('ListNav', () => {
     );
     const [first, second] = router.panes();
     const entry = router.entry(first!);
-    void router.navigatePane(second!, '/agents');
+    const navigation = router.navigatePane(second!, '/agents');
     expect(router.pending(second!)).toBeDefined();
 
     press('Home');
     finishPreload();
     await router.settled();
+    await navigation;
 
     expect(router.entry(first!)).toBe(entry);
     expect(router.entry(second!)?.location.route.matches.at(-1)?.id).toBe(

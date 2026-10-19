@@ -2,6 +2,7 @@ import type { GanttCreation } from '@app/components/gantt/create-gantt-creation'
 import { Gantt } from '@app/components/gantt/gantt';
 import { deriveGanttRange } from '@app/components/gantt/gantt-date';
 import { UserIcon } from '@core/component/UserIcon';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   getPropertyOptionLabel,
   getTaskStatusOptionId,
@@ -69,11 +70,11 @@ export function TaskGanttView(props: {
     if (row.kind !== 'load-more') return;
 
     if (row.groupId !== undefined) {
-      void props.source.loadMoreGroup(row.groupId);
+      fireAndForget(props.source.loadMoreGroup(row.groupId), 'tasks-view');
       return;
     }
 
-    void props.source.loadMore?.();
+    fireAndForget(props.source.loadMore?.(), 'tasks-view');
   };
 
   return (

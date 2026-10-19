@@ -7,6 +7,7 @@ import {
 import { MenuItem, MenuSeparator } from '@core/component/ContextMenu';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { ProjectEntity } from '@entity';
 import { invalidateProjects } from '@queries/storage/projects';
 import { Show } from 'solid-js';
@@ -40,7 +41,7 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
       entities: [entity()],
 
       onFinish: () => {
-        void invalidateProjects();
+        fireAndForget(invalidateProjects(), 'drive-view');
         toast.success(view === 'rename' ? 'Renamed' : 'Moved to folder');
       },
 

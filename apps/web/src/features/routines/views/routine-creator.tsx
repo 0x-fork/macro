@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import ClockIcon from '@phosphor/clock.svg';
 import XIcon from '@phosphor/x.svg';
 import { Button, EntityComposer, ToggleSwitch } from '@ui';
@@ -31,7 +32,7 @@ export function RoutineCreatorView(props: {
       onKeyDown={(event) => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
           event.preventDefault();
-          void create();
+          fireAndForget(create(), 'routines');
         }
       }}
     >

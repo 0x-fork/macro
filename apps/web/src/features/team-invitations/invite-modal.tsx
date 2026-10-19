@@ -1,6 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
 import { useReferralCode } from '@core/context/user';
-
+import { fireAndForget } from '@core/util/fireAndForget';
 import { getWebOrigin } from '@core/util/webOrigin';
 import { Telemetry } from '@macro-inc/observability';
 import ClipboardIcon from '@phosphor/clipboard.svg';
@@ -64,7 +64,7 @@ export const InviteModal = () => {
     for (const email of emails) {
       const result = await authServiceClient.sendReferralInvite(email);
       if (result.isOk()) {
-        void addInvitedContact(email);
+        fireAndForget(addInvitedContact(email), 'team-invitations');
       }
     }
     setValue('');

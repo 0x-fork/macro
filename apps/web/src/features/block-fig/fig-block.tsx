@@ -40,6 +40,7 @@ import {
   useBlockDocumentDownloadName,
   useBlockDocumentName,
 } from '@core/util/currentBlockDocumentName';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import { downloadFile } from '@filesystem/download';
 import IconShared from '@icon/share.svg';
@@ -165,7 +166,7 @@ function FigHost(props: {
         setFailure(e instanceof Error ? e.message : String(e));
       }
     };
-    void open();
+    fireAndForget(open(), 'fig-viewer');
     onCleanup(() => {
       disposed = true;
       shared?.close();
@@ -375,7 +376,7 @@ export default function FigBlock(props: { share?: string; present?: string }) {
       const url = data()?.blobUrl;
       if (!url) return;
       const response = await fetch(url);
-      void downloadFile(await response.blob(), downloadName());
+      await downloadFile(await response.blob(), downloadName());
     } catch {
       toast.failure('Error downloading file');
     }

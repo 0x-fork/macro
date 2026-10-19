@@ -6,6 +6,7 @@
  */
 
 import type { PropertyKind } from '@core/fig-engine/design-types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { type JSX, Show } from 'solid-js';
 import { BindingsSection } from '../components/bindings-section';
 import { ComponentSection } from '../components/component-section';
@@ -53,7 +54,11 @@ export function DesignSystemSections(props: {
             actions={{
               onGoToMain: () => {
                 const main = instance().main;
-                if (main) void ds.reveal(main.id, instance().mainPage);
+                if (main)
+                  fireAndForget(
+                    ds.reveal(main.id, instance().mainPage),
+                    'fig-design-system'
+                  );
               },
               onSetProperty: edit()
                 ? (id, property, value) =>
@@ -106,15 +111,29 @@ export function DesignSystemSections(props: {
                         void ds.removeVariantProperty(owner(), name),
                       onSetVariantValue: (property, value) => {
                         const id = props.selected;
-                        if (id) void ds.setVariantValue(id, property, value);
+                        if (id)
+                          fireAndForget(
+                            ds.setVariantValue(id, property, value),
+                            'fig-design-system'
+                          );
                       },
                       onAddVariant: () => {
                         const p = panel();
-                        if (p.isSet) void ds.addVariant(owner());
+                        if (p.isSet)
+                          fireAndForget(
+                            ds.addVariant(owner()),
+                            'fig-design-system'
+                          );
                         else if (p.isVariant)
-                          void ds.addVariant(owner(), props.selected);
+                          fireAndForget(
+                            ds.addVariant(owner(), props.selected),
+                            'fig-design-system'
+                          );
                         else if (props.selected)
-                          void ds.makeVariants(props.selected);
+                          fireAndForget(
+                            ds.makeVariants(props.selected),
+                            'fig-design-system'
+                          );
                       },
                     }
                   : undefined
@@ -140,23 +159,32 @@ export function DesignSystemSections(props: {
                 ? {
                     onBind: (field, property) => {
                       if (props.selected)
-                        void ds.bindProperty(props.selected, field, property);
+                        fireAndForget(
+                          ds.bindProperty(props.selected, field, property),
+                          'fig-design-system'
+                        );
                     },
                     onCreate: (field) => {
                       const kind: PropertyKind = KIND_FOR_FIELD[field];
                       const taken = bindings().properties.map((p) => p.name);
                       if (props.selected)
-                        void ds.addComponentProperty(
-                          bindings().owner.id,
-                          defaultPropertyName(kind, taken),
-                          kind,
-                          undefined,
-                          props.selected
+                        fireAndForget(
+                          ds.addComponentProperty(
+                            bindings().owner.id,
+                            defaultPropertyName(kind, taken),
+                            kind,
+                            undefined,
+                            props.selected
+                          ),
+                          'fig-design-system'
                         );
                     },
                     onExpose: (exposed) => {
                       if (props.selected)
-                        void ds.exposeInstance(props.selected, exposed);
+                        fireAndForget(
+                          ds.exposeInstance(props.selected, exposed),
+                          'fig-design-system'
+                        );
                     },
                   }
                 : undefined

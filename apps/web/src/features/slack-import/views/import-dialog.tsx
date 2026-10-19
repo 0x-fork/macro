@@ -1,4 +1,5 @@
 import { formatDate } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
 import ArrowsClockwiseIcon from '@phosphor/arrows-clockwise.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
@@ -172,7 +173,7 @@ export function ImportDialog(props: Props): JSX.Element {
           if (!terminal(receipt) || observedCompletions.has(receipt.jobId))
             continue;
           observedCompletions.add(receipt.jobId);
-          void refreshCompleted(receipt);
+          fireAndForget(refreshCompleted(receipt), 'slack-import');
         }
       }
     )

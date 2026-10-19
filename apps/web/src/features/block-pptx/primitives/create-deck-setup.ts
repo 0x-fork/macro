@@ -6,6 +6,7 @@
  */
 
 import type { SlideScale } from '@core/pptx-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createMemo, createSignal } from 'solid-js';
 import {
   type HeaderFooterForm,
@@ -58,7 +59,7 @@ export function createDeckSetup(options: {
     const change = sizeChange(deck, { width, height });
     if (change === 'same') return;
     if (change === 'proportional') {
-      void commands.setSlideSize(width, height, 'fit');
+      fireAndForget(commands.setSlideSize(width, height, 'fit'), 'pptx-editor');
       return;
     }
     setPendingSize({ width, height });
@@ -68,7 +69,10 @@ export function createDeckSetup(options: {
     const size = pendingSize();
     setPendingSize(null);
     if (size && scale)
-      void commands.setSlideSize(size.width, size.height, scale);
+      fireAndForget(
+        commands.setSlideSize(size.width, size.height, scale),
+        'pptx-editor'
+      );
   };
 
   // ---- sections ----------------------------------------------------------------
@@ -111,7 +115,7 @@ export function createDeckSetup(options: {
     if (renaming() === id) setRenaming(null);
     const trimmed = name?.trim();
     if (trimmed && trimmed !== row(id)?.section.name)
-      void commands.renameSection(id, trimmed);
+      fireAndForget(commands.renameSection(id, trimmed), 'pptx-editor');
   };
 
   /** The current slide's section. */
@@ -133,10 +137,12 @@ export function createDeckSetup(options: {
     moveTarget(sections(), id, delta) !== undefined;
   const move = (id: string, delta: -1 | 1) => {
     const to = moveTarget(sections(), id, delta);
-    if (to !== undefined) void commands.moveSection(id, to);
+    if (to !== undefined)
+      fireAndForget(commands.moveSection(id, to), 'pptx-editor');
   };
   const moveTo = (id: string, index: number) => {
-    if (row(id)?.index !== index) void commands.moveSection(id, index);
+    if (row(id)?.index !== index)
+      fireAndForget(commands.moveSection(id, index), 'pptx-editor');
   };
   const removeAll = () => void commands.removeAllSections();
 

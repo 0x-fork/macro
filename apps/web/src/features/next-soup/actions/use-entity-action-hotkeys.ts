@@ -8,6 +8,7 @@ import { useUserId } from '@core/context/user';
 import { HotkeyTags } from '@core/hotkey/constants';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { type EntityData, isEmailEntity, isTaskEntity } from '@entity';
 import { Telemetry } from '@macro-inc/observability';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
@@ -244,7 +245,10 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.every(markUnread.canExecute)) return false;
 
-      void markUnread.executeWithSoup(entities, list);
+      fireAndForget(
+        markUnread.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {
@@ -267,7 +271,7 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.some(markRead.canExecute)) return false;
 
-      void markRead.executeWithSoup(entities, list);
+      fireAndForget(markRead.executeWithSoup(entities, list), 'entity-actions');
       return true;
     },
     condition: () => {
@@ -293,7 +297,10 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.every(deleteAction.canExecute)) return false;
 
-      void deleteAction.executeWithSoup(entities, list);
+      fireAndForget(
+        deleteAction.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     };
     const canDelete = () => {
@@ -354,7 +361,10 @@ export const useEntityActionHotkeys = (
 
       if (!entities.every(renameAction.canExecute)) return false;
 
-      void renameAction.executeWithSoup(entities, list);
+      fireAndForget(
+        renameAction.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {
@@ -383,7 +393,10 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.every(favoriteAction.canExecute)) return false;
 
-      void favoriteAction.executeWithSoup(entities, list);
+      fireAndForget(
+        favoriteAction.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {
@@ -431,7 +444,10 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.every(muteAction.canExecute)) return false;
 
-      void muteAction.executeWithSoup(entities, list);
+      fireAndForget(
+        muteAction.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {
@@ -483,7 +499,10 @@ export const useEntityActionHotkeys = (
       if (entities.length === 0) return false;
       if (!entities.every(moveToProjectAction.canExecute)) return false;
 
-      void moveToProjectAction.executeWithSoup(entities, list);
+      fireAndForget(
+        moveToProjectAction.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {
@@ -531,7 +550,10 @@ export const useEntityActionHotkeys = (
       const entities = getEntitiesForAction();
       if (entities.length === 0) return false;
       if (!copyBranchNameAction.canExecute(entities[0])) return false;
-      void copyBranchNameAction.executeWithSoup(entities, list);
+      fireAndForget(
+        copyBranchNameAction.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {
@@ -581,10 +603,14 @@ export const useEntityActionHotkeys = (
       const entities = getEntitiesForAction();
       if (entities.length !== 1) return false;
       if (!createReminderAction.canExecute(entities[0])) return false;
-      void createReminderAction.executeWithSoup(entities, list, {
-        advances: marksDoneOnThisView(),
-        onNavigate: options.createActionNavigationHandler?.() ?? openNextEntity,
-      });
+      fireAndForget(
+        createReminderAction.executeWithSoup(entities, list, {
+          advances: marksDoneOnThisView(),
+          onNavigate:
+            options.createActionNavigationHandler?.() ?? openNextEntity,
+        }),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {
@@ -608,7 +634,10 @@ export const useEntityActionHotkeys = (
       const entities = getEntitiesForAction();
       if (entities.length === 0) return false;
       if (!shareAction.canExecute(entities[0])) return false;
-      void shareAction.executeWithSoup(entities, list);
+      fireAndForget(
+        shareAction.executeWithSoup(entities, list),
+        'entity-actions'
+      );
       return true;
     },
     condition: () => {

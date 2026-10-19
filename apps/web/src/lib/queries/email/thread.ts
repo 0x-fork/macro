@@ -525,10 +525,10 @@ export async function trackExternalThreadArchive(
     }
   } finally {
     if (disposition !== 'queued') {
-      void queryClient.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: emailKeys.threadMessages(threadId).queryKey,
       });
-      void queryClient.invalidateQueries({ queryKey: emailKeys.previews._def });
+      queryClient.invalidateQueries({ queryKey: emailKeys.previews._def });
     }
   }
 }
@@ -559,10 +559,10 @@ async function replayThreadArchive(
     throw err;
   } finally {
     if (disposition !== 'queued') {
-      void queryClient.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: emailKeys.threadMessages(params.threadId).queryKey,
       });
-      void queryClient.invalidateQueries({ queryKey: emailKeys.previews._def });
+      queryClient.invalidateQueries({ queryKey: emailKeys.previews._def });
     }
   }
 }
@@ -609,10 +609,10 @@ export function useUndoableArchiveThreadMutation(options: {
     },
     onSettled: (disposition, _error, params) => {
       if (disposition === 'queued') return;
-      void queryClient.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: emailKeys.threadMessages(params.threadId).queryKey,
       });
-      void queryClient.invalidateQueries({ queryKey: emailKeys.previews._def });
+      queryClient.invalidateQueries({ queryKey: emailKeys.previews._def });
     },
     undoFn: async (params, context) => {
       const disposition = await replayThreadArchive({
@@ -723,14 +723,14 @@ function _useScheduleMessageMutation(
       {
         onSuccess: (_data, vars) => {
           if (vars.threadID) {
-            void queryClient.invalidateQueries({
+            queryClient.invalidateQueries({
               queryKey: emailKeys.threadMessages(vars.threadID).queryKey,
             });
           }
-          void queryClient.invalidateQueries({
+          queryClient.invalidateQueries({
             queryKey: emailKeys.previews._def,
           });
-          void queryClient.invalidateQueries({
+          queryClient.invalidateQueries({
             queryKey: emailKeys.scheduledMessages._def,
           });
         },

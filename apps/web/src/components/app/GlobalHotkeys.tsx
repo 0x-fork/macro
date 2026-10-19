@@ -27,6 +27,7 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import { setActiveScope } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   handleFolderSelect,
   openFilePicker,
@@ -579,7 +580,10 @@ export default function GlobalShortcuts() {
     keyDownHandler: (e) => {
       if (!undoCtx.canUndo()) return false;
       e?.preventDefault();
-      void undoCtx.undo({ onError: () => toast.failure('Failed to undo') });
+      fireAndForget(
+        undoCtx.undo({ onError: () => toast.failure('Failed to undo') }),
+        'global-hotkeys'
+      );
       return true;
     },
     condition: () => undoCtx.canUndo(),
@@ -593,7 +597,10 @@ export default function GlobalShortcuts() {
     keyDownHandler: (e) => {
       if (!undoCtx.canRedo()) return false;
       e?.preventDefault();
-      void undoCtx.redo({ onError: () => toast.failure('Failed to redo') });
+      fireAndForget(
+        undoCtx.redo({ onError: () => toast.failure('Failed to redo') }),
+        'global-hotkeys'
+      );
       return true;
     },
     condition: () => undoCtx.canRedo(),

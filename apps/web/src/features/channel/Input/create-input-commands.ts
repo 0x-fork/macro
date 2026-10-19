@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import type { Accessor } from 'solid-js';
 import type {
@@ -30,7 +31,10 @@ export function createInputCommands(
   const removeAttachment = (attachment: InputAttachmentData) => {
     deps.removeTrackedAttachment(attachment.id);
     const current = deps.snapshot();
-    void deps.callbacks?.onRemoveAttachment?.(attachment, current);
+    fireAndForget(
+      deps.callbacks?.onRemoveAttachment?.(attachment, current),
+      'channel-input'
+    );
   };
 
   return {

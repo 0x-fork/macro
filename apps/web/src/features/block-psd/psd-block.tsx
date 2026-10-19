@@ -34,6 +34,7 @@ import {
   useBlockDocumentDownloadName,
   useBlockDocumentName,
 } from '@core/util/currentBlockDocumentName';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { downloadFile } from '@filesystem/download';
 import IconShared from '@icon/share.svg';
 import DownloadSimple from '@phosphor/download-simple.svg';
@@ -148,7 +149,7 @@ function PsdHost(props: {
         setFailure(e instanceof Error ? e.message : String(e));
       }
     };
-    void open();
+    fireAndForget(open(), 'psd-editor');
     onCleanup(() => {
       disposed = true;
       shared?.close();
@@ -329,7 +330,7 @@ export default function PsdBlock(props: { share?: string }) {
       const url = data()?.blobUrl;
       if (!url) return;
       const response = await fetch(url);
-      void downloadFile(await response.blob(), downloadName());
+      await downloadFile(await response.blob(), downloadName());
     } catch {
       toast.failure('Error downloading file');
     }

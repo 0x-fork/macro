@@ -6,6 +6,7 @@
 import '../components/editor-theme.css';
 import { IS_MAC } from '@core/constant/isMac';
 import type { NodeInfo, Rect } from '@core/fig-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Tabs } from '@kobalte/core/tabs';
 import {
   createEffect,
@@ -154,7 +155,7 @@ export function FigViewer() {
   let focusSearch: (() => void) | undefined;
 
   onMount(() => {
-    void viewer.openPage(0);
+    fireAndForget(viewer.openPage(0), 'block-fig');
     if (document.activeElement === document.body)
       root.focus({ preventScroll: true });
   });
@@ -206,9 +207,12 @@ export function FigViewer() {
       const request = ++mixedRequest;
       if (selected.length < 2) setMixed(undefined);
       else
-        void loadMixed(
-          selected.map((s) => s.id),
-          request
+        fireAndForget(
+          loadMixed(
+            selected.map((s) => s.id),
+            request
+          ),
+          'block-fig'
         );
     })
   );
@@ -237,7 +241,7 @@ export function FigViewer() {
         : patch;
     const text = info()?.text;
     if (!text || (!patch.fontFamily && !patch.fontStyle)) {
-      void editor.setProps(ranged, what);
+      fireAndForget(editor.setProps(ranged, what), 'block-fig');
       return;
     }
     const style = rangeStyle(text, range?.start ?? 0, range?.end ?? 0);
@@ -249,11 +253,14 @@ export function FigViewer() {
       patch.fontStyle ??
       (style.fontStyle === MIXED ? null : style.fontStyle) ??
       'Regular';
-    void (async () => {
-      await fonts.ensure(family, fontStyle, text.characters);
-      await editor.setProps(ranged, what);
-      await fonts.refresh();
-    })();
+    fireAndForget(
+      (async () => {
+        await fonts.ensure(family, fontStyle, text.characters);
+        await editor.setProps(ranged, what);
+        await fonts.refresh();
+      })(),
+      'block-fig'
+    );
   };
 
   /**
@@ -304,9 +311,12 @@ export function FigViewer() {
   const setPageColor = (hex: string, live: boolean) => {
     const page = viewer.pages[viewer.page()];
     if (!page) return;
-    void editor.apply(
-      [{ op: 'set', ids: [page.id], props: { fills: [{ color: hex }] } }],
-      gestureKey('page-color', live)
+    fireAndForget(
+      editor.apply(
+        [{ op: 'set', ids: [page.id], props: { fills: [{ color: hex }] } }],
+        gestureKey('page-color', live)
+      ),
+      'block-fig'
     );
   };
 
@@ -390,7 +400,7 @@ export function FigViewer() {
 
   const openStep = (step: 1 | -1) => {
     const next = stepPage(viewer.pages, viewer.page(), step);
-    if (next !== undefined) void viewer.openPage(next);
+    if (next !== undefined) fireAndForget(viewer.openPage(next), 'block-fig');
   };
 
   /**
@@ -404,15 +414,21 @@ export function FigViewer() {
     const first = typedOpacity;
     if (first && now - first.at < OPACITY_TYPING_MS) {
       typedOpacity = undefined;
-      void editor.setProps(
-        { opacity: (first.digit * 10 + digit) / 100 },
-        first.key
+      fireAndForget(
+        editor.setProps(
+          { opacity: (first.digit * 10 + digit) / 100 },
+          first.key
+        ),
+        'block-fig'
       );
       return;
     }
     const key = `opacity-keys-${++opacitySteps}`;
     typedOpacity = { digit, at: now, key };
-    void editor.setProps({ opacity: digit === 0 ? 1 : digit / 10 }, key);
+    fireAndForget(
+      editor.setProps({ opacity: digit === 0 ? 1 : digit / 10 }, key),
+      'block-fig'
+    );
   };
 
   /** Figma's place image (⇧⌘K): picked images go in the middle of the view. */
@@ -427,9 +443,12 @@ export function FigViewer() {
       const c = viewer.camera();
       const v = viewer.viewport();
       const at = { x: c.x + v.w / 2 / c.zoom, y: c.y + v.h / 2 / c.zoom };
-      void viewer
-        .containerAt(at)
-        .then((parent) => editor.importImages(files, at, parent));
+      fireAndForget(
+        viewer
+          .containerAt(at)
+          .then((parent) => editor.importImages(files, at, parent)),
+        'block-fig'
+      );
     };
     input.click();
   };
@@ -509,11 +528,11 @@ export function FigViewer() {
       .with('place-image', () => placeImage())
       .with('undo', () => {
         editor.endVectorEdit();
-        void editor.undo();
+        fireAndForget(editor.undo(), 'block-fig');
       })
       .with('redo', () => {
         editor.endVectorEdit();
-        void editor.redo();
+        fireAndForget(editor.redo(), 'block-fig');
       })
       .with('delete', () => void editor.deleteSelection())
       .with('duplicate', () => void editor.duplicateSelection())
@@ -539,10 +558,10 @@ export function FigViewer() {
       .with('send-to-back', () => void editor.arrange('back'))
       .with('toggle-visible', () => {
         const visible = info()?.visible ?? true;
-        void editor.setProps({ visible: !visible });
+        fireAndForget(editor.setProps({ visible: !visible }), 'block-fig');
       })
       .with('toggle-locked', () => {
-        void editor.toggleLocked();
+        fireAndForget(editor.toggleLocked(), 'block-fig');
       })
       .with('flip-horizontal', () => void editor.flip(false))
       .with('flip-vertical', () => void editor.flip(true))
@@ -557,7 +576,7 @@ export function FigViewer() {
       .with('distribute-vertical', () => void editor.distribute('vertical'))
       .with('swap-fill-stroke', () => {
         const i = info();
-        if (i) void editor.swapFillStroke(i);
+        if (i) fireAndForget(editor.swapFillStroke(i), 'block-fig');
       })
       .with(
         'opacity-0',
@@ -609,7 +628,7 @@ export function FigViewer() {
     const finish = e.key === 'Enter' || e.key === 'Escape';
     if (editor.penPath()) {
       if (!finish) return false;
-      void editor.penFinish(false);
+      fireAndForget(editor.penFinish(false), 'block-fig');
       return true;
     }
     const edit = editor.vectorEdit();
@@ -622,7 +641,10 @@ export function FigViewer() {
       (e.key === 'Delete' || e.key === 'Backspace') &&
       edit.selected !== undefined
     ) {
-      void editor.setVectorNetwork(deleteVertex(edit.network, edit.selected));
+      fireAndForget(
+        editor.setVectorNetwork(deleteVertex(edit.network, edit.selected)),
+        'block-fig'
+      );
       return true;
     }
     return false;
@@ -673,7 +695,7 @@ export function FigViewer() {
         if (following()) setFollowing(undefined);
         return;
       }
-      void showPeerView(peer);
+      fireAndForget(showPeerView(peer), 'block-fig');
     })
   );
   /** Panning, zooming, or clicking the canvas stops following. */
@@ -765,7 +787,7 @@ export function FigViewer() {
     if (resolved === 'edit-text') setTextEditing(info()?.id);
     else if (resolved === 'edit-vector') {
       const id = info()?.id;
-      if (id) void editor.editVector(id);
+      if (id) fireAndForget(editor.editVector(id), 'block-fig');
     } else run(resolved);
   };
 
@@ -809,15 +831,21 @@ export function FigViewer() {
     e.preventDefault();
     if (files.length === 0) {
       // Layers copied here, in another file, or in Figma.
-      void editor.paste(e.clipboardData?.getData('text/html') || undefined);
+      fireAndForget(
+        editor.paste(e.clipboardData?.getData('text/html') || undefined),
+        'block-fig'
+      );
       return;
     }
     const c = viewer.camera();
     const v = viewer.viewport();
     const at = { x: c.x + v.w / 2 / c.zoom, y: c.y + v.h / 2 / c.zoom };
-    void viewer
-      .containerAt(at)
-      .then((parent) => editor.importImages(files, at, parent));
+    fireAndForget(
+      viewer
+        .containerAt(at)
+        .then((parent) => editor.importImages(files, at, parent)),
+      'block-fig'
+    );
   };
 
   const releaseModifiers = () => {
@@ -1374,7 +1402,8 @@ export function FigViewer() {
           tool={review.comments?.active() ? undefined : viewer.tool()}
           onTool={(tool) => {
             review.comments?.setActive(false);
-            if (editor.penPath()) void editor.penFinish();
+            if (editor.penPath())
+              fireAndForget(editor.penFinish(), 'block-fig');
             viewer.setTool(tool);
           }}
           editable={editor.enabled()}

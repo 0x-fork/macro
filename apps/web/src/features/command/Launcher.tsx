@@ -51,6 +51,7 @@ import {
   createSnippet,
 } from '@core/util/create';
 import { createControlledOpenSignal } from '@core/util/createControlledOpenSignal';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Dialog } from '@kobalte/core/dialog';
 import { getMarkdownGoldenBytes } from '@macro-inc/lexical-core/markdown-golden';
 import { type Span, Telemetry } from '@macro-inc/observability';
@@ -277,7 +278,7 @@ export function runCreateAction(
       const span = startDocumentSpan('doc.create');
       span.setAttr('doc.type', 'md');
       span.setAttr('doc.source', source);
-      void span
+      span
         .run(() =>
           createBlock({
             blockName: 'md',
@@ -297,23 +298,26 @@ export function runCreateAction(
         .catch((error) => {
           span.error(error);
           endTrackedDocumentSpan(span);
-          throw error;
+          reportCreateBlockError(error);
         });
       return;
     }
     case 'spreadsheet':
       if (!isSpreadsheetEnabledForCurrentUser()) return;
-      void createBlock({
-        blockName: 'spreadsheet',
-        loading: true,
-        createFn: () =>
-          createSpreadsheetDocument({
-            projectId: options.projectId,
-            source,
-          }),
-        shouldInsert,
-        openCreated,
-      });
+      fireAndForget(
+        createBlock({
+          blockName: 'spreadsheet',
+          loading: true,
+          createFn: () =>
+            createSpreadsheetDocument({
+              projectId: options.projectId,
+              source,
+            }),
+          shouldInsert,
+          openCreated,
+        }),
+        'launcher'
+      );
       return;
     case 'psd':
       if (!isFeatureEnabled(enablePsdEditor)) return;

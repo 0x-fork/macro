@@ -1,5 +1,6 @@
 import { openDocument } from '@core/component/LexicalMarkdown/component/core/BlockLink';
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import DatabaseIcon from '@phosphor/database.svg';
 import {
@@ -128,8 +129,8 @@ export function DocumentDatabase(props: {
         )
           return;
         event.preventDefault();
-        if (event.shiftKey) void undo.redo();
-        else void undo.undo();
+        if (event.shiftKey) fireAndForget(undo.redo(), 'database-view');
+        else fireAndForget(undo.undo(), 'database-view');
       }}
     >
       <div class="flex min-w-0 flex-wrap items-center gap-2 px-3 py-2">

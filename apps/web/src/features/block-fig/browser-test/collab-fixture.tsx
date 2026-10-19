@@ -124,32 +124,28 @@ function Person(props: {
     let opened: FigEngine | undefined;
     let sharedEngine: FigSharing | undefined;
     const open = async () => {
-      try {
-        const ready = await opening.take((e) => setFailure(e.message));
-        opened = ready.engine;
-        const fingerprint = ready.fingerprint;
+      const ready = await opening.take((e) => setFailure(e.message));
+      opened = ready.engine;
+      const fingerprint = ready.fingerprint;
+      if (closed) {
+        opened.close();
+        return;
+      }
+      if (shared) {
+        sharedEngine = await shareFigEngine(opened, shared, {
+          fingerprint,
+          delivered: session.delivered,
+        });
         if (closed) {
-          opened.close();
+          sharedEngine.close();
           return;
         }
-        if (shared) {
-          sharedEngine = await shareFigEngine(opened, shared, {
-            fingerprint,
-            delivered: session.delivered,
-          });
-          if (closed) {
-            sharedEngine.close();
-            return;
-          }
-          sharedEngine.onReplaced(() => setReplaced(true));
-          setSharing(sharedEngine);
-        }
-        setEngine(opened);
-      } catch (e) {
-        setFailure(String(e));
+        sharedEngine.onReplaced(() => setReplaced(true));
+        setSharing(sharedEngine);
       }
+      setEngine(opened);
     };
-    void open();
+    open().catch((e: unknown) => setFailure(String(e)));
     onCleanup(() => {
       closed = true;
       sharedEngine?.close();
@@ -249,7 +245,9 @@ export function CollabFixture(props: { fileUrl: string; users: string[] }) {
     server.store(new Uint8Array(await r.arrayBuffer()));
     setStored(true);
   };
-  void load();
+  load().catch((e: unknown) =>
+    console.error('[fig fixture] could not store the file', e)
+  );
   const people = new Map<string, FixturePerson>();
   const [opened, setOpened] = createSignal<Record<string, number>>({});
   const reopen = (user: string) =>

@@ -31,7 +31,7 @@ function optimisticAddParticipants(
   const participantsQueryKey = channelKeys.participants(
     vars.channelId
   ).queryKey;
-  void queryClient.cancelQueries({ queryKey: participantsQueryKey });
+  queryClient.cancelQueries({ queryKey: participantsQueryKey });
 
   let context: AddParticipantsContext | undefined;
   queryClient.setQueryData(
@@ -96,7 +96,7 @@ function optimisticRemoveParticipants(
   const participantsQueryKey = channelKeys.participants(
     vars.channelId
   ).queryKey;
-  void queryClient.cancelQueries({ queryKey: participantsQueryKey });
+  queryClient.cancelQueries({ queryKey: participantsQueryKey });
 
   let context: RemoveParticipantsContext | undefined;
 

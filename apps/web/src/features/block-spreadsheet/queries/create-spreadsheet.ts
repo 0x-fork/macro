@@ -1,4 +1,5 @@
 import { analytics } from '@app/lib/analytics';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { contentHash } from '@core/util/hash';
 import { Telemetry } from '@macro-inc/observability';
 import { invalidateUserQuota } from '@queries/auth';
@@ -19,7 +20,7 @@ export async function createSpreadsheetDocument(args?: {
     projectId: args?.projectId,
     sha: await contentHash(new Uint8Array()),
   });
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-spreadsheet-document');
   if (created.isErr()) return;
 
   const documentId = created.value.metadata.documentId;

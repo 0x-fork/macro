@@ -23,6 +23,7 @@ import { taskGridColumnCount } from '@app/features/tasks-view/components/task-li
 import { toast } from '@core/component/Toast/Toast';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { compareDateDesc } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { EntitySelectionToolbarModal } from '@entity/EntitySelectionToolbarModal';
 import CalendarIcon from '@phosphor/calendar.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -182,7 +183,7 @@ export function ProjectsCollection(props: {
           !collection.loadingMore() &&
           (!event.result || list.items.count() - event.result.index <= 4)
         )
-          void collection.loadMore();
+          fireAndForget(collection.loadMore(), 'projects');
       },
     },
   });
@@ -414,7 +415,7 @@ export function ProjectsCollection(props: {
       collection.hasMore() &&
       !collection.loadingMore()
     )
-      void collection.loadMore();
+      fireAndForget(collection.loadMore(), 'projects');
   };
   const sourceError = () => {
     const state = collection.state();

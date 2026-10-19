@@ -10,6 +10,7 @@ import { type Point, zoomLabel } from '@app/features/block-fig/core/camera';
 import { paletteColor } from '@app/features/block-fig/primitives/create-peer-overlays';
 import { IS_MAC } from '@core/constant/isMac';
 import type { IRect } from '@core/psd-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowUUpLeft from '@phosphor/arrow-u-up-left.svg';
 import ArrowUUpRight from '@phosphor/arrow-u-up-right.svg';
 import CloudArrowUp from '@phosphor/cloud-arrow-up.svg';
@@ -163,7 +164,7 @@ export function PsdEditor() {
   let root!: HTMLDivElement;
 
   onMount(() => {
-    void editor.start();
+    fireAndForget(editor.start(), 'block-psd');
     if (document.activeElement === document.body)
       root.focus({ preventScroll: true });
   });
@@ -201,13 +202,16 @@ export function PsdEditor() {
         const value = a.value === 0 ? 1 : a.value / 10;
         if (PAINT_TOOLS.has(view.tool())) view.setBrush({ opacity: value });
         else if (editor.selected().length > 0)
-          void editor.apply([
-            {
-              op: 'setLayer',
-              ids: editor.selected(),
-              opacity: Math.round(value * 255),
-            },
-          ]);
+          fireAndForget(
+            editor.apply([
+              {
+                op: 'setLayer',
+                ids: editor.selected(),
+                opacity: Math.round(value * 255),
+              },
+            ]),
+            'block-psd'
+          );
         return true;
       })
       .with({ t: 'command' }, (a) => {
@@ -330,10 +334,10 @@ export function PsdEditor() {
       f.type.startsWith('image/')
     );
     if (files.length === 0) {
-      void commands.paste();
+      fireAndForget(commands.paste(), 'block-psd');
       return;
     }
-    for (const file of files) void commands.paste(file);
+    for (const file of files) fireAndForget(commands.paste(file), 'block-psd');
   };
 
   const dropFiles = async (files: File[], at: Point) => {
@@ -445,8 +449,8 @@ export function PsdEditor() {
   let previewed: string | undefined;
   const preview = (ops: Parameters<typeof editor.apply>[0] | null) => {
     previewed = ops ? JSON.stringify(ops) : undefined;
-    if (ops) void editor.preview(ops);
-    else void editor.cancelPreview();
+    if (ops) fireAndForget(editor.preview(ops), 'block-psd');
+    else fireAndForget(editor.cancelPreview(), 'block-psd');
   };
   /** Keeps the preview when it shows these operations, else applies them. */
   const applyPreviewed = async (ops: Parameters<typeof editor.apply>[0]) => {
@@ -714,9 +718,12 @@ export function PsdEditor() {
             onCancel={commands.closeDialog}
             onApply={(width, height, interpolation) => {
               commands.closeDialog();
-              void editor.apply([
-                { op: 'imageSize', width, height, interpolation },
-              ]);
+              fireAndForget(
+                editor.apply([
+                  { op: 'imageSize', width, height, interpolation },
+                ]),
+                'block-psd'
+              );
             }}
           />
         </Match>
@@ -727,7 +734,10 @@ export function PsdEditor() {
             onCancel={commands.closeDialog}
             onApply={(width, height, anchor) => {
               commands.closeDialog();
-              void editor.apply([{ op: 'canvasSize', width, height, anchor }]);
+              fireAndForget(
+                editor.apply([{ op: 'canvasSize', width, height, anchor }]),
+                'block-psd'
+              );
             }}
           />
         </Match>
@@ -744,7 +754,10 @@ export function PsdEditor() {
               }}
               onApply={(spec) => {
                 commands.closeDialog();
-                void applyPreviewed(commands.filterOp(spec));
+                fireAndForget(
+                  applyPreviewed(commands.filterOp(spec)),
+                  'block-psd'
+                );
               }}
             />
           )}
@@ -766,8 +779,11 @@ export function PsdEditor() {
               }}
               onApply={(adjustment) => {
                 commands.closeDialog();
-                void applyPreviewed(
-                  commands.filterOp({ type: 'adjust', adjustment })
+                fireAndForget(
+                  applyPreviewed(
+                    commands.filterOp({ type: 'adjust', adjustment })
+                  ),
+                  'block-psd'
                 );
               }}
             />
@@ -785,7 +801,10 @@ export function PsdEditor() {
             onCancel={commands.closeDialog}
             onApply={(radius) => {
               commands.closeDialog();
-              void editor.select({ type: 'feather', radius });
+              fireAndForget(
+                editor.select({ type: 'feather', radius }),
+                'block-psd'
+              );
             }}
           />
         </Match>
@@ -802,10 +821,13 @@ export function PsdEditor() {
               onCancel={commands.closeDialog}
               onApply={(pixels) => {
                 commands.closeDialog();
-                void editor.select({
-                  type: 'expand',
-                  pixels: Math.round(d().contract ? -pixels : pixels),
-                });
+                fireAndForget(
+                  editor.select({
+                    type: 'expand',
+                    pixels: Math.round(d().contract ? -pixels : pixels),
+                  }),
+                  'block-psd'
+                );
               }}
             />
           )}
@@ -822,7 +844,10 @@ export function PsdEditor() {
             onCancel={commands.closeDialog}
             onApply={(ppi) => {
               commands.closeDialog();
-              void editor.apply([{ op: 'setResolution', ppi }]);
+              fireAndForget(
+                editor.apply([{ op: 'setResolution', ppi }]),
+                'block-psd'
+              );
             }}
           />
         </Match>

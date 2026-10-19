@@ -2,6 +2,7 @@ import { useMaybeSoup } from '@app/features/next-soup/soup-context';
 import { restoreSoupFocus } from '@app/features/next-soup/utils';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import type { NotificationStack, UnifiedNotification } from '@notifications';
 import {
@@ -53,11 +54,17 @@ export function useNotificationStackActions(props: NotificationActionsProps) {
                 label: 'Undo',
                 icon: ArrowCounterClockwise,
                 onClick: () => {
-                  void handle.undo({
-                    onError: () => toast.failure('Failed to undo'),
-                  });
+                  fireAndForget(
+                    handle.undo({
+                      onError: () => toast.failure('Failed to undo'),
+                    }),
+                    'notifications'
+                  );
                   if (props.entityId) soup?.focus.set(props.entityId);
-                  void restoreSoupFocus(props.entityId);
+                  fireAndForget(
+                    restoreSoupFocus(props.entityId),
+                    'notifications'
+                  );
                 },
               },
             ],

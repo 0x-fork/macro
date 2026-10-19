@@ -23,6 +23,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
 import { useUserContext } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type GithubPullRequestEntity,
   ListEntityMetadataQueryProvider,
@@ -210,9 +211,12 @@ function ReviewsRoot() {
     [reviewsTabSearch.namespace]: reviewsTabSearchCodec.serialize({ tab }),
   });
   const openList = () => {
-    void navigate(
-      { route: reviewsSplitRoute, params: {} },
-      { search: searchForTab(scope()) }
+    fireAndForget(
+      navigate(
+        { route: reviewsSplitRoute, params: {} },
+        { search: searchForTab(scope()) }
+      ),
+      'reviews-view'
     );
   };
   const selectScope = (next: ReviewsScope) =>
@@ -237,9 +241,12 @@ function ReviewsRoot() {
         });
       return;
     }
-    void navigate(
-      { route: reviewsPrRoute, params: { foreignEntityId } },
-      { search: searchForTab(scope()) }
+    fireAndForget(
+      navigate(
+        { route: reviewsPrRoute, params: { foreignEntityId } },
+        { search: searchForTab(scope()) }
+      ),
+      'reviews-view'
     );
   };
   // Links load for every fetched row, not just the searched ones, so the
@@ -276,7 +283,7 @@ function ReviewsRoot() {
         ? new Error('Pull request links couldn’t be loaded')
         : undefined),
     retry: () => {
-      if (links.isError()) void links.retry();
+      if (links.isError()) fireAndForget(links.retry(), 'reviews-view');
       return source.retry();
     },
   };

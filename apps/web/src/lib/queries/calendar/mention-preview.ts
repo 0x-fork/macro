@@ -19,11 +19,11 @@ const MENTION_PREVIEW_STALE_TIME = 60_000;
  */
 export function invalidateCalendarEventPreviews(eventId?: string): void {
   if (eventId) {
-    void queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: previewKeys.item(eventId).queryKey,
     });
   } else {
-    void queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: previewKeys._def,
       // The key carries no type, so it can only be read from cached data.
       // Entries without data need no sweep: null is a cached
@@ -37,10 +37,10 @@ export function invalidateCalendarEventPreviews(eventId?: string): void {
       },
     });
   }
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: calendarKeys.searchPreviews._def,
   });
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: eventId
       ? [...calendarKeys.mentionPreview._def, eventId]
       : calendarKeys.mentionPreview._def,

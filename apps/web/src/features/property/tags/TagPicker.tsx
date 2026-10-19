@@ -1,5 +1,6 @@
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
 import CircleDashedEmpty from '@phosphor/circle-dashed.svg';
 import FilterIcon from '@phosphor/funnel-simple.svg';
@@ -135,7 +136,7 @@ export function TagPicker(props: TagPickerProps) {
     }
 
     if (saveAndClose) {
-      void saveAndClose();
+      fireAndForget(saveAndClose(), 'tag-picker');
     } else {
       setOpenState(false, { restoreFocus: true });
     }
@@ -265,7 +266,7 @@ export function TagPickerPopover(props: {
     }
 
     if (saveAndClose) {
-      void saveAndClose();
+      fireAndForget(saveAndClose(), 'tag-picker');
     } else {
       props.onOpenChange(false);
     }
@@ -628,7 +629,7 @@ function TagPickerBody(props: {
         setCreateStep('scope');
       } else {
         const scope = scopeOptions()[selectedScopeIndex()]?.scope;
-        if (scope) void createTag(scope);
+        if (scope) fireAndForget(createTag(scope), 'tag-picker');
       }
     }
   };
@@ -646,7 +647,7 @@ function TagPickerBody(props: {
 
       if (showClearAllRow() && index === clearAllRowIndex()) {
         setSelectedIds(new Set<string>());
-        void saveAndClose();
+        fireAndForget(saveAndClose(), 'tag-picker');
         return;
       }
 
@@ -654,7 +655,7 @@ function TagPickerBody(props: {
       if (!item) return;
 
       toggleSelected(item.option.id);
-      if (!event?.shiftKey) void saveAndClose();
+      if (!event?.shiftKey) fireAndForget(saveAndClose(), 'tag-picker');
     },
     onClose: saveAndClose,
     enableNumericHotkeys: false,
@@ -763,7 +764,8 @@ function TagPickerBody(props: {
                             }
                             onSelect={(event) => {
                               toggleSelected(item.option.id);
-                              if (!event.shiftKey) void saveAndClose();
+                              if (!event.shiftKey)
+                                fireAndForget(saveAndClose(), 'tag-picker');
                             }}
                             onEdit={() => void beginEdit(item)}
                             onOpenTag={() => void openTaggedItems(item)}
@@ -798,7 +800,8 @@ function TagPickerBody(props: {
                                 }
                                 onSelect={(event) => {
                                   toggleSelected(item.option.id);
-                                  if (!event.shiftKey) void saveAndClose();
+                                  if (!event.shiftKey)
+                                    fireAndForget(saveAndClose(), 'tag-picker');
                                 }}
                                 onEdit={() => void beginEdit(item)}
                                 onOpenTag={() => void openTaggedItems(item)}
@@ -821,7 +824,7 @@ function TagPickerBody(props: {
                             }
                             onClick={() => {
                               setSelectedIds(new Set<string>());
-                              void saveAndClose();
+                              fireAndForget(saveAndClose(), 'tag-picker');
                             }}
                             onMouseEnter={() => {
                               if (!dropdown.keyboardMode()) {

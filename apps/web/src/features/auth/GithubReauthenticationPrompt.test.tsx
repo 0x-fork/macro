@@ -206,13 +206,13 @@ describe('GithubReauthenticationPrompt', () => {
     const cleanup = renderPrompt();
     await flushPromises();
     const action = getReconnectAction();
-    void action.onClick();
-    void action.onClick();
+    const first = action.onClick();
+    const duplicate = action.onClick();
     await vi.advanceTimersByTimeAsync(0);
     window.dispatchEvent(
       new PageTransitionEvent('pageshow', { persisted: true })
     );
-    void action.onClick();
+    const afterPageshow = action.onClick();
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.checkGithubLinkStatus).toHaveBeenCalledOnce();
     expect(mocks.authenticate).toHaveBeenCalledOnce();
@@ -221,6 +221,7 @@ describe('GithubReauthenticationPrompt', () => {
     complete({ success: false, error: 'User canceled login' });
     await vi.advanceTimersByTimeAsync(0);
     expect(mocks.toastCustom).toHaveBeenCalledTimes(2);
+    await Promise.all([first, duplicate, afterPageshow]);
     cleanup();
   });
 

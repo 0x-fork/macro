@@ -41,6 +41,7 @@ import { ReplyEnvelope } from './reply-envelope';
 false && fileFolderDrop;
 false && fileSelector;
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createReplyComposer,
   type ReplyComposerOptions,
@@ -374,7 +375,11 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
               }}
               removable={!editingDisabled()}
               onRemove={() => {
-                if (!editingDisabled()) void handleRemoveAttachment(attachment);
+                if (!editingDisabled())
+                  fireAndForget(
+                    handleRemoveAttachment(attachment),
+                    'email-compose'
+                  );
               }}
               onClick={attachmentViewer.onClickFor(attachment)}
             />

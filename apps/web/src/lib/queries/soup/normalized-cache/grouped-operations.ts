@@ -112,7 +112,7 @@ export function syncGroupedParents(entityId: string, entity: SoupApiItem) {
         : computeGroupKeysForItem(entity, meta.groupBy);
 
     if (nextGroupKeys === undefined) {
-      void queryClient.invalidateQueries({ queryKey: query.queryKey });
+      queryClient.invalidateQueries({ queryKey: query.queryKey });
       continue;
     }
 
@@ -156,7 +156,7 @@ export function syncGroupedParents(entityId: string, entity: SoupApiItem) {
     }
 
     if (needsInvalidation) {
-      void queryClient.invalidateQueries({ queryKey: query.queryKey });
+      queryClient.invalidateQueries({ queryKey: query.queryKey });
       continue;
     }
 
@@ -200,7 +200,7 @@ export function syncGroupQueries(entityId: string, entity: SoupApiItem) {
         ? []
         : computeGroupKeysForItem(entity, meta.groupBy);
     if (nextGroupKeys === undefined) {
-      void queryClient.invalidateQueries({ queryKey: query.queryKey });
+      queryClient.invalidateQueries({ queryKey: query.queryKey });
       continue;
     }
 
@@ -321,7 +321,7 @@ export function insertGroupQueries(
 
     const targetKeys = computeGroupKeysForItem(item, meta.groupBy);
     if (targetKeys === undefined) {
-      void queryClient.invalidateQueries({ queryKey: query.queryKey });
+      queryClient.invalidateQueries({ queryKey: query.queryKey });
       continue;
     }
     if (!targetKeys.includes(meta.groupKey)) continue;

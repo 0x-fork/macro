@@ -11,6 +11,7 @@ import { canNestBlock, createBlockInstance } from '@core/orchestrator';
 import { blockElementSignal } from '@core/signal/blockElement';
 import { getDisplayName, tryMacroId } from '@core/user';
 import { copyBranchNameToClipboard } from '@core/util/branchName';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { lazyNamed } from '@core/util/lazyNamed';
 import { matches } from '@core/util/match';
 import {
@@ -366,14 +367,17 @@ function DocumentCardInner(props: DocumentCardDecoratorProps) {
 
   const handleOpenInChat = () => {
     const preview = item();
-    void openChatWithAgent({
-      type: 'document',
-      id: props.documentId,
-      name: isAccessiblePreviewItem(preview)
-        ? preview.name
-        : props.documentName,
-      fileType: verifyBlockName(props.blockName),
-    });
+    fireAndForget(
+      openChatWithAgent({
+        type: 'document',
+        id: props.documentId,
+        name: isAccessiblePreviewItem(preview)
+          ? preview.name
+          : props.documentName,
+        fileType: verifyBlockName(props.blockName),
+      }),
+      'document-card'
+    );
   };
 
   const isSplitAlreadyOpen = () =>

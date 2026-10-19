@@ -1,5 +1,6 @@
 import { ShareOptions } from '@core/component/TopBar/ShareButton';
 import { UserIcon } from '@core/component/UserIcon';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { PropertyEntitySelector } from '@property/editors/selectors/PropertyEntitySelector';
 import { Button, Dropdown } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
@@ -44,8 +45,11 @@ export function ProjectCollaborators(props: {
               label={`Access for ${props.getUserName(id)}`}
               setPermissions={(level) => {
                 if (level === null)
-                  void save(
-                    props.project.memberIds.filter((member) => member !== id)
+                  fireAndForget(
+                    save(
+                      props.project.memberIds.filter((member) => member !== id)
+                    ),
+                    'projects'
                   );
               }}
             />

@@ -30,6 +30,7 @@ import {
   syncLoginStorage,
   updateCookie,
 } from '@core/util/cookies';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { licenseChannel } from '@core/util/licenseUpdateBroadcastChannel';
 import { isTauri } from '@core/util/platform';
 import { transformShortIdInUrlPathname } from '@core/util/url';
@@ -211,7 +212,7 @@ export function Root() {
 
   createEffect(() => {
     const cleanup = licenseChannel.subscribe(() => {
-      void invalidateUserInfo();
+      fireAndForget(invalidateUserInfo(), 'license-update');
     });
 
     onCleanup(() => cleanup());

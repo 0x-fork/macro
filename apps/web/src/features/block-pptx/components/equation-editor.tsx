@@ -4,6 +4,7 @@
  * while writing a new equation and while one is selected on the slide.
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import X from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
 import { onMount, Show } from 'solid-js';
@@ -50,7 +51,7 @@ export function EquationEditorPanel(props: {
       eq.close();
     } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      void eq.commit();
+      fireAndForget(eq.commit(), 'pptx-editor');
     }
   };
 

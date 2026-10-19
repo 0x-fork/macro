@@ -369,7 +369,7 @@ export function setPreviewName({
   // mark stale for the next natural refetch (mount/focus) without refetching
   // active observers now: the backend may not have processed the rename yet,
   // so an immediate refetch could clobber the optimistic name with the old one
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: previewKeys.item(itemId).queryKey,
     refetchType: 'none',
   });

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
 import DotsIcon from '@phosphor/dots-three.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -161,7 +162,7 @@ function LaneName(props: { option: EditableOption }) {
             } else if (event.key === 'Enter') {
               event.preventDefault();
               event.stopPropagation();
-              void rename.save(true);
+              fireAndForget(rename.save(true), 'database');
             }
           }}
         />

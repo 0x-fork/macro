@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { until } from '@solid-primitives/promise';
 import { Button } from '@ui/components/Button';
 import { DeleteDialog } from '@ui/components/DeleteDialog';
@@ -644,7 +645,8 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
           pending={controller.pending()}
           onDelete={() => {
             const target = records.deleteTarget();
-            if (target) void records.deleteRow(target.rowId);
+            if (target)
+              fireAndForget(records.deleteRow(target.rowId), 'database');
           }}
           onCloseAutoFocus={(event) => {
             const target = records.deleteDialogReturnFocus();

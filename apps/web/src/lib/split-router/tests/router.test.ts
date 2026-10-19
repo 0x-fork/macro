@@ -89,7 +89,7 @@ function setupSolid(url: string, ahead: readonly string[] = []) {
 /** Memory history whose reverts land only when the test says so. */
 function slowRevertHistory(url: string) {
   const history = createMemoryHistory(url);
-  const landings: (() => void)[] = [];
+  const landings: (() => Promise<void>)[] = [];
   const adapter: HistoryAdapter = {
     ...history,
     subscribe: (listener) =>
@@ -98,8 +98,8 @@ function slowRevertHistory(url: string) {
           ...change,
           revert: () =>
             new Promise<void>((resolve) => {
-              landings.push(() => {
-                void change.revert();
+              landings.push(async () => {
+                await change.revert();
                 resolve();
               });
             }),
@@ -109,7 +109,7 @@ function slowRevertHistory(url: string) {
 
   const landAll = async () => {
     for (let attempt = 0; attempt < 8; attempt += 1) {
-      landings.shift()?.();
+      await landings.shift()?.();
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
   };
@@ -969,12 +969,13 @@ describe('split router', () => {
 describe('split router while other work is in flight', () => {
   it('keeps the entry an outside navigation came from when the new view redirects in place', async () => {
     const { router, history, pane } = track(setup('/home'));
+    let redirect: ReturnType<typeof router.navigatePane> | undefined;
     const stopRedirecting = createRoot((dispose) => {
       createEffect(() => {
         const showsDrive = routeIds(router.entry(pane(0)))?.[0] === 'drive';
         if (!showsDrive) return;
 
-        void untrack(() =>
+        redirect = untrack(() =>
           router.navigatePane(pane(0), '/mail', { replace: true })
         );
       });
@@ -991,6 +992,7 @@ describe('split router while other work is in flight', () => {
       '/mail',
     ]);
     expect(routeIds(router.entry(pane(0)))).toEqual(['mail']);
+    await redirect;
   });
 
   it('lets an outside navigation replace an async initial load, then runs the open waiting on it', async () => {
@@ -998,20 +1000,21 @@ describe('split router while other work is in flight', () => {
       setup('/home', { middleware: [async () => {}] })
     );
     const opened = router.open('/mail', { newPane: true });
-    void history.navigate('/drive');
+    const navigated = history.navigate('/drive');
 
     await expect(opened).resolves.toMatchObject({ status: 'committed' });
     await router.settled();
     expect(router.ready()).toBe(true);
     expect(routeIds(router.entry(pane(0)))).toEqual(['drive']);
     expect(routeIds(router.entry(pane(1)))).toEqual(['mail']);
+    await navigated;
   });
 
   it('holds an open that follows an outside navigation during the initial load', async () => {
     const { router, history } = track(
       setup('/home', { middleware: [async () => {}] })
     );
-    void history.navigate('/drive');
+    const navigated = history.navigate('/drive');
     const opened = router.open('/mail', { newPane: true });
 
     await expect(opened).resolves.toMatchObject({ status: 'committed' });
@@ -1020,6 +1023,7 @@ describe('split router while other work is in flight', () => {
     expect(router.panes().map((id) => routeIds(router.entry(id))?.[0])).toEqual(
       ['drive', 'mail']
     );
+    await navigated;
   });
 
   it('asks guards registered above the first route before closing the pane', () => {
@@ -1223,12 +1227,13 @@ describe('split router while other work is in flight', () => {
 
   it('writes a replace another pane makes while one commits after that commit’s push', async () => {
     const { router, history, pane } = track(setup('/home/~/home'));
+    let redirect: ReturnType<typeof router.navigatePane> | undefined;
     const stopRedirecting = createRoot((dispose) => {
       createEffect(() => {
         const showsDrive = routeIds(router.entry(pane(0)))?.[0] === 'drive';
         if (!showsDrive) return;
 
-        void untrack(() =>
+        redirect = untrack(() =>
           router.navigatePane(pane(1), '/mail', { replace: true })
         );
       });
@@ -1244,19 +1249,21 @@ describe('split router while other work is in flight', () => {
       '/home/~/home',
       '/drive/~/mail',
     ]);
+    await redirect;
   });
 
   it('keeps a Back whose view redirects in place as it mounts', async () => {
     const { router, history, pane } = track(setup('/drive'));
     await router.navigatePane(pane(0), '/mail');
     let armed = false;
+    let redirect: ReturnType<typeof router.navigatePane> | undefined;
     const stopRedirecting = createRoot((dispose) => {
       createEffect(() => {
         const showsDrive = routeIds(router.entry(pane(0)))?.[0] === 'drive';
         const redirects = armed && showsDrive;
         if (!redirects) return;
 
-        void untrack(() =>
+        redirect = untrack(() =>
           router.navigatePane(pane(0), '/home', { replace: true })
         );
       });
@@ -1275,6 +1282,7 @@ describe('split router while other work is in flight', () => {
       '/mail',
     ]);
     expect(routeIds(router.entry(pane(0)))).toEqual(['home']);
+    await redirect;
   });
 
   it('keeps navigating after the history adapter fails a write', () => {
@@ -1378,6 +1386,7 @@ describe('split router while other work is in flight', () => {
       });
     });
     let redirected = false;
+    let redirect: ReturnType<typeof router.navigatePane> | undefined;
     const stopRedirecting = createRoot((dispose) => {
       createEffect(() => {
         const showsDrive = routeIds(router.entry(pane(0)))?.[0] === 'drive';
@@ -1385,7 +1394,7 @@ describe('split router while other work is in flight', () => {
         if (!redirects) return;
 
         redirected = true;
-        void untrack(() =>
+        redirect = untrack(() =>
           router.navigatePane(pane(0), '/drive/folder/f1', { replace: true })
         );
       });
@@ -1406,6 +1415,7 @@ describe('split router while other work is in flight', () => {
     expect(history.index()).toBe(2);
     expect(history.read().path).toBe('/drive/folder/f1');
     expect(paneStore.read(pane(0))?.index).toBe(2);
+    await redirect;
   });
 
   it('writes the URL again after the history adapter failed to write it', async () => {

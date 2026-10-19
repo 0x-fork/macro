@@ -2,6 +2,7 @@ import 'quill/dist/quill.snow.css';
 import './SignatureEditor.css';
 import { toast } from '@core/component/Toast/Toast';
 import { staticFileIdEndpoint } from '@core/constant/servers';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createStaticUploadFile,
   createUploadFile,
@@ -175,7 +176,10 @@ export default function SignatureEditor(props: {
       const file = input.files?.[0];
       if (!file || !quill) return;
       const index = quill.getSelection(true)?.index ?? quill.getLength();
-      void uploadAndInsertImages(index, 0, [file]);
+      fireAndForget(
+        uploadAndInsertImages(index, 0, [file]),
+        'signature-editor'
+      );
     });
     input.click();
   };

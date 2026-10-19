@@ -1,4 +1,5 @@
 import type { AgentSession } from '@core/agent-session/AgentSession';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type EffortSelection,
   effortConfigOption,
@@ -40,7 +41,7 @@ export function sessionConfigReported(
       60_000
     );
     const unsubscribe = session.subscribe(() => void inspect());
-    void inspect();
+    fireAndForget(inspect(), 'agent-session');
   });
 }
 

@@ -4,6 +4,7 @@
  * out like PowerPoint's; ends with "Spell check complete".
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import X from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
 import { For, Show } from 'solid-js';
@@ -121,7 +122,7 @@ export function SpellingPane(props: {
                   onClick={() => p.setChoice(s)}
                   onDblClick={() => {
                     p.setChoice(s);
-                    void p.change();
+                    fireAndForget(p.change(), 'pptx-spelling');
                   }}
                 >
                   {s}

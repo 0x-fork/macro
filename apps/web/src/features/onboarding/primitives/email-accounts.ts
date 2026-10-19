@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createEffect, createSignal, onCleanup } from 'solid-js';
 import type {
   EmailAccountsSource,
@@ -24,7 +25,7 @@ export function createEmailAccounts(
 
   // The links have a long stale time; a connect that just completed (this tab
   // or another) must show up the moment the user is back.
-  void source.refresh();
+  fireAndForget(source.refresh(), 'onboarding');
   const interval = setInterval(
     () => void source.refresh(),
     EMAIL_ACCOUNTS_POLL_MS

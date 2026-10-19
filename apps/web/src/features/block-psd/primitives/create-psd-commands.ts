@@ -12,6 +12,7 @@ import type {
   NewLayer,
   Op,
 } from '@core/psd-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createSignal } from 'solid-js';
 import {
   defaultAdjustment,
@@ -247,44 +248,69 @@ export function createPsdCommands(options: PsdCommandsOptions) {
     layerViaCopy: () => {
       const row = active();
       if (row)
-        void editor.apply([{ op: 'copyToLayer', id: row.id, cut: false }]);
+        fireAndForget(
+          editor.apply([{ op: 'copyToLayer', id: row.id, cut: false }]),
+          'psd-editor'
+        );
     },
     layerViaCut: () => {
       const row = active();
       if (row)
-        void editor.apply([{ op: 'copyToLayer', id: row.id, cut: true }]);
+        fireAndForget(
+          editor.apply([{ op: 'copyToLayer', id: row.id, cut: true }]),
+          'psd-editor'
+        );
     },
     fillForeground: () => {
       const t = pixelTarget();
       if (t)
-        void editor.apply([
-          { op: 'fill', ...t, color: view.foreground(), opacity: 1 },
-        ]);
+        fireAndForget(
+          editor.apply([
+            { op: 'fill', ...t, color: view.foreground(), opacity: 1 },
+          ]),
+          'psd-editor'
+        );
     },
     fillBackground: () => {
       const t = pixelTarget();
       if (t)
-        void editor.apply([
-          { op: 'fill', ...t, color: view.background(), opacity: 1 },
-        ]);
+        fireAndForget(
+          editor.apply([
+            { op: 'fill', ...t, color: view.background(), opacity: 1 },
+          ]),
+          'psd-editor'
+        );
     },
     /** Delete: the selected pixels, else the chosen layers. */
     delete: () => {
       const t = pixelTarget();
       if (t && editor.hasSelection()) {
-        void editor.apply([{ op: 'clear', id: t.id, target: t.target }]);
+        fireAndForget(
+          editor.apply([{ op: 'clear', id: t.id, target: t.target }]),
+          'psd-editor'
+        );
         return;
       }
-      if (ids().length > 0) void editor.apply([{ op: 'delete', ids: ids() }]);
+      if (ids().length > 0)
+        fireAndForget(
+          editor.apply([{ op: 'delete', ids: ids() }]),
+          'psd-editor'
+        );
     },
     freeTransform: () => void tools.startFreeTransform(),
     flipLayer: (horizontal: boolean) => {
       if (ids().length > 0)
-        void editor.apply([{ op: 'flip', ids: ids(), horizontal }]);
+        fireAndForget(
+          editor.apply([{ op: 'flip', ids: ids(), horizontal }]),
+          'psd-editor'
+        );
     },
     rotateLayer: (quarters: number) => {
       if (ids().length > 0)
-        void editor.apply([{ op: 'rotate', ids: ids(), quarters }]);
+        fireAndForget(
+          editor.apply([{ op: 'rotate', ids: ids(), quarters }]),
+          'psd-editor'
+        );
     },
     newLayer: () => void newLayer({ type: 'pixel' }),
     newGroup: () => void newLayer({ type: 'group' }),
@@ -292,54 +318,79 @@ export function createPsdCommands(options: PsdCommandsOptions) {
     newAdjustment,
     duplicate: () => {
       if (ids().length > 0)
-        void editor.apply([{ op: 'duplicate', ids: ids() }]);
+        fireAndForget(
+          editor.apply([{ op: 'duplicate', ids: ids() }]),
+          'psd-editor'
+        );
     },
     deleteLayers: () => {
-      if (ids().length > 0) void editor.apply([{ op: 'delete', ids: ids() }]);
+      if (ids().length > 0)
+        fireAndForget(
+          editor.apply([{ op: 'delete', ids: ids() }]),
+          'psd-editor'
+        );
     },
     mergeDown: () => {
       const row = active();
       const op = row && mergeDownOp(editor.layers(), row.id);
-      if (op) void editor.apply([op]);
+      if (op) fireAndForget(editor.apply([op]), 'psd-editor');
     },
     mergeVisible: () => {
       const visible = editor.layers().filter((r) => r.shown && r.depth === 0);
       if (visible.length > 1)
-        void editor.apply([{ op: 'merge', ids: visible.map((r) => r.id) }]);
+        fireAndForget(
+          editor.apply([{ op: 'merge', ids: visible.map((r) => r.id) }]),
+          'psd-editor'
+        );
     },
     flatten: () => void editor.apply([{ op: 'flatten' }]),
     rasterize: () => {
       if (ids().length > 0)
-        void editor.apply([{ op: 'rasterize', ids: ids() }]);
+        fireAndForget(
+          editor.apply([{ op: 'rasterize', ids: ids() }]),
+          'psd-editor'
+        );
     },
     group: () => {
       if (ids().length > 0)
-        void editor.apply([{ op: 'group', ids: ids(), name: null }]);
+        fireAndForget(
+          editor.apply([{ op: 'group', ids: ids(), name: null }]),
+          'psd-editor'
+        );
     },
     ungroup: () => {
       const row = active();
       if (row?.kind === 'group')
-        void editor.apply([{ op: 'ungroup', id: row.id }]);
+        fireAndForget(
+          editor.apply([{ op: 'ungroup', id: row.id }]),
+          'psd-editor'
+        );
     },
     clippingMask: () => {
       const row = active();
       const op = row && clippingOp(row);
-      if (op) void editor.apply([op]);
+      if (op) fireAndForget(editor.apply([op]), 'psd-editor');
     },
     addMask,
     deleteMask: (apply: boolean) => {
       const row = active();
       if (row?.hasMask) {
         editor.setTarget('pixels');
-        void editor.apply([{ op: 'deleteMask', id: row.id, apply }]);
+        fireAndForget(
+          editor.apply([{ op: 'deleteMask', id: row.id, apply }]),
+          'psd-editor'
+        );
       }
     },
     toggleMask: () => {
       const row = active();
       if (row?.hasMask)
-        void editor.apply([
-          { op: 'setMask', id: row.id, disabled: !row.maskDisabled },
-        ]);
+        fireAndForget(
+          editor.apply([
+            { op: 'setMask', id: row.id, disabled: !row.maskDisabled },
+          ]),
+          'psd-editor'
+        );
     },
     selectAll: () => void editor.select({ type: 'all' }),
     deselect: () => void editor.select({ type: 'none' }),
@@ -347,11 +398,14 @@ export function createPsdCommands(options: PsdCommandsOptions) {
     loadTransparency: () => {
       const row = active();
       if (row)
-        void editor.select({
-          type: 'layer',
-          id: row.id,
-          mask: editor.target() === 'mask',
-        });
+        fireAndForget(
+          editor.select({
+            type: 'layer',
+            id: row.id,
+            mask: editor.target() === 'mask',
+          }),
+          'psd-editor'
+        );
     },
     convertToRgb: () => void editor.convertToRgb(),
     rotateCanvas: (quarters: number) =>
@@ -360,10 +414,15 @@ export function createPsdCommands(options: PsdCommandsOptions) {
       void editor.apply([{ op: 'flipCanvas', horizontal }]),
     cropToSelection: () => {
       const b = editor.selection().bounds;
-      if (b) void editor.apply([{ op: 'crop', rect: b }]);
+      if (b)
+        fireAndForget(editor.apply([{ op: 'crop', rect: b }]), 'psd-editor');
     },
     desaturate: () => {
-      if (requirePixels()) void editor.apply(filterOp({ type: 'desaturate' }));
+      if (requirePixels())
+        fireAndForget(
+          editor.apply(filterOp({ type: 'desaturate' })),
+          'psd-editor'
+        );
     },
     openFilter: (filter: FilterKind) => {
       if (requirePixels()) setDialog({ kind: 'filter', filter });
@@ -378,7 +437,7 @@ export function createPsdCommands(options: PsdCommandsOptions) {
     exportJpeg: () => void exportImage('jpeg'),
     exportLayer: () => {
       const row = active();
-      if (row) void exportImage('png', row.id);
+      if (row) fireAndForget(exportImage('png', row.id), 'psd-editor');
     },
     zoomIn: () => view.zoomStep(1),
     zoomOut: () => view.zoomStep(-1),

@@ -26,6 +26,7 @@ import { enableReminders } from '@core/constant/featureFlags';
 import { createAssertedContextProvider } from '@core/context/createContext';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useTagSets, useTagSetsReady } from '@property/tags/tag-sets-context';
 import { useEmailLinksQuery } from '@queries/email/link';
 import type { ContextProviderProps } from '@solid-primitives/context';
@@ -251,15 +252,18 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
     );
   };
   const closeThread = () => {
-    void navigate(
-      { route: emailSplitRoute, params: {} },
-      {
-        search: {
-          [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
-            tab: state.tab,
-          }),
-        },
-      }
+    fireAndForget(
+      navigate(
+        { route: emailSplitRoute, params: {} },
+        {
+          search: {
+            [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
+              tab: state.tab,
+            }),
+          },
+        }
+      ),
+      'email-view'
     );
   };
   const openThread = (
@@ -271,17 +275,20 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
     // The router may refuse a claimed destination. Check compatibility without
     // claiming it until the accepted route changes.
     if (!selectPreview.canSelect(selection)) return true;
-    void navigate(
-      { route: emailThreadRoute, params: { threadId: thread.id } },
-      {
-        replace: options?.replace,
-        search: {
-          [emailDetailSearch.namespace]: {},
-          [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
-            tab: state.tab,
-          }),
-        },
-      }
+    fireAndForget(
+      navigate(
+        { route: emailThreadRoute, params: { threadId: thread.id } },
+        {
+          replace: options?.replace,
+          search: {
+            [emailDetailSearch.namespace]: {},
+            [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
+              tab: state.tab,
+            }),
+          },
+        }
+      ),
+      'email-view'
     );
     return true;
   };
@@ -293,31 +300,37 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
         : undefined;
       if (!selectPreview(selection)) {
         if (previous) {
-          void navigate(
-            {
-              route: emailThreadRoute,
-              params: { threadId: previous.id },
-            },
-            {
-              replace: true,
-              search: {
-                [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
-                  tab: state.tab,
-                }),
+          fireAndForget(
+            navigate(
+              {
+                route: emailThreadRoute,
+                params: { threadId: previous.id },
               },
-            }
+              {
+                replace: true,
+                search: {
+                  [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
+                    tab: state.tab,
+                  }),
+                },
+              }
+            ),
+            'email-view'
           );
         } else {
-          void navigate(
-            { route: emailSplitRoute, params: {} },
-            {
-              replace: true,
-              search: {
-                [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
-                  tab: state.tab,
-                }),
-              },
-            }
+          fireAndForget(
+            navigate(
+              { route: emailSplitRoute, params: {} },
+              {
+                replace: true,
+                search: {
+                  [emailTabSearch.namespace]: emailTabSearchCodec.serialize({
+                    tab: state.tab,
+                  }),
+                },
+              }
+            ),
+            'email-view'
           );
         }
         return;

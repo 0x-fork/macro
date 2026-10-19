@@ -2,6 +2,7 @@ import { analytics } from '@app/lib/analytics';
 import { DEFAULT_CHAT_NAME } from '@block-chat/definition';
 import type { CodeFileExtension } from '@block-code/util/languageSupport';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { invalidateUserQuota } from '@queries/auth';
@@ -15,7 +16,6 @@ import { staticFileClient } from '@service-static-files/client';
 import { storageServiceClient } from '@service-storage/client';
 import { AccessLevel } from '@service-storage/generated/schemas/accessLevel';
 import type { PropertyInput } from '@service-storage/generated/schemas/propertyInput';
-
 import { uploadToPresignedUrl } from '@service-storage/util/uploadToPresignedUrl';
 import { err, ok } from 'neverthrow';
 import { decodeBase64Bytes } from './base64';
@@ -58,7 +58,7 @@ export async function createMarkdownFile(
     projectId: args?.projectId,
   });
 
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
 
   if (result.isErr()) return;
 
@@ -157,7 +157,7 @@ async function createTaskResponse(args?: CreateTaskArgs) {
     propertyValues,
   });
 
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
 
   if (result.isErr()) return;
 
@@ -223,7 +223,7 @@ export async function createSnippet(
     projectId: args?.projectId,
   });
 
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
 
   if (result.isErr()) return;
 
@@ -271,7 +271,7 @@ export async function createSkill(
     projectId: args?.projectId,
   });
 
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
 
   if (result.isErr()) return;
 
@@ -355,7 +355,7 @@ export async function createCodeFileFromText({
     sha: sha,
   });
 
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
 
   // TODO: this is kind of odd, since there's an actual code we could use for the paywall, 402 Payment Required
   if (maybeCode.isErr() && maybeCode.error[0].message.includes('403')) {
@@ -372,7 +372,10 @@ export async function createCodeFileFromText({
   });
   if (uploadResult.isErr())
     return err([{ code: 'SERVER_ERROR', message: 'Failed to upload file' }]);
-  void postNewHistoryItem('document', document.metadata.documentId);
+  fireAndForget(
+    postNewHistoryItem('document', document.metadata.documentId),
+    'create-entity'
+  );
   setPreviewOnCreate({
     itemId: document.metadata.documentId,
     itemType: 'document',
@@ -409,7 +412,7 @@ export async function createCanvasFileFromJsonString(args: {
     sha: sha,
     projectId,
   });
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
   if (maybeCanvas.isErr()) return { error: 'Document creation failed.' };
   const canvas = maybeCanvas.value;
 
@@ -422,7 +425,10 @@ export async function createCanvasFileFromJsonString(args: {
 
   if (uploadResult.isErr()) return { error: 'Failed to upload file.' };
 
-  void postNewHistoryItem('document', canvas.metadata.documentId);
+  fireAndForget(
+    postNewHistoryItem('document', canvas.metadata.documentId),
+    'create-entity'
+  );
   setPreviewOnCreate({
     itemId: canvas.metadata.documentId,
     itemType: 'document',
@@ -452,7 +458,7 @@ export async function createChat(
 
   const maybeChat = await cognitionApiServiceClient.createChat(args ?? {});
 
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
   if (maybeChat.isErr()) {
     if (isPaymentError(maybeChat)) {
       showPaywall(PaywallKey.CHAT_LIMIT);
@@ -460,7 +466,7 @@ export async function createChat(
     return { error: 'Failed to create chat.' };
   }
   const chat = maybeChat.value;
-  void postNewHistoryItem('chat', chat.id);
+  fireAndForget(postNewHistoryItem('chat', chat.id), 'create-entity');
   setPreviewOnCreate({
     itemId: chat.id,
     itemType: 'chat',
@@ -485,7 +491,7 @@ export async function createStaticFile(file: File): Promise<string> {
     file_name: file.name,
     content_type: contentType,
   });
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-entity');
   if (result.isErr()) throw new Error('Failed to upload file');
 
   const { upload_url, id } = result.value;

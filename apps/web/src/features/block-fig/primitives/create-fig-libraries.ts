@@ -19,6 +19,7 @@ import type {
   PublishedAsset,
   PublishedLibrary,
 } from '@core/fig-engine/library-types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createEffect, createSignal, on, onCleanup } from 'solid-js';
 import type { FigLibrarySource } from '../context/fig-libraries';
 import {
@@ -102,7 +103,7 @@ export function createFigLibraries(options: {
   /** Starts (or stops) keeping the publishing state current. */
   const watchStatus = (on: boolean) => {
     setWatchingStatus(on);
-    if (on) void loadState();
+    if (on) fireAndForget(loadState(), 'fig-libraries');
   };
 
   const setOne = (id: string, value: LoadedLibrary) =>
@@ -183,7 +184,8 @@ export function createFigLibraries(options: {
           .enabled.map((l) => l.id)
           .join('\n'),
       () => {
-        for (const l of uses().enabled) void load(l.id, { keep: true });
+        for (const l of uses().enabled)
+          fireAndForget(load(l.id, { keep: true }), 'fig-libraries');
       }
     )
   );
@@ -191,7 +193,7 @@ export function createFigLibraries(options: {
   onCleanup(() => {
     for (const e of engines.values()) e.close();
     engines.clear();
-    void revokeThumbnails([...thumbnails.values()]);
+    fireAndForget(revokeThumbnails([...thumbnails.values()]), 'fig-libraries');
   });
 
   /** The published assets of the libraries read so far, by id. */

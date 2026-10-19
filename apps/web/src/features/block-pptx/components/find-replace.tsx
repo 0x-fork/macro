@@ -3,6 +3,7 @@
  * reading order, each shown selected in its shape when visited.
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import CaretDown from '@phosphor/caret-down.svg';
 import CaretUp from '@phosphor/caret-up.svg';
 import X from '@phosphor/x.svg';
@@ -89,7 +90,7 @@ export function FindReplace(props: {
     }
     next = (next + list.length) % list.length;
     setCurrent(next);
-    void reveal(list[next]);
+    fireAndForget(reveal(list[next]), 'pptx-editor');
   }
 
   async function replaceOne() {
@@ -110,7 +111,7 @@ export function FindReplace(props: {
     }
     const next = Math.min(at, after.length - 1);
     setCurrent(next);
-    void reveal(after[next]);
+    fireAndForget(reveal(after[next]), 'pptx-editor');
   }
 
   async function replaceAll() {

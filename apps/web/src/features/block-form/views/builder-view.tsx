@@ -1,4 +1,5 @@
 import { DocumentOutline } from '@app/components/DocumentOutline';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import CalendarCheck from '@phosphor/calendar-check.svg';
 import Database from '@phosphor/database.svg';
@@ -720,7 +721,11 @@ function BuilderCanvas(
                       }
                       onDelete={() => {
                         const current = section();
-                        if (current) void confirmRemoveSection(current);
+                        if (current)
+                          fireAndForget(
+                            confirmRemoveSection(current),
+                            'form-builder'
+                          );
                       }}
                     />
                   );
@@ -925,13 +930,16 @@ function BuilderCanvas(
                                       afterMenuClose = () => {
                                         dialogReturnFocus =
                                           sectionAddTriggers.get(sectionId);
-                                        void insertQuestion(
-                                          choice,
-                                          {
-                                            sectionId,
-                                            index: current().questions.length,
-                                          },
-                                          relation
+                                        fireAndForget(
+                                          insertQuestion(
+                                            choice,
+                                            {
+                                              sectionId,
+                                              index: current().questions.length,
+                                            },
+                                            relation
+                                          ),
+                                          'form-builder'
                                         );
                                       };
                                     }}
@@ -1150,10 +1158,13 @@ function BuilderCanvas(
                         onClick={() => {
                           const current = pending();
                           setPendingRelation(undefined);
-                          void insertQuestion(
-                            current.choice,
-                            current.placement,
-                            relation
+                          fireAndForget(
+                            insertQuestion(
+                              current.choice,
+                              current.placement,
+                              relation
+                            ),
+                            'form-builder'
                           );
                         }}
                       >
@@ -1256,7 +1267,10 @@ function BuilderCanvas(
               const at = placement();
               if (!at) return;
               dialogReturnFocus = trigger;
-              void insertQuestion(choice, at, relation);
+              fireAndForget(
+                insertQuestion(choice, at, relation),
+                'form-builder'
+              );
             };
           }}
           onAddColumn={(columnId) => {

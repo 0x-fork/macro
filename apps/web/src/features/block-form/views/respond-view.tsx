@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowLeft from '@phosphor/arrow-left.svg';
 import ArrowRight from '@phosphor/arrow-right.svg';
 import CalendarCheck from '@phosphor/calendar-check.svg';
@@ -414,7 +415,7 @@ export function RespondView(props: {
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (answering().isLast) {
-                    void submitAndReveal();
+                    fireAndForget(submitAndReveal(), 'form-respond');
                     return;
                   }
                   if (respond.next()) revealTop();

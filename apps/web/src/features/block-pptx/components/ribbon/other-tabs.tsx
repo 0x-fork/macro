@@ -3,6 +3,7 @@
  */
 
 import type { TransitionKind } from '@core/pptx-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowDown from '@phosphor/arrow-down.svg';
 import ArrowUp from '@phosphor/arrow-up.svg';
 import ArrowsOut from '@phosphor/arrows-out.svg';
@@ -114,9 +115,12 @@ export function DesignTab() {
                     data-testid={`pptx-theme-colors-${colorSet.name}`}
                     onClick={() => {
                       close();
-                      void env.commands.setThemeColors(
-                        colorSet.colors,
-                        colorSet.name
+                      fireAndForget(
+                        env.commands.setThemeColors(
+                          colorSet.colors,
+                          colorSet.name
+                        ),
+                        'pptx-editor'
                       );
                     }}
                   >
@@ -170,10 +174,13 @@ export function DesignTab() {
                     data-testid={`pptx-theme-fonts-${pair.name}`}
                     onClick={() => {
                       close();
-                      void env.commands.setThemeFonts(
-                        pair.major,
-                        pair.minor,
-                        pair.name
+                      fireAndForget(
+                        env.commands.setThemeFonts(
+                          pair.major,
+                          pair.minor,
+                          pair.name
+                        ),
+                        'pptx-editor'
                       );
                     }}
                   >
@@ -262,7 +269,7 @@ export function SlideShowTab() {
           disabled={env.readonly()}
           onClick={() => {
             const s = env.slide();
-            if (s) void env.commands.toggleHidden(s);
+            if (s) fireAndForget(env.commands.toggleHidden(s), 'pptx-editor');
           }}
         >
           <EyeSlash />
@@ -504,7 +511,7 @@ export function ShapeFormatTab() {
               load={env.presetPaths}
               onPick={(preset) => {
                 close();
-                void c.insertShape(preset);
+                fireAndForget(c.insertShape(preset), 'pptx-editor');
               }}
             />
           )}
@@ -643,7 +650,7 @@ function ShapeStyles() {
                       onClick={() => {
                         close();
                         const v = value(slot);
-                        void c.styleShapes(kind, v);
+                        fireAndForget(c.styleShapes(kind, v), 'pptx-editor');
                       }}
                     >
                       Abc
@@ -866,7 +873,10 @@ export function TransitionsTab() {
                         active={current()?.direction === direction}
                         onClick={() => {
                           close();
-                          void c.setTransition({ kind: kind(), direction });
+                          fireAndForget(
+                            c.setTransition({ kind: kind(), direction }),
+                            'pptx-editor'
+                          );
                         }}
                       />
                     )}

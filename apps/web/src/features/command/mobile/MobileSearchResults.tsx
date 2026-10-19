@@ -6,6 +6,7 @@ import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type EntityData,
   ListEntity,
@@ -221,7 +222,7 @@ function MobileFullTextResults() {
                   onClick={() => void open(entity)}
                   onContentHitClick={(event, location) => {
                     event.stopPropagation();
-                    void open(entity, location);
+                    fireAndForget(open(entity, location), 'mobile-search');
                   }}
                 />
               )}

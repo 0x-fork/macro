@@ -1,6 +1,7 @@
 import { ViewShell } from '@app/components/view-shell';
 import { DebugSuspense } from '@channel/DebugSuspense';
 import { MessageThread, threadListItem } from '@core/messages/MessageThread';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { ChannelEntity, ChannelThreadEntity } from '@entity';
 import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import { useMessageThreadQuery } from '@queries/messages/thread-replies';
@@ -207,7 +208,7 @@ function ThreadList(props: {
       handle.scrollSize - handle.viewportSize - offset > LOAD_MORE_THRESHOLD
     )
       return;
-    void props.query.fetchNextPage();
+    fireAndForget(props.query.fetchNextPage(), 'channels-view');
   };
 
   return (

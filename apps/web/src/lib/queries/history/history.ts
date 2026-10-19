@@ -231,7 +231,7 @@ export function useUpsertToHistoryMutation(
             }
           },
           onSettled: () => {
-            void queryClient.invalidateQueries({
+            queryClient.invalidateQueries({
               queryKey: historyQueryOptions.queryKey,
             });
           },

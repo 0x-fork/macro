@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Button } from '@ui';
 import {
   createEffect,
@@ -95,7 +96,7 @@ export function BookingPicker(props: {
     );
   const choose = (value: string) => {
     setDate(value);
-    void flow.chooseDate(event().id, value, zone());
+    fireAndForget(flow.chooseDate(event().id, value, zone()), 'scheduling');
   };
   const submit = async (e: SubmitEvent) => {
     e.preventDefault();

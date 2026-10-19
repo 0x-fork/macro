@@ -3,6 +3,7 @@ import {
   enableGraphqlSoup,
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import type { UnifiedSearchResponseItem } from '@service-search/generated/models';
 import type {
@@ -64,8 +65,8 @@ type SoupSearchInfiniteData = InfiniteData<
  */
 function cancelSoupQueries() {
   const predicate = (query: Query) => query.state.data !== undefined;
-  void queryClient.cancelQueries({ queryKey: soupKeys.items._def, predicate });
-  void queryClient.cancelQueries({
+  queryClient.cancelQueries({ queryKey: soupKeys.items._def, predicate });
+  queryClient.cancelQueries({
     queryKey: soupKeys.astItems._def,
     predicate,
   });
@@ -120,7 +121,7 @@ function updateSoupEntity<T extends SoupEntityTag>(
       )
   );
   if (cancelHashes.size > 0) {
-    void queryClient.cancelQueries({
+    queryClient.cancelQueries({
       predicate: (query) =>
         query.state.data !== undefined && cancelHashes.has(query.queryHash),
     });
@@ -254,14 +255,14 @@ export function invalidateSoupEntity(entityId: string): void {
   for (const queryKey of keys) {
     // Normy JSON-roundtrips complete keys, turning undefined array slots into
     // null. Exact matching uses the same hash; partial matching misses them.
-    void queryClient.invalidateQueries({ queryKey, exact: true });
+    queryClient.invalidateQueries({ queryKey, exact: true });
   }
 }
 
 /** Mark stale soup queries whose query key references any of the given ids (e.g. project-scoped views). */
 export function invalidateSoupQueriesReferencing(ids: string[]): void {
   if (ids.length === 0) return;
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: ['soup'],
     predicate: (query) => {
       const serialized = JSON.stringify(query.queryKey);
@@ -272,16 +273,16 @@ export function invalidateSoupQueriesReferencing(ids: string[]): void {
 
 /** Mark every soup list query stale. Use `invalidateSoupEntity` when the entity ID is known. */
 export function invalidateAllSoup(): void {
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: soupKeys.items._def,
   });
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: soupKeys.astItems._def,
   });
   // Expanded single-group caches back grouped views' rows (mail/inbox group
   // by date); leaving them stale keeps removed rows hidden even after their
   // parent queries refetch.
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: soupKeys.groupedGroup._def,
   });
 }
@@ -368,7 +369,7 @@ export function insertSoupEntity(item: SoupApiItem): SoupTransaction {
     );
 
     if (!nextPage) {
-      void queryClient.invalidateQueries({ queryKey: key });
+      queryClient.invalidateQueries({ queryKey: key });
       continue;
     }
 
@@ -523,7 +524,7 @@ export function restoreSoupEntityToDoneFilteredQueries(
     if (flatMeta.itemFilter && !flatMeta.itemFilter(item)) continue;
     if (flatMeta.insertFilter && !flatMeta.insertFilter(item)) continue;
 
-    void cancelQuery(key);
+    fireAndForget(cancelQuery(key), 'soup-normalized-cache');
     queryClient.setQueryData<SoupItemsInfiniteData>(key, {
       ...prev,
       pages: prev.pages.map((page, index) =>
@@ -557,7 +558,7 @@ export function restoreSoupEntityToDoneFilteredQueries(
         continue;
       }
 
-      void cancelQuery(key);
+      fireAndForget(cancelQuery(key), 'soup-normalized-cache');
       queryClient.setQueryData<SoupAstItemsInfiniteData>(key, {
         ...prev,
         pages: prev.pages.map((page, index) =>
@@ -580,11 +581,11 @@ export function restoreSoupEntityToDoneFilteredQueries(
 
     const nextPage = insertGroupedPage(firstPage, item, entityId, meta.groupBy);
     if (!nextPage) {
-      void queryClient.invalidateQueries({ queryKey: key });
+      queryClient.invalidateQueries({ queryKey: key });
       continue;
     }
 
-    void cancelQuery(key);
+    fireAndForget(cancelQuery(key), 'soup-normalized-cache');
     queryClient.setQueryData<SoupAstItemsInfiniteData>(key, {
       ...prev,
       pages: [nextPage, ...prev.pages.slice(1)],
@@ -602,11 +603,11 @@ function removeSoupEntitiesWhere(
   // Scoped equivalent of cancelSoupQueries (same data !== undefined guard)
   const cancelPredicate = (query: Query) =>
     query.state.data !== undefined && referencesIds(query.queryKey);
-  void queryClient.cancelQueries({
+  queryClient.cancelQueries({
     queryKey: soupKeys.items._def,
     predicate: cancelPredicate,
   });
-  void queryClient.cancelQueries({
+  queryClient.cancelQueries({
     queryKey: soupKeys.astItems._def,
     predicate: cancelPredicate,
   });
@@ -676,7 +677,7 @@ function removeSoupEntitiesWhere(
 }
 
 export function removeSearchEntities(entityIds: Set<string>): SoupTransaction {
-  void queryClient.cancelQueries({ queryKey: soupKeys.search._def });
+  queryClient.cancelQueries({ queryKey: soupKeys.search._def });
 
   const previous = queryClient.getQueriesData<SoupSearchInfiniteData>({
     queryKey: soupKeys.search._def,
@@ -741,7 +742,7 @@ export async function refetchSoupEntity(
   }
 ): Promise<void> {
   if (options?.refreshGraphql) {
-    void refreshActiveGraphqlSoupQueries();
+    fireAndForget(refreshActiveGraphqlSoupQueries(), 'soup-normalized-cache');
   }
 
   // GraphQL lists never read this cache, so a miss means no REST list shows
@@ -804,15 +805,15 @@ export async function refetchSoupEntity(
 function invalidateAllSoupExceptTouched(): void {
   const notTouched = (query: Query) =>
     !JSON.stringify(query.queryKey).includes('touched_by_me');
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: soupKeys.items._def,
     predicate: notTouched,
   });
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: soupKeys.astItems._def,
     predicate: notTouched,
   });
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: soupKeys.groupedGroup._def,
     predicate: notTouched,
   });

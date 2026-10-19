@@ -13,6 +13,7 @@
 
 import { CalendarDraftComposer } from '@core/component/AI/component/tool/calendar/DraftComposer';
 import { EmailDraftComposer } from '@core/component/AI/component/tool/email/DraftComposer';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type {
   ElicitationRequest,
   ElicitationSchema,
@@ -200,7 +201,7 @@ export function QuestionActions(props: {
 }) {
   const respond = (answer: ElicitationAnswer) => {
     if (props.locked) return;
-    void props.onRespond(answer);
+    fireAndForget(props.onRespond(answer), 'agent-interactions');
   };
   const submit = (draft: FormDraft) => {
     const content = draft.content();

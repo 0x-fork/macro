@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import { useUpsertToHistoryMutation } from '@queries/history/history';
 import {
@@ -91,7 +92,10 @@ export function track({
   optimisticUpdateSoupItemViewedAt(itemId);
   const inSoup = hasSoupEntity(itemId);
   if (!inSoup && isSoupEntityTag(itemType)) {
-    void fetchOpenedSoupEntity(itemId, itemType);
+    fireAndForget(
+      fetchOpenedSoupEntity(itemId, itemType),
+      'track-block-opened'
+    );
   }
 
   if (!shouldTrackInUserHistory(itemType)) return;

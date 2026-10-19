@@ -417,7 +417,7 @@ describe('AgentSession', () => {
     logSource.fetched.mockReturnValue(log.promise);
     const live = AgentSession.acquire(SESSION);
 
-    void live.issue({ type: 'prompt', prompt: 'early' });
+    const issued = live.issue({ type: 'prompt', prompt: 'early' });
     await settle();
     expect(fold.pushSession).not.toHaveBeenCalled();
 
@@ -427,6 +427,7 @@ describe('AgentSession', () => {
       'snapshot',
       'speculated',
     ]);
+    await issued;
     live.release();
   });
 

@@ -5,6 +5,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { ENABLE_AGENT_DMS } from '@core/constant/featureFlags';
 import { useChannelsContext } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import CaretLeftIcon from '@phosphor/caret-left.svg';
 import {
   useBotChannelsQuery,
@@ -222,7 +223,7 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
                 class="flex flex-col gap-5"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void save();
+                  fireAndForget(save(), 'channel-bots');
                 }}
               >
                 <header class="flex items-center gap-3">

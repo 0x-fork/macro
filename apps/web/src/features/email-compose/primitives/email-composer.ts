@@ -1,4 +1,5 @@
 import { MACRO_EMAIL_SIGNATURE } from '@app/features/email-compose/core/constants';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import {
   $appendWatermarkNodeToLast,
@@ -1165,7 +1166,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
     // Persist immediately on a sender switch so the draft moves to the new
     // inbox even without a text edit.
     onSelectInbox: (inboxId, senderEmail) => {
-      void selectInbox(inboxId, senderEmail);
+      fireAndForget(selectInbox(inboxId, senderEmail), 'email-compose');
     },
     hasPaidAccess,
   };

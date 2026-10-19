@@ -25,6 +25,7 @@ import type {
   Summary,
   Target,
 } from '@core/psd-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { batch, createSignal, onCleanup } from 'solid-js';
 import type { PsdSharing } from '../context/psd-editor-context';
 import { defaultActive } from '../core/layer-tree';
@@ -145,7 +146,7 @@ export function createPsdEditor(options: PsdEditorOptions) {
     clearTimeout(layersTimer);
     layersTimer = setTimeout(() => {
       layersTimer = undefined;
-      void enqueue(refreshLayers);
+      fireAndForget(enqueue(refreshLayers), 'psd-editor');
     }, LAYERS_QUIET_MS);
   };
   onCleanup(() => clearTimeout(layersTimer));
@@ -239,7 +240,8 @@ export function createPsdEditor(options: PsdEditorOptions) {
   };
 
   const onHidden = () => {
-    if (document.visibilityState === 'hidden') void saveNow();
+    if (document.visibilityState === 'hidden')
+      fireAndForget(saveNow(), 'psd-editor');
   };
   document.addEventListener('visibilitychange', onHidden);
   // Whoever stores the file now (the one who did may have left) stores
@@ -278,7 +280,7 @@ export function createPsdEditor(options: PsdEditorOptions) {
     if (pushTimer) return;
     pushTimer = setTimeout(() => {
       pushTimer = undefined;
-      void enqueue(pushNow);
+      fireAndForget(enqueue(pushNow), 'psd-editor');
     }, GESTURE_PUSH_MS);
   };
   onCleanup(() => clearTimeout(pushTimer));
@@ -321,10 +323,13 @@ export function createPsdEditor(options: PsdEditorOptions) {
   const unsubscribeIncoming = sharing?.onIncoming(() => {
     if (pullQueued) return;
     pullQueued = true;
-    void enqueue(async () => {
-      pullQueued = false;
-      await pullShared();
-    });
+    fireAndForget(
+      enqueue(async () => {
+        pullQueued = false;
+        await pullShared();
+      }),
+      'psd-editor'
+    );
   });
 
   onCleanup(() => {
@@ -497,7 +502,7 @@ export function createPsdEditor(options: PsdEditorOptions) {
       setSelected(ids);
       setTarget(editTarget);
     });
-    void refreshInfo();
+    fireAndForget(refreshInfo(), 'psd-editor');
   };
 
   // ---- opening ------------------------------------------------------------

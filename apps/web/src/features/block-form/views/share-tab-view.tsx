@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import UsersThree from '@phosphor/users-three.svg';
 import { Button, ToggleSwitch } from '@ui';
 import { ResultAsync } from 'neverthrow';
@@ -128,7 +129,11 @@ export function ShareTabView(props: {
                   const closesAt = instantFromLocalInput(
                     event.currentTarget.value
                   );
-                  if (closesAt) void update({ closesAt }, 'The closing date');
+                  if (closesAt)
+                    fireAndForget(
+                      update({ closesAt }, 'The closing date'),
+                      'form-share'
+                    );
                 }}
               />
               <Show when={form().closesAt && isOwner()}>
@@ -169,9 +174,9 @@ export function ShareTabView(props: {
               onBlur={(event) => {
                 const confirmationMessage = event.currentTarget.value;
                 if (confirmationMessage !== form().confirmationMessage)
-                  void update(
-                    { confirmationMessage },
-                    'The confirmation message'
+                  fireAndForget(
+                    update({ confirmationMessage }, 'The confirmation message'),
+                    'form-share'
                   );
               }}
             />

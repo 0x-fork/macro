@@ -41,7 +41,7 @@ import { BulkDeleteFailure } from './bulk-delete-result';
 
 function invalidateDeletedDssItems(entities: EntityData[]): void {
   if (entities.some((e) => e.type === 'call')) {
-    void queryClient.invalidateQueries({ queryKey: callKeys._def });
+    queryClient.invalidateQueries({ queryKey: callKeys._def });
   }
   if (entities.some((e) => e.type === 'routine')) {
     const deletedIds = new Set(
@@ -56,7 +56,7 @@ function invalidateDeletedDssItems(entities: EntityData[]): void {
         );
       }
     );
-    void queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: scheduledActionKeys.list.queryKey,
     });
     for (const scheduleId of deletedIds) {
@@ -225,10 +225,10 @@ function invalidateAfterMove(
   }
   // Destination folder's list queries don't contain the entities yet, so match by project id in the key
   invalidateSoupQueriesReferencing([destinationProjectId]);
-  void queryClient.invalidateQueries({ queryKey: ['entity'] });
+  queryClient.invalidateQueries({ queryKey: ['entity'] });
   // If moving a project, invalidate all project queries since nested projects' breadcrumbs change too
   if (hasProjects) {
-    void queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: ['project'],
     });
   }
@@ -374,10 +374,10 @@ export function createBulkRemoveFromProjectDssEntityMutation() {
       // The source folders' views no longer contain the entities after the
       // optimistic removal, so match them by project id in the key
       invalidateSoupQueriesReferencing(context?.sourceProjectIds ?? []);
-      void queryClient.invalidateQueries({ queryKey: ['entity'] });
+      queryClient.invalidateQueries({ queryKey: ['entity'] });
       // Removed projects' breadcrumbs (and nested projects') change too
       if (entities.some((e) => e.type === 'project')) {
-        void queryClient.invalidateQueries({ queryKey: ['project'] });
+        queryClient.invalidateQueries({ queryKey: ['project'] });
       }
       if (isFeatureEnabled(enableGraphqlSoup)) {
         return refreshActiveGraphqlSoupQueries();
@@ -448,13 +448,13 @@ export function createBulkCopyDssEntityMutation() {
       }
 
       // Trigger refetch so new items appear
-      void queryClient.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: soupKeys.items._def,
       });
-      void queryClient.invalidateQueries({
+      queryClient.invalidateQueries({
         queryKey: soupKeys.astItems._def,
       });
-      void queryClient.invalidateQueries({ queryKey: ['entity'] });
+      queryClient.invalidateQueries({ queryKey: ['entity'] });
       if (isFeatureEnabled(enableGraphqlSoup)) {
         return refreshActiveGraphqlSoupQueries();
       }

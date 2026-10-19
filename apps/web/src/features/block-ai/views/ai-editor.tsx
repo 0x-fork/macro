@@ -8,6 +8,7 @@ import { zoomLabel } from '@app/features/block-fig/core/camera';
 import { controlOwnsKey } from '@app/features/block-fig/core/shortcuts';
 import type { EdgeRect } from '@core/ai-engine/types';
 import { IS_MAC } from '@core/constant/isMac';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createEffect,
   createSignal,
@@ -118,10 +119,13 @@ export function AiEditorView() {
   let root!: HTMLDivElement;
 
   onMount(() => {
-    void (async () => {
-      await viewer.load();
-      await fonts.loadDocumentFonts();
-    })();
+    fireAndForget(
+      (async () => {
+        await viewer.load();
+        await fonts.loadDocumentFonts();
+      })(),
+      'ai-editor'
+    );
     if (document.activeElement === document.body)
       root.focus({ preventScroll: true });
   });
@@ -146,7 +150,7 @@ export function AiEditorView() {
   // ---- actions --------------------------------------------------------------
 
   const setTool = (tool: Tool) => {
-    if (editor.penPoints()) void editor.penFinish(false);
+    if (editor.penPoints()) fireAndForget(editor.penFinish(false), 'ai-editor');
     if (tool !== 'artboard') viewer.setArtboard(undefined);
     viewer.setTool(tool);
   };
@@ -154,7 +158,7 @@ export function AiEditorView() {
   /** Escape: finish the pen, drop the artboard or selection, then the tool. */
   const onEscape = () => {
     if (editor.penPoints()) {
-      void editor.penFinish(false);
+      fireAndForget(editor.penFinish(false), 'ai-editor');
       return;
     }
     if (viewer.artboard() !== undefined) {
@@ -178,10 +182,10 @@ export function AiEditorView() {
   const deleteKey = () => {
     const board = viewer.artboard();
     if (viewer.tool() === 'artboard' && board !== undefined) {
-      void editor.deleteArtboard(board);
+      fireAndForget(editor.deleteArtboard(board), 'ai-editor');
       return;
     }
-    void editor.deleteSelection();
+    fireAndForget(editor.deleteSelection(), 'ai-editor');
   };
 
   const run = (action: EditorAction) =>
@@ -227,7 +231,8 @@ export function AiEditorView() {
       .with('swap-colors', () => void editor.swapColors())
       .with('escape', onEscape)
       .with('enter', () => {
-        if (editor.penPoints()) void editor.penFinish(false);
+        if (editor.penPoints())
+          fireAndForget(editor.penFinish(false), 'ai-editor');
         else {
           const only = viewer.infos();
           if (only.length === 1 && only[0].kind === 'text' && editor.enabled())
@@ -245,7 +250,7 @@ export function AiEditorView() {
         'nudge-down-10',
         (a) => {
           const o = nudgeOffset(a);
-          if (o) void editor.nudge(o.dx, o.dy);
+          if (o) fireAndForget(editor.nudge(o.dx, o.dy), 'ai-editor');
         }
       )
       .exhaustive();
@@ -336,11 +341,11 @@ export function AiEditorView() {
       f.type.startsWith('image/')
     );
     if (files.length === 0) {
-      void editor.paste();
+      fireAndForget(editor.paste(), 'ai-editor');
       return;
     }
     const v = viewer.visibleRect();
-    void editor.placeImages(files, center(v));
+    fireAndForget(editor.placeImages(files, center(v)), 'ai-editor');
   };
 
   // ---- menus --------------------------------------------------------------------
@@ -444,17 +449,21 @@ export function AiEditorView() {
 
   const setStrokePaint = (hex: string | null, live: boolean) => {
     if (hex === null) {
-      void editor.setStroke(null, live);
+      fireAndForget(editor.setStroke(null, live), 'ai-editor');
       return;
     }
     const paint = solidPaint(hex);
     if (!paint) return;
-    if (viewer.infos().length > 0) void editor.updateStroke({ paint }, live);
+    if (viewer.infos().length > 0)
+      fireAndForget(editor.updateStroke({ paint }, live), 'ai-editor');
     else {
       const current = editor.appearance().stroke;
-      void editor.setStroke(
-        current ? { ...current, paint } : strokeOf(paint, 1),
-        live
+      fireAndForget(
+        editor.setStroke(
+          current ? { ...current, paint } : strokeOf(paint, 1),
+          live
+        ),
+        'ai-editor'
       );
     }
   };

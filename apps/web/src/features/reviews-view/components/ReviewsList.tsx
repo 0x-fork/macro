@@ -17,6 +17,7 @@ import {
 import { type PrLinks, priorityTaskName } from '@block-pr/data/pr-links';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { ContextMenuContent, MenuItem } from '@core/component/ContextMenu';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   EntitySelectionToolbar,
   type GithubPullRequestEntity,
@@ -290,7 +291,7 @@ export function ReviewsList(props: ReviewsListProps) {
     )
       return;
     if (element.scrollHeight - element.scrollTop - element.clientHeight < 320)
-      void loadMore();
+      fireAndForget(loadMore(), 'reviews-view');
   };
 
   useInfiniteScrollSentinel({

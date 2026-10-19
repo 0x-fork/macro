@@ -162,7 +162,7 @@ export function softInvalidateThreadReplies(
   parent: MessageParent,
   messageId: string
 ) {
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: getThreadRepliesQueryKey(parent, messageId),
     refetchType: 'inactive',
   });

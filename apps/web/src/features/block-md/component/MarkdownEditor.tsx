@@ -81,6 +81,7 @@ import {
 } from '@core/constant/featureFlags';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { bufToString } from '@core/util/string';
 import type { LoroManager } from '@macro-inc/collaboration/collab/manager';
 import {
@@ -778,7 +779,10 @@ export function MarkdownEditor(props: {
           isApplied={(tag) => documentTags.isApplied(tag.optionId)}
           onApplyTag={(tag) => {
             if (!canEdit()) return;
-            void documentTags.applyTag(tag.scope, tag.optionId);
+            fireAndForget(
+              documentTags.applyTag(tag.scope, tag.optionId),
+              'markdown-editor'
+            );
           }}
         />
 

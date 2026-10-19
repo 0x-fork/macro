@@ -5,6 +5,7 @@
  */
 
 import type { TextDirection } from '@core/pptx-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
 import X from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
@@ -390,7 +391,10 @@ export function FormatPane(props: {
               ]}
               onChange={(k) => {
                 setLineKind(k);
-                void c.setLine(k === 'none' ? { none: true } : { width: 1 });
+                fireAndForget(
+                  c.setLine(k === 'none' ? { none: true } : { width: 1 }),
+                  'pptx-editor'
+                );
               }}
             />
             <Row label="Color">
@@ -401,7 +405,7 @@ export function FormatPane(props: {
                 disabled={ro()}
                 onPick={(color) => {
                   setLineKind('solid');
-                  void c.setLine({ color });
+                  fireAndForget(c.setLine({ color }), 'pptx-editor');
                 }}
               />
             </Row>
@@ -550,7 +554,7 @@ export function FormatPane(props: {
                   onBlur={(e) => {
                     const text = e.currentTarget.value;
                     if (text !== (shape().altText ?? ''))
-                      void c.setAltText(text);
+                      fireAndForget(c.setAltText(text), 'pptx-editor');
                   }}
                 />
               </Section>
@@ -646,7 +650,7 @@ export function FormatPane(props: {
                         7.2, 3.6, 7.2, 3.6,
                       ];
                       insets[index] = v;
-                      void c.body({ insets });
+                      fireAndForget(c.body({ insets }), 'pptx-editor');
                     }}
                   />
                 </Row>

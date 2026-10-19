@@ -2,6 +2,7 @@ import {
   createFindBarController,
   type FindBarController,
 } from '@core/component/createFindBarController';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { extractSearchTerms } from '@core/util/searchHighlight';
 import {
   type ChannelMessageEntity,
@@ -120,7 +121,7 @@ export function createChannelFindBar(
         if (idx === 0 || rs.length === 0) return;
         if (!searchQuery.hasNextPage || searchQuery.isFetchingNextPage) return;
         if (rs.length - idx <= FIND_BAR_PREFETCH_THRESHOLD) {
-          void searchQuery.fetchNextPage();
+          fireAndForget(searchQuery.fetchNextPage(), 'channel-find-bar');
         }
       });
 
@@ -143,7 +144,7 @@ export function createChannelFindBar(
         for (let i = idx; i < end; i++) {
           const threadId = rs[i].threadId;
           if (!threadId) continue;
-          void queryClient.prefetchQuery(
+          queryClient.prefetchQuery(
             threadRepliesQueryOptions(
               { type: 'channel', id: channelId },
               threadId
@@ -176,7 +177,7 @@ export function createChannelFindBar(
           if (seen.has(aroundId)) continue;
           seen.add(aroundId);
           if (options.isMessageLoaded(aroundId)) continue;
-          void queryClient.prefetchInfiniteQuery(
+          queryClient.prefetchInfiniteQuery(
             messageTimelineQueryOptions(
               { type: 'channel', id: channelId },
               aroundId

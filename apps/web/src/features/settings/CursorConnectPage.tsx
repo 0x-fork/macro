@@ -1,4 +1,5 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ThrownResultError } from '@core/util/result';
 import ArrowLeftIcon from '@phosphor/arrow-left.svg';
 import {
@@ -99,7 +100,7 @@ export function CursorConnectPage(props: { onClose: () => void }) {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              void connect();
+              fireAndForget(connect(), 'cursor-connect');
             }}
           >
             <ol aria-label="Cursor setup steps" class="list-none">

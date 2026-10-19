@@ -1,4 +1,5 @@
 import { isFeatureEnabled, showDatabaseSql } from '@core/constant/featureFlags';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   DATABASE_QUERY_CHART_MODES,
   type DatabaseQueryDisplayMode,
@@ -184,7 +185,7 @@ export function QueryEditor(props: {
       props.initial.sql.trim() &&
       !composer.needsGeneration()
     )
-      void composer.run();
+      fireAndForget(composer.run(), 'database-query');
   });
 
   return (
@@ -202,7 +203,7 @@ export function QueryEditor(props: {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void ask();
+          fireAndForget(ask(), 'database-query');
         }}
       >
         <label class="sr-only" for={promptId}>
@@ -224,7 +225,7 @@ export function QueryEditor(props: {
                   event.preventDefault();
                   event.stopPropagation();
                   if (canAccept()) accept();
-                  else void ask();
+                  else fireAndForget(ask(), 'database-query');
                 }
               }}
             />

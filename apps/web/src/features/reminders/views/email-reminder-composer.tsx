@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { EmailEntity } from '@entity';
 import {
   executeEmailFollowup,
@@ -129,7 +130,7 @@ export function EmailReminderComposer(
     ) {
       lastCommand = { ...values, operationId: crypto.randomUUID() };
     }
-    void submit(lastCommand);
+    fireAndForget(submit(lastCommand), 'reminders');
   };
   return (
     <EmailReminderMenu
@@ -163,7 +164,7 @@ export function EmailReminderComposer(
                   undo: false,
                 };
               }
-              void submit(lastCommand);
+              fireAndForget(submit(lastCommand), 'reminders');
             }
           : undefined
       }

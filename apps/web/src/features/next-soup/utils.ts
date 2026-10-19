@@ -53,6 +53,7 @@ import {
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { BlockOrchestrator } from '@core/orchestrator';
 import type { DateValue } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { waitForFrames } from '@core/util/sleep';
 import { openExternalUrl } from '@core/util/url';
@@ -791,9 +792,12 @@ export const openEntityInSplitFromUnifiedList = async (
     markedNotifications = true;
     if (!options.notificationSource) return;
     if (deferredChannel) {
-      void hydrateNotificationsAndMarkSeen(
-        deferredChannel,
-        options.notificationSource
+      fireAndForget(
+        hydrateNotificationsAndMarkSeen(
+          deferredChannel,
+          options.notificationSource
+        ),
+        'open-entity-in-split'
       );
       return;
     }
@@ -888,10 +892,13 @@ export function markCalendarNotificationSeenOnOpen(
 ) {
   // Calendar events open a component split without a block to clear notifications.
   if (entity.type !== 'calendar_event') return;
-  void markNotificationsForEntityAsReadInBackground(notificationSource, {
-    type: entity.type,
-    id: entity.id,
-  });
+  fireAndForget(
+    markNotificationsForEntityAsReadInBackground(notificationSource, {
+      type: entity.type,
+      id: entity.id,
+    }),
+    'open-entity-in-split'
+  );
 }
 
 /**
@@ -1082,7 +1089,7 @@ type TrashLabel = { id: string; linkId?: string };
  */
 export function trashEmails(targets: TrashEmailTarget[]): TrashEmailsHandle {
   const ids = targets.map((t) => t.id);
-  void queryClient.cancelQueries({ queryKey: queryKeys.all.email });
+  queryClient.cancelQueries({ queryKey: queryKeys.all.email });
 
   const previousEmail = queryClient.getQueriesData<{
     pages: { items: EntityData[] }[];

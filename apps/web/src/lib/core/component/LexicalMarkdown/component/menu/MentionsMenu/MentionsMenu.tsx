@@ -16,6 +16,7 @@ import { isMobile } from '@core/mobile/isMobile';
 import type { ChannelWithParticipants, IUser } from '@core/user';
 import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import type { EmailEntity } from '@entity';
 import { Telemetry } from '@macro-inc/observability';
@@ -812,7 +813,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
                   activeViewAllBucket()?.isLoadingMore?.() ?? false
                 }
                 onEndReached={() => {
-                  void activeViewAllBucket()?.loadMore?.();
+                  fireAndForget(
+                    activeViewAllBucket()?.loadMore?.(),
+                    'mentions-menu'
+                  );
                 }}
               />
             </Show>

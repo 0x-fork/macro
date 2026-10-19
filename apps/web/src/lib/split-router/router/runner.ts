@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createMachine,
   type Machine,
@@ -162,7 +163,7 @@ export function createRunner(options: {
       result = value;
       deferred.resolve(value);
     });
-    void track(deferred.promise);
+    fireAndForget(track(deferred.promise), 'split-router');
     begin();
 
     return result ?? deferred.promise;
@@ -331,7 +332,10 @@ export function createRunner(options: {
   ) => {
     const landed = navigation.revert?.();
 
-    void mapMaybe(landed, () => dispatch({ t: 'revert-landed' }));
+    fireAndForget(
+      mapMaybe(landed, () => dispatch({ t: 'revert-landed' })),
+      'split-router'
+    );
   };
 
   const executeGate = (
@@ -372,7 +376,7 @@ export function createRunner(options: {
     if (isOpen()) return;
 
     const opened = new Promise<void>((resolve) => waiters.push(resolve));
-    void track(opened);
+    fireAndForget(track(opened), 'split-router');
 
     return opened;
   };

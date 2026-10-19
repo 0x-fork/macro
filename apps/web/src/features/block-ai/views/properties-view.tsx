@@ -11,6 +11,7 @@ import {
   type Info,
   type Paint,
 } from '@core/ai-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type PanelModel,
   type PanelPaint,
@@ -160,7 +161,7 @@ export function PropertiesView(props: {
       await fonts.ensure(family, style, text.text);
     }
     await editor.setText(patch, live);
-    void fonts.refresh();
+    fireAndForget(fonts.refresh(), 'ai-editor');
   };
 
   return (
@@ -181,8 +182,11 @@ export function PropertiesView(props: {
         onFlip: (vertical) => {
           const box = viewer.selectionBounds();
           if (box)
-            void editor.transformSelection(
-              scaleAbout(vertical ? 1 : -1, vertical ? -1 : 1, center(box))
+            fireAndForget(
+              editor.transformSelection(
+                scaleAbout(vertical ? 1 : -1, vertical ? -1 : 1, center(box))
+              ),
+              'ai-editor'
             );
         },
         onFill: (hex, live) =>
@@ -192,18 +196,22 @@ export function PropertiesView(props: {
           ),
         onStroke: (hex, live) => {
           if (hex === null) {
-            void editor.setStroke(null, live);
+            fireAndForget(editor.setStroke(null, live), 'ai-editor');
             return;
           }
           const paint = solidPaint(hex);
-          if (paint) void editor.updateStroke({ paint }, live);
+          if (paint)
+            fireAndForget(editor.updateStroke({ paint }, live), 'ai-editor');
         },
         onStrokeProps: (patch, live) => void editor.updateStroke(patch, live),
         onOpacity: (value, live) =>
           void editor.setNodes({ opacity: value }, viewer.selected(), live),
         onBlend: (mode) => {
           if (isBlendMode(mode))
-            void editor.setNodes({ blend: mode }, viewer.selected());
+            fireAndForget(
+              editor.setNodes({ blend: mode }, viewer.selected()),
+              'ai-editor'
+            );
         },
         onText: (patch, live) => void changeText(patch, live),
         onAlign: (how) => void editor.align(how),
@@ -218,14 +226,17 @@ export function PropertiesView(props: {
         onArtboard: (patch) => {
           const art = viewer.activeArtboard();
           if (!art) return;
-          void editor.apply([
-            {
-              op: 'setArtboard',
-              id: art.id,
-              name: patch.name,
-              rect: patch.rect && toEdges(patch.rect),
-            },
-          ]);
+          fireAndForget(
+            editor.apply([
+              {
+                op: 'setArtboard',
+                id: art.id,
+                name: patch.name,
+                rect: patch.rect && toEdges(patch.rect),
+              },
+            ]),
+            'ai-editor'
+          );
         },
       }}
     />

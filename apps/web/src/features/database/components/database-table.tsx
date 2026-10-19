@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import CopyIcon from '@phosphor/copy.svg';
@@ -376,7 +377,7 @@ export function DatabaseTable(props: DatabaseTableProps) {
       if (!row || !column || !canEditCell(column)) return;
       event.preventDefault();
       event.stopPropagation();
-      void props.onClearCells([row.id], [column.id]);
+      fireAndForget(props.onClearCells([row.id], [column.id]), 'database');
       return;
     }
     if (
@@ -878,7 +879,10 @@ export function DatabaseTable(props: DatabaseTableProps) {
                       disabled={props.pending}
                       onClick={() =>
                         deferAction(() => {
-                          void props.onDuplicate?.(contextRowId());
+                          fireAndForget(
+                            props.onDuplicate?.(contextRowId()),
+                            'database'
+                          );
                         })
                       }
                     />

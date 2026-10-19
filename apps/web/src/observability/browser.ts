@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isIgnorableError } from '@core/util/ignorableErrors';
 import { getPlatform, isTauri } from '@core/util/platform';
 import { recordBrowserTursoCacheNavigation } from '@graphql-cache/rollout-observability';
@@ -100,7 +101,7 @@ export async function initializeBrowserObservability(): Promise<void> {
       'macro.recording.id': desktop.identity.recordingId ?? undefined,
       'service.instance.id': desktop.identity.instanceId,
     });
-    void recording.start();
+    fireAndForget(recording.start(), 'desktop-memory-recording');
     import.meta.hot?.dispose(() => recording.dispose());
   }
   recordBrowserTursoCacheNavigation();

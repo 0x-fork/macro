@@ -1,4 +1,5 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { DropdownMenu as KobalteDropdownMenu } from '@kobalte/core/dropdown-menu';
 import ClipboardIcon from '@phosphor/clipboard.svg';
 import PencilIcon from '@phosphor/pencil-simple.svg';
@@ -61,7 +62,7 @@ function CopyThemeButton(props: { themeId: string; name: string }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          void exportTheme(props.themeId);
+          fireAndForget(exportTheme(props.themeId), 'theme-export');
         }}
       >
         <ClipboardIcon class="size-3.5 mobile:size-5" />

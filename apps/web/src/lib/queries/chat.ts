@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
@@ -44,12 +45,12 @@ export function useChatRenameWebsocketSync() {
 
     if (data.type !== CHAT_RENAMED_MESSAGE_TYPE || !data.chat_id) return;
 
-    void queryClient.invalidateQueries({ queryKey: ['chat', data.chat_id] });
-    void queryClient.invalidateQueries({ queryKey: ['entity'] });
-    void queryClient.invalidateQueries({ queryKey: historyKeys.list.queryKey });
-    void queryClient.invalidateQueries({ queryKey: soupKeys.items._def });
-    void queryClient.invalidateQueries({ queryKey: soupKeys.astItems._def });
-    void queryClient.invalidateQueries({ queryKey: soupKeys.search._def });
-    void invalidatePreview(data.chat_id);
+    queryClient.invalidateQueries({ queryKey: ['chat', data.chat_id] });
+    queryClient.invalidateQueries({ queryKey: ['entity'] });
+    queryClient.invalidateQueries({ queryKey: historyKeys.list.queryKey });
+    queryClient.invalidateQueries({ queryKey: soupKeys.items._def });
+    queryClient.invalidateQueries({ queryKey: soupKeys.astItems._def });
+    queryClient.invalidateQueries({ queryKey: soupKeys.search._def });
+    fireAndForget(invalidatePreview(data.chat_id), 'chat-rename-sync');
   });
 }

@@ -2,6 +2,7 @@ import { useClaudeAgentsAccess } from '@core/claude/flag';
 import { useCodexAgentsAccess } from '@core/codex/flag';
 import { toast } from '@core/component/Toast/Toast';
 import { MACRO_HARNESS_NAME } from '@core/constant/macroAgent';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ThrownResultError } from '@core/util/result';
 import CursorIcon from '@icon/wide-cursor-ide.svg';
 import HardDrivesIcon from '@phosphor/hard-drives.svg';
@@ -227,7 +228,10 @@ export function Harness(props: { onBack?: () => void } = {}) {
                               }
                               onKeyDown={(event) => {
                                 if (event.key === 'Enter') {
-                                  void handleSaveCursorApiKey();
+                                  fireAndForget(
+                                    handleSaveCursorApiKey(),
+                                    'cursor-connect'
+                                  );
                                 }
                               }}
                             />

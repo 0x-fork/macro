@@ -51,7 +51,7 @@ export function useUpdateChannelsActivityMutation(
 }
 
 export function invalidateChannelsActivity() {
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: channelKeys.activity.queryKey,
   });
 }

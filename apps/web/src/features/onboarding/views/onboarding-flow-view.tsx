@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createEffect, Match, onCleanup, Show, Switch } from 'solid-js';
 import { BypassButton } from '../components/bypass-button';
 import {
@@ -104,7 +105,7 @@ export function OnboardingFlowView(props: {
       viewer.t === 'signed-in' &&
       viewer.viewer.licensed
     ) {
-      void finish.finishPremium();
+      fireAndForget(finish.finishPremium(), 'onboarding');
       return;
     }
     goTo(next);

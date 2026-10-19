@@ -5,6 +5,7 @@
  * Background, Hide Background Graphics), Size, and Close Master View.
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import ChartBar from '@phosphor/chart-bar.svg';
 import FilmStrip from '@phosphor/film-strip.svg';
 import ImageIcon from '@phosphor/image.svg';
@@ -136,7 +137,10 @@ export function SlideMasterTab(props: { master: MasterView }) {
                     testId={`pptx-master-placeholder-${choice.kind}${choice.vertical ? '-vertical' : ''}`}
                     onClick={() => {
                       close();
-                      void m.insertPlaceholder(choice.kind, choice.vertical);
+                      fireAndForget(
+                        m.insertPlaceholder(choice.kind, choice.vertical),
+                        'pptx-editor'
+                      );
                     }}
                   />
                 )}
@@ -246,7 +250,10 @@ function ThemeColorsMenu() {
                 }
                 onClick={() => {
                   close();
-                  void env.commands.setThemeColors(set.colors, set.name);
+                  fireAndForget(
+                    env.commands.setThemeColors(set.colors, set.name),
+                    'pptx-editor'
+                  );
                 }}
               />
             )}
@@ -280,10 +287,13 @@ function ThemeFontsMenu() {
                 }
                 onClick={() => {
                   close();
-                  void env.commands.setThemeFonts(
-                    pair.major,
-                    pair.minor,
-                    pair.name
+                  fireAndForget(
+                    env.commands.setThemeFonts(
+                      pair.major,
+                      pair.minor,
+                      pair.name
+                    ),
+                    'pptx-editor'
                   );
                 }}
               />
@@ -331,7 +341,10 @@ function BackgroundStylesMenu(props: { master: MasterView }) {
                   }}
                   onClick={() => {
                     close();
-                    void props.master.setBackgroundStyle(style);
+                    fireAndForget(
+                      props.master.setBackgroundStyle(style),
+                      'pptx-editor'
+                    );
                   }}
                 />
               )}

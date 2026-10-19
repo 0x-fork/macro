@@ -10,6 +10,7 @@
 import type { BlockName } from '@core/block';
 import { IS_MAC } from '@core/constant/isMac';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { handleFileFolderDrop } from '@core/util/upload';
 import {
   AwaitNode,
@@ -286,12 +287,15 @@ export function registerMarkdownEditing(options: MarkdownEditingOptions) {
       event: DragEvent,
       blockName?: BlockName
     ) {
-      void dropFilesIntoEditor(
-        fileEntries,
-        folderEntries,
-        createFilesReadyHandler(editor, filesBlockId, blockName, () =>
-          getDragDropPosition(editor, event, true)
-        )
+      fireAndForget(
+        dropFilesIntoEditor(
+          fileEntries,
+          folderEntries,
+          createFilesReadyHandler(editor, filesBlockId, blockName, () =>
+            getDragDropPosition(editor, event, true)
+          )
+        ),
+        'markdown-file-drop'
       );
     },
   };

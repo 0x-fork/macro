@@ -5,6 +5,7 @@
  */
 
 import type { PublishedAsset } from '@core/fig-engine/library-types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowsClockwise from '@phosphor/arrows-clockwise.svg';
 import BookOpen from '@phosphor/book-open.svg';
 import { createSignal, For, Show } from 'solid-js';
@@ -33,7 +34,7 @@ export function LibrariesButton(props: {
   const openDialog = () => {
     setOpen(true);
     libs.watchStatus(true);
-    void libs.refresh();
+    fireAndForget(libs.refresh(), 'fig-libraries');
   };
   const closeDialog = () => {
     setOpen(false);

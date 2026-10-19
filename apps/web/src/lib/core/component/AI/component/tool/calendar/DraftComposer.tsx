@@ -21,6 +21,7 @@ import { useUserId } from '@core/context/user';
 import { useAddInboxFlow } from '@core/email-link';
 import { calendarConsentScopes } from '@core/email-link/consent';
 import { recipientEntityMapper, useContacts } from '@core/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import { useEmailLinksQuery } from '@queries/email/link';
 import type { CreateCalendarEvent } from '@service-cognition/generated/tools/types';
@@ -105,8 +106,10 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
     calendarsQuery.isPending || linksQuery.isPending;
   const calendarLoadFailed = () => calendarsQuery.isError || linksQuery.isError;
   const retryCalendarData = () => {
-    if (calendarsQuery.isError) void calendarsQuery.refetch();
-    if (linksQuery.isError) void linksQuery.refetch();
+    if (calendarsQuery.isError)
+      fireAndForget(calendarsQuery.refetch(), 'ai-calendar-compose');
+    if (linksQuery.isError)
+      fireAndForget(linksQuery.refetch(), 'ai-calendar-compose');
   };
   const primaryInbox = () =>
     links().find((link) => link.macro_id === userId() && link.is_primary);

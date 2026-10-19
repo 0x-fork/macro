@@ -50,6 +50,7 @@ import {
   setNativeEditMenuSuppressed,
 } from '@core/mobile/nativeEditMenu';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { getScrollParentElement } from '@core/util/scrollParent';
 import type { NodeIdMappings } from '@macro-inc/lexical-core';
 import { $getId } from '@macro-inc/lexical-core/plugins/nodeIdPlugin';
@@ -344,17 +345,20 @@ export function MarkdownPopup(props: {
     setAiEditRunning(true);
     // Fast mode: one model edits the whole document directly, no supervisor.
     // Apply ops locally so the edit lands in this client's undo stack.
-    void requestAiEditWithToast(
-      {
-        documentId: blockId,
-        prompt: `Request: ${instruction}\nUser is selecting nodes ${nodeIds.join(' ')}. Proceed with requested edit`,
-        mode: 'fast',
-        onOps: (ops) => applyAiOps(editor, props.lexicalMapping, ops),
-      },
-      () => {
-        setAiEditLocation(null);
-        setAiEditRunning(false);
-      }
+    fireAndForget(
+      requestAiEditWithToast(
+        {
+          documentId: blockId,
+          prompt: `Request: ${instruction}\nUser is selecting nodes ${nodeIds.join(' ')}. Proceed with requested edit`,
+          mode: 'fast',
+          onOps: (ops) => applyAiOps(editor, props.lexicalMapping, ops),
+        },
+        () => {
+          setAiEditLocation(null);
+          setAiEditRunning(false);
+        }
+      ),
+      'markdown-ai-edit'
     );
     setAiEditInput('');
     setAiEditDrawerOpen(false);

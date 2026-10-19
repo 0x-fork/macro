@@ -17,6 +17,7 @@ import {
 } from '@core/constant/featureFlags';
 import { IS_MAC } from '@core/constant/isMac';
 import { observedSize } from '@core/directive/observedSize';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isInDOMRect } from '@core/util/rect';
 import { Telemetry } from '@macro-inc/observability';
 import { createCallback } from '@solid-primitives/rootless';
@@ -539,7 +540,10 @@ export function Document() {
       const revision = currentRevision();
       if (revision <= savedRevision()) return;
 
-      void saveModificationData().then(() => setSavedRevision(revision));
+      fireAndForget(
+        saveModificationData().then(() => setSavedRevision(revision)),
+        'pdf-document'
+      );
     });
   }
 

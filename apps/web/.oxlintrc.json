@@ -18,7 +18,28 @@
     // eslint/complexity — McCabe cyclomatic complexity, default max 20.
     // https://oxc.rs/docs/guide/usage/linter/rules/eslint/complexity
     "complexity": "warn",
-    "typescript/no-floating-promises": "error"
+    // Calls listed under allowForKnownSafeCalls never reject (TanStack
+    // QueryClient swallows errors unless throwOnError is set). Write them
+    // without `void`; tsgolint flags a voided call even when it is listed.
+    "typescript/no-floating-promises": [
+      "error",
+      {
+        "allowForKnownSafeCalls": [
+          {
+            "from": "package",
+            "package": "@tanstack/query-core",
+            "name": [
+              "cancelQueries",
+              "invalidateQueries",
+              "prefetchInfiniteQuery",
+              "prefetchQuery",
+              "refetchQueries",
+              "resetQueries"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "ignorePatterns": [
     "**/node_modules/**",

@@ -4,6 +4,7 @@
  */
 
 import type { ShapeOutline, TableStyleInfo } from '@core/pptx-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import AlignBottom from '@phosphor/align-bottom.svg';
 import AlignCenterVertical from '@phosphor/align-center-vertical.svg';
 import AlignTop from '@phosphor/align-top.svg';
@@ -133,7 +134,10 @@ export function TableDesignTab(props: TableTabProps) {
                       icon={<TableStyleSwatch name={s.name} />}
                       onClick={() => {
                         close();
-                        void c.setTableStyle({ style: s.id });
+                        fireAndForget(
+                          c.setTableStyle({ style: s.id }),
+                          'pptx-editor'
+                        );
                       }}
                     />
                   )}
@@ -157,7 +161,7 @@ export function TableDesignTab(props: TableTabProps) {
               noneLabel="No fill"
               onPick={(v) => {
                 close();
-                void c.fillCells(v);
+                fireAndForget(c.fillCells(v), 'pptx-editor');
               }}
             />
           )}
@@ -177,7 +181,7 @@ export function TableDesignTab(props: TableTabProps) {
                     icon={<BorderIcon edges={edges} />}
                     onClick={() => {
                       close();
-                      void c.borderCells(edges);
+                      fireAndForget(c.borderCells(edges), 'pptx-editor');
                     }}
                   />
                 )}
@@ -187,7 +191,7 @@ export function TableDesignTab(props: TableTabProps) {
                 icon={<BorderIcon edges="none" />}
                 onClick={() => {
                   close();
-                  void c.borderCells('all', true);
+                  fireAndForget(c.borderCells('all', true), 'pptx-editor');
                 }}
               />
               <PopoverLabel>Pen</PopoverLabel>
@@ -318,21 +322,21 @@ export function TableLayoutTab(props: TableTabProps) {
                 label="Delete columns"
                 onClick={() => {
                   close();
-                  void c.deleteColumns();
+                  fireAndForget(c.deleteColumns(), 'pptx-editor');
                 }}
               />
               <PopoverItem
                 label="Delete rows"
                 onClick={() => {
                   close();
-                  void c.deleteRows();
+                  fireAndForget(c.deleteRows(), 'pptx-editor');
                 }}
               />
               <PopoverItem
                 label="Delete table"
                 onClick={() => {
                   close();
-                  void c.deleteTable();
+                  fireAndForget(c.deleteTable(), 'pptx-editor');
                 }}
               />
             </div>

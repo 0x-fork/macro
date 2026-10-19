@@ -35,7 +35,7 @@ export function useTagsQuery() {
 }
 
 export function invalidateTags() {
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: propertiesKeys.tags.queryKey,
   });
 }
@@ -47,11 +47,11 @@ export function invalidateTags() {
  * would have to enumerate ids the client doesn't know.
  */
 export function invalidateAllProperties() {
-  void queryClient.invalidateQueries({ queryKey: propertiesKeys._def });
+  queryClient.invalidateQueries({ queryKey: propertiesKeys._def });
 }
 
 function invalidatePropertyOptions(propertyDefinitionId: string) {
-  void queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: propertiesKeys.options({ propertyDefinitionId }).queryKey,
   });
 }

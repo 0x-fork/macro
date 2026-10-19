@@ -4,6 +4,7 @@
 
 import { analytics } from '@app/lib/analytics';
 import { FigEngine } from '@core/fig-engine/client';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { contentHash } from '@core/util/hash';
 import { Telemetry } from '@macro-inc/observability';
 import { invalidateUserQuota } from '@queries/auth';
@@ -29,7 +30,7 @@ export async function createFigDocument(args: {
     sha,
     projectId: args.projectId,
   });
-  void invalidateUserQuota();
+  fireAndForget(invalidateUserQuota(), 'create-fig-document');
   if (created.isErr()) return undefined;
   const doc = created.value;
   const upload = await uploadToPresignedUrl({
@@ -40,7 +41,10 @@ export async function createFigDocument(args: {
   });
   if (upload.isErr()) return undefined;
   const documentId = doc.metadata.documentId;
-  void postNewHistoryItem('document', documentId);
+  fireAndForget(
+    postNewHistoryItem('document', documentId),
+    'create-fig-document'
+  );
   setPreviewOnCreate({
     itemId: documentId,
     itemType: 'document',

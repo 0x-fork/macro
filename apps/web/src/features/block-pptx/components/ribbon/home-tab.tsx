@@ -2,6 +2,7 @@
  * The Home tab: clipboard, slides, font, paragraph, drawing, and editing.
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import AlignBottom from '@phosphor/align-bottom.svg';
 import AlignCenterHorizontal from '@phosphor/align-center-horizontal.svg';
 import AlignCenterVertical from '@phosphor/align-center-vertical.svg';
@@ -360,7 +361,7 @@ export function FillMenu(props: { close: () => void }) {
         testId="pptx-fill-colors"
         onPick={(v) => {
           props.close();
-          void env.commands.fillColor(v);
+          fireAndForget(env.commands.fillColor(v), 'pptx-editor');
         }}
       />
       <PopoverItem
@@ -446,7 +447,7 @@ export function HomeTab() {
                     label={layout.name}
                     onClick={() => {
                       close();
-                      void c.addSlide(layout.name);
+                      fireAndForget(c.addSlide(layout.name), 'pptx-editor');
                     }}
                   />
                 )}
@@ -468,7 +469,7 @@ export function HomeTab() {
                     active={layout.name === env.slide()?.layout}
                     onClick={() => {
                       close();
-                      void c.setLayout(layout.name);
+                      fireAndForget(c.setLayout(layout.name), 'pptx-editor');
                     }}
                   />
                 )}
@@ -491,7 +492,7 @@ export function HomeTab() {
           disabled={ro() || (env.deck()?.slides.length ?? 0) <= 1}
           onClick={() => {
             const s = env.slide();
-            if (s) void c.deleteSlides([s.id]);
+            if (s) fireAndForget(c.deleteSlides([s.id]), 'pptx-editor');
           }}
         >
           <Trash />
@@ -610,7 +611,7 @@ export function HomeTab() {
               noneLabel="No color"
               onPick={(v) => {
                 close();
-                void c.setHighlight(v);
+                fireAndForget(c.setHighlight(v), 'pptx-editor');
               }}
             />
           )}
@@ -632,7 +633,7 @@ export function HomeTab() {
               standard={env.standardColors}
               onPick={(v) => {
                 close();
-                if (v) void c.setTextColor(v);
+                if (v) fireAndForget(c.setTextColor(v), 'pptx-editor');
               }}
             />
           )}
@@ -653,7 +654,7 @@ export function HomeTab() {
                     testId={`pptx-char-spacing-${s.value}`}
                     onClick={() => {
                       close();
-                      void c.setCharSpacing(s.value);
+                      fireAndForget(c.setCharSpacing(s.value), 'pptx-editor');
                     }}
                   />
                 )}
@@ -698,7 +699,7 @@ export function HomeTab() {
                 label="None"
                 onClick={() => {
                   close();
-                  void c.setBullets({ kind: 'none' });
+                  fireAndForget(c.setBullets({ kind: 'none' }), 'pptx-editor');
                 }}
               />
               <For each={BULLETS}>
@@ -708,7 +709,10 @@ export function HomeTab() {
                     icon={<span class="text-sm">{b.char}</span>}
                     onClick={() => {
                       close();
-                      void c.setBullets({ kind: 'char', char: b.char });
+                      fireAndForget(
+                        c.setBullets({ kind: 'char', char: b.char }),
+                        'pptx-editor'
+                      );
                     }}
                   />
                 )}
@@ -738,11 +742,14 @@ export function HomeTab() {
                     icon={<span class="text-[10px]">{n.sample}</span>}
                     onClick={() => {
                       close();
-                      void c.setBullets({
-                        kind: 'number',
-                        scheme: n.scheme,
-                        start: 1,
-                      });
+                      fireAndForget(
+                        c.setBullets({
+                          kind: 'number',
+                          scheme: n.scheme,
+                          start: 1,
+                        }),
+                        'pptx-editor'
+                      );
                     }}
                   />
                 )}
@@ -779,7 +786,7 @@ export function HomeTab() {
                     label={n.toFixed(n % 1 === 0 ? 1 : 2)}
                     onClick={() => {
                       close();
-                      void c.lineSpacing(n);
+                      fireAndForget(c.lineSpacing(n), 'pptx-editor');
                     }}
                   />
                 )}
@@ -838,7 +845,7 @@ export function HomeTab() {
                     icon={<Icon />}
                     onClick={() => {
                       close();
-                      void c.body({ anchor });
+                      fireAndForget(c.body({ anchor }), 'pptx-editor');
                     }}
                   />
                 )}
@@ -866,7 +873,7 @@ export function HomeTab() {
               load={env.presetPaths}
               onPick={(preset) => {
                 close();
-                void c.insertShape(preset);
+                fireAndForget(c.insertShape(preset), 'pptx-editor');
               }}
             />
           )}

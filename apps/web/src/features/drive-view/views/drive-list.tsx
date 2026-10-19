@@ -13,6 +13,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import EmptyStateFolderGraphic from '@design/empty-state-folder.svg';
 import {
@@ -129,7 +130,7 @@ export function DriveList() {
     const distance =
       container.scrollHeight - container.scrollTop - container.clientHeight;
 
-    if (distance < 300) void loadMore();
+    if (distance < 300) fireAndForget(loadMore(), 'drive-view');
   }
 
   const viewportSize = createElementSize(viewport);
@@ -164,7 +165,7 @@ export function DriveList() {
         if (source.error()) return;
 
         if (!event.result || list.items.count() - event.result.index <= 4) {
-          void loadMore();
+          fireAndForget(loadMore(), 'drive-view');
         }
       },
     },

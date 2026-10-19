@@ -15,6 +15,7 @@ import type {
   ShapeOutline,
   SlideOutline,
 } from '@core/pptx-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import ArrowClockwise from '@phosphor/arrow-clockwise.svg';
 import ArrowCounterClockwise from '@phosphor/arrow-counter-clockwise.svg';
@@ -527,7 +528,7 @@ export function PptxEditor() {
     const point = equationPoint();
     if (!point) return;
     equations.openNew(point.where, latex, point.display);
-    void equations.commit();
+    fireAndForget(equations.commit(), 'block-pptx');
   };
   /** Selects the equation under a point of the text being edited. */
   const pickEquationAt = (at: Point, focusText = false): boolean => {
@@ -823,9 +824,12 @@ export function PptxEditor() {
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0) return;
     if (cellEdit())
-      void commitCell(
-        (document.getElementById('pptx-cell-input') as HTMLTextAreaElement)
-          ?.value ?? ''
+      fireAndForget(
+        commitCell(
+          (document.getElementById('pptx-cell-input') as HTMLTextAreaElement)
+            ?.value ?? ''
+        ),
+        'block-pptx'
       );
     const at = toSlide(e);
     if (painter.active() && paintAt(at)) {
@@ -956,7 +960,7 @@ export function PptxEditor() {
     if (edit) editor.stopEditing();
     editor.select(hit.id);
     focusStage();
-    void painter.paintShapes([hit]);
+    fireAndForget(painter.paintShapes([hit]), 'block-pptx');
     return true;
   };
 
@@ -1006,7 +1010,7 @@ export function PptxEditor() {
     if (stage.hasPointerCapture(e.pointerId))
       stage.releasePointerCapture(e.pointerId);
     if (guides.drag()) {
-      void guides.end();
+      fireAndForget(guides.end(), 'block-pptx');
       return;
     }
     const g = tableGesture;
@@ -1016,28 +1020,35 @@ export function PptxEditor() {
       const delta =
         g.axis === 'col' ? g.current.x - g.start.x : g.current.y - g.start.y;
       if (Math.abs(delta) > 0.5)
-        void commands.resizeGrid?.(g.shape, g.axis, g.index, delta);
+        fireAndForget(
+          commands.resizeGrid?.(g.shape, g.axis, g.index, delta),
+          'block-pptx'
+        );
       return;
     }
     if (g?.kind === 'frame') {
       const moved = !!editor.drag()?.active;
-      void editor.pointerUp().then(() => {
-        if (moved) return;
-        const shape = editor.findShape(g.shape);
-        if (shape) void editCell(shape, g.from, g.at);
-      });
+      fireAndForget(
+        editor.pointerUp().then(() => {
+          if (moved) return;
+          const shape = editor.findShape(g.shape);
+          if (shape) fireAndForget(editCell(shape, g.from, g.at), 'block-pptx');
+        }),
+        'block-pptx'
+      );
       return;
     }
     if (g?.kind === 'cells') {
-      void editor.pointerUp();
+      fireAndForget(editor.pointerUp(), 'block-pptx');
       if (!g.moved && !editor.editing()?.cell) {
         const shape = editor.findShape(g.shape);
-        if (shape) void editCell(shape, g.from, g.at);
+        if (shape) fireAndForget(editCell(shape, g.from, g.at), 'block-pptx');
       }
       return;
     }
-    void editor.pointerUp();
-    if (painter.active() && editor.editing()) void painter.paintSelection();
+    fireAndForget(editor.pointerUp(), 'block-pptx');
+    if (painter.active() && editor.editing())
+      fireAndForget(painter.paintSelection(), 'block-pptx');
   };
 
   const onDoubleClick = (e: MouseEvent) => {
@@ -1057,7 +1068,10 @@ export function PptxEditor() {
       return;
     }
     if (hit.textEditable)
-      void startEditing(hit.id, at).then(() => pickEquationAt(at));
+      fireAndForget(
+        startEditing(hit.id, at).then(() => pickEquationAt(at)),
+        'block-pptx'
+      );
   };
 
   // ---- right-click -------------------------------------------------------
@@ -1079,7 +1093,7 @@ export function PptxEditor() {
     // Right-clicking a misspelled word puts the caret in it, as in PowerPoint.
     if (misspelled && !misspelled.cell && !editor.editing()) {
       setTableRange(null);
-      void editor.startEditing(misspelled.shape, at);
+      fireAndForget(editor.startEditing(misspelled.shape, at), 'block-pptx');
       setMenuTarget({ kind: 'text' });
       return;
     }
@@ -1179,35 +1193,48 @@ export function PptxEditor() {
       return true;
     }
     if (!mod) return false;
-    if (key === 'c' && e.shiftKey) void painter.copy();
+    if (key === 'c' && e.shiftKey) fireAndForget(painter.copy(), 'block-pptx');
     else if (key === 'v' && e.shiftKey && !readonly())
-      void painter.pasteToSelection();
-    else if (key === 'z') void (e.shiftKey ? redo() : undo());
-    else if (key === 'y') void redo();
+      fireAndForget(painter.pasteToSelection(), 'block-pptx');
+    else if (key === 'z')
+      fireAndForget(e.shiftKey ? redo() : undo(), 'block-pptx');
+    else if (key === 'y') fireAndForget(redo(), 'block-pptx');
     else if (key === 's') void session.save().catch(() => {});
     else if (key === 'p') setPrinting(true);
     else if ((key === 'f' || key === 'h') && masterActive()) return true;
     else if (key === 'f') setFind({ replace: false });
     else if (key === 'h') setFind({ replace: true });
-    else if (key === 'k' && !readonly()) void openLinkDialog();
+    else if (key === 'k' && !readonly())
+      fireAndForget(openLinkDialog(), 'block-pptx');
     else if (key === 'm' && !readonly())
-      void (masterActive() ? master.insertLayout() : commands.addSlide());
-    else if (key === 'e' && !readonly()) void commands.align('center');
-    else if (key === 'l' && !readonly()) void commands.align('left');
-    else if (key === 'r' && !readonly()) void commands.align('right');
-    else if (key === 'j' && !readonly()) void commands.align('justify');
+      fireAndForget(
+        masterActive() ? master.insertLayout() : commands.addSlide(),
+        'block-pptx'
+      );
+    else if (key === 'e' && !readonly())
+      fireAndForget(commands.align('center'), 'block-pptx');
+    else if (key === 'l' && !readonly())
+      fireAndForget(commands.align('left'), 'block-pptx');
+    else if (key === 'r' && !readonly())
+      fireAndForget(commands.align('right'), 'block-pptx');
+    else if (key === 'j' && !readonly())
+      fireAndForget(commands.align('justify'), 'block-pptx');
     else if ((e.key === '>' || e.key === '.') && e.shiftKey && !readonly())
-      void commands.stepSize(1);
+      fireAndForget(commands.stepSize(1), 'block-pptx');
     else if ((e.key === '<' || e.key === ',') && e.shiftKey && !readonly())
-      void commands.stepSize(-1);
+      fireAndForget(commands.stepSize(-1), 'block-pptx');
     else if ((e.key === '=' || e.key === '+') && e.shiftKey && !readonly())
-      void commands.toggleBaseline('super');
-    else if (e.key === '=' && !readonly()) void commands.toggleBaseline('sub');
+      fireAndForget(commands.toggleBaseline('super'), 'block-pptx');
+    else if (e.key === '=' && !readonly())
+      fireAndForget(commands.toggleBaseline('sub'), 'block-pptx');
     else if (['b', 'i', 'u'].includes(key) && !readonly())
-      void commands.toggle(
-        ({ b: 'bold', i: 'italic', u: 'underline' } as const)[
-          key as 'b' | 'i' | 'u'
-        ]
+      fireAndForget(
+        commands.toggle(
+          ({ b: 'bold', i: 'italic', u: 'underline' } as const)[
+            key as 'b' | 'i' | 'u'
+          ]
+        ),
+        'block-pptx'
       );
     else return false;
     return true;
@@ -1232,10 +1259,13 @@ export function PptxEditor() {
         editor.selectAll();
       } else if (lower === 'g' && !readonly()) {
         e.preventDefault();
-        void (e.shiftKey ? commands.ungroup() : commands.group());
+        fireAndForget(
+          e.shiftKey ? commands.ungroup() : commands.group(),
+          'block-pptx'
+        );
       } else if (lower === 'd' && !readonly()) {
         e.preventDefault();
-        void editor.duplicateSelected();
+        fireAndForget(editor.duplicateSelected(), 'block-pptx');
       } else if ((key === ']' || key === '}') && !readonly()) {
         e.preventDefault();
         commands.arrange(e.shiftKey ? 'front' : 'forward');
@@ -1289,32 +1319,38 @@ export function PptxEditor() {
       const t = tableTarget();
       if (range && t) {
         // Clears the selected cells' text, as PowerPoint does.
-        void commands.tableOp((slideId, target) =>
-          commands.cellsOf(target).map((cell) => ({
-            op: 'setText' as const,
-            slide: slideId,
-            shape: target.shape.id,
-            cell,
-            text: '',
-          }))
+        fireAndForget(
+          commands.tableOp((slideId, target) =>
+            commands.cellsOf(target).map((cell) => ({
+              op: 'setText' as const,
+              slide: slideId,
+              shape: target.shape.id,
+              cell,
+              text: '',
+            }))
+          ),
+          'block-pptx'
         );
       } else {
-        void editor.deleteSelected();
+        fireAndForget(editor.deleteSelected(), 'block-pptx');
       }
     } else if (key.startsWith('Arrow')) {
       e.preventDefault();
       const step = e.shiftKey ? 10 : e.altKey ? 0.5 : 1;
       const dx = key === 'ArrowLeft' ? -step : key === 'ArrowRight' ? step : 0;
       const dy = key === 'ArrowUp' ? -step : key === 'ArrowDown' ? step : 0;
-      void editor.nudge(dx, dy);
+      fireAndForget(editor.nudge(dx, dy), 'block-pptx');
     } else if (key === 'Enter' || key === 'F2') {
       const shape = editor.selectedShape();
       if (shape?.kind === 'table') {
         e.preventDefault();
-        void editCell(shape, tableRange()?.from ?? { row: 0, col: 0 });
+        fireAndForget(
+          editCell(shape, tableRange()?.from ?? { row: 0, col: 0 }),
+          'block-pptx'
+        );
       } else if (shape?.textEditable) {
         e.preventDefault();
-        void startEditing(shape.id);
+        fireAndForget(startEditing(shape.id), 'block-pptx');
       }
     } else if (
       key.length === 1 &&
@@ -1325,10 +1361,13 @@ export function PptxEditor() {
       // Typing on a selected shape replaces its text, as in PowerPoint.
       e.preventDefault();
       const id = list[0].id;
-      void (async () => {
-        await startEditing(id);
-        await editor.typeText(key);
-      })();
+      fireAndForget(
+        (async () => {
+          await startEditing(id);
+          await editor.typeText(key);
+        })(),
+        'block-pptx'
+      );
     }
   };
 
@@ -1354,9 +1393,13 @@ export function PptxEditor() {
     if (key === 'Delete' || key === 'Backspace') {
       e.preventDefault();
       // Layouts the engine can't lay out say so (the edit is refused).
-      void (async () => {
-        if (await smartArt.deleteNode(node)) smartArt.setActiveNode(undefined);
-      })();
+      fireAndForget(
+        (async () => {
+          if (await smartArt.deleteNode(node))
+            smartArt.setActiveNode(undefined);
+        })(),
+        'block-pptx'
+      );
       return true;
     }
     if (key.length === 1 && !e.altKey) {
@@ -1411,14 +1454,20 @@ export function PptxEditor() {
       if (edit) editor.select(edit.shape);
     } else if (key === 'Tab' && editor.editing()?.cell) {
       handled();
-      void tabCell(e.shiftKey ? -1 : 1);
+      fireAndForget(tabCell(e.shiftKey ? -1 : 1), 'block-pptx');
     } else if (key === 'Enter') {
       handled();
-      void editor.typeText(e.shiftKey ? '\u000b' : '\n');
+      fireAndForget(
+        editor.typeText(e.shiftKey ? '\u000b' : '\n'),
+        'block-pptx'
+      );
     } else if (key === 'Backspace' || key === 'Delete') {
       handled();
       const unit = e.metaKey ? 'line' : e.altKey || e.ctrlKey ? 'word' : 'char';
-      void editor.deleteText(key === 'Backspace' ? -1 : 1, unit);
+      fireAndForget(
+        editor.deleteText(key === 'Backspace' ? -1 : 1, unit),
+        'block-pptx'
+      );
     } else if (key.startsWith('Arrow') || key === 'Home' || key === 'End') {
       handled();
       const dir = {
@@ -1429,18 +1478,24 @@ export function PptxEditor() {
         Home: 'home',
         End: 'end',
       } as const;
-      void editor.moveCaret(dir[key as keyof typeof dir], {
-        extend: e.shiftKey,
-        word: e.altKey || e.ctrlKey,
-        line: e.metaKey,
-      });
+      fireAndForget(
+        editor.moveCaret(dir[key as keyof typeof dir], {
+          extend: e.shiftKey,
+          word: e.altKey || e.ctrlKey,
+          line: e.metaKey,
+        }),
+        'block-pptx'
+      );
     } else if (key === 'Tab') {
       handled();
       const level = commands.paragraphStyle()?.level ?? 0;
-      void editor.formatWith((t, range) =>
-        paragraphCommand(t, range ?? null, {
-          level: Math.max(0, Math.min(8, level + (e.shiftKey ? -1 : 1))),
-        })
+      fireAndForget(
+        editor.formatWith((t, range) =>
+          paragraphCommand(t, range ?? null, {
+            level: Math.max(0, Math.min(8, level + (e.shiftKey ? -1 : 1))),
+          })
+        ),
+        'block-pptx'
       );
     } else if (mod && key.toLowerCase() === 'a') {
       handled();
@@ -1454,11 +1509,12 @@ export function PptxEditor() {
     if (e.isComposing || e.inputType === 'insertCompositionText') return;
     e.preventDefault();
     const text = e.data ?? e.dataTransfer?.getData('text/plain') ?? '';
-    if (e.inputType.startsWith('insert') && text) void editor.typeText(text);
+    if (e.inputType.startsWith('insert') && text)
+      fireAndForget(editor.typeText(text), 'block-pptx');
   };
 
   const onCompositionEnd = (e: CompositionEvent) => {
-    if (e.data) void editor.typeText(e.data);
+    if (e.data) fireAndForget(editor.typeText(e.data), 'block-pptx');
     input.value = '';
   };
 
@@ -1470,12 +1526,13 @@ export function PptxEditor() {
   const onTextCut = (e: ClipboardEvent) => {
     onTextCopy(e);
     // A collapsed caret has nothing to cut; deleting would eat a character.
-    if (editor.selectedText()) void editor.deleteText(-1);
+    if (editor.selectedText())
+      fireAndForget(editor.deleteText(-1), 'block-pptx');
   };
   const onTextPaste = (e: ClipboardEvent) => {
     e.preventDefault();
     const text = e.clipboardData?.getData('text/plain');
-    if (text) void editor.typeText(text);
+    if (text) fireAndForget(editor.typeText(text), 'block-pptx');
   };
 
   // Shape and slide clipboard.
@@ -1486,12 +1543,12 @@ export function PptxEditor() {
   const onStageCut = (e: ClipboardEvent) => {
     if (e.target === input || readonly()) return;
     e.preventDefault();
-    void clipboard.cut(e.clipboardData);
+    fireAndForget(clipboard.cut(e.clipboardData), 'block-pptx');
   };
   const onStagePaste = (e: ClipboardEvent) => {
     if (e.target === input || readonly()) return;
     e.preventDefault();
-    void clipboard.pasteEvent(e.clipboardData);
+    fireAndForget(clipboard.pasteEvent(e.clipboardData), 'block-pptx');
   };
   const copyCommand = () => {
     if (editor.editing()) {
@@ -1505,7 +1562,7 @@ export function PptxEditor() {
       document.execCommand('cut');
       return;
     }
-    void clipboard.cut();
+    fireAndForget(clipboard.cut(), 'block-pptx');
   };
   const pasteCommand = () => void clipboard.pasteCommand();
 
@@ -1714,7 +1771,7 @@ export function PptxEditor() {
     if (readonly()) return;
     makeWayForReview();
     comments.setPaneOpen(false);
-    void spellingPane.start();
+    fireAndForget(spellingPane.start(), 'block-pptx');
   };
   /** The misspelled word right-clicked, for the menu's corrections. */
   const [spellHit, setSpellHit] = createSignal<Squiggle>();
@@ -1936,14 +1993,17 @@ export function PptxEditor() {
     <ChartGallery
       onPick={(choice) => {
         close();
-        void (async () => {
-          const id = await commands.insertChart(
-            choice.kind,
-            choice.grouping,
-            sampleChartData()
-          );
-          if (id !== undefined) setChartDataShape(id);
-        })();
+        fireAndForget(
+          (async () => {
+            const id = await commands.insertChart(
+              choice.kind,
+              choice.grouping,
+              sampleChartData()
+            );
+            if (id !== undefined) setChartDataShape(id);
+          })(),
+          'block-pptx'
+        );
       }}
     />
   );
@@ -2161,12 +2221,15 @@ export function PptxEditor() {
             onCut={(e) => {
               if (readonly()) return;
               e.preventDefault();
-              void clipboard.cut(e.clipboardData);
+              fireAndForget(clipboard.cut(e.clipboardData), 'block-pptx');
             }}
             onPaste={(e) => {
               if (readonly()) return;
               e.preventDefault();
-              void clipboard.pasteEvent(e.clipboardData);
+              fireAndForget(
+                clipboard.pasteEvent(e.clipboardData),
+                'block-pptx'
+              );
             }}
             onFocusChange={setRailFocused}
             sectionHeaders={(index) => (
@@ -2682,7 +2745,10 @@ export function PptxEditor() {
                                 e.stopPropagation();
                                 if (e.key === 'Enter' && !e.shiftKey) {
                                   e.preventDefault();
-                                  void commitCell(e.currentTarget.value);
+                                  fireAndForget(
+                                    commitCell(e.currentTarget.value),
+                                    'block-pptx'
+                                  );
                                 } else if (e.key === 'Escape') {
                                   e.preventDefault();
                                   setCellEdit(null);
@@ -2726,7 +2792,11 @@ export function PptxEditor() {
                                 canPaste: true,
                                 editText: () => {
                                   const s = editor.selectedShape();
-                                  if (s) void startEditing(s.id);
+                                  if (s)
+                                    fireAndForget(
+                                      startEditing(s.id),
+                                      'block-pptx'
+                                    );
                                 },
                                 openFormatPane: (section) =>
                                   setPane(section ?? 'shape'),
@@ -2763,7 +2833,11 @@ export function PptxEditor() {
                                 newSlide: () => void commands.addSlide(),
                                 hideSlide: () => {
                                   const s = session.currentSlide();
-                                  if (s) void commands.toggleHidden(s);
+                                  if (s)
+                                    fireAndForget(
+                                      commands.toggleHidden(s),
+                                      'block-pptx'
+                                    );
                                 },
                                 slideHidden: !!session.currentSlide()?.hidden,
                                 isPicture:
@@ -2803,7 +2877,10 @@ export function PptxEditor() {
                                 removeLink: () => {
                                   const target = commands.linkTarget();
                                   if (target)
-                                    void commands.applyLink(target, '');
+                                    fireAndForget(
+                                      commands.applyLink(target, ''),
+                                      'block-pptx'
+                                    );
                                 },
                                 newComment: readonly()
                                   ? undefined
@@ -3042,9 +3119,10 @@ export function PptxEditor() {
                     .outline()
                     ?.slides.find((s) => s.id === slideId);
                   if ((current?.notes ?? '') !== text)
-                    void session.apply([
-                      { op: 'setNotes', slide: slideId, text },
-                    ]);
+                    fireAndForget(
+                      session.apply([{ op: 'setNotes', slide: slideId, text }]),
+                      'block-pptx'
+                    );
                 }}
               />
             )}
@@ -3151,7 +3229,7 @@ export function PptxEditor() {
         onChange={(e) => {
           const file = e.currentTarget.files?.[0];
           e.currentTarget.value = '';
-          if (file) void replacePicture(file);
+          if (file) fireAndForget(replacePicture(file), 'block-pptx');
         }}
       />
       <Show
@@ -3193,7 +3271,11 @@ export function PptxEditor() {
             target={linkEdit()!}
             onApply={(link, tip, text) => {
               const target = linkEdit();
-              if (target) void commands.applyLink(target, link, tip, text);
+              if (target)
+                fireAndForget(
+                  commands.applyLink(target, link, tip, text),
+                  'block-pptx'
+                );
             }}
             onClose={() => {
               setLinkEdit(undefined);

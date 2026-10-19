@@ -2,6 +2,7 @@ import { ViewSidebar } from '@app/components/view-shell';
 import { analytics } from '@app/lib/analytics';
 import { toast } from '@core/component/Toast/Toast';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { scrollToKeepGap } from '@core/util/scrollToKeepGap';
 import {
   createBulkMoveToProjectDssEntityMutation,
@@ -479,7 +480,7 @@ export const BulkMoveToProjectView = (props: {
                 });
               } else if (e.key === 'Enter') {
                 e.preventDefault();
-                void finishEditing();
+                fireAndForget(finishEditing(), 'bulk-move-to-project');
               }
             }}
             class="mb-2"
@@ -590,7 +591,7 @@ export const BulkMoveToProjectView = (props: {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       e.stopPropagation();
-                      void submitNewFolder();
+                      fireAndForget(submitNewFolder(), 'bulk-move-to-project');
                     } else if (e.key === 'Escape') {
                       e.preventDefault();
                       e.stopPropagation();

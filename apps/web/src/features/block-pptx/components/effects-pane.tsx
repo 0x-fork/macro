@@ -10,6 +10,7 @@ import type {
   PictureRecolor,
   ShapeOutline,
 } from '@core/pptx-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
 import { Button } from '@ui/components/Button';
 import { createSignal, For, type JSX, Show } from 'solid-js';
@@ -91,7 +92,7 @@ function liveApplier(apply: (value: number, group?: string) => unknown) {
     },
     set: (value: number) => {
       pending = value;
-      if (!running) void run();
+      if (!running) fireAndForget(run(), 'block-pptx');
     },
   };
 }

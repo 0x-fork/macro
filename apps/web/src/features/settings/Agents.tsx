@@ -16,6 +16,7 @@ import { MACRO_NEW_BOT_ID } from '@core/constant/macroNew';
 import { useChannelsContext } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { usePipedreamMcpFlag } from '@core/pipedream/flag';
+import { fireAndForget } from '@core/util/fireAndForget';
 import MacroLogo from '@icon/macro-logo.svg';
 import CursorIcon from '@icon/wide-cursor-ide.svg';
 import ArrowLeftIcon from '@phosphor/arrow-left.svg';
@@ -963,7 +964,7 @@ function AgentEditorPage(props: {
               class="flex flex-col gap-6"
               onSubmit={(event) => {
                 event.preventDefault();
-                void submit();
+                fireAndForget(submit(), 'agent-settings');
               }}
             >
               <AgentFormSection

@@ -331,7 +331,7 @@ export function Channel(props: ChannelProps) {
     threadManager.getOrCreateThreadState(threadId).setIsExpanded(true);
     // Reply data and the load-around message window can load in parallel. The
     // mounted query reuses this request and remains the owner of render state.
-    void queryClient.prefetchQuery(
+    queryClient.prefetchQuery(
       threadRepliesQueryOptions(
         { type: 'channel', id: props.channelId },
         threadId

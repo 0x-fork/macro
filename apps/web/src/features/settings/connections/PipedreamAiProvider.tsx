@@ -1,6 +1,7 @@
 import { toast } from '@core/component/Toast/Toast';
 import { createPipedreamCatalogConnect } from '@core/pipedream/catalog';
 import { connectSlugForPipedreamApp } from '@core/pipedream/slugs';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   useDeletePipedreamConnectionMutation,
   useUpdatePipedreamConnectionMutation,
@@ -173,7 +174,7 @@ export function PipedreamAiProvider(props: {
       native.startAuth(url, cap.account || copy.name);
       return;
     }
-    void connect();
+    fireAndForget(connect(), 'connections-settings');
   };
 
   const actions = (): JSX.Element => (

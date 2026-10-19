@@ -7,6 +7,7 @@
  */
 
 import type { PictureRecolor, ShapeOutline } from '@core/pptx-engine/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
 import ArrowCounterClockwise from '@phosphor/arrow-counter-clockwise.svg';
 import ArrowDown from '@phosphor/arrow-down.svg';
@@ -148,7 +149,10 @@ function CorrectionsGallery(props: {
                   }
                   onClick={() => {
                     props.close();
-                    void env.commands.formatPicture({ brightness, contrast });
+                    fireAndForget(
+                      env.commands.formatPicture({ brightness, contrast }),
+                      'pptx-editor'
+                    );
                   }}
                 />
               )}
@@ -163,7 +167,10 @@ function CorrectionsGallery(props: {
           icon={<ArrowCounterClockwise />}
           onClick={() => {
             props.close();
-            void env.commands.formatPicture({ brightness: 0, contrast: 0 });
+            fireAndForget(
+              env.commands.formatPicture({ brightness: 0, contrast: 0 }),
+              'pptx-editor'
+            );
           }}
         />
         <PopoverItem
@@ -195,7 +202,7 @@ function ColorGallery(props: {
   });
   const pick = (recolor: PictureRecolor) => {
     props.close();
-    void env.commands.formatPicture({ recolor });
+    fireAndForget(env.commands.formatPicture({ recolor }), 'pptx-editor');
   };
   return (
     <div class="flex flex-col" data-testid="pptx-picture-color-gallery">
@@ -286,7 +293,10 @@ function TransparencyGallery(props: {
               active={near(props.picture.picture?.transparency, transparency)}
               onClick={() => {
                 props.close();
-                void env.commands.formatPicture({ transparency });
+                fireAndForget(
+                  env.commands.formatPicture({ transparency }),
+                  'pptx-editor'
+                );
               }}
             />
           )}
@@ -423,7 +433,7 @@ function CropButton(props: { crop: CropMode }) {
                         ]}
                         onPick={(preset) => {
                           setOpen(false);
-                          void c.setGeometry(preset);
+                          fireAndForget(c.setGeometry(preset), 'pptx-editor');
                         }}
                       />
                     ),
@@ -552,7 +562,7 @@ export function PictureFormatTab(props: {
                 testId="pptx-picture-reset-picture"
                 onClick={() => {
                   close();
-                  void c.resetPictures(false);
+                  fireAndForget(c.resetPictures(false), 'pptx-editor');
                 }}
               />
               <PopoverItem
@@ -560,7 +570,7 @@ export function PictureFormatTab(props: {
                 testId="pptx-picture-reset-size"
                 onClick={() => {
                   close();
-                  void c.resetPictures(true);
+                  fireAndForget(c.resetPictures(true), 'pptx-editor');
                 }}
               />
             </div>

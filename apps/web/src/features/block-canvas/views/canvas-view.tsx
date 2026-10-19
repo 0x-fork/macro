@@ -1,5 +1,6 @@
 import { useSidePanel } from '@components/app/side-panel';
 import { createImageActions } from '@core/component/Lightbox/createImageActions';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import {
   alignCommand,
@@ -249,12 +250,18 @@ export function CanvasView(props: {
               onRestoreFocus={focus}
               onSelect={(asset, mode) => {
                 if (mode === 'media')
-                  void props.assets.media(asset, location.world);
+                  fireAndForget(
+                    props.assets.media(asset, location.world),
+                    'canvas-assets'
+                  );
                 else props.assets.document(asset, location.world, 'preview');
                 props.insert.close();
               }}
               onFiles={(files) => {
-                void props.assets.files(files, location.world);
+                fireAndForget(
+                  props.assets.files(files, location.world),
+                  'canvas-assets'
+                );
                 props.insert.close();
               }}
             />
@@ -514,9 +521,12 @@ export function CanvasView(props: {
                 if (state.embeds.active()) return;
                 if (!event.dataTransfer?.files.length) return;
                 event.preventDefault();
-                void props.assets.files(
-                  Array.from(event.dataTransfer.files),
-                  point(event.clientX, event.clientY)
+                fireAndForget(
+                  props.assets.files(
+                    Array.from(event.dataTransfer.files),
+                    point(event.clientX, event.clientY)
+                  ),
+                  'canvas-assets'
                 );
               }}
               class="absolute inset-0"

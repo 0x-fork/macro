@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { uploadFiles } from '@core/util/upload';
 import { Telemetry } from '@macro-inc/observability';
 import { refetchHistory } from '@queries/history/history';
@@ -53,7 +54,7 @@ export function createFolderCommands(options: {
           reportRefetchError
         );
       }
-      void refetchHistory();
+      fireAndForget(refetchHistory(), 'drive-folder-creation');
     },
   };
 }

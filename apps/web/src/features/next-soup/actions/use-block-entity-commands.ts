@@ -14,6 +14,7 @@ import { HotkeyTags } from '@core/hotkey/constants';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { type EntityData, isEmailEntity, isTaskEntity } from '@entity';
 import { Telemetry } from '@macro-inc/observability';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
@@ -146,12 +147,15 @@ export const useBlockEntityCommands = (
       return;
     }
 
-    void openEntityInSplitFromUnifiedList(nextEntity, {
-      splitHandle,
-      mergeHistory: true,
-      referredFrom: splitHandle.referredFrom(),
-      notificationSource,
-    });
+    fireAndForget(
+      openEntityInSplitFromUnifiedList(nextEntity, {
+        splitHandle,
+        mergeHistory: true,
+        referredFrom: splitHandle.referredFrom(),
+        notificationSource,
+      }),
+      'entity-actions'
+    );
   };
 
   // Advance the invoking email view after a confirmed snooze.
@@ -180,10 +184,13 @@ export const useBlockEntityCommands = (
     // leaving the split on one the list has dropped.
     const selectedRow = triageRow();
     if (soup && selectedRow) {
-      void createReminderAction.executeWithSoup([selectedRow.original], soup, {
-        advances: true,
-        onNavigate: advanceSplitTo,
-      });
+      fireAndForget(
+        createReminderAction.executeWithSoup([selectedRow.original], soup, {
+          advances: true,
+          onNavigate: advanceSplitTo,
+        }),
+        'entity-actions'
+      );
       return true;
     }
 
@@ -195,7 +202,7 @@ export const useBlockEntityCommands = (
     const entity = getEntity();
     if (!entity) return false;
     if (!deleteAction.canExecute(entity)) return false;
-    void deleteAction.execute([entity]);
+    fireAndForget(deleteAction.execute([entity]), 'entity-actions');
     return true;
   };
 
@@ -306,7 +313,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!renameAction.canExecute(entity)) return false;
-        void renameAction.execute([entity]);
+        fireAndForget(renameAction.execute([entity]), 'entity-actions');
         return true;
       },
       condition: () => {
@@ -332,7 +339,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!favoriteAction.canExecute(entity)) return false;
-        void favoriteAction.execute([entity]);
+        fireAndForget(favoriteAction.execute([entity]), 'entity-actions');
         return true;
       },
       condition: () => {
@@ -375,7 +382,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!muteAction.canExecute(entity)) return false;
-        void muteAction.execute([entity]);
+        fireAndForget(muteAction.execute([entity]), 'entity-actions');
         return true;
       },
       condition: () => {
@@ -415,7 +422,7 @@ export const useBlockEntityCommands = (
         if (!entity) return false;
         e?.AT_TARGET;
         if (!moveToProjectAction.canExecute(entity)) return false;
-        void moveToProjectAction.execute([entity]);
+        fireAndForget(moveToProjectAction.execute([entity]), 'entity-actions');
         return true;
       },
       condition: () => {
@@ -458,7 +465,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!copyBranchNameAction.canExecute(entity)) return false;
-        void copyBranchNameAction.execute([entity]);
+        fireAndForget(copyBranchNameAction.execute([entity]), 'entity-actions');
         return true;
       },
       condition: () => {
