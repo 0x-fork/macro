@@ -973,9 +973,12 @@ removable file pill under the body once its name resolves. The card's paperclip
 uploaded as a Macro document, shown as a pill while it uploads, and `Send email`
 stays disabled until every upload finishes. Macro-native documents written in the
 editor have no file and cannot be attached; the send reports which document
-could not be attached. Attachments together may total 18 MB. The sent and
-saved-draft rows read `with N attachments`, and the expanded sent card shows
-the pills read-only.
+could not be attached. Attachments together may total the sending inbox's limit
+(18 MB on Gmail, 25 MB on Outlook): a picked or dropped file that would pass it
+opens the same confirmation as the email composer, offering to upload it to Macro and link it from the body as a public
+view-only document instead; Cancel adds nothing, and files that fit still
+attach. The sent and saved-draft rows read `with N attachments`, and the
+expanded sent card shows the pills read-only.
 
 The reliable completion signal is the disappearance of the `Stop generating` button — poll
 with `evaluate_script`. Do not wait on response text: the page displays

@@ -392,6 +392,13 @@ During send or discard, its sender and scheduling controls cannot change the ope
 Attachments that can be opened are buttons named by their filename; Tab to one
 and press Enter or Space. Removal is a separate button named `Remove <filename>`.
 Removing a forwarded file keeps the received original.
+Files that would push the email over the sending inbox's delivery limit (18 MB
+on Gmail, 25 MB on Outlook) are not attached:
+a confirmation (a drawer on phones) offers to upload them to Macro and share
+view-only links instead. Confirming inserts one link per file at the end of the
+written message, above a reply's quoted thread, and the draft autosaves; Cancel
+adds nothing. Files that fit still attach, and the same check covers files
+dropped onto the body.
 To forward from another inbox, open Forward, expand the forwarding envelope on
 desktop, and select a different account in From (already visible on mobile).
 Forwarded files must remain attached after switching to an owned or delegated
