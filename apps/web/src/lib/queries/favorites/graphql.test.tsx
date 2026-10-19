@@ -10,8 +10,6 @@ vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupClient: getGraphqlSoupClientMock,
 }));
 
-vi.mock('@core/context/user', () => ({ useIsAuthenticated: () => () => true }));
-
 vi.mock('@core/constant/featureFlags', () => ({
   enableGraphqlSoup: {},
   isFeatureEnabled: () => true,

@@ -51,8 +51,8 @@ const listChannelsQueryOptions = queryOptions({
   queryFn: ({ signal }) => fetchAllChannels(signal),
 });
 
-export function useListChannelsQuery(enabled: Accessor<boolean> = () => true) {
-  return useQuery(() => ({ ...listChannelsQueryOptions, enabled: enabled() }));
+export function useListChannelsQuery() {
+  return useQuery(() => listChannelsQueryOptions);
 }
 
 // The host is an app-level cache service, not component state; the key

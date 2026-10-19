@@ -10,7 +10,6 @@ vi.mock('@service-auth/client', () => ({
   authServiceClient: { getTeam: vi.fn() },
 }));
 vi.mock('@core/component/Toast/Toast', () => ({ toast: {} }));
-vi.mock('@core/context/user', () => ({ useIsAuthenticated: () => () => true }));
 vi.mock('@queries/client', () => ({
   queryClient: { invalidateQueries: vi.fn() },
 }));

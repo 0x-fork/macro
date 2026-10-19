@@ -1,4 +1,4 @@
-import { useIsAuthenticated, useUserId } from '@core/context/user';
+import { useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { Telemetry } from '@macro-inc/observability';
@@ -30,11 +30,9 @@ const queryEnabled = () => true;
  * prompt — nothing renders from this query.
  */
 export function useInboxHealthProbeQuery() {
-  const authenticated = useIsAuthenticated();
   return useQuery(() => ({
     queryKey: emailKeys.linksHealthProbe.queryKey,
     queryFn: probeInboxHealth,
-    enabled: authenticated() === true,
     staleTime: HEALTH_PROBE_STALE_TIME,
     refetchOnWindowFocus: true,
     retry: false,
@@ -51,11 +49,10 @@ function fetchEmailLinks() {
 }
 
 export function useEmailLinksQuery(enabled: Accessor<boolean> = queryEnabled) {
-  const authenticated = useIsAuthenticated();
   return useQuery(() => ({
     queryKey: emailKeys.links.queryKey,
     queryFn: fetchEmailLinks,
-    enabled: authenticated() === true && enabled(),
+    enabled: enabled(),
     staleTime: LINK_STALE_TIME,
     refetchOnWindowFocus: 'always',
   }));

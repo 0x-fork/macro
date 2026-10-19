@@ -6,20 +6,15 @@ import {
   AppView,
   withAuth,
 } from '@components/app/split-layout/split-router/app-route-shell';
-import { useIsAuthenticated } from '@core/auth';
-import { lazy, Show } from 'solid-js';
-import {
-  DriveView,
-  type DriveViewProps,
-  SignedOutDriveView,
-} from './drive-view';
+import { lazy } from 'solid-js';
+import { DriveView, type DriveViewProps } from './drive-view';
 import { DriveViewSkeleton } from './drive-view-skeleton';
 
 const DriveCallDetail = lazy(async () => ({
   default: (await import('./views/DriveCallDetail')).DriveCallDetail,
 }));
 
-const AuthenticatedDriveRouteView = withAuth(() => {
+export const DriveRouteView = withAuth(() => {
   const panel = useSplitPanelOrThrow();
   const props = (): DriveViewProps => {
     const content = panel.handle.content();
@@ -33,18 +28,6 @@ const AuthenticatedDriveRouteView = withAuth(() => {
     </AppView>
   );
 }, DriveViewSkeleton);
-
-export function DriveRouteView() {
-  const authenticated = useIsAuthenticated();
-  return (
-    <Show
-      when={authenticated() === false}
-      fallback={<AuthenticatedDriveRouteView />}
-    >
-      <SignedOutDriveView />
-    </Show>
-  );
-}
 
 export function DriveCallRouteView() {
   const params = useRouteParams(driveCallRoute);

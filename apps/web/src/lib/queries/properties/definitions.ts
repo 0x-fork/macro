@@ -1,5 +1,4 @@
 import { toast } from '@core/component/Toast/Toast';
-import { useIsAuthenticated } from '@core/context/user';
 import { throwOnErr } from '@core/util/result';
 import { queryOptions, useMutation, useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
@@ -47,10 +46,7 @@ export function useListPropertiesQuery(
   params: Accessor<ListPropertiesQueryParams>,
   enabled: Accessor<boolean> = () => true
 ) {
-  const authenticated = useIsAuthenticated();
-  return useQuery(() =>
-    listPropertiesQueryOptions(params(), authenticated() === true && enabled())
-  );
+  return useQuery(() => listPropertiesQueryOptions(params(), enabled()));
 }
 
 export async function fetchPropertyDefinitionWithOptions(

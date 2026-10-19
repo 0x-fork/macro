@@ -1,5 +1,4 @@
 import { SUPPORTED_CHAT_ATTACHMENT_BLOCKS } from '@core/component/AI/constant/fileType';
-import { useIsAuthenticated } from '@core/context/user';
 import { getItemBlockName } from '@core/util/getItemBlockName';
 import type { HistoryItem } from '@queries/history/history';
 import { useHistoryQuery } from '@queries/history/history';
@@ -15,14 +14,10 @@ export { globalAttachableHistory };
 
 /** Keeps `globalAttachableHistory` current; call once where the app's state lives. */
 export function useGlobalAttachableHistory(): void {
-  const authenticated = useIsAuthenticated();
   const historyQuery = useHistoryQuery();
 
   const attachableHistory = createMemo(() => {
-    const history =
-      authenticated() === true && historyQuery.isSuccess
-        ? historyQuery.data
-        : [];
+    const history = historyQuery.isSuccess ? historyQuery.data : [];
     return history.filter((item) => {
       const blockName = getItemBlockName(item, true);
       return SUPPORTED_CHAT_ATTACHMENT_BLOCKS.includes(blockName);

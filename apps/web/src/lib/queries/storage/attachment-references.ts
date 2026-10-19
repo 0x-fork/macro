@@ -1,4 +1,3 @@
-import { useIsAuthenticated } from '@core/context/user';
 import { throwOnErr } from '@core/util/result';
 import {
   type ItemType,
@@ -50,11 +49,7 @@ export function useAttachmentReferencesQuery(
   entityId: Accessor<string | null | undefined>,
   entityType: Accessor<ItemType>
 ) {
-  const authenticated = useIsAuthenticated();
   return useQuery(() =>
-    attachmentReferencesQueryOptions(
-      entityType(),
-      authenticated() === true ? entityId() : undefined
-    )
+    attachmentReferencesQueryOptions(entityType(), entityId())
   );
 }

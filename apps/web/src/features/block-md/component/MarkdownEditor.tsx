@@ -79,7 +79,6 @@ import {
   enableGitBlame,
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
-import { useIsAuthenticated } from '@core/context/user';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -149,7 +148,6 @@ export function MarkdownEditor(props: {
     permissions,
     state: documentState,
   } = useMarkdownDocument();
-  const authenticated = useIsAuthenticated();
   const { canEdit } = permissions;
   const blockId = documentId();
   const documentKind = kind();
@@ -806,7 +804,7 @@ export function MarkdownEditor(props: {
           />
         </Show>
 
-        <Show when={ENABLE_MARKDOWN_COMMENTS && authenticated() === true}>
+        <Show when={ENABLE_MARKDOWN_COMMENTS}>
           <Suspense>
             <MessageCommentsProvider
               activeComment={activeCommentIdParam}

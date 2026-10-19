@@ -13,7 +13,6 @@ import {
 import { createWebsocketStateSignal } from '@macro-inc/collaboration/websocket/solid/state-signal';
 import { getMacroApiToken } from '@service-auth/fetch';
 import { createCallback } from '@solid-primitives/rootless';
-import { createSessionWebsocketTelemetry } from '../session-websocket-telemetry';
 import type { ToWebsocketMessage } from './generated/schemas/toWebsocketMessage';
 import { instrumentGatewaySocket } from './presence-telemetry';
 
@@ -42,23 +41,13 @@ async function resolveWsUrl() {
   return wsHost;
 }
 
-export const connectionGatewaySessionTelemetry =
-  createSessionWebsocketTelemetry('connection-gateway', resolveWsUrl);
-
-export const ws = new WebsocketBuilder(
-  connectionGatewaySessionTelemetry.resolveUrl
-)
-  .withAutoConnect(false)
+export const ws = new WebsocketBuilder(resolveWsUrl)
   .withSerializer(
     new JsonSerializer<ToWebsocketMessage, FromWebsocketMessage>()
   )
   .withBuffer(new ArrayQueue())
   .withBackoff(new LinearBackoff(500, 500))
   .withMaxRetries(20)
-  .onOpen(connectionGatewaySessionTelemetry.opened)
-  .onError(connectionGatewaySessionTelemetry.failed)
-  .onClose((_, event) => connectionGatewaySessionTelemetry.closed(event))
-  .onRetry((_, event) => connectionGatewaySessionTelemetry.retry(event.detail))
   .withHeartbeat({
     interval: 1_000,
     timeout: 1_000,

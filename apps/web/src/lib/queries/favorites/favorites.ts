@@ -2,7 +2,6 @@ import {
   enableGraphqlSoup,
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
-import { useIsAuthenticated } from '@core/context/user';
 import { throwOnErr } from '@core/util/result';
 import type { EntityData } from '@entity';
 import { storageServiceClient } from '@service-storage/client';
@@ -79,13 +78,11 @@ function favoriteEntityKey(
 
 /** The user's favorites from the transport selected at hook creation. */
 export function useFavoritesQuery(filter?: FavoritesFilter) {
-  const authenticated = useIsAuthenticated();
-  const enabled = () => authenticated() === true;
   if (isFeatureEnabled(enableGraphqlSoup)) {
-    return createGraphqlFavoritesQuery(filter, enabled);
+    return createGraphqlFavoritesQuery(filter);
   }
 
-  return createRestFavoritesQuery(filter, enabled);
+  return createRestFavoritesQuery(filter);
 }
 
 // Cached callbacks outlive the hook; only the plain filter enters this closure.
@@ -100,14 +97,8 @@ function restFavoritesQueryOptions(filter?: FavoritesFilter) {
   });
 }
 
-function createRestFavoritesQuery(
-  filter: FavoritesFilter | undefined,
-  enabled: Accessor<boolean>
-) {
-  return useQuery(() => ({
-    ...restFavoritesQueryOptions(filter),
-    enabled: enabled(),
-  }));
+function createRestFavoritesQuery(filter?: FavoritesFilter) {
+  return useQuery(() => restFavoritesQueryOptions(filter));
 }
 
 /**
@@ -123,14 +114,12 @@ function createRestFavoritesQuery(
 export function useFavoritesData(
   filter?: FavoritesFilter
 ): Accessor<FavoritesList | undefined> {
-  const authenticated = useIsAuthenticated();
-  const enabled = () => authenticated() === true;
   if (isFeatureEnabled(enableGraphqlSoup)) {
-    const query = createGraphqlFavoritesQuery(filter, enabled);
-    return () => (enabled() ? query.data : undefined);
+    const query = createGraphqlFavoritesQuery(filter);
+    return () => query.data;
   }
-  const query = createRestFavoritesQuery(filter, enabled);
-  return () => (enabled() && query.isSuccess ? query.data : undefined);
+  const query = createRestFavoritesQuery(filter);
+  return () => (query.isSuccess ? query.data : undefined);
 }
 
 function readLists() {

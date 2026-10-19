@@ -1,4 +1,3 @@
-import { useIsAuthenticated } from '@core/context/user';
 import type { IUser } from '@core/user/types';
 import { idToDisplayName, idToEmail } from '@core/user/util';
 import { throwOnErr } from '@core/util/result';
@@ -17,11 +16,7 @@ export function contactsQueryOptions() {
 
 /** The raw contacts query — for callers that need its loading state. */
 export function useContactsQuery(enabled: Accessor<boolean> = () => true) {
-  const authenticated = useIsAuthenticated();
-  return useQuery(() => ({
-    ...contactsQueryOptions(),
-    enabled: authenticated() === true && enabled(),
-  }));
+  return useQuery(() => ({ ...contactsQueryOptions(), enabled: enabled() }));
 }
 
 /**
@@ -31,10 +26,9 @@ export function useContactsQuery(enabled: Accessor<boolean> = () => true) {
 export function useContacts(
   enabled: Accessor<boolean> = () => true
 ): Accessor<IUser[]> {
-  const authenticated = useIsAuthenticated();
   const query = useContactsQuery(enabled);
   return createMemo(() => {
-    if (authenticated() !== true || !query.isSuccess) return [];
+    if (!query.isSuccess) return [];
     const contacts = query.data.contacts;
     return contacts.map((c) => ({
       id: c,

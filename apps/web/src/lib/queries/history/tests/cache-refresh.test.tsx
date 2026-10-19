@@ -17,8 +17,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@app/lib/analytics/posthog', () => ({
   useFeatureFlag: () => () => ({ enabled: true }),
 }));
-vi.mock('@core/context/user', () => ({ useIsAuthenticated: () => () => true }));
-
 vi.mock('@core/constant/featureFlags', () => ({ enableGraphqlSoup: {} }));
 vi.mock('@core/constant/allBlocks', () => ({
   itemToSafeName: (item: { name: string }) => item.name,
