@@ -267,8 +267,11 @@ message and keep the last saved membership. With no lists, create one in the CRM
 `Domain` (or `Domains`, `Website`) column and an optional `Name` or `Company`
 column, such as a Companies export (up to 10,000 rows, at most 5 MB). Each row
 takes its first valid domain; rows without one or repeating an earlier domain are
-skipped. The explicit Import button writes the previewed companies four at a
-time; domains the team already tracks count as already in the CRM. Partial
+skipped. **Choose file** opens the CSV picker; the selected filename appears
+beside it (wrapping on narrow screens), and **Change file** opens it again.
+Cancelling the picker keeps the selection. The explicit Import button writes the
+previewed companies four at a time; domains the team already tracks count as
+already in the CRM. Partial
 failures retain only failed rows for retry. Stage, Owner, and Revenue live on
 pipeline rows, not companies: when the file has values in those columns and
 pipelines are available, a picker chooses where they go: **New private
