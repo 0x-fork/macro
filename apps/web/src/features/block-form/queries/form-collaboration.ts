@@ -397,11 +397,8 @@ export function createFormCollaborationSession(
     }
   }
 
-  const wal = new FormWAL(
-    walStore,
-    deliver,
-    options.formId,
-    () => void reportSaveInBackground()
+  const wal = new FormWAL(walStore, deliver, options.formId, () =>
+    fireAndForget(reportSaveInBackground(), 'form-collaboration')
   );
 
   let publishTimer: ReturnType<typeof setTimeout> | undefined;
@@ -464,7 +461,7 @@ export function createFormCollaborationSession(
   function publishSoon() {
     clearTimeout(publishTimer);
     publishTimer = setTimeout(
-      () => void publishInBackground(),
+      () => fireAndForget(publishInBackground(), 'form-collaboration'),
       PUBLISH_DELAY_MS
     );
   }
@@ -652,7 +649,8 @@ export function createFormCollaborationSession(
     }
   }
 
-  const reconnectOnline = () => void ensureConnected();
+  const reconnectOnline = () =>
+    fireAndForget(ensureConnected(), 'form-collaboration');
   window.addEventListener('online', reconnectOnline);
 
   /** Whether the local copy opened the form; a failed read opens it from the server. */

@@ -345,7 +345,10 @@ export function createFigEditor(options: FigEditorOptions) {
     // Shared live, so nothing is lost while someone else stores the file.
     if (!stores()) return;
     setSaveState('unsaved');
-    saveTimer = setTimeout(() => void saveNow(), SAVE_DELAY_MS);
+    saveTimer = setTimeout(
+      () => fireAndForget(saveNow(), 'block-fig'),
+      SAVE_DELAY_MS
+    );
   };
 
   const onHidden = () => {

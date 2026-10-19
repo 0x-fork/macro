@@ -22,7 +22,11 @@ export function useAgentPreview(sessionId: Accessor<string | undefined>) {
   };
   listeners.add(listener);
   onCleanup(() => listeners.delete(listener));
-  onCleanup(subscribeSocketSessionStarted(() => void invalidate()));
+  onCleanup(
+    subscribeSocketSessionStarted(() =>
+      fireAndForget(invalidate(), 'agent-preview')
+    )
+  );
   const query = useQuery(() => ({
     queryKey: key(sessionId()),
     queryFn: () => throwOnErr(() => previewServiceClient.get(sessionId()!)),

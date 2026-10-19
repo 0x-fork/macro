@@ -95,7 +95,9 @@ function BlockUnknownContent() {
                 fileName={fileName()}
                 convertingTo={convertingTo()}
                 onShare={openShare}
-                onDownload={() => void downloadDocument()}
+                onDownload={() =>
+                  fireAndForget(downloadDocument(), 'unknown-file')
+                }
               />
             }
           >

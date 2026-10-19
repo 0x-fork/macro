@@ -175,7 +175,8 @@ function PsdHost(props: {
                 context={{
                   engine: e(),
                   fileName: props.fileName,
-                  download: (blob, name) => void downloadFile(blob, name),
+                  download: (blob, name) =>
+                    fireAndForget(downloadFile(blob, name), 'psd-editor'),
                   notifyError: (message) => toast.failure(message),
                   notifyInfo: (message) => toast.success(message),
                   canEdit,
@@ -358,7 +359,7 @@ export default function PsdBlock(props: { share?: string }) {
               group: 'file',
               label: 'Download',
               icon: DownloadSimple,
-              action: () => void download(),
+              action: () => fireAndForget(download(), 'psd-editor'),
             },
             { op: 'delete' },
           ]}
@@ -378,7 +379,11 @@ export default function PsdBlock(props: { share?: string }) {
             {(d) => (
               <Show
                 when={d.bytes}
-                fallback={<DownloadOnly onDownload={() => void download()} />}
+                fallback={
+                  <DownloadOnly
+                    onDownload={() => fireAndForget(download(), 'psd-editor')}
+                  />
+                }
               >
                 {(bytes) => (
                   <CollaborativePsdHost

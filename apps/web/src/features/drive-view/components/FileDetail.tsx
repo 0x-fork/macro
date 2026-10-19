@@ -144,7 +144,7 @@ export function FileDetailLoadGate<
               label={props.label}
               error={error()}
               actionLabel="Try again"
-              onAction={() => void refetch()}
+              onAction={() => fireAndForget(refetch(), 'drive-view')}
             />
           )}
         </Match>

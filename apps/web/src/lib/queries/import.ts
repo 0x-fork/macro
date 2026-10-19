@@ -106,7 +106,7 @@ export function useRunImportMutation() {
           discard_ids: args.discardIds,
         })
       ),
-    onSuccess: () => void invalidateImportState(),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 
@@ -119,7 +119,7 @@ export function useDiscoverMutation(): UseMutationResult<
   return useMutation(() => ({
     mutationFn: (source: ImportSource) =>
       throwOnErr(() => importClient.discover(source)),
-    onSuccess: () => void invalidateImportState(),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 

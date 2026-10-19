@@ -599,7 +599,7 @@ export function MarkdownPopup(props: {
             <Toolbar.Button
               size="icon-sm"
               depth={3}
-              onClick={() => void handleShare()}
+              onClick={() => fireAndForget(handleShare(), 'block-md')}
               tooltip="Copy link to snippet"
               label="Copy link to snippet"
             >
@@ -729,9 +729,9 @@ export function MarkdownPopup(props: {
             onConvertToTasks={handleConvertToTasks}
             onConvertListToTable={handleConvertListToTable}
             onOpenComment={handleShowComment}
-            onShare={() => void handleShare()}
+            onShare={() => fireAndForget(handleShare(), 'block-md')}
             onInsertComment={handleInsertComment}
-            onPaste={() => void handlePaste()}
+            onPaste={() => fireAndForget(handlePaste(), 'block-md')}
             onEditWithAi={handleOpenAiEditDrawer}
           />
         </GeneralizedPopup>

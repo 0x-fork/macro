@@ -787,7 +787,11 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
               </Dropdown.Item>
             </Show>
             <Show when={isOpenable() && !isSplitAlreadyOpen()}>
-              <Dropdown.Item onSelect={() => void openInNewSplit()}>
+              <Dropdown.Item
+                onSelect={() =>
+                  fireAndForget(openInNewSplit(), 'document-preview')
+                }
+              >
                 <ColumnsPlusRight class="size-4" />
                 Open in New Split
               </Dropdown.Item>

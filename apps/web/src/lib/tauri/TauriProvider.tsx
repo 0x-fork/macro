@@ -3,6 +3,7 @@ import { useCallKitSetup } from '@channel/Call/use-callkit';
 import { useAndroidBack } from '@core/mobile/androidBack';
 import { useAndroidWindowInsets } from '@core/mobile/androidWindowInsets';
 import { NativeAppUpdateRequiredDialog } from '@core/mobile/NativeAppUpdateRequiredDialog';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isPlatform, isTauri } from '@core/util/platform';
 import { Telemetry } from '@macro-inc/observability';
 import { PlatformNotificationProvider } from '@notifications';
@@ -197,7 +198,7 @@ function TauriProvider(props: { children: JSX.Element }) {
         }
         onRestart={
           nativeUpdates.status().status === 'Ready'
-            ? () => void nativeUpdates.restart()
+            ? () => fireAndForget(nativeUpdates.restart(), 'native-updates')
             : undefined
         }
       />

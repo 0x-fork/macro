@@ -164,7 +164,10 @@ export function DatabaseTable(props: DatabaseTableProps) {
     indicatorLeft: (boundary) =>
       boundary - gridElement.getBoundingClientRect().left,
     onDrop: (columnId, targetId, edge) =>
-      void props.onReorderColumn?.(columnId, targetId, edge),
+      fireAndForget(
+        props.onReorderColumn?.(columnId, targetId, edge),
+        'database'
+      ),
   });
   const headerRenames = new Map<string, () => void>();
   let requestedHeader: string | undefined;

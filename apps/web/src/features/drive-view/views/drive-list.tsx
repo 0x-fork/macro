@@ -272,7 +272,10 @@ export function DriveList() {
               class="flex shrink-0 items-center gap-2 border-b border-edge-muted p-3 text-xs text-ink-muted"
             >
               Databases couldn’t be loaded.
-              <Button variant="outline" onClick={() => void refresh()}>
+              <Button
+                variant="outline"
+                onClick={() => fireAndForget(refresh(), 'drive-view')}
+              >
                 Try again
               </Button>
             </div>
@@ -282,7 +285,10 @@ export function DriveList() {
               <Match when={!forceEmptyState() && showError()}>
                 <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-sm text-ink-muted">
                   <span>Files couldn’t be loaded.</span>
-                  <Button variant="outline" onClick={() => void refresh()}>
+                  <Button
+                    variant="outline"
+                    onClick={() => fireAndForget(refresh(), 'drive-view')}
+                  >
                     Try again
                   </Button>
                 </div>
@@ -316,7 +322,7 @@ export function DriveList() {
                       <Show when={source.error()}>
                         <Button
                           variant="outline"
-                          onClick={() => void refresh()}
+                          onClick={() => fireAndForget(refresh(), 'drive-view')}
                         >
                           Try again
                         </Button>
@@ -330,7 +336,9 @@ export function DriveList() {
                         <Button
                           variant="outline"
                           disabled={source.isFetching()}
-                          onClick={() => void loadMore()}
+                          onClick={() =>
+                            fireAndForget(loadMore(), 'drive-view')
+                          }
                         >
                           Search more results
                         </Button>
@@ -480,7 +488,9 @@ export function DriveList() {
                                 More files couldn’t be loaded.
                                 <Button
                                   variant="outline"
-                                  onClick={() => void loadMore()}
+                                  onClick={() =>
+                                    fireAndForget(loadMore(), 'drive-view')
+                                  }
                                 >
                                   Try again
                                 </Button>

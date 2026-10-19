@@ -62,13 +62,24 @@ export function DesignSystemSections(props: {
               },
               onSetProperty: edit()
                 ? (id, property, value) =>
-                    void ds.setProperty(id, property, value)
+                    fireAndForget(
+                      ds.setProperty(id, property, value),
+                      'fig-design-system'
+                    )
                 : undefined,
               onReset: edit()
-                ? (id, property) => void ds.resetInstance(id, property)
+                ? (id, property) =>
+                    fireAndForget(
+                      ds.resetInstance(id, property),
+                      'fig-design-system'
+                    )
                 : undefined,
               onSwap: edit()
-                ? (id, component) => void ds.swapInstance(id, component)
+                ? (id, component) =>
+                    fireAndForget(
+                      ds.swapInstance(id, component),
+                      'fig-design-system'
+                    )
                 : undefined,
             }}
           />
@@ -85,30 +96,48 @@ export function DesignSystemSections(props: {
                 edit()
                   ? {
                       onCreateProperty: (kind, name) =>
-                        void ds.addComponentProperty(
-                          props.selected ?? owner(),
-                          name,
-                          kind,
-                          kind === 'INSTANCE_SWAP'
-                            ? someComponent(owner())
-                            : kind === 'VARIANT'
-                              ? { text: 'Default' }
-                              : undefined
+                        fireAndForget(
+                          ds.addComponentProperty(
+                            props.selected ?? owner(),
+                            name,
+                            kind,
+                            kind === 'INSTANCE_SWAP'
+                              ? someComponent(owner())
+                              : kind === 'VARIANT'
+                                ? { text: 'Default' }
+                                : undefined
+                          ),
+                          'fig-design-system'
                         ),
                       onRenameProperty: (property, name) =>
-                        void ds.editComponentProperty(owner(), property, {
-                          name,
-                        }),
+                        fireAndForget(
+                          ds.editComponentProperty(owner(), property, {
+                            name,
+                          }),
+                          'fig-design-system'
+                        ),
                       onSetDefault: (property, value) =>
-                        void ds.editComponentProperty(owner(), property, {
-                          value,
-                        }),
+                        fireAndForget(
+                          ds.editComponentProperty(owner(), property, {
+                            value,
+                          }),
+                          'fig-design-system'
+                        ),
                       onDeleteProperty: (property) =>
-                        void ds.deleteComponentProperty(owner(), property),
+                        fireAndForget(
+                          ds.deleteComponentProperty(owner(), property),
+                          'fig-design-system'
+                        ),
                       onRenameVariantProperty: (from, to) =>
-                        void ds.renameVariantProperty(owner(), from, to),
+                        fireAndForget(
+                          ds.renameVariantProperty(owner(), from, to),
+                          'fig-design-system'
+                        ),
                       onRemoveVariantProperty: (name) =>
-                        void ds.removeVariantProperty(owner(), name),
+                        fireAndForget(
+                          ds.removeVariantProperty(owner(), name),
+                          'fig-design-system'
+                        ),
                       onSetVariantValue: (property, value) => {
                         const id = props.selected;
                         if (id)
@@ -146,7 +175,11 @@ export function DesignSystemSections(props: {
         modes={ds.info()?.modes ?? []}
         onMode={
           ds.editable()
-            ? (collection, mode) => void ds.setVariableMode(collection, mode)
+            ? (collection, mode) =>
+                fireAndForget(
+                  ds.setVariableMode(collection, mode),
+                  'fig-design-system'
+                )
             : undefined
         }
       />
@@ -218,9 +251,12 @@ export function styleControlFor(ds: DesignSystem) {
           onBind={
             ds.editable()
               ? (variable) =>
-                  void ds.bindVariable(
-                    kind === 'STROKE' ? 'STROKE' : 'FILL',
-                    variable
+                  fireAndForget(
+                    ds.bindVariable(
+                      kind === 'STROKE' ? 'STROKE' : 'FILL',
+                      variable
+                    ),
+                    'fig-design-system'
                   )
               : undefined
           }
@@ -231,10 +267,16 @@ export function styleControlFor(ds: DesignSystem) {
         applied={ds.info()?.styles[KEYS[kind]] ?? null}
         styles={ds.styles()}
         onApply={
-          ds.editable() ? (style) => void ds.applyStyle(kind, style) : undefined
+          ds.editable()
+            ? (style) =>
+                fireAndForget(ds.applyStyle(kind, style), 'fig-design-system')
+            : undefined
         }
         onCreate={
-          ds.editable() ? (name) => void ds.createStyle(kind, name) : undefined
+          ds.editable()
+            ? (name) =>
+                fireAndForget(ds.createStyle(kind, name), 'fig-design-system')
+            : undefined
         }
       />
     </>
@@ -267,20 +309,31 @@ export function LocalStylesView(props: {
         actions={
           ds.editable()
             ? {
-                onRename: (style, name) => void ds.editStyle(style, { name }),
+                onRename: (style, name) =>
+                  fireAndForget(
+                    ds.editStyle(style, { name }),
+                    'fig-design-system'
+                  ),
                 onColor: (style, hex, live) =>
-                  void ds.editStyle(
-                    style,
-                    { props: { fills: [{ color: hex }] } },
-                    key(`${style}-color`, live)
+                  fireAndForget(
+                    ds.editStyle(
+                      style,
+                      { props: { fills: [{ color: hex }] } },
+                      key(`${style}-color`, live)
+                    ),
+                    'fig-design-system'
                   ),
                 onFontSize: (style, fontSize, live) =>
-                  void ds.editStyle(
-                    style,
-                    { props: { fontSize } },
-                    key(`${style}-size`, live)
+                  fireAndForget(
+                    ds.editStyle(
+                      style,
+                      { props: { fontSize } },
+                      key(`${style}-size`, live)
+                    ),
+                    'fig-design-system'
                   ),
-                onDelete: (style) => void ds.deleteStyle(style),
+                onDelete: (style) =>
+                  fireAndForget(ds.deleteStyle(style), 'fig-design-system'),
               }
             : undefined
         }

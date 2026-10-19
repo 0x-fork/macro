@@ -49,7 +49,9 @@ export async function confirmSessionControl(
         finish(new Error('The agent did not confirm the selected setting.')),
       60_000
     );
-    const unsubscribe = session.subscribe(() => void inspect());
+    const unsubscribe = session.subscribe(() =>
+      fireAndForget(inspect(), 'agent-session')
+    );
     fireAndForget(inspect(), 'agent-session');
   });
 }

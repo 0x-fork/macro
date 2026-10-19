@@ -96,7 +96,7 @@ export function OptionListEditor(props: {
             event.preventDefault();
             fireAndForget(addDraft(), 'form-builder');
           }}
-          onBlur={() => void addDraft()}
+          onBlur={() => fireAndForget(addDraft(), 'form-builder')}
         />
       </li>
     </ul>

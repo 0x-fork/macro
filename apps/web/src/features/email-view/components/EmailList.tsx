@@ -397,9 +397,9 @@ export function EmailList(props: EmailListProps) {
         pending={rowActionState.isPending(props.row.rowId)}
         onFocus={() => focusActionRow(props.row)}
         onArchive={() =>
-          void runRowAction(
-            props.row,
-            archived() ? 'mark-not-done' : 'mark-done'
+          fireAndForget(
+            runRowAction(props.row, archived() ? 'mark-not-done' : 'mark-done'),
+            'email-view'
           )
         }
         onCommands={() => {
@@ -573,7 +573,9 @@ export function EmailList(props: EmailListProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void source.refresh()}
+                    onClick={() =>
+                      fireAndForget(source.refresh(), 'email-view')
+                    }
                   >
                     Try again
                   </Button>
@@ -688,12 +690,15 @@ export function EmailList(props: EmailListProps) {
                                               })
                                             }
                                             onStar={() =>
-                                              void runRowAction(
-                                                {
-                                                  entity: entityRow().entity,
-                                                  rowId: entityRow().id,
-                                                },
-                                                'favorite'
+                                              fireAndForget(
+                                                runRowAction(
+                                                  {
+                                                    entity: entityRow().entity,
+                                                    rowId: entityRow().id,
+                                                  },
+                                                  'favorite'
+                                                ),
+                                                'email-view'
                                               )
                                             }
                                           />

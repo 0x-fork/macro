@@ -174,11 +174,13 @@ export function PropertiesView(props: {
         ],
         googleFamilies: fonts.families().map((f) => f.family),
         preview: fonts.preview,
-        onOpen: () => void fonts.loadCatalog(),
+        onOpen: () => fireAndForget(fonts.loadCatalog(), 'ai-editor'),
       }}
       actions={{
-        onBounds: (patch, live) => void editor.setBounds(patch, live),
-        onRotation: (degrees, live) => void editor.setRotation(degrees, live),
+        onBounds: (patch, live) =>
+          fireAndForget(editor.setBounds(patch, live), 'ai-editor'),
+        onRotation: (degrees, live) =>
+          fireAndForget(editor.setRotation(degrees, live), 'ai-editor'),
         onFlip: (vertical) => {
           const box = viewer.selectionBounds();
           if (box)
@@ -190,9 +192,12 @@ export function PropertiesView(props: {
             );
         },
         onFill: (hex, live) =>
-          void editor.setFill(
-            hex === null ? null : (solidPaint(hex) ?? null),
-            live
+          fireAndForget(
+            editor.setFill(
+              hex === null ? null : (solidPaint(hex) ?? null),
+              live
+            ),
+            'ai-editor'
           ),
         onStroke: (hex, live) => {
           if (hex === null) {
@@ -203,9 +208,13 @@ export function PropertiesView(props: {
           if (paint)
             fireAndForget(editor.updateStroke({ paint }, live), 'ai-editor');
         },
-        onStrokeProps: (patch, live) => void editor.updateStroke(patch, live),
+        onStrokeProps: (patch, live) =>
+          fireAndForget(editor.updateStroke(patch, live), 'ai-editor'),
         onOpacity: (value, live) =>
-          void editor.setNodes({ opacity: value }, viewer.selected(), live),
+          fireAndForget(
+            editor.setNodes({ opacity: value }, viewer.selected(), live),
+            'ai-editor'
+          ),
         onBlend: (mode) => {
           if (isBlendMode(mode))
             fireAndForget(
@@ -213,16 +222,18 @@ export function PropertiesView(props: {
               'ai-editor'
             );
         },
-        onText: (patch, live) => void changeText(patch, live),
-        onAlign: (how) => void editor.align(how),
-        onDistribute: (axis) => void editor.distribute(axis),
-        onBoolean: (mode) => void editor.booleanOp(mode),
-        onArrange: (how) => void editor.arrange(how),
-        onGroup: () => void editor.group(),
-        onUngroup: () => void editor.ungroup(),
-        onClip: () => void editor.makeClip(),
-        onRelease: () => void editor.releaseClip(),
-        onOutline: () => void editor.createOutlines(),
+        onText: (patch, live) =>
+          fireAndForget(changeText(patch, live), 'ai-editor'),
+        onAlign: (how) => fireAndForget(editor.align(how), 'ai-editor'),
+        onDistribute: (axis) =>
+          fireAndForget(editor.distribute(axis), 'ai-editor'),
+        onBoolean: (mode) => fireAndForget(editor.booleanOp(mode), 'ai-editor'),
+        onArrange: (how) => fireAndForget(editor.arrange(how), 'ai-editor'),
+        onGroup: () => fireAndForget(editor.group(), 'ai-editor'),
+        onUngroup: () => fireAndForget(editor.ungroup(), 'ai-editor'),
+        onClip: () => fireAndForget(editor.makeClip(), 'ai-editor'),
+        onRelease: () => fireAndForget(editor.releaseClip(), 'ai-editor'),
+        onOutline: () => fireAndForget(editor.createOutlines(), 'ai-editor'),
         onArtboard: (patch) => {
           const art = viewer.activeArtboard();
           if (!art) return;

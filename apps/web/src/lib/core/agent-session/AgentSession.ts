@@ -283,7 +283,9 @@ export class AgentSession {
     // The subscription survives a reconnect, but not the rows published
     // while the socket was down.
     this.unsubscribeReconnected = this.followed
-      ? subscribeGraphqlSoupReconnected(() => void this.resync())
+      ? subscribeGraphqlSoupReconnected(() =>
+          fireAndForget(this.resync(), 'agent-session')
+        )
       : () => undefined;
     this.trace = new SessionLoadTrace(id);
     this.watch = this.openWatch();
@@ -315,7 +317,7 @@ export class AgentSession {
                 'agent-session'
               );
             },
-            gap: () => void this.resync(),
+            gap: () => fireAndForget(this.resync(), 'agent-session'),
           }
         : undefined
     );
@@ -817,7 +819,10 @@ export class AgentSession {
       } else if (!this.closed && failed) {
         const delay = RESYNC_RETRY_DELAYS_MS[this.resyncRetry++];
         if (delay !== undefined)
-          this.resyncTimer = setTimeout(() => void this.resync(true), delay);
+          this.resyncTimer = setTimeout(
+            () => fireAndForget(this.resync(true), 'agent-session'),
+            delay
+          );
       }
     }
   }

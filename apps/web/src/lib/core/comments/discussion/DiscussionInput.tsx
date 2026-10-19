@@ -302,7 +302,7 @@ export function DiscussionInput(props: DiscussionInputProps) {
           }}
           onAttach={collapsedInput.attach}
           onOpen={collapsedInput.expand}
-          onSend={() => void commands.send()}
+          onSend={() => fireAndForget(commands.send(), 'discussion-input')}
         />
       </Show>
       <ComposerSurface

@@ -8,6 +8,7 @@
  */
 
 import { FigEngine } from '@core/fig-engine/client';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { noopChatter } from '@macro-inc/collaboration/collab/chatter';
 import type { SnapshotStore } from '@macro-inc/collaboration/collab/snapshot-store';
 import { InMemoryWALStore } from '@macro-inc/collaboration/collab/wal';
@@ -85,7 +86,7 @@ function Person(props: {
   const [failure, setFailure] = createSignal<string>();
   const [replaced, setReplaced] = createSignal(false);
   const opening = prepareFigEngine(props.server.stored());
-  onCleanup(() => void opening.dispose());
+  onCleanup(() => fireAndForget(opening.dispose(), 'fig-collab'));
   const session = createDesignCollabSession({
     documentId,
     userId: props.user,

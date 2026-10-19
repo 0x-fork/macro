@@ -180,7 +180,10 @@ export function createFigReview(options: {
   };
 
   const setFlowStart = (frame: string, name: string | null) =>
-    void editor.apply([{ op: 'setFlowStart', id: frame, name }]);
+    fireAndForget(
+      editor.apply([{ op: 'setFlowStart', id: frame, name }]),
+      'fig-review'
+    );
 
   return {
     comments,

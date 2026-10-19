@@ -93,7 +93,10 @@ export function SmartArtTextPane(props: {
     pending.set(id, {
       text,
       at: s().target(),
-      timer: setTimeout(() => void commit(id), TYPING_DELAY),
+      timer: setTimeout(
+        () => fireAndForget(commit(id), 'pptx-editor'),
+        TYPING_DELAY
+      ),
     });
   };
   // Closing the pane (or deselecting the graphic) sends what was typed.

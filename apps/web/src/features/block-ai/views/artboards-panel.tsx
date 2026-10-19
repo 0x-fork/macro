@@ -119,7 +119,9 @@ export function ArtboardsPanel(props: { viewer: AiViewer; editor: AiEditor }) {
                   aria-label={`Delete ${a.name}`}
                   data-testid="ai-artboard-delete"
                   class="invisible rounded p-0.5 text-ink-muted hover:text-ink group-hover:visible"
-                  onClick={() => void editor.deleteArtboard(a.id)}
+                  onClick={() =>
+                    fireAndForget(editor.deleteArtboard(a.id), 'ai-editor')
+                  }
                 >
                   <Trash class="size-3" />
                 </button>

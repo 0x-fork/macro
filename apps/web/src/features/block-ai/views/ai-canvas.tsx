@@ -389,7 +389,7 @@ export function AiCanvas(props: {
       onPointerUp={gestures.onPointerUp}
       onPointerCancel={gestures.onPointerUp}
       onPointerLeave={gestures.onPointerLeave}
-      onDblClick={(e) => void gestures.onDoubleClick(e)}
+      onDblClick={(e) => fireAndForget(gestures.onDoubleClick(e), 'ai-editor')}
       onDragOver={(e) => {
         if (editor.enabled() && e.dataTransfer?.types.includes('Files')) {
           e.preventDefault();

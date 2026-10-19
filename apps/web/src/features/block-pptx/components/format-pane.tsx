@@ -377,7 +377,9 @@ export function FormatPane(props: {
               env={env}
               current={one()?.fill}
               disabled={ro()}
-              apply={(fill) => fill && void c.setFill(fill)}
+              apply={(fill) => {
+                if (fill) fireAndForget(c.setFill(fill), 'pptx-editor');
+              }}
             />
           </Section>
           <Section title="Line">
@@ -419,7 +421,9 @@ export function FormatPane(props: {
                 step={0.25}
                 precision={2}
                 disabled={ro()}
-                onCommit={(width) => void c.setLine({ width })}
+                onCommit={(width) =>
+                  fireAndForget(c.setLine({ width }), 'pptx-editor')
+                }
               />
             </Row>
             <Row label="Dash type">
@@ -436,7 +440,9 @@ export function FormatPane(props: {
                   ['lgDash', 'Long dash'],
                   ['lgDashDot', 'Long dash dot'],
                 ]}
-                onChange={(dash) => void c.setLine({ dash })}
+                onChange={(dash) =>
+                  fireAndForget(c.setLine({ dash }), 'pptx-editor')
+                }
               />
             </Row>
             <Row label="Begin arrow">
@@ -452,7 +458,9 @@ export function FormatPane(props: {
                   ['oval', 'Oval'],
                   ['arrow', 'Open arrow'],
                 ]}
-                onChange={(head) => void c.setLine({ head })}
+                onChange={(head) =>
+                  fireAndForget(c.setLine({ head }), 'pptx-editor')
+                }
               />
             </Row>
             <Row label="End arrow">
@@ -468,7 +476,9 @@ export function FormatPane(props: {
                   ['oval', 'Oval'],
                   ['arrow', 'Open arrow'],
                 ]}
-                onChange={(tail) => void c.setLine({ tail })}
+                onChange={(tail) =>
+                  fireAndForget(c.setLine({ tail }), 'pptx-editor')
+                }
               />
             </Row>
           </Section>
@@ -527,7 +537,7 @@ export function FormatPane(props: {
                 min={-360}
                 max={360}
                 disabled={ro() || !one()}
-                onCommit={(r) => void c.setRotation(r)}
+                onCommit={(r) => fireAndForget(c.setRotation(r), 'pptx-editor')}
               />
             </Row>
             <label class="flex items-center gap-2 text-xs">
@@ -569,7 +579,7 @@ export function FormatPane(props: {
                 min={-10000}
                 max={10000}
                 disabled={ro() || !one()}
-                onCommit={(x) => void c.move({ x })}
+                onCommit={(x) => fireAndForget(c.move({ x }), 'pptx-editor')}
               />
             </Row>
             <Row label="Vertical">
@@ -580,7 +590,7 @@ export function FormatPane(props: {
                 min={-10000}
                 max={10000}
                 disabled={ro() || !one()}
-                onCommit={(y) => void c.move({ y })}
+                onCommit={(y) => fireAndForget(c.move({ y }), 'pptx-editor')}
               />
             </Row>
           </Section>
@@ -597,7 +607,12 @@ export function FormatPane(props: {
                   d.value,
                   d.label,
                 ])}
-                onChange={(d) => void c.setTextDirection(d as TextDirection)}
+                onChange={(d) =>
+                  fireAndForget(
+                    c.setTextDirection(d as TextDirection),
+                    'pptx-editor'
+                  )
+                }
               />
             </Row>
             <Row label="Vertical alignment">
@@ -611,7 +626,10 @@ export function FormatPane(props: {
                   ['bottom', 'Bottom'],
                 ]}
                 onChange={(anchor) =>
-                  void c.body({ anchor: anchor as 'top' | 'middle' | 'bottom' })
+                  fireAndForget(
+                    c.body({ anchor: anchor as 'top' | 'middle' | 'bottom' }),
+                    'pptx-editor'
+                  )
                 }
               />
             </Row>
@@ -624,7 +642,9 @@ export function FormatPane(props: {
                 ['shrink', 'Shrink text on overflow'],
                 ['resize', 'Resize shape to fit text'],
               ]}
-              onChange={(autofit) => void c.body({ autofit })}
+              onChange={(autofit) =>
+                fireAndForget(c.body({ autofit }), 'pptx-editor')
+              }
             />
             <For
               each={
@@ -661,7 +681,12 @@ export function FormatPane(props: {
                 type="checkbox"
                 class="accent-accent"
                 disabled={ro()}
-                onChange={(e) => void c.body({ wrap: e.currentTarget.checked })}
+                onChange={(e) =>
+                  fireAndForget(
+                    c.body({ wrap: e.currentTarget.checked }),
+                    'pptx-editor'
+                  )
+                }
               />
               Wrap text in shape
             </label>
@@ -673,7 +698,9 @@ export function FormatPane(props: {
                 max={16}
                 precision={0}
                 disabled={ro()}
-                onCommit={(columns) => void c.body({ columns })}
+                onCommit={(columns) =>
+                  fireAndForget(c.body({ columns }), 'pptx-editor')
+                }
               />
             </Row>
           </Section>
@@ -691,7 +718,10 @@ export function FormatPane(props: {
                   ['distributed', 'Distributed'],
                 ]}
                 onChange={(a) =>
-                  void c.align(a as 'left' | 'center' | 'right' | 'justify')
+                  fireAndForget(
+                    c.align(a as 'left' | 'center' | 'right' | 'justify'),
+                    'pptx-editor'
+                  )
                 }
               />
             </Row>
@@ -703,7 +733,9 @@ export function FormatPane(props: {
                 min={0}
                 max={1000}
                 disabled={ro()}
-                onCommit={(marginLeft) => void c.paragraphs?.({ marginLeft })}
+                onCommit={(marginLeft) =>
+                  fireAndForget(c.paragraphs?.({ marginLeft }), 'pptx-editor')
+                }
               />
             </Row>
             <Row label="First line">
@@ -714,7 +746,9 @@ export function FormatPane(props: {
                 min={-1000}
                 max={1000}
                 disabled={ro()}
-                onCommit={(indent) => void c.paragraphs?.({ indent })}
+                onCommit={(indent) =>
+                  fireAndForget(c.paragraphs?.({ indent }), 'pptx-editor')
+                }
               />
             </Row>
             <Row label="Space before">
@@ -725,7 +759,9 @@ export function FormatPane(props: {
                 min={0}
                 max={1000}
                 disabled={ro()}
-                onCommit={(v) => void c.spacing(v, undefined)}
+                onCommit={(v) =>
+                  fireAndForget(c.spacing(v, undefined), 'pptx-editor')
+                }
               />
             </Row>
             <Row label="Space after">
@@ -736,7 +772,9 @@ export function FormatPane(props: {
                 min={0}
                 max={1000}
                 disabled={ro()}
-                onCommit={(v) => void c.spacing(undefined, v)}
+                onCommit={(v) =>
+                  fireAndForget(c.spacing(undefined, v), 'pptx-editor')
+                }
               />
             </Row>
             <Row label="Line spacing">
@@ -749,7 +787,7 @@ export function FormatPane(props: {
                 step={0.1}
                 precision={2}
                 disabled={ro()}
-                onCommit={(v) => void c.lineSpacing(v)}
+                onCommit={(v) => fireAndForget(c.lineSpacing(v), 'pptx-editor')}
               />
             </Row>
           </Section>

@@ -249,7 +249,7 @@ export function BookingWorkspaceView(props: {
         error={pageLeave.error()}
         onKeepEditing={pageLeave.keepEditing}
         onDiscard={pageLeave.discard}
-        onSave={() => void pageLeave.save()}
+        onSave={() => fireAndForget(pageLeave.save(), 'scheduling')}
       />
       <ViewShell.Aside>
         <ViewSidebar.Root aria-label="Scheduling navigation">
@@ -356,7 +356,7 @@ export function BookingWorkspaceView(props: {
                   disabled={
                     isSaving() || startingAgent() || !owner()?.source.profile()
                   }
-                  onClick={() => void createWithAgent()}
+                  onClick={() => fireAndForget(createWithAgent(), 'scheduling')}
                 >
                   <SparkleIcon class="size-5" />
                 </Button>
@@ -365,7 +365,7 @@ export function BookingWorkspaceView(props: {
             onTab={selectTab}
             onOwner={selectOwner}
             onBack={() => owner()?.closeScheduleEditor()}
-            onCreate={(opener) => void create(opener)}
+            onCreate={(opener) => fireAndForget(create(opener), 'scheduling')}
           />
         </Show>
         <ViewShell.TopBar>
@@ -447,7 +447,9 @@ export function BookingWorkspaceView(props: {
                         owner()?.source.saving() ||
                         startingAgent()
                       }
-                      onClick={() => void createWithAgent()}
+                      onClick={() =>
+                        fireAndForget(createWithAgent(), 'scheduling')
+                      }
                     >
                       <SparkleIcon class="size-4" />
                       <span>Create with agent</span>
@@ -462,7 +464,9 @@ export function BookingWorkspaceView(props: {
                         owner()?.source.saving() ||
                         startingAgent()
                       }
-                      onClick={(event) => void create(event.currentTarget)}
+                      onClick={(event) =>
+                        fireAndForget(create(event.currentTarget), 'scheduling')
+                      }
                     >
                       <PlusIcon class="size-4" />
                       <span>New</span>
@@ -486,7 +490,9 @@ export function BookingWorkspaceView(props: {
                       variant="strong"
                       size="md"
                       disabled={isSaving() || !owner()?.source.profile()}
-                      onClick={(event) => void create(event.currentTarget)}
+                      onClick={(event) =>
+                        fireAndForget(create(event.currentTarget), 'scheduling')
+                      }
                     >
                       <PlusIcon class="size-4" />
                       <span>New</span>

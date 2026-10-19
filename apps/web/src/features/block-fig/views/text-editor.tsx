@@ -171,7 +171,9 @@ export function TextEditor(props: {
 
   // Edits from the panel, undo, and other people change the layout.
   createEffect(
-    on(props.viewer.editVersion, () => void load(), { defer: true })
+    on(props.viewer.editVersion, () => fireAndForget(load(), 'fig-editor'), {
+      defer: true,
+    })
   );
 
   let pending: Promise<unknown> = Promise.resolve();

@@ -519,7 +519,7 @@ export function HomeList(props: HomeListProps) {
               <button
                 type="button"
                 class="underline"
-                onClick={() => void source.refresh()}
+                onClick={() => fireAndForget(source.refresh(), 'home')}
               >
                 Retry
               </button>
@@ -574,7 +574,7 @@ export function HomeList(props: HomeListProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void source.refresh()}
+                    onClick={() => fireAndForget(source.refresh(), 'home')}
                   >
                     Try again
                   </Button>

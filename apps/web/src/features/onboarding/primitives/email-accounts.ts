@@ -27,7 +27,7 @@ export function createEmailAccounts(
   // or another) must show up the moment the user is back.
   fireAndForget(source.refresh(), 'onboarding');
   const interval = setInterval(
-    () => void source.refresh(),
+    () => fireAndForget(source.refresh(), 'onboarding'),
     EMAIL_ACCOUNTS_POLL_MS
   );
   onCleanup(() => clearInterval(interval));
@@ -80,6 +80,6 @@ export function createEmailAccounts(
     secondary: () => list()[1],
     connecting,
     connect,
-    retry: () => void source.refresh(),
+    retry: () => fireAndForget(source.refresh(), 'onboarding'),
   };
 }

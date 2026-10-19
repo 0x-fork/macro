@@ -260,10 +260,13 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
                         variant="outline"
                         size="sm"
                         onClick={() =>
-                          void startAddInbox({
-                            scopes: calendarConsentScopes(link()),
-                            emailAddress: link().email_address,
-                          })
+                          fireAndForget(
+                            startAddInbox({
+                              scopes: calendarConsentScopes(link()),
+                              emailAddress: link().email_address,
+                            }),
+                            'add-inbox'
+                          )
                         }
                       >
                         Reconnect calendar
@@ -275,7 +278,10 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        void startAddInbox({ scopes: 'gmail_and_calendar' })
+                        fireAndForget(
+                          startAddInbox({ scopes: 'gmail_and_calendar' }),
+                          'add-inbox'
+                        )
                       }
                     >
                       Connect calendar
@@ -293,8 +299,12 @@ function CalendarDraftComposerContent(props: CalendarDraftComposerProps) {
               finalized || !props.sink.canAct() || operation() === 'reject'
             }
             pending={operation() === 'create'}
-            onCancel={() => void handleCancel()}
-            onSubmit={(values) => void handleCreate(values)}
+            onCancel={() =>
+              fireAndForget(handleCancel(), 'ai-calendar-compose')
+            }
+            onSubmit={(values) =>
+              fireAndForget(handleCreate(values), 'ai-calendar-compose')
+            }
           />
         </div>
         <Show when={props.showPreview !== false}>

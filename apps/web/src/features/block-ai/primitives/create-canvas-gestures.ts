@@ -870,19 +870,22 @@ export function createCanvasGestures(options: CanvasGestureOptions) {
   /** Ends a drag; `area` is the marquee it drew. */
   const finishDrag = (d: Drag, area: Rect | undefined, e: PointerEvent) =>
     match(d)
-      .with({ kind: 'create' }, (create) => void finishCreate(create, e))
-      .with({ kind: 'type' }, (type) => void finishType(type))
+      .with({ kind: 'create' }, (create) =>
+        fireAndForget(finishCreate(create, e), 'ai-editor')
+      )
+      .with({ kind: 'type' }, (type) =>
+        fireAndForget(finishType(type), 'ai-editor')
+      )
       .with({ kind: 'zoom' }, finishZoom)
       .with({ kind: 'artboard-new' }, () => finishArtboard(area))
       .with(
         {
           kind: P.union('scale', 'rotate', 'artboard-move', 'artboard-resize'),
         },
-        (moved) => void moved.mover.end()
+        (moved) => fireAndForget(moved.mover.end(), 'ai-editor')
       )
-      .with(
-        { kind: P.union('anchor', 'handle') },
-        (edit) => void edit.editor.end()
+      .with({ kind: P.union('anchor', 'handle') }, (edit) =>
+        fireAndForget(edit.editor.end(), 'ai-editor')
       )
       .with({ kind: 'press' }, (press) => finishPress(press, area, e))
       .with({ kind: P.union('pan', 'pinch', 'pen') }, () => undefined)

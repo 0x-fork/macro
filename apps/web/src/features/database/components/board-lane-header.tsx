@@ -152,7 +152,7 @@ function LaneName(props: { option: EditableOption }) {
             });
           }}
           onInput={(event) => rename.setDraft(event.currentTarget.value)}
-          onBlur={() => void rename.save(false)}
+          onBlur={() => fireAndForget(rename.save(false), 'database')}
           onKeyDown={(event) => {
             if (event.isComposing) return;
             if (event.key === 'Escape') {
@@ -203,15 +203,15 @@ function LaneColor(props: { option: EditableOption; children: JSX.Element }) {
           <ColorSwatches
             size="sm"
             value={props.option.option.color}
-            onChange={(color) =>
-              void props.option.editing
+            onChange={(color) => {
+              props.option.editing
                 .update(props.option.column.id, props.option.option.id, {
                   color: color.color,
                 })
                 .mapErr((failure) =>
                   setError(databaseOpMessage(failure, 'this group'))
-                )
-            }
+                );
+            }}
           />
           <Show when={props.option.column.sharedOutsideDatabase}>
             <p class="mt-2 text-ink-muted">
@@ -292,7 +292,7 @@ function LaneMenu(props: {
         pending={pending()}
         title={`Delete “${props.label}”?`}
         deleteLabel={pending() ? 'Deleting…' : 'Delete group'}
-        onDelete={() => void remove()}
+        onDelete={() => fireAndForget(remove(), 'database')}
         body={
           <>
             <p>

@@ -452,7 +452,7 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                     <Button
                       size="xs"
                       class="mt-1"
-                      onClick={() => void refresh()}
+                      onClick={() => fireAndForget(refresh(), 'database')}
                     >
                       Retry
                     </Button>
@@ -468,7 +468,10 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                 <span class="truncate">
                   {saving() ? 'Saving…' : props.source.name()}
                 </span>
-                <Button size="xs" onClick={() => void finish()}>
+                <Button
+                  size="xs"
+                  onClick={() => fireAndForget(finish(), 'database')}
+                >
                   {saveError() ? 'Retry' : 'Done'}
                 </Button>
               </div>

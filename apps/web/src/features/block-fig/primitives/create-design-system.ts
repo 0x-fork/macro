@@ -75,7 +75,11 @@ export function createDesignSystem(options: {
       // A file that fails to answer keeps the last lists.
     }
   };
-  createEffect(on(viewer.editsSettled, () => void loadLists()));
+  createEffect(
+    on(viewer.editsSettled, () =>
+      fireAndForget(loadLists(), 'fig-design-system')
+    )
+  );
 
   const run = (...ops: DesignOp[]) => editor.apply(ops);
   const selectedId = () => viewer.selected()[0]?.id;

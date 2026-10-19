@@ -518,7 +518,9 @@ function BooleanCell(props: {
       class="flex min-h-9 items-center px-3 outline-none focus-visible:ring-2 focus-visible:ring-ink/50"
       checked={Boolean(props.value)}
       disabled={!props.editable}
-      onChange={(checked) => void props.onWrite(checked ? 1 : 0)}
+      onChange={(checked) =>
+        fireAndForget(props.onWrite(checked ? 1 : 0), 'database')
+      }
       onKeyDown={(event: KeyboardEvent) => {
         if (props.editable && isClearCellKey(event)) {
           event.preventDefault();
@@ -1093,7 +1095,7 @@ function SelectCell(props: GridCellProps) {
                 fireAndForget(props.onWrite(null), 'database');
                 setOpen(false);
               }}
-              onCreate={(value) => void create(value)}
+              onCreate={(value) => fireAndForget(create(value), 'database')}
               onKeyDown={tabAway}
               editing={editing}
               inputRef={(element) => {
@@ -1222,7 +1224,10 @@ function DateCell(props: GridCellProps) {
             selectedDate={fromCellDate(props.value)}
             initialQuery={query()}
             onSelectDate={(date) =>
-              void props.onWrite(date ? toCellDate(date) : null)
+              fireAndForget(
+                props.onWrite(date ? toCellDate(date) : null),
+                'database'
+              )
             }
             onClose={() => setOpen(false)}
           />

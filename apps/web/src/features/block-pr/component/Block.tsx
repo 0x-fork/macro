@@ -1,5 +1,6 @@
 import { SidePanel } from '@components/app/side-panel';
 import { useBlockId } from '@core/block';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Show } from 'solid-js';
 import { PrDetailBody, usePrDetail } from '../views/PrDetail';
 import { PrSplitHeader } from './PrSplitHeader';
@@ -31,7 +32,7 @@ export default function PrBlock() {
             data={detail.data()}
             status={detail.query.status}
             discussionSource={detail.discussionSource}
-            onRetry={() => void detail.query.refetch()}
+            onRetry={() => fireAndForget(detail.query.refetch(), 'pr-detail')}
           />
         </div>
       </SidePanel.Layout>

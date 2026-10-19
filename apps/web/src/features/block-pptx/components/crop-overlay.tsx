@@ -130,7 +130,7 @@ export function CropOverlay(props: {
     if (adjusted.owned) owned = adjusted.url;
     setImage(adjusted.url);
   };
-  onMount(() => void loadImage());
+  onMount(() => fireAndForget(loadImage(), 'pptx-editor'));
   onCleanup(() => {
     if (owned) URL.revokeObjectURL(owned);
   });

@@ -256,9 +256,12 @@ export function PropertiesPanel(props: {
                     checked={!mask().disabled}
                     disabled={!editable()}
                     onChange={(on) =>
-                      void editor.apply([
-                        { op: 'setMask', id: layer().id, disabled: !on },
-                      ])
+                      fireAndForget(
+                        editor.apply([
+                          { op: 'setMask', id: layer().id, disabled: !on },
+                        ]),
+                        'psd-editor'
+                      )
                     }
                   />
                 </Section>
@@ -272,13 +275,16 @@ export function PropertiesPanel(props: {
                     checked={effects().enabled}
                     disabled={!editable()}
                     onChange={(enabled) =>
-                      void editor.apply([
-                        {
-                          op: 'setEffects',
-                          id: layer().id,
-                          effects: { ...effects(), enabled },
-                        },
-                      ])
+                      fireAndForget(
+                        editor.apply([
+                          {
+                            op: 'setEffects',
+                            id: layer().id,
+                            effects: { ...effects(), enabled },
+                          },
+                        ]),
+                        'psd-editor'
+                      )
                     }
                   />
                   <For

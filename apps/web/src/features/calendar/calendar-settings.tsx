@@ -87,8 +87,10 @@ function CalendarSettingsContent() {
           fireAndForget(links.refetch(), 'calendar-settings');
           fireAndForget(calendarsQuery.refetch(), 'calendar-settings');
         }}
-        onConnect={() => void connect('gmail_and_calendar')}
-        onEnable={() => void connect('calendar')}
+        onConnect={() =>
+          fireAndForget(connect('gmail_and_calendar'), 'calendar-settings')
+        }
+        onEnable={() => fireAndForget(connect('calendar'), 'calendar-settings')}
         onDisconnect={(account) =>
           setDisconnect({ linkId: account.id, emailAddress: account.email })
         }

@@ -346,7 +346,7 @@ export function AgentInput(props: AgentInputProps) {
       <div
         ref={containerRef}
         data-keep-keyboard
-        onFocusIn={() => void preloadAgentFold()}
+        onFocusIn={() => fireAndForget(preloadAgentFold(), 'agent-composer')}
         class="flex flex-col gap-1.5"
         classList={{ 'opacity-50': props.readOnly }}
       >

@@ -151,7 +151,7 @@ export function EquationEditorPanel(props: {
           variant="cta"
           data-testid="pptx-equation-insert"
           disabled={props.readonly || (isNew() && !eq.latex().trim())}
-          onClick={() => void eq.commit()}
+          onClick={() => fireAndForget(eq.commit(), 'pptx-editor')}
         >
           {isNew() ? 'Insert' : 'Done'}
         </Button>

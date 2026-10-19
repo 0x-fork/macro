@@ -323,9 +323,12 @@ export function AnimationsTab() {
             disabled={ro() || !current()}
             value={current()?.start ?? 'onClick'}
             onChange={(e) =>
-              void c.updateAnimations(indexes(), {
-                start: e.currentTarget.value as AnimationStart,
-              })
+              fireAndForget(
+                c.updateAnimations(indexes(), {
+                  start: e.currentTarget.value as AnimationStart,
+                }),
+                'pptx-editor'
+              )
             }
           >
             <For each={Object.entries(START_LABELS)}>
@@ -346,9 +349,12 @@ export function AnimationsTab() {
           disabled={ro() || !current() || current()!.durationMs === 0}
           testId="pptx-animation-duration"
           onCommit={(v) =>
-            void c.updateAnimations(indexes(), {
-              durationMs: Math.round(v * 1000),
-            })
+            fireAndForget(
+              c.updateAnimations(indexes(), {
+                durationMs: Math.round(v * 1000),
+              }),
+              'pptx-editor'
+            )
           }
         />
         <span class="text-ink-muted text-xs">Delay</span>
@@ -364,9 +370,12 @@ export function AnimationsTab() {
           disabled={ro() || !current()}
           testId="pptx-animation-delay"
           onCommit={(v) =>
-            void c.updateAnimations(indexes(), {
-              delayMs: Math.round(v * 1000),
-            })
+            fireAndForget(
+              c.updateAnimations(indexes(), {
+                delayMs: Math.round(v * 1000),
+              }),
+              'pptx-editor'
+            )
           }
         />
         <RibbonButton

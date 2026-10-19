@@ -90,7 +90,9 @@ export function ReplyInputView(props: ReplyInputViewProps) {
         fallback={
           <div role="alert">
             Unable to load local draft.{' '}
-            <button onClick={() => void refetch()}>Retry</button>
+            <button onClick={() => fireAndForget(refetch(), 'email-compose')}>
+              Retry
+            </button>
           </div>
         }
       >

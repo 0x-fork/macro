@@ -151,7 +151,9 @@ export function TextEditor(props: {
 
   // Panel edits, undo, and other people change the layout.
   createEffect(
-    on(props.viewer.editVersion, () => void load(), { defer: true })
+    on(props.viewer.editVersion, () => fireAndForget(load(), 'ai-editor'), {
+      defer: true,
+    })
   );
 
   let pending: Promise<unknown> = Promise.resolve();

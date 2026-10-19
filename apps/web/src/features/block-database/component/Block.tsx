@@ -331,7 +331,7 @@ const Block: Component = () => {
             )
           }
           openingChat={openingChat()}
-          onOpenChat={() => void openDatabaseChat()}
+          onOpenChat={() => fireAndForget(openDatabaseChat(), 'database-view')}
         />
         <div
           class="@container/database flex size-full min-h-0 min-w-0 flex-col overflow-hidden bg-canvas-base text-ink"
@@ -375,7 +375,9 @@ const Block: Component = () => {
                     </p>
                     <Button
                       variant="outline"
-                      onClick={() => void detailQuery.refetch()}
+                      onClick={() =>
+                        fireAndForget(detailQuery.refetch(), 'database-view')
+                      }
                     >
                       Try again
                     </Button>
@@ -471,10 +473,13 @@ const Block: Component = () => {
                                     onClose={search.close}
                                     inputRef={search.setInput}
                                     onChoose={(choice) =>
-                                      void openRelated({
-                                        databaseId,
-                                        ...choice,
-                                      })
+                                      fireAndForget(
+                                        openRelated({
+                                          databaseId,
+                                          ...choice,
+                                        }),
+                                        'database-view'
+                                      )
                                     }
                                   />
                                 }
@@ -494,8 +499,8 @@ const Block: Component = () => {
                                     selectView();
                                   return deleteDatabaseView(target);
                                 }}
-                                onReorderViews={(order) =>
-                                  void reorderDatabaseViews(
+                                onReorderViews={(order) => {
+                                  reorderDatabaseViews(
                                     databaseId,
                                     table().table.id,
                                     order
@@ -503,11 +508,15 @@ const Block: Component = () => {
                                     toast.failure(
                                       databaseOpMessage(failure, 'these views')
                                     )
-                                  )
-                                }
+                                  );
+                                }}
                                 onCreateRecord={
                                   canEdit()
-                                    ? () => void actions.createRecord()
+                                    ? () =>
+                                        fireAndForget(
+                                          actions.createRecord(),
+                                          'database-view'
+                                        )
                                     : undefined
                                 }
                                 canCreateRecord={columns().length > 0}

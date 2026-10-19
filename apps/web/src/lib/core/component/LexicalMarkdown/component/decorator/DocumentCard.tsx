@@ -570,7 +570,10 @@ function DocumentCardInner(props: DocumentCardDecoratorProps) {
                   <Show when={props.blockName === 'task'}>
                     <Dropdown.Item
                       onSelect={() =>
-                        void copyBranchNameToClipboard(props.item.id)
+                        fireAndForget(
+                          copyBranchNameToClipboard(props.item.id),
+                          'document-card'
+                        )
                       }
                     >
                       <GitBranch class="size-4 shrink-0" />

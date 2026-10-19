@@ -308,7 +308,7 @@ export function QueryEditor(props: {
             value={composer.sql()}
             schema={composer.schema()}
             onChange={composer.setSql}
-            onRun={() => void composer.run()}
+            onRun={() => fireAndForget(composer.run(), 'database-query')}
           />
           <div class="mt-1.5 flex items-center justify-between gap-2">
             <p class="text-[11px] text-ink-muted">
@@ -318,7 +318,7 @@ export function QueryEditor(props: {
               variant="ghost"
               size="sm"
               disabled={busy() || !composer.sql().trim()}
-              onClick={() => void composer.run()}
+              onClick={() => fireAndForget(composer.run(), 'database-query')}
             >
               <PlayIcon class="size-3.5" /> Run SQL
             </Button>
@@ -414,7 +414,9 @@ export function QueryEditor(props: {
                     title="Refresh answer"
                     disabled={busy() || !sourceAvailable()}
                     class="rounded p-1 text-ink-muted hover:bg-hover hover:text-ink disabled:opacity-40"
-                    onClick={() => void composer.run()}
+                    onClick={() =>
+                      fireAndForget(composer.run(), 'database-query')
+                    }
                   >
                     <ArrowClockwiseIcon class="size-3.5" />
                   </button>

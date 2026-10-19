@@ -156,8 +156,8 @@ export function createEmailLogin(
         context.track('sign_up_click', { method: 'email' });
       setStep('email');
     },
-    submitEmail: () => void send(),
-    verify: (value?: string) => void verify(value),
+    submitEmail: () => fireAndForget(send(), 'email-login'),
+    verify: (value?: string) => fireAndForget(verify(value), 'email-login'),
     resend: async () => {
       setVerifyError();
       // A failed resend may be retried at once; a sent one restarts the wait.

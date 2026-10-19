@@ -162,7 +162,7 @@ function NewMeetingSetup(props: {
                 type="button"
                 variant="ghost"
                 disabled={draft.inviting()}
-                onClick={() => void draft.ring()}
+                onClick={() => fireAndForget(draft.ring(), 'meetings')}
               >
                 {draft.inviting() ? 'Sending…' : 'Retry invites'}
               </Button>

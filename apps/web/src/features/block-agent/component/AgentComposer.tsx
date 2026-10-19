@@ -342,9 +342,14 @@ export function AgentComposer(props: {
         // into, but not sent from, until the id lands.
         disabled={loadFailed() || pending() || readOnly() || configuring()}
         commands={() => metadata()?.availableCommands ?? []}
-        onSend={(markdown, attachments) => void send(markdown, attachments)}
+        onSend={(markdown, attachments) =>
+          fireAndForget(send(markdown, attachments), 'agent-composer')
+        }
         onStop={() =>
-          void act({ type: 'stop' }, 'The agent could not be stopped')
+          fireAndForget(
+            act({ type: 'stop' }, 'The agent could not be stopped'),
+            'agent-composer'
+          )
         }
         onSendNext={() => {
           if (!readOnly()) sendNext();
@@ -384,7 +389,9 @@ export function AgentComposer(props: {
                 configuring() ||
                 changingEffort() !== undefined
               }
-              onSelect={(model) => void chooseModel(model)}
+              onSelect={(model) =>
+                fireAndForget(chooseModel(model), 'agent-composer')
+              }
               modelRow={(row) => (
                 <AgentModelMenuItem
                   {...row}
@@ -398,7 +405,10 @@ export function AgentComposer(props: {
                       : undefined
                   }
                   onSelectEffort={(selection) =>
-                    void chooseModel(row.option.id, selection)
+                    fireAndForget(
+                      chooseModel(row.option.id, selection),
+                      'agent-composer'
+                    )
                   }
                 />
               )}

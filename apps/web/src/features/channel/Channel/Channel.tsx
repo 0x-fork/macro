@@ -47,6 +47,7 @@ import {
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { DateValue } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   extractUserMentions,
   trimEdgeUserMentions,
@@ -726,7 +727,7 @@ export function Channel(props: ChannelProps) {
       <EntityLoadGate
         result={messagesLoadResult}
         loadErrorTitle="Unable to load this channel"
-        onRetry={() => void messagesQuery.refetch()}
+        onRetry={() => fireAndForget(messagesQuery.refetch(), 'channel')}
       >
         <DebugSuspense name="Channel.root">
           <deleteConfirmation.ConfirmationDialog />
@@ -1097,13 +1098,17 @@ export function Channel(props: ChannelProps) {
                                   );
                                   setChannelInputHandle(handle);
                                 }}
-                                onChange={(snapshot) =>
-                                  void setChannelInputSnapshot(snapshot)
-                                }
+                                onChange={(snapshot) => {
+                                  setChannelInputSnapshot(snapshot);
+                                }}
                                 onSend={onSend}
                                 onStartCall={
                                   ENABLE_CALLS && !channelCall.isInThisChannel()
-                                    ? () => void channelCall.start()
+                                    ? () =>
+                                        fireAndForget(
+                                          channelCall.start(),
+                                          'channel-call'
+                                        )
                                     : undefined
                                 }
                                 callInProgress={channelCall.isCallInProgress()}

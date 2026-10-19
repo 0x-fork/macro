@@ -298,7 +298,7 @@ export function ProjectsCollection(props: {
         }
         onRename={(row) => setRenaming(row)}
         onSetOption={(rows, property, optionId) =>
-          void setOption(rows, property, optionId)
+          fireAndForget(setOption(rows, property, optionId), 'projects')
         }
         onCopyLink={(row) => props.onCopyLink(row.project.id)}
         onCopyId={(row) => props.onCopyId(row.project.id)}
@@ -606,7 +606,11 @@ export function ProjectsCollection(props: {
                     class="grid flex-1 place-items-center gap-3 text-sm text-ink-muted"
                   >
                     <span>Projects couldn’t be loaded.</span>
-                    <Button onClick={() => void collection.refresh()}>
+                    <Button
+                      onClick={() =>
+                        fireAndForget(collection.refresh(), 'projects')
+                      }
+                    >
                       Try again
                     </Button>
                   </div>
@@ -844,7 +848,9 @@ export function ProjectsCollection(props: {
               onOpenChange={(open) => {
                 if (!open) setDeleting(undefined);
               }}
-              onDelete={() => void deleteProjects(request().rows)}
+              onDelete={() =>
+                fireAndForget(deleteProjects(request().rows), 'projects')
+              }
               onCloseAutoFocus={returnFocusToList}
             />
           )}

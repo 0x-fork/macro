@@ -232,7 +232,7 @@ export function ReviewStack(props: {
             variant="outline"
             size="sm"
             disabled={working()}
-            onClick={() => void reload()}
+            onClick={() => fireAndForget(reload(), 'agent-reviews')}
           >
             Reload saved review
           </Button>

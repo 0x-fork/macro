@@ -315,7 +315,13 @@ export function Agents(props: {
                     <AgentRow
                       agent={agent}
                       onMessage={
-                        agentDm ? () => void messageAgent(agent.id) : undefined
+                        agentDm
+                          ? () =>
+                              fireAndForget(
+                                messageAgent(agent.id),
+                                'agent-settings'
+                              )
+                          : undefined
                       }
                       messagePending={agentDm?.pending()}
                       onEdit={
@@ -381,7 +387,7 @@ export function Agents(props: {
             agentName={agent.bot.name}
             pending={deleteAgentMutation.isPending}
             onClose={() => setDeletingAgent(undefined)}
-            onConfirm={() => void deleteAgent()}
+            onConfirm={() => fireAndForget(deleteAgent(), 'agent-settings')}
           />
         )}
       </Show>
@@ -807,7 +813,9 @@ function AgentEditorPage(props: {
                     variant="outline"
                     size="sm"
                     aria-label={`Retry models for ${selectedHarness()?.name ?? 'this runtime'}`}
-                    onClick={() => void query.refetch()}
+                    onClick={() =>
+                      fireAndForget(query.refetch(), 'agent-settings')
+                    }
                   >
                     Retry
                   </Button>
@@ -1006,7 +1014,10 @@ function AgentEditorPage(props: {
                     class="hidden"
                     disabled={busy()}
                     onChange={(event) =>
-                      void handleAvatarInput(event.currentTarget.files?.[0])
+                      fireAndForget(
+                        handleAvatarInput(event.currentTarget.files?.[0]),
+                        'agent-settings'
+                      )
                     }
                   />
                   <Button

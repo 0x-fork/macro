@@ -110,7 +110,9 @@ export async function initializeBrowserObservability(): Promise<void> {
     import.meta.hot?.dispose(disposeUiTelemetry);
   }
 
-  window.addEventListener('pagehide', () => void Telemetry.flush());
+  window.addEventListener('pagehide', () =>
+    fireAndForget(Telemetry.flush(), 'telemetry-flush')
+  );
   window.addEventListener('error', (event) => {
     if (isIgnorableError({ message: event.message, source: event.filename })) {
       return;

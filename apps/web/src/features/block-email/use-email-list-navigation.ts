@@ -106,7 +106,8 @@ export function useEmailListNavigation(
           navigate: false,
           navigateBack:
             current && next
-              ? () => void open(current, referredFrom)
+              ? () =>
+                  fireAndForget(open(current, referredFrom), 'email-navigation')
               : undefined,
         })
       )

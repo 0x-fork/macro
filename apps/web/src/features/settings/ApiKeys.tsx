@@ -327,7 +327,7 @@ function CreateApiKeyDialog(props: {
                     variant="strong"
                     size="sm"
                     disabled={props.pending}
-                    onClick={() => void submit()}
+                    onClick={() => fireAndForget(submit(), 'api-key-settings')}
                   >
                     {props.pending ? 'Creating…' : 'Create key'}
                   </Button>

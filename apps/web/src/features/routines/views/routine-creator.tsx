@@ -114,7 +114,7 @@ export function RoutineCreatorView(props: {
           aria-label={props.source.pending() ? 'Creating…' : 'Create routine'}
           hasContent={Boolean(draft().prompt.trim())}
           disabled={props.source.pending()}
-          onClick={() => void create()}
+          onClick={() => fireAndForget(create(), 'routines')}
         >
           {props.source.pending() ? 'Creating…' : 'Create routine'}
         </EntityComposer.Submit>

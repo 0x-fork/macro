@@ -173,7 +173,7 @@ export function SmartArtDesignTab(props: { smartArt: SmartArtState }) {
           tooltip="Promote"
           data-testid="pptx-smartart-promote"
           disabled={!supported() || !canPromote(lines(), index())}
-          onClick={() => void s().promote()}
+          onClick={() => fireAndForget(s().promote(), 'pptx-editor')}
         >
           <TextOutdent />
         </RibbonButton>
@@ -182,7 +182,7 @@ export function SmartArtDesignTab(props: { smartArt: SmartArtState }) {
           tooltip="Demote"
           data-testid="pptx-smartart-demote"
           disabled={!supported() || !canDemote(lines(), index())}
-          onClick={() => void s().demote()}
+          onClick={() => fireAndForget(s().demote(), 'pptx-editor')}
         >
           <TextIndent />
         </RibbonButton>
@@ -191,7 +191,7 @@ export function SmartArtDesignTab(props: { smartArt: SmartArtState }) {
           tooltip="Move Up"
           data-testid="pptx-smartart-move-up"
           disabled={!supported() || index() < 0}
-          onClick={() => void s().moveUp()}
+          onClick={() => fireAndForget(s().moveUp(), 'pptx-editor')}
         >
           <ArrowUp />
         </RibbonButton>
@@ -200,7 +200,7 @@ export function SmartArtDesignTab(props: { smartArt: SmartArtState }) {
           tooltip="Move Down"
           data-testid="pptx-smartart-move-down"
           disabled={!supported() || index() < 0}
-          onClick={() => void s().moveDown()}
+          onClick={() => fireAndForget(s().moveDown(), 'pptx-editor')}
         >
           <ArrowDown />
         </RibbonButton>
@@ -315,7 +315,7 @@ export function SmartArtDesignTab(props: { smartArt: SmartArtState }) {
           tooltip="Discard formatting changes to the graphic"
           data-testid="pptx-smartart-reset"
           disabled={!supported()}
-          onClick={() => void s().reset()}
+          onClick={() => fireAndForget(s().reset(), 'pptx-editor')}
         >
           <ArrowCounterClockwise />
           Reset Graphic

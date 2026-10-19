@@ -630,7 +630,7 @@ export const BulkMoveToProjectView = (props: {
         <Button
           type="button"
           variant="strong"
-          onClick={() => void finishEditing()}
+          onClick={() => fireAndForget(finishEditing(), 'bulk-move-to-project')}
           disabled={!selectedProject()}
         >
           Move

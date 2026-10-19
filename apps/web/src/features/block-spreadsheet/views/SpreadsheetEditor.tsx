@@ -1093,7 +1093,9 @@ export function SpreadsheetEditor(props: {
           hiddenColumns={props.store.activeSheet().metadata?.hiddenColumns}
           canChangeStructure={props.store.canChangeStructure()}
           onCellAction={command}
-          onHeaderAction={(axis, action) => void headerAction(axis, action)}
+          onHeaderAction={(axis, action) =>
+            fireAndForget(headerAction(axis, action), 'spreadsheet-editor')
+          }
           onResizeColumn={props.store.resizeColumn}
           onFill={grid.fill}
           onCopyMetadata={grid.copyMetadata}
@@ -1446,7 +1448,9 @@ export function SpreadsheetEditor(props: {
       />
       <SpreadsheetMoveDialog
         open={!!rangeMove.confirming()}
-        onConfirm={() => void rangeMove.confirm()}
+        onConfirm={() =>
+          fireAndForget(rangeMove.confirm(), 'spreadsheet-editor')
+        }
         onClose={rangeMove.cancel}
         onRestoreFocus={focusGrid}
       />

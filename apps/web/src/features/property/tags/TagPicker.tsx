@@ -767,8 +767,12 @@ function TagPickerBody(props: {
                               if (!event.shiftKey)
                                 fireAndForget(saveAndClose(), 'tag-picker');
                             }}
-                            onEdit={() => void beginEdit(item)}
-                            onOpenTag={() => void openTaggedItems(item)}
+                            onEdit={() =>
+                              fireAndForget(beginEdit(item), 'tag-picker')
+                            }
+                            onOpenTag={() =>
+                              fireAndForget(openTaggedItems(item), 'tag-picker')
+                            }
                             onMouseEnter={() => {
                               if (!dropdown.keyboardMode()) {
                                 dropdown.setSelectedIndex(itemIndex(item));
@@ -803,8 +807,15 @@ function TagPickerBody(props: {
                                   if (!event.shiftKey)
                                     fireAndForget(saveAndClose(), 'tag-picker');
                                 }}
-                                onEdit={() => void beginEdit(item)}
-                                onOpenTag={() => void openTaggedItems(item)}
+                                onEdit={() =>
+                                  fireAndForget(beginEdit(item), 'tag-picker')
+                                }
+                                onOpenTag={() =>
+                                  fireAndForget(
+                                    openTaggedItems(item),
+                                    'tag-picker'
+                                  )
+                                }
                                 onMouseEnter={() => {
                                   if (!dropdown.keyboardMode()) {
                                     dropdown.setSelectedIndex(itemIndex(item));
@@ -882,7 +893,9 @@ function TagPickerBody(props: {
                   setCreateStep('scope');
                 }}
                 onScopeMouseEnter={setSelectedScopeIndex}
-                onScopeSelect={(scope) => void createTag(scope)}
+                onScopeSelect={(scope) =>
+                  fireAndForget(createTag(scope), 'tag-picker')
+                }
               />
             )}
           </Show>

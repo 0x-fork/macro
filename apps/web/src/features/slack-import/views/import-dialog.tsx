@@ -350,12 +350,15 @@ export function ImportDialog(props: Props): JSX.Element {
           depth={2}
           disabled={!selected().size || !confirmed() || busy()}
           onClick={() =>
-            void runAction(() =>
-              controller()!.start({
-                selectedIds: [...selected()],
-                includeMessageHistory: includeHistory(),
-                sourceConfirmed: confirmed(),
-              })
+            fireAndForget(
+              runAction(() =>
+                controller()!.start({
+                  selectedIds: [...selected()],
+                  includeMessageHistory: includeHistory(),
+                  sourceConfirmed: confirmed(),
+                })
+              ),
+              'slack-import'
             )
           }
         >
@@ -372,7 +375,12 @@ export function ImportDialog(props: Props): JSX.Element {
               variant="strong"
               depth={2}
               disabled={busy()}
-              onClick={() => void runAction(() => controller()!.recoverJob())}
+              onClick={() =>
+                fireAndForget(
+                  runAction(() => controller()!.recoverJob()),
+                  'slack-import'
+                )
+              }
             >
               Recover job receipt
             </Button>
@@ -383,7 +391,10 @@ export function ImportDialog(props: Props): JSX.Element {
             depth={2}
             disabled={busy()}
             onClick={() =>
-              void runAction(() => controller()!.finalizeWithSkips())
+              fireAndForget(
+                runAction(() => controller()!.finalizeWithSkips()),
+                'slack-import'
+              )
             }
           >
             Finalize with skips
@@ -397,7 +408,9 @@ export function ImportDialog(props: Props): JSX.Element {
           variant="strong"
           depth={2}
           disabled={busy() || cancelling()}
-          onClick={() => void runAction(finalizeHistory)}
+          onClick={() =>
+            fireAndForget(runAction(finalizeHistory), 'slack-import')
+          }
         >
           Finalize with skips
         </Button>
@@ -450,7 +463,12 @@ export function ImportDialog(props: Props): JSX.Element {
                   inputRef={(input) => {
                     fileInput = input;
                   }}
-                  onChoose={(file) => void runAction(() => chooseFile(file))}
+                  onChoose={(file) =>
+                    fireAndForget(
+                      runAction(() => chooseFile(file)),
+                      'slack-import'
+                    )
+                  }
                 />
               }
             >
@@ -664,7 +682,12 @@ export function ImportDialog(props: Props): JSX.Element {
                   depth={2}
                   label="Refresh progress"
                   disabled={busy()}
-                  onClick={() => void runAction(() => source.refresh())}
+                  onClick={() =>
+                    fireAndForget(
+                      runAction(() => source.refresh()),
+                      'slack-import'
+                    )
+                  }
                 >
                   <ArrowsClockwiseIcon />
                 </Button>
@@ -674,7 +697,7 @@ export function ImportDialog(props: Props): JSX.Element {
                   variant="ghost"
                   depth={2}
                   disabled={cancelPending()}
-                  onClick={() => void cancel()}
+                  onClick={() => fireAndForget(cancel(), 'slack-import')}
                 >
                   Cancel import
                 </Button>

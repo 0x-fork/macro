@@ -1096,8 +1096,10 @@ export function createEmailComposer(props: EmailComposerOptions) {
     captureEditor: setEditor,
 
     // Actions
-    onSend: () => void onSubmit(),
-    onDelete: () => void deleteDraftAndReset().catch(() => {}),
+    onSend: () => fireAndForget(onSubmit(), 'email-compose'),
+    onDelete: () => {
+      deleteDraftAndReset().catch(() => {});
+    },
     schedule: {
       state: schedule.state,
       selectedTime: schedule.selectedTime,

@@ -342,7 +342,12 @@ function NativeShareSheetComposer(props: { handleCancel: () => void }) {
             <Button
               variant="ghost"
               disabled={uploading()}
-              onClick={() => void uploadSharedFiles(failedFiles())}
+              onClick={() =>
+                fireAndForget(
+                  uploadSharedFiles(failedFiles()),
+                  'native-share-sheet'
+                )
+              }
             >
               {uploading() ? 'Retrying…' : 'Retry'}
             </Button>

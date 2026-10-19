@@ -165,7 +165,9 @@ export function ChannelsMobileView(props: {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void props.source.refresh()}
+                onClick={() =>
+                  fireAndForget(props.source.refresh(), 'channels-view')
+                }
               >
                 Try again
               </Button>
@@ -268,7 +270,9 @@ export function ChannelsMobileView(props: {
                 <Button
                   variant="outline"
                   size="xs"
-                  onClick={() => void props.source.refresh()}
+                  onClick={() =>
+                    fireAndForget(props.source.refresh(), 'channels-view')
+                  }
                 >
                   Try again
                 </Button>

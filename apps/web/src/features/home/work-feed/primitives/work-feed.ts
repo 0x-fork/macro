@@ -187,7 +187,9 @@ export function createWorkFeed(options: WorkFeedOptions) {
       });
     };
     follow();
-    const stopReconnects = options.onReconnected?.(() => void refetch());
+    const stopReconnects = options.onReconnected?.(() =>
+      fireAndForget(refetch(), 'home')
+    );
     onCleanup(() => {
       disposed = true;
       pending = [];

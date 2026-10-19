@@ -293,7 +293,9 @@ function ChannelCallsList(props: { channelId: string }) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void source.refresh()}
+                    onClick={() =>
+                      fireAndForget(source.refresh(), 'channel-calls')
+                    }
                   >
                     Try again
                   </Button>

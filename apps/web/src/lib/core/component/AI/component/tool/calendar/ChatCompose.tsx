@@ -146,7 +146,10 @@ export function CalendarChatCompose(props: CalendarChatComposeProps) {
     });
     return persistenceQueue;
   }
-  const debouncedUpdate = debounce(() => void enqueueUpdate(), 150);
+  const debouncedUpdate = debounce(
+    () => fireAndForget(enqueueUpdate(), 'ai-calendar-compose'),
+    150
+  );
 
   function updateLocalResponse(
     response: CreateCalendarEventResponse,

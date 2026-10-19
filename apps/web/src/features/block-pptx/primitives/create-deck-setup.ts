@@ -39,8 +39,11 @@ export function createDeckSetup(options: {
   const [headerFooterOpen, setHeaderFooterOpen] = createSignal(false);
   /** Apply (the selected slides) or Apply to All. */
   const applyHeaderFooter = (form: HeaderFooterForm, all: boolean) =>
-    void commands.setHeaderFooter(
-      headerFooterPatch(form, all ? undefined : options.selectedSlideIds())
+    fireAndForget(
+      commands.setHeaderFooter(
+        headerFooterPatch(form, all ? undefined : options.selectedSlideIds())
+      ),
+      'pptx-editor'
     );
   const [slideSizeOpen, setSlideSizeOpen] = createSignal(false);
   /** A new size waiting for Maximize or Ensure Fit. */
@@ -128,7 +131,7 @@ export function createDeckSetup(options: {
     if (id) setRenaming(id);
   };
   const remove = (id: string, withSlides = false) =>
-    void commands.removeSection(id, withSlides);
+    fireAndForget(commands.removeSection(id, withSlides), 'pptx-editor');
   /** Whether Remove Section & Slides would leave the deck without slides. */
   const holdsEverySlide = (id: string) =>
     (row(id)?.section.slideIds.length ?? 0) >=
@@ -144,7 +147,8 @@ export function createDeckSetup(options: {
     if (row(id)?.index !== index)
       fireAndForget(commands.moveSection(id, index), 'pptx-editor');
   };
-  const removeAll = () => void commands.removeAllSections();
+  const removeAll = () =>
+    fireAndForget(commands.removeAllSections(), 'pptx-editor');
 
   /** Clicking a header selects the section's slides. */
   const select = (id: string) => {

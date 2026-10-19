@@ -62,7 +62,8 @@ export function useFormDatabaseSync(
         ? { entity_type: 'database', entity_id: id }
         : undefined;
     },
-    (entity) => void invalidateDatabase(entity.entity_id)
+    (entity) =>
+      fireAndForget(invalidateDatabase(entity.entity_id), 'forms-sync')
   );
   useDatabaseMetadataChanges((change) => {
     if (!isEditor() || change.databaseId !== databaseId()) return;

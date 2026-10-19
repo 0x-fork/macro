@@ -257,7 +257,10 @@ function TableAdapter(props: DatabaseGridProps & { tableId: string }) {
       if (positions.isSuccess)
         return { kind: 'ready', positions: positions.data };
       if (positions.isError)
-        return { kind: 'failed', retry: () => void positions.refetch() };
+        return {
+          kind: 'failed',
+          retry: () => fireAndForget(positions.refetch(), 'database-view'),
+        };
       return { kind: 'loading' };
     },
     setPositions: (change) => {

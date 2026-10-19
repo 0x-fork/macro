@@ -169,7 +169,8 @@ export function LayersPanel(props: { viewer: AiViewer; editor: AiEditor }) {
       fireAndForget(editor.apply([{ op: 'move', ...move }]), 'ai-editor');
   };
 
-  const deleteSelected = () => void editor.deleteSelection();
+  const deleteSelected = () =>
+    fireAndForget(editor.deleteSelection(), 'ai-editor');
 
   return (
     <div
@@ -187,7 +188,7 @@ export function LayersPanel(props: { viewer: AiViewer; editor: AiEditor }) {
           tooltip="New layer"
           data-testid="ai-layer-new"
           disabled={!editor.enabled()}
-          onClick={() => void editor.newLayer()}
+          onClick={() => fireAndForget(editor.newLayer(), 'ai-editor')}
         >
           <Plus />
         </Button>
@@ -238,16 +239,25 @@ export function LayersPanel(props: { viewer: AiViewer; editor: AiEditor }) {
                 }}
                 onRename={(name) => rename(row.id, name)}
                 onHidden={() =>
-                  void editor.setNodes({ hidden: !row.hidden }, [row.id])
+                  fireAndForget(
+                    editor.setNodes({ hidden: !row.hidden }, [row.id]),
+                    'ai-editor'
+                  )
                 }
                 onLocked={() =>
-                  void editor.setNodes({ locked: !row.locked }, [row.id])
+                  fireAndForget(
+                    editor.setNodes({ locked: !row.locked }, [row.id]),
+                    'ai-editor'
+                  )
                 }
                 onColor={
                   editor.enabled() ? () => cycleColor(row.id) : undefined
                 }
                 onHover={(inside) =>
-                  void viewer.hoverNode(inside ? row.id : undefined)
+                  fireAndForget(
+                    viewer.hoverNode(inside ? row.id : undefined),
+                    'ai-editor'
+                  )
                 }
                 drag={
                   editor.enabled()

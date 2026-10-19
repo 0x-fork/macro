@@ -67,7 +67,7 @@ export function SlackChannelImportFlow(props: {
             <Button
               variant="accent"
               disabled={busy()}
-              onClick={() => void connect()}
+              onClick={() => fireAndForget(connect(), 'slack-import')}
             >
               {busy() ? 'Connecting Slack…' : 'Connect Slack to continue'}
             </Button>

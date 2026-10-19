@@ -229,7 +229,8 @@ export function ChannelCompose() {
       fireAndForget(inputState.commands.send(), 'block-channel');
       return true;
     },
-    sendMessage: () => void inputState.commands.send(),
+    sendMessage: () =>
+      fireAndForget(inputState.commands.send(), 'block-channel'),
     onPasteFilesAndDirs: (files, directories) => {
       fireAndForget(
         handleFileFolderDrop(files, directories, (entries) =>

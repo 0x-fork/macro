@@ -346,7 +346,10 @@ function usePushNotifications(
       notificationWatch = undefined;
       console.error('failed to watch push notifications', error);
       if (!disposed) {
-        watchRetryTimeout = setTimeout(() => void startWatch(), 1000);
+        watchRetryTimeout = setTimeout(
+          () => fireAndForget(startWatch(), 'push-notifications'),
+          1000
+        );
       }
     }
   }

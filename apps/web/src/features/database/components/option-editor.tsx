@@ -118,10 +118,13 @@ export function OptionEditor(props: {
             size="sm"
             value={props.option.color}
             onChange={(color) =>
-              void settle(
-                props.editing.update(props.column.id, props.option.id, {
-                  color: color.color,
-                })
+              fireAndForget(
+                settle(
+                  props.editing.update(props.column.id, props.option.id, {
+                    color: color.color,
+                  })
+                ),
+                'database'
               )
             }
           />

@@ -77,7 +77,9 @@ export function createLayoutAids(options: {
   };
   // The engine is an external system: read it again after every edit.
   createEffect(
-    on([viewer.page, viewer.editVersion, viewer.layout], () => void load())
+    on([viewer.page, viewer.editVersion, viewer.layout], () =>
+      fireAndForget(load(), 'fig-layout-aids')
+    )
   );
 
   let spacingRequest = 0;

@@ -98,7 +98,9 @@ export function createFigLibraries(options: {
     }
   };
   // File-wide, so once per pause in a stream of edits (a drag's steps).
-  createEffect(on(viewer.editsSettled, () => void loadState()));
+  createEffect(
+    on(viewer.editsSettled, () => fireAndForget(loadState(), 'fig-libraries'))
+  );
 
   /** Starts (or stops) keeping the publishing state current. */
   const watchStatus = (on: boolean) => {

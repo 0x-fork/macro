@@ -450,7 +450,9 @@ export function TagsMenu(props: {
                       setCreateStep('scope');
                     }}
                     onScopeMouseEnter={setSelectedScopeIndex}
-                    onScopeSelect={(scope) => void createTag(scope)}
+                    onScopeSelect={(scope) =>
+                      fireAndForget(createTag(scope), 'tags-menu')
+                    }
                   />
                 )}
               </Show>

@@ -180,7 +180,7 @@ export function PipedreamAiProvider(props: {
   const actions = (): JSX.Element => (
     <AiGrantActions
       status={status()}
-      onConnect={() => void connect()}
+      onConnect={() => fireAndForget(connect(), 'connections-settings')}
       onReconnect={reconnect}
       onEnable={() => setEnabled(true)}
       onDisable={() => setEnabled(false)}

@@ -327,7 +327,9 @@ export function createMeetingMedia(
       ),
     prepare: async () => {
       const current = ++preparation;
-      watchingDevices ??= access?.onDeviceChange?.(() => void refreshDevices());
+      watchingDevices ??= access?.onDeviceChange?.(() =>
+        fireAndForget(refreshDevices(), 'meeting-media')
+      );
       fireAndForget(refreshDevices(), 'meeting-media');
       setErrors({});
       await runExclusive(async () => {

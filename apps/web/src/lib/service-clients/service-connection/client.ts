@@ -124,7 +124,10 @@ export function useEntitySubscription(
     on(target, (value) => {
       if (!value) return;
       const track = (action: TrackEntityMessage['action']) =>
-        void connectionGatewayClient.trackEntity({ ...value, action });
+        fireAndForget(
+          connectionGatewayClient.trackEntity({ ...value, action }),
+          'connection-gateway'
+        );
       track('open');
       const callbacks = trackedEntities.get(value.entity_id)!.refreshCallbacks;
       if (onRefresh) {

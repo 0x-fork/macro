@@ -108,7 +108,7 @@ export function AttachNativeMediaAction() {
       />
       <InputActionButton
         label="Attach photos or videos"
-        onClick={() => void onAttachMedia()}
+        onClick={() => fireAndForget(onAttachMedia(), 'channel-input')}
       >
         <PaperclipIcon />
       </InputActionButton>

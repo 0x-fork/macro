@@ -192,7 +192,8 @@ function FigHost(props: {
                 context={{
                   engine: e(),
                   fileName: props.fileName,
-                  download: (blob, name) => void downloadFile(blob, name),
+                  download: (blob, name) =>
+                    fireAndForget(downloadFile(blob, name), 'fig-viewer'),
                   notifyError: (message) => toast.failure(message),
                   notifyInfo: (message) => toast.success(message),
                   canEdit,
@@ -267,7 +268,7 @@ function DesignSession(props: {
 }) {
   const userId = useUserId();
   const opening = prepareFigEngine(props.bytes);
-  onCleanup(() => void opening.dispose());
+  onCleanup(() => fireAndForget(opening.dispose(), 'fig-viewer'));
   const session = createDesignCollabSession({
     documentId: props.documentId,
     userId: userId(),
@@ -405,7 +406,7 @@ export default function FigBlock(props: { share?: string; present?: string }) {
                 group: 'file',
                 label: 'Download',
                 icon: DownloadSimple,
-                action: () => void download(),
+                action: () => fireAndForget(download(), 'fig-viewer'),
               },
               { op: 'delete' },
             ]}
@@ -425,7 +426,11 @@ export default function FigBlock(props: { share?: string; present?: string }) {
               {(d) => (
                 <Show
                   when={d.bytes}
-                  fallback={<DownloadOnly onDownload={() => void download()} />}
+                  fallback={
+                    <DownloadOnly
+                      onDownload={() => fireAndForget(download(), 'fig-viewer')}
+                    />
+                  }
                 >
                   {(bytes) => (
                     <CollaborativeFigHost

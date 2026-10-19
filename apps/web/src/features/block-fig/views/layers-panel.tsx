@@ -407,7 +407,9 @@ export function LayersPanel(props: {
             data-testid="fig-layer-search"
             class="h-7 min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
             value={query()}
-            onInput={(e) => void search(e.currentTarget.value)}
+            onInput={(e) =>
+              fireAndForget(search(e.currentTarget.value), 'fig-layers-panel')
+            }
             onKeyDown={(e) => {
               e.stopPropagation();
               if (e.key === 'Escape') {
@@ -462,7 +464,7 @@ export function LayersPanel(props: {
                 aria-label="Add page"
                 data-testid="fig-page-add"
                 class="flex size-6 items-center justify-center rounded text-ink-muted hover:bg-hover hover:text-ink"
-                onClick={() => void addPage()}
+                onClick={() => fireAndForget(addPage(), 'fig-layers-panel')}
               >
                 <Plus class="size-3.5" />
               </button>
@@ -493,7 +495,12 @@ export function LayersPanel(props: {
                             type="button"
                             data-testid="fig-page"
                             class="min-w-0 flex-1 truncate text-left"
-                            onClick={() => void viewer.openPage(p.index)}
+                            onClick={() =>
+                              fireAndForget(
+                                viewer.openPage(p.index),
+                                'fig-layers-panel'
+                              )
+                            }
                             onDblClick={() => {
                               if (props.editor?.enabled())
                                 setRenamingPage(p.id);
@@ -512,9 +519,12 @@ export function LayersPanel(props: {
                               data-testid="fig-page-delete"
                               class="invisible rounded p-0.5 text-ink-muted hover:text-ink group-hover:visible"
                               onClick={() =>
-                                void props.editor?.apply([
-                                  { op: 'delete', ids: [p.id] },
-                                ])
+                                fireAndForget(
+                                  props.editor?.apply([
+                                    { op: 'delete', ids: [p.id] },
+                                  ]),
+                                  'fig-layers-panel'
+                                )
                               }
                             >
                               <Trash class="size-3" />

@@ -175,7 +175,12 @@ function CalendarPageDataStatus(props: {
               variant="accent"
               size="sm"
               label="Retry loading calendar"
-              onClick={() => void props.data.occurrencesQuery.refetch()}
+              onClick={() =>
+                fireAndForget(
+                  props.data.occurrencesQuery.refetch(),
+                  'calendar-view'
+                )
+              }
             >
               Retry
             </Button>

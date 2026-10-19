@@ -603,7 +603,7 @@ export function PptxEditor() {
     context,
     slideSize: () => ({ w: slideW(), h: slideH() }),
     refocus,
-    startEditing: (id) => void startEditing(id),
+    startEditing: (id) => fireAndForget(startEditing(id), 'block-pptx'),
     tableTarget,
     slideSelection: selectedSlideIds,
     collaborative: () => !!engine.collaborative,
@@ -1564,7 +1564,8 @@ export function PptxEditor() {
     }
     fireAndForget(clipboard.cut(), 'block-pptx');
   };
-  const pasteCommand = () => void clipboard.pasteCommand();
+  const pasteCommand = () =>
+    fireAndForget(clipboard.pasteCommand(), 'block-pptx');
 
   // ---- panes, find, slide show -----------------------------------------------
 
@@ -1782,7 +1783,8 @@ export function PptxEditor() {
       word: hit.word,
       suggestions: spell.suggest(hit.word),
       readonly: readonly(),
-      replace: (suggestion: string) => void spell.replace([hit], suggestion),
+      replace: (suggestion: string) =>
+        fireAndForget(spell.replace([hit], suggestion), 'block-pptx'),
       ignoreAll: () => spell.ignoreAll(hit.word),
       addToDictionary: () => spell.addToDictionary(hit.word),
     };
@@ -1936,14 +1938,14 @@ export function PptxEditor() {
     standardColors: STANDARD_SWATCHES,
     presetPaths: engine.presetPaths,
     history: session.history,
-    undo: () => void undo(),
-    redo: () => void redo(),
+    undo: () => fireAndForget(undo(), 'block-pptx'),
+    redo: () => fireAndForget(redo(), 'block-pptx'),
     copy: copyCommand,
     cut: cutCommand,
     paste: pasteCommand,
     formatPainter: painter,
     openFormatPane: (section) => setPane(section ?? 'shape'),
-    openLink: () => void openLinkDialog(),
+    openLink: () => fireAndForget(openLinkDialog(), 'block-pptx'),
     selectionPane: { open: selectionPane, toggle: toggleSelectionPane },
     view,
     present,
@@ -1955,15 +1957,15 @@ export function PptxEditor() {
     animation: animationEnv,
     notesVisible,
     toggleNotes: () => setNotesVisible((v) => !v),
-    download: () => void download(),
+    download: () => fireAndForget(download(), 'block-pptx'),
     recentFonts,
     deckSetup,
-    openSlideMaster: () => void openSlideMaster(),
+    openSlideMaster: () => fireAndForget(openSlideMaster(), 'block-pptx'),
     review: { comments, spelling: openSpelling },
     shapeGeometry: {
-      toggleEditPoints: () => void editPoints.toggle(),
+      toggleEditPoints: () => fireAndForget(editPoints.toggle(), 'block-pptx'),
       editingPoints: editPoints.active,
-      merge: (mode) => void commands.mergeShapes(mode),
+      merge: (mode) => fireAndForget(commands.mergeShapes(mode), 'block-pptx'),
     },
     ...(engine.renderEquation
       ? {
@@ -2208,11 +2210,19 @@ export function PptxEditor() {
             onSelect={selectSlide}
             onSelectAll={selectAllSlides}
             onOpen={props.grid ? openFromSorter : undefined}
-            onMove={(ids, at) => void commands.moveSlides(ids, at)}
-            onAdd={() => void commands.addSlide()}
-            onDuplicate={(id) => void commands.duplicateSlide(id)}
-            onDelete={(ids) => void commands.deleteSlides(ids)}
-            onToggleHidden={(s) => void commands.toggleHidden(s)}
+            onMove={(ids, at) =>
+              fireAndForget(commands.moveSlides(ids, at), 'block-pptx')
+            }
+            onAdd={() => fireAndForget(commands.addSlide(), 'block-pptx')}
+            onDuplicate={(id) =>
+              fireAndForget(commands.duplicateSlide(id), 'block-pptx')
+            }
+            onDelete={(ids) =>
+              fireAndForget(commands.deleteSlides(ids), 'block-pptx')
+            }
+            onToggleHidden={(s) =>
+              fireAndForget(commands.toggleHidden(s), 'block-pptx')
+            }
             peersOn={collaboration ? peersOn : undefined}
             menu={railMenu}
             onCopy={(e) => {
@@ -2291,7 +2301,9 @@ export function PptxEditor() {
         icon={Plus}
         shortcut="cmd+m"
         disabled={readonly()}
-        onClick={() => void commands.addSlide(undefined, slide?.id)}
+        onClick={() =>
+          fireAndForget(commands.addSlide(undefined, slide?.id), 'block-pptx')
+        }
       />
       <Show when={slide}>
         {(s) => (
@@ -2300,7 +2312,9 @@ export function PptxEditor() {
               text={many() ? 'Duplicate slides' : 'Duplicate slide'}
               icon={CopySimple}
               disabled={readonly()}
-              onClick={() => void commands.duplicateSlide(s().id)}
+              onClick={() =>
+                fireAndForget(commands.duplicateSlide(s().id), 'block-pptx')
+              }
             />
             <MenuItem
               text={many() ? 'Delete slides' : 'Delete slide'}
@@ -2310,12 +2324,19 @@ export function PptxEditor() {
                 selectedSlideIds().length >=
                   (session.outline()?.slides.length ?? 0)
               }
-              onClick={() => void commands.deleteSlides(selectedSlideIds())}
+              onClick={() =>
+                fireAndForget(
+                  commands.deleteSlides(selectedSlideIds()),
+                  'block-pptx'
+                )
+              }
             />
             <MenuItem
               text="Add Section"
               disabled={readonly()}
-              onClick={() => void deckSetup.sections.add(s().id)}
+              onClick={() =>
+                fireAndForget(deckSetup.sections.add(s().id), 'block-pptx')
+              }
             />
             <MenuSeparator />
             <ContextMenu.Sub overlap gutter={2}>
@@ -2329,7 +2350,12 @@ export function PptxEditor() {
                       <MenuItem
                         text={layout.name}
                         disabled={readonly()}
-                        onClick={() => void commands.setLayout(layout.name)}
+                        onClick={() =>
+                          fireAndForget(
+                            commands.setLayout(layout.name),
+                            'block-pptx'
+                          )
+                        }
                       />
                     )}
                   </For>
@@ -2349,7 +2375,9 @@ export function PptxEditor() {
               }
               icon={EyeSlash}
               disabled={readonly()}
-              onClick={() => void commands.toggleHidden(s())}
+              onClick={() =>
+                fireAndForget(commands.toggleHidden(s()), 'block-pptx')
+              }
             />
           </>
         )}
@@ -2368,14 +2396,16 @@ export function PptxEditor() {
           text="Insert Layout"
           icon={Layout}
           disabled={readonly()}
-          onClick={() => void master.insertLayout(page)}
+          onClick={() => fireAndForget(master.insertLayout(page), 'block-pptx')}
         />
         <Show when={page?.layout}>
           <MenuItem
             text="Duplicate Layout"
             icon={CopySimple}
             disabled={readonly()}
-            onClick={() => void master.duplicateLayout(page)}
+            onClick={() =>
+              fireAndForget(master.duplicateLayout(page), 'block-pptx')
+            }
           />
         </Show>
         <Show when={page}>
@@ -2383,7 +2413,7 @@ export function PptxEditor() {
             text={`Delete ${what()}`}
             icon={Trash}
             disabled={readonly() || !!blocked()}
-            onClick={() => void master.deletePage(page)}
+            onClick={() => fireAndForget(master.deletePage(page), 'block-pptx')}
           />
           <MenuItem
             text={`Rename ${what()}`}
@@ -2424,7 +2454,7 @@ export function PptxEditor() {
               label="Undo"
               tooltip="Undo (⌘Z)"
               disabled={!session.history().canUndo}
-              onClick={() => void undo()}
+              onClick={() => fireAndForget(undo(), 'block-pptx')}
             >
               <ArrowCounterClockwise />
             </RibbonButton>
@@ -2432,7 +2462,7 @@ export function PptxEditor() {
               label="Redo"
               tooltip="Redo (⇧⌘Z)"
               disabled={!session.history().canRedo}
-              onClick={() => void redo()}
+              onClick={() => fireAndForget(redo(), 'block-pptx')}
             >
               <ArrowClockwise />
             </RibbonButton>
@@ -2447,7 +2477,9 @@ export function PptxEditor() {
                 class="flex items-center gap-1 rounded-md px-1.5 py-1 text-ink-muted text-xs hover:bg-ink/5"
                 data-testid="pptx-save-state"
                 title="Save (⌘S)"
-                onClick={() => void session.save().catch(() => {})}
+                onClick={() => {
+                  session.save().catch(() => {});
+                }}
               >
                 <Show
                   when={session.saveState() === 'error'}
@@ -2477,7 +2509,7 @@ export function PptxEditor() {
             <RibbonButton
               label="Download"
               tooltip="Download .pptx"
-              onClick={() => void download()}
+              onClick={() => fireAndForget(download(), 'block-pptx')}
             >
               <DownloadSimple />
             </RibbonButton>
@@ -2515,7 +2547,9 @@ export function PptxEditor() {
               thumbnailPixels={Math.round(thumbnailWidth() * dpr())}
               readonly={readonly()}
               onSelect={(index) => editor.goToSlide(index)}
-              onDelete={(page) => void master.deletePage(page)}
+              onDelete={(page) =>
+                fireAndForget(master.deletePage(page), 'block-pptx')
+              }
               menu={masterMenu}
             />
           )}
@@ -2755,7 +2789,10 @@ export function PptxEditor() {
                                 }
                               }}
                               onBlur={(e) =>
-                                void commitCell(e.currentTarget.value)
+                                fireAndForget(
+                                  commitCell(e.currentTarget.value),
+                                  'block-pptx'
+                                )
                               }
                             />
                           )}
@@ -2802,11 +2839,16 @@ export function PptxEditor() {
                                   setPane(section ?? 'shape'),
                                 replacePicture: () =>
                                   replacePictureInput.click(),
-                                crop: () => void crop.enter(),
+                                crop: () =>
+                                  fireAndForget(crop.enter(), 'block-pptx'),
                                 editPoints: canEditPoints(
                                   editor.selectedShape()
                                 )
-                                  ? () => void editPoints.enter()
+                                  ? () =>
+                                      fireAndForget(
+                                        editPoints.enter(),
+                                        'block-pptx'
+                                      )
                                   : undefined,
                                 editChartData: () => {
                                   const s = editor.selectedShape();
@@ -2830,7 +2872,11 @@ export function PptxEditor() {
                                 ),
                                 currentLayout: session.currentSlide()?.layout,
                                 swatches: swatches(),
-                                newSlide: () => void commands.addSlide(),
+                                newSlide: () =>
+                                  fireAndForget(
+                                    commands.addSlide(),
+                                    'block-pptx'
+                                  ),
                                 hideSlide: () => {
                                   const s = session.currentSlide();
                                   if (s)
@@ -2848,9 +2894,14 @@ export function PptxEditor() {
                                 selectionCount: editor.selection().length,
                                 textShape:
                                   !!editor.selectedShape()?.textEditable,
-                                savePicture: () => void saveShapePicture(),
+                                savePicture: () =>
+                                  fireAndForget(
+                                    saveShapePicture(),
+                                    'block-pptx'
+                                  ),
                                 link: menuLink(),
-                                editLink: () => void openLinkDialog(),
+                                editLink: () =>
+                                  fireAndForget(openLinkDialog(), 'block-pptx'),
                                 openLink: followLink,
                                 guides: {
                                   shown: view.options().drawingGuides,
@@ -2869,10 +2920,21 @@ export function PptxEditor() {
                                     view.set({
                                       guides: !view.options().guides,
                                     }),
-                                  add: (orient) => void guides.add(orient),
-                                  remove: (index) => void guides.remove(index),
+                                  add: (orient) =>
+                                    fireAndForget(
+                                      guides.add(orient),
+                                      'block-pptx'
+                                    ),
+                                  remove: (index) =>
+                                    fireAndForget(
+                                      guides.remove(index),
+                                      'block-pptx'
+                                    ),
                                   recolor: (index, color) =>
-                                    void guides.recolor(index, color),
+                                    fireAndForget(
+                                      guides.recolor(index, color),
+                                      'block-pptx'
+                                    ),
                                 },
                                 removeLink: () => {
                                   const target = commands.linkTarget();
@@ -3056,11 +3118,21 @@ export function PptxEditor() {
                   onSelect={(id, toggle) =>
                     toggle ? editor.toggleSelected(id) : editor.select(id)
                   }
-                  onRename={(id, name) => void commands.renameShape(id, name)}
-                  onHide={(ids, hidden) =>
-                    void commands.setShapesHidden(ids, hidden)
+                  onRename={(id, name) =>
+                    fireAndForget(commands.renameShape(id, name), 'block-pptx')
                   }
-                  onMove={(id, steps) => void commands.moveInZOrder(id, steps)}
+                  onHide={(ids, hidden) =>
+                    fireAndForget(
+                      commands.setShapesHidden(ids, hidden),
+                      'block-pptx'
+                    )
+                  }
+                  onMove={(id, steps) =>
+                    fireAndForget(
+                      commands.moveInZOrder(id, steps),
+                      'block-pptx'
+                    )
+                  }
                   onClose={() => {
                     setSelectionPane(false);
                     refocus();
@@ -3160,9 +3232,11 @@ export function PptxEditor() {
               aria-label="Normal view"
               title="Normal"
               data-testid="pptx-view-normal"
-              onClick={() =>
-                masterActive() ? void closeSlideMaster() : setSorter(false)
-              }
+              onClick={() => {
+                if (masterActive())
+                  fireAndForget(closeSlideMaster(), 'pptx-editor');
+                else setSorter(false);
+              }}
             >
               <Rectangle class="size-3.5" />
             </button>
@@ -3174,11 +3248,14 @@ export function PptxEditor() {
               aria-label="Slide sorter"
               title="Slide sorter"
               data-testid="pptx-view-sorter"
-              onClick={() =>
-                masterActive()
-                  ? void closeSlideMaster().then(() => setSorter(true))
-                  : setSorter(true)
-              }
+              onClick={() => {
+                if (masterActive())
+                  fireAndForget(
+                    closeSlideMaster().then(() => setSorter(true)),
+                    'pptx-editor'
+                  );
+                else setSorter(true);
+              }}
             >
               <SquaresFour class="size-3.5" />
             </button>
@@ -3255,7 +3332,9 @@ export function PptxEditor() {
         <SmartArtDialog
           catalog={smartArt.catalog()}
           preview={smartArt.preview}
-          onInsert={(layout) => void smartArt.insert(layout)}
+          onInsert={(layout) =>
+            fireAndForget(smartArt.insert(layout), 'block-pptx')
+          }
           onClose={() => {
             smartArt.dialog.setOpen(false);
             queueMicrotask(refocus);
@@ -3326,7 +3405,9 @@ export function PptxEditor() {
           <RenameLayoutDialog
             master={!page().layout}
             name={page().layout?.name ?? page().master.name}
-            onRename={(name) => void master.rename(page(), name)}
+            onRename={(name) =>
+              fireAndForget(master.rename(page(), name), 'block-pptx')
+            }
             onClose={() => {
               master.stopRename();
               queueMicrotask(refocus);

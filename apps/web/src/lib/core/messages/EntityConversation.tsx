@@ -139,7 +139,9 @@ export function EntityConversation(props: {
               <button
                 class="text-xs"
                 disabled={query.isFetching}
-                onClick={() => void query.fetchNextPage()}
+                onClick={() =>
+                  fireAndForget(query.fetchNextPage(), 'entity-conversation')
+                }
               >
                 Load earlier comments
               </button>
@@ -164,7 +166,12 @@ export function EntityConversation(props: {
               <button
                 class="text-xs"
                 disabled={query.isFetching}
-                onClick={() => void query.fetchPreviousPage()}
+                onClick={() =>
+                  fireAndForget(
+                    query.fetchPreviousPage(),
+                    'entity-conversation'
+                  )
+                }
               >
                 Load newer comments
               </button>

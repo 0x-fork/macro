@@ -376,7 +376,7 @@ export function Harness(props: { onBack?: () => void } = {}) {
             harnessName={harness.name}
             pending={deleteHarnessMutation.isPending}
             onClose={() => setRemovingHarness(undefined)}
-            onConfirm={() => void removeHarness()}
+            onConfirm={() => fireAndForget(removeHarness(), 'harness-settings')}
           />
         )}
       </Show>

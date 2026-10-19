@@ -161,7 +161,7 @@ export function TextEditor(props: {
             fireAndForget(finish(), 'block-psd');
           }
         }}
-        onBlur={() => void finish()}
+        onBlur={() => fireAndForget(finish(), 'block-psd')}
       />
       <div class="mt-1 flex items-center justify-between text-[11px] text-ink-muted">
         <Show when={editing()} fallback={<span>New text</span>}>

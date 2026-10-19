@@ -913,7 +913,9 @@ function NativeUpdateRow() {
               variant="accent"
               size="sm"
               depth={3}
-              onClick={() => void tauri?.restartNativeUpdate()}
+              onClick={() =>
+                fireAndForget(tauri?.restartNativeUpdate(), 'native-updates')
+              }
             >
               Restart to update
             </Button>

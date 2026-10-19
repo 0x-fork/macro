@@ -443,7 +443,9 @@ export function TaskList(props: TaskListProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void source.refresh()}
+                    onClick={() =>
+                      fireAndForget(source.refresh(), 'tasks-view')
+                    }
                   >
                     Try again
                   </Button>
@@ -458,7 +460,9 @@ export function TaskList(props: TaskListProps) {
                       variant="outline"
                       size="sm"
                       disabled={source.isLoadingMore()}
-                      onClick={() => void source.loadMore()}
+                      onClick={() =>
+                        fireAndForget(source.loadMore(), 'tasks-view')
+                      }
                     >
                       <Show
                         when={source.isLoadingMore()}

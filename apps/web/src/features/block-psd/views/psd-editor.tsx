@@ -410,7 +410,10 @@ export function PsdEditor() {
     on([editor.ready, editor.editVersion], ([ready]) => {
       if (!ready) return;
       clearTimeout(fontsTimer);
-      fontsTimer = setTimeout(() => void loadFonts(), 400);
+      fontsTimer = setTimeout(
+        () => fireAndForget(loadFonts(), 'block-psd'),
+        400
+      );
     })
   );
   onCleanup(() => clearTimeout(fontsTimer));
@@ -488,7 +491,7 @@ export function PsdEditor() {
             tooltip={`Undo · ${IS_MAC ? '⌘Z' : 'Ctrl+Z'}`}
             disabled={!editor.canUndo()}
             data-testid="psd-undo"
-            onClick={() => void editor.undo()}
+            onClick={() => fireAndForget(editor.undo(), 'block-psd')}
           >
             <ArrowUUpLeft />
           </Button>
@@ -499,7 +502,7 @@ export function PsdEditor() {
             tooltip={`Redo · ${IS_MAC ? '⇧⌘Z' : 'Ctrl+⇧Z'}`}
             disabled={!editor.canRedo()}
             data-testid="psd-redo"
-            onClick={() => void editor.redo()}
+            onClick={() => fireAndForget(editor.redo(), 'block-psd')}
           >
             <ArrowUUpRight />
           </Button>
@@ -541,8 +544,12 @@ export function PsdEditor() {
         pending={pending()}
         onBrush={view.setBrush}
         onOptions={view.setToolOptions}
-        onCommit={() => void tools.commit()}
-        onCancel={() => void tools.cancel()}
+        onCommit={() => {
+          tools.commit();
+        }}
+        onCancel={() => {
+          tools.cancel();
+        }}
       >
         <Button
           variant="ghost"
@@ -588,7 +595,8 @@ export function PsdEditor() {
             onPointer={collab ? setPointer : undefined}
             onDropFiles={
               editor.enabled()
-                ? (files, at) => void dropFiles(files, at)
+                ? (files, at) =>
+                    fireAndForget(dropFiles(files, at), 'block-psd')
                 : undefined
             }
           >

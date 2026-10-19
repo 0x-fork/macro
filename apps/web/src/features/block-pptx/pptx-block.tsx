@@ -324,7 +324,7 @@ export default function PptxBlock(props: { share?: string }) {
               group: 'file',
               label: 'Download',
               icon: DownloadSimple,
-              action: () => void downloadCurrent(),
+              action: () => fireAndForget(downloadCurrent(), 'pptx-download'),
             },
             { op: 'delete' },
           ]}
@@ -345,7 +345,11 @@ export default function PptxBlock(props: { share?: string }) {
               <Show
                 when={d.bytes}
                 fallback={
-                  <DownloadOnly onDownload={() => void downloadCurrent()} />
+                  <DownloadOnly
+                    onDownload={() =>
+                      fireAndForget(downloadCurrent(), 'pptx-download')
+                    }
+                  />
                 }
               >
                 {(bytes) => (

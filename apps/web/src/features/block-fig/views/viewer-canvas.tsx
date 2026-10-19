@@ -1401,7 +1401,7 @@ export function ViewerCanvas(props: {
         if (!drag) hoverAt(undefined);
         props.onPointer?.(null);
       }}
-      onDblClick={(e) => void onDoubleClick(e)}
+      onDblClick={(e) => fireAndForget(onDoubleClick(e), 'fig-canvas')}
       onDragOver={(e) => {
         const types = e.dataTransfer?.types ?? [];
         const ours = !!props.drop && types.includes(props.drop.type);

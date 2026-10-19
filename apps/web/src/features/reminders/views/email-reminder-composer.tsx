@@ -144,7 +144,11 @@ export function EmailReminderComposer(
       pending={pending()}
       ready={query.isSuccess}
       error={query.isError ? 'Couldn’t load this email reminder.' : error()}
-      onRetry={query.isError ? () => void query.refetch() : undefined}
+      onRetry={
+        query.isError
+          ? () => fireAndForget(query.refetch(), 'reminders')
+          : undefined
+      }
       onSave={save}
       onRemove={
         active()

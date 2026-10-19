@@ -215,7 +215,7 @@ export function BookingPicker(props: {
               fallback={
                 <form
                   class="mx-auto flex max-w-lg flex-col gap-5"
-                  onSubmit={(e) => void submit(e)}
+                  onSubmit={(e) => fireAndForget(submit(e), 'scheduling')}
                 >
                   <Button
                     type="button"

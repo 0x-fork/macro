@@ -201,7 +201,10 @@ export default function SignatureEditor(props: {
         uploader: {
           mimetypes: IMAGE_MIME_TYPES,
           handler: (range: { index: number; length: number }, files: File[]) =>
-            void uploadAndInsertImages(range.index, range.length, files),
+            fireAndForget(
+              uploadAndInsertImages(range.index, range.length, files),
+              'signature-editor'
+            ),
         },
       },
     });

@@ -449,7 +449,9 @@ function ReviewsRoot() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => void listSource.retry()}
+                  onClick={() =>
+                    fireAndForget(listSource.retry(), 'reviews-view')
+                  }
                 >
                   Try again
                 </Button>
@@ -467,7 +469,7 @@ function ReviewsRoot() {
                 scope={JSON.stringify([scope(), activeFilters(), search()])}
                 hasMore={source.hasMore()}
                 isLoadingMore={source.isLoadingMore()}
-                onLoadMore={() => void loadMore()}
+                onLoadMore={() => fireAndForget(loadMore(), 'reviews-view')}
                 onOpen={openReview}
               />
             </Match>

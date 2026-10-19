@@ -167,7 +167,9 @@ export function ComposeDocument(props: ComposeDocumentProps) {
         <div class="flex-1 flex items-center">
           <Show when={panel.handle.isPopover()}>
             <Button
-              onMouseDown={() => void submit(true)}
+              onMouseDown={() =>
+                fireAndForget(submit(true), 'compose-document')
+              }
               disabled={isCreating()}
               tabIndex={-1}
               tooltip="Continue editing in split"
@@ -229,7 +231,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
             submitButton = button;
           }}
           variant="strong"
-          onClick={() => void submit()}
+          onClick={() => fireAndForget(submit(), 'compose-document')}
           disabled={!title().trim() || isCreating()}
           hasContent={!!title().trim()}
         >

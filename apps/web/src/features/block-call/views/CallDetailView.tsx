@@ -172,7 +172,9 @@ export function CallDetailContent(props: {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void props.query.refetch()}
+                    onClick={() =>
+                      fireAndForget(props.query.refetch(), 'call-detail')
+                    }
                   >
                     Retry
                   </Button>

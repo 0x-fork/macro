@@ -146,7 +146,7 @@ export function BuilderView(props: BuilderViewProps) {
   );
   context.followTable(
     () => props.detail.form.databaseId,
-    () => void props.source.refetch()
+    () => fireAndForget(props.source.refetch(), 'form-builder')
   );
   const columnWrites = createMemo(() =>
     context.columns(props.detail.form.databaseId, props.detail.form.tableId)
@@ -415,7 +415,10 @@ function BuilderCanvas(
       return id;
     },
     dropNewQuestion: (type, placement) =>
-      void insertQuestion(questionChoice(type), placement),
+      fireAndForget(
+        insertQuestion(questionChoice(type), placement),
+        'form-builder'
+      ),
     describe,
     describePlacement: (questionId, placement) =>
       placementDescription(layout(), questionId, placement),
@@ -665,7 +668,9 @@ function BuilderCanvas(
                 <ConversionNotice
                   message={pending().message}
                   label={pending().label}
-                  onConvert={() => void builder.convertQuestion()}
+                  onConvert={() =>
+                    fireAndForget(builder.convertQuestion(), 'form-builder')
+                  }
                   onDismiss={builder.dismissConversion}
                 />
               )}
@@ -1338,7 +1343,10 @@ function BuilderCanvas(
                     editors={editors(itemProps.sectionId, current().id)}
                     onSelect={() => builder.select(current().id)}
                     onRename={(name) =>
-                      void builder.renameQuestion(current().id, name)
+                      fireAndForget(
+                        builder.renameQuestion(current().id, name),
+                        'form-builder'
+                      )
                     }
                     onHelpText={(helpText) =>
                       builder.updateQuestion(current().id, { helpText })
@@ -1372,10 +1380,13 @@ function BuilderCanvas(
                           tables={relationTables()}
                           disabled={builder.isColumnBusy(columnFacts().id)}
                           onChoose={(choice, relation) =>
-                            void builder.changeType(
-                              current().id,
-                              choice,
-                              relation
+                            fireAndForget(
+                              builder.changeType(
+                                current().id,
+                                choice,
+                                relation
+                              ),
+                              'form-builder'
                             )
                           }
                         />
@@ -1417,17 +1428,26 @@ function BuilderCanvas(
                             builder.addOption(current().id, label)
                           }
                           onRename={(optionId, label) =>
-                            void builder.updateOption(current().id, optionId, {
-                              label,
-                            })
+                            fireAndForget(
+                              builder.updateOption(current().id, optionId, {
+                                label,
+                              }),
+                              'form-builder'
+                            )
                           }
                           onRecolor={(optionId, color) =>
-                            void builder.updateOption(current().id, optionId, {
-                              color,
-                            })
+                            fireAndForget(
+                              builder.updateOption(current().id, optionId, {
+                                color,
+                              }),
+                              'form-builder'
+                            )
                           }
                           onDelete={(optionId) =>
-                            void builder.deleteOption(current().id, optionId)
+                            fireAndForget(
+                              builder.deleteOption(current().id, optionId),
+                              'form-builder'
+                            )
                           }
                         />
                       </Show>
@@ -1446,7 +1466,10 @@ function BuilderCanvas(
                           builder.updateQuestion(current().id, { required })
                         }
                         onDuplicate={() =>
-                          void builder.duplicateQuestion(current().id)
+                          fireAndForget(
+                            builder.duplicateQuestion(current().id),
+                            'form-builder'
+                          )
                         }
                         onRemove={() => builder.removeQuestion(current().id)}
                         onMoveUp={() => moveByStep(current().id, 'up')}
@@ -1455,9 +1478,9 @@ function BuilderCanvas(
                           moveToSection(current().id, sectionId)
                         }
                         onDeleteColumn={() =>
-                          void confirmDeleteColumn(
-                            current().id,
-                            columnFacts().id
+                          fireAndForget(
+                            confirmDeleteColumn(current().id, columnFacts().id),
+                            'form-builder'
                           )
                         }
                       />

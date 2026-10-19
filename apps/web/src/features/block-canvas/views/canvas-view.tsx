@@ -425,7 +425,12 @@ export function CanvasView(props: {
                       <Button
                         size="sm"
                         disabled={imageActionsDisabled()}
-                        onClick={() => void imageActions.copyToClipboard()}
+                        onClick={() =>
+                          fireAndForget(
+                            imageActions.copyToClipboard(),
+                            'canvas-image-actions'
+                          )
+                        }
                       >
                         <Copy />
                         Copy image
@@ -433,7 +438,12 @@ export function CanvasView(props: {
                       <Button
                         size="sm"
                         disabled={imageActionsDisabled()}
-                        onClick={() => void imageActions.downloadImage()}
+                        onClick={() =>
+                          fireAndForget(
+                            imageActions.downloadImage(),
+                            'canvas-image-actions'
+                          )
+                        }
                       >
                         <DownloadSimple />
                         Save image
@@ -704,8 +714,16 @@ export function CanvasView(props: {
               selectedImage()
                 ? {
                     disabled: imageActionsDisabled(),
-                    onCopy: () => void imageActions.copyToClipboard(),
-                    onSave: () => void imageActions.downloadImage(),
+                    onCopy: () =>
+                      fireAndForget(
+                        imageActions.copyToClipboard(),
+                        'canvas-image-actions'
+                      ),
+                    onSave: () =>
+                      fireAndForget(
+                        imageActions.downloadImage(),
+                        'canvas-image-actions'
+                      ),
                   }
                 : undefined
             }

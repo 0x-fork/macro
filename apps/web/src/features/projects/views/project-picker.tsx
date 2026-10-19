@@ -155,8 +155,9 @@ export function ProjectPicker(props: {
                     <DropdownSelectableRow
                       isSelected={index() === dropdown.selectedIndex()}
                       onClick={() =>
-                        void assign(
-                          item.type === 'project' ? item.id : undefined
+                        fireAndForget(
+                          assign(item.type === 'project' ? item.id : undefined),
+                          'projects'
                         )
                       }
                       onMouseEnter={() => {

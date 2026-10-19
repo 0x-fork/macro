@@ -87,7 +87,7 @@ export function SlideMasterTab(props: { master: MasterView }) {
           tooltip="Insert Layout: add a layout to the slide master"
           disabled={ro() || !m.page()}
           data-testid="pptx-master-insert-layout"
-          onClick={() => void m.insertLayout()}
+          onClick={() => fireAndForget(m.insertLayout(), 'pptx-editor')}
         >
           <Layout />
           Insert Layout
@@ -100,7 +100,7 @@ export function SlideMasterTab(props: { master: MasterView }) {
           }
           disabled={ro() || !m.page() || !!m.deleteBlocker()}
           data-testid="pptx-master-delete"
-          onClick={() => void m.deletePage()}
+          onClick={() => fireAndForget(m.deletePage(), 'pptx-editor')}
         >
           <Trash />
           Delete
@@ -154,7 +154,9 @@ export function SlideMasterTab(props: { master: MasterView }) {
           tooltip="Show the title placeholder on this layout"
           checked={options().title}
           disabled={ro() || !layout()}
-          onChange={(title) => void m.setOptions({ title })}
+          onChange={(title) =>
+            fireAndForget(m.setOptions({ title }), 'pptx-editor')
+          }
         />
         <RibbonCheckbox
           label="Footers"
@@ -162,7 +164,9 @@ export function SlideMasterTab(props: { master: MasterView }) {
           tooltip="Show the date, footer, and slide number placeholders on this layout"
           checked={options().footers}
           disabled={ro() || !layout()}
-          onChange={(footers) => void m.setOptions({ footers })}
+          onChange={(footers) =>
+            fireAndForget(m.setOptions({ footers }), 'pptx-editor')
+          }
         />
       </RibbonGroup>
       <RibbonGroup label="Background">
@@ -186,7 +190,10 @@ export function SlideMasterTab(props: { master: MasterView }) {
           checked={!!layout()?.hideBackgroundGraphics}
           disabled={ro() || !layout()}
           onChange={(hide) =>
-            void m.setOptions({ hideBackgroundGraphics: hide })
+            fireAndForget(
+              m.setOptions({ hideBackgroundGraphics: hide }),
+              'pptx-editor'
+            )
           }
         />
       </RibbonGroup>
@@ -197,7 +204,7 @@ export function SlideMasterTab(props: { master: MasterView }) {
           tooltip="Close Master View: back to editing slides"
           variant="accent"
           data-testid="pptx-master-close"
-          onClick={() => void m.close()}
+          onClick={() => fireAndForget(m.close(), 'pptx-editor')}
         >
           <XCircle />
           Close Master View

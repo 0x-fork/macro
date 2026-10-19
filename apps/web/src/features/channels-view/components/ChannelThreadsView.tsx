@@ -135,7 +135,7 @@ function ThreadCard(props: {
             <Button
               variant="outline"
               size="xs"
-              onClick={() => void query.refetch()}
+              onClick={() => fireAndForget(query.refetch(), 'channels-view')}
             >
               Try again
             </Button>
@@ -224,7 +224,9 @@ function ThreadList(props: {
               <Button
                 variant="outline"
                 size="xs"
-                onClick={() => void props.query.refresh()}
+                onClick={() =>
+                  fireAndForget(props.query.refresh(), 'channels-view')
+                }
               >
                 Try again
               </Button>
@@ -280,7 +282,9 @@ function ThreadList(props: {
                 <Button
                   variant="outline"
                   size="xs"
-                  onClick={() => void props.query.refresh()}
+                  onClick={() =>
+                    fireAndForget(props.query.refresh(), 'channels-view')
+                  }
                 >
                   Try again
                 </Button>

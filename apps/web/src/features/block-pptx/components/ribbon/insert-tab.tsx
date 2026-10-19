@@ -89,7 +89,7 @@ export function InsertTab(props: {
         <RibbonTextButton
           label="New slide"
           disabled={ro()}
-          onClick={() => void c.addSlide()}
+          onClick={() => fireAndForget(c.addSlide(), 'pptx-editor')}
         >
           <Plus />
           New slide
@@ -271,7 +271,7 @@ export function InsertTab(props: {
           label="Text box"
           disabled={ro()}
           data-testid="pptx-insert-textbox"
-          onClick={() => void c.insertTextBox()}
+          onClick={() => fireAndForget(c.insertTextBox(), 'pptx-editor')}
         >
           <TextT />
           Text box

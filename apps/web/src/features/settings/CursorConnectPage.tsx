@@ -191,7 +191,9 @@ export function CursorConnectPage(props: { onClose: () => void }) {
                         size="sm"
                         class="ml-auto text-negative"
                         disabled={disconnect.isPending}
-                        onClick={() => void disconnectCursor()}
+                        onClick={() =>
+                          fireAndForget(disconnectCursor(), 'cursor-connect')
+                        }
                       >
                         Disconnect
                       </Button>

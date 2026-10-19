@@ -478,7 +478,9 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                                 loadCasts={(open) =>
                                   props.columnCasts?.(props.column.id, open)
                                 }
-                                onChange={(change) => void changeType(change)}
+                                onChange={(change) =>
+                                  fireAndForget(changeType(change), 'database')
+                                }
                                 onFormula={
                                   formulas &&
                                   (() => {
@@ -752,7 +754,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
         title="Delete column?"
         deleteLabel="Delete column"
         pending={pending()}
-        onDelete={() => void remove()}
+        onDelete={() => fireAndForget(remove(), 'database')}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           restoreFocus();

@@ -369,7 +369,7 @@ export function createAgentSession(
     messages: () => list,
     loadFailed: () => failure() !== undefined,
     accessDenied: () => failure() instanceof AgentSessionAccessDenied,
-    retry: () => void refetch(),
+    retry: () => fireAndForget(refetch(), 'agent-session'),
     issue: (action) => {
       const current = live();
       return current

@@ -848,7 +848,12 @@ export function TransitionsTab() {
                 disabled={ro()}
                 class="flex h-8 w-12 flex-col items-center justify-center rounded-md text-[9px] leading-tight hover:bg-ink/5 disabled:opacity-50"
                 classList={{ 'bg-accent-bg text-accent': kind() === t.kind }}
-                onClick={() => void c.setTransition({ kind: t.kind })}
+                onClick={() =>
+                  fireAndForget(
+                    c.setTransition({ kind: t.kind }),
+                    'pptx-editor'
+                  )
+                }
               >
                 <TransitionIcon kind={t.kind} />
                 {t.label}
@@ -900,10 +905,13 @@ export function TransitionsTab() {
           disabled={ro() || kind() === 'none'}
           testId="pptx-transition-duration"
           onCommit={(s) =>
-            void c.setTransition({
-              kind: kind(),
-              durationMs: Math.round(s * 1000),
-            })
+            fireAndForget(
+              c.setTransition({
+                kind: kind(),
+                durationMs: Math.round(s * 1000),
+              }),
+              'pptx-editor'
+            )
           }
         />
         <label class="flex items-center gap-1 px-1 text-xs">
@@ -913,10 +921,13 @@ export function TransitionsTab() {
             disabled={ro()}
             checked={current()?.advanceOnClick ?? true}
             onChange={(e) =>
-              void c.setTransition({
-                kind: kind(),
-                advanceOnClick: e.currentTarget.checked,
-              })
+              fireAndForget(
+                c.setTransition({
+                  kind: kind(),
+                  advanceOnClick: e.currentTarget.checked,
+                }),
+                'pptx-editor'
+              )
             }
           />
           On click
@@ -928,10 +939,13 @@ export function TransitionsTab() {
             disabled={ro()}
             checked={current()?.advanceAfterMs !== undefined}
             onChange={(e) =>
-              void c.setTransition({
-                kind: kind(),
-                advanceAfterMs: e.currentTarget.checked ? 5000 : 0,
-              })
+              fireAndForget(
+                c.setTransition({
+                  kind: kind(),
+                  advanceAfterMs: e.currentTarget.checked ? 5000 : 0,
+                }),
+                'pptx-editor'
+              )
             }
           />
           After
@@ -949,10 +963,13 @@ export function TransitionsTab() {
           precision={2}
           disabled={ro() || current()?.advanceAfterMs === undefined}
           onCommit={(s) =>
-            void c.setTransition({
-              kind: kind(),
-              advanceAfterMs: Math.round(s * 1000),
-            })
+            fireAndForget(
+              c.setTransition({
+                kind: kind(),
+                advanceAfterMs: Math.round(s * 1000),
+              }),
+              'pptx-editor'
+            )
           }
         />
         <RibbonTextButton
@@ -960,7 +977,10 @@ export function TransitionsTab() {
           disabled={ro()}
           data-testid="pptx-transition-all"
           onClick={() =>
-            void c.setTransition({ kind: kind(), applyToAll: true })
+            fireAndForget(
+              c.setTransition({ kind: kind(), applyToAll: true }),
+              'pptx-editor'
+            )
           }
         >
           Apply to all

@@ -238,13 +238,13 @@ export function createPsdCommands(options: PsdCommandsOptions) {
 
   const hasLayer = () => !!active();
   const run = {
-    undo: () => void editor.undo(),
-    redo: () => void editor.redo(),
-    copy: () => void copy(false),
-    copyMerged: () => void copy(true),
-    cut: () => void cut(),
+    undo: () => fireAndForget(editor.undo(), 'psd-editor'),
+    redo: () => fireAndForget(editor.redo(), 'psd-editor'),
+    copy: () => fireAndForget(copy(false), 'psd-editor'),
+    copyMerged: () => fireAndForget(copy(true), 'psd-editor'),
+    cut: () => fireAndForget(cut(), 'psd-editor'),
     /** Edit > Paste. */
-    paste: () => void paste(undefined, true),
+    paste: () => fireAndForget(paste(undefined, true), 'psd-editor'),
     layerViaCopy: () => {
       const row = active();
       if (row)
@@ -297,7 +297,8 @@ export function createPsdCommands(options: PsdCommandsOptions) {
           'psd-editor'
         );
     },
-    freeTransform: () => void tools.startFreeTransform(),
+    freeTransform: () =>
+      fireAndForget(tools.startFreeTransform(), 'psd-editor'),
     flipLayer: (horizontal: boolean) => {
       if (ids().length > 0)
         fireAndForget(
@@ -312,8 +313,8 @@ export function createPsdCommands(options: PsdCommandsOptions) {
           'psd-editor'
         );
     },
-    newLayer: () => void newLayer({ type: 'pixel' }),
-    newGroup: () => void newLayer({ type: 'group' }),
+    newLayer: () => fireAndForget(newLayer({ type: 'pixel' }), 'psd-editor'),
+    newGroup: () => fireAndForget(newLayer({ type: 'group' }), 'psd-editor'),
     newFill,
     newAdjustment,
     duplicate: () => {
@@ -343,7 +344,8 @@ export function createPsdCommands(options: PsdCommandsOptions) {
           'psd-editor'
         );
     },
-    flatten: () => void editor.apply([{ op: 'flatten' }]),
+    flatten: () =>
+      fireAndForget(editor.apply([{ op: 'flatten' }]), 'psd-editor'),
     rasterize: () => {
       if (ids().length > 0)
         fireAndForget(
@@ -392,9 +394,12 @@ export function createPsdCommands(options: PsdCommandsOptions) {
           'psd-editor'
         );
     },
-    selectAll: () => void editor.select({ type: 'all' }),
-    deselect: () => void editor.select({ type: 'none' }),
-    invertSelection: () => void editor.select({ type: 'invert' }),
+    selectAll: () =>
+      fireAndForget(editor.select({ type: 'all' }), 'psd-editor'),
+    deselect: () =>
+      fireAndForget(editor.select({ type: 'none' }), 'psd-editor'),
+    invertSelection: () =>
+      fireAndForget(editor.select({ type: 'invert' }), 'psd-editor'),
     loadTransparency: () => {
       const row = active();
       if (row)
@@ -407,11 +412,17 @@ export function createPsdCommands(options: PsdCommandsOptions) {
           'psd-editor'
         );
     },
-    convertToRgb: () => void editor.convertToRgb(),
+    convertToRgb: () => fireAndForget(editor.convertToRgb(), 'psd-editor'),
     rotateCanvas: (quarters: number) =>
-      void editor.apply([{ op: 'rotateCanvas', quarters }]),
+      fireAndForget(
+        editor.apply([{ op: 'rotateCanvas', quarters }]),
+        'psd-editor'
+      ),
     flipCanvas: (horizontal: boolean) =>
-      void editor.apply([{ op: 'flipCanvas', horizontal }]),
+      fireAndForget(
+        editor.apply([{ op: 'flipCanvas', horizontal }]),
+        'psd-editor'
+      ),
     cropToSelection: () => {
       const b = editor.selection().bounds;
       if (b)
@@ -432,9 +443,9 @@ export function createPsdCommands(options: PsdCommandsOptions) {
         setDialog({ kind: 'adjust', adjustment: defaultAdjustment(type) });
     },
     openDialog: (d: EditorDialog) => setDialog(d),
-    downloadPsd: () => void downloadPsd(),
-    exportPng: () => void exportImage('png'),
-    exportJpeg: () => void exportImage('jpeg'),
+    downloadPsd: () => fireAndForget(downloadPsd(), 'psd-editor'),
+    exportPng: () => fireAndForget(exportImage('png'), 'psd-editor'),
+    exportJpeg: () => fireAndForget(exportImage('jpeg'), 'psd-editor'),
     exportLayer: () => {
       const row = active();
       if (row) fireAndForget(exportImage('png', row.id), 'psd-editor');

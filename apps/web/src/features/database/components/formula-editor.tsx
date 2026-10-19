@@ -350,7 +350,7 @@ export function FormulaEditor(props: {
           variant="cta"
           size="sm"
           disabled={!canSave()}
-          onClick={() => void save()}
+          onClick={() => fireAndForget(save(), 'database')}
         >
           {pending() ? 'Saving…' : 'Save'}
         </Button>

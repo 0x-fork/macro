@@ -259,7 +259,12 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
                       variant="outline"
                       class="ml-auto"
                       disabled={agentDm?.pending()}
-                      onClick={() => void agentDm?.open(props.botId)}
+                      onClick={() =>
+                        fireAndForget(
+                          agentDm?.open(props.botId),
+                          'channel-bots'
+                        )
+                      }
                     >
                       Message
                     </Button>
@@ -347,7 +352,7 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
         botName={botQuery.data?.name}
         pending={deleteBotMutation.isPending}
         onClose={() => setDeleteOpen(false)}
-        onConfirm={() => void deleteBot()}
+        onConfirm={() => fireAndForget(deleteBot(), 'channel-bots')}
       />
     </>
   );

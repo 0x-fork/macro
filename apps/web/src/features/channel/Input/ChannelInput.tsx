@@ -335,7 +335,7 @@ export function ChannelInput(props: ChannelInputProps) {
       fireAndForget(commands.send(), 'channel-input');
       return true;
     },
-    sendMessage: () => void commands.send(),
+    sendMessage: () => fireAndForget(commands.send(), 'channel-input'),
     onPasteFilesAndDirs: (files, directories) => {
       fireAndForget(
         handleFileFolderDrop(files, directories, (entries) =>
@@ -365,7 +365,7 @@ export function ChannelInput(props: ChannelInputProps) {
   const actionContext: ActionContext = {
     sourceBlockName: groupMentions ? 'channel' : undefined,
   };
-  const sendFromAction = () => void commands.send();
+  const sendFromAction = () => fireAndForget(commands.send(), 'channel-input');
   const slashAction = (id: string) =>
     [...ACTIONS, ...channelComposerActions(sendFromAction)].find(
       (action) => action.id === id
@@ -775,7 +775,7 @@ export function ChannelInput(props: ChannelInputProps) {
           leadingAction={addMenu(true)}
           onOpen={collapsedInput.expand}
           trailingAction={<DictationButton dictation={dictation} />}
-          onSend={() => void commands.send()}
+          onSend={() => fireAndForget(commands.send(), 'channel-input')}
         />
       </Show>
       <Dynamic

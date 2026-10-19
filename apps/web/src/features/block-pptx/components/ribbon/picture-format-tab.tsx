@@ -74,7 +74,7 @@ function useImage(
     const s = shape();
     setImage(s ? ((await images.load(s.id))?.image ?? null) : null);
   };
-  onMount(() => void load());
+  onMount(() => fireAndForget(load(), 'pptx-editor'));
   return image;
 }
 
@@ -378,7 +378,7 @@ function CropButton(props: { crop: CropMode }) {
         aria-pressed={props.crop.active()}
         disabled={disabled()}
         data-testid="pptx-picture-crop"
-        onClick={() => void props.crop.toggle()}
+        onClick={() => fireAndForget(props.crop.toggle(), 'pptx-editor')}
       >
         <CropIcon class="size-3.5" />
         <span>Crop</span>
@@ -412,7 +412,9 @@ function CropButton(props: { crop: CropMode }) {
                 label="Crop"
                 icon={<CropIcon />}
                 testId="pptx-crop-start"
-                onClick={run(() => void props.crop.enter())}
+                onClick={run(() =>
+                  fireAndForget(props.crop.enter(), 'pptx-editor')
+                )}
               />
               <FlyoutMenu
                 items={[
@@ -468,12 +470,16 @@ function CropButton(props: { crop: CropMode }) {
               <PopoverItem
                 label="Fill"
                 testId="pptx-crop-fill"
-                onClick={run(() => void c.fitPictures('fill'))}
+                onClick={run(() =>
+                  fireAndForget(c.fitPictures('fill'), 'pptx-editor')
+                )}
               />
               <PopoverItem
                 label="Fit"
                 testId="pptx-crop-fit"
-                onClick={run(() => void c.fitPictures('fit'))}
+                onClick={run(() =>
+                  fireAndForget(c.fitPictures('fit'), 'pptx-editor')
+                )}
               />
             </div>
           </Popover.Content>

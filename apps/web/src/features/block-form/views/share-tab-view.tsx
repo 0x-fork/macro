@@ -93,7 +93,9 @@ export function ShareTabView(props: {
               context.notify.failure('Could not copy form link.')
             }
             pending={pending() || audience.pending()}
-            onChange={(next) => void audience.change(next)}
+            onChange={(next) =>
+              fireAndForget(audience.change(next), 'form-share')
+            }
           />
         </div>
         <div class="flex flex-col gap-4 rounded-xl border border-edge bg-surface p-4">
@@ -105,9 +107,12 @@ export function ShareTabView(props: {
             checked={form().status === 'open'}
             disabled={!isOwner() || pending()}
             onChange={(open) =>
-              void update(
-                { status: open ? 'open' : 'closed' },
-                'Accepting responses'
+              fireAndForget(
+                update(
+                  { status: open ? 'open' : 'closed' },
+                  'Accepting responses'
+                ),
+                'form-share'
               )
             }
           />
@@ -142,7 +147,10 @@ export function ShareTabView(props: {
                   size="sm"
                   disabled={pending()}
                   onClick={() =>
-                    void update({ closesAt: null }, 'The closing date')
+                    fireAndForget(
+                      update({ closesAt: null }, 'The closing date'),
+                      'form-share'
+                    )
                   }
                 >
                   Clear
@@ -157,7 +165,10 @@ export function ShareTabView(props: {
             checked={form().tallyVisible}
             disabled={!isOwner() || pending()}
             onChange={(tallyVisible) =>
-              void update({ tallyVisible }, 'Showing results')
+              fireAndForget(
+                update({ tallyVisible }, 'Showing results'),
+                'form-share'
+              )
             }
           />
           <label class="flex flex-col gap-1">
@@ -216,7 +227,7 @@ export function ShareTabView(props: {
             <Button
               variant="danger"
               size="sm"
-              onClick={() => void moveToTrash()}
+              onClick={() => fireAndForget(moveToTrash(), 'form-share')}
             >
               Move to trash
             </Button>

@@ -99,7 +99,9 @@ function Actions(props: { sidebar?: boolean }) {
           >
             <For each={enabledLinks()}>
               {(event) => (
-                <Dropdown.Item onSelect={() => void copyLink(event)}>
+                <Dropdown.Item
+                  onSelect={() => fireAndForget(copyLink(event), 'scheduling')}
+                >
                   <span class="min-w-0 truncate">{event.title}</span>
                 </Dropdown.Item>
               )}

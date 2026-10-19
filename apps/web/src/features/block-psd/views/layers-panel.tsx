@@ -253,18 +253,21 @@ export function LayersPanel(props: {
   const newMenu = (): MenuEntry[] => [
     {
       label: 'Solid Color…',
-      onSelect: () => void commands.run.newFill('solid'),
+      onSelect: () =>
+        fireAndForget(commands.run.newFill('solid'), 'psd-editor'),
       testId: 'psd-new-fill-solid',
     },
     {
       label: 'Gradient…',
-      onSelect: () => void commands.run.newFill('gradient'),
+      onSelect: () =>
+        fireAndForget(commands.run.newFill('gradient'), 'psd-editor'),
     },
     'divider',
     ...ADJUSTMENT_TYPES.map((type) => ({
       label: ADJUSTMENT_LABELS[type],
       testId: `psd-new-adjustment-${type}`,
-      onSelect: () => void commands.run.newAdjustment(type),
+      onSelect: () =>
+        fireAndForget(commands.run.newAdjustment(type), 'psd-editor'),
     })),
   ];
 
@@ -433,16 +436,27 @@ export function LayersPanel(props: {
                 onChoose={(e) => choose(row, e)}
                 onChooseMask={() => editor.chooseLayers([row.id], 'mask')}
                 onToggleVisible={() =>
-                  void editor.apply([
-                    patchOp([row.id], { visible: !row.visible }),
-                  ])
+                  fireAndForget(
+                    editor.apply([
+                      patchOp([row.id], { visible: !row.visible }),
+                    ]),
+                    'psd-editor'
+                  )
                 }
                 onToggleOpen={() =>
-                  void editor.apply([patchOp([row.id], { open: !row.open })])
+                  fireAndForget(
+                    editor.apply([patchOp([row.id], { open: !row.open })]),
+                    'psd-editor'
+                  )
                 }
-                onToggleEffects={() => void toggleEffects(row.id)}
+                onToggleEffects={() =>
+                  fireAndForget(toggleEffects(row.id), 'psd-editor')
+                }
                 onRename={(name) =>
-                  void editor.apply([patchOp([row.id], { name })])
+                  fireAndForget(
+                    editor.apply([patchOp([row.id], { name })]),
+                    'psd-editor'
+                  )
                 }
                 onContextMenu={(e) => {
                   if (!editor.selected().includes(row.id))

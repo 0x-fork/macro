@@ -94,7 +94,11 @@ export function TaskGanttView(props: {
             class="flex flex-1 flex-col items-center justify-center gap-3 text-sm text-ink-muted"
           >
             Tasks couldn’t be loaded.
-            <Button onClick={() => void props.source.refresh?.()}>
+            <Button
+              onClick={() =>
+                fireAndForget(props.source.refresh?.(), 'tasks-view')
+              }
+            >
               Try again
             </Button>
           </div>
@@ -357,7 +361,12 @@ export function TaskGanttView(props: {
                           size="sm"
                           variant="ghost"
                           disabled={props.source.isLoadingMore?.()}
-                          onClick={() => void props.source.loadMore?.()}
+                          onClick={() =>
+                            fireAndForget(
+                              props.source.loadMore?.(),
+                              'tasks-view'
+                            )
+                          }
                         >
                           <Show when={props.source.isLoadingMore?.()}>
                             <SpinnerIcon class="size-3 animate-spin" />
@@ -373,7 +382,9 @@ export function TaskGanttView(props: {
                         size="sm"
                         variant="ghost"
                         disabled={props.source.isLoadingMore?.()}
-                        onClick={() => void props.source.loadMore?.()}
+                        onClick={() =>
+                          fireAndForget(props.source.loadMore?.(), 'tasks-view')
+                        }
                       >
                         <Show when={props.source.isLoadingMore?.()}>
                           <SpinnerIcon class="size-3 animate-spin" />

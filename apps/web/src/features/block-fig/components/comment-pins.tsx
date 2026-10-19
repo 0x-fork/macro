@@ -239,7 +239,10 @@ export function CommentPins(props: {
                             : 'fig-comment-resolve'
                         }
                         onClick={() =>
-                          void store.setResolved(threadId, !thread()?.resolved)
+                          fireAndForget(
+                            store.setResolved(threadId, !thread()?.resolved),
+                            'fig-comments'
+                          )
                         }
                       >
                         <CheckCircle class="size-3.5" />

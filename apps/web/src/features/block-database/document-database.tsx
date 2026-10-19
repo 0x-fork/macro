@@ -139,15 +139,12 @@ export function DocumentDatabase(props: {
           <DatabaseTitle
             name={name()}
             canEdit={canEdit() && !props.collapsed}
-            onRename={(next) =>
-              void renameDatabase(
-                getEntityGraphqlClient(),
-                databaseId,
-                next
-              ).mapErr((failure) =>
-                toast.failure(databaseEntityMessage(failure, 'rename'))
-              )
-            }
+            onRename={(next) => {
+              renameDatabase(getEntityGraphqlClient(), databaseId, next).mapErr(
+                (failure) =>
+                  toast.failure(databaseEntityMessage(failure, 'rename'))
+              );
+            }}
           />
         </div>
         <Show when={detail.isSuccess && !canEdit()}>
@@ -176,7 +173,9 @@ export function DocumentDatabase(props: {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => void detail.refetch()}
+                  onClick={() =>
+                    fireAndForget(detail.refetch(), 'database-view')
+                  }
                 >
                   Retry
                 </Button>
@@ -204,7 +203,11 @@ export function DocumentDatabase(props: {
                         onChangeView={changeView}
                         onCreateRecord={
                           canEdit()
-                            ? () => void recordActions()?.createRecord()
+                            ? () =>
+                                fireAndForget(
+                                  recordActions()?.createRecord(),
+                                  'database-view'
+                                )
                             : undefined
                         }
                         canCreateRecord={!!recordActions()}

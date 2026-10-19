@@ -218,7 +218,11 @@ export function ShareTargetProvider(props: {
 
     const unlisten = listen<ShareFilesReadyPayload>(
       'share-files-ready',
-      (event) => void loadPendingShareFiles(event.payload.filenames)
+      (event) =>
+        fireAndForget(
+          loadPendingShareFiles(event.payload.filenames),
+          'share-target'
+        )
     );
 
     fireAndForget(
@@ -234,7 +238,12 @@ export function ShareTargetProvider(props: {
       'share-target'
     );
 
-    onCleanup(() => void unlisten.then((fn) => fn()));
+    onCleanup(() =>
+      fireAndForget(
+        unlisten.then((fn) => fn()),
+        'share-target'
+      )
+    );
   });
 
   const value: ShareTargetContextValue = {

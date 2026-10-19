@@ -569,7 +569,7 @@ export function ChartDataEditor(props: {
             disabled={
               props.readonly || busy() || (chart() ? !chart()!.editable : false)
             }
-            onClick={() => void apply()}
+            onClick={() => fireAndForget(apply(), 'pptx-editor')}
           >
             Apply
           </Button>
@@ -689,7 +689,10 @@ export function ChartDesignTab(props: {
           aria-pressed={!!chart()?.dataLabels}
           disabled={ro()}
           onClick={() =>
-            void c.formatChart({ dataLabels: !chart()?.dataLabels })
+            fireAndForget(
+              c.formatChart({ dataLabels: !chart()?.dataLabels }),
+              'pptx-editor'
+            )
           }
         >
           Data labels

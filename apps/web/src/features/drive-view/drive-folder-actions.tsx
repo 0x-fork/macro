@@ -32,7 +32,7 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
   const deleteFolder = makeDeleteAction({
     userId,
 
-    onDeleted: () => void invalidateProjects(),
+    onDeleted: () => fireAndForget(invalidateProjects(), 'drive-view'),
   });
 
   const editFolder = (view: 'rename' | 'moveToProject') => {
@@ -57,7 +57,9 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
       </Show>
       <MenuItem
         text={favorite.isFavorited(entity()) ? 'Unfavorite' : 'Favorite'}
-        onClick={() => void favorite.execute([entity()])}
+        onClick={() =>
+          fireAndForget(favorite.execute([entity()]), 'drive-view')
+        }
       />
       <MenuItem
         text="Move to folder"
@@ -65,14 +67,18 @@ export function DriveFolderActions(props: { folder: DriveFolderMetadata }) {
       />
       <MenuItem
         text="Copy Link"
-        onClick={() => void copyLink.execute([entity()])}
+        onClick={() =>
+          fireAndForget(copyLink.execute([entity()]), 'drive-view')
+        }
       />
       <Show when={deleteFolder.canExecute(entity())}>
         <MenuSeparator />
         <MenuItem
           text="Delete"
           class="text-failure-ink"
-          onClick={() => void deleteFolder.execute([entity()])}
+          onClick={() =>
+            fireAndForget(deleteFolder.execute([entity()]), 'drive-view')
+          }
         />
       </Show>
     </>
