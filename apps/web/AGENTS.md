@@ -116,6 +116,12 @@ the startup bundle, and Lexical nodes.
 ## Notes
 - Don't shy away from pulling good examples into context. In the case of solid-primtiives/kobalte try reading documentation, or just temp clone into /tmp to reference
 
+## iOS release signing
+
+Follow [`docs/ios-releases.md`](docs/ios-releases.md) for App Store signing and
+provisioning, including both extensions. The release script temporarily selects
+manual export when a distribution certificate path is supplied.
+
 ## Desktop file drops
 
 Keep `app.windows[].dragDropEnabled` false in `tauri/src-tauri/tauri.macos.conf.json`.
