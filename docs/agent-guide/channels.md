@@ -619,14 +619,32 @@ reaction, and typing routes no longer exist. Live updates arrive as one
 frames are no longer sent. Documents share the same client, cache, and
 components (see documents.md).
 
-Reopening a channel already loaded this session requests
-`GET /dss/messages/channel/<id>?selection=<cursor of the newest cached root, direction newer, limit 50>`
-and merges the result into the cached first page. A first open, a message link,
-a channel cached away from its latest page, and a delta longer than one page load
-the latest page with the default selection. The `channel_messages_load` event
-records `path` (`catch_up` or `full`) and `reason`
-(`watermark`, `list_ahead`, `no_cache`, `cache_not_at_latest`, `load_around`,
-`delta_overflow`, or `catch_up_error`).
+Reopening a cached channel, reconnecting its live subscription, or returning
+from an absence past the presence window revalidates its timeline with
+`GET /dss/messages/channel/<id>/timeline?selection=<default latest-page selection>`.
+This replaces stale roots and their reply previews, reactions, and edits, and
+removes deleted roots even when no newer top-level message exists. Loaded older
+pages are also refetched using the refreshed cursors. A committed live change
+restarts any in-flight channel timeline refresh, including when older pages are
+still loading, so its result cannot overwrite that change. Idle channels still
+apply live events without fetching; cached content stays visible if a refresh
+fails. Message links still load around the targeted message.
+The `channel_messages_load` event records `path: full` and `reason`
+(`revalidate`, `no_cache`, `cache_not_at_latest`, or `load_around`).
+Actual in-flight restarts emit a `channel.timeline_restart` span, searchable by
+`channel.id`. `query.count` records the number of restarted queries;
+`query.fetch_more_directions` and `query.outcomes` are arrays in the same query
+order (`refetch`/`forward`/`backward` and `fulfilled`/`rejected`). The span also
+records fulfilled/rejected counts and is marked as an error if any restart fails.
+Idle channels emit no restart span. Request error text and message content are
+not included.
+
+To verify recovery, open a root with no replies, disconnect that client's live
+updates, then add replies and reactions, edit another root, and delete a root
+from a second client without posting a new top-level message. Reconnect the first
+client: the collapsed preview, reply count, reactions, text, and deleted row must
+all catch up without a reload. Repeat with older pages loaded and after a mobile
+background/foreground cycle.
 
 ## Message reaction notifications
 
