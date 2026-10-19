@@ -715,7 +715,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
         setPreviewCardOpen(true);
         return;
       }
-      openCalendarEventSplit({
+      void openCalendarEventSplit({
         ...target.target,
         openInNewSplit: openInNewSplitForMention(e?.shiftKey, e != null),
       });

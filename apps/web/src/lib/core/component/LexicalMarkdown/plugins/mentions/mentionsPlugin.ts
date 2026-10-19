@@ -322,7 +322,7 @@ function $deleteSelectedMentions(sourceDocumentId?: string) {
       if (!$isGroupMentionNode(node)) {
         const mentionUuid = node.getMentionUuid();
         if (mentionUuid && sourceDocumentId) {
-          untrackMention(
+          void untrackMention(
             sourceDocumentId,
             mentionUuid,
             $mentionItemFromNode(node).itemType
@@ -664,7 +664,11 @@ function registerMentionsPlugin(
           if (mutation === 'destroyed') {
             const mentionUuid = node.getMentionUuid();
             if (mentionUuid && sourceDocumentId) {
-              untrackMention(sourceDocumentId, mentionUuid, 'agent_session');
+              void untrackMention(
+                sourceDocumentId,
+                mentionUuid,
+                'agent_session'
+              );
             }
             onRemoveMention?.($mentionItemFromNode(node));
           }
@@ -925,7 +929,7 @@ function registerMentionsPlugin(
               (node.getBlockName() !== 'database' ||
                 !databaseReferenceRemains(mentionUuid))
             ) {
-              untrackMention(sourceDocumentId, mentionUuid, itemType);
+              void untrackMention(sourceDocumentId, mentionUuid, itemType);
             }
             if (onRemoveMention) {
               onRemoveMention({
@@ -963,7 +967,7 @@ function registerMentionsPlugin(
             if (node) {
               const mentionUuid = node.getMentionUuid();
               if (mentionUuid && sourceDocumentId) {
-                untrackMention(sourceDocumentId, mentionUuid, 'user');
+                void untrackMention(sourceDocumentId, mentionUuid, 'user');
               }
               if (onRemoveMention) {
                 onRemoveMention({
@@ -1001,7 +1005,7 @@ function registerMentionsPlugin(
             if (node) {
               const mentionUuid = node.getMentionUuid();
               if (mentionUuid && sourceDocumentId) {
-                untrackMention(sourceDocumentId, mentionUuid, 'contact');
+                void untrackMention(sourceDocumentId, mentionUuid, 'contact');
               }
               if (onRemoveMention) {
                 onRemoveMention({
@@ -1036,7 +1040,7 @@ function registerMentionsPlugin(
             if (node) {
               const mentionUuid = node.getMentionUuid();
               if (mentionUuid && sourceDocumentId) {
-                untrackMention(sourceDocumentId, mentionUuid, 'date');
+                void untrackMention(sourceDocumentId, mentionUuid, 'date');
               }
               if (onRemoveMention) {
                 onRemoveMention({
@@ -1101,7 +1105,7 @@ function registerMentionsPlugin(
           if (mutation === 'destroyed') {
             const mentionUuid = node.getMentionUuid();
             if (mentionUuid && sourceDocumentId) {
-              untrackMention(sourceDocumentId, mentionUuid, 'foreign');
+              void untrackMention(sourceDocumentId, mentionUuid, 'foreign');
             }
             onRemoveMention?.($mentionItemFromNode(node));
           } else if (mutation === 'created') {

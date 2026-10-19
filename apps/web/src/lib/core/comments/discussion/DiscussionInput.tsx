@@ -25,6 +25,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { IUser } from '@core/user/types';
+import { Telemetry } from '@macro-inc/observability';
 import PaperclipIcon from '@phosphor/paperclip.svg';
 import { isIOS } from '@solid-primitives/platform';
 import { CollapsedInput, ComposerSurface } from '@ui';
@@ -115,6 +116,9 @@ export function DiscussionInput(props: DiscussionInputProps) {
   const [isSending, setIsSending] = createSignal(false);
   let isInternalRefocus = false;
 
+  const reportCallbackError = (error: unknown) =>
+    Telemetry.error(error, { surface: 'discussion-input' });
+
   const inputView = () => ({
     ...props.input,
     value: value(),
@@ -149,7 +153,9 @@ export function DiscussionInput(props: DiscussionInputProps) {
     },
     onChange: (markdown) => {
       setValue(markdown);
-      props.onChange?.(createSnapshot());
+      Promise.resolve(props.onChange?.(createSnapshot())).catch(
+        reportCallbackError
+      );
     },
     onEnter: () => {
       if (isMobile()) return false;
@@ -193,11 +199,15 @@ export function DiscussionInput(props: DiscussionInputProps) {
       }
     },
     close: () => {
-      props.onClose?.(createSnapshot());
+      Promise.resolve(props.onClose?.(createSnapshot())).catch(
+        reportCallbackError
+      );
     },
     toggleFormatRibbon: () => {
       setShowFormatRibbon(!showFormatRibbon());
-      props.onToggleFormatRibbon?.(!showFormatRibbon());
+      Promise.resolve(props.onToggleFormatRibbon?.(!showFormatRibbon())).catch(
+        reportCallbackError
+      );
     },
     attachFiles: async (files: File[]) => {
       // Insert images into the editor

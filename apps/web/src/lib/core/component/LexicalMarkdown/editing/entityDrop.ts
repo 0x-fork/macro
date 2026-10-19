@@ -141,7 +141,7 @@ export function useEditorEntityDrop(props: {
     dndDragMove.clear();
     // Only soup entity drags insert mentions (not e.g. sidebar favorite drags).
     if (!isEntityDragEvent(event)) return;
-    dndDragEnd(event);
+    void dndDragEnd(event);
   });
 
   onDragMove((event) => {

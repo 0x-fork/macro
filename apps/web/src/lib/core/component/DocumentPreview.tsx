@@ -242,7 +242,7 @@ function ImageCoverStrip(props: {
 
     const controller = new AbortController();
     let objectUrl: string | undefined;
-    fetchBinary(presignedUrl, 'blob', { signal: controller.signal }).then(
+    void fetchBinary(presignedUrl, 'blob', { signal: controller.signal }).then(
       (result) => {
         if (controller.signal.aborted || result.isErr()) return;
         const blob = result.value;
@@ -616,7 +616,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
     };
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     try {
       let hostname = window.location.hostname.replace('www.', '').toLowerCase();
       if (hostname === 'localhost') {
@@ -625,7 +625,7 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
 
       const mentionTarget = calendarMentionTarget();
       if (mentionTarget) {
-        copyCalendarEventMentionTarget(mentionTarget);
+        await copyCalendarEventMentionTarget(mentionTarget);
         return;
       }
 
@@ -640,15 +640,16 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
         ).toString();
         link += `?${queryParams}`;
       }
-      navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(link);
       toast.success('Copied document link to clipboard');
     } catch (e) {
       console.error(e);
+      toast.failure('Could not copy link');
     }
   };
 
   const handleCopyBranchName = () => {
-    copyBranchNameToClipboard(props.documentInfo.id);
+    void copyBranchNameToClipboard(props.documentInfo.id);
   };
 
   const isSplitAlreadyOpen = () => {

@@ -201,7 +201,7 @@ function RequestDebugger(props: {
   };
 
   createEffect(() => {
-    if (props.go() > 0) makeRequest();
+    if (props.go() > 0) void makeRequest();
   });
 
   return (
@@ -209,7 +209,7 @@ function RequestDebugger(props: {
       <Button
         variant="accent"
         onClick={() => {
-          makeRequest();
+          void makeRequest();
         }}
       >
         Send

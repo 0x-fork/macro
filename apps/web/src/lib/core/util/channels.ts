@@ -70,8 +70,8 @@ export function useSendMessageToPeople() {
       .catch(() => null);
     if (!messageResponse) return;
 
-    invalidateListChannels();
-    invalidateContacts();
+    void invalidateListChannels();
+    void invalidateContacts();
 
     const navigateToChannel = async () => {
       replaceSplit({

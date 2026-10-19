@@ -108,7 +108,7 @@ export function MarkdownImage(props: ImageDecoratorProps) {
       setImageUrl(props.url);
       return;
     }
-    getMediaUrl({
+    void getMediaUrl({
       type: props.srcType,
       id: props.id,
       url: props.url,

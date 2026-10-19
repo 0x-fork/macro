@@ -622,7 +622,7 @@ export async function handleFileFolderDrop(
   ]);
 
   if (folderEntries.length > 0) {
-    toast.promise(resultPromise, {
+    void toast.promise(resultPromise, {
       loading: 'Preparing folder upload...',
     });
   }
@@ -664,7 +664,7 @@ export async function handleFolderSelect(
   const resultPromise = Promise.allSettled(zipEntryPromises);
 
   if (zipEntryPromises.length > 0) {
-    toast.promise(resultPromise, {
+    void toast.promise(resultPromise, {
       loading: 'Preparing folder upload...',
     });
   }

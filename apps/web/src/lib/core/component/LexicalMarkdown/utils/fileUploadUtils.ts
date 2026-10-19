@@ -150,7 +150,7 @@ async function onFilesReady(
           blockId,
           onDocumentMention: () => {},
           disableMentionTracking: false,
-        });
+        }).catch((error) => Telemetry.error(error, { surface: 'file-upload' }));
       }
     } else if (result.type === 'folder') {
       const item = await documentUploadToItem(result);
@@ -166,7 +166,7 @@ async function onFilesReady(
         blockId,
         onDocumentMention: () => {},
         disableMentionTracking: false,
-      });
+      }).catch((error) => Telemetry.error(error, { surface: 'file-upload' }));
     }
   }
 

@@ -43,7 +43,7 @@ export function openToolCalendarEvent(
   options?: OpenToolCalendarEventOptions
 ) {
   const occurrenceKey = options?.occurrenceKey;
-  openCalendarEventSplit({
+  void openCalendarEventSplit({
     eventId: event.eventId,
     occurrenceKey,
     // An occurrence key anchors the locator range on its own, so the event's

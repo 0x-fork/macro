@@ -1317,15 +1317,15 @@ export function createQuickAccessValue(): QuickAccessContextValue {
       setManualRefreshRevision((revision) => revision + 1);
       void cachedChannelsQuery.refetch();
     }
-    historyQuery.refetch();
-    crmCompaniesQuery.refetch();
-    crmContactsQuery.refetch();
-    snippetsQuery.refetch();
-    skillsQuery.refetch();
+    void historyQuery.refetch();
+    void crmCompaniesQuery.refetch();
+    void crmContactsQuery.refetch();
+    void snippetsQuery.refetch();
+    void skillsQuery.refetch();
     void agentSessionsQuery.refetch();
     if (databasesFlag().enabled) void databasesQuery.refetch();
     if (formsFlag().enabled) void formsQuery.refetch();
-    initiativesQuery.refetch();
+    void initiativesQuery.refetch();
   };
 
   return {

@@ -38,7 +38,7 @@ export async function trackMention(
     return;
   }
 
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: attachmentReferencesKeys.list(targetType, targetId).queryKey,
   });
   if (isCrmTarget(targetType)) void refreshCrmAssociatedSoupQueries();
@@ -69,7 +69,7 @@ export async function untrackMention(
     console.error('Failed to untrack document mention', response);
   }
 
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: attachmentReferencesKeys.list._def,
   });
   if (isCrmTarget(targetType)) void refreshCrmAssociatedSoupQueries();

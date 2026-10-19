@@ -94,7 +94,7 @@ export function MarkdownVideo(props: VideoDecoratorProps) {
       setVideoUrl(props.url);
       return;
     }
-    getMediaUrl({
+    void getMediaUrl({
       type: props.srcType,
       id: props.id,
       url: props.url,

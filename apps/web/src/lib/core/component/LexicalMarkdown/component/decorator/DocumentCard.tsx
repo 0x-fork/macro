@@ -386,7 +386,7 @@ function DocumentCardInner(props: DocumentCardDecoratorProps) {
     openDocument(props.blockName, props.documentId, props.blockParams, true);
   });
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     try {
       let hostname = window.location.hostname.replace('www.', '').toLowerCase();
       if (hostname === 'localhost') {
@@ -398,10 +398,11 @@ function DocumentCardInner(props: DocumentCardDecoratorProps) {
         const queryParams = new URLSearchParams(props.blockParams).toString();
         link += `?${queryParams}`;
       }
-      navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(link);
       toast.success('Copied document link to clipboard');
     } catch (e) {
       console.error(e);
+      toast.failure('Could not copy link');
     }
   };
 

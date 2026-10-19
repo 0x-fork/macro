@@ -192,7 +192,7 @@ export function ChatInput(props: ChatInputComponentProps) {
     !isEmptyInput();
 
   const sendMessage = createCallback(
-    async (opts?: { modelOverride?: Model; metaKey?: boolean }) => {
+    (opts?: { modelOverride?: Model; metaKey?: boolean }) => {
       if (!canSendMessage()) return;
 
       if (isNativeMobilePlatform() && !hasConsent()) {
@@ -221,7 +221,7 @@ export function ChatInput(props: ChatInputComponentProps) {
           toast.failure('Folder upload not supported here');
           return;
         }
-        handleFileFolderDrop(files, directories, (entries) => {
+        void handleFileFolderDrop(files, directories, (entries) => {
           uploadQueue.upload(entries.map((e) => e.file));
         });
       },

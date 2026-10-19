@@ -18,6 +18,7 @@ import {
   type PeerIdValidator,
   peerIdPlugin,
 } from '@macro-inc/lexical-core';
+import { Telemetry } from '@macro-inc/observability';
 import type { Accessor } from 'solid-js';
 import type { MarkdownEditorErrors } from '../constants';
 import type { LexicalWrapper } from '../context/LexicalWrapperContext';
@@ -285,7 +286,7 @@ export function registerMarkdownEditing(options: MarkdownEditingOptions) {
       event: DragEvent,
       blockName?: BlockName
     ) {
-      handleFileFolderDrop(
+      void dropFilesIntoEditor(
         fileEntries,
         folderEntries,
         createFilesReadyHandler(editor, filesBlockId, blockName, () =>
@@ -294,6 +295,16 @@ export function registerMarkdownEditing(options: MarkdownEditingOptions) {
       );
     },
   };
+}
+
+async function dropFilesIntoEditor(
+  ...args: Parameters<typeof handleFileFolderDrop>
+) {
+  try {
+    await handleFileFolderDrop(...args);
+  } catch (error) {
+    Telemetry.error(error, { surface: 'markdown-file-drop' });
+  }
 }
 
 export type MarkdownEditing = ReturnType<typeof registerMarkdownEditing>;

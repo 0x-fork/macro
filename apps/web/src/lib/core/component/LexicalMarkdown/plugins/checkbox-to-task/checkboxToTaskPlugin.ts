@@ -143,7 +143,7 @@ function registerCheckboxToTaskPlugin(
         return false;
       }
 
-      processCheckboxes(editor, checkboxes, options, pluginOptions);
+      void processCheckboxes(editor, checkboxes, options, pluginOptions);
 
       return true;
     },

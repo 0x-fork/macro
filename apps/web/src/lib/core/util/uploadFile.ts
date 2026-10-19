@@ -71,7 +71,7 @@ export async function createStaticUploadFile(
     file_name: file.name,
     content_type: contentType,
   });
-  invalidateUserQuota();
+  void invalidateUserQuota();
   if (result.isErr()) throw new Error('Failed to upload file');
 
   const { upload_url, id } = result.value;
