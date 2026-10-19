@@ -53,7 +53,7 @@ export const makeMoveToProjectAction = () => {
             ? `Moved ${entities.length} items`
             : 'Moved to folder'
         );
-        restoreSoupFocus(nextRow?.id);
+        void restoreSoupFocus(nextRow?.id);
       },
       onError: () => toast.failure('Failed to move to folder'),
       onCancel: () => {
@@ -61,7 +61,7 @@ export const makeMoveToProjectAction = () => {
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
-        restoreSoupFocus(firstEntity?.id);
+        void restoreSoupFocus(firstEntity?.id);
       },
     });
   };

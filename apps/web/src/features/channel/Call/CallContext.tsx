@@ -1069,7 +1069,7 @@ function createCallState() {
 
   // Re-enumerate when devices change (e.g. headphones plugged in)
   const handleDeviceChange = () => {
-    enumerateDevices();
+    void enumerateDevices();
   };
   navigator.mediaDevices?.addEventListener('devicechange', handleDeviceChange);
 

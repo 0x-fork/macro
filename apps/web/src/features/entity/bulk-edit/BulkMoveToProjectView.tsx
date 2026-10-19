@@ -590,7 +590,7 @@ export const BulkMoveToProjectView = (props: {
                     if (e.key === 'Enter') {
                       e.preventDefault();
                       e.stopPropagation();
-                      submitNewFolder();
+                      void submitNewFolder();
                     } else if (e.key === 'Escape') {
                       e.preventDefault();
                       e.stopPropagation();

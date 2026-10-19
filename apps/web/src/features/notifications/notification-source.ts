@@ -330,7 +330,7 @@ export function createNotificationSource(
     if (usesGraphql()) return;
     if (!notificationsQuery.data) return;
     if (notificationsQuery.hasNextPage && !notificationsQuery.isFetching) {
-      notificationsQuery.fetchNextPage();
+      void notificationsQuery.fetchNextPage();
     }
   });
 

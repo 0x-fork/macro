@@ -12,6 +12,7 @@ import { consumeInboxLinkReturn } from '@core/email-link/return-layout';
 import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { whenSettled } from '@core/util/whenSettled';
+import { Telemetry } from '@macro-inc/observability';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
 import {
   invalidateAllAfterLogin,
@@ -76,7 +77,9 @@ function EmailSignupCallback(props: Pick<EmailAuthParams, 'successPath'>) {
     query,
     async () => {
       const onSuccess = () => {
-        onSuccessfulAuth();
+        onSuccessfulAuth().catch((error) =>
+          Telemetry.error(error, { surface: 'email-auth' })
+        );
         navigateToSuccess();
       };
 

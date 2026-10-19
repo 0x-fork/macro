@@ -120,7 +120,7 @@ export function createChannelFindBar(
         if (idx === 0 || rs.length === 0) return;
         if (!searchQuery.hasNextPage || searchQuery.isFetchingNextPage) return;
         if (rs.length - idx <= FIND_BAR_PREFETCH_THRESHOLD) {
-          searchQuery.fetchNextPage();
+          void searchQuery.fetchNextPage();
         }
       });
 
@@ -143,7 +143,7 @@ export function createChannelFindBar(
         for (let i = idx; i < end; i++) {
           const threadId = rs[i].threadId;
           if (!threadId) continue;
-          queryClient.prefetchQuery(
+          void queryClient.prefetchQuery(
             threadRepliesQueryOptions(
               { type: 'channel', id: channelId },
               threadId
@@ -176,7 +176,7 @@ export function createChannelFindBar(
           if (seen.has(aroundId)) continue;
           seen.add(aroundId);
           if (options.isMessageLoaded(aroundId)) continue;
-          queryClient.prefetchInfiniteQuery(
+          void queryClient.prefetchInfiniteQuery(
             messageTimelineQueryOptions(
               { type: 'channel', id: channelId },
               aroundId

@@ -46,6 +46,14 @@ function refreshEmailThread(notification: UnifiedNotification) {
   });
 }
 
+async function refreshDeliveredEmailReminder(threadId: string) {
+  try {
+    await refreshEmailFollowup(threadId);
+  } catch (error) {
+    console.warn('Failed to refresh delivered email reminder', error);
+  }
+}
+
 /**
  * Applies domain cache updates for a connection-gateway notification.
  *
@@ -126,13 +134,9 @@ export function handleNotificationUpdate(notification: UnifiedNotification) {
     .with({ tag: 'new_email' }, () => {
       refreshEmailThread(notification);
     })
-    .with({ tag: 'reminder' }, async () => {
+    .with({ tag: 'reminder' }, () => {
       if (notification.entity_type !== 'email_thread') return;
-      try {
-        await refreshEmailFollowup(notification.entity_id);
-      } catch (error) {
-        console.warn('Failed to refresh delivered email reminder', error);
-      }
+      void refreshDeliveredEmailReminder(notification.entity_id);
     })
     .with({ tag: 'inbox_reauth_required' }, () => {
       invalidateEmailLinks();

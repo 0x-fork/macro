@@ -159,7 +159,7 @@ export const [ChannelsViewProvider, useChannelsView] =
         channel: ChannelPreviewSelection,
         replace = false
       ) => {
-        navigate(
+        void navigate(
           {
             route: channelDetailRoute,
             params: { channelId: channelIdForPreviewNavigation(channel) },
@@ -174,7 +174,7 @@ export const [ChannelsViewProvider, useChannelsView] =
         channel: ChannelPreviewSelection | undefined
       ) => {
         if (!channel) {
-          navigate(
+          void navigate(
             { route: channelsSplitRoute, params: {} },
             { search: { [channelsSearch.namespace]: routeSearch() } }
           );
@@ -190,7 +190,7 @@ export const [ChannelsViewProvider, useChannelsView] =
           if (!selectPreview(channel)) {
             if (previous) navigateToChannel(previous, true);
             else
-              navigate(
+              void navigate(
                 { route: channelsSplitRoute, params: {} },
                 {
                   replace: true,

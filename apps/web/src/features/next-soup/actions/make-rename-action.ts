@@ -57,13 +57,13 @@ export const makeRenameAction = (options: MakeRenameOptions) => {
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
-        restoreSoupFocus(firstEntity?.id);
+        void restoreSoupFocus(firstEntity?.id);
       },
       onCancel: () => {
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
-        restoreSoupFocus(firstEntity?.id);
+        void restoreSoupFocus(firstEntity?.id);
       },
     });
   };

@@ -212,7 +212,7 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
       soup.selection.clear();
       const next = nextSurvivingRow();
       if (next || hadPartialDeletion) soup.focus.set(next?.id);
-      restoreSoupFocus(next?.id);
+      void restoreSoupFocus(next?.id);
     };
 
     const trashEmailEntities = () => {
@@ -226,7 +226,7 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
 
       reportTrashedEmails(handle, emailEntities.length);
 
-      restoreSoupFocus(next?.id);
+      void restoreSoupFocus(next?.id);
     };
 
     if (nonEmailEntities.length > 0) {
@@ -267,7 +267,7 @@ export const makeDeleteAction = (options: MakeDeleteOptions) => {
             firstRemaining?.id ??
             (hadPartialDeletion ? nextSurvivingRow()?.id : undefined);
           if (target || hadPartialDeletion) soup.focus.set(target);
-          restoreSoupFocus(target);
+          void restoreSoupFocus(target);
         },
       });
     } else if (emailEntities.length > 0) {

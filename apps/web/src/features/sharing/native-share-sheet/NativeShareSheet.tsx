@@ -212,8 +212,8 @@ function NativeShareSheetComposer(props: { handleCancel: () => void }) {
 
   const sendShare = createNativeShareSend<InputSnapshot>({
     clear: async () => {
-      invalidateListChannels();
-      invalidateContacts();
+      void invalidateListChannels();
+      void invalidateContacts();
       await shareTarget?.clearPendingShareFiles(batchTokens);
     },
     send: async (snapshot) => {

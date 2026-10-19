@@ -55,6 +55,7 @@ import {
   buildMentionMarkdownString,
   markdownToPlainText,
 } from '@macro-inc/lexical-core';
+import { Telemetry } from '@macro-inc/observability';
 import { MessageNotificationIndexContext } from '@notifications/components/MarkMessageNotifications';
 import {
   invalidateChannelsActivity,
@@ -509,7 +510,9 @@ export function Channel(props: ChannelProps) {
       });
     },
     onChat: (ctx) => {
-      openChatWithInput(`${buildChannelMessageMention(ctx.message)}\n\n`);
+      openChatWithInput(`${buildChannelMessageMention(ctx.message)}\n\n`).catch(
+        (error) => Telemetry.error(error, { surface: 'channel' })
+      );
     },
   });
 

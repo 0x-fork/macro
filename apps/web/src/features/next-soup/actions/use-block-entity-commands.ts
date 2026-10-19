@@ -15,6 +15,7 @@ import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { type EntityData, isEmailEntity, isTaskEntity } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
 import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import type { Property, PropertyDefinitionDomain } from '@property/types';
 import { createEffect, onCleanup } from 'solid-js';
@@ -33,6 +34,9 @@ import {
   makeMuteAction,
   makeRenameAction,
 } from './index';
+
+const reportEntityActionError = (error: unknown) =>
+  Telemetry.error(error, { surface: 'entity-actions' });
 
 /**
  * Common manipulations scoped to the current block.
@@ -191,7 +195,7 @@ export const useBlockEntityCommands = (
     const entity = getEntity();
     if (!entity) return false;
     if (!deleteAction.canExecute(entity)) return false;
-    deleteAction.execute([entity]);
+    void deleteAction.execute([entity]);
     return true;
   };
 
@@ -204,12 +208,14 @@ export const useBlockEntityCommands = (
     // triage flow, or the entity is no longer in the surviving soup list.
     const selectedRow = triageRow();
     if (!soup || !selectedRow) {
-      markDone.execute([entity]);
+      markDone.execute([entity]).catch(reportEntityActionError);
       return true;
     }
 
     // Triage flow: mark done and advance to the next item in the list.
-    markDone.executeWithSoup([selectedRow.original], soup, advanceSplitTo);
+    markDone
+      .executeWithSoup([selectedRow.original], soup, advanceSplitTo)
+      .catch(reportEntityActionError);
 
     return true;
   };
@@ -300,7 +306,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!renameAction.canExecute(entity)) return false;
-        renameAction.execute([entity]);
+        void renameAction.execute([entity]);
         return true;
       },
       condition: () => {
@@ -326,7 +332,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!favoriteAction.canExecute(entity)) return false;
-        favoriteAction.execute([entity]);
+        void favoriteAction.execute([entity]);
         return true;
       },
       condition: () => {
@@ -387,7 +393,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!copyAction.canExecute(entity)) return false;
-        copyAction.execute([entity]);
+        copyAction.execute([entity]).catch(reportEntityActionError);
         return true;
       },
       condition: () => {
@@ -409,7 +415,7 @@ export const useBlockEntityCommands = (
         if (!entity) return false;
         e?.AT_TARGET;
         if (!moveToProjectAction.canExecute(entity)) return false;
-        moveToProjectAction.execute([entity]);
+        void moveToProjectAction.execute([entity]);
         return true;
       },
       condition: () => {
@@ -430,7 +436,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return true;
         if (!copyLinkAction.canExecute(entity)) return true;
-        copyLinkAction.execute([entity]);
+        copyLinkAction.execute([entity]).catch(reportEntityActionError);
         return true;
       },
       condition: () => {
@@ -452,7 +458,7 @@ export const useBlockEntityCommands = (
         const entity = getEntity();
         if (!entity) return false;
         if (!copyBranchNameAction.canExecute(entity)) return false;
-        copyBranchNameAction.execute([entity]);
+        void copyBranchNameAction.execute([entity]);
         return true;
       },
       condition: () => {
@@ -475,7 +481,7 @@ export const useBlockEntityCommands = (
       scopeId,
       description: 'Copy ID',
       keyDownHandler: () => {
-        copyEntityIdAction.executeById(blockId);
+        copyEntityIdAction.executeById(blockId).catch(reportEntityActionError);
         return true;
       },
       displayPriority: 10,

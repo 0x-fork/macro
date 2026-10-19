@@ -44,7 +44,7 @@ export const makeRemoveFromProjectAction = () => {
     if (nextRow) {
       soup.focus.set(nextRow.id);
     }
-    restoreSoupFocus(nextRow?.id);
+    void restoreSoupFocus(nextRow?.id);
   };
 
   return { canExecute, execute, executeWithSoup };

@@ -225,10 +225,10 @@ function invalidateAfterMove(
   }
   // Destination folder's list queries don't contain the entities yet, so match by project id in the key
   invalidateSoupQueriesReferencing([destinationProjectId]);
-  queryClient.invalidateQueries({ queryKey: ['entity'] });
+  void queryClient.invalidateQueries({ queryKey: ['entity'] });
   // If moving a project, invalidate all project queries since nested projects' breadcrumbs change too
   if (hasProjects) {
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: ['project'],
     });
   }
@@ -374,10 +374,10 @@ export function createBulkRemoveFromProjectDssEntityMutation() {
       // The source folders' views no longer contain the entities after the
       // optimistic removal, so match them by project id in the key
       invalidateSoupQueriesReferencing(context?.sourceProjectIds ?? []);
-      queryClient.invalidateQueries({ queryKey: ['entity'] });
+      void queryClient.invalidateQueries({ queryKey: ['entity'] });
       // Removed projects' breadcrumbs (and nested projects') change too
       if (entities.some((e) => e.type === 'project')) {
-        queryClient.invalidateQueries({ queryKey: ['project'] });
+        void queryClient.invalidateQueries({ queryKey: ['project'] });
       }
       if (isFeatureEnabled(enableGraphqlSoup)) {
         return refreshActiveGraphqlSoupQueries();
@@ -433,10 +433,10 @@ export function createBulkCopyDssEntityMutation() {
 
     onMutate: async () => {
       // For copy, no optimistic update — new IDs unknown until server
-      queryClient.cancelQueries({
+      await queryClient.cancelQueries({
         queryKey: soupKeys.items._def,
       });
-      queryClient.cancelQueries({
+      await queryClient.cancelQueries({
         queryKey: soupKeys.astItems._def,
       });
     },
@@ -448,13 +448,13 @@ export function createBulkCopyDssEntityMutation() {
       }
 
       // Trigger refetch so new items appear
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: soupKeys.items._def,
       });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: soupKeys.astItems._def,
       });
-      queryClient.invalidateQueries({ queryKey: ['entity'] });
+      void queryClient.invalidateQueries({ queryKey: ['entity'] });
       if (isFeatureEnabled(enableGraphqlSoup)) {
         return refreshActiveGraphqlSoupQueries();
       }

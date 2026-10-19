@@ -35,7 +35,7 @@ export function SearchAskAiButton() {
     scopeId: panel.splitHotkeyScope,
     description: 'Ask AI',
     keyDownHandler: () => {
-      askAi();
+      void askAi();
       return true;
     },
     runWithInputFocused: true,

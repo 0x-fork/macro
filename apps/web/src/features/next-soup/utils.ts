@@ -79,6 +79,7 @@ import {
   type WithNotification,
   type WithSearch,
 } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
 import {
   compositeEntity,
   documentCommentLocation,
@@ -823,14 +824,20 @@ export const openEntityInSplitFromUnifiedList = async (
     markNotificationsSeen();
   }
 
-  if (commentParams && entity.type === 'document') {
-    // An already-open document ignores new split params.
-    await navigateDocumentEntityToComment(entity, blockOrchestrator);
-  } else if (!target && openChannelAtLatest) {
-    // Force the scroll-to-bottom even when the channel is already open in a
-    // (preview) split, where reopen: 'latest' only reactivates the parked
-    // split without re-pinning it to the newest message.
-    await goToChannelLatest(blockOrchestrator, content.id);
+  // The split is already open; a failed in-block navigation leaves it at its
+  // default position, so report it rather than rejecting every caller.
+  try {
+    if (commentParams && entity.type === 'document') {
+      // An already-open document ignores new split params.
+      await navigateDocumentEntityToComment(entity, blockOrchestrator);
+    } else if (!target && openChannelAtLatest) {
+      // Force the scroll-to-bottom even when the channel is already open in a
+      // (preview) split, where reopen: 'latest' only reactivates the parked
+      // split without re-pinning it to the newest message.
+      await goToChannelLatest(blockOrchestrator, content.id);
+    }
+  } catch (error) {
+    Telemetry.error(error, { surface: 'open-entity-in-split' });
   }
 };
 
@@ -1075,7 +1082,7 @@ type TrashLabel = { id: string; linkId?: string };
  */
 export function trashEmails(targets: TrashEmailTarget[]): TrashEmailsHandle {
   const ids = targets.map((t) => t.id);
-  queryClient.cancelQueries({ queryKey: queryKeys.all.email });
+  void queryClient.cancelQueries({ queryKey: queryKeys.all.email });
 
   const previousEmail = queryClient.getQueriesData<{
     pages: { items: EntityData[] }[];
