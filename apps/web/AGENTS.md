@@ -5,6 +5,7 @@
 - `bun run lint`: lint with biome 
 - `bun run format`: format changes with biome 
 - `bun run knip`: to check for dead code
+- `bun run lint:oxlint` (repository root): type-aware oxlint. `typescript/no-floating-promises` is an error with no suppressions (FE-13), enforced in `just check` and CI. Plain `oxlint` without `--type-aware` skips that rule silently.
 - Email rendering is isolated in `packages/email-renderer` at the repository root. Run `just test-email-rendering` for its Node and Chromium suites. Add fixtures under `packages/email-renderer/tests/fixtures`, run `just test-email-rendering-update`, and review changed images. These are renderer tests, not inbox e2e.
 - The app does not register a service worker. Keep `public/sw.js` as a retirement
   endpoint for existing installations; see the [startup bundle rule](../../.agents/rules/web/startup-bundle.md).

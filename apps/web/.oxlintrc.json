@@ -1,14 +1,15 @@
 {
   // oxlint runs ALONGSIDE Biome, scoped to rules Biome cannot express.
-  // Enforces FE-12 (and eventually FE-13) from docs/development/style-guide.md.
+  // Enforces FE-12 and FE-13 from docs/development/style-guide.md.
   //
-  // Run: bun run lint:oxlint (from the repository root), or `bunx oxlint` from apps/web.
+  // Run: bun run lint:oxlint (from the repository root).
   //
-  // typescript/no-floating-promises additionally needs type information:
-  // install `bun add -d oxlint oxlint-tsgolint` and run `oxlint --type-aware`
-  // (requires access to the repo's private git dependencies to update the
-  // lockfile, so it is not wired up yet).
-  "plugins": ["promise"],
+  // typescript/no-floating-promises needs type information, so run oxlint with
+  // `--type-aware` and oxlint-tsgolint (lint:oxlint does). Without it the rule
+  // is skipped silently. `typeAware` is a CLI flag rather than
+  // `options.typeAware` because `just check` also lints apps/marketing with
+  // this config, and tsgolint rejects its tsconfig.
+  "plugins": ["promise", "typescript"],
   "categories": {
     "correctness": "off"
   },
@@ -16,7 +17,8 @@
     "promise/prefer-await-to-then": "warn",
     // eslint/complexity — McCabe cyclomatic complexity, default max 20.
     // https://oxc.rs/docs/guide/usage/linter/rules/eslint/complexity
-    "complexity": "warn"
+    "complexity": "warn",
+    "typescript/no-floating-promises": "error"
   },
   "ignorePatterns": [
     "**/node_modules/**",
