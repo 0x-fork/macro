@@ -211,7 +211,7 @@ export function Root() {
 
   createEffect(() => {
     const cleanup = licenseChannel.subscribe(() => {
-      invalidateUserInfo();
+      void invalidateUserInfo();
     });
 
     onCleanup(() => cleanup());

@@ -76,7 +76,7 @@ export async function fetchPropertyDefinitionWithOptions(
 }
 
 function invalidatePropertyDefinitions() {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     predicate: ({ queryKey }) =>
       queryKey.includes('properties') && queryKey.includes('definitions'),
   });

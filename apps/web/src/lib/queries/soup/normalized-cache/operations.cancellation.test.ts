@@ -220,7 +220,7 @@ describe('destination-folder refetch vs optimistic soup updates', () => {
     expect(observer.getCurrentResult().data).toEqual(['thread-1']);
 
     // Active observer + invalidation → refetch in flight.
-    testQueryClient.invalidateQueries({ queryKey: sourceListKey });
+    void testQueryClient.invalidateQueries({ queryKey: sourceListKey });
     await vi.waitFor(() => {
       expect(source.state().fetchStatus).toBe('fetching');
     });
@@ -248,7 +248,7 @@ describe('destination-folder refetch vs optimistic soup updates', () => {
     const { observer } = source.mount();
     await source.releaseNextFetch();
 
-    testQueryClient.invalidateQueries({ queryKey: sourceListKey });
+    void testQueryClient.invalidateQueries({ queryKey: sourceListKey });
     await vi.waitFor(() => {
       expect(source.state().fetchStatus).toBe('fetching');
     });

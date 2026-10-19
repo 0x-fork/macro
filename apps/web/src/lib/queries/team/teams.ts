@@ -91,10 +91,10 @@ export function useIsTeamOwner(): Accessor<boolean> {
 }
 
 export function invalidateUserTeams() {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: teamKeys.userTeams.queryKey,
   });
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: teamKeys.currentTeam.queryKey,
   });
 }
@@ -142,7 +142,7 @@ export function usePatchTeamMutation(callbacks?: PatchTeamCallbacks) {
     ...withCallbacks<void, Error, PatchTeamArgs>(
       {
         onSuccess: (_data, { teamId }) => {
-          invalidateTeam(teamId);
+          void invalidateTeam(teamId);
           invalidateUserTeams();
           toast.success('Team updated');
         },
@@ -212,7 +212,7 @@ export function useToggleAutoJoinDomainMutation(
             teamKeys.currentTeam.queryKey,
             applyDomain
           );
-          invalidateTeam(teamId);
+          void invalidateTeam(teamId);
           invalidateUserTeams();
           toast.success(
             data.auto_join_domain
@@ -277,7 +277,7 @@ export function useToggleNonAdminInvitesMutation(
             teamKeys.currentTeam.queryKey,
             applySetting
           );
-          invalidateTeam(teamId);
+          void invalidateTeam(teamId);
           invalidateUserTeams();
           toast.success(
             data.allow_non_admin_invites

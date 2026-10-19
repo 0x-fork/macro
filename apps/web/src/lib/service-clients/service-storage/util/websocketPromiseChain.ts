@@ -70,7 +70,7 @@ export function createWebsocketPromiseChain<
         }
       }, timeoutMs);
     }) as PromiseHandler;
-    promise.finally(() => {
+    void promise.finally(() => {
       promise.resolved = true;
     });
 
@@ -133,7 +133,7 @@ export function createWebsocketPromiseChain<
 
     ws.addEventListener('message', messageHandler);
     ws.addEventListener('close', closeHandler);
-    Promise.allSettled(results).then(() => {
+    void Promise.allSettled(results).then(() => {
       ws.removeEventListener('message', messageHandler);
       ws.removeEventListener('close', closeHandler);
     });

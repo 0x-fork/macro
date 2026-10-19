@@ -83,7 +83,7 @@ class PreviewDataLoader {
         existing.push({ item, resolve, reject });
       } else {
         this.pendingRequests.set(key, [{ item, resolve, reject }]);
-        this.batcher.addItem(item);
+        void this.batcher.addItem(item);
       }
     });
   }

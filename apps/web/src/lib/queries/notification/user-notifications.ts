@@ -530,7 +530,7 @@ function notificationsMutationSuccessCallback(
   _: UpdateNotificationsResult,
   _params: NotificationsMutationParams
 ) {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: notificationKeys.user._def,
     refetchType: 'none',
   });
@@ -891,7 +891,7 @@ export function applyNotificationStatusUpdate(
     };
   });
 
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: notificationKeys.user._def,
     refetchType: 'none',
   });
@@ -977,7 +977,7 @@ export function restoreUserNotifications(notifications: NotificationItem[]) {
     };
   });
 
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: notificationKeys.user._def,
     refetchType: 'none',
   });
@@ -1012,7 +1012,7 @@ export function optimisticInsertNotification(
   // Cache is already updated via setQueriesData above. Mark as stale without
   // refetching — refetchType default would re-fetch every cached page of the
   // infinite notification query for every incoming websocket notification.
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: notificationKeys.user._def,
     refetchType: 'none',
   });

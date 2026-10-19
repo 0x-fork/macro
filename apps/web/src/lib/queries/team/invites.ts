@@ -41,7 +41,7 @@ export function useInviteToTeamMutation(callbacks?: InviteToTeamCallbacks) {
     ...withCallbacks<void, Error, InviteToTeamArgs>(
       {
         onSuccess: (_data, { teamId }) => {
-          invalidateTeamInvites(teamId);
+          void invalidateTeamInvites(teamId);
           toast.success('Invitation sent');
         },
 
@@ -102,7 +102,7 @@ export function useDeleteTeamInviteMutation(
         },
 
         onSuccess: (_data, { teamId }) => {
-          invalidateTeamInvites(teamId);
+          void invalidateTeamInvites(teamId);
           toast.success('Invitation cancelled');
         },
 

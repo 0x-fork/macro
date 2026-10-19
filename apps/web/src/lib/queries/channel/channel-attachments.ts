@@ -110,7 +110,7 @@ export function getChannelAttachmentsQueryKeyPrefix(channelId: string) {
 }
 
 function _softInvalidateChannelAttachments(channelId: string) {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: getChannelAttachmentsQueryKeyPrefix(channelId),
     refetchType: 'inactive',
   });

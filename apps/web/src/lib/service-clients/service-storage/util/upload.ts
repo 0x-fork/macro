@@ -223,7 +223,7 @@ async function uploadWithProgress(
 
     const projectIdPromise = waitBulkUploadStatus(requestId);
 
-    projectIdPromise.then((projectId) => {
+    void projectIdPromise.then((projectId) => {
       if (projectId) {
         toast.success(`Uploaded ${name}`);
       } else {

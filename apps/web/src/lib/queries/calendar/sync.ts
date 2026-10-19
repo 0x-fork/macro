@@ -14,9 +14,9 @@ import { refreshTeamCalendarQueries } from './team-cache';
 export function invalidateCalendarViews(): void {
   void refreshTeamCalendarQueries();
   void invalidateCalendarInvitations();
-  invalidateCalendarOccurrences();
+  void invalidateCalendarOccurrences();
   invalidateCalendarEventPreviews();
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: calendarKeys.visibleCalendars.queryKey,
   });
 }
@@ -55,10 +55,10 @@ export function handleRefreshCalendar(payload: unknown): void {
   // only the caches without optimistic writes refresh meanwhile.
   if (queryClient.isMutating({ mutationKey: RSVP_MUTATION_KEY }) === 0) {
     void invalidateCalendarInvitations();
-    invalidateCalendarOccurrences();
+    void invalidateCalendarOccurrences();
   }
   invalidateCalendarEventPreviews();
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: calendarKeys.visibleCalendars.queryKey,
   });
 }

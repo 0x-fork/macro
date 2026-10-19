@@ -134,8 +134,8 @@ export function invalidateEmailLinks() {
   // Connection, reauthorization and link-removal events must refresh the
   // GraphQL catalog consumed by both From and the sidebar, not only legacy reads.
   void refreshSenderCatalog();
-  queryClient.cancelQueries({ queryKey: emailKeys.links.queryKey });
-  queryClient.invalidateQueries({
+  void queryClient.cancelQueries({ queryKey: emailKeys.links.queryKey });
+  void queryClient.invalidateQueries({
     queryKey: emailKeys.links.queryKey,
   });
 }

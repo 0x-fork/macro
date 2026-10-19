@@ -61,7 +61,7 @@ export function useRemoveUserFromTeamMutation(
         },
 
         onSuccess: (_data, { teamId }) => {
-          invalidateTeam(teamId);
+          void invalidateTeam(teamId);
           toast.success('Member removed');
         },
 
@@ -104,7 +104,7 @@ export function useSetTeamMemberPlanMutation(
     ...withCallbacks<void, Error, SetTeamMemberPlanArgs>(
       {
         onSuccess: (_data, { teamId, plan }) => {
-          invalidateTeam(teamId);
+          void invalidateTeam(teamId);
           void invalidateAiBillingSummary();
           void invalidateSubscriptionStatus();
           toast.success(

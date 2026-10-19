@@ -62,7 +62,7 @@ function enqueueDocumentIdWakeup(documentId: string) {
 
   recentWakeups.set(documentId, now);
   cleanupRecentWakeups(now);
-  documentWakeupBatcher.addItem(documentId);
+  void documentWakeupBatcher.addItem(documentId);
 }
 
 type WakeableDocument = ItemLike & {

@@ -120,7 +120,7 @@ function _useJoinCallMutation() {
     mutationFn: async (channelId: string) =>
       await throwOnErr(() => callServiceClient.getOrCreateCall(channelId)),
     onSuccess() {
-      invalidateActiveCallQueries();
+      void invalidateActiveCallQueries();
     },
     onError(error: Error) {
       if (
@@ -160,7 +160,7 @@ export function useLeaveCallMutation() {
       }
     },
     onSuccess() {
-      invalidateActiveCallQueries();
+      void invalidateActiveCallQueries();
     },
     onError(error: Error) {
       console.error('failed to leave call', error);
@@ -261,7 +261,9 @@ export function setCallRecordTeamShareCache(callId: string, shared: boolean) {
 }
 
 function invalidateCallRecord(callId: string) {
-  queryClient.invalidateQueries({ queryKey: callKeys.record(callId).queryKey });
+  void queryClient.invalidateQueries({
+    queryKey: callKeys.record(callId).queryKey,
+  });
 }
 
 /**

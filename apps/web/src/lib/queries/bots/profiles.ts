@@ -70,7 +70,7 @@ class BotProfileLoader {
         existing.push({ resolve, reject });
       } else {
         this.pendingRequests.set(botId, [{ resolve, reject }]);
-        this.batcher.addItem(botId);
+        void this.batcher.addItem(botId);
       }
     });
   }

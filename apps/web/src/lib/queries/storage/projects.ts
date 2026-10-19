@@ -245,10 +245,10 @@ function _useCreateProjectMutation(
           }
         },
         onSettled: () => {
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: storageKeys.projects.list.queryKey,
           });
-          refetchHistory();
+          void refetchHistory();
         },
       },
       callbacks

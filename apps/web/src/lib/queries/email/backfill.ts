@@ -130,7 +130,7 @@ export function useBackfillJobsQuery() {
  * (the query otherwise only fires on mount).
  */
 export function invalidateBackfillJobs() {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: emailKeys.backfillJobs.queryKey,
   });
 }

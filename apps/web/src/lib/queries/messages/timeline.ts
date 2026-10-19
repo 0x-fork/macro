@@ -733,7 +733,7 @@ export function findThreadPreviewReplySnapshotInMessageTimeline(
  * Marks the channel messages query as stale without triggering an immediate refetch.
  */
 export function softInvalidateMessageTimeline(parent: MessageParent) {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: getMessageTimelineQueryKeyPrefix(parent),
     refetchType: 'inactive',
   });
@@ -745,7 +745,7 @@ function getMessageTimelineByIdsQueryKeyPrefix(parent: MessageParent) {
 }
 
 export function softInvalidateMessageTimelineByIds(parent: MessageParent) {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: getMessageTimelineByIdsQueryKeyPrefix(parent),
     refetchType: 'inactive',
   });

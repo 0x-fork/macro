@@ -102,7 +102,7 @@ export function useQuerySync(userId: Accessor<string | undefined>): void {
         );
       })
       .with({ type: 'contacts_invalidation' }, () => {
-        invalidateContacts();
+        void invalidateContacts();
       })
       .with({ type: 'timeline_activity' }, () => {
         withParsedWebsocketPayload(

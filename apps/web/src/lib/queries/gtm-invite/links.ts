@@ -57,7 +57,7 @@ export function useCreateGtmInviteLinkMutation(
     ...withCallbacks<GtmInviteLink, Error, CreateGtmInviteLinkRequest>(
       {
         onSuccess: () => {
-          invalidateGtmInviteLinks();
+          void invalidateGtmInviteLinks();
         },
         onError: (error) => {
           toast.failure(error.message || "Couldn't create the invite link");
@@ -84,7 +84,7 @@ export function useRevokeGtmInviteLinkMutation(
     ...withCallbacks<GtmInviteLink, Error, RevokeLinkArgs>(
       {
         onSuccess: () => {
-          invalidateGtmInviteLinks();
+          void invalidateGtmInviteLinks();
           toast.success('Invite link revoked');
         },
         onError: (error) => {
@@ -152,7 +152,7 @@ export function useRedeemGtmInviteLinkMutation(callbacks?: RedeemCallbacks) {
     ...withCallbacks<GtmInviteOffer, Error, RedeemArgs>(
       {
         onSuccess: () => {
-          invalidateGtmInviteOffer();
+          void invalidateGtmInviteOffer();
         },
       },
       callbacks

@@ -157,7 +157,7 @@ export function createSolidRouterHistory(
   const revertTo = (previous: Position, landed: HistorySlice | undefined) =>
     new Promise<void>((resolve) => {
       reverting.push(resolve);
-      revertChange(landed, previous.index, {
+      void revertChange(landed, previous.index, {
         go: (delta) => navigate(delta),
         replace: () => navigateTo(previous.location, previous.index, true),
       });

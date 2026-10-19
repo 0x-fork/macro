@@ -3,6 +3,7 @@ import {
   enableGraphqlSoup,
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
+import { Telemetry } from '@macro-inc/observability';
 import type { UnifiedSearchResponseItem } from '@service-search/generated/models';
 import type {
   PostSoupRequest,
@@ -63,8 +64,11 @@ type SoupSearchInfiniteData = InfiniteData<
  */
 function cancelSoupQueries() {
   const predicate = (query: Query) => query.state.data !== undefined;
-  queryClient.cancelQueries({ queryKey: soupKeys.items._def, predicate });
-  queryClient.cancelQueries({ queryKey: soupKeys.astItems._def, predicate });
+  void queryClient.cancelQueries({ queryKey: soupKeys.items._def, predicate });
+  void queryClient.cancelQueries({
+    queryKey: soupKeys.astItems._def,
+    predicate,
+  });
 }
 
 /**
@@ -116,7 +120,7 @@ function updateSoupEntity<T extends SoupEntityTag>(
       )
   );
   if (cancelHashes.size > 0) {
-    queryClient.cancelQueries({
+    void queryClient.cancelQueries({
       predicate: (query) =>
         query.state.data !== undefined && cancelHashes.has(query.queryHash),
     });
@@ -257,7 +261,7 @@ export function invalidateSoupEntity(entityId: string): void {
 /** Mark stale soup queries whose query key references any of the given ids (e.g. project-scoped views). */
 export function invalidateSoupQueriesReferencing(ids: string[]): void {
   if (ids.length === 0) return;
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: ['soup'],
     predicate: (query) => {
       const serialized = JSON.stringify(query.queryKey);
@@ -268,16 +272,16 @@ export function invalidateSoupQueriesReferencing(ids: string[]): void {
 
 /** Mark every soup list query stale. Use `invalidateSoupEntity` when the entity ID is known. */
 export function invalidateAllSoup(): void {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: soupKeys.items._def,
   });
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: soupKeys.astItems._def,
   });
   // Expanded single-group caches back grouped views' rows (mail/inbox group
   // by date); leaving them stale keeps removed rows hidden even after their
   // parent queries refetch.
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: soupKeys.groupedGroup._def,
   });
 }
@@ -364,7 +368,7 @@ export function insertSoupEntity(item: SoupApiItem): SoupTransaction {
     );
 
     if (!nextPage) {
-      queryClient.invalidateQueries({ queryKey: key });
+      void queryClient.invalidateQueries({ queryKey: key });
       continue;
     }
 
@@ -519,7 +523,7 @@ export function restoreSoupEntityToDoneFilteredQueries(
     if (flatMeta.itemFilter && !flatMeta.itemFilter(item)) continue;
     if (flatMeta.insertFilter && !flatMeta.insertFilter(item)) continue;
 
-    cancelQuery(key);
+    void cancelQuery(key);
     queryClient.setQueryData<SoupItemsInfiniteData>(key, {
       ...prev,
       pages: prev.pages.map((page, index) =>
@@ -553,7 +557,7 @@ export function restoreSoupEntityToDoneFilteredQueries(
         continue;
       }
 
-      cancelQuery(key);
+      void cancelQuery(key);
       queryClient.setQueryData<SoupAstItemsInfiniteData>(key, {
         ...prev,
         pages: prev.pages.map((page, index) =>
@@ -576,11 +580,11 @@ export function restoreSoupEntityToDoneFilteredQueries(
 
     const nextPage = insertGroupedPage(firstPage, item, entityId, meta.groupBy);
     if (!nextPage) {
-      queryClient.invalidateQueries({ queryKey: key });
+      void queryClient.invalidateQueries({ queryKey: key });
       continue;
     }
 
-    cancelQuery(key);
+    void cancelQuery(key);
     queryClient.setQueryData<SoupAstItemsInfiniteData>(key, {
       ...prev,
       pages: [nextPage, ...prev.pages.slice(1)],
@@ -598,11 +602,11 @@ function removeSoupEntitiesWhere(
   // Scoped equivalent of cancelSoupQueries (same data !== undefined guard)
   const cancelPredicate = (query: Query) =>
     query.state.data !== undefined && referencesIds(query.queryKey);
-  queryClient.cancelQueries({
+  void queryClient.cancelQueries({
     queryKey: soupKeys.items._def,
     predicate: cancelPredicate,
   });
-  queryClient.cancelQueries({
+  void queryClient.cancelQueries({
     queryKey: soupKeys.astItems._def,
     predicate: cancelPredicate,
   });
@@ -672,7 +676,7 @@ function removeSoupEntitiesWhere(
 }
 
 export function removeSearchEntities(entityIds: Set<string>): SoupTransaction {
-  queryClient.cancelQueries({ queryKey: soupKeys.search._def });
+  void queryClient.cancelQueries({ queryKey: soupKeys.search._def });
 
   const previous = queryClient.getQueriesData<SoupSearchInfiniteData>({
     queryKey: soupKeys.search._def,
@@ -800,15 +804,15 @@ export async function refetchSoupEntity(
 function invalidateAllSoupExceptTouched(): void {
   const notTouched = (query: Query) =>
     !JSON.stringify(query.queryKey).includes('touched_by_me');
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: soupKeys.items._def,
     predicate: notTouched,
   });
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: soupKeys.astItems._def,
     predicate: notTouched,
   });
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: soupKeys.groupedGroup._def,
     predicate: notTouched,
   });
@@ -882,6 +886,15 @@ export function buildSingleEntityFilter(
     .exhaustive();
 }
 
+async function updateRecentlyViewedItemLazily(
+  itemId: string,
+  viewedAt: string
+): Promise<void> {
+  // Lazy import to break circular dependency
+  const { updateRecentlyViewedItem } = await import('../recently-viewed');
+  updateRecentlyViewedItem(itemId, viewedAt);
+}
+
 /**
  * Optimistically update the viewedAt timestamp for a soup item.
  * Updates the item across all soup queries if it exists.
@@ -889,10 +902,9 @@ export function buildSingleEntityFilter(
 export function optimisticUpdateSoupItemViewedAt(itemId: string) {
   const now = new Date().toISOString();
 
-  // Lazy import to break circular dependency
-  import('../recently-viewed').then(({ updateRecentlyViewedItem }) => {
-    updateRecentlyViewedItem(itemId, now);
-  });
+  updateRecentlyViewedItemLazily(itemId, now).catch((error) =>
+    Telemetry.error(error, { surface: 'soup-normalized-cache' })
+  );
 
   const current = getSoupEntityById(itemId);
   if (!current) return;

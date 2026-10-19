@@ -30,6 +30,6 @@ export function createAgentSessionMentionBatcher(
   );
   return (id: string) =>
     new Promise<AgentSessionMentionPreview>((resolve, reject) => {
-      batcher.addItem({ id, resolve, reject });
+      void batcher.addItem({ id, resolve, reject });
     });
 }

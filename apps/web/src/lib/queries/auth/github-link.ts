@@ -111,7 +111,7 @@ export function useDeleteGithubLinkMutation() {
     mutationFn: async () =>
       await throwOnErr(() => authServiceClient.deleteGithubLink()),
     onSuccess: () => {
-      invalidateGithubLinkStatus();
+      void invalidateGithubLinkStatus();
       invalidateAllSoup();
     },
   }));

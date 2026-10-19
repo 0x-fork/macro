@@ -47,7 +47,7 @@ export function useJoinTeamMutation(callbacks?: JoinTeamCallbacks) {
       {
         onSuccess: () => {
           invalidateUserTeams();
-          invalidateUserInvites();
+          void invalidateUserInvites();
           toast.success('Joined team');
         },
 
@@ -96,7 +96,7 @@ export function useRejectInvitationMutation(
     >(
       {
         onSuccess: () => {
-          invalidateUserInvites();
+          void invalidateUserInvites();
           toast.success('Invitation declined');
         },
 

@@ -12,7 +12,7 @@ self.onmessage = function (event) {
       },
     });
 
-    zipFiles(taskId, files, fileDetails, folderPaths ?? []);
+    void zipFiles(taskId, files, fileDetails, folderPaths ?? []);
   }
 };
 

@@ -42,7 +42,7 @@ export function usePropertyOptionsQuery(
 }
 
 function invalidatePropertyOptions(propertyDefinitionId: string) {
-  queryClient.invalidateQueries({
+  void queryClient.invalidateQueries({
     queryKey: propertiesKeys.options({ propertyDefinitionId }).queryKey,
   });
 }

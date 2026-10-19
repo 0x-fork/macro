@@ -31,7 +31,7 @@ export function handleTaskDuplicateMatchesUpdated(
     console.warn('Malformed task duplicate live update payload', payload);
     return;
   }
-  invalidateTaskDuplicates(payload.documentId);
+  void invalidateTaskDuplicates(payload.documentId);
 }
 
 async function fetchTaskDuplicates(
@@ -70,9 +70,9 @@ export function useDismissTaskDuplicatesMutation(documentId: Accessor<string>) {
       if (result.isErr()) throw new Error('Failed to dismiss duplicate');
     },
     onSuccess: (_data, params) => {
-      invalidateTaskDuplicates(documentId());
+      void invalidateTaskDuplicates(documentId());
       for (const otherDocumentId of params.otherDocumentIds ?? []) {
-        invalidateTaskDuplicates(otherDocumentId);
+        void invalidateTaskDuplicates(otherDocumentId);
       }
     },
   }));

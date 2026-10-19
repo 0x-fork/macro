@@ -8,11 +8,11 @@ import { invalidateProjects } from '@queries/storage/projects';
 export function refetchResources() {
   // TODO: fetch documents
   // refetchDocuments();
-  invalidateUserQuota();
-  refetchHistory();
-  refetchProjectResources();
-  invalidateDeletedItems();
-  invalidatePreview();
+  void invalidateUserQuota();
+  void refetchHistory();
+  void refetchProjectResources();
+  void invalidateDeletedItems();
+  void invalidatePreview();
 }
 
 async function refetchProjectResources(_force = false) {

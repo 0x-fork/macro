@@ -4,6 +4,7 @@ import { useAndroidBack } from '@core/mobile/androidBack';
 import { useAndroidWindowInsets } from '@core/mobile/androidWindowInsets';
 import { NativeAppUpdateRequiredDialog } from '@core/mobile/NativeAppUpdateRequiredDialog';
 import { isPlatform, isTauri } from '@core/util/platform';
+import { Telemetry } from '@macro-inc/observability';
 import { PlatformNotificationProvider } from '@notifications';
 import { queryPersistence } from '@queries/client';
 import type { RouteSectionProps } from '@solidjs/router';
@@ -132,11 +133,15 @@ function TauriProvider(props: { children: JSX.Element }) {
       );
     }
     // Fetch current status since events emitted before the listener registered are missed
-    invoke<BundleUpdateStatus>('get_bundle_update_status').then((status) => {
-      setBundleUpdateStatus(status);
-    });
+    invoke<BundleUpdateStatus>('get_bundle_update_status')
+      .then((status) => {
+        setBundleUpdateStatus(status);
+      })
+      .catch((error) => Telemetry.error(error, { surface: 'bundle-update' }));
     onCleanup(() => {
-      unlistenPromise.then((unlisten) => unlisten());
+      unlistenPromise
+        .then((unlisten) => unlisten())
+        .catch((error) => Telemetry.error(error, { surface: 'bundle-update' }));
     });
 
     document.body.classList.add('tauri');
