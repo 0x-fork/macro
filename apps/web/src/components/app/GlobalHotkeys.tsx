@@ -32,6 +32,7 @@ import {
   openFilePicker,
   openFolderPicker,
 } from '@core/util/upload';
+import { Telemetry } from '@macro-inc/observability';
 import IconGear from '@phosphor/gear.svg';
 import Plus from '@phosphor/plus.svg';
 import LogoutIcon from '@phosphor/sign-out.svg';
@@ -343,7 +344,10 @@ export default function GlobalShortcuts() {
     description: 'Logout',
     icon: LogoutIcon,
     keyDownHandler: () => {
-      logout();
+      logout().catch((error) => {
+        Telemetry.error(error, { surface: 'logout' });
+        toast.failure('Failed to sign out');
+      });
       return true;
     },
     runWithInputFocused: true,
@@ -575,7 +579,7 @@ export default function GlobalShortcuts() {
     keyDownHandler: (e) => {
       if (!undoCtx.canUndo()) return false;
       e?.preventDefault();
-      undoCtx.undo({ onError: () => toast.failure('Failed to undo') });
+      void undoCtx.undo({ onError: () => toast.failure('Failed to undo') });
       return true;
     },
     condition: () => undoCtx.canUndo(),
@@ -589,7 +593,7 @@ export default function GlobalShortcuts() {
     keyDownHandler: (e) => {
       if (!undoCtx.canRedo()) return false;
       e?.preventDefault();
-      undoCtx.redo({ onError: () => toast.failure('Failed to redo') });
+      void undoCtx.redo({ onError: () => toast.failure('Failed to redo') });
       return true;
     },
     condition: () => undoCtx.canRedo(),

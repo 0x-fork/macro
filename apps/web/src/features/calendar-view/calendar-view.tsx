@@ -201,7 +201,7 @@ export function CalendarView(props: CalendarViewProps) {
   };
   const setPeriodView = (period: CalendarPeriodView) => {
     if (routeParams.period === period) return;
-    navigate({ route: props.route, params: { period } });
+    void navigate({ route: props.route, params: { period } });
   };
 
   onMount(() => {

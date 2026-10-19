@@ -366,7 +366,7 @@ export function DispatchAgentButton(
         <Dropdown.Group>
           <Dropdown.Item
             onSelect={() => {
-              executeAction(COPY_ACTION);
+              void executeAction(COPY_ACTION);
               setOpen(false);
             }}
           >
@@ -376,7 +376,7 @@ export function DispatchAgentButton(
           <Show when={isTask()}>
             <Dropdown.Item
               onSelect={() => {
-                copyBranchNameToClipboard(blockId);
+                void copyBranchNameToClipboard(blockId);
                 setOpen(false);
               }}
             >
@@ -400,7 +400,7 @@ export function DispatchAgentButton(
             {(action) => (
               <Dropdown.Item
                 onSelect={() => {
-                  executeAction(action);
+                  void executeAction(action);
                   setOpen(false);
                 }}
               >

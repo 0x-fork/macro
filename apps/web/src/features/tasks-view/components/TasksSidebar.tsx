@@ -198,7 +198,7 @@ export function TasksSidebar() {
                 openProject(layout, id, { newSplit: true });
                 return;
               }
-              navigate({
+              void navigate({
                 route: projectDetailRoute,
                 params: { projectId: id, section: 'overview' },
               });

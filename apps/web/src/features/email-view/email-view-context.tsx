@@ -250,8 +250,8 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
       !(event?.shiftKey || event?.metaKey || event?.ctrlKey || event?.altKey)
     );
   };
-  const closeThread = () =>
-    navigate(
+  const closeThread = () => {
+    void navigate(
       { route: emailSplitRoute, params: {} },
       {
         search: {
@@ -261,6 +261,7 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
         },
       }
     );
+  };
   const openThread = (
     thread: EmailThreadTarget,
     options?: EntityDetailNavigationOptions & { replace?: boolean }
@@ -270,7 +271,7 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
     // The router may refuse a claimed destination. Check compatibility without
     // claiming it until the accepted route changes.
     if (!selectPreview.canSelect(selection)) return true;
-    navigate(
+    void navigate(
       { route: emailThreadRoute, params: { threadId: thread.id } },
       {
         replace: options?.replace,
@@ -292,7 +293,7 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
         : undefined;
       if (!selectPreview(selection)) {
         if (previous) {
-          navigate(
+          void navigate(
             {
               route: emailThreadRoute,
               params: { threadId: previous.id },
@@ -307,7 +308,7 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
             }
           );
         } else {
-          navigate(
+          void navigate(
             { route: emailSplitRoute, params: {} },
             {
               replace: true,

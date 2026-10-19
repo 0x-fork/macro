@@ -235,9 +235,11 @@ export function PropertyEditorModal() {
         : count + ' entities'
     }`;
 
-    saveProperties(selectedEntities, targetProperty, value).then((success) => {
-      if (success) toast.success(message);
-    });
+    void saveProperties(selectedEntities, targetProperty, value).then(
+      (success) => {
+        if (success) toast.success(message);
+      }
+    );
     if (!event?.shiftKey) closePropertyEditor();
   };
 

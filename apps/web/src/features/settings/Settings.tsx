@@ -132,7 +132,7 @@ export function SettingsPanel(props: SettingsPanelProps) {
   const selectRoutedTab = (tab: SettingsTab) => {
     setSearchSelection(undefined);
     selectTab(tab, (next) => {
-      splitNavigate(`/settings/${settingsTabToSlug(next)}`);
+      void splitNavigate(`/settings/${settingsTabToSlug(next)}`);
     });
   };
 

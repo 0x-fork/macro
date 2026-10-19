@@ -61,8 +61,7 @@ function CopyThemeButton(props: { themeId: string; name: string }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          exportTheme(props.themeId);
-          toast.success('Theme copied to clipboard');
+          void exportTheme(props.themeId);
         }}
       >
         <ClipboardIcon class="size-3.5 mobile:size-5" />

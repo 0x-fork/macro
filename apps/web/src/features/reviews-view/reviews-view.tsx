@@ -209,11 +209,12 @@ function ReviewsRoot() {
   const searchForTab = (tab: ReviewsScope) => ({
     [reviewsTabSearch.namespace]: reviewsTabSearchCodec.serialize({ tab }),
   });
-  const openList = () =>
-    navigate(
+  const openList = () => {
+    void navigate(
       { route: reviewsSplitRoute, params: {} },
       { search: searchForTab(scope()) }
     );
+  };
   const selectScope = (next: ReviewsScope) =>
     navigate(
       { route: reviewsSplitRoute, params: {} },
@@ -236,7 +237,7 @@ function ReviewsRoot() {
         });
       return;
     }
-    navigate(
+    void navigate(
       { route: reviewsPrRoute, params: { foreignEntityId } },
       { search: searchForTab(scope()) }
     );

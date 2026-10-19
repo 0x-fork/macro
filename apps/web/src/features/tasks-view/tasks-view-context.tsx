@@ -306,7 +306,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
   };
   const closeTask = () => {
     if (props.onCloseTask) return props.onCloseTask();
-    navigate(
+    void navigate(
       {
         route: state.tab === 'projects' ? tasksProjectsRoute : tasksSplitRoute,
         params: {},
@@ -325,7 +325,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
     if (props.onOpenTask) return props.onOpenTask(task, options);
     if (!opensInline(options)) return false;
     if (!selectPreview.canSelect(taskSelection(task.id))) return true;
-    navigate(
+    void navigate(
       { route: taskDetailRoute, params: { taskId: task.id } },
       {
         search: {
@@ -341,7 +341,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
       if (props.scopeKey || routeParams.projectId) return;
       if (!selectPreview(task ? taskSelection(task.id) : undefined)) {
         if (previous) {
-          navigate(
+          void navigate(
             { route: taskDetailRoute, params: { taskId: previous.id } },
             {
               replace: true,
@@ -351,7 +351,7 @@ export const [TasksViewProvider, useTasksView] = createAssertedContextProvider<
             }
           );
         } else {
-          navigate(
+          void navigate(
             {
               route:
                 state.tab === 'projects' ? tasksProjectsRoute : tasksSplitRoute,

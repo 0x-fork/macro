@@ -108,7 +108,7 @@ export function createQueueController(options: {
   onCleanup(
     subscribeSocketSessionStarted(() => {
       socketAuthoritative = false;
-      baseline();
+      void baseline();
     })
   );
 

@@ -49,7 +49,7 @@ export function TopBar() {
   const downloadDocument = createCallback(async () => {
     const file = imageFile();
     if (!file) return;
-    downloadFile(file, downloadName());
+    void downloadFile(file, downloadName());
   });
 
   const ops: FileOperation[] = [

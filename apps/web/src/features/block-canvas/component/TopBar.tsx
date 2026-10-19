@@ -59,7 +59,7 @@ export function TopBar(props: { state: CanvasDocumentChrome }) {
     const file = props.state.savedFile() ?? canvasFile();
     if (!file) return;
 
-    downloadFile(file, downloadName());
+    void downloadFile(file, downloadName());
     analytics.track('download', { blockType: 'canvas' });
   });
 
@@ -70,7 +70,7 @@ export function TopBar(props: { state: CanvasDocumentChrome }) {
       [URL_PARAMS.y]: location.y.toString(),
       [URL_PARAMS.s]: location.s.toString(),
     };
-    copyEntityLink(
+    void copyEntityLink(
       buildSimpleEntityUrl({ type: 'canvas', id: documentId }, params)
     );
     analytics.track('copy_share_link', { blockType: 'canvas' });

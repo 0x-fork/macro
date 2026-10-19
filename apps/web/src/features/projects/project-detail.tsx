@@ -300,7 +300,7 @@ function ProjectDetailHost(props: ProjectDetailProps) {
                         event?.altKey
                       )
                     ) {
-                      navigate({
+                      void navigate({
                         route: projectTaskRoute,
                         params: {
                           projectId: props.route.id,

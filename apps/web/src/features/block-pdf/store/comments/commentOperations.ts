@@ -210,7 +210,7 @@ export function useScrollToCommentThread() {
           mutationObserver.disconnect();
           intersectionObserver.disconnect();
 
-          viewer_.scrollTo({
+          void viewer_.scrollTo({
             pageNumber: rootComment.layout.pageIndex + 1,
           });
 

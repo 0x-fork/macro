@@ -154,7 +154,7 @@ export function DriveDetailNavigationProvider(
         sameDocumentRoute(detailRouteFromTarget(endpoint), resolved.document);
       if (endpointMatches) return true;
 
-      navigate(driveDestination(props.location(), resolved.document), {
+      void navigate(driveDestination(props.location(), resolved.document), {
         state: [...currentTrail, resolved.target],
       });
       return true;
@@ -164,7 +164,7 @@ export function DriveDetailNavigationProvider(
       const resolved = resolveTarget(target, options);
       if (!resolved) return false;
 
-      navigate(
+      void navigate(
         driveDestination(
           options?.location ?? props.location(),
           resolved.document
@@ -203,7 +203,7 @@ export function DriveDetailNavigationProvider(
       const target = nextTrail.at(-1);
       if (!target) return;
 
-      navigate(
+      void navigate(
         driveDestination(props.location(), detailRouteFromTarget(target)),
         { state: nextTrail }
       );
@@ -214,7 +214,7 @@ export function DriveDetailNavigationProvider(
       // not climb out of the folder/tab the user just selected.
       if (!activeDocument() && !activeCallId()) return;
       selectPreview(undefined);
-      navigate(driveDestination(props.location()), {
+      void navigate(driveDestination(props.location()), {
         replace: options?.replace,
       });
     },

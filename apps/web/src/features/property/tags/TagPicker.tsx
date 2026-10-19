@@ -654,7 +654,7 @@ function TagPickerBody(props: {
       if (!item) return;
 
       toggleSelected(item.option.id);
-      if (!event?.shiftKey) saveAndClose();
+      if (!event?.shiftKey) void saveAndClose();
     },
     onClose: saveAndClose,
     enableNumericHotkeys: false,
@@ -763,7 +763,7 @@ function TagPickerBody(props: {
                             }
                             onSelect={(event) => {
                               toggleSelected(item.option.id);
-                              if (!event.shiftKey) saveAndClose();
+                              if (!event.shiftKey) void saveAndClose();
                             }}
                             onEdit={() => void beginEdit(item)}
                             onOpenTag={() => void openTaggedItems(item)}
@@ -798,7 +798,7 @@ function TagPickerBody(props: {
                                 }
                                 onSelect={(event) => {
                                   toggleSelected(item.option.id);
-                                  if (!event.shiftKey) saveAndClose();
+                                  if (!event.shiftKey) void saveAndClose();
                                 }}
                                 onEdit={() => void beginEdit(item)}
                                 onOpenTag={() => void openTaggedItems(item)}

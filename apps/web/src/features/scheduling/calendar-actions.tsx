@@ -37,7 +37,7 @@ function Actions(props: { sidebar?: boolean }) {
   const copyLink = async (event?: EventType) => {
     const profile = source.isSuccess ? source.data : undefined;
     if (!profile?.revision) {
-      navigate({ route: bookingLinksRoute });
+      void navigate({ route: bookingLinksRoute });
       return;
     }
 

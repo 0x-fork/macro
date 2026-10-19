@@ -73,7 +73,7 @@ function CodeDetailSession(props: {
   const [text, setText] = createSignal(props.data.text);
   const operations = [
     downloadFileOperation(() => {
-      downloadFile(
+      void downloadFile(
         new Blob([text() ?? ''], { type: 'text/plain' }),
         documentDownloadName(props.data.documentMetadata)
       );

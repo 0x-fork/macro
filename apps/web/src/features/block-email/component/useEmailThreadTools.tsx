@@ -150,7 +150,7 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
     } else if (soup && nextRow) {
       soup.selection.clear();
       soup.focus.set(nextRow.id);
-      openEntityInSplitFromUnifiedList(nextRow.original, {});
+      void openEntityInSplitFromUnifiedList(nextRow.original, {});
     }
 
     const toastId = toast.success('Moved to Trash', {
@@ -223,7 +223,11 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
       action: () => {
         const threadId = emailCtx.thread()?.db_id;
         if (!threadId) return;
-        openChatWithAgent({ type: 'email', id: threadId, name: props.title });
+        void openChatWithAgent({
+          type: 'email',
+          id: threadId,
+          name: props.title,
+        });
       },
       condition: () => !!emailCtx.thread()?.db_id,
     },
@@ -274,7 +278,11 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
       action: () => {
         const threadId = emailCtx.thread()?.db_id;
         if (!threadId) return;
-        openChatWithAgent({ type: 'email', id: threadId, name: props.title });
+        void openChatWithAgent({
+          type: 'email',
+          id: threadId,
+          name: props.title,
+        });
       },
       condition: () => !!emailCtx.thread()?.db_id,
       buttonComponent: () => {

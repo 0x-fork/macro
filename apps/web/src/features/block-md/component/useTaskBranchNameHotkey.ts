@@ -20,7 +20,7 @@ export function useTaskBranchNameHotkey(options: {
         hotkeyToken: TOKENS.entity.action.copyBranchName,
         description: 'Copy branch name',
         keyDownHandler: () => {
-          copyBranchNameToClipboard(options.documentId());
+          void copyBranchNameToClipboard(options.documentId());
           return true;
         },
         runWithInputFocused: true,

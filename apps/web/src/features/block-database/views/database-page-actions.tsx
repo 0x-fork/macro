@@ -97,7 +97,7 @@ export function DatabasePageActions(props: {
     const exported = await exportDatabaseTableCsv(props.detail, table);
     setExporting(false);
     exported.match(
-      (blob) => downloadFile(blob, `${table.table.name}.csv`),
+      (blob) => void downloadFile(blob, `${table.table.name}.csv`),
       (failure) =>
         toast.failure(
           failure.kind === 'too-large'

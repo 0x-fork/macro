@@ -135,7 +135,7 @@ function createCalendarSettingsControls(isNarrow: () => boolean) {
   // A brand-new account needs the mailbox scopes alongside calendar.
   const connectAnotherAccount = () => {
     calendarView.closeEventDetails();
-    startAddInbox({ scopes: 'gmail_and_calendar' });
+    void startAddInbox({ scopes: 'gmail_and_calendar' });
   };
 
   return {

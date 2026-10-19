@@ -605,7 +605,7 @@ export function createGridController(source: GridSource) {
 
   function fillDirection(direction: 'down' | 'right') {
     const { top, bottom, left, right } = selectionBounds(selection());
-    fill(
+    void fill(
       {
         anchor: { row: top, column: left },
         focus: {

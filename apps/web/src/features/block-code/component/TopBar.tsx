@@ -62,7 +62,7 @@ export const TopBar: Component<{
     const content = text();
     if (!text || !name) return;
     const file = new Blob([content ?? ''], { type: 'text/plain' });
-    downloadFile(file, downloadName());
+    void downloadFile(file, downloadName());
     analytics.track('download', { blockType: 'code' });
   });
 

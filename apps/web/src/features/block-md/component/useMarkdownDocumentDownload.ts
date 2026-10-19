@@ -19,7 +19,7 @@ export function useDownloadDocumentAsMarkdownText() {
     const markdownString = editorStateAsMarkdown(editor, 'external');
 
     const blob = new Blob([markdownString], { type: 'text/markdown' });
-    downloadFile(blob, fileNameWithExtension);
+    void downloadFile(blob, fileNameWithExtension);
   });
 }
 
@@ -56,6 +56,6 @@ export function useDownloadDocumentAsJson() {
     const blob = new Blob([JSON.stringify(json, null, 2)], {
       type: 'application/json',
     });
-    downloadFile(blob, fileNameWithExtension);
+    void downloadFile(blob, fileNameWithExtension);
   });
 }

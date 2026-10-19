@@ -29,6 +29,7 @@ import { useUserId } from '@core/context/user';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { buildSimpleEntityUrl } from '@core/util/url';
 import { mergeRegister } from '@lexical/utils';
+import { Telemetry } from '@macro-inc/observability';
 import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import ArrowsOutIcon from '@phosphor/arrows-out.svg';
 import PaperclipIcon from '@phosphor/paperclip.svg';
@@ -664,7 +665,7 @@ export function ComposeTask(props: ComposeTaskProps) {
       if (props.onSuccess) {
         props.onSuccess({ documentId, title: taskTitle, content: taskContent });
       } else {
-        showTaskCreatedToast(documentId, initialSnapshot);
+        void showTaskCreatedToast(documentId, initialSnapshot);
       }
       props.onCreateTask?.(taskTitle, taskContent);
       return;
@@ -695,7 +696,7 @@ export function ComposeTask(props: ComposeTaskProps) {
     if (props.onSuccess) {
       props.onSuccess({ documentId, title: taskTitle, content: taskContent });
     } else {
-      showTaskCreatedToast(documentId, initialSnapshot);
+      void showTaskCreatedToast(documentId, initialSnapshot);
     }
     props.onCreateTask?.(taskTitle, taskContent);
   };
@@ -848,7 +849,9 @@ export function ComposeTask(props: ComposeTaskProps) {
     scopeId: composeHotkeyScope,
     description: 'Create task',
     keyDownHandler: () => {
-      handleCreateTask();
+      handleCreateTask().catch((error) =>
+        Telemetry.error(error, { surface: 'compose-task' })
+      );
       return true;
     },
     runWithInputFocused: true,

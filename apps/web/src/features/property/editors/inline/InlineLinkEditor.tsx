@@ -115,7 +115,7 @@ export function InlineLinkEditor() {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleAddLink();
+      void handleAddLink();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       cancelAdding();
@@ -175,7 +175,7 @@ export function InlineLinkEditor() {
             onKeyDown={handleKeyDown}
             onBlur={() => {
               setTimeout(() => {
-                if (isAdding()) handleAddLink();
+                if (isAdding()) void handleAddLink();
               }, 100);
             }}
             placeholder="Enter URL..."

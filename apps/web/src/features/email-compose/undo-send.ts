@@ -80,7 +80,7 @@ export async function runUndoSend(options: {
       );
       return;
     }
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: emailKeys.previews._def,
     });
 

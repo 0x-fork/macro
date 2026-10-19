@@ -88,6 +88,7 @@ import {
   createPeerIdValidator,
   type PeerIdValidator,
 } from '@macro-inc/lexical-core';
+import { Telemetry } from '@macro-inc/observability';
 import { useDocTags } from '@property/tags';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { onElementConnect } from '@solid-primitives/lifecycle';
@@ -553,11 +554,16 @@ export function MarkdownEditor(props: {
   );
 
   const [fileArrayBuffer, setFileArrayBuffer] = createSignal<ArrayBuffer>();
+  const readFileArrayBuffer = async (file: Blob) => {
+    setFileArrayBuffer(await file.arrayBuffer());
+  };
   createEffect(() => {
     const source = documentSource();
     if (source.type !== 'dss') return;
 
-    source.file.arrayBuffer().then(setFileArrayBuffer);
+    readFileArrayBuffer(source.file).catch((error) =>
+      Telemetry.error(error, { surface: 'markdown-editor' })
+    );
   });
 
   createEffect(() => {

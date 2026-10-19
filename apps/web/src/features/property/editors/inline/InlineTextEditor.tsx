@@ -27,7 +27,7 @@ export function InlineTextEditor() {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      editor.save();
+      void editor.save();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       editor.cancelEdit();

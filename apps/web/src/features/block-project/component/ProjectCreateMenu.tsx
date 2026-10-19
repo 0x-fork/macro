@@ -330,7 +330,7 @@ function ProjectCreateDialog(props: {
                       });
                       return;
                     }
-                    createBlock({
+                    void createBlock({
                       blockName: spec.blockName,
                       loading: spec.loading,
                       createFn: () => spec.createFn(props.projectId),

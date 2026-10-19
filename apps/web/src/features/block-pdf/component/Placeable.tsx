@@ -343,7 +343,7 @@ export const Placeable: Component<{
 
   const debouncedUpdatePlaceablePosition = debounce(
     (...args: Parameters<typeof updatePlaceablePosition>) => {
-      updatePlaceablePosition(...args);
+      void updatePlaceablePosition(...args);
       resetPlaceablePosition();
     },
     100

@@ -62,7 +62,7 @@ export function createDriveRouteState(
       search: DriveSearchParams,
       options: NavigationOptions = {}
     ) {
-      navigate(driveDestination(location), {
+      void navigate(driveDestination(location), {
         ...options,
         search: {
           drive: driveSearch.serialize(search, {

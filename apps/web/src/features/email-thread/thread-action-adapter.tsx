@@ -32,14 +32,17 @@ export function createThreadActionAdapter(
   const blockSender = () => {
     const senderEmail = getSenderEmail();
     if (!senderEmail) return false;
-    blockSenderWithToast(senderEmail, toHeaderLinkId(threadSource()?.link_id));
+    void blockSenderWithToast(
+      senderEmail,
+      toHeaderLinkId(threadSource()?.link_id)
+    );
     return true;
   };
 
   const markSenderSignal = () => {
     const senderEmail = getSenderEmail();
     if (!senderEmail) return false;
-    markSenderSignalWithToast(
+    void markSenderSignalWithToast(
       senderEmail,
       toHeaderLinkId(threadSource()?.link_id)
     );
@@ -49,7 +52,7 @@ export function createThreadActionAdapter(
   const markSenderNoise = () => {
     const senderEmail = getSenderEmail();
     if (!senderEmail) return false;
-    markSenderNoiseWithToast(
+    void markSenderNoiseWithToast(
       senderEmail,
       toHeaderLinkId(threadSource()?.link_id)
     );

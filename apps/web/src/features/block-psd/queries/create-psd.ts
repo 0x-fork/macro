@@ -6,6 +6,7 @@
 import { analytics } from '@app/lib/analytics';
 import { PsdEngine } from '@core/psd-engine/client';
 import { contentHash } from '@core/util/hash';
+import { Telemetry } from '@macro-inc/observability';
 import { invalidateUserQuota } from '@queries/auth';
 import { postNewHistoryItem } from '@queries/history/history';
 import { setPreviewOnCreate } from '@queries/preview/preview';
@@ -36,7 +37,7 @@ export async function createPsdDocument(args: {
     sha,
     projectId: args.projectId,
   });
-  invalidateUserQuota();
+  void invalidateUserQuota();
   if (created.isErr()) return undefined;
   const doc = created.value;
   const upload = await uploadToPresignedUrl({
@@ -47,7 +48,7 @@ export async function createPsdDocument(args: {
   });
   if (upload.isErr()) return undefined;
   const documentId = doc.metadata.documentId;
-  postNewHistoryItem('document', documentId);
+  void postNewHistoryItem('document', documentId);
   setPreviewOnCreate({
     itemId: documentId,
     itemType: 'document',
@@ -57,7 +58,9 @@ export async function createPsdDocument(args: {
   refetchSoupEntity(documentId, 'document', {
     ownTouch: true,
     refreshGraphql: true,
-  });
+  }).catch((error) =>
+    Telemetry.error(error, { surface: 'create-psd-document' })
+  );
   analytics.track('create_entity', {
     entityType: 'psd',
     entityId: documentId,

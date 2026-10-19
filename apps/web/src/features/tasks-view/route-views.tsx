@@ -86,7 +86,7 @@ export function ProjectTaskRouteView() {
             event?.altKey
           )
             return false;
-          navigate({
+          void navigate({
             route: projectTaskRoute,
             params: {
               projectId: params.projectId,

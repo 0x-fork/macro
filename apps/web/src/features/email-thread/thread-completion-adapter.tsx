@@ -85,7 +85,7 @@ export function createThreadCompletionAdapter(
               label: 'Undo',
               icon: ArrowCounterClockwise,
               onClick: () => {
-                handle.undo({
+                void handle.undo({
                   onError: () => toast.failure('Failed to undo'),
                 });
               },

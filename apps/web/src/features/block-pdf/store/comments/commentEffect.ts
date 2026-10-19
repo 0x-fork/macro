@@ -41,7 +41,7 @@ const useScrollToActiveThreadEffect = () => {
     if (!hasActiveThread()) return;
 
     if (!isPdfDraftThreadId(activeThreadId))
-      scrollToCommentThread(activeThreadId);
+      void scrollToCommentThread(activeThreadId);
   });
 };
 

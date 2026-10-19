@@ -509,11 +509,11 @@ export function FigViewer() {
       .with('place-image', () => placeImage())
       .with('undo', () => {
         editor.endVectorEdit();
-        editor.undo();
+        void editor.undo();
       })
       .with('redo', () => {
         editor.endVectorEdit();
-        editor.redo();
+        void editor.redo();
       })
       .with('delete', () => void editor.deleteSelection())
       .with('duplicate', () => void editor.duplicateSelection())

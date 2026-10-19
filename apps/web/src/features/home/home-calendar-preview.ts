@@ -47,7 +47,7 @@ export function useHomeCalendarPreview(withTab: WithTab) {
     // The same URL still needs to refocus the event in the inline calendar.
     if (alreadyOpen) setCalendarRefocus((count) => count + 1);
     else
-      navigate(
+      void navigate(
         { route: homeCalendarRoute, params: navigation.params },
         { search: withTab(navigation.search) }
       );

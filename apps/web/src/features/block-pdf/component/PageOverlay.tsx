@@ -14,6 +14,7 @@ import { useIsAuthenticated } from '@core/auth';
 import type { ThreadId } from '@core/comments/commentType';
 import { openLoginModal } from '@core/component/TopBar/LoginButton';
 import { useCopyLink } from '@core/util/useCopyLink';
+import { Telemetry } from '@macro-inc/observability';
 import { cn } from '@ui';
 import { detect } from 'detect-browser';
 import type { PageViewport } from 'pdfjs-dist';
@@ -154,7 +155,7 @@ export function PageOverlay(props: IPageOverlayProps) {
 
       analytics.track('block_pdf_section_open');
 
-      getPopupViewer()?.scrollTo({ pageNumber: page + 1, yPos: y });
+      void getPopupViewer()?.scrollTo({ pageNumber: page + 1, yPos: y });
       if (!isPopup) getRootViewer()?.showPopupAt(tgt as HTMLElement);
     } else {
       if (!pageOverlayRef.contains(e.target as Node)) {
@@ -389,7 +390,7 @@ export function PageOverlay(props: IPageOverlayProps) {
   const copyLink = useCopyLink();
   const shareLinkProps = () => ({
     share: () => {
-      copyLink(createShareUrl(LocationType.Annotation), { silent: true });
+      void copyLink(createShareUrl(LocationType.Annotation), { silent: true });
     },
   });
 
@@ -415,7 +416,9 @@ export function PageOverlay(props: IPageOverlayProps) {
       )}
       on:click={(e) => {
         if (mode() !== PayloadMode.NoMode) {
-          createPlaceable(e);
+          createPlaceable(e).catch((error) =>
+            Telemetry.error(error, { surface: 'pdf-page-overlay' })
+          );
         }
       }}
     >

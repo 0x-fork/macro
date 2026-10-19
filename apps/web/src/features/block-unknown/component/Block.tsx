@@ -72,7 +72,7 @@ function BlockUnknownContent() {
   const downloadDocument = createCallback(async () => {
     try {
       const blob = await getBlob();
-      downloadFile(blob, downloadName());
+      void downloadFile(blob, downloadName());
     } catch (error) {
       console.error('error downloading file', error);
       toast.failure('Error downloading file');

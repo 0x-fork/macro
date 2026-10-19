@@ -28,7 +28,7 @@ export function PageNumberInput() {
   const onBlur = createCallback((_e: FocusEvent) => {
     const pageNumber = parseInt(intermediateVal(), 10);
     if (Number.isInteger(pageNumber)) {
-      getRootViewer()?.scrollTo({ pageNumber });
+      void getRootViewer()?.scrollTo({ pageNumber });
     } else if (inputRef) {
       inputRef.value = currentPageNumber().toString();
     }

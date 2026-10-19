@@ -185,7 +185,7 @@ export default function ImportLinear() {
       }
 
       // Refresh soup items so the new tasks appear.
-      queryClient.invalidateQueries({ queryKey: soupKeys.astItems._def });
+      void queryClient.invalidateQueries({ queryKey: soupKeys.astItems._def });
 
       setCreatedIds(createdList);
       setProgress({ type: 'done', created, skipped, failed });

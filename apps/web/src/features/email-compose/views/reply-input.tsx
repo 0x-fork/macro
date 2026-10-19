@@ -260,7 +260,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
         scopeId: composeHotkeyScope,
         description: 'Send email',
         keyDownHandler: () => {
-          sendEmail();
+          sendEmail().catch(composeContext.notices.reportError);
           return true;
         },
         runWithInputFocused: true,
@@ -273,7 +273,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
         scopeId: composeHotkeyScope,
         description: 'Send and mark done',
         keyDownHandler: () => {
-          sendEmail(true);
+          sendEmail(true).catch(composeContext.notices.reportError);
           return true;
         },
         runWithInputFocused: true,
@@ -332,7 +332,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
 
           if (isEmpty) {
             // Delete draft and close reply
-            deleteDraftAndReset();
+            deleteDraftAndReset().catch(() => {});
           } else {
             // Move focus back to the message
             ctx.exitToThread('selected');
@@ -374,7 +374,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
               }}
               removable={!editingDisabled()}
               onRemove={() => {
-                if (!editingDisabled()) handleRemoveAttachment(attachment);
+                if (!editingDisabled()) void handleRemoveAttachment(attachment);
               }}
               onClick={attachmentViewer.onClickFor(attachment)}
             />

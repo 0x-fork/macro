@@ -32,7 +32,7 @@ function CanvasDetailContent(props: {
   );
   const operations = [
     downloadFileOperation(() => {
-      downloadFile(props.savedFile() ?? props.data.file, downloadName);
+      void downloadFile(props.savedFile() ?? props.data.file, downloadName);
       analytics.track('download', { blockType: 'canvas' });
     }),
   ];

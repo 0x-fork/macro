@@ -206,7 +206,7 @@ export const PropertyOptionSelector = (props: SelectOptionsProps) => {
   const handleSelectableItem = (idx: number, event?: KeyboardEvent) => {
     const item = selectableItems()[idx];
     if (item?.type === 'add') {
-      handleAddOption(event);
+      void handleAddOption(event);
     } else if (item?.type === 'clear') {
       props.clearOption?.onClear();
       if (shouldCloseAfterSelect(event) && props.onClose) {

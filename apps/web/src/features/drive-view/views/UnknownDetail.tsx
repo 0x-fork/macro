@@ -37,7 +37,7 @@ export function UnknownDetailDocument(props: {
         documentId: props.documentId,
         documentVersionId: props.data.documentMetadata.documentVersionId,
       });
-      downloadFile(file, downloadName());
+      await downloadFile(file, downloadName());
     } catch (error) {
       console.error('error downloading file', error);
       toast.failure('Error downloading file');

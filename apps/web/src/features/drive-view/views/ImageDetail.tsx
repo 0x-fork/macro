@@ -19,7 +19,7 @@ export function ImageDetailDocument(props: {
 }) {
   const operations = [
     downloadFileOperation(() => {
-      downloadFile(
+      void downloadFile(
         props.data.file,
         documentDownloadName(props.data.documentMetadata)
       );

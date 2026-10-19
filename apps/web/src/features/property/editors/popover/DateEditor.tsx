@@ -44,7 +44,7 @@ function DateEditorBody() {
         property={property}
         selectedDate={selectedDate()}
         onSelectDate={(date) => {
-          commit(date);
+          void commit(date);
         }}
         onClose={() => ctx.closeEditor()}
       />

@@ -43,7 +43,7 @@ export function useGoToLocation() {
       viewer.hidePopup();
       const pageNumber = loc.pageIndex + 1;
 
-      viewer.scrollTo({
+      void viewer.scrollTo({
         pageNumber,
         yPos: Math.floor(loc.yPos),
         topPadding: TOP_PADDING,

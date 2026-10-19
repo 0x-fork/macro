@@ -160,15 +160,16 @@ export const [HomeViewProvider, useHomeView] = createAssertedContextProvider<
               params: { documentType: blockType, documentId: previewId },
             }
           : { route: homePreviewRoute, params };
-    navigate(target, { replace, search: withTab(search) });
+    void navigate(target, { replace, search: withTab(search) });
   };
   const navigateTarget = (target: PreviewBlockTarget, replace = false) =>
     navigateDetail(homePreviewTargetNavigation(target), replace);
-  const closePreview = () =>
-    navigate(
+  const closePreview = () => {
+    void navigate(
       { route: homeSplitRoute, params: {} },
       { search: withTab(homeDetailSearch()) }
     );
+  };
   const [previewNavigationRequest, setPreviewNavigationRequest] =
     createSignal(0);
   const openPreview = (entity: PreviewSelection) => {
@@ -197,7 +198,7 @@ export const [HomeViewProvider, useHomeView] = createAssertedContextProvider<
       if (selectPreview(target)) return;
       if (previous) navigateTarget(previous, true);
       else
-        navigate(
+        void navigate(
           { route: homeSplitRoute, params: {} },
           { replace: true, search: withTab(homeDetailSearch()) }
         );

@@ -54,7 +54,7 @@ function TasksViewBreadcrumbs(props: ParentProps) {
       onChange={(next) => {
         if (next === 'tasks-view') closeTask();
         else if (params.projectId && next === `initiative:${params.projectId}`)
-          navigate({
+          void navigate({
             route: projectDetailRoute,
             params: {
               projectId: params.projectId,
@@ -141,7 +141,7 @@ function TasksViewRoot() {
                           });
                           return;
                         }
-                        navigate({
+                        void navigate({
                           route: projectDetailRoute,
                           params: { projectId: id, section: 'overview' },
                         });

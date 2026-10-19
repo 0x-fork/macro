@@ -475,7 +475,7 @@ describe('ListNav', () => {
     expectSelection('Home');
   });
 
-  it('does not reclaim the highlight when Settings becomes active again', () => {
+  it('does not reclaim the highlight when Settings becomes active again', async () => {
     const { router, history } = setup('/settings');
     expectSelection();
     press('Agents');
@@ -483,7 +483,7 @@ describe('ListNav', () => {
     expectSelection('Agents');
 
     // Settings opens from outside the rail list (the gear, a hotkey).
-    router.navigatePane(router.panes()[0]!, '/settings');
+    await router.navigatePane(router.panes()[0]!, '/settings');
     expect(history.read().path).toBe('/settings');
     expectSelection();
   });

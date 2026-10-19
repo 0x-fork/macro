@@ -216,7 +216,7 @@ export function useJumpToResult() {
         matchIndex: match.matchNumber,
       });
     } else {
-      rootViewer()?.scrollTo({
+      void rootViewer()?.scrollTo({
         pageNumber: match.page + 1,
         yPos: match.yPos,
       });
