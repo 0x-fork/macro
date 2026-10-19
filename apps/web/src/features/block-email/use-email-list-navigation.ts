@@ -86,11 +86,12 @@ export function useEmailListNavigation(
       toast.failure('Unable to open the next or previous email');
     }
   };
+  /** Resolves whether it archived the thread through `archiveThread`. */
   const navigate = async (
     direction: -1 | 1,
     archiveThread?: EmailThreadCommands['archiveThread']
-  ) => {
-    if (!panel || disposed || navigating()) return;
+  ): Promise<boolean> => {
+    if (!panel || disposed || navigating()) return false;
     setNavigating(true);
     const currentId = threadId();
     const current = entities().find(
@@ -108,30 +109,30 @@ export function useEmailListNavigation(
     try {
       while (direction === 1 && !target(direction) && canLoadNext()) {
         await list?.loadMore();
-        if (!isCurrent()) return;
+        if (!isCurrent()) return false;
       }
-      if (!isCurrent()) return;
+      if (!isCurrent()) return false;
       // Capture the destination before archiving removes the current list row.
       // At the end of the list, triage falls back to the previous email.
       const next =
         target(direction) ?? (archiveThread ? target(-1) : undefined);
-      if (
-        archiveThread &&
-        !archiveThread({
+      const archived =
+        !!archiveThread &&
+        archiveThread({
           navigate: false,
           navigateBack:
             current && next
               ? () =>
                   fireAndForget(open(current, referredFrom), 'email-navigation')
               : undefined,
-        })
-      )
-        return;
-      if (!next) return;
-      await open(next, referredFrom);
+        });
+      if (archiveThread && !archived) return false;
+      if (next) await open(next, referredFrom);
+      return archived;
     } catch {
       if (isCurrent())
         toast.failure('Unable to open the next or previous email');
+      return false;
     } finally {
       setNavigating(false);
     }
@@ -145,8 +146,9 @@ export function useEmailListNavigation(
     next: () => {
       fireAndForget(navigate(1), 'email-navigation');
     },
-    markDone: (archiveThread) => {
-      fireAndForget(navigate(1, archiveThread), 'email-navigation');
+    markDone: async (archiveThread, requested) => {
+      if (requested !== undefined && requested !== threadId()) return false;
+      return navigate(1, archiveThread);
     },
   };
 }

@@ -86,17 +86,18 @@ beforeEach(() => {
 });
 
 describe('email list navigation adapter', () => {
-  it('finds the source list when native navigation gives the email a new split', () => {
+  it('finds the source list when native navigation gives the email a new split', async () => {
     mocks.handle.id = 'native-detail';
     const [nav, dispose] = createRoot(
       (dispose) => [createNavigation(() => 'a'), dispose] as const
     );
     expect(nav.canNext()).toBe(true);
-    nav.markDone(() => true);
+    const marked = nav.markDone(() => true);
     expect(mocks.open).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'b' }),
       expect.objectContaining({ splitHandle: mocks.handle, mergeHistory: true })
     );
+    await marked;
     dispose();
     mocks.handle.id = 'email-split';
   });
@@ -120,7 +121,7 @@ describe('email list navigation adapter', () => {
         (dispose) => [createNavigation(() => 'b'), dispose] as const
       );
       const archive = vi.fn(() => true);
-      nav[action](archive);
+      const stepped = nav[action](archive);
       await vi.waitFor(() => expect(mocks.open).toHaveBeenCalledOnce());
       expect(mocks.loadMore).toHaveBeenCalledTimes(3);
       expect(mocks.open).toHaveBeenCalledWith(
@@ -128,6 +129,7 @@ describe('email list navigation adapter', () => {
         expect.anything()
       );
       expect(archive).toHaveBeenCalledTimes(action === 'markDone' ? 1 : 0);
+      await stepped;
       dispose();
     }
   );
@@ -144,7 +146,7 @@ describe('email list navigation adapter', () => {
         (dispose) => [createNavigation(() => 'b'), dispose] as const
       );
       const archive = vi.fn(() => true);
-      nav.markDone(archive);
+      const marked = nav.markDone(archive);
       if (leave === 'dispose') dispose();
       else mocks.active = false;
       mocks.rows.push({ id: 'c', type: 'email' });
@@ -153,6 +155,7 @@ describe('email list navigation adapter', () => {
       await vi.waitFor(() => expect(nav.canPrevious()).toBe(true));
       expect(archive).not.toHaveBeenCalled();
       expect(mocks.open).not.toHaveBeenCalled();
+      expect(await marked).toBe(false);
       dispose();
     }
   );
@@ -164,11 +167,12 @@ describe('email list navigation adapter', () => {
       (dispose) => [createNavigation(() => 'b'), dispose] as const
     );
     const archive = vi.fn(() => true);
-    nav.markDone(archive);
+    const marked = nav.markDone(archive);
     await vi.waitFor(() => expect(nav.canPrevious()).toBe(true));
     expect(mocks.loadMore).toHaveBeenCalledOnce();
     expect(archive).not.toHaveBeenCalled();
     expect(mocks.open).not.toHaveBeenCalled();
+    expect(await marked).toBe(false);
     dispose();
   });
 
@@ -231,8 +235,9 @@ describe('email list navigation adapter', () => {
       return true;
     });
 
-    nav.markDone(archive);
+    const marked = nav.markDone(archive);
     await vi.waitFor(() => expect(mocks.open).toHaveBeenCalledOnce());
+    expect(await marked).toBe(true);
     expect(archive).toHaveBeenCalledOnce();
     expect(mocks.open).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 'b' }),
@@ -262,8 +267,9 @@ describe('email list navigation adapter', () => {
       return true;
     });
 
-    nav.markDone(archive);
-    nav.markDone(archive);
+    const first = nav.markDone(archive);
+    const repeated = nav.markDone(archive);
+    expect(await repeated).toBe(false);
     expect(archive).not.toHaveBeenCalled();
     expect(mocks.loadMore).toHaveBeenCalledOnce();
     mocks.rows.push({ id: 'c', type: 'email' });
@@ -271,6 +277,7 @@ describe('email list navigation adapter', () => {
     finishLoading();
 
     await vi.waitFor(() => expect(mocks.open).toHaveBeenCalledOnce());
+    expect(await first).toBe(true);
     expect(archive).toHaveBeenCalledOnce();
     expect(mocks.open).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'c' }),
@@ -283,40 +290,43 @@ describe('email list navigation adapter', () => {
     const [nav, dispose] = createRoot(
       (dispose) => [createNavigation(() => 'b'), dispose] as const
     );
-    nav.markDone(() => true);
+    const marked = nav.markDone(() => true);
     await vi.waitFor(() =>
       expect(mocks.open).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'a' }),
         expect.anything()
       )
     );
+    expect(await marked).toBe(true);
     dispose();
   });
 
   it.each(['missing', 'a'])(
     'archives without navigating when %s has no neighboring email',
-    (id) => {
+    async (id) => {
       mocks.rows = [{ id: 'a', type: 'email' }];
       const [nav, dispose] = createRoot(
         (dispose) => [createNavigation(() => id), dispose] as const
       );
       const archive = vi.fn(() => true);
-      nav.markDone(archive);
+      const marked = nav.markDone(archive);
       expect(archive).toHaveBeenCalledWith({
         navigate: false,
         navigateBack: undefined,
       });
       expect(mocks.open).not.toHaveBeenCalled();
+      expect(await marked).toBe(true);
       dispose();
     }
   );
 
-  it('does not advance when the archive command rejects the action', () => {
+  it('does not advance when the archive command rejects the action', async () => {
     const [nav, dispose] = createRoot(
       (dispose) => [createNavigation(() => 'a'), dispose] as const
     );
-    nav.markDone(() => false);
+    const marked = nav.markDone(() => false);
     expect(mocks.open).not.toHaveBeenCalled();
+    expect(await marked).toBe(false);
     dispose();
   });
 
@@ -331,10 +341,11 @@ describe('email list navigation adapter', () => {
       (dispose) => [createNavigation(() => currentId), dispose] as const
     );
     const archive = vi.fn(() => true);
-    nav.markDone(archive);
+    const marked = nav.markDone(archive);
     await vi.waitFor(() => expect(nav.canPrevious()).toBe(true));
     expect(archive).not.toHaveBeenCalled();
     expect(mocks.open).not.toHaveBeenCalled();
+    expect(await marked).toBe(false);
     dispose();
   });
 });

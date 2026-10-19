@@ -7,7 +7,6 @@ import type {
   EmailThreadListNavigation,
 } from '@app/features/email-thread/context/email-thread-context';
 import { toast } from '@core/component/Toast/Toast';
-import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
 import { useEmailView } from './email-view-context';
@@ -52,24 +51,29 @@ export function useEmailDetailListNavigation(
     ...navigation,
     // A saved reminder hides the thread; navigation follows its old position.
     afterReminderSaved: () => navigation.navigate(1, { fallbackDirection: -1 }),
-    markDone: (archiveThread: EmailThreadCommands['archiveThread']) => {
-      fireAndForget(
-        navigation.navigate(1, {
-          fallbackDirection: -1,
-          beforeOpen: (next, current) =>
-            archiveThread({
-              navigate: false,
-              nextEntityId: next?.id,
-              navigateBack:
-                current && next
-                  ? () => {
-                      navigation.open(current);
-                    }
-                  : undefined,
-            }),
-        }),
-        'email-view'
-      );
+    markDone: async (
+      archiveThread: EmailThreadCommands['archiveThread'],
+      requested?: string
+    ) => {
+      if (requested !== undefined && requested !== threadId()) return false;
+      let archived = false;
+      await navigation.navigate(1, {
+        fallbackDirection: -1,
+        beforeOpen: (next, current) => {
+          archived = archiveThread({
+            navigate: false,
+            nextEntityId: next?.id,
+            navigateBack:
+              current && next
+                ? () => {
+                    navigation.open(current);
+                  }
+                : undefined,
+          });
+          return archived;
+        },
+      });
+      return archived;
     },
   };
 }
