@@ -130,6 +130,13 @@ the startup bundle, and Lexical nodes.
 - `src/features/block-channel`
 - `src/features/block-pdf`
 
+## PDF markup
+
+Keep the signature canvas backing bitmap aligned with its CSS size and device
+pixel ratio; keep dialog centering separate from animated transforms. Verify the
+[signature walkthrough](../../docs/agent-guide/documents.md#pdf-signatures) after
+changing this editor.
+
 ## Notes
 - Don't shy away from pulling good examples into context. In the case of solid-primtiives/kobalte try reading documentation, or just temp clone into /tmp to reference
 
