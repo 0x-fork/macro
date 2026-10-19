@@ -78,6 +78,10 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Keep signed-out Drive document routes on the shared detail viewer without
+  mounting private list/sidebar sources; let document access checks decide visibility.
+- Gate account-only queries, comment readers, and account WebSockets on confirmed
+  authentication; keep public document loading independent of those services.
 - Disable GraphQL cache sessions and clear login hints on confirmed auth 401s,
   even with retained user data; preserve session state on transient failures.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
