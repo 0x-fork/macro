@@ -153,8 +153,10 @@ Uncertain calendar writes retain the booking and show its private receipt while 
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. The private
 `/app/booking/:id#token` receipt supports cancellation and rescheduling; preserve
-that private link. Rescheduling dates are labelled in the availability schedule's
-time zone. Calendar provider failures show an error; they never report a
+that private link. Rescheduling defaults to the browser's time zone; `Your time
+zone` controls both the selected calendar date and the displayed times. Changing
+the zone clears the date and times and discards outstanding availability results.
+Calendar provider failures show an error; they never report a
 confirmed booking. Current integrations check hosts' connected calendars and
 write invitations/Google Meet through the existing calendar service.
 
