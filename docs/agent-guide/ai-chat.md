@@ -829,7 +829,11 @@ The harness spawns a fresh Deno process for each execution. Dependencies are
 bundled at build time; no TypeScript compilation or package downloads happen
 in a run. The process receives a short-lived normal user token after the session
 owner's execution approval. SDK methods make HTTP requests to configured Macro
-service hosts using normal API authorization. There is no runner service,
+service hosts using normal API authorization. The token also signs the session's
+agent identity: SDK messages show that agent as sender and the owner in the
+`from` pill. Ordinary user tokens have no agent attribution; client headers and
+message bodies cannot choose it. Other SDK endpoints still authenticate the owner
+as a user. There is no runner service,
 WebSocket bridge, or per-API-call approval callback. Eight executions may run
 per harness process. Network hosts, process lifetime, output and memory are
 bounded; filesystem writes, arbitrary imports and subprocesses are denied.
