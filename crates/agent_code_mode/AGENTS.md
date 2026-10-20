@@ -22,6 +22,10 @@ Inbound adapters authenticate and delegate to domain services. Outbound adapters
 implement persistence; the harness composition root wires native actions and
 session presentation. Never replay an uncertain submitted action.
 
+## Tool contracts
+
+- Keep native `NameSearch` and `ListEntities` available for session-aware discovery; agent SDK documentation excludes legacy chats and workspace feeds.
+
 ## Checks
 
 - `cargo test -p agent_code_mode --lib` from the repository root, with live local

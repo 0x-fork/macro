@@ -18,7 +18,6 @@ export const descriptions: Record<string, string> = {
   calendar: 'Find and manage calendar events.',
   calls: 'Read and edit call records, transcripts and meeting links.',
   channels: 'Read and send channel messages.',
-  chats: 'Read and send AI chat messages and stop generations.',
   crm: 'Work with CRM records and pipeline tables, columns, rows and sharing.',
   databases: 'Read and edit database schemas, rows, and cells.',
   documents: 'Search, read, create, and manage documents and tasks.',
@@ -34,6 +33,4 @@ export const descriptions: Record<string, string> = {
   teams: 'Manage teams and membership.',
   users: 'Look up users and their profiles.',
   webhooks: 'Manage API webhook subscriptions.',
-  workspace:
-    'Browse recent workspace entities across documents, tasks, email, calendars, channels, calls, projects and chats with time, property, tag and inbox filters.',
 };

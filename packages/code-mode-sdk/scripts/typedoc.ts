@@ -16,9 +16,26 @@ export async function readMarkdownPages(directory: string) {
 }
 
 export function packageEntityDocs(
-  pages: ReadonlyMap<string, string>,
+  sourcePages: ReadonlyMap<string, string>,
   descriptions: Readonly<Record<string, string>>
 ) {
+  // The public SDK retains deployed legacy APIs. Native discovery tools cover
+  // current sessions; omit the legacy chat and workspace namespaces here.
+  const hiddenNamespace = (path: string) =>
+    /^src\/entities\/(chats|workspace)\//.test(path);
+  const pages = new Map(
+    [...sourcePages]
+      .filter(([path]) => !hiddenNamespace(path))
+      .map(([path, markdown]) => [
+        path,
+        markdown
+          .replace(
+            /^### (?:chats|workspace)\b[^\n]*\n[\s\S]*?(?=^### |(?![\s\S]))/gm,
+            ''
+          )
+          .replace(/^\| <a id="property-(?:chats|workspace)"[^\n]*\n/gm, ''),
+      ])
+  );
   const core = [
     'src/macro/',
     'src/config/',
@@ -74,6 +91,7 @@ export function packageEntityDocs(
         const target = posix.normalize(
           posix.join(posix.dirname(path), decodeURIComponent(match[1] ?? ''))
         );
+        if (hiddenNamespace(target)) continue;
         if (!pages.has(target))
           throw new Error(`Broken TypeDoc link: ${path} -> ${target}`);
         if (target.startsWith('generated/')) included.add(target);
