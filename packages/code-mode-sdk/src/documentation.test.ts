@@ -116,6 +116,25 @@ describe('TypeDoc documentation packaging', () => {
     expect(workspace?.overview).toContain('# Type Alias: WorkspaceType');
     expect(workspace?.overview).toContain('calendar_event');
     expect(workspace?.overview).toContain('ai_chat');
+    expect(docs.length).toBeLessThanOrEqual(32);
+    expect(
+      docs.find((doc) => doc.name === 'routines')?.documentation
+    ).toContain('RoutineOptions');
+    expect(docs.find((doc) => doc.name === 'agents')?.documentation).toContain(
+      'HarnessNamespace'
+    );
+    expect(docs.find((doc) => doc.name === 'apiKeys')?.documentation).toContain(
+      'UserApiKey'
+    );
+    expect(
+      docs.find((doc) => doc.name === 'entityMentions')?.overview
+    ).toContain('EntityMentionNamespace');
+    expect(
+      docs.find((doc) => doc.name === 'githubPullRequests')?.documentation
+    ).toContain('PullRequestChangeset');
+    expect(docs.find((doc) => doc.name === 'core')?.documentation).toContain(
+      'SharePermissionOptions'
+    );
     for (const doc of docs) {
       expect(doc.overview.length).toBeGreaterThan(0);
       expect(Buffer.byteLength(doc.overview)).toBeLessThan(16 * 1024);

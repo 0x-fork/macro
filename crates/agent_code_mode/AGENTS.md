@@ -26,5 +26,6 @@ session presentation. Never replay an uncertain submitted action.
 
 - `cargo test -p agent_code_mode --lib` from the repository root, with live local
   database configuration and `SQLX_OFFLINE` unset.
+- Keep generated discovery topics within the classifier's 32-question limit.
 - Regenerate SDK documentation through `packages/code-mode-sdk`; never edit
   `src/domain/documentation.json` by hand.

@@ -25,19 +25,27 @@ export function packageEntityDocs(
     'src/mentions/',
     'src/entities/entity/',
     'src/entities/search/',
+    'src/entities/sharing/',
+    'src/entities/messages/',
+    'src/entities/reference/',
     'src/utils/',
     'src/events/',
   ];
   const sections = [
     ...Object.entries(descriptions).map(([directory, description]) => ({
       name:
-        directory === 'agent-sessions'
-          ? 'agentSessions'
-          : directory === 'foreign'
-            ? 'foreignEntities'
-            : directory,
+        directory === 'foreign'
+          ? 'foreignEntities'
+          : directory.replace(/-([a-z])/g, (_, letter: string) =>
+              letter.toUpperCase()
+            ),
       description,
-      prefixes: [`src/entities/${directory}/`],
+      // Agent and host setup share one discovery topic, keeping the classifier
+      // request within its 32-question contract as the public API grows.
+      prefixes: (directory === 'agents'
+        ? ['agents', 'harnesses']
+        : [directory]
+      ).map((value) => `src/entities/${value}/`),
     })),
     {
       name: 'core',

@@ -12022,6 +12022,10 @@ export interface QueryDatabaseResponse {
  */
 export interface ResultSet {
   /**
+   * Table whose rows the result identities refer to; absent for aggregates.
+   */
+  sourceTable?: string | null;
+  /**
    * The columns, in select-list order.
    */
   columns: ResultColumn[];

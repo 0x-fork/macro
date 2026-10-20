@@ -11003,6 +11003,7 @@ export const QueryDatabase = z.object({
 export const QueryDatabaseResponse = z.object({
   results: z.array(
     z.object({
+      sourceTable: z.union([z.string().uuid(), z.null()]).optional(),
       columns: z.array(
         z.object({
           name: z.string(),
