@@ -551,3 +551,17 @@ OAuth token.
 The Codex section and its auth/config requests were exercised in Chromium with
 mocked backend responses on 2026-09-15. Provider login and a full deployed Macro
 session were not exercised by that UI check.
+
+### GitHub reconnect recovery
+
+When GitHub reports that reauthentication is required, reconnect starts OAuth
+without first deleting the current Macro link. Cancelling OAuth preserves it.
+Selecting a different GitHub account fails without changing the connection; use
+Disconnect first to switch accounts.
+A successful callback refreshes the grant; if its old FusionAuth identity was
+deleted, all Macro accounts sharing that GitHub account move to the new grant.
+Verify reconnect both as the original linker and as another sharing account,
+and verify an upstream outage leaves the current links intact and reports an error.
+The Macro link survives a failed reconnect, but replacing the FusionAuth grant
+is not atomic. A crash or failed restoration may leave it missing; retry OAuth
+to recreate it after the provider recovers.
