@@ -1,20 +1,28 @@
 import { ViewBreadcrumbs } from '@app/components/view-shell';
 import { SidePanel } from '@components/app/side-panel';
 import { EntityIcon } from '@core/component/EntityIcon';
+import {
+  createParamsState,
+  ParamsProvider,
+} from '@core/component/ParamsProvider';
+import { COMMENT_LINK_PARAM } from '@core/messages/comment-link';
 import { fireAndForget } from '@core/util/fireAndForget';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import { Button, Tooltip } from '@ui';
 import {
+  createEffect,
   createMemo,
   ErrorBoundary,
   For,
   type JSX,
+  on,
   onMount,
   Show,
   Suspense,
   untrack,
 } from 'solid-js';
 import { RecordTabs } from '../components/record-tabs';
+import type { CrmCommentTarget } from '../context/workspace-context';
 import {
   COMPANY_SECTIONS,
   CONTACT_SECTIONS,
@@ -60,6 +68,7 @@ export function CrmRecordDetail(props: {
   /** Opened records, oldest first; the last one is shown. */
   records: readonly CrmRecordRef[];
   section: CrmRecordSection | undefined;
+  commentTarget?: CrmCommentTarget;
   viewName: string;
   onOpen: (records: readonly CrmRecordRef[]) => void;
   onSectionChange: (section: CrmRecordSection) => void;
@@ -194,6 +203,7 @@ export function CrmRecordDetail(props: {
                 <RecordContent
                   record={record}
                   nested={trail().length > 1}
+                  commentTarget={props.commentTarget}
                   onBack={back}
                 >
                   <Show
@@ -239,6 +249,7 @@ export function CrmRecordDetail(props: {
 function RecordContent(props: {
   record: CrmRecordRef;
   nested: boolean;
+  commentTarget: CrmCommentTarget | undefined;
   onBack: () => void;
   children: JSX.Element;
 }) {
@@ -246,6 +257,23 @@ function RecordContent(props: {
     props.record.type === 'company'
       ? useCompanyQuery(() => props.record.id).query
       : useContactQuery(() => props.record.id);
+  // The Discussion reads its linked message from these params; each request,
+  // a new `seek`, scrolls to it again.
+  const params = createParamsState();
+  createEffect(
+    on(
+      () =>
+        props.commentTarget &&
+        `${props.commentTarget.commentId}:${props.commentTarget.seek}`,
+      () => {
+        const target = untrack(() => props.commentTarget);
+        // Without a target, a remounted Discussion must not show the last one.
+        params.navigate(
+          target ? { [COMMENT_LINK_PARAM]: target.commentId } : {}
+        );
+      }
+    )
+  );
   const error = (onRetry: () => void) => (
     <DetailError
       onRetry={onRetry}
@@ -275,7 +303,7 @@ function RecordContent(props: {
             </div>
           }
         >
-          {props.children}
+          <ParamsProvider state={params}>{props.children}</ParamsProvider>
         </Suspense>
       </Show>
     </ErrorBoundary>
