@@ -42,6 +42,17 @@
       # bundle already — so embedding it in the derivation is not a new exposure.
       posthogApiKey = builtins.getEnv "VITE_POSTHOG_API_KEY";
 
+      # Without an exporter URL the bundle records spans and logs but never
+      # sends them. Default to the production OTLP proxy like the iOS build
+      # (`ios_production_telemetry` in `apps/web/scripts/ios-native-env.sh`);
+      # export either variable and build with `--impure` to send elsewhere.
+      # Export stays behind the `enable-browser-otel` PostHog flag.
+      envOr = name: fallback:
+        let value = builtins.getEnv name; in if value == "" then fallback else value;
+      otelExporterUrl =
+        envOr "VITE_OTEL_EXPORTER_URL" "https://macro-prox-prod.macroverse.workers.dev/i/otlp/v1/traces";
+      otelEnv = envOr "VITE_OTEL_ENV" "prod";
+
       rustToolchain = fenix.packages.${system}.fromToolchainFile {
         file = ../rust-toolchain.toml;
         sha256 = "sha256-qqF33vNuAdU5vua96VKVIwuc43j4EFeEXbjQ6+l4mO4=";
@@ -135,6 +146,8 @@
         # Vite reads prefixed variables straight off the build environment, the
         # same way `just build-prod` picks them up in the web and Android jobs.
         VITE_POSTHOG_API_KEY = posthogApiKey;
+        VITE_OTEL_EXPORTER_URL = otelExporterUrl;
+        VITE_OTEL_ENV = otelEnv;
 
         buildPhase = ''
             runHook preBuild
