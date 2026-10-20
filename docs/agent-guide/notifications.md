@@ -43,6 +43,11 @@ Also verify logout and notification opt-out while registration is pending: late
 backend or native completions must leave the receiver disabled. If a new account
 signs in before cleanup finishes, its registration must remain active afterward.
 
+Mute indicators must use the current account's query data, not a retained copy
+from the previous session. Verify a same-tab sign-out/sign-in with the second
+account's muted-items request delayed: show no previous-account mute indicators
+while that query is pending, then apply only the second account's response.
+
 Toast regions are labeled `Notifications (alt+T)`; seven empty live regions always exist in
 the a11y tree (ignore them when parsing snapshots).
 

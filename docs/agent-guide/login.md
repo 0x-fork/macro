@@ -59,6 +59,24 @@ their clients. Mounted query observers must receive the next account's data
 after the wipe. Previous account data must not return through initial data,
 placeholder data, or a later query reset.
 
+## CI deploy-preview authentication
+
+PR previews at `https://<id>.preview.macro.com/app` use the dev backend and
+its shared `.macro.com` HttpOnly cookies (`dev-macro-access-token` and
+`dev-macro-refresh-token`). The `login` hint is host-only and `macro:login`
+localStorage is origin-scoped, so a fresh preview has neither. Preview startup
+must check identity anyway; the hostname is not proof of authentication.
+Account queries and WebSockets still wait for a confirmed authenticated user.
+
+Verify in a browser signed into `https://dev.macro.com`: open a fresh preview
+hostname (or clear only that preview's localStorage and `login` hint, keeping
+the shared dev cookies). It should request
+`https://dev-gateway.macro.com/auth/user/legacy_user_permissions` and enter the
+signed-in app without another login. Repeat in a clean browser context: the
+identity check should fail without starting account services, and a public
+document should remain readable. Ordinary signed-out public links without a
+login hint should not start identity checks or account services.
+
 ## Hosted-dev proxy SSO
 
 On an allowed OAuth origin such as `https://localhost:<port>`, Google/SSO
