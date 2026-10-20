@@ -6687,6 +6687,11 @@ export type Form = {
      */
     id: string;
     /**
+     * Whether Drive leaves it, and the database behind it, out of its
+     * listings, as for a channel poll.
+     */
+    isHiddenInDrive: boolean;
+    /**
      * Its display name. A standalone form follows the database it created;
      * a form attached to an existing table has its own name.
      */
@@ -7025,6 +7030,11 @@ export type FormSectionDetail = {
  * Where a new form's responses go.
  */
 export type FormSource = {
+    /**
+     * Keep the form, and the database made for it, out of Drive, as
+     * for a channel poll.
+     */
+    isHiddenInDrive?: boolean;
     kind: 'new';
 } | {
     /**

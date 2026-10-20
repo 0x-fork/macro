@@ -19135,6 +19135,11 @@ export const listFormsResponseItem = zod
     databaseId: zod.uuid().describe('The database holding its responses.'),
     description: zod.string().describe('What respondents read under the name.'),
     id: zod.uuid().describe('The form.'),
+    isHiddenInDrive: zod
+      .boolean()
+      .describe(
+        'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+      ),
     name: zod
       .string()
       .describe(
@@ -19182,6 +19187,12 @@ export const createFormBody = zod
       .union([
         zod
           .object({
+            isHiddenInDrive: zod
+              .boolean()
+              .optional()
+              .describe(
+                'Keep the form, and the database made for it, out of Drive, as\nfor a channel poll.'
+              ),
             kind: zod.enum(['new']),
           })
           .describe(
@@ -19233,6 +19244,11 @@ export const listAccessibleFormsResponseItem = zod
           .string()
           .describe('What respondents read under the name.'),
         id: zod.uuid().describe('The form.'),
+        isHiddenInDrive: zod
+          .boolean()
+          .describe(
+            'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+          ),
         name: zod
           .string()
           .describe(
@@ -19310,6 +19326,11 @@ export const getFormResponse = zod
           .string()
           .describe('What respondents read under the name.'),
         id: zod.uuid().describe('The form.'),
+        isHiddenInDrive: zod
+          .boolean()
+          .describe(
+            'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+          ),
         name: zod
           .string()
           .describe(
@@ -19785,6 +19806,11 @@ export const updateFormResponse = zod
     databaseId: zod.uuid().describe('The database holding its responses.'),
     description: zod.string().describe('What respondents read under the name.'),
     id: zod.uuid().describe('The form.'),
+    isHiddenInDrive: zod
+      .boolean()
+      .describe(
+        'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+      ),
     name: zod
       .string()
       .describe(
@@ -19859,6 +19885,11 @@ export const collaborateFormResponse = zod
               .string()
               .describe('What respondents read under the name.'),
             id: zod.uuid().describe('The form.'),
+            isHiddenInDrive: zod
+              .boolean()
+              .describe(
+                'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+              ),
             name: zod
               .string()
               .describe(
@@ -20720,6 +20751,11 @@ export const putFormLayoutResponse = zod
               .string()
               .describe('What respondents read under the name.'),
             id: zod.uuid().describe('The form.'),
+            isHiddenInDrive: zod
+              .boolean()
+              .describe(
+                'Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll.'
+              ),
             name: zod
               .string()
               .describe(

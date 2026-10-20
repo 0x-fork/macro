@@ -28870,7 +28870,8 @@
           "closesAt",
           "confirmationMessage",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "isHiddenInDrive"
         ],
         "properties": {
           "audience": {
@@ -28904,6 +28905,10 @@
             "type": "string",
             "format": "uuid",
             "description": "The form."
+          },
+          "isHiddenInDrive": {
+            "type": "boolean",
+            "description": "Whether Drive leaves it, and the database behind it, out of its\nlistings, as for a channel poll."
           },
           "name": {
             "type": "string",
@@ -29452,6 +29457,10 @@
             "description": "A new database named like the form, whose one table, \"Responses\",\nstarts with only the form's own columns.",
             "required": ["kind"],
             "properties": {
+              "isHiddenInDrive": {
+                "type": "boolean",
+                "description": "Keep the form, and the database made for it, out of Drive, as\nfor a channel poll."
+              },
               "kind": {
                 "type": "string",
                 "enum": ["new"]

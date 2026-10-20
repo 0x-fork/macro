@@ -431,6 +431,11 @@ export type NewChannelType = 'private' | 'team';
  */
 export type FormSource =
   | {
+      /**
+       * Keep the form, and the database made for it, out of Drive, as
+       * for a channel poll.
+       */
+      isHiddenInDrive?: boolean;
       kind: 'new';
     }
   | {
@@ -7259,6 +7264,11 @@ export interface Form {
    * When its facts or layout last changed.
    */
   updatedAt: string;
+  /**
+   * Whether Drive leaves it, and the database behind it, out of its
+   * listings, as for a channel poll.
+   */
+  isHiddenInDrive: boolean;
 }
 /**
  * Every section of a form, in order.
