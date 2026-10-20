@@ -199,6 +199,14 @@ on focus/reconnect; route existing subscriptions to billing management. Keep
 known management access through refetch failures, but hide unconfirmed trials.
 Reset rejected checkout offers before refetching eligibility.
 
+## Desktop release builds: generated WASM
+
+Keep `nix/tauri-desktop.nix` in sync with generated WASM dependencies: desktop
+releases run Vite directly and do not call `just build-tauri` or `build-wasm`.
+Build and copy the agent-fold JavaScript glue and WASM before Vite runs, and
+check that both appear in the output. Without them, Vite leaves the worker's
+relative imports unchanged and Tauri can serve HTML for the missing module.
+
 ## macOS desktop gotcha: third-party iframes
 WKWebView asks the desktop navigation plugin about iframe loads as well as page loads, and the plugin cannot tell them apart. A third-party iframe is classified as external: its load is cancelled and the page opens in the browser, leaving an empty frame in the app. List a third-party page the app frames in `EMBEDDED_DOCUMENTS` in `tauri/src-tauri/src/lib.rs`.
 
