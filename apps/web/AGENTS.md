@@ -78,6 +78,8 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Label the notification permission toast **Enable Desktop Notifications** in
+  the desktop app and keep its Enable action on the native notification provider.
 - Keep signed-out Drive document routes on the shared detail viewer without
   mounting private list/sidebar sources; let document access checks decide visibility.
 - Gate account-only queries, comment readers, and account WebSockets on confirmed
