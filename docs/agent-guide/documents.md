@@ -2389,17 +2389,16 @@ them.
 Pipelines are not in the `@` menu or the command menu. Pasting a pipeline link
 into an editor or composer inserts a document mention with a table icon and the
 pipeline's current name: the pipeline's copy-link action
+(`/app/companies/pipeline/<id>`), an older shared view link
 (`/app/companies?crmView=…` whose view is that pipeline) and
-`/app/pipeline/<id>` both work. Copied Customers links for other views
+`/app/pipeline/<id>` all work. Copied Customers links for other views
 (Companies, People, lists) stay plain links. A pipeline you cannot read shows
 **No Access**; a trashed one shows **Deleted**.
 
 Clicking the mention, or pressing Enter on it, opens Customers on the pipeline
-(on touch devices too). If Customers is already open in a split, that split
-switches to the pipeline instead of a second one opening. The request travels
-as the Customers pane search `crm.pipeline` (with a `crm.seek` that makes a
-repeat click a new request), which Customers drops once you leave the
-pipeline.
+at `/app/companies/pipeline/<id>` (on touch devices too), in the mention's split
+like other entity mentions. A split already showing that pipeline is brought
+forward instead.
 
 The mention is stored as
 `<m-document-mention>{"documentId":"<pipeline id>","blockName":"pipeline",…}</m-document-mention>`.
