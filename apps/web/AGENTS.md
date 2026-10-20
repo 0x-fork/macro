@@ -78,6 +78,9 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
+  controls live under collapsed Advanced settings. See the
+  [Bots walkthrough](../../docs/agent-guide/settings.md#bots).
 - Label the notification permission toast **Enable Desktop Notifications** in
   the desktop app and keep its Enable action on the native notification provider.
 - Keep signed-out Drive document routes on the shared detail viewer without
