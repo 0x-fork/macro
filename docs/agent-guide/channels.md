@@ -894,12 +894,15 @@ query, then scrolls the results to the selected channel when present or to the
 start. Closing search restores the active tab and applies the same scroll
 behavior to its lists. An empty result uses the standard search empty state
 artwork and wraps long queries. Desktop channel name search combines local fuzzy
-matches and service results,
-deduplicated by channel ID, across channels and DMs. An empty query shows the
-ordinary list. Scrolling search results loads the next search page; clearing the
-query restores ordinary list pagination. Check a matching query, a query with no
-matches, and a clear/reopen cycle. Mobile dock search uses the independent Search
-route described below.
+matches and service results, deduplicated by channel ID, across channels and
+DMs. The local matches cover every conversation the viewer is in (the complete
+channel list, not only the loaded page), so a channel outside the newest hundred
+appears from the first keystroke; a loaded row keeps its unread and preview
+metadata when it matches. An empty query shows the ordinary list. Scrolling
+search results loads the next search page; clearing the query restores ordinary
+list pagination. Check a matching query, a query for a conversation absent from
+the ordinary list, a query with no matches, and a clear/reopen cycle. Mobile dock
+search uses the independent Search route described below.
 Recent search includes both channels and DMs, including service hits without
 message previews. It does not require message metadata or an importance filter.
 Loaded conversation metadata is preserved when a service hit has the same ID.
