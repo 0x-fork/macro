@@ -987,6 +987,13 @@ channel show **Conversation unavailable** with **Retry**, never permanent loadin
 Retry rather than marking just the one unread witness. Repeated mobile taps must
 open the last selected conversation, not a slower earlier request.
 
+Opening also refreshes that channel's bounded unread edge in the same request.
+Read a DM on another device while its web sidebar retains an unread dot (for
+example, with the read-status websocket update withheld), then open it on web.
+The dot and DM unread count must clear without reloading, even when the complete
+unread response is empty and no mark-read mutation runs. Another unread DM must
+keep its dot.
+
 Check cached Home → Chat navigation, All/Recent/search, and unread state after a
 read, a new notification, deletion, and reconnect, without reloading the page.
 With the mark-read response delayed, channel/DM dots, section counts, and new-activity

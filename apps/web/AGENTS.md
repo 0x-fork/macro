@@ -102,6 +102,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   reply transitions preserve the card's focus target and return to natural height.
 - Shared server-state queries and mutations live in `src/lib/queries`; keep
   feature-specific query orchestration with its owning feature.
+- Refresh the channel list's bounded unread edge when opening a conversation,
+  including an empty unread result after a read on another device.
 - Preserve loaded block content on initial access confirmation when its loader
   supplies no permissions; reload only on a later confirmed permission change.
   Apply shared access in place only after a successful permissionless load.
