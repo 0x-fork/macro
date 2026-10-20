@@ -40,7 +40,8 @@ providers. Shared/delegated Microsoft mailboxes are outside this account scope;
 sharing an inbox or thread inside Macro remains available.
 
 For Outlook writes, distinguish acceptance from provider confirmation. Thread
-organization notices and inbox settings show pending or failed changes. A saved
+organization notices and inbox settings show pending or failed changes; the
+mark-as-read from opening a thread is announced only if it fails. A saved
 draft can show a conflict or an uncertain delivery: use its recovery actions and
 check the provider copy before choosing an explicit resend. Switching the sender
 inbox copies the draft and attachments into the destination; wait for completion
