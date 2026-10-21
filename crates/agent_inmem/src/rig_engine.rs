@@ -38,6 +38,7 @@ use sqlx::PgPool;
 use tokio::sync::mpsc;
 use tracing::Instrument as _;
 
+use crate::domain::auto_model::{AutoModelSelector, DefaultAutoModel, JevAutoModel};
 use crate::domain::engine::{AgentIdentity, TurnEngine, TurnRequest};
 use crate::domain::tool_gate::{NativeToolGate, NativeToolVerdict, UngatedNativeTools};
 use crate::domain::tool_mode::{StandardTools, ToolMode, ToolModeSelector};
@@ -75,6 +76,7 @@ pub struct RigTurnEngine {
     native_tools: Arc<NativeTools>,
     code_mode_tools: Arc<NativeTools>,
     tool_mode: Arc<dyn ToolModeSelector>,
+    auto_model: Arc<dyn AutoModelSelector>,
     tool_context: ToolServiceContext,
     gate: Arc<dyn NativeToolGate>,
 }
@@ -97,6 +99,10 @@ impl RigTurnEngine {
                 true,
             )),
             tool_mode: Arc::new(StandardTools),
+            auto_model: match &tool_context.cognition_tool_context.service {
+                Some(cognition) => Arc::new(JevAutoModel::new(Arc::clone(cognition))),
+                None => Arc::new(DefaultAutoModel),
+            },
             tool_context,
             gate: Arc::new(UngatedNativeTools),
         }
@@ -272,11 +278,17 @@ impl TurnEngine for RigTurnEngine {
         let native_tools = Arc::clone(&self.native_tools);
         let code_mode_tools = Arc::clone(&self.code_mode_tools);
         let tool_mode = Arc::clone(&self.tool_mode);
+        let auto_model = Arc::clone(&self.auto_model);
         let tool_context = self.tool_context.clone();
         let gate = Arc::clone(&self.gate);
         let metering = agent::MeteringContext::current();
         tokio::spawn(
             agent::MeteringContext::carry(metering, async move {
+                let mut request = request;
+                let Some(model) = select_auto_model(auto_model.as_ref(), &request).await else {
+                    return;
+                };
+                request.model = model;
                 let Some(selected) = select_tool_mode(tool_mode.as_ref(), &request).await else {
                     return;
                 };
@@ -320,6 +332,32 @@ async fn forward_turn_result(
         });
     if let Err(error) = result {
         let _ = parts.send(Err(error)).await;
+    }
+}
+
+// Auto is a picker entry, not a routable id: the turn's prompt decides the
+// model it runs on. Every other id passes through.
+async fn select_auto_model(
+    selector: &dyn AutoModelSelector,
+    request: &TurnRequest,
+) -> Option<String> {
+    if request.model != crate::domain::models::AUTO_MODEL {
+        return Some(request.model.clone());
+    }
+    let Owner::User(owner) = &request.owner else {
+        return Some(crate::domain::models::resolve(&request.model).to_owned());
+    };
+    let prompt = request
+        .messages
+        .iter()
+        .rev()
+        .find(|message| message.role == agent::types::Role::User)
+        .and_then(|message| message.content.user_message_text())
+        .unwrap_or_default();
+    tokio::select! {
+        biased;
+        _ = request.cancel.cancelled() => None,
+        model = selector.select(owner, &prompt) => Some(model.to_owned()),
     }
 }
 

@@ -46,6 +46,11 @@ milliseconds instead of waiting on container provisioning.
 
 ## Gotchas
 
+- `auto` is a picker entry, not a routable id: `RigTurnEngine` asks its
+  `AutoModelSelector` (Jev through cognition's named decisions, 1 s budget) per turn and runs
+  Opus 5.5 (hard), GPT-6.1 Sol (mid) or Gemini 3.8 Flash (simple, and
+  whenever Jev is unavailable). Capability lookups go through
+  `models::resolve`.
 - Keep session-aware `NameSearch`, `ContentSearch`, and `ListEntities` native in
   code mode; legacy `ReadChat` must not appear in either runtime tool catalog.
 - Replay tool calls using `_meta.macro.toolName`; ACP titles may be human-readable
