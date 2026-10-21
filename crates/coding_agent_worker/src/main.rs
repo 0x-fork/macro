@@ -18,6 +18,7 @@
 mod config;
 mod daemon;
 mod dispatch;
+mod executable;
 mod harness;
 #[cfg(unix)]
 mod herdr;

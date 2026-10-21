@@ -21,10 +21,12 @@ mod test;
 
 mod environment {
     macro_env_var::maybe_env_var! {
-        pub struct Path;
-    }
-    macro_env_var::maybe_env_var! {
         pub struct Home;
+    }
+    // Windows sets no `HOME`; this is its home directory.
+    #[cfg(windows)]
+    macro_env_var::maybe_env_var! {
+        pub struct Userprofile;
     }
 }
 
@@ -160,10 +162,7 @@ pub struct PathCommands {
 impl PathCommands {
     /// Scan once for every command understood by the built-in presets.
     pub fn discover() -> Self {
-        let paths = environment::Path::new()
-            .and_then(|path| path.value().map(std::ffi::OsString::from))
-            .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
-            .unwrap_or_default();
+        let paths = crate::executable::search_paths();
         let mut found = std::collections::HashMap::new();
         for command in [
             "hermes",
@@ -175,48 +174,21 @@ impl PathCommands {
             "openclaw",
             "opencode",
         ] {
-            if let Some(path) = find_command(&paths, command) {
+            if let Some(path) = crate::executable::find(&paths, command) {
                 found.insert(command, path);
             }
         }
-        let adapter_root = environment::Home::new()
-            .and_then(|home| home.value().map(PathBuf::from))
-            .map(|home| home.join(".macrod").join("adapters"));
+        let home = environment::Home::new().and_then(|home| home.value().map(PathBuf::from));
+        #[cfg(windows)]
+        let home = home.or_else(|| {
+            environment::Userprofile::new().and_then(|home| home.value().map(PathBuf::from))
+        });
+        let adapter_root = home.map(|home| home.join(".macrod").join("adapters"));
         Self {
             found,
             adapter_root,
         }
     }
-}
-
-fn find_command(paths: &[PathBuf], command: &str) -> Option<PathBuf> {
-    #[cfg(windows)]
-    let names = [
-        command.to_owned(),
-        format!("{command}.exe"),
-        format!("{command}.cmd"),
-        format!("{command}.bat"),
-    ];
-    #[cfg(not(windows))]
-    let names = [command.to_owned()];
-
-    paths
-        .iter()
-        .flat_map(|directory| names.iter().map(move |name| directory.join(name)))
-        .find(|candidate| is_executable(candidate))
-}
-
-#[cfg(unix)]
-fn is_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt as _;
-
-    path.metadata()
-        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
-}
-
-#[cfg(not(unix))]
-fn is_executable(path: &Path) -> bool {
-    path.is_file()
 }
 
 impl CommandLookup for PathCommands {

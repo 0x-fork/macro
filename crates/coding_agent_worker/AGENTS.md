@@ -20,6 +20,10 @@ the local ACP process (Claude Code, Codex, ...), and drives native
   sessions, config form, logs).
 - `src/herdr.rs` (`src/herdr/`): native herdr pane integration — only compiled
   `#[cfg(unix)]`.
+- `src/executable.rs`: `PATH` lookup; every spawn of a bare command name goes
+  through `launchable`, which finds Windows `.cmd` shims (`npm`, `npx`).
+- `install/`: `install.sh` and `install.ps1`, the one-line installers the docs
+  serve from `main`. They download `macrod-<os>-<arch>` from the latest release.
 - `README.md`: native Herdr session behavior (repositories, reconnect, model
   switching, MCP) — read before changing anything under `src/herdr/`.
 
@@ -52,11 +56,18 @@ external chat replies depend on it. Direct session controls still mint IDs.
 - `OPENSSL_NO_VENDOR=0 just build-static` to build and smoke-test the release `macrod` the way
   the tag workflow does (needs the Nix devshell: cargo-zigbuild, zig, cmake).
   The override enables bundled OpenSSL for the musl target in the devshell.
+- Windows is built natively on a Namespace Windows runner by
+  `build_agent_daemon_on_tag` (MSVC, static CRT). Run that workflow with
+  `workflow_dispatch` on your branch to check a Windows-affecting change.
+- `cargo tree -p coding_agent_worker -i rdkafka-sys --target x86_64-unknown-linux-musl`
+  must find nothing: librdkafka breaks the static and Windows builds.
 
 ## Gotchas
 
 - `src/herdr.rs` and its submodule are Unix-only (`#[cfg(unix)]`); don't add
   Windows-breaking code there without a cfg gate.
+- The ACP child is killed with its whole tree: a process group on Unix, a Job
+  Object on Windows (`src/outbound/acp_process/job.rs`).
 - macrod never pulls into the operator's working branch — new herdr worktrees
   start from a fresh fetch of `origin/main` (see README.md).
 - Switching native agents clears the previous agent's model/extra-args but

@@ -299,6 +299,7 @@ lru = "0.16"
 miniz_oxide = { version = "0.8", features = ["with-alloc"] }
 mockall = "0.13"
 nom = "8"
+openssl-sys = "0.9"
 opus-pure = "0.2.1"
 opentelemetry = { version = "0.31.0", default-features = false }
 opentelemetry-appender-tracing = { version = "0.31.1", default-features = false }
@@ -436,6 +437,7 @@ wasm-bindgen-test = "0.3"
 web-sys = "0.3"
 web-time = "1.1.0"
 webbrowser = { version = "=1.2.2", features = ["hardened"] }
+windows-sys = "0.61"
 worker = "0.8.1"
 # this is pinned to match axum 0.7.9 dependency requirements
 async-stripe = { version = "0.41", default-features = false, features = [

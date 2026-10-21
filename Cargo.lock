@@ -4475,6 +4475,7 @@ dependencies = [
  "macro_user_id",
  "macro_uuid",
  "messages",
+ "openssl-sys",
  "ratatui",
  "reqwest 0.13.4",
  "rootcause",
@@ -4499,6 +4500,7 @@ dependencies = [
  "uuid",
  "webbrowser",
  "webhook",
+ "windows-sys 0.61.2",
  "workspace-hack",
 ]
 

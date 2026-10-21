@@ -562,8 +562,9 @@ the shimmer.
   up the bundled macrod daemon in one click: **Set up** detects installed agents,
   then **Start running agents here** configures, pairs (auto-approved, no code),
   and starts it. The manual flow below remains for pairing other machines.
-  **New runtime** shows three steps: install macrod from the linked release,
-  run `./macrod` and configure your agent in Quickstart, then enter your pairing
+  **New runtime** shows three steps: install macrod with the shown `curl … |
+  sh` (macOS, Linux) or `irm … | iex` (Windows) command, run `macrod` and
+  configure your agent in Quickstart, then enter your pairing
   code and click **Look up**. Review the request and click **Approve** to connect.
   The setup guide contains configuration and pairing screenshots in that order.
   Enter the code from your own terminal, not the example screenshot.
