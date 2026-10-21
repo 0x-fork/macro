@@ -59,7 +59,10 @@ fn snapshot(owner: &str, revision: chrono::DateTime<Utc>) -> ImportedCall {
     fixtures(path = "../../../fixtures", scripts("import_users"))
 )]
 async fn imports_are_private_idempotent_owner_scoped_and_revision_ordered(pool: PgPool) {
-    let service = CallImportServiceImpl(PgImportedCallRepository::new(pool.clone()));
+    let service = CallImportServiceImpl(
+        PgImportedCallRepository::new(pool.clone()),
+        macro_event_broker::NoopMacroEventBroker,
+    );
     let now = Utc::now();
     let id = service.ingest(snapshot("import-a", now)).await.unwrap();
     let first = service.read(&user("import-a"), id).await.unwrap().unwrap();

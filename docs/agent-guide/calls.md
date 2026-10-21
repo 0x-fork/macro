@@ -43,9 +43,10 @@ Business or Enterprise API key) is the only setup; there are no sync controls.
 Within about 30 seconds the backend registers a Granola webhook at the widest
 scope the key allows, and removing or disabling the connection stops sync. Notes
 whose first summary is generated, edited, or shared after that are imported as
-private calls about a minute after Granola finishes the summary; history is not
-backfilled. Imported calls appear in `All` and `Attended`, never in a channel's
-`Calls` tab, and open in the normal call detail with title, summary, attendees
+private calls about a minute after Granola finishes the summary, and appear in
+Soup lists without a refresh; history is not backfilled. Imported calls appear
+in `All` and `Attended`, never in a channel's `Calls` tab, and open in the
+normal call detail with title, summary, attendees
 (shown as guests), and transcript but no recording. Rename and delete do not
 apply to imported calls yet. Webhooks require a public HTTPS `MCP_PUBLIC_URL`;
 on a laptop stack, expose the webhook path with a tunnel such as Tailscale Funnel.

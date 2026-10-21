@@ -661,6 +661,7 @@ pub async fn run() -> anyhow::Result<()> {
                     call::outbound::pg_imported_call_repo::PgImportedCallRepository::new(
                         db.clone(),
                     ),
+                    macro_event_broker.clone(),
                 )),
                 public_url: config.mcp_public_url.clone(),
             }) as Arc<dyn granola_sync::domain::service::SyncService>
