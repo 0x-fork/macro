@@ -25,6 +25,7 @@ inbound = [
   "dep:axum",
   "dep:macro_authorization",
   "dep:models_pagination",
+  "dep:urlencoding",
   "schema",
 ]
 # The notification-service reminder notifier.
@@ -43,6 +44,7 @@ call = { path = "../call", default-features = false, features = [
 ], optional = true }
 chrono = { workspace = true }
 chrono-tz = { workspace = true }
+email_utils = { path = "../email_utils" }
 futures = { workspace = true }
 macro_authorization = { path = "../macro_authorization", default-features = false, features = [
   "axum",

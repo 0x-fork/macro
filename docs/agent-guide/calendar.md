@@ -431,6 +431,13 @@ carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every 
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
 touch devices — and is hidden when you are the only guest.
+The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
+iCalendar file named after its title, so it can be passed on or added to another calendar. The
+file holds the series (its repeat rule, in the event's original time zone), title, description
+as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+is absent from teammates' out-of-office chips. Its endpoint, document storage's
+`GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
+belongs to.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's

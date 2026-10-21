@@ -19,12 +19,14 @@ import { useOpenEventComposer } from '@app/features/calendar-view/components/use
 import { useOpenEventEmail } from '@app/features/calendar-view/components/use-open-event-email';
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
 import { copyGuestEmails } from '@app/features/calendar-view/copy-guest-emails';
+import { downloadCalendarEventIcs } from '@app/features/calendar-view/download-event-ics';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
 import { Popover } from '@kobalte/core/popover';
 import CopyIcon from '@phosphor/copy.svg';
+import DownloadSimpleIcon from '@phosphor/download-simple.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import ExclamationIcon from '@phosphor/exclamation-mark.svg';
 import LinkIcon from '@phosphor/link.svg';
@@ -273,6 +275,16 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   onClick={() => copyCalendarEventMention(props.event)}
                 >
                   <LinkIcon />
+                </Button>
+                <Button
+                  aria-label="Download .ics"
+                  variant="ghost"
+                  size="icon-md"
+                  depth={3}
+                  class="size-11 bg-ink/6 text-ink-muted [&_svg]:size-5"
+                  onClick={() => downloadCalendarEventIcs(props.event)}
+                >
+                  <DownloadSimpleIcon />
                 </Button>
               </Show>
               <Show when={canModify()}>
@@ -531,6 +543,16 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     onClick={() => copyCalendarEventMention(props.event)}
                   >
                     <LinkIcon />
+                  </Button>
+                  <Button
+                    aria-label="Download .ics"
+                    variant="ghost"
+                    size="icon-sm"
+                    depth={3}
+                    class="text-ink-muted [&_svg]:size-4"
+                    onClick={() => downloadCalendarEventIcs(props.event)}
+                  >
+                    <DownloadSimpleIcon />
                   </Button>
                 </Show>
                 <Show when={canModify()}>

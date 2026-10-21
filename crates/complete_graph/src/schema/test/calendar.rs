@@ -132,6 +132,14 @@ impl CalendarOccurrenceService for RecordingCalendarReads {
     async fn primary_time_zone(&self, _requester_id: &str) -> Result<Option<String>, Report> {
         unreachable!("not part of the calendar user fields")
     }
+
+    async fn event_ics(
+        &self,
+        _requester_id: &str,
+        _event_id: uuid::Uuid,
+    ) -> Result<Option<calendar_events::domain::ics::CalendarEventIcs>, Report> {
+        unreachable!("not part of the calendar user fields")
+    }
 }
 
 impl CalendarChangeQueryService for RecordingCalendarReads {

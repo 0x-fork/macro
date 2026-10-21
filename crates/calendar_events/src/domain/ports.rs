@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use rootcause::Report;
 use uuid::Uuid;
 
+use super::ics::{CalendarEventExport, CalendarEventIcs};
 use super::meeting_links::{
     CreateEventWithMacroCallError, MeetingLink, MeetingLinkError, MeetingLinkRequest,
 };
@@ -378,6 +379,15 @@ pub trait CalendarOccurrenceService: Send + Sync + 'static {
         &self,
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send;
+
+    /// Render an event the requester can see — their own, or one shared with
+    /// a channel they belong to — as an iCalendar document, with its title.
+    /// `None` when the event does not exist or is not visible to them.
+    fn event_ics(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Option<CalendarEventIcs>, Report>> + Send;
 }
 
 /// What a write did to one event's canonical `calendar_events` row.
@@ -483,6 +493,18 @@ pub trait CalendarRepository: Send + Sync + 'static {
         items: Vec<CalendarMentionRequestItem>,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Vec<CalendarMentionPreview>, Report>> + Send;
+
+    /// Series content of an event the requester can see, for export: the
+    /// requester's own projection of the meeting (same iCalendar UID) on one
+    /// of their own or linked calendars, else the requested row itself when
+    /// it is neither private nor confidential and was shared with a channel
+    /// they currently belong to. `None` covers an unknown or cancelled event
+    /// and one they cannot see.
+    fn event_export(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Option<CalendarEventExport>, Report>> + Send;
 
     /// Out-of-office occurrences owned by the requester's teammates — the
     /// other members of the requester's team — overlapping the viewport,

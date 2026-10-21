@@ -52,6 +52,21 @@ Delete the event (or a scoped part of a recurring series) at its provider.
 
 ***
 
+### ics()
+
+> **ics**(): `Promise`\<`string`\>
+
+The event as an iCalendar (`.ics`) document: its series, title,
+description, location and organizer, never its guests or join link.
+Available for the requester's own events and ones shared with a channel
+they belong to.
+
+#### Returns
+
+`Promise`\<`string`\>
+
+***
+
 ### prepareReplacement()
 
 > **prepareReplacement**(`options`): `Promise`\<[`CalendarReplacement`](../../replacement/classes/CalendarReplacement.md)\>

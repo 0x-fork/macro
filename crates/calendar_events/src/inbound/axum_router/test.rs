@@ -102,3 +102,15 @@ fn mention_preview_items_serialize_the_preview_contract() {
         "does_not_exist"
     );
 }
+
+#[test]
+fn ics_disposition_names_the_file_after_the_title() {
+    assert_eq!(
+        ics_disposition("Q3 \"offsite\" / café"),
+        "attachment; filename=\"event.ics\"; filename*=UTF-8''Q3%20%22offsite%22%20%2F%20caf%C3%A9.ics"
+    );
+    assert_eq!(
+        ics_disposition("  "),
+        "attachment; filename=\"event.ics\"; filename*=UTF-8''event.ics"
+    );
+}

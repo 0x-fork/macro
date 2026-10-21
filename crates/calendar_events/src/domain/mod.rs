@@ -10,6 +10,8 @@ pub mod capabilities;
 pub mod changes;
 /// Kafka event models for the calendar topic.
 pub mod events;
+/// iCalendar export of calendar events.
+pub mod ics;
 /// Macro meeting links carried by calendar events.
 pub mod meeting_links;
 /// Domain models.

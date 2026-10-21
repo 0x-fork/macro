@@ -114,6 +114,14 @@ impl CalendarOccurrenceService for FakeReads {
     async fn primary_time_zone(&self, _requester_id: &str) -> Result<Option<String>, Report> {
         unreachable!("calendar GraphQL reads never resolve the primary time zone")
     }
+
+    async fn event_ics(
+        &self,
+        _requester_id: &str,
+        _event_id: uuid::Uuid,
+    ) -> Result<Option<calendar_events::domain::ics::CalendarEventIcs>, Report> {
+        unreachable!("calendar GraphQL reads never export an event")
+    }
 }
 
 impl CalendarChangeQueryService for FakeReads {

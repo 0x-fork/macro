@@ -1,6 +1,7 @@
 //! PostgreSQL implementation of the calendar repository port.
 mod change_log;
 mod changes;
+mod export;
 mod invitations;
 #[cfg(feature = "outlook")]
 mod outlook;
@@ -20,6 +21,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     changes::CalendarChangeOp,
+    ics::CalendarEventExport,
     models::{
         ActorInboxes, AppliedGoogleGrant, AttendeeResponseStatus,
         CALENDAR_SYNC_FAILURE_BADGE_THRESHOLD, CalendarAttendee, CalendarBackfillClaim,
@@ -1394,6 +1396,15 @@ impl CalendarRepository for PgCalendarRepository {
         .map_err(report)?;
 
         rows.into_iter().map(mention_preview_from_row).collect()
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn event_export(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> Result<Option<CalendarEventExport>, Report> {
+        export::event_export(&self.pool, requester_id, event_id).await
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]

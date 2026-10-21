@@ -304,6 +304,14 @@ impl CalendarOccurrenceService for MockOccurrences {
     ) -> Result<Option<String>, rootcause::Report> {
         unreachable!("no calendar tool resolves the primary time zone")
     }
+
+    async fn event_ics(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Option<crate::domain::ics::CalendarEventIcs>, rootcause::Report> {
+        unreachable!("no calendar tool exports an event")
+    }
 }
 
 const MEETING_URL: &str = "https://macro.com/app/meet/join/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";

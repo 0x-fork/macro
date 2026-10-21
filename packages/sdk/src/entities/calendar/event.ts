@@ -242,6 +242,16 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
     return result.url ?? undefined;
   }
 
+  /** The event as an iCalendar (`.ics`) document: its series, title,
+   * description, location and organizer, never its guests or join link.
+   * Available for the requester's own events and ones shared with a channel
+   * they belong to. */
+  async ics(): Promise<string> {
+    return unwrap(
+      await this.client.storage.eventIcs({ path: { event_id: this.id } }),
+    );
+  }
+
   /** Record the requester's RSVP and return a handle to the synced record. */
   async rsvp(options: RsvpEventOptions): Promise<CalendarEvent> {
     const record = await this.mutate((client) =>

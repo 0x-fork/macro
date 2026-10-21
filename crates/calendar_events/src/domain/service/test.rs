@@ -105,6 +105,14 @@ impl CalendarRepository for FakeRepo {
             .collect())
     }
 
+    async fn event_export(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Option<crate::domain::ics::CalendarEventExport>, Report> {
+        unreachable!("event export is not exercised by sync tests")
+    }
+
     async fn list_team_out_of_office(
         &self,
         _requester_id: &str,

@@ -332,6 +332,7 @@
   "storage.mentionPreviews": "Mention Previews",
   "storage.listTeamCalendar": "List Team Calendar",
   "storage.listTeamOutOfOffice": "List Team Out Of Office",
+  "storage.eventIcs": "Event Ics",
   "storage.getActiveCalls": "Get Active Calls",
   "storage.guestCallChatRead": "Guest Call Chat Read",
   "storage.guestCallChatPost": "Guest Call Chat Post",
