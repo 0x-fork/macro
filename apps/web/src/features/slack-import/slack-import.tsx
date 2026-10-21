@@ -83,7 +83,7 @@ function SlackImportSettings(props: {
   const { openSettings } = useSettingsState();
   const connectSlack = () => {
     requestConnectApp(SLACK_CONNECT_SLUG, 'import-slack-channels');
-    openSettings('Connections');
+    openSettings('Connected');
   };
   function channelHref(id: string): string | undefined {
     if (

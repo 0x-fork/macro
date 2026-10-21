@@ -313,6 +313,9 @@ pub struct PipedreamCatalogEntryResponse {
     description: Option<String>,
     /// URL of the app's icon, when available.
     icon_url: Option<String>,
+    /// Categories assigned by Pipedream.
+    #[serde(default)]
+    categories: Vec<String>,
 }
 
 impl From<CatalogEntry> for PipedreamCatalogEntryResponse {
@@ -322,6 +325,7 @@ impl From<CatalogEntry> for PipedreamCatalogEntryResponse {
             display_name: entry.display_name,
             description: entry.description,
             icon_url: entry.icon_url,
+            categories: entry.categories,
         }
     }
 }

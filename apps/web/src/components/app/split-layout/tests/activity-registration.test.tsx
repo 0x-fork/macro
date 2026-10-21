@@ -140,7 +140,7 @@ vi.mock('@app/features/next-soup/use-recent-view-flag', () => ({}));
 vi.mock('@app/features/settings/Settings', () => ({
   SettingsPanelComponentWrapper: () => null,
 }));
-vi.mock('@app/features/settings/McpConnections', () => ({}));
+vi.mock('@app/features/settings/IntegrationsPage', () => ({}));
 vi.mock('@app/features/tasks-view/tasks-view', () => ({}));
 vi.mock('@app/features/tasks-view/components/TasksDetailView', () => ({
   TasksDetailRouteView: () => null,

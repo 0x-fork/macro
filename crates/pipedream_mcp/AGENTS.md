@@ -11,7 +11,8 @@ AI loop calls their tools through Pipedream's remote MCP server.
 - `src/lib.rs`: crate doc comment — explains why this is fully separate from
   the native `mcp_client` stack.
 - `src/domain/ports.rs` + `src/domain/models.rs`: connection model and ports.
-- `src/outbound/api.rs`: the Pipedream HTTP API client.
+- `src/outbound/api.rs`: the Pipedream HTTP API client; catalog entries preserve
+  Pipedream category labels for clients to group without a local taxonomy.
 - `src/outbound/pg_connection_repo.rs`: the `pipedream_mcp_connections` table.
 - `src/inbound/toolset.rs`: how connected apps surface as agent tools.
 

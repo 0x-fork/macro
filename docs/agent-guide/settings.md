@@ -71,7 +71,7 @@ when Gmail has no signature. Unsaved drafts
 survive switching settings pages. On phones, signature editing remains desktop-only;
 the replies/forwards toggle and clear action are available.
 Email accounts can also be managed from **Integrations**. Its **Email settings**
-link opens the dedicated page, and Email links to Notifications and Calendar.
+gear opens the dedicated page, and Email links to Notifications and Calendar.
 With a composer open, save a changed signature or reply-signature preference and
 verify its preview updates. Once the account refresh completes, reopen a composer
 offline and confirm it uses the saved settings.
@@ -186,10 +186,10 @@ settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
-Settings pages use the email composer’s raised surfaces on the page background.
-Section headings and controls share a white surface in light mode and the
-composer border in dark mode, with subtle row separators. The compact sidebar
-uses the shared workspace width.
+Settings pages use flat, light-gray cards with subtle row separators. Section
+headings sit above the cards, with more space between major sections and compact
+spacing within each group. Controls share rounded shapes. Nested rows share one surface instead of adding another box or shadow.
+The compact sidebar uses the shared workspace width.
 
 When a newer version is ready, an **Update available** button (a download icon
 in a subtle accent circle that a glowing comet periodically circles) appears in
@@ -234,8 +234,8 @@ Left nav (feature and platform gates still apply):
   results name their group, e.g. **Team · Members**.
 - **Blocks**: Email, Calendar, Agents, CRM.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
-- **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts).
-- **Developer**: Agent connections, Runtimes, MCP server, API Keys, Bots.
+- **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
+- **Developer**: Runtimes, MCP server, API Keys, Bots.
 
 **Desktop App** (`/app/settings/desktop-app`) is titled
 **Desktop App (Alpha)** and shows a compact version and build-date card in the
@@ -298,7 +298,7 @@ theme pill, then import it on another device or share it in a message for
 others to copy and import.
 
 Existing settings URLs remain valid; `connections` still opens Integrations,
-`agent-connections` opens Agent connections, and `harness` aliases Runtimes.
+`agent-connections` aliases Integrations, and `harness` aliases Runtimes.
 
 `Usage` appears directly above Billing, including for Free accounts. In
 production, the `enable-ai-usage-billing` PostHog flag controls activation. While
@@ -468,7 +468,7 @@ to save the connection in the waiting app. Unconnected picks never block
 saving; each teammate connects their own account. An agent session that calls a picked
 but unconnected app gets a tool result saying so, and the agent's reply renders a
 `Connect <app>` chip that opens Agents → Connections for that app. The same page
-is also available as Settings → Agent connections.
+is also available as Settings → Integrations.
 
 Reference captures from an isolated browser fixture: [native waiting dialog](media/pipedream/native-waiting.png)
 and [browser return page](media/pipedream/browser-return.png). The fixture uses
@@ -483,15 +483,48 @@ the picture after reopening settings and after a page reload, then type `@` and
 the agent's name in a channel to check its mention-menu picture. Team agents
 available in all channels should refresh there without reloading the channel.
 
-With `pipedream-mcp` enabled, Connections (in Agents or Settings) has `Connected` and `Discover`
-tabs. Connected groups GitHub, Linear, Notion, and Slack tool grants by provider,
-lists other catalog connections alongside them, and puts custom MCP servers in
-a separate section. Discover offers featured providers, a searchable catalog,
-and `Add custom MCP`. Pipedream Slack OAuth is available in production and
+![Integrations overview with example connections](assets/settings-integrations.png)
+
+With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
+section Core Integrations and the connector section Agent Integrations, separated
+by spacing without a divider. Installed tools use a two-column card grid (one
+column on narrow screens), followed by Featured and All apps, without a Discover
+heading or a separate installed sidebar. All apps has a gray Add Custom action beside its
+heading. Search and the category picker share a row directly below that heading
+and stack on narrow screens. The category picker uses a borderless light-gray
+fill that matches the integration cards.
+Installed, Featured, and All apps use headings above rounded cards. The overview uses
+more space between major sections and consistent light gray card backgrounds.
+Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
+harness with the official Macro MCP” opens connection setup; “Stream sessions
+from your local AI harness to Macro” opens Runtimes within Integrations to connect
+a local machine. Its Back button returns to Integrations; opening Runtimes from
+Agents keeps the return to Agents. The local-harness setup row follows the
+Runtimes availability gate and is hidden when that tab is unavailable.
+Email, GitHub, and Granola cards appear next under Core Integrations;
+they use two columns and share a height on wide screens, stacking on narrow screens. A small gear on the Email card opens Email settings;
+Calendar settings remain available from the settings sidebar.
+All apps groups each app under its first nonempty Pipedream category; apps without
+category metadata appear under More apps. Categories lead with Productivity,
+Communication, Developer Tools, AI, File Storage, and CRM; remaining categories
+follow the configured work-app order, then alphabetically, with More apps last.
+Search sits beside the category picker directly above the Pipedream catalog;
+Featured remains visible while searching. Scrolling toward the end loads the next
+page automatically and preserves category groups. A failed next page keeps loaded
+apps visible and offers Retry. Use the category picker below
+All apps to show one group; changing the search returns to all categories. Group
+counts reflect the currently loaded results.
+Featured and catalog cards use two columns on wide screens and one on narrow
+screens, with a plus action for available apps. Featured cards show app names
+without descriptions, and catalog descriptions
+and connection status use readable body-sized text. The Agents workspace opens this same Integrations
+page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
+lists other catalog connections alongside them, and lists custom servers in the same installed grid. The available integrations include featured providers, a searchable catalog,
+and `Add Custom`. Pipedream Slack OAuth is available in production and
 development from the featured Slack provider. Connecting Slack here grants tool
 access; channel import is a separate action where the user chooses channels.
-Provider Back returns to the tab that opened it; navigation is local to each
-Connections page and starts at Connected on a fresh visit.
+Provider Back returns to the combined integrations overview; navigation
+is local to each mounted Integrations page.
 
 Macro agents and external AI clients using Macro's MCP server can run
 `ImportNotionPage` and the shared import ledger tools against the user's
@@ -518,7 +551,7 @@ owner's custom servers.
 An agent reply's `Connect <app>` chip still starts that app's connection flow.
 Cursor stays in Agents → Runtimes with its API key and default model controls; it is not
 featured or offered in the Connections catalog. Personal Gmail and GitHub account
-links remain in Settings → Integrations. The native-only Connections page remains
+links appear above the installed tools and app catalog on Settings → Integrations. The native-only integrations section remains
 available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 

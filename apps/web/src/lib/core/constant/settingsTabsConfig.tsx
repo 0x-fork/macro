@@ -13,7 +13,6 @@ import HardDrivesIcon from '@phosphor/hard-drives.svg';
 import KeyIcon from '@phosphor/key.svg';
 import KeyboardIcon from '@phosphor/keyboard.svg';
 import PlugIcon from '@phosphor/plug.svg';
-import PlugsConnectedIcon from '@phosphor/plugs-connected.svg';
 import BotIcon from '@phosphor/robot.svg';
 import AgentIcon from '@phosphor/sparkle.svg';
 import SwatchesIcon from '@phosphor/swatches.svg';
@@ -201,19 +200,20 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         tab: 'Connected',
         label: 'Integrations',
         icon: CpuIcon,
-        keywords: ['integrations', 'apps', 'connections'],
+        keywords: [
+          'integrations',
+          'apps',
+          'connections',
+          'agent',
+          'tools',
+          'mcp',
+        ],
       },
     ],
   },
   {
     label: 'Developer',
     items: [
-      {
-        tab: 'Connections',
-        label: 'Agent connections',
-        icon: PlugsConnectedIcon,
-        keywords: ['agent', 'tools', 'apps', 'mcp'],
-      },
       {
         tab: 'Harness',
         label: 'Runtimes',
@@ -278,8 +278,6 @@ const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
   Tags: 'tags',
   CRM: 'crm',
   Connected: 'connections',
-  // `connections` predates this tab and stays on Integrations for old links.
-  Connections: 'agent-connections',
   Email: 'email',
   GitHub: 'github',
   Admin: 'admin',
@@ -293,6 +291,8 @@ const SETTINGS_SLUG_TO_TAB = new Map<string, SettingsTab>(
 
 // Preserve daemon pairing links and bookmarks from before the rename.
 SETTINGS_SLUG_TO_TAB.set('harness', 'Harness');
+SETTINGS_SLUG_TO_TAB.set('connections', 'Connected');
+SETTINGS_SLUG_TO_TAB.set('agent-connections', 'Connected');
 
 /** The URL slug for a settings tab (e.g. `Connected` → `connections`). */
 export const settingsTabToSlug = (tab: SettingsTab): string =>
@@ -345,7 +345,6 @@ export const useSettingsTabAvailable = () => {
       case 'CRM':
         return crmFlag().enabled;
       case 'Connected':
-      case 'Connections':
         return true;
       case 'Shortcuts':
         return !isTouchDevice();

@@ -91,6 +91,10 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Compose settings pages with `features/settings/primitives.tsx` so section headings,
+  flat neutral cards, row spacing, and control shapes stay consistent.
+- Keep personal accounts and agent tool connections together in Settings → Integrations;
+  preserve `agent-connections` as an alias for existing links.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
   controls live under collapsed Advanced settings. See the
   [Bots walkthrough](../../docs/agent-guide/settings.md#bots).

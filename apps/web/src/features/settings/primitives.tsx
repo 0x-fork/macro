@@ -1,5 +1,5 @@
 import CaretLeftIcon from '@phosphor/caret-left.svg';
-import { Button, type ButtonProps, ComposerSurface, cn } from '@ui';
+import { Button, type ButtonProps, cn } from '@ui';
 import { children, createContext, type JSX, Show, useContext } from 'solid-js';
 import { settingsTarget } from './core/settings-target';
 
@@ -8,9 +8,8 @@ export const SettingsSheetContext = createContext(false);
 
 /*
  * Shared building blocks for the settings panels. Every settings tab composes
- * these so the whole menu shares one rhythm: a generous, centered content
- * column with a large page title and raised composer surfaces whose rows
- * are separated by hairline dividers.
+ * these so the whole menu shares one rhythm: a centered content column,
+ * clear section headings, and flat neutral surfaces with subtle row dividers.
  *
  *   <SettingsPage title="Account" description="…">
  *     <SettingsSection title="Profile">
@@ -28,6 +27,10 @@ export const SettingsSheetContext = createContext(false);
  */
 export function SettingsPage(props: {
   title: string;
+  /** Layout width and spacing for the page content. */
+  contentClass?: string;
+  /** Spacing between the heading and page sections. */
+  bodyClass?: string;
   /** Inline subpages need their own heading beneath the mobile sheet chrome. */
   showTitleInSheet?: boolean;
   /** Optional one-line subtitle; accepts text or inline markup (e.g. a link). */
@@ -58,7 +61,8 @@ export function SettingsPage(props: {
           'mx-auto w-full max-w-[960px]',
           inSheet
             ? '@container px-3 pt-2 pb-[max(24px,var(--mobile-sheet-safe-padding))]'
-            : '@container px-12 pt-8 pb-24 @max-[480px]/settings-page:px-4 touch:px-5 touch:pt-[calc(var(--mobile-content-inset-top,0px)+2rem)] touch:pb-[calc(var(--mobile-content-inset-bottom,0px)+3rem)]'
+            : '@container px-12 pt-8 pb-24 @max-[480px]/settings-page:px-4 touch:px-5 touch:pt-[calc(var(--mobile-content-inset-top,0px)+2rem)] touch:pb-[calc(var(--mobile-content-inset-bottom,0px)+3rem)]',
+          props.contentClass
         )}
       >
         <Show when={props.onBack}>
@@ -97,7 +101,11 @@ export function SettingsPage(props: {
           </Show>
         </header>
         <div
-          class={cn('flex flex-col', inSheet ? 'gap-6 mt-3' : 'mt-12 gap-12')}
+          class={cn(
+            'flex flex-col',
+            inSheet ? 'mt-3 gap-6' : 'mt-6 gap-8',
+            props.bodyClass
+          )}
         >
           {props.children}
         </div>
@@ -127,26 +135,26 @@ export function SettingsSection(props: {
           : undefined
       }
       tabIndex={-1}
-      class={cn('scroll-mt-4 outline-none rounded-[26.25px]', props.class)}
+      class={cn('scroll-mt-4 outline-none', props.class)}
     >
-      <SettingsSurface class="flex flex-col gap-2 p-5 touch:p-4">
-        <Show when={props.title || actions()}>
-          <div class="flex flex-wrap items-end justify-between gap-3">
-            <div class="flex flex-col gap-0.5 min-w-0">
-              <Show when={props.title}>
-                <h2 class="text-base font-medium text-ink">{props.title}</h2>
-              </Show>
-              <Show when={props.description}>
-                <p class="text-sm leading-relaxed text-ink/60">
-                  {props.description}
-                </p>
-              </Show>
-            </div>
-            <Show when={actions()}>
-              <div class="shrink-0">{actions()}</div>
+      <Show when={props.title || actions()}>
+        <div class="mb-2 flex flex-wrap items-start justify-between gap-3">
+          <div class="flex min-w-0 flex-col gap-1">
+            <Show when={props.title}>
+              <h2 class="text-base font-medium text-ink">{props.title}</h2>
+            </Show>
+            <Show when={props.description}>
+              <p class="text-sm leading-relaxed text-ink-muted">
+                {props.description}
+              </p>
             </Show>
           </div>
-        </Show>
+          <Show when={actions()}>
+            <div class="shrink-0">{actions()}</div>
+          </Show>
+        </div>
+      </Show>
+      <SettingsSurface class="flex flex-col gap-2 p-4">
         {props.children}
       </SettingsSurface>
     </section>
@@ -166,22 +174,21 @@ export function SettingsSurface(props: {
       when={!nested}
       fallback={<div class={props.class}>{props.children}</div>}
     >
-      <ComposerSurface
-        as="div"
+      <div
         class={cn(
-          'relative min-w-0 touch:rounded-3xl touch:border touch:border-edge-muted touch:bg-composer touch:text-composer-ink',
+          'relative min-w-0 rounded-2xl border border-edge-muted bg-ink/4 text-ink',
           props.class
         )}
       >
         <SettingsSurfaceContext.Provider value={true}>
           {props.children}
         </SettingsSurfaceContext.Provider>
-      </ComposerSurface>
+      </div>
     </Show>
   );
 }
 
-/** Rows share a surface; standalone cards use the email composer's elevation. */
+/** Rows share a flat neutral surface; nested cards do not add another box. */
 export function SettingsCard(props: { class?: string; children: JSX.Element }) {
   const nested = useContext(SettingsSurfaceContext);
   return (
@@ -228,7 +235,7 @@ export function SettingsRow(props: {
       }
       tabIndex={-1}
       class={cn(
-        'scroll-mt-4 outline-none flex gap-4 py-4 min-h-[64px]',
+        'scroll-mt-4 outline-none flex gap-4 py-3 min-h-[56px]',
         inSheet ? 'px-4 flex-wrap' : 'px-4',
         props.stackOnNarrow
           ? 'flex-col gap-1.5 @[460px]:flex-row @[460px]:justify-between @[460px]:gap-4'
@@ -312,7 +319,7 @@ export function ChoiceRow(props: {
       />
       <span class="min-w-0">
         <span class="block text-sm font-medium text-ink">{props.title}</span>
-        <span class="mt-0.5 block text-xs text-ink-muted">
+        <span class="mt-0.5 block text-sm text-ink-muted">
           {props.description}
         </span>
       </span>
@@ -340,7 +347,7 @@ export function IntegrationRow(props: {
   class?: string;
 }) {
   return (
-    <div class={cn('flex flex-wrap items-center gap-4 px-4 py-4', props.class)}>
+    <div class={cn('flex flex-wrap items-center gap-3 px-4 py-3', props.class)}>
       <Show when={props.icon}>
         <div
           class={cn(
@@ -386,7 +393,7 @@ export function SettingsButton(props: ButtonProps) {
   return (
     <Button
       {...props}
-      class={cn('rounded-lg font-normal gap-1.5', props.class)}
+      class={cn('rounded-full font-normal gap-1.5', props.class)}
     />
   );
 }

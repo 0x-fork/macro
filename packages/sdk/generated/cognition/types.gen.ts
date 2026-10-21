@@ -1073,6 +1073,10 @@ export type PipedreamCatalogEntryResponse = {
      */
     app_slug: string;
     /**
+     * Categories assigned by Pipedream.
+     */
+    categories?: Array<string>;
+    /**
      * One-line description of the app.
      */
     description?: string | null;

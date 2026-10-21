@@ -2,7 +2,7 @@ import { ViewShell } from '@app/components/view-shell';
 import { startPendingSession } from '@app/features/block-agent/context/pending-session';
 import { QUERY_FILTERS_BASE } from '@app/features/next-soup/filters/query-filters';
 import { AgentSettings } from '@app/features/settings/AgentSettings';
-import { McpConnections } from '@app/features/settings/McpConnections';
+import { IntegrationsPage } from '@app/features/settings/IntegrationsPage';
 import { withEntityNotifications } from '@app/features/soup/entity-notifications';
 import { ViewTour } from '@app/features/tours/ViewTour';
 import {
@@ -295,7 +295,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   const pageTitle = () => {
     if (page() === 'routines') return 'Routines';
     if (page() === 'agents') return 'Agents';
-    if (page() === 'connections') return 'Connections';
+    if (page() === 'connections') return 'Integrations';
     return undefined;
   };
 
@@ -381,7 +381,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                 <RoutinesPage />
                               </Match>
                               <Match when={page() === 'connections'}>
-                                <McpConnections />
+                                <IntegrationsPage />
                               </Match>
                               <Match when={page() === 'agents'}>
                                 <AgentSettings />

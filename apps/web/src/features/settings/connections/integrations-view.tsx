@@ -1,4 +1,3 @@
-import { TabsInset } from '@core/component/TabsInset';
 import { toast } from '@core/component/Toast/Toast';
 import {
   clearPendingConnectApp,
@@ -7,7 +6,14 @@ import {
 import { fireAndForget } from '@core/util/fireAndForget';
 import { connectPipedreamApp } from '@queries/pipedream-connectors';
 import { Button } from '@ui';
-import { createEffect, createSignal, on, Show, Suspense } from 'solid-js';
+import {
+  createEffect,
+  createSignal,
+  on,
+  type ParentProps,
+  Show,
+  Suspense,
+} from 'solid-js';
 import { SettingsPage } from '../primitives';
 import { ConnectedView } from './ConnectedView';
 import { DiscoverView } from './DiscoverView';
@@ -16,44 +22,65 @@ import { PipedreamAiProvider } from './PipedreamAiProvider';
 import { SlackChannelImportFlow } from './slack-channel-import/SlackChannelImportFlow';
 import { useConnectionsModel } from './use-connections-model';
 import {
-  type ConnectionsMode,
   ConnectionsViewProvider,
   createConnectionsViewState,
   useConnectionsView,
 } from './view-state';
 
-function MacroMcpSignpost(props: { onOpen: () => void }) {
+function IntegrationSetupCallouts(props: {
+  onOpenMacroMcp: () => void;
+  onOpenLocalAgents?: () => void;
+}) {
   return (
-    <p class="text-xs text-ink-muted text-balance">
-      Looking to use Macro in another app?{' '}
-      <button
-        type="button"
-        class="text-link outline-none hover:text-link-hover hover:underline focus-visible:underline"
-        onClick={props.onOpen}
-      >
-        Macro MCP
-      </button>
-    </p>
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
+        <p class="text-base font-medium text-ink">
+          Use Macro in your favorite AI harness with the official Macro MCP
+        </p>
+        <Button
+          variant="ghost"
+          size="md"
+          aria-label="Set up Macro in AI apps"
+          onClick={props.onOpenMacroMcp}
+        >
+          Set up
+        </Button>
+      </div>
+      <Show when={props.onOpenLocalAgents}>
+        <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
+          <p class="text-base font-medium text-ink">
+            Stream sessions from your local AI harness to Macro
+          </p>
+          <Button
+            variant="ghost"
+            size="md"
+            aria-label="Set up local agents"
+            onClick={props.onOpenLocalAgents}
+          >
+            Set up
+          </Button>
+        </div>
+      </Show>
+    </div>
   );
 }
 
-export function ConnectionsPage(props: {
+type IntegrationsViewProps = ParentProps<{
   onOpenMacroMcp: () => void;
-  initialMode?: ConnectionsMode;
+  onOpenLocalAgents?: () => void;
   initialProvider?: ProviderId;
-}) {
-  const view = createConnectionsViewState({
-    mode: props.initialMode,
-    provider: props.initialProvider,
-  });
+}>;
+
+export function IntegrationsView(props: IntegrationsViewProps) {
+  const view = createConnectionsViewState({ provider: props.initialProvider });
   return (
     <ConnectionsViewProvider value={view}>
-      <ConnectionsContent onOpenMacroMcp={props.onOpenMacroMcp} />
+      <ConnectionsContent {...props} />
     </ConnectionsViewProvider>
   );
 }
 
-function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
+function ConnectionsContent(props: IntegrationsViewProps) {
   const { model, ready, error, partialError, retry } = useConnectionsModel();
   const view = useConnectionsView();
   const [importSlackChannels, setImportSlackChannels] = createSignal(false);
@@ -87,8 +114,6 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
         capability.mechanism === 'pipedream' &&
         capability.status === 'connected'
     );
-  const description =
-    "Connect the tools your team already uses so Macro's agent can work in them.";
 
   return (
     <Show
@@ -98,11 +123,15 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
           when={!error()}
           fallback={
             <SettingsPage
-              title="Agent connections"
-              description={description}
+              title="Integrations"
               onBack={view.provider() ? view.closeProvider : undefined}
-              backLabel="Connections"
+              backLabel="Integrations"
             >
+              <IntegrationSetupCallouts
+                onOpenMacroMcp={props.onOpenMacroMcp}
+                onOpenLocalAgents={props.onOpenLocalAgents}
+              />
+              {props.children}
               <div class="flex items-center gap-3 text-sm text-ink-muted">
                 Couldn't load Connections.
                 <Button variant="outline" size="sm" depth={3} onClick={retry}>
@@ -117,23 +146,15 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
             keyed
             fallback={
               <SettingsPage
-                title="Agent connections"
-                description={description}
-                signpost={<MacroMcpSignpost onOpen={props.onOpenMacroMcp} />}
+                title="Integrations"
+                contentClass="max-w-[1200px]"
+                bodyClass="mt-6 gap-6"
               >
-                <TabsInset
-                  fullWidth
-                  list={[
-                    { value: 'connected', label: 'Connected' },
-                    { value: 'discover', label: 'Discover' },
-                  ]}
-                  value={view.mode()}
-                  onChange={(value) =>
-                    value === 'discover'
-                      ? view.showDiscover()
-                      : view.showOverview()
-                  }
+                <IntegrationSetupCallouts
+                  onOpenMacroMcp={props.onOpenMacroMcp}
+                  onOpenLocalAgents={props.onOpenLocalAgents}
                 />
+                {props.children}
                 <Show when={partialError()}>
                   <div
                     role="status"
@@ -156,12 +177,29 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
                     <p class="text-sm text-ink-muted">Loading Connections…</p>
                   }
                 >
-                  <Show
-                    when={view.mode() === 'discover'}
-                    fallback={<ConnectedView model={model()} />}
+                  <section
+                    aria-label="Agent Integrations"
+                    class="flex min-w-0 flex-col gap-4"
                   >
-                    <DiscoverView model={model()} />
-                  </Show>
+                    <h2 class="text-lg font-medium text-ink">
+                      Agent Integrations
+                    </h2>
+                    <section
+                      aria-label="Installed integrations"
+                      class="min-w-0 w-full"
+                    >
+                      <h3 class="mb-2 text-base font-medium text-ink">
+                        Installed
+                      </h3>
+                      <ConnectedView model={model()} />
+                    </section>
+                    <section
+                      aria-label="Available integrations"
+                      class="min-w-0 w-full"
+                    >
+                      <DiscoverView model={model()} />
+                    </section>
+                  </section>
                 </Show>
               </SettingsPage>
             }

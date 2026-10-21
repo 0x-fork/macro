@@ -4,6 +4,7 @@ import {
   type ComposerAddMenuGroup,
 } from '@channel/Input/ComposerAddMenu';
 import { useSettingsState } from '@core/constant/SettingsState';
+import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { isMobile } from '@core/mobile/isMobile';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
 import BooksIcon from '@phosphor/books.svg';
@@ -17,9 +18,9 @@ import type { ProviderId } from '../../settings/connections/model';
 import { providerIcon } from '../../settings/connections/provider-meta';
 import { useConnectionsModel } from '../../settings/connections/use-connections-model';
 
-const ConnectionsPage = lazy(async () => ({
-  default: (await import('../../settings/connections/ConnectionsPage'))
-    .ConnectionsPage,
+const IntegrationsView = lazy(async () => ({
+  default: (await import('../../settings/connections/integrations-view'))
+    .IntegrationsView,
 }));
 const LeftoverRow = lazy(async () => ({
   default: (await import('../../settings/connections/leftover-row'))
@@ -42,6 +43,7 @@ export function AgentComposerAddMenu(props: {
 }) {
   const connections = useConnectionsModel();
   const settings = useSettingsState();
+  const isTabAvailable = useSettingsTabAvailable();
   const [drawerOpen, setDrawerOpen] = createSignal(false);
   const [target, setTarget] = createSignal<Target>();
   const openTarget = (next: Target) => {
@@ -203,13 +205,18 @@ export function AgentComposerAddMenu(props: {
               <Show
                 when={selected.kind === 'other' ? selected : undefined}
                 fallback={
-                  <ConnectionsPage
-                    initialMode={
-                      selected.kind === 'overview' ? selected.mode : undefined
-                    }
+                  <IntegrationsView
                     initialProvider={
                       selected.kind === 'provider'
                         ? selected.provider
+                        : undefined
+                    }
+                    onOpenLocalAgents={
+                      isTabAvailable('Harness')
+                        ? () => {
+                            setTarget(undefined);
+                            settings.openSettings('Harness');
+                          }
                         : undefined
                     }
                     onOpenMacroMcp={() => {

@@ -26,6 +26,9 @@ const state = vi.hoisted(() => ({
   failed: false,
   retry: vi.fn(),
 }));
+vi.mock('@core/constant/settingsTabsConfig', () => ({
+  useSettingsTabAvailable: () => () => true,
+}));
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => state.mobile }));
 vi.mock('@core/constant/SettingsState', () => ({
   useSettingsState: () => ({ openSettings: vi.fn() }),
@@ -49,15 +52,12 @@ vi.mock('../../settings/connections/use-connections-model', () => ({
     }),
   }),
 }));
-vi.mock('../../settings/connections/ConnectionsPage', () => ({
-  ConnectionsPage: (props: {
-    initialMode?: string;
-    initialProvider?: string;
-  }) => (
+vi.mock('../../settings/connections/integrations-view', () => ({
+  IntegrationsView: (props: { initialProvider?: string }) => (
     <p>
       {props.initialProvider
         ? `Settings for ${props.initialProvider}`
-        : `${props.initialMode} connections`}
+        : 'Available integrations'}
     </p>
   ),
 }));
@@ -165,12 +165,12 @@ it('opens a disabled connection for management', async () => {
     await screen.findByText('Saved Slack connection settings: disabled')
   ).toBeTruthy();
 });
-it('opens discovery for Add connections', async () => {
+it('opens the unified catalog for Add connections', async () => {
   setup();
   fireEvent.keyDown(screen.getByRole('menuitem', { name: /Add connections/ }), {
     key: 'Enter',
   });
-  expect(await screen.findByText('discover connections')).toBeTruthy();
+  expect(await screen.findByText('Available integrations')).toBeTruthy();
 });
 it('offers retry without hiding the main actions when a source fails', () => {
   state.failed = true;

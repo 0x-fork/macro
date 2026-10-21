@@ -489,7 +489,7 @@ export function Appearance() {
           description="Choose how Macro looks on your screen."
         >
           <div
-            class="mx-auto w-full max-w-lg py-4"
+            class="mx-auto w-full max-w-lg py-2"
             data-settings-target="active-theme"
           >
             <AppearanceModePicker
@@ -501,7 +501,7 @@ export function Appearance() {
                 applyTheme(resolveActiveThemeId());
               }}
             />
-            <p class="mt-4 text-center text-xs text-ink-muted">
+            <p class="mt-3 text-center text-sm text-ink-muted">
               {themeMode() === 'system'
                 ? 'Switches between your light and dark themes with your device.'
                 : `Always use your ${themeMode()} theme.`}

@@ -4,6 +4,13 @@ import { searchSettings } from './settings-search';
 
 const search = (query: string) => searchSettings(SETTINGS_TAB_GROUPS, query);
 describe('individual settings search', () => {
+  it('finds agent tools on the unified Integrations page', () => {
+    expect(
+      search('agent apps').find(
+        (result) => result.title === 'Agent apps and tools'
+      )
+    ).toMatchObject({ tab: 'Connected' });
+  });
   it('keeps calendar connections searchable without removed booking settings', () => {
     expect(
       search('calendar color').find(

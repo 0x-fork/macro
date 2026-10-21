@@ -298,12 +298,11 @@ the shimmer.
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
   **Agents** in the sidebar opens the same roster as the composer’s
   **Create agent** action. **Connections** manages MCP integrations (including
-  app authentication and disconnection); this section has moved out of Settings.
+  app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
-  Connections page. Personal Gmail/GitHub account links remain under Settings →
-  Integrations.
+  Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
 
-  To recreate Slack channels, open **Settings → Connections → Slack → Import
+  To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
   appears only for a connected, enabled Pipedream Slack account. Click **Find
   channels** (or **Refresh** on subsequent visits), then wait for discovery and

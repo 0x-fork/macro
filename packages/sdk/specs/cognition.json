@@ -4409,6 +4409,13 @@
             "type": "string",
             "description": "Pipedream app name slug — pass this to the connect flow."
           },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Categories assigned by Pipedream."
+          },
           "description": {
             "type": ["string", "null"],
             "description": "One-line description of the app."

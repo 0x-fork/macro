@@ -510,4 +510,10 @@ describe('Harness', () => {
       { replace: true }
     );
   });
+  it('uses the supplied return destination for the back button', () => {
+    const onBack = vi.fn();
+    render(() => <Harness onBack={onBack} backLabel="Integrations" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Integrations' }));
+    expect(onBack).toHaveBeenCalledOnce();
+  });
 });

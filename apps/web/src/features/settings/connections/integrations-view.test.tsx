@@ -12,7 +12,8 @@ import {
 } from '@solidjs/testing-library';
 import { createSignal, type JSX } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ConnectionsPage } from './ConnectionsPage';
+import { IntegrationsView } from './integrations-view';
+import { useConnectionsView } from './view-state';
 
 const mocks = vi.hoisted(() => ({
   connected: false,
@@ -54,11 +55,23 @@ vi.mock('./model', () => ({
     mocks.connected ? [{ mechanism: 'pipedream', status: 'connected' }] : [],
 }));
 vi.mock('./ConnectedView', () => ({
-  ConnectedView: () => <p>Connections overview</p>,
+  ConnectedView: () => {
+    const view = useConnectionsView();
+    return (
+      <button onClick={() => view.openProvider('slack')}>
+        Installed Slack
+      </button>
+    );
+  },
 }));
-vi.mock('./DiscoverView', () => ({ DiscoverView: () => <div /> }));
+vi.mock('./DiscoverView', () => ({
+  DiscoverView: () => <p>Integration catalog</p>,
+}));
 vi.mock('./PipedreamAiProvider', () => ({
-  PipedreamAiProvider: () => <div />,
+  PipedreamAiProvider: () => {
+    const view = useConnectionsView();
+    return <button onClick={view.closeProvider}>Back to integrations</button>;
+  },
 }));
 vi.mock('@queries/import', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@queries/import')>()),
@@ -94,7 +107,10 @@ vi.mock('../primitives', () => ({
     </section>
   ),
   SettingsSection: (props: { title: string; children: JSX.Element }) => (
-    <section aria-label={props.title}>{props.children}</section>
+    <section aria-label={props.title}>
+      <h2>{props.title}</h2>
+      {props.children}
+    </section>
   ),
   SettingsCard: (props: { children: JSX.Element }) => (
     <div>{props.children}</div>
@@ -111,7 +127,9 @@ afterEach(cleanup);
 
 function startImport() {
   requestConnectApp('slack', 'import-slack-channels');
-  render(() => <ConnectionsPage onOpenMacroMcp={() => {}} />);
+  render(() => (
+    <IntegrationsView onOpenMacroMcp={() => {}} onOpenLocalAgents={() => {}} />
+  ));
 }
 
 function provideChannels() {
@@ -187,10 +205,73 @@ describe('Slack channel import handoff', () => {
   it('preserves ordinary external connector requests', async () => {
     mocks.connect.mockResolvedValueOnce('connected');
     requestConnectApp('linear');
-    render(() => <ConnectionsPage onOpenMacroMcp={() => {}} />);
+    render(() => (
+      <IntegrationsView
+        onOpenMacroMcp={() => {}}
+        onOpenLocalAgents={() => {}}
+      />
+    ));
     await waitFor(() =>
       expect(mocks.connect).toHaveBeenCalledWith({ appSlug: 'linear' })
     );
     expect(mocks.discover).not.toHaveBeenCalled();
+  });
+});
+
+describe('unified Integrations page', () => {
+  it('hides local harness setup when no allowed entry point is supplied', () => {
+    render(() => <IntegrationsView onOpenMacroMcp={() => {}} />);
+    expect(
+      screen.queryByRole('button', { name: 'Set up local agents' })
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Set up Macro in AI apps' })
+    ).toBeTruthy();
+  });
+
+  it('opens the matching setup flow for each callout', () => {
+    const onOpenMacroMcp = vi.fn();
+    const onOpenLocalAgents = vi.fn();
+    render(() => (
+      <IntegrationsView
+        onOpenMacroMcp={onOpenMacroMcp}
+        onOpenLocalAgents={onOpenLocalAgents}
+      />
+    ));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Set up Macro in AI apps' })
+    );
+    expect(onOpenMacroMcp).toHaveBeenCalledOnce();
+    expect(onOpenLocalAgents).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Set up local agents' })
+    );
+    expect(onOpenLocalAgents).toHaveBeenCalledOnce();
+  });
+  it('shows installed tools and the catalog together and restores both after provider details', () => {
+    render(() => (
+      <IntegrationsView onOpenMacroMcp={() => {}} onOpenLocalAgents={() => {}}>
+        <p>Personal accounts</p>
+      </IntegrationsView>
+    ));
+    expect(screen.getByRole('heading', { name: 'Integrations' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Installed' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Discover' })).toBeNull();
+    expect(
+      screen.getByRole('region', { name: 'Available integrations' })
+    ).toBeTruthy();
+    expect(screen.getByText('Integration catalog')).toBeTruthy();
+    expect(screen.getByText('Personal accounts')).toBeTruthy();
+    expect(screen.queryByRole('tab')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Installed Slack' }));
+    expect(screen.queryByText('Integration catalog')).toBeNull();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Back to integrations' })
+    );
+    expect(screen.getByText('Integration catalog')).toBeTruthy();
+    expect(screen.getByText('Personal accounts')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Installed Slack' })
+    ).toBeTruthy();
   });
 });

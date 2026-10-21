@@ -21,9 +21,8 @@ describe('settings navigation', () => {
     expect(settingsSlugToTab('calendar')).toBe('Calendar');
     expect(settingsSlugToTab('booking-links')).toBeUndefined();
   });
-  it('routes agent-connections to the Connections tab', () => {
-    expect(settingsSlugToTab('agent-connections')).toBe('Connections');
-    expect(settingsTabToSlug('Connections')).toBe('agent-connections');
+  it('routes old agent-connections links to Integrations', () => {
+    expect(settingsSlugToTab('agent-connections')).toBe('Connected');
   });
 
   it('keeps the connections slug on Integrations', () => {
@@ -43,7 +42,7 @@ describe('settings navigation', () => {
     expect(settingsSlugToTab('team-connections')).toBe('Team Connections');
   });
 
-  it('groups blocks after the team and separates account and agent integrations', () => {
+  it('groups blocks after the team and consolidates account and agent integrations', () => {
     expect(SETTINGS_TAB_GROUPS[1].label).toBe('Blocks');
     expect(SETTINGS_TAB_GROUPS[1].items.map((item) => item.tab)).toEqual([
       'Email',
@@ -58,7 +57,11 @@ describe('settings navigation', () => {
       (group) => group.label === 'Developer'
     );
     expect(workspace?.items.map((item) => item.tab)).toContain('Connected');
-    expect(developer?.items.map((item) => item.tab)).toContain('Connections');
+    expect(
+      SETTINGS_TAB_GROUPS.flatMap((group) => group.items).map(
+        (item) => item.tab
+      )
+    ).not.toContain('Connections');
     expect(developer?.items.map((item) => item.tab)).toContain('Harness');
   });
 });

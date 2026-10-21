@@ -12,10 +12,9 @@ import { ApiKeys } from './ApiKeys';
 import { Appearance } from './Appearance';
 import { Billing } from './Billing';
 import { Bots } from './Bots';
-import { ConnectedAccounts } from './ConnectedAccounts';
 import { DesktopApp } from './DesktopApp';
 import { EmailSettings } from './email-settings';
-import { McpConnections } from './McpConnections';
+import { IntegrationsPage } from './IntegrationsPage';
 import { MobileApp } from './MobileApp';
 import { Notifications } from './Notifications';
 import { Shortcuts } from './Shortcuts';
@@ -81,10 +80,7 @@ export function SettingsTabContent(props: { tab: SettingsTab }) {
         <Crm />
       </Show>
       <Show when={isCurrentTab('Connected')}>
-        <ConnectedAccounts />
-      </Show>
-      <Show when={isCurrentTab('Connections')}>
-        <McpConnections />
+        <IntegrationsPage />
       </Show>
       <Show when={isCurrentTab('Desktop App')}>
         <DesktopApp />

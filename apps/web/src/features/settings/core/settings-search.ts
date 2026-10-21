@@ -246,7 +246,7 @@ const SETTINGS: Setting[] = [
     keywords: 'connect integration repository pull request',
   },
   {
-    tab: 'Connections',
+    tab: 'Connected',
     title: 'Agent apps and tools',
     keywords: 'mcp integration connect external services',
   },
