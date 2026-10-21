@@ -323,6 +323,16 @@ export type CreateTeamRequest = {
 };
 
 /**
+ * A newly created team invite link.
+ */
+export type CreatedTeamInviteLinkResponse = {
+    /**
+     * The new link's token. Any previous link stops working.
+     */
+    token: TeamInviteLinkToken;
+};
+
+/**
  * Request body for [`create_credit_checkout_handler`].
  */
 export type CreditCheckoutRequestBody = {
@@ -1105,6 +1115,20 @@ export type InviteToTeamRequest = {
 };
 
 /**
+ * The result of opening a team invite link.
+ */
+export type JoinTeamByInviteLinkResponse = {
+    /**
+     * True when the user was already on the team and nothing changed.
+     */
+    already_member: boolean;
+    /**
+     * The team the link joins.
+     */
+    team_id: string;
+};
+
+/**
  * Defines who can access an item through its share link.
  */
 export type LinkShare = 'PUBLIC' | 'TEAM';
@@ -1620,6 +1644,47 @@ export type TeamInviteDetails = {
      * The role being invited as
      */
     team_role: TeamRole;
+};
+
+/**
+ * The caller's team invite link.
+ */
+export type TeamInviteLinkResponse = {
+    token?: null | TeamInviteLinkToken;
+};
+
+/**
+ * The team an invite link joins, shown before the user accepts.
+ */
+export type TeamInviteLinkTeam = {
+    /**
+     * Id of the team the link joins.
+     */
+    team_id: string;
+    /**
+     * Name of the team the link joins.
+     */
+    team_name: string;
+};
+
+/**
+ * The secret in a team's shareable invite link.
+ *
+ * Anyone signed in who holds the token can join the team, so it is a random
+ * value rather than a time-ordered id, and an admin resetting the link
+ * replaces it.
+ */
+export type TeamInviteLinkToken = string;
+
+/**
+ * Identifies an invite link. The token travels in the body, not the path, so
+ * request spans and access logs that record the path never see it.
+ */
+export type TeamInviteLinkTokenRequest = {
+    /**
+     * The invite link's token.
+     */
+    token: TeamInviteLinkToken;
 };
 
 /**
@@ -3448,6 +3513,112 @@ export type InviteToTeamError = InviteToTeamErrors[keyof InviteToTeamErrors];
 export type InviteToTeamResponses = {
     201: unknown;
 };
+
+export type DeleteTeamInviteLinkData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/team/invite-link';
+};
+
+export type DeleteTeamInviteLinkErrors = {
+    401: ErrorResponse;
+    403: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type DeleteTeamInviteLinkError = DeleteTeamInviteLinkErrors[keyof DeleteTeamInviteLinkErrors];
+
+export type DeleteTeamInviteLinkResponses = {
+    204: void;
+};
+
+export type DeleteTeamInviteLinkResponse = DeleteTeamInviteLinkResponses[keyof DeleteTeamInviteLinkResponses];
+
+export type GetTeamInviteLinkData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/team/invite-link';
+};
+
+export type GetTeamInviteLinkErrors = {
+    401: ErrorResponse;
+    403: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type GetTeamInviteLinkError = GetTeamInviteLinkErrors[keyof GetTeamInviteLinkErrors];
+
+export type GetTeamInviteLinkResponses = {
+    200: TeamInviteLinkResponse;
+};
+
+export type GetTeamInviteLinkResponse = GetTeamInviteLinkResponses[keyof GetTeamInviteLinkResponses];
+
+export type CreateTeamInviteLinkData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/team/invite-link';
+};
+
+export type CreateTeamInviteLinkErrors = {
+    401: ErrorResponse;
+    403: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type CreateTeamInviteLinkError = CreateTeamInviteLinkErrors[keyof CreateTeamInviteLinkErrors];
+
+export type CreateTeamInviteLinkResponses = {
+    201: CreatedTeamInviteLinkResponse;
+};
+
+export type CreateTeamInviteLinkResponse = CreateTeamInviteLinkResponses[keyof CreateTeamInviteLinkResponses];
+
+export type JoinTeamByInviteLinkData = {
+    body: TeamInviteLinkTokenRequest;
+    path?: never;
+    query?: never;
+    url: '/team/invite-link/join';
+};
+
+export type JoinTeamByInviteLinkErrors = {
+    401: ErrorResponse;
+    404: ErrorResponse;
+    409: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type JoinTeamByInviteLinkError = JoinTeamByInviteLinkErrors[keyof JoinTeamByInviteLinkErrors];
+
+export type JoinTeamByInviteLinkResponses = {
+    200: JoinTeamByInviteLinkResponse;
+};
+
+export type JoinTeamByInviteLinkResponse2 = JoinTeamByInviteLinkResponses[keyof JoinTeamByInviteLinkResponses];
+
+export type GetTeamByInviteLinkData = {
+    body: TeamInviteLinkTokenRequest;
+    path?: never;
+    query?: never;
+    url: '/team/invite-link/team';
+};
+
+export type GetTeamByInviteLinkErrors = {
+    401: ErrorResponse;
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type GetTeamByInviteLinkError = GetTeamByInviteLinkErrors[keyof GetTeamByInviteLinkErrors];
+
+export type GetTeamByInviteLinkResponses = {
+    200: TeamInviteLinkTeam;
+};
+
+export type GetTeamByInviteLinkResponse = GetTeamByInviteLinkResponses[keyof GetTeamByInviteLinkResponses];
 
 export type DeleteTeamInviteHandlerData = {
     body?: never;

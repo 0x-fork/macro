@@ -33,6 +33,7 @@ import {
 } from 'solid-js';
 import { z } from 'zod';
 import { SettingsCard, SettingsPage, SettingsSection } from './primitives';
+import { TeamInviteLinkSection } from './TeamInviteLinkSection';
 import { isTeamAdminOrOwner } from './teamMemberPermissions';
 
 const emailSchema = z.string().email();
@@ -452,6 +453,8 @@ export function CreateTeamDialog(props: {
 /** Invite people to an existing team by email. */
 export function InviteToTeamDialog(props: {
   teamId: string;
+  /** Team admins and owners may reset or turn off the invite link. */
+  canManageLink: boolean;
   open: boolean;
   onClose: () => void;
 }) {
@@ -507,6 +510,12 @@ export function InviteToTeamDialog(props: {
         </Panel.Header>
 
         <Panel.Body class="p-3 flex flex-col gap-3">
+          <TeamInviteLinkSection
+            teamId={props.teamId}
+            canManage={props.canManageLink}
+          />
+          <div class="h-px bg-edge-muted" />
+          <div class="text-sm text-ink">Invite by email</div>
           <InviteEmailsInput
             invites={invites()}
             onChange={setInvites}

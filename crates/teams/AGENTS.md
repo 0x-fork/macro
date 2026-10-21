@@ -11,6 +11,9 @@ event contract (schema, sanitization, delivery semantics).
 
 - `src/domain/team_service.rs`: the main service — creation, invites,
   membership, role changes, auto-join-domain toggle.
+- `src/domain/team_service/invite_link.rs`: the team's shareable invite link
+  (`TeamInviteLinkService`) — who may see, create, reset, or turn it off, and
+  joining through it via the same direct-join path as domain auto-join.
 - `src/domain/owned_entity_cleanup.rs` + `open_seat_release.rs`: account/team
   deletion side effects (owned-entity transfer, seat release).
 - `src/inbound/axum_router.rs` / `src/inbound/toolset.rs`: HTTP routes and AI

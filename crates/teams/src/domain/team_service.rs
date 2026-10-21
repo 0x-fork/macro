@@ -1,5 +1,6 @@
 //! Contains the service logic for teams
 
+mod invite_link;
 #[cfg(test)]
 mod test;
 
@@ -42,13 +43,13 @@ use crate::domain::{
         TeamMemberRemovedMetadata, TeamMemberRoleChangedMetadata, TeamUpdatedMetadata,
     },
     model::{
-        CreateTeamError, CustomerError, DeleteTeamError, InviteUsersToTeamError, JoinTeamError,
-        PatchTeamCrmSettingsResponse, PatchTeamRequest, RemoveTeamInviteError,
-        RemoveUserFromAllTeamsError, RemoveUserFromTeamError,
+        CreateTeamError, CustomerError, DeleteTeamError, InviteUsersToTeamError,
+        JoinTeamDirectlyError, JoinTeamError, PatchTeamCrmSettingsResponse, PatchTeamRequest,
+        RemoveTeamInviteError, RemoveUserFromAllTeamsError, RemoveUserFromTeamError,
         RestorePermissionsForTeamMembersError, RevokePermissionsForTeamMembersError, SeatPlan,
         SetTeamMemberPlanError, Team, TeamError, TeamInvite, TeamInviteDetails, TeamMember,
-        TeamMembers, TeamRole, TeamWithMembers, ToggleAutoJoinDomainError,
-        TryJoinTeamByDomainError, is_generic_email_domain, team_slug_from_name,
+        TeamMembers, TeamRole, TeamWithMembers, ToggleAutoJoinDomainError, is_generic_email_domain,
+        team_slug_from_name,
     },
     open_seat_release::{NoOpOpenSeatRelease, OpenSeatRelease, SeatPlanChange, SubscriptionStart},
     owned_entity_cleanup::{OwnedEntityCleanup, UnwiredOwnedEntityCleanup, clear_team},
@@ -298,6 +299,227 @@ where
     OSR: OpenSeatRelease,
     OEC: OwnedEntityCleanup,
 {
+    /// Adds the user to the team without an email invite (domain auto-join
+    /// or invite link), then runs the same billing / roles / channels side
+    /// effects as `join_team`, rolling the membership back if any of them
+    /// fail. Returns None when the user is already a member.
+    #[tracing::instrument(skip(self), err)]
+    async fn join_team_directly(
+        &self,
+        team_id: &uuid::Uuid,
+        user_id: &MacroUserIdStr<'_>,
+        join_method: TeamJoinMethod,
+    ) -> Result<Option<TeamMember<'static>>, JoinTeamDirectlyError> {
+        let team_id = *team_id;
+
+        let enterprise = self
+            .team_repository
+            .get_team_enterprise_status(&team_id)
+            .await?;
+
+        // Add the user to the team directly (no invite), then run the same
+        // billing / roles / channels side effects as join_team, rolling
+        // the membership back if any of them fail.
+        let Some(team_member) = self
+            .team_repository
+            .add_user_to_team(&team_id, user_id)
+            .await?
+        else {
+            tracing::info!(%team_id, %user_id, "skipping direct team join: user is already a member");
+            return Ok(None);
+        };
+
+        let subscription_id = if enterprise {
+            None
+        } else {
+            let team_payment_status =
+                match self.team_repository.get_team_payment_status(&team_id).await {
+                    Ok(team_payment_status) => team_payment_status,
+                    Err(error) => {
+                        self.rollback_add_user_to_team(
+                            &team_id,
+                            user_id,
+                            "getting team payment status",
+                        )
+                        .await;
+                        return Err(error.into());
+                    }
+                };
+
+            if !team_payment_status {
+                // If the team has a subscription id and they are set to not paying continue to error
+                let team_subscription_id = match self
+                    .team_repository
+                    .get_team_subscription_id(&team_id)
+                    .await
+                {
+                    Ok(team_subscription_id) => team_subscription_id,
+                    Err(error) => {
+                        self.rollback_add_user_to_team(
+                            &team_id,
+                            user_id,
+                            "getting team subscription id",
+                        )
+                        .await;
+                        return Err(error.into());
+                    }
+                };
+
+                if team_subscription_id.is_some() {
+                    self.rollback_add_user_to_team(&team_id, user_id, "the payment status check")
+                        .await;
+                    return Err(JoinTeamError::TeamError(TeamError::TeamNotPaying).into());
+                }
+
+                if let Err(e) = self
+                    .backfill_legacy_team_subscription_or_free(&team_id)
+                    .await
+                {
+                    self.rollback_add_user_to_team(
+                        &team_id,
+                        user_id,
+                        "backfilling team subscription",
+                    )
+                    .await;
+                    return Err(e.into_join_team_error().into());
+                }
+            }
+
+            let team_subscription_id = match self
+                .team_repository
+                .get_team_subscription_id(&team_id)
+                .await
+            {
+                Ok(team_subscription_id) => team_subscription_id,
+                Err(error) => {
+                    self.rollback_add_user_to_team(&team_id, user_id, "getting team subscription")
+                        .await;
+                    return Err(error.into());
+                }
+            };
+
+            match team_subscription_id {
+                // Free membership never creates a paid seat or grants premium roles.
+                None => None,
+                Some(subscription_id) => {
+                    if let Err(e) = self
+                        .customer_repository
+                        .increment_seat_count(&subscription_id, team_member.plan, 1)
+                        .await
+                    {
+                        self.rollback_add_user_to_team(
+                            &team_id,
+                            user_id,
+                            "incrementing seat count",
+                        )
+                        .await;
+                        return Err(JoinTeamError::CustomerError(e).into());
+                    }
+
+                    Some(subscription_id)
+                }
+            }
+        };
+
+        // Premium roles come with a paid or enterprise team; free-team
+        // members keep their existing (free) entitlements.
+        let grants_premium = enterprise || subscription_id.is_some();
+        let roles_to_add = team_member_roles_to_add(team_member.plan);
+
+        if grants_premium {
+            // subscribe the user to professional features from the TeamSubscriber role and the role associated with their tier
+            let roles = non_empty::NonEmpty::new(roles_to_add.as_slice()).unwrap();
+
+            if let Err(e) = self
+                .user_roles_and_permissions_service
+                .dangerous_upsert_roles_for_user(user_id, roles)
+                .await
+            {
+                if let Some(subscription_id) = subscription_id.as_ref() {
+                    self.customer_repository
+                        .decrement_seat_count(subscription_id, team_member.plan, 1)
+                        .await
+                        .inspect_err(|rollback_err| {
+                            tracing::error!(
+                                error=?rollback_err,
+                                "unable to rollback customer seat count after adding team member roles failed"
+                            );
+                        })
+                        .ok();
+                }
+                self.rollback_add_user_to_team(&team_id, user_id, "adding team member roles")
+                    .await;
+                return Err(JoinTeamError::AddRolesToUserError(e).into());
+            }
+        }
+
+        if let Err(e) = self
+            .channel_service
+            .auto_join_by_team_id(&team_id, user_id)
+            .await
+        {
+            if grants_premium {
+                let roles = non_empty::NonEmpty::new(roles_to_add.as_slice()).unwrap();
+                self.user_roles_and_permissions_service
+                    .dangerous_remove_roles_from_user(user_id, &roles)
+                    .await
+                    .inspect_err(|rollback_err| {
+                        tracing::error!(
+                            error=?rollback_err,
+                            "unable to rollback team member roles after adding team member to channels failed"
+                        );
+                    })
+                    .ok();
+            }
+            if let Some(subscription_id) = subscription_id.as_ref() {
+                self.customer_repository
+                    .decrement_seat_count(subscription_id, team_member.plan, 1)
+                    .await
+                    .inspect_err(|rollback_err| {
+                        tracing::error!(
+                            error=?rollback_err,
+                            "unable to rollback customer seat count after adding team member to channels failed"
+                        );
+                    })
+                    .ok();
+            }
+            self.rollback_add_user_to_team(&team_id, user_id, "adding team member to channels")
+                .await;
+            return Err(JoinTeamError::TeamError(channel_error_to_team_error(e)).into());
+        }
+
+        // Best-effort: ask the email service to seed CRM tables from this
+        // user's historical sent mail, same as join_team.
+        if let Err(e) = self
+            .crm_enqueuer
+            .enqueue_populate_crm_for_user(user_id)
+            .await
+        {
+            tracing::error!(
+                error = ?e,
+                team_id = %team_id,
+                macro_id = %user_id,
+                "Failed to enqueue PopulateCrmForUser after a direct team join; CRM tables will not be seeded from sent-mail history (per-message fan-out will still cover future sends)"
+            );
+        }
+
+        let teammate_ids = self.teammate_ids_except(&team_id, user_id).await;
+        self.enqueue_joining_user_contacts(user_id, &teammate_ids)
+            .await;
+
+        // NOTE: no TeamJoined analytics event here - that event is tied to
+        // the team invite that was accepted, and a direct join has none.
+        self.publish_team_event(&TeamMacroEvent::member_joined(TeamMemberJoinedMetadata {
+            team_id,
+            member_id: team_member.user_id.clone().into_owned(),
+            teammate_ids,
+            role: team_member.role,
+            join_method,
+        }));
+
+        Ok(Some(team_member))
+    }
+
     /// Reconcile while the caller holds the owning team billing guard.
     async fn reconcile_team_billing_locked(
         &self,
@@ -2418,216 +2640,12 @@ where
     async fn try_join_team_by_domain(
         &self,
         user_id: &MacroUserIdStr<'_>,
-    ) -> Result<Option<TeamMember<'static>>, TryJoinTeamByDomainError> {
+    ) -> Result<Option<TeamMember<'static>>, JoinTeamDirectlyError> {
         let Some(team_id) = self.team_repository.get_team_id_by_domain(user_id).await? else {
             return Ok(None);
         };
 
-        let enterprise = self
-            .team_repository
-            .get_team_enterprise_status(&team_id)
-            .await?;
-
-        // Add the user to the team directly (no invite), then run the same
-        // billing / roles / channels side effects as join_team, rolling
-        // the membership back if any of them fail.
-        let Some(team_member) = self
-            .team_repository
-            .add_user_to_team(&team_id, user_id)
-            .await?
-        else {
-            tracing::info!(%team_id, %user_id, "skipping team auto-join: user is already a member");
-            return Ok(None);
-        };
-
-        let subscription_id = if enterprise {
-            None
-        } else {
-            let team_payment_status =
-                match self.team_repository.get_team_payment_status(&team_id).await {
-                    Ok(team_payment_status) => team_payment_status,
-                    Err(error) => {
-                        self.rollback_add_user_to_team(
-                            &team_id,
-                            user_id,
-                            "getting team payment status",
-                        )
-                        .await;
-                        return Err(error.into());
-                    }
-                };
-
-            if !team_payment_status {
-                // If the team has a subscription id and they are set to not paying continue to error
-                let team_subscription_id = match self
-                    .team_repository
-                    .get_team_subscription_id(&team_id)
-                    .await
-                {
-                    Ok(team_subscription_id) => team_subscription_id,
-                    Err(error) => {
-                        self.rollback_add_user_to_team(
-                            &team_id,
-                            user_id,
-                            "getting team subscription id",
-                        )
-                        .await;
-                        return Err(error.into());
-                    }
-                };
-
-                if team_subscription_id.is_some() {
-                    self.rollback_add_user_to_team(&team_id, user_id, "the payment status check")
-                        .await;
-                    return Err(JoinTeamError::TeamError(TeamError::TeamNotPaying).into());
-                }
-
-                if let Err(e) = self
-                    .backfill_legacy_team_subscription_or_free(&team_id)
-                    .await
-                {
-                    self.rollback_add_user_to_team(
-                        &team_id,
-                        user_id,
-                        "backfilling team subscription",
-                    )
-                    .await;
-                    return Err(e.into_join_team_error().into());
-                }
-            }
-
-            let team_subscription_id = match self
-                .team_repository
-                .get_team_subscription_id(&team_id)
-                .await
-            {
-                Ok(team_subscription_id) => team_subscription_id,
-                Err(error) => {
-                    self.rollback_add_user_to_team(&team_id, user_id, "getting team subscription")
-                        .await;
-                    return Err(error.into());
-                }
-            };
-
-            match team_subscription_id {
-                // Free membership never creates a paid seat or grants premium roles.
-                None => None,
-                Some(subscription_id) => {
-                    if let Err(e) = self
-                        .customer_repository
-                        .increment_seat_count(&subscription_id, team_member.plan, 1)
-                        .await
-                    {
-                        self.rollback_add_user_to_team(
-                            &team_id,
-                            user_id,
-                            "incrementing seat count",
-                        )
-                        .await;
-                        return Err(JoinTeamError::CustomerError(e).into());
-                    }
-
-                    Some(subscription_id)
-                }
-            }
-        };
-
-        // Premium roles come with a paid or enterprise team; free-team
-        // members keep their existing (free) entitlements.
-        let grants_premium = enterprise || subscription_id.is_some();
-        let roles_to_add = team_member_roles_to_add(team_member.plan);
-
-        if grants_premium {
-            // subscribe the user to professional features from the TeamSubscriber role and the role associated with their tier
-            let roles = non_empty::NonEmpty::new(roles_to_add.as_slice()).unwrap();
-
-            if let Err(e) = self
-                .user_roles_and_permissions_service
-                .dangerous_upsert_roles_for_user(user_id, roles)
-                .await
-            {
-                if let Some(subscription_id) = subscription_id.as_ref() {
-                    self.customer_repository
-                        .decrement_seat_count(subscription_id, team_member.plan, 1)
-                        .await
-                        .inspect_err(|rollback_err| {
-                            tracing::error!(
-                                error=?rollback_err,
-                                "unable to rollback customer seat count after adding team member roles failed"
-                            );
-                        })
-                        .ok();
-                }
-                self.rollback_add_user_to_team(&team_id, user_id, "adding team member roles")
-                    .await;
-                return Err(JoinTeamError::AddRolesToUserError(e).into());
-            }
-        }
-
-        if let Err(e) = self
-            .channel_service
-            .auto_join_by_team_id(&team_id, user_id)
+        self.join_team_directly(&team_id, user_id, TeamJoinMethod::DomainAutoJoin)
             .await
-        {
-            if grants_premium {
-                let roles = non_empty::NonEmpty::new(roles_to_add.as_slice()).unwrap();
-                self.user_roles_and_permissions_service
-                    .dangerous_remove_roles_from_user(user_id, &roles)
-                    .await
-                    .inspect_err(|rollback_err| {
-                        tracing::error!(
-                            error=?rollback_err,
-                            "unable to rollback team member roles after adding team member to channels failed"
-                        );
-                    })
-                    .ok();
-            }
-            if let Some(subscription_id) = subscription_id.as_ref() {
-                self.customer_repository
-                    .decrement_seat_count(subscription_id, team_member.plan, 1)
-                    .await
-                    .inspect_err(|rollback_err| {
-                        tracing::error!(
-                            error=?rollback_err,
-                            "unable to rollback customer seat count after adding team member to channels failed"
-                        );
-                    })
-                    .ok();
-            }
-            self.rollback_add_user_to_team(&team_id, user_id, "adding team member to channels")
-                .await;
-            return Err(JoinTeamError::TeamError(channel_error_to_team_error(e)).into());
-        }
-
-        // Best-effort: ask the email service to seed CRM tables from this
-        // user's historical sent mail, same as join_team.
-        if let Err(e) = self
-            .crm_enqueuer
-            .enqueue_populate_crm_for_user(user_id)
-            .await
-        {
-            tracing::error!(
-                error = ?e,
-                team_id = %team_id,
-                macro_id = %user_id,
-                "Failed to enqueue PopulateCrmForUser after team auto-join; CRM tables will not be seeded from sent-mail history (per-message fan-out will still cover future sends)"
-            );
-        }
-
-        let teammate_ids = self.teammate_ids_except(&team_id, user_id).await;
-        self.enqueue_joining_user_contacts(user_id, &teammate_ids)
-            .await;
-
-        // NOTE: no TeamJoined analytics event here - that event is tied to
-        // the team invite that was accepted, and a domain auto-join has none.
-        self.publish_team_event(&TeamMacroEvent::member_joined(TeamMemberJoinedMetadata {
-            team_id,
-            member_id: team_member.user_id.clone().into_owned(),
-            teammate_ids,
-            role: team_member.role,
-            join_method: TeamJoinMethod::DomainAutoJoin,
-        }));
-
-        Ok(Some(team_member))
     }
 }

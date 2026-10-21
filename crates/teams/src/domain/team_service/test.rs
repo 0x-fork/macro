@@ -55,17 +55,18 @@ use super::*;
 use crate::domain::{
     customer_repo::CustomerRepository,
     model::{
-        AcceptedTeamInvite, CustomerError, PatchTeamRequest, PatchTeamUserRole,
-        RemoveTeamInviteError, RemoveUserFromAllTeamsError, RemoveUserFromTeamError, SeatPlan,
-        SetTeamMemberPlanError, Team, TeamError, TeamInvite, TeamInviteDetails, TeamInviteSnapshot,
-        TeamMember, TeamPlan, TeamRole, TeamWithMembers, ToggleAutoJoinDomainError,
-        TryJoinTeamByDomainError,
+        AcceptedTeamInvite, CustomerError, JoinTeamDirectlyError, PatchTeamRequest,
+        PatchTeamUserRole, RemoveTeamInviteError, RemoveUserFromAllTeamsError,
+        RemoveUserFromTeamError, SeatPlan, SetTeamMemberPlanError, Team, TeamError, TeamInvite,
+        TeamInviteDetails, TeamInviteLinkTeam, TeamInviteLinkToken, TeamInviteSnapshot, TeamMember,
+        TeamPlan, TeamRole, TeamWithMembers, ToggleAutoJoinDomainError,
     },
     owned_entity_cleanup::ClearedTeam,
     team_repo::TeamRepository,
 };
 
 mod delete_team;
+mod invite_link;
 
 use delete_team::{Journal, RecordingOwnedEntityCleanup, Step};
 
@@ -138,7 +139,12 @@ struct MockTeamRepository {
     team_ids: Vec<uuid::Uuid>,
     reject_owner: bool,
     user_teams: Vec<Team>,
+    /// What `get_user_teams` returns once `add_user_to_team` has run, to model
+    /// a membership created concurrently.
+    user_teams_after_add: Option<Vec<Team>>,
     journal: Journal,
+    invite_link: Arc<Mutex<Option<TeamInviteLinkToken>>>,
+    invite_link_team: Option<TeamInviteLinkTeam>,
 }
 
 impl MockTeamRepository {
@@ -218,7 +224,10 @@ impl MockTeamRepository {
             team_ids: Vec::new(),
             reject_owner: false,
             user_teams: Vec::new(),
+            user_teams_after_add: None,
             journal: Journal::default(),
+            invite_link: Arc::new(Mutex::new(None)),
+            invite_link_team: None,
         }
     }
 
@@ -664,7 +673,10 @@ impl TeamRepository for MockTeamRepository {
         &self,
         _: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<Vec<Team>, TeamError>> + Send {
-        let teams = self.user_teams.clone();
+        let teams = match &self.user_teams_after_add {
+            Some(teams) if *self.add_user_to_team_calls.lock().unwrap() > 0 => teams.clone(),
+            _ => self.user_teams.clone(),
+        };
         async move { Ok(teams) }
     }
 
@@ -886,6 +898,41 @@ impl TeamRepository for MockTeamRepository {
         team_ids.sort();
         team_ids.truncate(limit as usize);
         async move { Ok(team_ids) }
+    }
+
+    fn get_team_invite_link(
+        &self,
+        _: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Option<TeamInviteLinkToken>, TeamError>> + Send {
+        let token = *self.invite_link.lock().unwrap();
+        async move { Ok(token) }
+    }
+
+    fn set_team_invite_link(
+        &self,
+        _: &uuid::Uuid,
+        token: &TeamInviteLinkToken,
+    ) -> impl Future<Output = Result<(), TeamError>> + Send {
+        *self.invite_link.lock().unwrap() = Some(*token);
+        async { Ok(()) }
+    }
+
+    fn delete_team_invite_link(
+        &self,
+        _: &uuid::Uuid,
+    ) -> impl Future<Output = Result<(), TeamError>> + Send {
+        *self.invite_link.lock().unwrap() = None;
+        async { Ok(()) }
+    }
+
+    fn get_team_by_invite_link(
+        &self,
+        token: &TeamInviteLinkToken,
+    ) -> impl Future<Output = Result<Option<TeamInviteLinkTeam>, TeamError>> + Send {
+        let team = (*self.invite_link.lock().unwrap() == Some(*token))
+            .then(|| self.invite_link_team.clone())
+            .flatten();
+        async move { Ok(team) }
     }
 }
 
@@ -6303,7 +6350,7 @@ async fn test_try_join_team_by_domain_rolls_back_membership_when_roles_fail() {
 
     assert!(matches!(
         err,
-        TryJoinTeamByDomainError::JoinTeamError(JoinTeamError::AddRolesToUserError(_))
+        JoinTeamDirectlyError::JoinTeamError(JoinTeamError::AddRolesToUserError(_))
     ));
     // The seat increment happened, was rolled back, and the membership
     // itself was removed again.
@@ -6346,7 +6393,7 @@ async fn try_join_team_by_domain_rolls_back_membership_when_billing_lookup_fails
 
         assert!(matches!(
             error,
-            TryJoinTeamByDomainError::TeamError(TeamError::StorageLayerError(_))
+            JoinTeamDirectlyError::TeamError(TeamError::StorageLayerError(_))
         ));
         assert_eq!(*team_repository.add_user_to_team_calls.lock().unwrap(), 1);
         assert_eq!(*team_repository.remove_user_calls.lock().unwrap(), 1);
@@ -6520,7 +6567,7 @@ async fn try_join_team_by_domain_enterprise_rolls_back_membership_when_roles_fai
 
     assert!(matches!(
         error,
-        TryJoinTeamByDomainError::JoinTeamError(JoinTeamError::AddRolesToUserError(_))
+        JoinTeamDirectlyError::JoinTeamError(JoinTeamError::AddRolesToUserError(_))
     ));
     assert_eq!(*team_repository.add_user_to_team_calls.lock().unwrap(), 1);
     assert_eq!(*team_repository.remove_user_calls.lock().unwrap(), 1);
@@ -6567,7 +6614,7 @@ async fn try_join_team_by_domain_enterprise_rolls_back_roles_when_channels_fail(
 
     assert!(matches!(
         error,
-        TryJoinTeamByDomainError::JoinTeamError(JoinTeamError::TeamError(_))
+        JoinTeamDirectlyError::JoinTeamError(JoinTeamError::TeamError(_))
     ));
     assert_eq!(*team_repository.add_user_to_team_calls.lock().unwrap(), 1);
     assert_eq!(*team_repository.remove_user_calls.lock().unwrap(), 1);
@@ -7225,7 +7272,7 @@ async fn try_join_team_by_domain_enterprise_status_read_precedes_membership_muta
 
     assert!(matches!(
         error,
-        TryJoinTeamByDomainError::TeamError(TeamError::StorageLayerError(_))
+        JoinTeamDirectlyError::TeamError(TeamError::StorageLayerError(_))
     ));
     assert_eq!(
         *team_repository

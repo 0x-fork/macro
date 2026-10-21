@@ -135,6 +135,17 @@ enterprise teams retain their billing bypass.
 On a local stack started with `--no-doppler`, verify free-team creation from a
 fresh passwordless signup. It must work without Stripe credentials.
 
+The invite dialog (**Invite** on **Team → Members**, or **Invite your team**)
+starts with the team's **Invite link**: **Create link** makes one and copies it,
+**Copy link** copies it after that. Anyone signed in who opens
+`/app/team-invite?link=<token>` sees **Join <team>** and joins as a member with
+the same billing and channel effects as an emailed invite; users already on
+another team are told to leave it first. Team admins and owners also see
+**Reset link** (the old link stops working and a new one is copied) and
+**Turn off**, each behind a confirmation. Anyone who may invite can copy the
+link or create the first one. Below it, **Invite by email** sends invitations
+as before.
+
 Under **Team → Members** (**Invite settings**), owners/admins can turn
 **Auto-join on domain** off and can restrict invitations to admins with
 **Members can invite**. These controls still apply.

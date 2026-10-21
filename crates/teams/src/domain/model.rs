@@ -11,6 +11,13 @@ use roles_and_permissions::domain::model::{ProductTier, RoleId, UserRolesAndPerm
 
 use crate::domain::owned_entity_cleanup::OwnedEntityCleanupError;
 
+mod invite_link;
+
+pub use invite_link::{
+    JoinTeamByInviteLinkError, JoinTeamByInviteLinkOutcome, ManageTeamInviteLinkError,
+    TeamInviteLinkTeam, TeamInviteLinkToken,
+};
+
 /// Team plans
 #[derive(
     Eq,
@@ -841,9 +848,10 @@ pub enum ToggleAutoJoinDomainError {
     TeamError(#[from] TeamError),
 }
 
-/// Errors for automatically joining a team by email domain
+/// Errors for adding a user to a team without an email invite: by matching
+/// the team's auto-join domain, or through the team's invite link.
 #[derive(Debug, thiserror::Error)]
-pub enum TryJoinTeamByDomainError {
+pub enum JoinTeamDirectlyError {
     /// Underlying team error
     #[error("Underlying team error {0}")]
     TeamError(#[from] TeamError),

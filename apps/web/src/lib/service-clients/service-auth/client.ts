@@ -46,6 +46,7 @@ import type {
   UserQuota,
 } from './generated/schemas';
 import type { AppleLoginRequest } from './generated/schemas/appleLoginRequest';
+import type { CreatedTeamInviteLinkResponse } from './generated/schemas/createdTeamInviteLinkResponse';
 import type { CreateGtmInviteLinkRequest } from './generated/schemas/createGtmInviteLinkRequest';
 import type { CreateTeamRequest } from './generated/schemas/createTeamRequest';
 import type { EmptyResponse } from './generated/schemas/emptyResponse';
@@ -58,6 +59,7 @@ import type { GtmInviteLinkList } from './generated/schemas/gtmInviteLinkList';
 import type { GtmInviteOffer } from './generated/schemas/gtmInviteOffer';
 import type { GtmInviteOfferStatus } from './generated/schemas/gtmInviteOfferStatus';
 import type { InviteToTeamRequest } from './generated/schemas/inviteToTeamRequest';
+import type { JoinTeamByInviteLinkResponse } from './generated/schemas/joinTeamByInviteLinkResponse';
 import type { MacroApiTokenResponse } from './generated/schemas/macroApiTokenResponse';
 import type { PasswordRequest } from './generated/schemas/passwordRequest';
 import type { PatchTeamRequest } from './generated/schemas/patchTeamRequest';
@@ -69,6 +71,8 @@ import type { PublicGtmInviteLink } from './generated/schemas/publicGtmInviteLin
 import type { PutProfilePictureParams } from './generated/schemas/putProfilePictureParams';
 import type { PutUserNameQueryParams } from './generated/schemas/putUserNameQueryParams';
 import type { Team } from './generated/schemas/team';
+import type { TeamInviteLinkResponse } from './generated/schemas/teamInviteLinkResponse';
+import type { TeamInviteLinkTeam } from './generated/schemas/teamInviteLinkTeam';
 import type { TeamInvitesResponse } from './generated/schemas/teamInvitesResponse';
 import type { TeamWithMembers } from './generated/schemas/teamWithMembers';
 import type { ToggleAutoJoinDomainResponse } from './generated/schemas/toggleAutoJoinDomainResponse';
@@ -1286,6 +1290,69 @@ export const authServiceClient = {
         {
           method: 'POST',
         }
+      )
+    ).map((result) => result);
+  },
+
+  /**
+   * The caller's team invite link token, or null when the team has none.
+   * Anyone who may invite people to the team may read it.
+   */
+  async getTeamInviteLink() {
+    return (
+      await fetchWithAuth<TeamInviteLinkResponse>(
+        `${authHost}/team/invite-link`,
+        { method: 'GET' }
+      )
+    ).map((result) => result);
+  },
+
+  /**
+   * Creates the team's invite link, replacing any existing one so links
+   * already shared stop working. Replacing a link is admin-only.
+   */
+  async createTeamInviteLink() {
+    return (
+      await fetchWithAuth<CreatedTeamInviteLinkResponse>(
+        `${authHost}/team/invite-link`,
+        { method: 'POST' }
+      )
+    ).map((result) => result);
+  },
+
+  /** Turns off the team's invite link. Admin/Owner only. */
+  async deleteTeamInviteLink() {
+    return (
+      await fetchWithAuth<{}>(`${authHost}/team/invite-link`, {
+        method: 'DELETE',
+      })
+    ).map(() => undefined);
+  },
+
+  /** The team an invite link joins, shown before the user joins it. */
+  async getTeamByInviteLink(token: string) {
+    return (
+      await fetchWithAuth<TeamInviteLinkTeam>(
+        `${authHost}/team/invite-link/team`,
+        {
+          method: 'POST',
+          // In the body, not the path, so request telemetry never records it.
+          body: JSON.stringify({ token }),
+        }
+      )
+    ).map((result) => result);
+  },
+
+  /**
+   * Joins the team an invite link belongs to. Fails with NOT_FOUND when the
+   * link was reset or turned off, and CONFLICT when the user is on another
+   * team.
+   */
+  async joinTeamByInviteLink(token: string) {
+    return (
+      await fetchWithAuth<JoinTeamByInviteLinkResponse>(
+        `${authHost}/team/invite-link/join`,
+        { method: 'POST', body: JSON.stringify({ token }) }
       )
     ).map((result) => result);
   },
