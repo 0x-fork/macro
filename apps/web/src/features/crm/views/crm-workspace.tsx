@@ -5,6 +5,7 @@ import {
   ViewShell,
 } from '@app/components/view-shell';
 import { VIEW_SHELL_TOUR } from '@app/components/view-shell/tour';
+import { ConnectorImportSidebar } from '@app/features/connector-import/connector-import';
 import { NIL_UUID } from '@app/features/next-soup/filters/filter-store';
 import { getViewPreset } from '@app/features/next-soup/sidebar/soup-filter-presets';
 import { MobileFilterDrawer } from '@app/features/next-soup/soup-view/filters-bar/mobile-filter-drawer';
@@ -27,6 +28,7 @@ import {
   isCrmContactEntity,
 } from '@entity';
 import ArrowLeftIcon from '@phosphor/arrow-left.svg';
+import FileCsvIcon from '@phosphor/file-csv.svg';
 import ListIcon from '@phosphor/list.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { Button, Dropdown, Tooltip } from '@ui';
@@ -394,6 +396,21 @@ export function CrmWorkspaceView(props: {
   );
   const sidebar = (onCollapse?: () => void) => (
     <CrmSidebar
+      promotion={
+        <ConnectorImportSidebar
+          category="crm"
+          class="mt-auto"
+          applies={teamQuery.isSuccess ? !!teamId() : undefined}
+          alternatives={[
+            {
+              icon: FileCsvIcon,
+              label: 'Upload a CSV',
+              description: 'Import companies from a spreadsheet export.',
+              onSelect: () => setImporting(true),
+            },
+          ]}
+        />
+      }
       pipelines={
         <Show when={pipelinesEnabled()}>
           <PipelineSidebar

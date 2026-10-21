@@ -43,6 +43,7 @@ import {
   CalendarCreateEventItem,
 } from './CalendarCreateItems';
 import { CalendarCreateMenu } from './CalendarCreateMenu';
+import { ConnectCalendarsPromotion } from './ConnectCalendarsPromotion';
 
 function CalendarMiniCalendar() {
   const calendarView = useCalendarView();
@@ -334,6 +335,8 @@ export function CalendarSidebar() {
           <CalendarTeamOooSection />
         </ShowFeatureFlag>
       </ViewSidebar.Content>
+      {/* Outside the scrolling list, so a long list never slides it under Settings. */}
+      <ConnectCalendarsPromotion class="px-(--sidebar-gutter) pt-2" />
       <ViewSidebar.Footer class="border-0">
         <ViewSidebar.Nav aria-label="Calendar tools">
           <CalendarSettingsDropdown sidebar />

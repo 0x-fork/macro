@@ -174,6 +174,9 @@ export const cognitionExcluded = [
   'getStateHandler',
   'getStateHandler2',
   'completeHandler',
+  // Sidebar setup and import cards remember dismissals per user (web app only).
+  'dismissedPromptsHandler',
+  'dismissPromptHandler',
   'setPricingHandler',
   'startMcpAuth',
   'updateMcpServer',

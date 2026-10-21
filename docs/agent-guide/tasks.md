@@ -550,6 +550,10 @@ even between launch and mount. The next opening uses the current context.
 Tasks are documents under the hood (creation hits `POST /dss/documents/create_task`), so they
 also show up in Files/`All` and in AI-chat document listings.
 
+To bring tasks over from Linear, Jira, Asana, and other apps, use the **Import
+tasks** card at the bottom of the Tasks sidebar; see
+[Import from connected apps](surfaces.md#import-from-connected-apps).
+
 ## Projects
 
 Projects are enabled by default in development. Production rollout is gated by
