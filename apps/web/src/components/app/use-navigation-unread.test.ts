@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   withLocalState: vi.fn(),
   hasUnreadEntity: vi.fn(),
   transformEntities: vi.fn(),
+  notificationPreferences: vi.fn(),
 }));
 
 vi.mock('@app/lib/analytics/posthog', () => ({
@@ -37,6 +38,9 @@ vi.mock('@components/app/GlobalAppState', () => ({
     notifications: mocks.notifications,
     withLocalState: mocks.withLocalState,
   }),
+}));
+vi.mock('@queries/notification/type-preferences', () => ({
+  useNotificationTypePreferencesQuery: mocks.notificationPreferences,
 }));
 // Query builders import the soup barrel, which otherwise opens real sockets.
 vi.mock('@service-storage/websocket', () => ({
@@ -88,9 +92,15 @@ function setup(graphql = false) {
     dispose = cleanup;
     const [graphqlEnabled, setGraphqlEnabled] = createSignal(graphql);
     const [done, setDone] = createSignal(false);
+    const [disabledTypes, setDisabledTypes] = createSignal<string[]>([]);
     mocks.withLocalState.mockImplementation(({ state }) =>
       done() ? 'done' : state
     );
+    mocks.notificationPreferences.mockImplementation(() => ({
+      get data() {
+        return { disabled_types: disabledTypes() };
+      },
+    }));
     const [witnesses, setWitnesses] = createSignal<
       { id: string; state: NotificationState }[]
     >([]);
@@ -137,6 +147,7 @@ function setup(graphql = false) {
       setWitnesses,
       setGraphqlEnabled,
       setDone,
+      setDisabledTypes,
     };
   });
 }
@@ -270,5 +281,18 @@ describe('navigation unread presence', () => {
     expect(unread('channels')).toBe(true);
     setNotifications([]);
     expect(unread('channels')).toBe(false);
+  });
+
+  it('hides email badge when email notifications are disabled', () => {
+    const { unread, setLoading, setEmails, setDisabledTypes } = setup();
+    setLoading(false);
+    setEmails([unreadEmail]);
+    expect(unread('mail')).toBe(true);
+    setDisabledTypes(['new_email']);
+    expect(unread('mail')).toBe(false);
+    setDisabledTypes([]);
+    expect(unread('mail')).toBe(true);
+    setDisabledTypes(['channel_mention', 'new_email', 'task_assigned']);
+    expect(unread('mail')).toBe(false);
   });
 });
