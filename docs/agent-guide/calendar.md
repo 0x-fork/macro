@@ -119,6 +119,10 @@ footer. Answering a recurring invitation opens a rounded glass sheet: choose
 `This event` or `All events`, then `Save response`. Cancel or Close returns to
 the event details without sending a response.
 
+While an event response saves, a small spinner appears beside `Going?` within
+the RSVP footer on desktop and mobile; the row and buttons stay in place.
+Failures appear below the buttons inside the padded footer and allow retrying.
+
 Calendar scheduling is on by default in dev. Production uses the PostHog flag
 `enable-calendar-scheduling` and stays off unless enabled remotely. Set
 `VITE_ENABLE_CALENDAR_SCHEDULING=false` to test the disabled state locally.
