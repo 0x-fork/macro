@@ -115,6 +115,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started` and native launch/termination/update counters; termination coverage is iOS/macOS only, and a pageview alone also includes SPA navigation. See `tauri/src-tauri/README.md`.
+- Inline agent steps reuse the session code-execution query for live SDK operation
+  names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in

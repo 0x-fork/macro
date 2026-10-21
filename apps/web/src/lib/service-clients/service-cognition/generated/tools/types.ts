@@ -4783,6 +4783,10 @@ export type ExecutionStatus =
   | 'failed'
   | 'cancelled'
   | 'timed_out';
+/**
+ * A dispatch result; unfinished work is never reported as success.
+ */
+export type RecordedCallStatus = 'running' | 'completed' | 'failed' | 'unknown';
 export type ContentType =
   | 'channel'
   | 'channel-message'
@@ -15222,6 +15226,10 @@ export interface ExecutionReceipt {
   executionId: ExecutionId;
   status: ExecutionStatus;
   /**
+   * Observed SDK operations for conversation activity snapshots.
+   */
+  activity?: ExecutionActivity[];
+  /**
    * Only the value explicitly returned by the program.
    */
   result?: {
@@ -15231,6 +15239,20 @@ export interface ExecutionReceipt {
    * Safe failure text, when execution did not succeed.
    */
   error?: string | null;
+}
+/**
+ * A bounded SDK operation observed during execution; not an authorization or write receipt.
+ */
+export interface ExecutionActivity {
+  /**
+   * Request identity within the execution.
+   */
+  id: number;
+  /**
+   * Server-selected label from the generated operation catalog.
+   */
+  label: string;
+  status: RecordedCallStatus;
 }
 /**
  * Retrieve a chat thread's message history by its ID. Returns the conversation title and messages with their roles, content, and attachment references.
