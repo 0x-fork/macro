@@ -32,9 +32,11 @@ previews over SSH tunnels and short-lived browser tickets, on its own
 
 ## Gotchas
 
-- Runs as a single Fargate replica with no autoscaling — SSH, HTTP, and
-  control requests share one in-memory lease/ticket registry (see README
-  "Deployment"). Scaling requires explicit cross-replica routing first.
+- Dev uses two Fargate replicas with rolling deployments. All targets serve
+  `/health`; SSH claims shared ownership and public traffic forwards directly
+  to that owner. Keep task-to-task HTTP ingress open (see README "Deployment").
+- `agent_preview::outbound::peer::address` selects the private interface from the database route without
+  transmitting UDP packets; each process registers its HTTP endpoint on startup.
 - Never deploy (`pulumi up`) without explicit approval; see root guardrails.
 
 ## Related

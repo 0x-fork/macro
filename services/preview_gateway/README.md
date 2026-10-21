@@ -27,10 +27,11 @@ Secure HttpOnly cookie, and redirects to `/`. App paths and query strings stay
 unchanged. Stop requires Edit access; the UI currently exposes it to the owner.
 
 Entity access is checked again when the ticket is redeemed, on every request,
-and every 30 seconds during open HTTP streams and WebSockets. Stop and SSH
-disconnection cancel open traffic immediately. Session deletion is checked by
-the sweeper every 15 seconds. An idle ACP transport disconnect does not terminate
-an otherwise live preview. MCP calls use the existing session credential and its normal lifecycle; external
+and every 30 seconds during open HTTP streams and WebSockets. SSH disconnection
+and an owner-local stop cancel open traffic immediately. A stop or re-share on
+another replica closes the old transport on its next 10-second sweep. Session
+deletion is checked by the sweeper every 10 seconds. An idle ACP transport
+disconnect does not terminate an otherwise live preview. MCP calls use the existing session credential and its normal lifecycle; external
 runtime attachment rotates it. It is never replaced with an owner API token.
 
 New Cursor agents receive this MCP server at creation. Existing Cursor agents
@@ -58,7 +59,7 @@ and every 30 seconds, so missed events and gateway restarts recover automaticall
 ## Limits
 
 - One preview per session, five active previews per owner, one creation per owner
-  every ten seconds; 1,000 retained leases/accounts per gateway.
+  every ten seconds; 1,000 retained unexpired leases across all replicas.
 - One-hour leases; 15 minutes without a browser HTTP request expires a lease.
   WebSocket pings alone do not keep it alive.
 - Traffic itself is unmetered. Request-rate, byte-pacing and total-byte ceilings
@@ -77,17 +78,67 @@ and every 30 seconds, so missed events and gateway restarts recover automaticall
 
 These are basic abuse/cost controls, not a hard cloud-spend ceiling. Load
 balancer traffic is still billable before application admission, and nothing
-here bounds bytes. Gateway restart closes previews and clears all credentials;
-agents must share again.
+here bounds bytes. Owner restart closes its previews. Shared credential hashes
+remain until expiry, but cannot authorize a dead preview; agents must share again.
 
 ## Deployment
 
 The `infra/stacks/preview-gateway` Pulumi stack creates wildcard DNS and an ACM
-certificate, a public HTTPS ALB, a public SSH NLB, and a Fargate task. Macro's
-existing gateway routes `/preview/*` to its separate control listener. The task
-runs **one replica**, with non-overlapping replacements and no autoscaling:
-SSH, HTTP, and control requests must reach the same in-memory registry. Scaling
-requires explicit ownership/routing across gateways first.
+certificate, a public HTTPS ALB, a public SSH NLB, and Fargate tasks. Macro's
+existing gateway routes `/preview/*` to the control listener. Dev runs two
+replicas; production's configured count remains one. Both support overlapping
+rolling replacements (minimum healthy 100%, maximum 200%). Every target serves
+`/health` independently of SSH ownership.
+
+`agent_preview` stores preview leases, hash-only credentials and authorized
+watchers in preview-specific Postgres tables. Create and control requests can
+reach any replica. The replica accepting SSH atomically consumes the one-use
+credential and claims that preview. Live russh handles remain local. Public
+HTTP and WebSocket requests resolve that owner in Postgres and stream directly
+to its registered HTTP endpoint, with at most one hop. The receiving owner
+still applies the full origin, one-use ticket, cookie and entity-access checks.
+A client-supplied hop marker can only prevent forwarding, never authenticate it.
+Peer sockets and upgraded streams have separate bounded admission; body limits
+apply before peer dial and admission stays held through the streamed response.
+Forwarding overload returns HTTP 429 before opening a socket; owner-side
+per-preview HTTP streams retain their existing queueing behavior.
+
+Each process mints a replica ID and registers the private interface selected by
+the existing database route (UDP connect selects the interface without sending
+packets), plus its public-listener port. There are no new secrets or environment
+settings. Task security groups permit peer HTTP on port 8111, only from the same
+task security group. Destinations are numeric private/loopback addresses from
+the server-written registry, never client URLs or forwarding headers; public,
+link-local and metadata destinations are rejected.
+
+Heartbeat every 10 seconds; ownership expires after 45 seconds. A stopped,
+expired or replaced preview cannot become ready again through a delayed SSH
+callback. Preview IDs are generation fences; every owner status write matches
+the ID and replica. A heartbeat resumed after expiry invalidates its old
+previews before renewing its replica row. Survivor sweepers atomically publish
+dead-owner transitions to authorized watchers. Disconnects on owner failure or
+rollout are expected: call SharePreview again to reconnect. This follows the
+agent-session management claim/heartbeat/fencing pattern without reusing
+agent-session ownership rows or streaming through Redis.
+
+Apply the additive MacroDB migration before rolling out the new service code.
+Preview rows expire after one hour and are removed five minutes later, cascading
+credentials. Expired credentials/watchers are swept, and unreferenced replica
+rows are removed after seven days. Agent-session revocation is rechecked through
+the existing authority boundary; no agent-session foreign key is required.
+
+To host this crate in agent_harness_service: share its MacroDB pool with
+`PgPreviewRepository`, pass one process-unique replica ID and `TcpPeerConnector`
+to `PreviewService::new`, register the private HTTP-listener endpoint, and run
+heartbeat + sweep every 10 seconds. Mount the existing control/MCP routes and
+public HTTP router, and pass that same service to the SSH listener. Permit
+HTTP-listener ingress from the harness task security group itself. Keep all
+harness tasks healthy and retain two replicas with rolling deployments.
+
+The preview stack exports `previewTaskSecurityGroupId` and the control, HTTP
+and SSH target group ARNs (`previewControlTargetGroupArn`,
+`previewHttpTargetGroupArn`, `previewSshTargetGroupArn`) so consolidation can
+reuse the existing network resources.
 
 Bootstrap (done 2026-09-28):
 

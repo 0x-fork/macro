@@ -98,6 +98,7 @@ for (const [index, rule] of [
   { fromPort: 8110, toPort: 8111, source: albSg.id },
   { fromPort: 2222, toPort: 2222, source: sshSg.id },
   { fromPort: 8110, toPort: 8110, source: sshSg.id },
+  { fromPort: 8111, toPort: 8111, source: taskSg.id },
 ].entries()) {
   new aws.vpc.SecurityGroupIngressRule(
     `${name}-task-ingress-${index}-${stack}`,
@@ -266,10 +267,10 @@ const service = new awsx.ecs.FargateService(
       subnets: vpc.privateSubnetIds,
       securityGroups: [taskSg.id],
     },
-    // SSH and HTTP must reach the same registry. Do not autoscale or overlap deployments.
-    desiredCount: 1,
-    deploymentMinimumHealthyPercent: 0,
-    deploymentMaximumPercent: 100,
+    // SSH ownership is shared; every target serves healthy control/HTTP ingress.
+    desiredCount: stack === 'dev' ? 2 : 1,
+    deploymentMinimumHealthyPercent: 100,
+    deploymentMaximumPercent: 200,
     deploymentCircuitBreaker: { enable: true, rollback: true },
     healthCheckGracePeriodSeconds: 120,
     loadBalancers: [control.target_group, httpTarget, sshTarget].map(
@@ -324,3 +325,7 @@ const service = new awsx.ecs.FargateService(
 export const previewDomain = domain;
 export const previewSshHost = sshHost;
 export const previewServiceArn = service.service.id;
+export const previewTaskSecurityGroupId = taskSg.id;
+export const previewControlTargetGroupArn = control.target_group.arn;
+export const previewHttpTargetGroupArn = httpTarget.arn;
+export const previewSshTargetGroupArn = sshTarget.arn;

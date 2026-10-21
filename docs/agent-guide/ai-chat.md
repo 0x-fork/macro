@@ -1581,7 +1581,10 @@ The owner can click **Stop sharing** in the banner; open preview connections
 close. Disconnection and expiry leave a banner asking the agent to share again.
 Leases last up to one hour and expire after 15 minutes without browser requests.
 Continue prompting in the agent session while the preview tab stays open; page
-edits should arrive through the app's own HMR connection.
+edits should arrive through the app's own HMR connection. Control requests, SSH,
+and preview navigation can reach different replicas without requiring sticky
+sessions. A rolling restart of the tunnel owner may disconnect its previews;
+the banner becomes offline within 45 seconds. Ask the agent to share again.
 
 ### Transcript navigation
 

@@ -1,4 +1,4 @@
-//! Single-replica SSH/HTTP preview gateway, isolated from Macro's browser cookie domain.
+//! Replicated SSH/HTTP preview gateway, isolated from Macro's browser cookie domain.
 mod adapters;
 mod config;
 use agent_preview::{
@@ -67,6 +67,15 @@ async fn run() -> Result<(), rootcause::Report> {
     );
     let key = ssh::host_key(&config.preview_ssh_host_key)?;
     let public_key = ssh::public_key(&key)?;
+    let peer_address = agent_preview::outbound::peer::address(
+        config.database_url.as_ref(),
+        config.preview_http_port,
+    )
+    .await?;
+    let repository = Arc::new(agent_preview::outbound::postgres::PgPreviewRepository::new(
+        pool.clone(),
+    ));
+    let replica = macro_uuid::Uuid::now_v7();
     let service = PreviewService::new(
         Settings {
             local_ssh_fallback: matches!(config.environment, macro_env::Environment::Local),
@@ -85,7 +94,7 @@ async fn run() -> Result<(), rootcause::Report> {
                 pool.clone(),
                 entity_registry_db_utils::OwnedEntityRegistrar::new(
                     entity_registry::OwnerGrantPolicy::new(
-                        bots::outbound::pg_bots_repo::PgBotsRepo::new(pool),
+                        bots::outbound::pg_bots_repo::PgBotsRepo::new(pool.clone()),
                     ),
                 ),
             ),
@@ -97,7 +106,11 @@ async fn run() -> Result<(), rootcause::Report> {
                 ConnectionGatewayUrl::new()?.to_string(),
             ),
         )),
+        repository,
+        replica,
+        Arc::new(agent_preview::outbound::peer::TcpPeerConnector),
     )?;
+    service.heartbeat(peer_address).await?;
     let control = control::router(ControlState::new(
         service.clone(),
         access,
@@ -139,7 +152,10 @@ async fn run() -> Result<(), rootcause::Report> {
     let sweep_shutdown = shutdown.clone();
     tokio::spawn(async move {
         loop {
-            tokio::select! { _ = sweep_shutdown.cancelled() => break, _ = tokio::time::sleep(Duration::from_secs(15)) => sweeper.sweep().await }
+            tokio::select! { _ = sweep_shutdown.cancelled() => break, _ = tokio::time::sleep(Duration::from_secs(10)) => {
+                if let Err(error) = sweeper.heartbeat(peer_address).await { tracing::warn!(?error, "preview heartbeat failed"); }
+                sweeper.sweep().await;
+            } }
         }
     });
     tokio::try_join!(
