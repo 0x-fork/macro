@@ -431,10 +431,11 @@ and admins/owners can move a seat between Pro and Max with the `Seat plan`
 menu; Max upgrades are immediate and prorated, Pro downgrades start at renewal.
 **Keep Max** appears only for a confirmed pending downgrade and cancels it;
 failed scheduled-plan reads offer **Try again**, while teams without applicable
-scheduled plans show no retry notice). CRM (enable/disable; once enabled, a `Deal stages` section
-with `Customize stages`, inline rename, reorder by drag handle or arrow keys (up/down
-buttons on touch), delete, `Add stage`, `Reset to defaults`, and `Closed stages`
-checkboxes, editable by the role set as `edit_stages_role`)
+scheduled plans show no retry notice). CRM (a `Team CRM` switch that admins use to enable or disable it;
+once enabled, a `Stages` section for the company Stage options that new pipelines
+also start with, with `Customize`, inline rename, reorder by drag handle or arrow
+keys (up/down buttons on touch), delete, `Add stage`, and `Reset to defaults`,
+editable by the role set as `edit_stages_role`)
 
 `Agents` unifies agent definitions and runtime configuration in one page, also used by the Agents workspace. Its `Agents` section lists team and private agents. `New agent` / `Edit <name>` open full-page forms grouped
 Profile, Behavior, Runtime, Connections, Channels, Share. Connections is a radio pair:

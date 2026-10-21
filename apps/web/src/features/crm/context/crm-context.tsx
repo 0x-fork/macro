@@ -133,9 +133,6 @@ export type CrmContext = {
   createTeamConfigSource(): TeamConfigSource;
   createCapabilities(): CrmCapabilities;
   createDealStages(): DealStages;
-  createClosedStageIds(
-    stages: Accessor<{ id: string; label: string }[]>
-  ): Accessor<Set<string>>;
   createPersonalViews(): PersonalViewsSource;
   createTeamViews(): TeamViewsSource;
   createLists(teamId: Accessor<string | undefined>): ListsSource;
