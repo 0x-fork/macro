@@ -22,6 +22,9 @@ Split dragging and composer reflow have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
 It exercises the real resize solver, scroll container, and Lexical layout primitive.
 
+Discussion link scrolling has a backend-free browser regression:
+`bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
@@ -128,6 +131,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
+- Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in
   `docs/agent-guide/documents.md` at the repository root.
