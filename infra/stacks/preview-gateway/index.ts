@@ -290,8 +290,8 @@ const service = new awsx.ecs.FargateService(
         service: {
           name: 'service',
           image: image.image.imageUri,
-          cpu: 1024,
-          memory: 2048,
+          cpu: 256,
+          memory: 512,
           essential: true,
           stopTimeout: 30,
           secrets: doppler.containerSecrets,

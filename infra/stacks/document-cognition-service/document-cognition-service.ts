@@ -298,8 +298,8 @@ export class DocumentCognitionService extends pulumi.ComponentResource {
               name: BASE_NAME,
               image: image.image.imageUri,
               stopTimeout: 10, // 10 seconds to force kill the task
-              cpu: 4096,
-              memory: 8192,
+              cpu: stack === 'prod' ? 2048 : 512,
+              memory: stack === 'prod' ? 3584 : 1024,
               environment: [...(containerEnvVars ?? [])],
               secrets: [...dopplerEcsEnvironment.containerSecrets],
               logConfiguration: {
@@ -334,7 +334,7 @@ export class DocumentCognitionService extends pulumi.ComponentResource {
             }`,
           },
         },
-        desiredCount: stack === 'prod' ? 4 : 1,
+        desiredCount: stack === 'prod' ? 2 : 1,
       },
       {
         parent: this,
@@ -498,7 +498,7 @@ export class DocumentCognitionService extends pulumi.ComponentResource {
       `${BASE_NAME}-service-scalable-target-${stack}`,
       {
         maxCapacity: stack === 'prod' ? 10 : 3,
-        minCapacity: stack === 'prod' ? 4 : 1,
+        minCapacity: stack === 'prod' ? 2 : 1,
         resourceId: pulumi.interpolate`service/${this.cloudStorageClusterName}/${this.service.service.name}`,
         scalableDimension: 'ecs:service:DesiredCount',
         serviceNamespace: 'ecs',

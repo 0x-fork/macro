@@ -45,7 +45,7 @@ function resource(type: string): pulumi.runtime.MockResourceArgs {
 }
 
 describe('Slack import staging protections', () => {
-  test('one helper-owned lifecycle rule expires only the Slack prefix after 14 days', () => {
+  test('helper-owned lifecycle rules expire Slack imports after 14 days and zips after 21', () => {
     const lifecycle = resource(
       'aws:s3/bucketLifecycleConfigurationV2:BucketLifecycleConfigurationV2'
     );
@@ -56,6 +56,13 @@ describe('Slack import staging protections', () => {
         status: 'Enabled',
         filter: { prefix: 'slack-import/' },
         expiration: { days: 14 },
+      },
+      {
+        id: 'extract-cleanup',
+        status: 'Enabled',
+        filter: { prefix: 'extract/' },
+        expiration: { days: 21 },
+        abortIncompleteMultipartUpload: { daysAfterInitiation: 1 },
       },
     ]);
   });
