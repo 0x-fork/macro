@@ -131,7 +131,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep desktop model and effort controls separate: the model selector opens the catalog and the speedometer opens the runtime's advertised slider stops; retain the mobile effort sheet.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
-- Diagnose native full reloads with `native_webview_started` and native launch/termination/update counters; termination coverage is iOS/macOS only, and a pageview alone also includes SPA navigation. See `tauri/src-tauri/README.md`.
+- Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. See `tauri/src-tauri/README.md`.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
