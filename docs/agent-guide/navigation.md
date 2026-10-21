@@ -530,23 +530,35 @@ changes roll back rather than becoming committed local favorites.
 On desktop, the rail **Create** button, **C**, and the command menu’s **Create**
 entry open the detailed launcher at standard dialog width. Selecting **Create**
 closes the command menu and hands focus to the launcher; individual creation
-commands remain searchable in the command menu. The left list starts with up to three **Recents** from
-actual launcher usage, followed by all choices grouped by category.
-Categories appear in this order: **Docs** (Document, Snippet), **Organization**
+commands remain searchable in the command menu. The left side is one continuous
+list without section labels or gaps. Up to three recently used choices appear
+first, followed by all choices in this order: **Docs** (Document, Snippet), **Organization**
 (Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
 (Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
 (Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
-any uncategorized entries). Only available entries and nonempty categories appear.
-Recent items also remain in their categories. With no history, the list starts
-with categories. Hover or keyboard navigation updates the right detail panel;
-click a row or press Enter to start that creation flow. The detail panel is
-top-aligned, shares the list background, and is separated by a vertical divider.
-The shortcut below the description shows the sequence, such as **C then T** for
-Task, while direct shortcut mode is active.
-Its lower-right **Create [type]** button starts the selected creation flow and
-shows the Enter shortcut. Holding Shift adds an **In new split** indicator and
-changes the button shortcut to Shift+Enter; clicking while holding Shift uses
-the same new-split behavior where supported.
+any uncategorized entries). Only available entries appear.
+Recent items also remain in their normal positions. With no history, the list
+starts with Document. Hover or keyboard navigation updates the right detail panel;
+click a row or press Enter to start that creation flow. List icons are monochrome:
+muted normally and full ink on the selected row. The detail panel centers
+its block-colored icon tile with a solid theme-aware fill and shared glass rim,
+and description over
+the shared onboarding grain. Light mode uses near-black icons and neutral, quieter grain and glow, with
+the homepage composer’s fill, border and shadow. Dark-mode dots and glow use
+the same shared block-icon color as the tile, rather than the workspace accent. Descriptions use two authored
+lines at desktop width, with a slightly shorter second line; narrow panels
+allow the text to wrap further. The **Create [type]** button
+sits 8px inside the bottom-right corner as a 32px-tall pill. Its 16px
+radius plus the inset matches the modal’s 24px radius. It uses
+a white fill in dark mode, black in light mode, medium-weight text, and a bare
+Enter symbol without a keycap. Footer keyboard hints are borderless.
+Visual references: [dark](media/command/create-menu-polished-dark.png) and
+[light](media/command/create-menu-polished-light.png).
+A vertical divider separates it from the list. In direct shortcut mode, the
+shortcut sequence (such as **C then T** for Task) appears below the centered
+detail content. The Create button includes the Enter shortcut. Holding Shift
+relabels the button **Create in new split** with Shift+Enter; clicking while
+holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is

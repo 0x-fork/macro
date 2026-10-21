@@ -1,7 +1,7 @@
 const textureMask =
   'radial-gradient(ellipse 50% 50% at center, black 0%, #0009 25%, #0003 45%, #00000008 60%, transparent 78%)';
 
-/** Shared grain and accent dots for the opening onboarding slides. */
+/** Shared grain and accent dots for workspace previews. */
 export function WorkspaceTexture(props: { accent: string; filterId: string }) {
   return (
     <>

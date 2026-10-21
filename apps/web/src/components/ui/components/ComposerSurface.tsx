@@ -37,7 +37,7 @@ export function ComposerSurface(
       {...rest}
       class={cn(
         !isTouchDevice() &&
-          'rounded-[28px] border-0 bg-composer text-composer-ink dark-mode:glass-input backdrop-filter-none light-mode:after:hidden light-mode:shadow-[0_0_0_1px_var(--color-drop-shadow),0_2px_8px_0_var(--color-drop-shadow),0_4px_80px_8px_color-mix(in_srgb,var(--color-drop-shadow)_60%,transparent)]',
+          'rounded-[28px] border-0 bg-composer text-composer-ink dark-mode:glass-input backdrop-filter-none light-mode:after:hidden light-mode:composer-shadow',
         local.class
       )}
     />

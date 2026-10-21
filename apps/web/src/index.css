@@ -933,6 +933,13 @@ html[data-theme-light='false'] {
   --color-surface: var(--color-menu);
 }
 
+/* Shared light-surface edge and ambient shadow from the homepage composer. */
+@utility composer-shadow {
+  box-shadow: 0 0 0 1px var(--color-drop-shadow),
+    0 2px 8px 0 var(--color-drop-shadow),
+    0 4px 80px 8px color-mix(in srgb, var(--color-drop-shadow) 60%, transparent);
+}
+
 /* Shared dialog appearance; composers retain their original glass. */
 @utility elevated-surface {
   @apply glass-input;

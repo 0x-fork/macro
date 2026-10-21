@@ -988,8 +988,6 @@ type LauncherMenuItemProps = {
 };
 
 export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
-  const selectedIconColor = () =>
-    getIconConfig(props.creatableBlock.blockName).foreground;
   const launcherHint = () => props.creatableBlock.launcherHint;
 
   return (
@@ -997,7 +995,7 @@ export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
       <div
         class={cn(
           'size-4 shrink-0 text-ink-extra-muted transition-colors',
-          props.selected && selectedIconColor()
+          props.selected && 'text-ink'
         )}
       >
         <Dynamic component={props.creatableBlock.icon} />
@@ -1047,6 +1045,7 @@ type LauncherBodyState = {
 export const LauncherShell = (
   props: LauncherInnerProps & {
     children: (state: LauncherBodyState) => JSX.Element;
+    footerAction?: (state: LauncherBodyState) => JSX.Element;
     class?: string;
     horizontalNavigation?: boolean;
     groupItems?: (
@@ -1283,6 +1282,25 @@ export const LauncherShell = (
 
   onCleanup(hkGroup.dispose);
 
+  const bodyState: LauncherBodyState = {
+    sections,
+    blocks,
+    selectedIndex: focusedIndex,
+    searchMode,
+    shiftHeld,
+    itemId: (item) => `create-menu-${launcherItemKey(item)}`,
+    select: listController.setSelectedIndexFromPointer,
+    step: (direction) => {
+      const count = blocks().length;
+      if (count)
+        listController.setSelectedIndex(
+          (((focusedIndex() + direction) % count) + count) % count
+        );
+    },
+    choose: runLauncherItem,
+    scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
+  };
+
   return (
     // The shared shell stopped painting its own pane (cmd+k gets one from the
     // app Dialog wrapper); this raw-Kobalte dialog carries it here.
@@ -1349,26 +1367,14 @@ export const LauncherShell = (
           />
         </CommandMenuShell.Header>
         <CommandMenuShell.Body class="touch:flex touch:flex-col">
-          {props.children({
-            sections,
-            blocks,
-            selectedIndex: focusedIndex,
-            searchMode,
-            shiftHeld,
-            itemId: (item) => `create-menu-${launcherItemKey(item)}`,
-            select: listController.setSelectedIndexFromPointer,
-            step: (direction) => {
-              const count = blocks().length;
-              if (count)
-                listController.setSelectedIndex(
-                  (((focusedIndex() + direction) % count) + count) % count
-                );
-            },
-            choose: runLauncherItem,
-            scrollSelectedIntoView: listController.shouldScrollSelectedIntoView,
-          })}
+          {props.children(bodyState)}
         </CommandMenuShell.Body>
-        <CommandMenuShell.Footer class="touch:px-6 touch:py-4">
+        <CommandMenuShell.Footer
+          class={cn(
+            'relative touch:px-6 touch:py-4',
+            props.footerAction && 'min-h-12 gap-3 border-t border-edge-divider'
+          )}
+        >
           <style>{`
               @keyframes shift-ripple {
                 0%   { transform: scale(1); opacity: 0.6; }
@@ -1378,42 +1384,44 @@ export const LauncherShell = (
                 animation: shift-ripple 0.35s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
               }
             `}</style>
-          <span class="flex items-center gap-1">
-            <div class="flex gap-1">
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-            </div>
+          <span
+            class={cn(
+              'flex items-center gap-1.5',
+              props.footerAction && 'hidden sm:flex'
+            )}
+          >
+            <span class="flex gap-0.5">
+              <Hotkey
+                shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+              <Hotkey
+                shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+            </span>
             Navigate
           </span>
-          <span class="flex items-center gap-1">
-            <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-              <Hotkey shortcut={confirmHotkey.hotkey()} />
-            </div>
-            Create
-          </span>
-          <span class="hidden touch:hidden md:flex items-center gap-1">
+          <Show when={!props.footerAction}>
+            <span class="flex items-center gap-1.5">
+              <Hotkey
+                shortcut={confirmHotkey.hotkey()}
+                class="min-w-3 justify-center"
+              />
+              Create
+            </span>
+          </Show>
+          <span class="hidden touch:hidden md:flex items-center gap-1.5">
             Hold
             <span class="relative inline-flex place-items-center">
               <span
                 ref={shiftRippleRef}
-                class="shift-ripple absolute inset-0 rounded-sm border border-accent pointer-events-none opacity-0"
+                class="shift-ripple absolute inset-0 rounded-sm bg-ink/10 pointer-events-none opacity-0"
               />
               <span
                 class={cn(
-                  'border text-xxs px-1.5 py-px rounded-md transition-colors duration-150',
-                  shiftHeld()
-                    ? 'border-accent text-accent bg-accent/10'
-                    : 'border-ink/12'
+                  'min-w-3 text-xxs px-0.5 py-px rounded-sm text-center transition-colors duration-150',
+                  shiftHeld() ? 'bg-ink/10 text-ink' : 'text-ink-extra-muted'
                 )}
               >
                 {getNormalizedKeyString({ shortcut: 'shift' })}
@@ -1421,6 +1429,11 @@ export const LauncherShell = (
             </span>
             New split
           </span>
+          <Show when={props.footerAction}>
+            {(action) => (
+              <div class="absolute right-2 bottom-2">{action()(bodyState)}</div>
+            )}
+          </Show>
         </CommandMenuShell.Footer>
       </CommandMenuShell>
     </div>

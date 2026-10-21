@@ -73,6 +73,9 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ## Development Patterns
 
+- Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
+  detail panel grain; pass the surface accent and a unique SVG filter ID.
+
 ### Pipedream native authorization
 
 Keep native Pipedream consent in the system browser: the desktop navigation
