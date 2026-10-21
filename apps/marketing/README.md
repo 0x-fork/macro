@@ -75,6 +75,10 @@ The homepage carousel advances only when the visitor selects a highlight.
   fonts, videos, styling, and other static files.
 - `scripts/`: public build, prerendering, SEO, and architecture checks.
 
+Hero descriptions fill their available width up to the shared maximum rather
+than shrink-wrapping their text, so Safari does not wrap a planned desktop line
+before the explicit line break. Phone copy remains free to wrap.
+
 Email is the visual reference for product pages. Tasks, Channels, Documents,
 Agents, Calls, and Reviews use `ProductPage` on top of `FeaturePage`: centered
 Slab heroes, a 920px outer feature measure with 24px inset, left-aligned
@@ -319,6 +323,9 @@ light document graphic uses that accent for resolved mentions instead of the
 neutral website control accent. Comment anchors use the product’s yellow wash
 and underline; the sample date-check comment anchors to the launch date, leaving
 the checklist heading unmarked.
+
+Feature demos use the shared section padding for the next heading. Avoid
+extra bottom spacers on demo wrappers, including the homepage spreadsheet.
 
 Feature chapters rely on their heading, description, and working demo. Do not
 reintroduce unused feature-card guides or duplicate explanatory drawers.
@@ -679,9 +686,14 @@ sales reporting is checked for those CRMs and partial for Macro’s agent summar
 Connected collaboration tools receive partial credit alongside Macro’s native workspace.
 Credit Macro’s Granola connection for reading captured notes, not for native
 recording of other meeting apps or every feature of the connected product. ClickUp
-stays in the migration overview. Overview links scroll to the matching product
-comparison; verify both initial-load and client-side navigation hashes. Keep cells to checks, crosses, or explained partial marks and label built-in tools explicitly. Retain detailed article links when an article exists. Source URLs
-are not shown in the UI. Icon-only comparison tables are not exported as prose
+stays in the migration overview. The migration overview uses the same framed
+`FeatureComparisons` renderer with plain, unlinked headers and row labels. Its
+verified rows and source URLs live in `core/migration-comparisons.ts`; CRM
+templates and Salesforce-backed Slack CRM receive explained partial marks.
+The wide overview remains horizontally scrollable on all viewport sizes. Keep
+cells to checks, crosses, or explained partial marks and label built-in tools
+explicitly. Detailed articles remain discoverable through navigation rather than
+comparison-table labels. Source URLs are not shown in the UI. Icon-only comparison tables are not exported as prose
 FAQ answers. Verify table columns, keyboard focus, scrolling, and existing
 functional FAQs after moving or adding a comparison.
 
@@ -992,6 +1004,9 @@ section collapse, Threads navigation, and opening a mentioned source after
 switching channels. Message text uses the app's 15px/24px reading size; dark
 surface and edge tokens are frozen from `apps/web/src/index.css`.
 
+Keep Merge/Merged and Open session actions in the shared agent chip at the same
+24px height and pill radius, with touch resizing disabled for both.
+
 Cursor replies in the Agents, Channels, and GitHub walkthroughs share
 `DemoAgentChip`, adapted from the current `MagicChipView` in the app. It uses
 the settled 88px rounded session card, Open session action, and an output/PR
@@ -1043,3 +1058,11 @@ On phones, retain the final blog-row divider and hide the adjacent closing
 footer rule. The homepage document frame is 420px tall below 700px because its
 version-history band is hidden there; avoid retaining empty desktop fade space
 between the document and its Learn more links.
+
+The travelling Open app CTA switches to native footer dimensions, text, and SVG
+sizes after its landing transition settles, removing the compositor scale to
+avoid Safari retaining an enlarged low-resolution text layer. Reverse scrolling
+restores compact dimensions before the header reappears; keep one app link.
+
+The landing-page CRM illustration has a transparent outer frame with no
+decorative rim in either palette. Keep the inner CRM window surface and shadow.
