@@ -51,9 +51,7 @@ const useCommentsContext = (
 export const CommentMargin = (props: { wideEnough: boolean }) => {
   const { state } = useMarkdownDocument();
   const commentState = state.comments;
-  const { notebookHeight, setThreadHeights, threadPositions } =
-    createCommentLayout();
-  const maxHeight = createMemo(() => notebookHeight() ?? undefined);
+  const { setThreadHeights, threadPositions } = createCommentLayout();
 
   // NOTE: this is a big of a hack because you can select
   // multiple threads at once from the editor but only one thread in the margin
@@ -111,7 +109,6 @@ export const CommentMargin = (props: { wideEnough: boolean }) => {
                               comment={thread()}
                               layout={layout()}
                               isActive={isThreadActive(thread())}
-                              maxHeight={maxHeight()}
                               expandable={!isTouchDevice()}
                             />
                           }
@@ -120,7 +117,6 @@ export const CommentMargin = (props: { wideEnough: boolean }) => {
                             comment={thread()}
                             layout={layout()}
                             isActive={isThreadActive(thread())}
-                            maxHeight={maxHeight()}
                           />
                         </Show>
                       </div>
