@@ -1382,9 +1382,12 @@ Details lists Status, Agent, Model, and dates for every session; the Runtime
 row appears only for coding runtimes, never for in-memory chat agents.
 `References` is the same section documents show: one row per channel message that
 `@`-mentioned or shared the session (sender, channel chip, time, and a two-line
-message excerpt) and per document that mentions it (author and document chip).
-Click a row to open that message or document in a split. The section is hidden
-until at least one reference exists, and only lists channels you belong to.
+message excerpt), per comment on a document, project, CRM record, or call that
+mentions it (sender, parent chip, time, excerpt), and per document that mentions
+it (author and document chip). Click a row to open that message, comment, or
+document in a split; a comment row opens its parent at the comment. The section
+is hidden until at least one reference exists, lists channels you belong to, and
+lists comments only on parents you can view.
 New conversation pages have no disabled session action buttons. Older chats
 also have one header row, and empty chats show a simple conversation prompt
 instead of the standalone recent-sessions and tips surface.

@@ -15,12 +15,12 @@ use crate::domain::ports::ChannelAttachmentRepo;
 use crate::domain::ports::{ChannelListRepo, ChannelListUserRepo};
 use crate::domain::{
     models::{
-        Activity, ActivityType, AttachmentChannelReference, AttachmentEntityReference,
-        AttachmentGenericReference, BotId, BotSenderProfile, ChannelAttachment,
-        ChannelAttachmentType, ChannelInfo, ChannelListItem, ChannelMessage, ChannelMetadata,
-        ChannelParticipant, ChannelPreviewRow, ChannelType, ChannelWithParticipants,
-        CountedReaction, CreateChannelRequest, CreateEntityMentionOptions, CreatedChannel,
-        EntityMention, GetChannelsParams, GetThreadReplyRowsParams, LatestMessage,
+        Activity, ActivityType, AttachmentChannelReference, AttachmentCommentReference,
+        AttachmentEntityReference, AttachmentGenericReference, BotId, BotSenderProfile,
+        ChannelAttachment, ChannelAttachmentType, ChannelInfo, ChannelListItem, ChannelMessage,
+        ChannelMetadata, ChannelParticipant, ChannelPreviewRow, ChannelType,
+        ChannelWithParticipants, CountedReaction, CreateChannelRequest, CreateEntityMentionOptions,
+        CreatedChannel, EntityMention, GetChannelsParams, GetThreadReplyRowsParams, LatestMessage,
         MessageAttachment, NameLookup, ParticipantRole, PatchChannelRequest, RecentChannelMessage,
         ReferencedShareItemType, ThreadData, ThreadInfo, ThreadReply, ThreadReplyRow,
         TopLevelMessageRow, UserName, fallback_user_name,
@@ -1867,9 +1867,53 @@ impl ChannelRepo for PgChannelsRepo {
             .context("failed to get generic entity references")
         };
 
-        let (attachment_references, mention_references, generic_rows) = tokio::try_join!(
+        // Comments on documents, initiatives, CRM records, and calls: every
+        // parent is returned and the domain service authorizes it, since a
+        // comment's visibility follows its parent rather than channel membership.
+        let comment_references_fut = async {
+            sqlx::query_as!(
+                AttachmentCommentReference,
+                r#"
+                SELECT
+                    m.parent_entity_type             AS "parent_entity_type!",
+                    m.parent_entity_id               AS "parent_entity_id!",
+                    m.id                             AS "message_id!: uuid::Uuid",
+                    m.thread_id                      AS "thread_id?: uuid::Uuid",
+                    m.sender_id                      AS "sender_id!",
+                    m.content                        AS "message_content!",
+                    m.created_at                     AS "message_created_at!: chrono::DateTime<chrono::Utc>",
+                    r.created_at                     AS "attachment_created_at!: chrono::DateTime<chrono::Utc>"
+                FROM (
+                    -- The CASE keeps non-message source ids out of the uuid cast.
+                    SELECT CASE WHEN em.source_entity_type = 'message' THEN em.source_entity_id::uuid END AS message_id,
+                           em.created_at
+                    FROM comms_entity_mentions em
+                    WHERE em.source_entity_type = 'message'
+                      AND em.entity_type = ANY($1)
+                      AND em.entity_id  = $2
+                    UNION ALL
+                    SELECT a.message_id, a.created_at
+                    FROM comms_attachments a
+                    WHERE a.entity_type = ANY($1)
+                      AND a.entity_id  = $2
+                ) r
+                JOIN comms_messages m ON m.id = r.message_id
+                WHERE m.parent_entity_type <> 'channel'
+                  AND m.deleted_at IS NULL
+                ORDER BY r.created_at DESC
+                "#,
+                &entity_types,
+                entity_id,
+            )
+            .fetch_all(&self.pool)
+            .await
+            .context("failed to get comment references")
+        };
+
+        let (attachment_references, mention_references, comment_references, generic_rows) = tokio::try_join!(
             attachment_references_fut,
             mention_references_fut,
+            comment_references_fut,
             generic_references_fut,
         )?;
 
@@ -1895,22 +1939,22 @@ impl ChannelRepo for PgChannelsRepo {
                 .map(AttachmentEntityReference::Channel),
         );
         references.extend(
+            comment_references
+                .into_iter()
+                .map(AttachmentEntityReference::Comment),
+        );
+        references.extend(
             generic_references
                 .into_iter()
                 .map(AttachmentEntityReference::Generic),
         );
 
-        references.sort_by(|a, b| {
-            let a_time = match a {
-                AttachmentEntityReference::Channel(c) => c.attachment_created_at,
-                AttachmentEntityReference::Generic(g) => g.created_at,
-            };
-            let b_time = match b {
-                AttachmentEntityReference::Channel(c) => c.attachment_created_at,
-                AttachmentEntityReference::Generic(g) => g.created_at,
-            };
-            b_time.cmp(&a_time)
-        });
+        let created_at = |reference: &AttachmentEntityReference| match reference {
+            AttachmentEntityReference::Channel(c) => c.attachment_created_at,
+            AttachmentEntityReference::Comment(c) => c.attachment_created_at,
+            AttachmentEntityReference::Generic(g) => g.created_at,
+        };
+        references.sort_by_key(|reference| std::cmp::Reverse(created_at(reference)));
 
         Ok(references)
     }

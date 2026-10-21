@@ -795,6 +795,23 @@ pub enum ChannelMessagesErr {
     MessageNotFound(Uuid),
 }
 
+/// Decides whether a viewer may see the entity a comment belongs to, so comment
+/// references are authorized by the parent's own permissions rather than by
+/// channel participation.
+///
+/// Object-safe (`async_trait`) because the service holds it as `Arc<dyn _>`.
+#[async_trait::async_trait]
+pub trait CommentParentAccess: Send + Sync + 'static {
+    /// Whether `viewer` may view the stored parent entity; unknown parent types
+    /// and unparseable viewers are not viewable.
+    async fn can_view_parent(
+        &self,
+        viewer: &str,
+        parent_entity_type: &str,
+        parent_entity_id: &str,
+    ) -> anyhow::Result<bool>;
+}
+
 /// Publisher for realtime channel side-effect commands.
 pub trait ChannelRealtimePublisher: Send + Sync + 'static {
     /// Error type for publishing operations.

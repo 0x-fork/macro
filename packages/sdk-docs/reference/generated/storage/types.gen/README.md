@@ -71,6 +71,7 @@
 - [Answer](type-aliases/Answer.md)
 - [ApiActivity](type-aliases/ApiActivity.md)
 - [ApiAttachmentChannelReference](type-aliases/ApiAttachmentChannelReference.md)
+- [ApiAttachmentCommentReference](type-aliases/ApiAttachmentCommentReference.md)
 - [ApiAttachmentEntityReference](type-aliases/ApiAttachmentEntityReference.md)
 - [ApiAttachmentGenericReference](type-aliases/ApiAttachmentGenericReference.md)
 - [ApiChannelAttachment](type-aliases/ApiChannelAttachment.md)

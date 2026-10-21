@@ -3409,6 +3409,49 @@ export const getAttachmentReferencesResponse = zod
               .describe('Referenced from a channel message.'),
             zod
               .object({
+                attachment_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the mention or attachment row was created.'),
+                message_content: zod
+                  .string()
+                  .describe(
+                    'Full message content (might be used for preview\/snippet).'
+                  ),
+                message_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the message itself was created.'),
+                message_id: zod
+                  .uuid()
+                  .describe('Message that contains the reference.'),
+                parent_entity_id: zod
+                  .string()
+                  .describe('Id of the entity the comment belongs to.'),
+                parent_entity_type: zod
+                  .string()
+                  .describe(
+                    'Stored type of the entity the comment belongs to\n(`document`, `initiative`, `crm_company`, `crm_contact`, or `call`).'
+                  ),
+                sender_id: zod.string().describe('Sender of the message.'),
+                thread_id: zod
+                  .uuid()
+                  .nullish()
+                  .describe(
+                    'If the message belongs to a thread this is the parent id.'
+                  ),
+              })
+              .describe(
+                'A reference to an attachment entity from a comment on a non-channel entity.'
+              )
+              .and(
+                zod.object({
+                  reference_type: zod.enum(['comment']),
+                })
+              )
+              .describe(
+                'Referenced from a comment on a document, initiative, CRM record, or call.'
+              ),
+            zod
+              .object({
                 created_at: zod.iso
                   .datetime({})
                   .describe('When this reference was created.'),

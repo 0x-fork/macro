@@ -556,10 +556,51 @@ export type ApiAttachmentChannelReference = {
 };
 
 /**
+ * A reference to an attachment entity from a comment on a non-channel entity.
+ */
+export type ApiAttachmentCommentReference = {
+    /**
+     * When the mention or attachment row was created.
+     */
+    attachment_created_at: string;
+    /**
+     * Full message content (might be used for preview/snippet).
+     */
+    message_content: string;
+    /**
+     * When the message itself was created.
+     */
+    message_created_at: string;
+    /**
+     * Message that contains the reference.
+     */
+    message_id: string;
+    /**
+     * Id of the entity the comment belongs to.
+     */
+    parent_entity_id: string;
+    /**
+     * Stored type of the entity the comment belongs to
+     * (`document`, `initiative`, `crm_company`, `crm_contact`, or `call`).
+     */
+    parent_entity_type: string;
+    /**
+     * Sender of the message.
+     */
+    sender_id: string;
+    /**
+     * If the message belongs to a thread this is the parent id.
+     */
+    thread_id?: string | null;
+};
+
+/**
  * An attachment reference, tagged by source kind.
  */
 export type ApiAttachmentEntityReference = (ApiAttachmentChannelReference & {
     reference_type: 'channel';
+}) | (ApiAttachmentCommentReference & {
+    reference_type: 'comment';
 }) | (ApiAttachmentGenericReference & {
     reference_type: 'generic';
 });

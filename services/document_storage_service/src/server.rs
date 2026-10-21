@@ -1217,6 +1217,11 @@ pub async fn run() -> anyhow::Result<()> {
             outbound::agent_dm_authorizer::BotServiceDmAuthorizer(bots_service.clone()),
             SpawnedChannelEventDispatcher::new(channel_side_effects.clone()),
         )))
+        .with_comment_parent_access(Arc::new(
+            channels::outbound::entity_access_comment_parents::EntityAccessCommentParents::new(
+                entity_access_service.clone(),
+            ),
+        ))
         .with_picture_files(
             channels::outbound::static_file_pictures::StaticFileChannelPictures::new(
                 static_file_service_client::StaticFileServiceClient::new(

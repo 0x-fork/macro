@@ -314,6 +314,18 @@ impl ChannelService for MockService {
                     attachment_created_at: now,
                 },
             ),
+            crate::domain::models::AttachmentEntityReference::Comment(
+                crate::domain::models::AttachmentCommentReference {
+                    parent_entity_type: "initiative".to_string(),
+                    parent_entity_id: "00000000-0000-0000-0000-0000000000a1".to_string(),
+                    message_id: Uuid::new_v4(),
+                    thread_id: None,
+                    sender_id: "macro|user@example.com".to_string(),
+                    message_content: "discussed here".to_string(),
+                    message_created_at: now,
+                    attachment_created_at: now,
+                },
+            ),
             crate::domain::models::AttachmentEntityReference::Generic(
                 crate::domain::models::AttachmentGenericReference {
                     source_entity_type: "doc".to_string(),
@@ -1298,12 +1310,19 @@ async fn attachment_references_returns_tagged_references() {
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
     let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     let references = json["references"].as_array().unwrap();
-    assert_eq!(references.len(), 2);
+    assert_eq!(references.len(), 3);
     assert_eq!(references[0]["reference_type"], "channel");
     assert_eq!(references[0]["message_content"], "look at this");
-    assert_eq!(references[1]["reference_type"], "generic");
-    assert_eq!(references[1]["entity_id"], "doc1");
-    assert_eq!(references[1]["source_entity_type"], "doc");
+    assert_eq!(references[1]["reference_type"], "comment");
+    assert_eq!(references[1]["parent_entity_type"], "initiative");
+    assert_eq!(
+        references[1]["parent_entity_id"],
+        "00000000-0000-0000-0000-0000000000a1"
+    );
+    assert_eq!(references[1]["message_content"], "discussed here");
+    assert_eq!(references[2]["reference_type"], "generic");
+    assert_eq!(references[2]["entity_id"], "doc1");
+    assert_eq!(references[2]["source_entity_type"], "doc");
 }
 
 // --- Access control tests ---
