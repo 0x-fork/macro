@@ -221,6 +221,17 @@ impl CalendarMutationService for MockMutations {
         Ok(sample_event(Vec::new()))
     }
 
+    async fn invite_guests(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+        _guests: Vec<CalendarAttendeeInput>,
+        _scope: CalendarUpdateScope,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("the toolset adds guests through update_event")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,

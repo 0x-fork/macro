@@ -1510,6 +1510,59 @@ async fn guest_policy_follows_the_canonical_copy(pool: PgPool) {
     );
 }
 
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_refused_invite_switches_off_guest_invites_on_the_entity_and_every_copy(pool: PgPool) {
+    let owner_id = "macro|calendar-refused@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link_id).await;
+    let event_id = repo
+        .upsert_event_fixture(timed_upsert(
+            owner_id,
+            link_id,
+            provider,
+            "refused@example.com",
+            "Planning",
+            1,
+        ))
+        .await
+        .unwrap();
+
+    repo.disable_guest_invites(event_id).await.unwrap();
+
+    let entity = sqlx::query!(
+        r#"
+        SELECT guests_can_modify, guests_can_invite_others, guests_can_see_other_guests
+        FROM calendar_events
+        WHERE id = $1
+        "#,
+        event_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!entity.guests_can_invite_others);
+    assert!(!entity.guests_can_modify);
+    assert!(entity.guests_can_see_other_guests);
+    let stored = sqlx::query_scalar!(
+        "SELECT normalized_payload FROM calendar_event_sources WHERE event_id = $1",
+        event_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let projection: StoredSourceProjection = serde_json::from_value(stored).unwrap();
+    assert_eq!(
+        projection.event.guest_policy,
+        GuestPolicy {
+            can_modify: false,
+            can_invite_others: false,
+            can_see_other_guests: true,
+        },
+        "a restore from this copy keeps the refusal"
+    );
+}
+
 /// A Google out-of-office auto-decline records the decline on the exception
 /// instance and never on the series master, so the occurrence carrying that
 /// exception must project the exception's attendees while its siblings keep

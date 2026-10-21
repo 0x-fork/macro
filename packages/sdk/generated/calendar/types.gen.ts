@@ -331,6 +331,20 @@ export type CalendarEventSourceContent = {
 };
 
 /**
+ * A guest added to an event.
+ */
+export type CalendarGuestInputBody = {
+    /**
+     * Guest email address.
+     */
+    email: string;
+    /**
+     * Whether attendance is optional.
+     */
+    optional?: boolean;
+};
+
+/**
  * HTTP error body returned by calendar mutation endpoints.
  */
 export type CalendarMutationApiError = {
@@ -347,7 +361,7 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'guests_cannot_invite' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
 
 /**
  * Provider selected from the persisted calendar account and email binding.
@@ -600,6 +614,27 @@ export type GuestPolicy = {
      * Whether guests may see the guest list.
      */
     canSeeOtherGuests: boolean;
+};
+
+/**
+ * Request body adding guests to an event without touching anyone already
+ * invited.
+ */
+export type InviteCalendarEventGuestsRequest = {
+    /**
+     * Calendar whose copy of the event is written, for an event synced from
+     * more than one calendar. Omit to write the canonical copy.
+     */
+    calendarId?: string | null;
+    /**
+     * Guests to add; anyone already on the event is skipped.
+     */
+    guests: Array<CalendarGuestInputBody>;
+    /**
+     * Original-start key of the occurrence the guests are added to.
+     */
+    recurrenceId?: string | null;
+    scope?: null | CalendarUpdateScopeParam;
 };
 
 /**
@@ -1049,6 +1084,56 @@ export type UpdateCalendarEventResponses = {
 };
 
 export type UpdateCalendarEventResponse = UpdateCalendarEventResponses[keyof UpdateCalendarEventResponses];
+
+export type InviteCalendarEventGuestsData = {
+    body: InviteCalendarEventGuestsRequest;
+    path: {
+        /**
+         * Calendar event entity id
+         */
+        event_id: string;
+    };
+    query?: never;
+    url: '/events/{event_id}/guests';
+};
+
+export type InviteCalendarEventGuestsErrors = {
+    /**
+     * Invalid guests or scope
+     */
+    400: CalendarMutationApiError;
+    /**
+     * Authentication required
+     */
+    401: unknown;
+    /**
+     * Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization
+     */
+    403: CalendarMutationApiError;
+    /**
+     * Event or occurrence not found
+     */
+    404: CalendarMutationApiError;
+    /**
+     * The connected account neither organizes nor attends the event
+     */
+    409: CalendarMutationApiError;
+    /**
+     * Transient provider failure
+     */
+    503: CalendarMutationApiError;
+};
+
+export type InviteCalendarEventGuestsError = InviteCalendarEventGuestsErrors[keyof InviteCalendarEventGuestsErrors];
+
+export type InviteCalendarEventGuestsResponses = {
+    /**
+     * The updated calendar event
+     */
+    200: CalendarEvent;
+};
+
+export type InviteCalendarEventGuestsResponse = InviteCalendarEventGuestsResponses[keyof InviteCalendarEventGuestsResponses];
 
 export type CalendarEventProviderUrlData = {
     body?: never;

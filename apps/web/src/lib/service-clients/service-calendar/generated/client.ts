@@ -14,6 +14,7 @@ import type {
   CalendarReplacementView,
   CreateCalendarEventRequest,
   DeleteCalendarEventParams,
+  InviteCalendarEventGuestsRequest,
   ListCalendarsResponse,
   PrepareCalendarReplacementRequest,
   RsvpCalendarEventRequest,
@@ -412,6 +413,93 @@ export const updateCalendarEvent = async (
     status: res.status,
     headers: res.headers,
   } as updateCalendarEventResponse;
+};
+
+/**
+ * @summary Add guests to a calendar event without touching anyone already invited,
+and return its synced entity. The organizer, and guests the organizer lets
+invite others, may call it; Google emails the new guests.
+ */
+export type inviteCalendarEventGuestsResponse200 = {
+  data: CalendarEvent;
+  status: 200;
+};
+
+export type inviteCalendarEventGuestsResponse400 = {
+  data: CalendarMutationApiError;
+  status: 400;
+};
+
+export type inviteCalendarEventGuestsResponse401 = {
+  data: void;
+  status: 401;
+};
+
+export type inviteCalendarEventGuestsResponse403 = {
+  data: CalendarMutationApiError;
+  status: 403;
+};
+
+export type inviteCalendarEventGuestsResponse404 = {
+  data: CalendarMutationApiError;
+  status: 404;
+};
+
+export type inviteCalendarEventGuestsResponse409 = {
+  data: CalendarMutationApiError;
+  status: 409;
+};
+
+export type inviteCalendarEventGuestsResponse503 = {
+  data: CalendarMutationApiError;
+  status: 503;
+};
+
+export type inviteCalendarEventGuestsResponseSuccess =
+  inviteCalendarEventGuestsResponse200 & {
+    headers: Headers;
+  };
+export type inviteCalendarEventGuestsResponseError = (
+  | inviteCalendarEventGuestsResponse400
+  | inviteCalendarEventGuestsResponse401
+  | inviteCalendarEventGuestsResponse403
+  | inviteCalendarEventGuestsResponse404
+  | inviteCalendarEventGuestsResponse409
+  | inviteCalendarEventGuestsResponse503
+) & {
+  headers: Headers;
+};
+
+export type inviteCalendarEventGuestsResponse =
+  | inviteCalendarEventGuestsResponseSuccess
+  | inviteCalendarEventGuestsResponseError;
+
+export const getInviteCalendarEventGuestsUrl = (eventId: string) => {
+  return `/events/${eventId}/guests`;
+};
+
+export const inviteCalendarEventGuests = async (
+  eventId: string,
+  inviteCalendarEventGuestsRequest: InviteCalendarEventGuestsRequest,
+  options?: RequestInit
+): Promise<inviteCalendarEventGuestsResponse> => {
+  const res = await fetch(getInviteCalendarEventGuestsUrl(eventId), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(inviteCalendarEventGuestsRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: inviteCalendarEventGuestsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as inviteCalendarEventGuestsResponse;
 };
 
 /**

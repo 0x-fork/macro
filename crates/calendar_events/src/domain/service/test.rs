@@ -143,6 +143,10 @@ impl CalendarRepository for FakeRepo {
         unreachable!("mutation lookups are not exercised by sync tests")
     }
 
+    async fn disable_guest_invites(&self, _event_id: Uuid) -> Result<(), Report> {
+        unreachable!("mutation writes are not exercised by sync tests")
+    }
+
     async fn get_creation_target(
         &self,
         _requester_id: &str,

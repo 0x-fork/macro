@@ -18,6 +18,7 @@ export const CalendarMutationErrorCode = {
   read_only: 'read_only',
   no_writable_calendar: 'no_writable_calendar',
   not_attendee: 'not_attendee',
+  guests_cannot_invite: 'guests_cannot_invite',
   invalid_input: 'invalid_input',
   reauth_required: 'reauth_required',
   provider_rejected: 'provider_rejected',

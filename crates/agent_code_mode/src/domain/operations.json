@@ -151,6 +151,7 @@
   "calendar.createCalendarEvent": "Create Calendar Event",
   "calendar.deleteCalendarEvent": "Delete Calendar Event",
   "calendar.updateCalendarEvent": "Update Calendar Event",
+  "calendar.inviteCalendarEventGuests": "Invite Calendar Event Guests",
   "calendar.calendarEventProviderUrl": "Calendar Event Provider Url",
   "calendar.prepareCalendarReplacement": "Prepare Calendar Replacement",
   "calendar.rsvpCalendarEvent": "Rsvp Calendar Event",

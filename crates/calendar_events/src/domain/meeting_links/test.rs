@@ -4,9 +4,9 @@ use chrono::{NaiveDate, TimeZone, Utc};
 
 use super::*;
 use crate::domain::models::{
-    AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, EventReminders, EventStatus,
-    EventTransparency, EventType, EventVisibility, GuestPolicy, OutOfOfficeProperties,
-    ViewerCapabilities, VisibleCalendar,
+    AttendeeResponseStatus, CalendarAttendeeInput, CalendarEventPatch, ConferenceChange,
+    EventReminders, EventStatus, EventTransparency, EventType, EventVisibility, GuestPolicy,
+    OutOfOfficeProperties, ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarRsvpScope, CalendarUpdateScope, UnavailableMeetingLinks,
@@ -140,6 +140,17 @@ impl CalendarMutationService for FakeMutations {
         _responding_email: Option<String>,
     ) -> Result<CalendarEvent, CalendarMutationError> {
         unreachable!("creating with a Macro call answers no invitation")
+    }
+
+    async fn invite_guests(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+        _guests: Vec<CalendarAttendeeInput>,
+        _scope: CalendarUpdateScope,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("creating with a Macro call invites no one afterwards")
     }
 
     async fn disconnect_calendar(

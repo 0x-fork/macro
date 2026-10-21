@@ -3,6 +3,7 @@ import type {
   CalendarAttendeeInputBody,
   CalendarDeletionScopeParam,
   CalendarEvent as CalendarEventRecord,
+  CalendarGuestInputBody,
   CalendarRsvpScopeParam,
   CalendarUpdateScopeParam,
   ConferenceChange,
@@ -65,6 +66,20 @@ export interface DeleteEventOptions {
   recurrenceId?: string;
   /** Calendar whose copy of the event is deleted, for a multi-calendar event.
    * Omit to delete the canonical copy. */
+  calendar?: Calendar;
+}
+
+/** Guests to add and how much of a recurring series gains them. */
+export interface InviteGuestsOptions {
+  /** Guests to add; anyone already on the event is skipped. */
+  guests: CalendarGuestInputBody[];
+  /** How much of a recurring series gains the guests. Omit to let
+   * `recurrenceId` decide. */
+  scope?: CalendarUpdateScopeParam;
+  /** Original-start key of the occurrence the guests are added to. */
+  recurrenceId?: string;
+  /** Calendar whose copy of the event is written, for a multi-calendar event.
+   * Omit to write the canonical copy. */
   calendar?: Calendar;
 }
 
@@ -240,6 +255,25 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
       }),
     );
     return result.url ?? undefined;
+  }
+
+  /** Add guests without touching anyone already invited, and return a handle
+   * to the synced record. The organizer may, and so may a guest the organizer
+   * lets invite others (see {@link CalendarEvent.viewerCan}); Google emails
+   * the new guests. */
+  async inviteGuests(options: InviteGuestsOptions): Promise<CalendarEvent> {
+    const record = await this.mutate((client) =>
+      client.calendar.inviteCalendarEventGuests({
+        path: { event_id: this.id },
+        body: {
+          guests: options.guests,
+          scope: options.scope,
+          recurrenceId: options.recurrenceId,
+          calendarId: options.calendar?.id,
+        },
+      }),
+    );
+    return CalendarEvent.fromRecord(this.client, record);
   }
 
   /** The event as an iCalendar (`.ics`) document: its series, title,

@@ -514,6 +514,69 @@ impl RespondToCalendarEventInput {
     }
 }
 
+/// A guest to add to an event.
+#[derive(InputObject, Clone, Debug)]
+pub struct CalendarGuestInput {
+    /// Guest email address.
+    pub email: String,
+    /// Whether attendance is optional.
+    #[graphql(default)]
+    pub optional: bool,
+}
+
+impl From<CalendarGuestInput> for CalendarAttendeeInput {
+    fn from(input: CalendarGuestInput) -> Self {
+        Self {
+            email: input.email,
+            is_optional: input.optional,
+            response_status: None,
+        }
+    }
+}
+
+/// Add guests to an event without touching anyone already invited.
+#[derive(InputObject, Clone, Debug)]
+pub struct InviteCalendarEventGuestsInput {
+    /// Event to add guests to.
+    pub event_id: ID,
+    /// Calendar whose copy of the event is written, for an event synced from
+    /// more than one calendar. Omit to write the canonical copy.
+    pub calendar_id: Option<ID>,
+    /// Guests to add; anyone already on the event is skipped.
+    pub guests: Vec<CalendarGuestInput>,
+    /// How much of a recurring series gains the guests.
+    pub scope: GraphqlCalendarUpdateScope,
+    /// Original-start key of the occurrence; required with `THIS_EVENT`.
+    pub recurrence_id: Option<String>,
+}
+
+pub(crate) struct InviteRequest {
+    pub(crate) event_id: Uuid,
+    pub(crate) calendar_id: Option<Uuid>,
+    pub(crate) guests: Vec<CalendarAttendeeInput>,
+    pub(crate) scope: CalendarUpdateScope,
+}
+
+impl InviteCalendarEventGuestsInput {
+    pub(crate) fn into_request(self) -> async_graphql::Result<InviteRequest> {
+        let scope = match (self.scope, self.recurrence_id) {
+            (GraphqlCalendarUpdateScope::All, _) => CalendarUpdateScope::All,
+            (GraphqlCalendarUpdateScope::ThisEvent, Some(recurrence_id)) => {
+                CalendarUpdateScope::ThisEvent { recurrence_id }
+            }
+            (GraphqlCalendarUpdateScope::ThisEvent, None) => {
+                return Err(bad_input("a this-event invite requires recurrenceId"));
+            }
+        };
+        Ok(InviteRequest {
+            event_id: parse_id(self.event_id, "eventId")?,
+            calendar_id: optional_id(self.calendar_id, "calendarId")?,
+            guests: self.guests.into_iter().map(Into::into).collect(),
+            scope,
+        })
+    }
+}
+
 fn optional_id(id: Option<ID>, field: &str) -> async_graphql::Result<Option<Uuid>> {
     id.map(|id| parse_id(id, field)).transpose()
 }

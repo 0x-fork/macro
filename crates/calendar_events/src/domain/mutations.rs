@@ -7,6 +7,7 @@
 //! no-ops on the idempotency short-circuit.
 
 use std::collections::HashMap;
+mod invite;
 mod replacement;
 
 use chrono::Utc;
@@ -26,7 +27,8 @@ use super::{
         CalendarMutationProvider, CalendarMutationService, CalendarProviderError,
         CalendarProviderErrorKind, CalendarRefreshNotifier, CalendarRepository, CalendarRsvpScope,
         CalendarTokenError, CalendarUpdateScope, ProviderInstanceUpdateOutcome,
-        ProviderRsvpOutcome, ProviderSeriesMutationOutcome, RetiredCalendarEvent,
+        ProviderInviteOutcome, ProviderRsvpOutcome, ProviderSeriesMutationOutcome,
+        RetiredCalendarEvent,
     },
 };
 use crate::domain::events::{CalendarEventMetadata, CalendarMacroEvent, CalendarTopicEvent};
@@ -326,25 +328,39 @@ where
         }
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, patch.conference)?;
-        if let Some(attendees) = patch.attendees.as_mut() {
-            // The series attendees are the baseline; an occurrence-scoped patch
-            // overlays that occurrence's overrides on top, so a retained guest's
+        if let Some(mut attendees) = patch.attendees.take() {
+            // The stored list is the baseline — an occurrence's own list when
+            // an occurrence-scoped patch addresses one — so a retained guest's
             // per-instance RSVP wins over their series status.
-            let mut stored = self
-                .repository
-                .get_event_attendees(event_id)
-                .await
-                .map_err(internal)?;
-            if let CalendarUpdateScope::ThisEvent { recurrence_id } = &scope
-                && let Some(overrides) = self
-                    .repository
-                    .get_occurrence_override_attendees(event_id, recurrence_id)
-                    .await
-                    .map_err(internal)?
-            {
-                stored.extend(overrides);
+            let stored = self.stored_attendees(event_id, &scope).await?;
+            if invite::copy_capabilities(&target, &stored).remove_guests {
+                preserve_retained_attendee_state(&mut attendees, &stored);
+                patch.attendees = Some(attendees);
+            } else {
+                // Google refuses a replacement list from a guest, and a guest's
+                // copy can hide part of it, so a guest only adds, through the
+                // partial patch the invite path writes.
+                let additions =
+                    invite::guest_list_additions(attendees, &stored, target.actor.as_ref())?;
+                if !additions.is_empty() {
+                    let invited = self
+                        .invite_guests(
+                            requester_id,
+                            event_id,
+                            calendar_id,
+                            additions,
+                            scope.clone(),
+                        )
+                        .await?;
+                    if patch.is_empty() {
+                        return Ok(invited);
+                    }
+                } else if patch.is_empty() {
+                    return Err(CalendarMutationError::InvalidInput(
+                        "the patch changes nothing".to_string(),
+                    ));
+                }
             }
-            preserve_retained_attendee_state(attendees, &stored);
         }
         let access_token = self.fetch_token(&target.token_identity).await?;
         let google_target =
@@ -552,6 +568,35 @@ where
                 Err(CalendarMutationError::NotFound)
             }
         }
+    }
+
+    #[tracing::instrument(
+        name = "calendar.invite_guests",
+        skip(self, requester_id, guests, scope),
+        fields(
+            event_id = %event_id,
+            guest_count = guests.len(),
+            scope = match &scope {
+                CalendarUpdateScope::All => "all",
+                CalendarUpdateScope::ThisEvent { .. } => "this_event",
+            },
+            outcome = tracing::field::Empty,
+        ),
+        err
+    )]
+    async fn invite_guests(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
+        guests: Vec<CalendarAttendeeInput>,
+        scope: CalendarUpdateScope,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        let result = self
+            .add_guests(requester_id, event_id, calendar_id, guests, scope)
+            .await;
+        tracing::Span::current().record("outcome", invite::invite_outcome(&result));
+        result
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]

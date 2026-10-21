@@ -206,6 +206,42 @@ impl<G: CalendarMutationProvider, O: CalendarMutationProvider> CalendarMutationP
             }
         }
     }
+    async fn add_attendees(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        master_provider_event_id: &str,
+        actor: &ActorInboxes,
+        guests: &[CalendarAttendeeInput],
+        scope: &CalendarUpdateScope,
+    ) -> Result<ProviderInviteOutcome, CalendarProviderError> {
+        match target.provider {
+            CalendarProvider::Google => {
+                self.google
+                    .add_attendees(
+                        access_token,
+                        target,
+                        master_provider_event_id,
+                        actor,
+                        guests,
+                        scope,
+                    )
+                    .await
+            }
+            CalendarProvider::Outlook => {
+                self.outlook
+                    .add_attendees(
+                        access_token,
+                        target,
+                        master_provider_event_id,
+                        actor,
+                        guests,
+                        scope,
+                    )
+                    .await
+            }
+        }
+    }
     async fn stop_watch_channel(
         &self,
         access_token: &str,

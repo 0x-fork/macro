@@ -2035,6 +2035,10 @@ impl CalendarRepository for PgCalendarRepository {
             SELECT
                 event.id AS event_id,
                 event.owner_id,
+                event.organizer_email,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 source.is_read_only,
                 source.provider_event_id AS "provider_event_id!",
                 source.provider_recurring_event_id,
@@ -2112,7 +2116,60 @@ impl CalendarRepository for PgCalendarRepository {
             observed_access_role: row.access_role,
             token_identity,
             actor,
+            organizer_email: row.organizer_email,
+            guest_policy: GuestPolicy {
+                can_modify: row.guests_can_modify,
+                can_invite_others: row.guests_can_invite_others,
+                can_see_other_guests: row.guests_can_see_other_guests,
+            },
         }))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn disable_guest_invites(&self, event_id: Uuid) -> Result<(), Report> {
+        let mut tx = self.pool.begin().await.map_err(report)?;
+        let event = sqlx::query!(
+            r#"
+            UPDATE calendar_events
+            SET guests_can_invite_others = false
+            WHERE id = $1
+            RETURNING source_link_id, guests_can_modify, guests_can_see_other_guests
+            "#,
+            event_id,
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(report)?;
+        let Some(event) = event else {
+            return Ok(());
+        };
+        // Each copy's stored projection carries the policy too, so a restore
+        // from another copy cannot bring the stale switch back.
+        let policy = serde_json::to_value(GuestPolicy {
+            can_modify: event.guests_can_modify,
+            can_invite_others: false,
+            can_see_other_guests: event.guests_can_see_other_guests,
+        })
+        .map_err(report)?;
+        sqlx::query!(
+            r#"
+            UPDATE calendar_event_sources
+            SET normalized_payload = jsonb_set(normalized_payload, '{event,guestPolicy}', $2)
+            WHERE event_id = $1
+              AND normalized_payload ? 'event'
+            "#,
+            event_id,
+            policy,
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(report)?;
+        let mut log = ChangeLogBatch::default();
+        log.record(
+            event.source_link_id,
+            CalendarChangeOp::UpsertEvent(event_id),
+        );
+        log.commit(tx).await
     }
 
     #[tracing::instrument(skip(self), err)]

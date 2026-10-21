@@ -887,6 +887,20 @@ impl CalendarMutationProvider for OutlookApiClientRepository {
             echo.event,
         )))
     }
+    async fn add_attendees(
+        &self,
+        _token: &str,
+        _target: &ProviderCalendarTarget,
+        _master: &str,
+        _actor: &ActorInboxes,
+        _guests: &[CalendarAttendeeInput],
+        _scope: &CalendarUpdateScope,
+    ) -> Result<ProviderInviteOutcome, CalendarProviderError> {
+        Err(unsupported(
+            "Microsoft Graph has no partial attendee write; an Outlook organizer adds guests by \
+             updating the attendee list",
+        ))
+    }
     async fn stop_watch_channel(
         &self,
         _token: &str,

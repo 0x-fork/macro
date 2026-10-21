@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::models::{ActorInboxes, CalendarEvent, EventStatus};
+use super::models::{ActorInboxes, CalendarAttendee, CalendarEvent, EventStatus};
 
 /// The switches an organizer sets on an event to bound what its guests may
 /// do. Google omits a switch from the payload while it holds its default.
@@ -37,6 +37,20 @@ impl GuestPolicy {
     pub fn is_default(&self) -> bool {
         *self == Self::default()
     }
+}
+
+/// The facts about one copy of an event that decide what an actor may do
+/// with it.
+#[derive(Clone, Copy, Debug)]
+pub struct EventAccess<'a> {
+    /// Whether the copy's calendar prohibits editing it.
+    pub is_read_only: bool,
+    /// The organizer's email.
+    pub organizer_email: Option<&'a str>,
+    /// The guest list the actor's relation is read from.
+    pub attendees: &'a [CalendarAttendee],
+    /// What the organizer lets guests do.
+    pub guest_policy: GuestPolicy,
 }
 
 /// What the viewing requester may do with an event.
@@ -83,22 +97,38 @@ impl ViewerCapabilities {
     /// else's projection, may do nothing. Answering always needs the actor's
     /// own attendee row, since that is the row the answer is written to.
     pub fn for_event(event: &CalendarEvent, actor: &ActorInboxes) -> Self {
-        if event.is_read_only || event.status == EventStatus::Cancelled {
+        if event.status == EventStatus::Cancelled {
             return Self::NONE;
         }
-        let is_guest = event
+        Self::for_access(
+            EventAccess {
+                is_read_only: event.is_read_only,
+                organizer_email: event.organizer_email.as_deref(),
+                attendees: &event.attendees,
+                guest_policy: event.guest_policy,
+            },
+            actor,
+        )
+    }
+
+    /// Resolve what `actor` may do with a live copy of an event; see
+    /// [`Self::for_event`].
+    pub fn for_access(access: EventAccess<'_>, actor: &ActorInboxes) -> Self {
+        if access.is_read_only {
+            return Self::NONE;
+        }
+        let is_guest = access
             .attendees
             .iter()
             .any(|attendee| actor.matches(&attendee.email));
-        let is_organizer = event
+        let is_organizer = access
             .organizer_email
-            .as_deref()
             .is_some_and(|email| actor.matches(email))
-            || event
+            || access
                 .attendees
                 .iter()
                 .any(|attendee| attendee.is_organizer && actor.matches(&attendee.email));
-        if is_organizer || event.attendees.is_empty() {
+        if is_organizer || access.attendees.is_empty() {
             return Self {
                 edit_details: true,
                 invite_guests: true,
@@ -110,7 +140,7 @@ impl ViewerCapabilities {
         if !is_guest {
             return Self::NONE;
         }
-        let policy = event.guest_policy;
+        let policy = access.guest_policy;
         Self {
             edit_details: policy.can_modify,
             invite_guests: policy.can_modify || policy.can_invite_others,

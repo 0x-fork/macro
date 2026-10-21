@@ -23,6 +23,7 @@ use utoipa::OpenApi;
         calendar_events::inbound::mutation_router::update_calendar_event,
         calendar_events::inbound::mutation_router::delete_calendar_event,
         calendar_events::inbound::mutation_router::rsvp_calendar_event,
+        calendar_events::inbound::mutation_router::invite_calendar_event_guests,
     ),
     components(schemas(
         calendar_events::inbound::team_router::TeamCalendarSharingBody,
@@ -35,6 +36,8 @@ use utoipa::OpenApi;
         calendar_events::domain::models::VisibleCalendar,
         calendar_events::inbound::mutation_router::UpdateCalendarEventRequest,
         calendar_events::inbound::mutation_router::RsvpCalendarEventRequest,
+        calendar_events::inbound::mutation_router::InviteCalendarEventGuestsRequest,
+        calendar_events::inbound::mutation_router::CalendarGuestInputBody,
         calendar_events::inbound::mutation_router::CalendarAttendeeInputBody,
         calendar_events::inbound::mutation_router::CalendarMutationApiError,
         calendar_events::inbound::mutation_router::CalendarMutationErrorCode,

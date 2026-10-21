@@ -1379,6 +1379,10 @@ pub struct CalendarEventMutationTarget {
     pub token_identity: CalendarLinkTokenIdentity,
     /// The clicker's owned inboxes. `None` when they own none.
     pub actor: Option<ActorInboxes>,
+    /// Organizer email stored on the entity.
+    pub organizer_email: Option<String>,
+    /// What the organizer lets guests do, as stored on the entity.
+    pub guest_policy: GuestPolicy,
 }
 
 impl CalendarEventMutationTarget {

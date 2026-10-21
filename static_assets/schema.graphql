@@ -77,6 +77,20 @@ input CalendarEventTimeInput @oneOf {
 }
 
 """
+A guest to add to an event.
+"""
+input CalendarGuestInput {
+	"""
+	Guest email address.
+	"""
+	email: String!
+	"""
+	Whether attendance is optional.
+	"""
+	optional: Boolean! = false
+}
+
+"""
 How far the client has applied one connected inbox's change log.
 """
 input CalendarLinkWatermarkInput {
@@ -342,6 +356,12 @@ type CompleteMutationRoot {
 	Set the viewer's RSVP on an event, the whole series or one occurrence.
 	"""
 	respondToCalendarEvent(input: RespondToCalendarEventInput!): GraphqlCalendarMutationPayload!
+	"""
+	Add guests to an event, the whole series or one occurrence, without
+	touching anyone already invited. The organizer may, and so may a
+	guest the organizer lets invite others; Google emails the new guests.
+	"""
+	inviteCalendarEventGuests(input: InviteCalendarEventGuestsInput!): GraphqlCalendarMutationPayload!
 	"""
 	Mark work feed items done for the authenticated user: acknowledge the
 	notifications each entry showed and archive inbox email.
@@ -9316,6 +9336,33 @@ type InitiativeTasksPage {
 	Total tasks visible to this viewer.
 	"""
 	total: Int!
+}
+
+"""
+Add guests to an event without touching anyone already invited.
+"""
+input InviteCalendarEventGuestsInput {
+	"""
+	Event to add guests to.
+	"""
+	eventId: ID!
+	"""
+	Calendar whose copy of the event is written, for an event synced from
+	more than one calendar. Omit to write the canonical copy.
+	"""
+	calendarId: ID
+	"""
+	Guests to add; anyone already on the event is skipped.
+	"""
+	guests: [CalendarGuestInput!]!
+	"""
+	How much of a recurring series gains the guests.
+	"""
+	scope: GraphqlCalendarUpdateScope!
+	"""
+	Original-start key of the occurrence; required with `THIS_EVENT`.
+	"""
+	recurrenceId: String
 }
 
 """

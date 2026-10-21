@@ -58,6 +58,10 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   occurrence projections, not separate events — don't model them as new entities.
 - Imported point (non-recurring) events must survive sync and cache round-trips
   unchanged (#7762) — a regression here silently drops user events.
+- Only an organizer (or a guest the organizer lets modify) may replace an
+  event's attendee list. Everyone else adds guests through `invite_guests`, a
+  partial `attendeesOmitted` patch (`src/domain/mutations/invite.rs`); a guest's
+  `update_event` attendees are routed there and removals are refused.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` wherever a read path marks the viewer, and never
   store it. `guest_policy` is stored on the entity row (the canonical copy's
