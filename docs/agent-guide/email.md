@@ -116,6 +116,15 @@ while selected tag sets are pending. Background refreshes retain the current lis
 rapidly alternate Signal, Noise, and Sent, then change inboxes; a delayed cache or
 network read must not leave the old rows visible or expose their Load more action.
 
+For native offline reads, let the GraphQL email backfill finish, block dev-service
+traffic, terminate the app, and relaunch it. Open Mail and a backfilled thread:
+cached rows and message bodies must remain visible while REST inbox identity and
+mailbox-operation requests are pending or paused. Restore connectivity and check
+that supplemental metadata appears without replacing the rows or thread body.
+On the first mobile Mail visit, its filter button and Signal/Noise pills must
+also appear. Navigate Home → Mail → a thread → Mail and verify those controls
+survive header replacement, including with the network still blocked.
+
 Opening an email shows loading while its local draft identity and thread data
 resolve. Verify a cold open and switching directly between threads with delayed
 cache reads: neither should flash "Sorry, an unexpected error has occurred" or
