@@ -922,6 +922,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ai_billing_cli"
+version = "0.1.0"
+dependencies = [
+ "ai_billing",
+ "clap",
+ "macro_env_var",
+ "macro_user_id",
+ "macro_uuid",
+ "rootcause",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
 name = "ai_engine"
 version = "0.1.0"
 dependencies = [

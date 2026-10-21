@@ -176,6 +176,7 @@ members = [
   "services/worker_trigger",
   "tooling/native_app_server",
   "tooling/notification_sandbox",
+  "tooling/ai_billing_cli",
   "tooling/seed_cli",
   "tooling/xtask",
   "tooling/xtask/crates/*",
