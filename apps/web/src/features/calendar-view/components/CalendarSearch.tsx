@@ -8,7 +8,10 @@ import {
 } from '@app/features/calendar/types';
 import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { isCalendarRangeSupported } from '@app/features/calendar/utils/calendar-supported-range';
-import { safeConferenceUrl } from '@app/features/calendar/utils/conference-link';
+import {
+  conferenceJoinUrl,
+  safeConferenceUrl,
+} from '@app/features/calendar/utils/conference-link';
 import {
   calendarMacroCallUrl,
   macroCallUrl,
@@ -92,6 +95,7 @@ type CalendarMeetingLink = {
 
 type CalendarSearchEventDetails = {
   conferenceUrl?: string;
+  accountEmail?: string;
   description?: string;
   location?: string;
 };
@@ -478,6 +482,7 @@ function CalendarSearchControl(props: {
       });
       byOccurrence.set(searchEventKey(event.eventId, event.occurrenceKey), {
         conferenceUrl: event.conferenceUrl,
+        accountEmail: event.calendar.emailAddress,
         description: event.description,
         location: event.location,
       });
@@ -922,7 +927,13 @@ function CalendarSearchControl(props: {
                                             : 'bg-hover text-ink not-touch:not-disabled:hover:bg-active not-touch:not-disabled:hover:text-ink'
                                         )}
                                         onClick={() =>
-                                          openExternalUrl(link().url)
+                                          openExternalUrl(
+                                            conferenceJoinUrl(
+                                              link().url,
+                                              detailsForEvent(event)
+                                                ?.accountEmail
+                                            )
+                                          )
                                         }
                                       >
                                         <VideoCameraIcon class="size-3.5" />

@@ -51,7 +51,7 @@ import {
   parseMacroAppLink,
   sanitizeCalendarDescription,
 } from '../utils/calendar-description';
-import { safeConferenceUrl } from '../utils/conference-link';
+import { conferenceJoinUrl, safeConferenceUrl } from '../utils/conference-link';
 import {
   type CalendarPerson,
   eventAttribution,
@@ -601,7 +601,11 @@ export function EventDetails(props: {
                 variant="ghost"
                 size="sm"
                 class="h-8 min-w-0 bg-hover text-ink not-touch:not-disabled:hover:bg-active [&_svg]:size-3.5!"
-                onClick={() => openExternalUrl(url())}
+                onClick={() =>
+                  openExternalUrl(
+                    conferenceJoinUrl(url(), props.event.calendar.emailAddress)
+                  )
+                }
               >
                 {conferenceLabel()}
                 <ArrowSquareOutIcon />

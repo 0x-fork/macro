@@ -11,6 +11,14 @@ the connected calendar mailbox. Outlook out-of-office automatic replies show an
 uncertainty notice if a provider response cannot be confirmed; a reconnect must
 not resend an already attempted automatic reply.
 
+Google Meet joins from event details, the upcoming-events sidebar, and calendar
+search use the displayed occurrence's connected calendar email as `authuser` when
+that account is known. Existing parameters such as `hs` are preserved. Copied call
+links keep their original URL so they can be shared with other attendees. Verify
+desktop and mobile Join with work and personal Google accounts signed in; a work
+calendar should open Meet with the work account. Search results without loaded
+calendar account metadata and other conferencing providers keep their original URL.
+
 Event composer dropdown triggers and date/time inputs use the theme control
 surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
