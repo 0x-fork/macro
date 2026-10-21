@@ -759,6 +759,11 @@ including properties that do not have a value yet. Click a preview pill to edit 
 opening the task; the property picker keeps the preview open while you make a selection.
 Users with view or comment access see the same pills read-only.
 
+Each GitHub pull request linked to an open task shows a pill beside its property pills
+with the PR's status, title, `owner/repo#N`, and line changes. Clicking it opens the PR in
+Macro in a new split (in place on touch devices); a PR Macro has not synced yet opens on
+GitHub instead.
+
 The Assignees picker offers people and available agents together. Agent rows show
 their name and an `Agent` label; saved agents also show their `@handle`. Search by
 name or handle to find one. Built-in session agents follow the same availability
