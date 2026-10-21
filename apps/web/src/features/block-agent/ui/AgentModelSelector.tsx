@@ -99,7 +99,9 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
       props.options.find((option) => option.id === shown())?.name
     );
   const label = () =>
-    [baseLabel(), props.effortLabel].filter(Boolean).join(' · ');
+    isTouchDevice()
+      ? [baseLabel(), props.effortLabel].filter(Boolean).join(' · ')
+      : baseLabel();
   const options = createMemo(() => withoutRedundantGroups(props.options));
   const toCatalogOption = (option: ModelOption): CatalogModelOption => ({
     id: option.id,
