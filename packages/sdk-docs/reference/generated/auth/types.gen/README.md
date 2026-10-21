@@ -121,6 +121,8 @@
 - [DisconnectCodexResponses](type-aliases/DisconnectCodexResponses.md)
 - [EmailConnectionProviders](type-aliases/EmailConnectionProviders.md)
 - [EmailConnectionProvidersData](type-aliases/EmailConnectionProvidersData.md)
+- [EmailConnectionProvidersError](type-aliases/EmailConnectionProvidersError.md)
+- [EmailConnectionProvidersErrors](type-aliases/EmailConnectionProvidersErrors.md)
 - [EmailConnectionProvidersResponse](type-aliases/EmailConnectionProvidersResponse.md)
 - [EmailConnectionProvidersResponses](type-aliases/EmailConnectionProvidersResponses.md)
 - [EmptyResponse](type-aliases/EmptyResponse.md)
