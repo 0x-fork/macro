@@ -26,6 +26,18 @@ use tool_service::AuthenticatedToolService;
 const AUTH_PROXY_CLEANUP_INTERVAL: Duration = Duration::from_secs(60);
 const EVENT_BROKER_DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// OpenAI domain verification endpoint for ChatGPT Apps Directory submission.
+///
+/// Returns a placeholder token that must be replaced with the actual token
+/// from the OpenAI submission portal. The token should be set via the
+/// `OPENAI_DOMAIN_VERIFICATION_TOKEN` environment variable.
+async fn openai_domain_verification() -> String {
+    use config::OpenaiDomainVerificationToken;
+    OpenaiDomainVerificationToken::new()
+        .and_then(|token| token.value().map(str::to_string))
+        .unwrap_or_else(|| "PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN".to_string())
+}
+
 #[tokio::main]
 #[tracing::instrument(err)]
 async fn main() -> anyhow::Result<()> {
@@ -80,7 +92,11 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let app = mcp_router(context.auth_proxy, context.jwt_args, mcp_service);
+    // Add OpenAI domain verification endpoint to the router
+    let app = mcp_router(context.auth_proxy, context.jwt_args, mcp_service).route(
+        "/.well-known/openai-apps-challenge",
+        axum::routing::get(openai_domain_verification),
+    );
 
     let port = config.port;
     let addr = format!("0.0.0.0:{port}");
