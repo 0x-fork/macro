@@ -114,10 +114,12 @@ export function createGroupedSoupLiveQuery(
       ? { ...common, variables: { input: queryInput }, enabled: true }
       : { ...common, enabled: false as const };
   });
-  const currentInitial = () =>
-    query.data?.inputKey === JSON.stringify(input())
-      ? query.data.data
+  const currentInitial = () => {
+    const initial = query.data;
+    return initial?.inputKey === JSON.stringify(input())
+      ? initial?.data
       : undefined;
+  };
   const continuationScope = () =>
     JSON.stringify([scope(), currentInitial()?.user.id]);
 

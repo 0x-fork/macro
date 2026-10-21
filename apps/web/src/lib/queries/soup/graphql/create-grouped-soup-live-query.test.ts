@@ -125,7 +125,7 @@ function setup() {
   mocks.client.mockReturnValue(client);
   const state = createRoot((dispose) => {
     cleanups.push(dispose);
-    const [input, setInput] = createSignal<GroupedSoupInput>({
+    const [input, setInput] = createSignal<GroupedSoupInput | undefined>({
       initial: {
         sortMethod: 'UPDATED_AT',
         groupBy: {
@@ -190,6 +190,13 @@ const ids = (data: GroupSoupQuery | undefined) =>
   }));
 
 describe('grouped Soup live ownership', () => {
+  it('clears grouping before an initial result without reading missing data', () => {
+    const state = setup();
+    state.setInput(undefined);
+    expect(state.query.data()).toBeUndefined();
+    expect(state.query.paging.hasNextPage('todo')).toBe(false);
+  });
+
   it('moves initial and continuation rows through one maintained query and preserves server pagination', async () => {
     const state = setup();
     state.executions[0].publish(page([groupedDocument('a')]));
