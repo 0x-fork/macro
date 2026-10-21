@@ -20178,7 +20178,7 @@ export const getFormResponse = zod
                 title: zod.string().describe('Its title.'),
               })
               .describe(
-                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
               ),
           ])
           .describe('One section of a form as it reads.')
@@ -20751,7 +20751,7 @@ export const collaborateFormResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -20783,7 +20783,7 @@ export const collaborateFormResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({
@@ -21617,7 +21617,7 @@ export const putFormLayoutResponse = zod
                     title: zod.string().describe('Its title.'),
                   })
                   .describe(
-                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.'
+                    'A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.'
                   ),
               ])
               .describe('One section of a form as it reads.')
@@ -21649,7 +21649,7 @@ export const putFormLayoutResponse = zod
                     kind: zod.enum(['bookingMustBeLast']),
                   })
                   .describe(
-                    'A booking step must be unique and follow all questions and screeners.'
+                    'A booking step must be unique and follow all questions and gates.'
                   ),
                 zod
                   .object({

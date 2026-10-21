@@ -124,7 +124,7 @@ const readForm = createToolRenderer({
                   <p>
                     {section.title ||
                       (section.kind === 'gate'
-                        ? 'Screener'
+                        ? 'Gate'
                         : section.kind === 'booking'
                           ? 'Booking'
                           : 'Questions')}

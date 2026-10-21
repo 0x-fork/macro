@@ -29672,7 +29672,7 @@
           },
           {
             "type": "object",
-            "description": "A booking step. Its destination is withheld from respondents until\ntheir response has passed every screener and been accepted.",
+            "description": "A booking step. Its destination is withheld from respondents until\ntheir response has passed every gate and been accepted.",
             "required": ["id", "title", "description", "kind"],
             "properties": {
               "description": {
@@ -32049,7 +32049,7 @@
         "oneOf": [
           {
             "type": "object",
-            "description": "A booking step must be unique and follow all questions and screeners.",
+            "description": "A booking step must be unique and follow all questions and gates.",
             "required": ["kind"],
             "properties": {
               "kind": {

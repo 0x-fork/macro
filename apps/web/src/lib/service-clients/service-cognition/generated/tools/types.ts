@@ -7199,7 +7199,7 @@ export interface CreateDocumentResponse {
   documentId: string;
 }
 /**
- * Create a complete questionnaire with response columns, ordered sections, screeners and an optional saved booking link. Creates closed and private; use SetFormAccess afterward to open or share it. Existing-table attachment requires database Owner and an unbound table. Use local question/option keys in screeners and reference only earlier sections. Required questions require an answer; screeners compare answers using AND/OR. Empty answers pass only IsEmpty. A final booking step reveals an existing authorized link after acceptance; its independent URL remains usable, and strict qualification is unsupported. Each invocation creates a new form; after a timeout, use ListForms and ReadForm before trying again. Returns actual saved IDs, links and completion state; inspect partial work instead of recreating.
+ * Create a complete questionnaire with response columns, ordered sections, gates and an optional saved booking link. Creates closed and private; use SetFormAccess afterward to open or share it. Existing-table attachment requires database Owner and an unbound table. Use local question/option keys in gates and reference only earlier sections. Required questions require an answer; gates compare answers using AND/OR. Empty answers pass only IsEmpty. A final booking step reveals an existing authorized link after acceptance; its independent URL remains usable, and strict qualification is unsupported. Each invocation creates a new form; after a timeout, use ListForms and ReadForm before trying again. Returns actual saved IDs, links and completion state; inspect partial work instead of recreating.
  */
 export interface CreateForm {
   /**
@@ -7262,7 +7262,7 @@ export interface OptionDraft {
   label: string;
 }
 /**
- * Screeners support AND/OR, at most eight levels and 200 conditions.
+ * Gates support AND/OR, at most eight levels and 200 conditions.
  */
 export interface Rules {
   conjunction: Conjunction;
@@ -7552,7 +7552,7 @@ export interface Capabilities {
    */
   safeLinkedTypeChanges: boolean;
   /**
-   * False: screeners reveal links, but independent booking URLs remain usable.
+   * False: gates reveal links, but independent booking URLs remain usable.
    */
   requiredBookingQualification: boolean;
 }
@@ -8652,7 +8652,7 @@ export interface EditDocumentResponse {
   clarification?: string | null;
 }
 /**
- * Edit the live form using typed targeted operations. ReadForm provides stable question/section IDs. Edits produce granular CRDT updates; concurrent changes merge using the same rules as the builder. Omitted fields stay unchanged. Invalid merged layouts are refused. Changes can add or move questions/sections, edit requiredness/help/screeners and attach an existing booking target. New columns use explicit stable IDs. Question labels follow backing column names; rename them through database tools. Removing a question keeps its column and answers. Schema retyping and conditional column cleanup are unsupported. Keep screeners after the questions they test and booking last. Read the current form after a timeout or partial result before proceeding. Opening and sharing require SetFormAccess.
+ * Edit the live form using typed targeted operations. ReadForm provides stable question/section IDs. Edits produce granular CRDT updates; concurrent changes merge using the same rules as the builder. Omitted fields stay unchanged. Invalid merged layouts are refused. Changes can add or move questions/sections, edit requiredness/help/gates and attach an existing booking target. New columns use explicit stable IDs. Question labels follow backing column names; rename them through database tools. Removing a question keeps its column and answers. Schema retyping and conditional column cleanup are unsupported. Keep gates after the questions they test and booking last. Read the current form after a timeout or partial result before proceeding. Opening and sharing require SetFormAccess.
  */
 export interface EditForm {
   formId: FormId;
