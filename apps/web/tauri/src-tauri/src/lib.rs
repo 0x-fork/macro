@@ -130,6 +130,19 @@ type Type = std::sync::OnceLock<
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    run_with(tauri::Builder::default());
+}
+
+/// The runtime type behind the default `tauri::Builder`: wry everywhere, except
+/// the macOS Chromium build, whose Tauri selects the runtime at startup.
+#[cfg(not(feature = "cef"))]
+pub type AppRuntime = tauri::Wry;
+#[cfg(feature = "cef")]
+pub type AppRuntime = tauri::DynRuntime;
+
+/// Runs the app on a builder whose webview runtime is already selected.
+/// `desktop-cef` passes a Chromium builder; every other build calls [`run`].
+pub fn run_with(builder: tauri::Builder<AppRuntime>) {
     use tracing_subscriber::EnvFilter;
 
     let diagnostics = diagnostics::Diagnostics::from_launch();
@@ -183,7 +196,7 @@ pub fn run() {
         .with_app_link_hosts(APP_LINK_HOSTS)
         .with_embedded_documents(EMBEDDED_DOCUMENTS)
         .expect("Embedded documents must be valid urls");
-    let mut builder = tauri::Builder::default();
+    let mut builder = builder;
 
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
@@ -309,7 +322,10 @@ pub fn run() {
     // Window origin differs by platform:
     // macOS/iOS/Linux: tauri://localhost
     // Windows/Android: https://tauri.localhost (or http://)
-    let window_origin = if cfg!(any(target_os = "windows", target_os = "android")) {
+    // Chromium (the `cef` feature): http://tauri.localhost
+    let window_origin = if cfg!(feature = "cef") {
+        "http://tauri.localhost"
+    } else if cfg!(any(target_os = "windows", target_os = "android")) {
         "https://tauri.localhost"
     } else {
         "tauri://localhost"
