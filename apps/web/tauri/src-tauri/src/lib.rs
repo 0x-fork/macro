@@ -33,6 +33,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 
+#[cfg(desktop)]
+mod desktop;
 mod desktop_update;
 mod device;
 mod diagnostics;
@@ -41,7 +43,6 @@ mod linux_notification;
 mod logging;
 #[cfg(target_os = "macos")]
 mod macos_notification_permission;
-mod macrod;
 mod share_target;
 mod staged_upload;
 #[cfg(desktop)]
@@ -336,7 +337,6 @@ pub fn run() {
         .manage(DeepLinkDelivery::default())
         .manage(graphql_cache_plugin::CacheState::default())
         .manage(IsIpad(is_ipad_device))
-        .manage(macrod::MacrodState::default())
         .invoke_handler(tauri::generate_handler![
             desktop_update::get_native_update_status,
             desktop_update::restart_native_update,
@@ -390,12 +390,18 @@ pub fn run() {
             read_shared_file_text,
             flush_launch_deep_link,
             staged_upload::upload_staged_file_to_presigned_url,
-            macrod::macrod_support,
-            macrod::macrod_detect_agents,
-            macrod::macrod_inspect,
-            macrod::macrod_start,
-            macrod::macrod_stop,
-            macrod::macrod_status,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_support,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_detect_agents,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_inspect,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_start,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_stop,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_status,
         ])
         .setup(move |app| {
             #[cfg(desktop)]
@@ -420,7 +426,11 @@ pub fn run() {
 
             app.chain(attach_deep_link_handler);
             cleanup_stale_staged_files(&app.handle());
-            macrod::autostart(&app.handle());
+            #[cfg(desktop)]
+            {
+                app.manage(desktop::macrod::MacrodState::default());
+                desktop::macrod::autostart(&app.handle());
+            }
 
             Ok(())
         })
@@ -489,10 +499,11 @@ pub fn run() {
             desktop_update::on_exit_requested(app_handle, api)
         }
         RunEvent::Exit => {
-            if let Some(state) = app_handle.try_state::<macrod::MacrodState>() {
+            #[cfg(desktop)]
+            if let Some(state) = app_handle.try_state::<desktop::macrod::MacrodState>() {
                 // The daemon also exits on its own when its stdin pipe
                 // closes with this process; the kill is the fast path.
-                macrod::kill_now(&state);
+                desktop::macrod::kill_now(&state);
             }
             if let Some(state) = app_handle.try_state::<graphql_cache_plugin::CacheState>() {
                 state

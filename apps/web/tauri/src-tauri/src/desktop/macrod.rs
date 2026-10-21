@@ -189,7 +189,11 @@ fn macrod_path_env() -> String {
 /// Locate the macrod binary: an explicit override, the bundled copy next to
 /// this executable, the resource directory, then the development `PATH`.
 fn macrod_binary(app: &AppHandle) -> Option<PathBuf> {
-    let name = if cfg!(windows) { "macrod.exe" } else { "macrod" };
+    let name = if cfg!(windows) {
+        "macrod.exe"
+    } else {
+        "macrod"
+    };
     if let Ok(path) = std::env::var("MACROD_PATH") {
         let path = PathBuf::from(path);
         if path.is_file() {
@@ -218,7 +222,8 @@ fn macrod_binary(app: &AppHandle) -> Option<PathBuf> {
 }
 
 fn macrod_command(app: &AppHandle) -> Result<tokio::process::Command, String> {
-    let binary = macrod_binary(app).ok_or_else(|| "macrod is not bundled with this build".to_owned())?;
+    let binary =
+        macrod_binary(app).ok_or_else(|| "macrod is not bundled with this build".to_owned())?;
     let mut command = tokio::process::Command::new(binary);
     command.env("PATH", macrod_path_env());
     if crate::AppEnvironment::current() == crate::AppEnvironment::Development {
@@ -270,7 +275,7 @@ pub(crate) struct MacrodSupport {
 
 #[tauri::command]
 pub(crate) fn macrod_support(app: AppHandle) -> MacrodSupport {
-    let supported = cfg!(desktop) && macrod_binary(&app).is_some();
+    let supported = macrod_binary(&app).is_some();
     let default_workspace = app
         .path()
         .home_dir()
@@ -327,7 +332,10 @@ pub(crate) async fn macrod_start(
         command.args(["--scope", scope]);
     }
     if let Some(allowed) = options.allow_permission_bypass {
-        command.args(["--allow-permission-bypass", if allowed { "true" } else { "false" }]);
+        command.args([
+            "--allow-permission-bypass",
+            if allowed { "true" } else { "false" },
+        ]);
     }
     let mut child = command
         .stdin(Stdio::piped())
@@ -431,7 +439,12 @@ pub(crate) async fn macrod_stop(
 /// The current snapshot, for a webview that (re)mounted after events fired.
 #[tauri::command]
 pub(crate) fn macrod_status(state: tauri::State<'_, MacrodState>) -> MacrodStatus {
-    state.inner.lock().expect("macrod state lock").status.clone()
+    state
+        .inner
+        .lock()
+        .expect("macrod state lock")
+        .status
+        .clone()
 }
 
 /// Kill the child synchronously; the app is exiting and cannot await.
@@ -507,9 +520,6 @@ fn autostart_enabled(app: &AppHandle) -> bool {
 /// At app launch: resume the daemon when the user enabled it and a paired
 /// config exists, so agents are reachable without opening settings.
 pub(crate) fn autostart(app: &AppHandle) {
-    if !cfg!(desktop) {
-        return;
-    }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         if !autostart_enabled(&app) || macrod_binary(&app).is_none() {
@@ -534,3 +544,4 @@ pub(crate) fn autostart(app: &AppHandle) {
         }
     });
 }
+

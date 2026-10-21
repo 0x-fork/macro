@@ -13,7 +13,7 @@
 // the team bumps that version when a cache change must ship, so the bump
 // counts as a native change while other edits under crates/client do not.
 // The iOS gate (tooling/xtask/.../scripts/ios_native_tree.sh) is the mirror
-// image, excluding Android-only paths instead.
+// image, excluding Android-only and desktop-only paths instead.
 
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
