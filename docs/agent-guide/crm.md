@@ -205,8 +205,8 @@ The sidebar's Records and Lists sections can also collapse independently.
 records editor. They have their own identity, ownership and sharing; their
 storage does not appear as a separate database in navigation.
 **New pipeline** is disabled until the team's CRM is enabled. For a new team,
-use **Open CRM settings** in the empty state to enable CRM, then return to
-Customers to create a pipeline. Verify this with a newly created team as well as
+use **Open CRM settings** in the empty state to enable CRM, then use the back
+arrow to return to Customers and create a pipeline. Verify this with a newly created team as well as
 an existing CRM-enabled team.
 Choose **New pipeline**, enter a name in the dialog's first row, pick
 **Companies** (the default) or **Contacts** from the record-type pill, and tick
@@ -315,8 +315,14 @@ value (missing Stage options are added; owners match by email) and offers **Open
 pipeline** after. If that step fails, importing again reuses the same pipeline
 and adds only missing rows. A pipeline's own **Import CSV** also takes a
 Companies export. Use preview
-and cancel for browser checks against hosted dev data. `CRM settings` opens the existing
-settings panel. Requires a team with CRM enabled.
+and cancel for browser checks against hosted dev data.
+
+`CRM settings` shows the settings in the Customers pane, in place of the open
+list, pipeline, or record, and highlights its sidebar item. The back arrow
+(**Close CRM settings**) returns to that same list, pipeline, or record; picking
+another sidebar destination, or browser Back, also leaves settings. On touch
+the back arrow is the only control in the header. It is the same page as
+Settings > CRM, with the same member and admin permissions; check both roles.
 
 `Export` opens options for companies. Choose Current view
 (respects filters/search) or All records across views (each visible record once), then
