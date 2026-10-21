@@ -67,11 +67,16 @@ function setup(initialNotifiedSort = false) {
     const [notifiedSort, setNotifiedSort] = createSignal(initialNotifiedSort);
     mocks.notifiedSort.mockImplementation(notifiedSort);
     const [state, setState] = createSignal<'unseen' | 'seen' | 'done'>();
+    const [pending, setPending] = createSignal(false);
     mocks.legacyUnread.mockReturnValue(true);
     mocks.legacy.mockReturnValue({
       query: {
         isLoading: false,
+        get isPending() {
+          return pending();
+        },
         get data() {
+          if (pending()) throw new Error('Read paused initial Soup query');
           if (enabled() && !notifiedSort())
             throw new Error('Read inactive full Soup query');
           return { entities: [] };
@@ -96,7 +101,7 @@ function setup(initialNotifiedSort = false) {
       }),
     });
     const unread = useHomeUnreadQuery(enabled);
-    return { unread, setEnabled, setState, setNotifiedSort };
+    return { unread, setEnabled, setState, setNotifiedSort, setPending };
   });
   const queries = () => operations.filter((op) => op.kind === 'query');
   const respond = (state: 'UNSEEN' | 'SEEN', error?: CombinedError) =>
@@ -132,6 +137,15 @@ function setup(initialNotifiedSort = false) {
 }
 
 describe('Home unread presence query', () => {
+  it('does not read a paused initial legacy query', () => {
+    const h = setup();
+    h.setPending(true);
+    expect(h.unread()).toBe(false);
+    expect(mocks.legacyUnread).not.toHaveBeenCalled();
+    h.setPending(false);
+    expect(h.unread()).toBe(true);
+  });
+
   it('selects bounded witnesses rather than historical notification content', () => {
     const fields: string[] = [];
     const edges: string[] = [];

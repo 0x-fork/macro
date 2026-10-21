@@ -418,6 +418,11 @@ edge so an older unread item can keep the dot lit. These witnesses must never be
 used as the complete mark-read/done input. The experimental notification-time
 sort remains on its existing REST path; disabling GraphQL or enabling that sort
 must not construct an unsupported GraphQL input or blank the app shell.
+Cold offline launch must retain navigation even while notification preferences
+or badge queries are pending. Unknown preferences use the default enabled
+behavior; loaded disabled preferences still suppress Email's dot, including
+after a failed refresh. Verify both unreachable services while the OS reports
+online and a paused offline transport, then reconnect without remounting chrome.
 Opening a view alone does not clear its dot — reading or completing the represented
 items does. The button's
 accessible description is `Unread items` while its dot is active.

@@ -3,6 +3,7 @@ import { enableInboxNotifiedSort } from '@core/constant/featureFlags';
 import { createLiveQuery } from '@graphql-cache/solid/create-live-query';
 import { registerActivityRevalidator } from '@queries/activity/push-registry';
 import { registerChannelNotificationRefresh } from '@queries/channel/register-notification-refresh';
+import { queryReadyGate } from '@queries/gate';
 import {
   registerActiveGraphqlSoupQuery,
   registerGraphqlSoupRevalidations,
@@ -80,8 +81,8 @@ export function useHomeUnreadQuery(
 
   return () => {
     if (!enabled()) {
-      if (legacy.query.isLoading) return false;
-      return legacy.hasUnreadEntity(legacy.query.data?.entities ?? []);
+      if (!queryReadyGate(legacy.query)) return false;
+      return legacy.hasUnreadEntity(legacy.query.data.entities);
     }
     return hasHomeUnreadWitness(
       items(),

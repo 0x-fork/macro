@@ -1,7 +1,16 @@
 import type { EmailEntity } from '@entity/types/entity';
 import type { UnifiedNotification } from '@notifications/types';
+import type { GetNotificationTypePreferencesResponse } from '@service-notification/generated/schemas/getNotificationTypePreferencesResponse';
 import type { NotificationState } from '@service-storage/graphql/generated/graphql';
-import { createRoot, createSignal } from 'solid-js';
+import { cleanup, render, screen } from '@solidjs/testing-library';
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+  type UseQueryResult,
+  useQuery,
+} from '@tanstack/solid-query';
+import { createEffect, createRoot, createSignal, Suspense } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useNavigationUnread } from './use-navigation-unread';
 
@@ -82,12 +91,19 @@ const message: UnifiedNotification = {
 };
 
 let dispose: VoidFunction;
+const clients: QueryClient[] = [];
 afterEach(() => {
+  cleanup();
   dispose?.();
+  for (const client of clients.splice(0)) client.clear();
+  onlineManager.setOnline(true);
   vi.clearAllMocks();
 });
 
-function setup(graphql = false) {
+function setup(
+  graphql = false,
+  preferences?: () => UseQueryResult<GetNotificationTypePreferencesResponse>
+) {
   return createRoot((cleanup) => {
     dispose = cleanup;
     const [graphqlEnabled, setGraphqlEnabled] = createSignal(graphql);
@@ -96,22 +112,30 @@ function setup(graphql = false) {
     mocks.withLocalState.mockImplementation(({ state }) =>
       done() ? 'done' : state
     );
-    mocks.notificationPreferences.mockImplementation(() => ({
-      get data() {
-        return { disabled_types: disabledTypes() };
-      },
-    }));
+    mocks.notificationPreferences.mockImplementation(
+      preferences ??
+        (() => ({
+          isPending: false,
+          get data() {
+            return { disabled_types: disabledTypes() };
+          },
+        }))
+    );
     const [witnesses, setWitnesses] = createSignal<
       { id: string; state: NotificationState }[]
     >([]);
     mocks.graphqlFlag.mockImplementation(() => ({ enabled: graphqlEnabled() }));
     const [loading, setLoading] = createSignal(true);
+    const [fetching, setFetching] = createSignal(true);
     mocks.channels.mockReturnValue({
       get isEnabled() {
         return graphqlEnabled();
       },
-      get isLoading() {
+      get isPending() {
         return loading();
+      },
+      get isLoading() {
+        return loading() && fetching();
       },
       get data() {
         if (loading()) throw new Error('Read pending unread query');
@@ -123,8 +147,11 @@ function setup(graphql = false) {
       UnifiedNotification[]
     >([]);
     const query = {
-      get isLoading() {
+      get isPending() {
         return loading();
+      },
+      get isLoading() {
+        return loading() && fetching();
       },
       get data() {
         if (loading()) throw new Error('Read pending resource');
@@ -142,6 +169,7 @@ function setup(graphql = false) {
     return {
       unread: useNavigationUnread(),
       setLoading,
+      setFetching,
       setEmails,
       setNotifications,
       setWitnesses,
@@ -153,6 +181,101 @@ function setup(graphql = false) {
 }
 
 describe('navigation unread presence', () => {
+  it('does not read pending email or channel data when their requests pause', () => {
+    const { unread, setFetching } = setup(true);
+    setFetching(false);
+    expect(unread('mail')).toBe(false);
+    expect(unread('channels')).toBe(false);
+  });
+
+  it.each([true, false])(
+    'keeps the shell mounted with pending preferences (online=%s), then applies them',
+    async (online) => {
+      onlineManager.setOnline(online);
+      const response =
+        Promise.withResolvers<GetNotificationTypePreferencesResponse>();
+      const applied = Promise.withResolvers<void>();
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
+      clients.push(client);
+      function Shell() {
+        const { unread, setLoading, setEmails } = setup(false, () =>
+          useQuery(() => ({
+            queryKey: ['preferences'],
+            queryFn: () => response.promise,
+          }))
+        );
+        setLoading(false);
+        setEmails([unreadEmail]);
+        createEffect(() => {
+          if (!unread('mail')) applied.resolve();
+        });
+        return <nav data-testid="shell" data-unread={unread('mail')} />;
+      }
+      render(() => (
+        <QueryClientProvider client={client}>
+          <Suspense fallback={<div data-testid="suspended" />}>
+            <Shell />
+          </Suspense>
+        </QueryClientProvider>
+      ));
+      const shell = screen.getByTestId('shell');
+      expect(shell.dataset.unread).toBe('true');
+      expect(screen.queryByTestId('suspended')).toBeNull();
+      expect(client.getQueryState(['preferences'])?.fetchStatus).toBe(
+        online ? 'fetching' : 'paused'
+      );
+      onlineManager.setOnline(true);
+      response.resolve({ disabled_types: ['new_email'] });
+      await applied.promise;
+      expect(shell.dataset.unread).toBe('false');
+      expect(screen.getByTestId('shell')).toBe(shell);
+      expect(screen.queryByTestId('suspended')).toBeNull();
+    }
+  );
+
+  it('retains cached disabled preferences after a failed background refresh', async () => {
+    const response =
+      Promise.withResolvers<GetNotificationTypePreferencesResponse>();
+    const failed = Promise.withResolvers<void>();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    function Shell() {
+      const { unread, setLoading, setEmails } = setup(false, () => {
+        const query = useQuery(() => ({
+          queryKey: ['preferences'],
+          queryFn: () => response.promise,
+          initialData: { disabled_types: ['new_email'] },
+        }));
+        createEffect(() => {
+          if (query.isError) failed.resolve();
+        });
+        return query;
+      });
+      setLoading(false);
+      setEmails([unreadEmail]);
+      return <nav data-testid="shell" data-unread={unread('mail')} />;
+    }
+    render(() => (
+      <QueryClientProvider client={client}>
+        <Suspense fallback={<div data-testid="suspended" />}>
+          <Shell />
+        </Suspense>
+      </QueryClientProvider>
+    ));
+    const shell = screen.getByTestId('shell');
+    expect(shell.dataset.unread).toBe('false');
+    response.reject(new Error('Service unreachable'));
+    await failed.promise;
+    expect(client.getQueryState(['preferences'])?.status).toBe('error');
+    expect(screen.getByTestId('shell')).toBe(shell);
+    expect(shell.dataset.unread).toBe('false');
+    expect(screen.queryByTestId('suspended')).toBeNull();
+  });
+
   it('does not read pending resources or badge unrelated navigation', () => {
     const { unread } = setup();
     for (const id of ['home', 'mail', 'channels', 'documents', 'agents']) {
