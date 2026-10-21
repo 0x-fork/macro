@@ -78,6 +78,16 @@ Module layout, layering, and TypeScript conventions.
   a `<Block>` wrapper merely to satisfy a missing dependency. If shared code
   needs an owner or other host capability, expose it through the owning surface
   context instead of borrowing `BlockContext`.
+- **FE-56** Tauri IPC promises (`invoke`, `listen`, `addPluginListener`,
+  `unregister`, and plugin wrappers) follow FE-13 in teardown too: native
+  resources are often already gone then, so the call rejects. `UnlistenFn` is
+  typed `() => void` but returns the unlisten IPC promise, which the floating
+  promise lint can't see, so start it with `fireAndForget(unlisten(), surface)`
+  or `fireAndForget(unlistenPromise.then((fn) => fn()), surface)`, never a bare
+  call. Channel `onmessage` handlers must never throw, because Tauri then
+  stalls every later message on that channel. Enforced by ast-grep
+  `ts-/tsx-tauri-ipc-promise-handled`, CI error, which also catches IPC chains
+  returned from an `onCleanup` arrow; unlisten calls still need review.
 
 ## TypeScript
 
