@@ -100,6 +100,9 @@ impl CalendarInvitationRepository for PgCalendarRepository {
                 event.is_read_only,
                 event.reminders_use_default,
                 event.reminder_overrides,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 event.created_at,
                 COALESCE(override.source_updated_at, event.updated_at) AS "updated_at!"
             FROM unnest($2::uuid[], $3::text[]) requested(event_id, occurrence_key)

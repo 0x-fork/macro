@@ -1,6 +1,6 @@
 //! The clicker's owned inboxes.
 
-use super::models::CalendarAttendee;
+use super::models::{CalendarAttendee, CalendarEvent, ViewerCapabilities};
 
 /// The clicker's own connected-inbox addresses.
 ///
@@ -62,6 +62,13 @@ impl ActorInboxes {
         for attendee in attendees {
             attendee.is_self = self.matches(&attendee.email);
         }
+    }
+
+    /// Mark the actor's attendee rows on an event and resolve what the actor
+    /// may do with it.
+    pub fn mark_event(&self, event: &mut CalendarEvent) {
+        self.mark_attendees(&mut event.attendees);
+        event.viewer_can = ViewerCapabilities::for_event(event, self);
     }
 
     /// Iterate the normalized addresses.

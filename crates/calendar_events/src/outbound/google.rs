@@ -15,8 +15,9 @@ use crate::domain::{
         CalendarEventSource, CalendarEventUpsert, CalendarOccurrence, ConferenceChange,
         ConferenceProvider, EventReminderOverride, EventReminders, EventStart, EventStatus,
         EventTime, EventTransparency, EventType, EventVisibility, GoogleEventSyncBatch,
-        GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig, OccurrenceRange,
+        GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, OccurrenceRange,
         OutOfOfficeProperties, ProviderCalendar, ProviderCalendarTarget, ProviderEventSource,
+        ViewerCapabilities,
     },
     ports::{
         CalendarMutationProvider, CalendarProviderError, CalendarProviderErrorKind,
@@ -2071,6 +2072,8 @@ fn map_upsert(
             .filter_map(map_attendee)
             .collect(),
         reminders: map_reminders(master.reminders.as_ref()),
+        guest_policy: guest_policy(&master),
+        viewer_can: ViewerCapabilities::NONE,
         created_at,
         updated_at,
     };
@@ -2228,6 +2231,20 @@ fn google_start(value: &GoogleEventDateTime) -> Option<EventStart> {
                 .ok()
                 .map(EventStart::AllDay)
         })
+    }
+}
+
+/// Google omits each guest switch while it holds its default.
+fn guest_policy(event: &GoogleEvent) -> GuestPolicy {
+    let default = GuestPolicy::default();
+    GuestPolicy {
+        can_modify: event.guests_can_modify.unwrap_or(default.can_modify),
+        can_invite_others: event
+            .guests_can_invite_others
+            .unwrap_or(default.can_invite_others),
+        can_see_other_guests: event
+            .guests_can_see_other_guests
+            .unwrap_or(default.can_see_other_guests),
     }
 }
 
@@ -2442,6 +2459,16 @@ struct GoogleEvent {
     sequence: Option<u32>,
     created: Option<String>,
     updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    guests_can_modify: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    guests_can_invite_others: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    guests_can_see_other_guests: Option<bool>,
+    /// Every field Macro does not map, so the stored raw payload is Google's
+    /// event as it arrived.
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
 }
 
 /// The requester's private reminder configuration on an event.

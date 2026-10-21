@@ -12,7 +12,10 @@ use serde::{Deserialize, Serialize};
 
 use super::{CalendarToolContext, ToolEventAttendee, description_preview, time_fields};
 use crate::domain::{
-    models::{CalendarOccurrenceCursor, CalendarSyncStatus, OccurrenceListing, OccurrenceRange},
+    models::{
+        CalendarOccurrenceCursor, CalendarSyncStatus, OccurrenceListing, OccurrenceRange,
+        ViewerCapabilities,
+    },
     ports::{CalendarMutationService, CalendarOccurrenceService, MeetingLinkProvider},
     service::CalendarValidationError,
 };
@@ -71,6 +74,10 @@ pub struct CalendarEventListItem {
     pub conference_url: Option<String>,
     /// Whether the user's calendar prohibits modifying this event.
     pub is_read_only: bool,
+    /// What the user may do with this event under the organizer's guest
+    /// permissions: change its details, add or remove guests, change those
+    /// permissions, or answer the invitation.
+    pub viewer_can: ViewerCapabilities,
     /// Calendar the event belongs to, when known.
     pub calendar_id: Option<uuid::Uuid>,
     /// Every calendar carrying a copy of this event when there is more than
@@ -250,6 +257,7 @@ where
                     organizer_email: event.organizer_email.clone(),
                     conference_url: event.conference_url.clone(),
                     is_read_only: event.is_read_only,
+                    viewer_can: event.viewer_can,
                     calendar_id: event.calendar_id,
                     copies: if event.sources.len() > 1 {
                         event

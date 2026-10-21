@@ -350,7 +350,7 @@ impl<R: CalendarChangeRepository> CalendarChangeService<R> {
             ActorInboxes::from_owned(self.repository.owned_inbox_emails(viewer).await?)
         {
             for change in &mut page.events {
-                mark_viewer_attendees(&viewer, change);
+                mark_viewer(&viewer, change);
             }
         }
         Ok(page)
@@ -376,14 +376,14 @@ impl<R: CalendarChangeRepository> CalendarChangeService<R> {
         if let Some(viewer) =
             ActorInboxes::from_owned(self.repository.owned_inbox_emails(viewer).await?)
         {
-            mark_viewer_attendees(&viewer, &mut change);
+            mark_viewer(&viewer, &mut change);
         }
         Ok(Some(change))
     }
 }
 
-fn mark_viewer_attendees(viewer: &ActorInboxes, change: &mut CalendarEventChange) {
-    viewer.mark_attendees(&mut change.event.attendees);
+fn mark_viewer(viewer: &ActorInboxes, change: &mut CalendarEventChange) {
+    viewer.mark_event(&mut change.event);
     for instance in &mut change.occurrences {
         if let Some(attendees) = &mut instance.exception.attendees {
             viewer.mark_attendees(attendees);

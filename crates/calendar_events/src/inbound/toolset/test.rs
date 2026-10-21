@@ -11,8 +11,8 @@ use crate::domain::meeting_links::{MeetingLink, MeetingLinkError, MeetingLinkReq
 use crate::domain::models::{
     AttendeeResponseStatus, CalendarAttendee, CalendarEventDraft, CalendarEventPatch,
     CalendarOccurrence, CalendarSyncStatus, ConferenceChange, EventReminderOverride,
-    EventReminders, EventStatus, EventTransparency, EventType, EventVisibility, OccurrenceRange,
-    VisibleCalendar,
+    EventReminders, EventStatus, EventTransparency, EventType, EventVisibility, GuestPolicy,
+    OccurrenceRange, ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarMutationError, CalendarMutationService,
@@ -124,6 +124,8 @@ fn sample_event(recurrence_lines: Vec<String>) -> crate::domain::models::Calenda
             },
         ],
         reminders: EventReminders::default(),
+        guest_policy: GuestPolicy::default(),
+        viewer_can: ViewerCapabilities::NONE,
         created_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
         updated_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
     }

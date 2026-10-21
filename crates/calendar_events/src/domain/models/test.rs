@@ -249,6 +249,8 @@ fn default_reminders_stay_out_of_serialized_projections() {
         is_read_only: false,
         attendees: Vec::new(),
         reminders: EventReminders::default(),
+        guest_policy: GuestPolicy::default(),
+        viewer_can: ViewerCapabilities::NONE,
         created_at: starts_at,
         updated_at: starts_at,
     };

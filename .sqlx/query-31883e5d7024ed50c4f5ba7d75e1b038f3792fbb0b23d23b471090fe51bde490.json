@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "            SELECT\n                occurrence.event_id,\n                event.source_link_id,\n                occurrence.occurrence_key,\n                occurrence.recurrence_id,\n                occurrence.starts_at AS occurrence_starts_at,\n                occurrence.ends_at AS occurrence_ends_at,\n                occurrence.start_date AS occurrence_start_date,\n                occurrence.end_date AS occurrence_end_date,\n                occurrence.is_cancelled,\n                override.title AS override_title,\n                override.description AS override_description,\n                override.location AS override_location,\n                override.status AS override_status,\n                override.reminders AS override_reminders,\n                event.owner_id,\n                event.ical_uid,\n                event.title,\n                event.description,\n                event.location,\n                event.status,\n                event.visibility,\n                event.transparency,\n                event.event_type,\n                event.starts_at,\n                event.ends_at,\n                event.start_date,\n                event.end_date,\n                event.time_zone,\n                event.recurrence_lines,\n                event.organizer_email,\n                event.organizer_name,\n                event.creator_email,\n                event.creator_name,\n                event.conference_url,\n                event.conference_provider,\n                COALESCE(override.sequence, event.sequence) AS \"sequence!\",\n                event.is_read_only,\n                event.reminders_use_default,\n                event.reminder_overrides,\n                event.created_at,\n                COALESCE(override.source_updated_at, event.updated_at) AS \"updated_at!\"\n            FROM unnest($2::uuid[], $3::text[]) requested(event_id, occurrence_key)\n            JOIN calendar_events event ON event.id = requested.event_id\n            JOIN LATERAL (\n                SELECT o.* FROM calendar_event_occurrences o\n                WHERE o.event_id = event.id\n                  AND o.occurrence_key = requested.occurrence_key\n                ORDER BY o.occurrence_key LIMIT 1\n            ) occurrence ON true\n            LEFT JOIN calendar_event_overrides override\n                ON override.event_id = occurrence.event_id\n               AND override.recurrence_id = occurrence.recurrence_id\n            WHERE event.owner_id = $1\n               OR EXISTS (SELECT 1 FROM macro_user_links delegation\n                   WHERE delegation.primary_macro_id = $1 AND delegation.link_id = event.source_link_id)\n",
+  "query": "            SELECT\n                occurrence.event_id,\n                event.source_link_id,\n                occurrence.occurrence_key,\n                occurrence.recurrence_id,\n                occurrence.starts_at AS occurrence_starts_at,\n                occurrence.ends_at AS occurrence_ends_at,\n                occurrence.start_date AS occurrence_start_date,\n                occurrence.end_date AS occurrence_end_date,\n                occurrence.is_cancelled,\n                override.title AS override_title,\n                override.description AS override_description,\n                override.location AS override_location,\n                override.status AS override_status,\n                override.reminders AS override_reminders,\n                event.owner_id,\n                event.ical_uid,\n                event.title,\n                event.description,\n                event.location,\n                event.status,\n                event.visibility,\n                event.transparency,\n                event.event_type,\n                event.starts_at,\n                event.ends_at,\n                event.start_date,\n                event.end_date,\n                event.time_zone,\n                event.recurrence_lines,\n                event.organizer_email,\n                event.organizer_name,\n                event.creator_email,\n                event.creator_name,\n                event.conference_url,\n                event.conference_provider,\n                COALESCE(override.sequence, event.sequence) AS \"sequence!\",\n                event.is_read_only,\n                event.reminders_use_default,\n                event.reminder_overrides,\n                event.guests_can_modify,\n                event.guests_can_invite_others,\n                event.guests_can_see_other_guests,\n                event.created_at,\n                COALESCE(override.source_updated_at, event.updated_at) AS \"updated_at!\"\n            FROM unnest($2::uuid[], $3::text[]) requested(event_id, occurrence_key)\n            JOIN calendar_events event ON event.id = requested.event_id\n            JOIN LATERAL (\n                SELECT o.* FROM calendar_event_occurrences o\n                WHERE o.event_id = event.id\n                  AND o.occurrence_key = requested.occurrence_key\n                ORDER BY o.occurrence_key LIMIT 1\n            ) occurrence ON true\n            LEFT JOIN calendar_event_overrides override\n                ON override.event_id = occurrence.event_id\n               AND override.recurrence_id = occurrence.recurrence_id\n            WHERE event.owner_id = $1\n               OR EXISTS (SELECT 1 FROM macro_user_links delegation\n                   WHERE delegation.primary_macro_id = $1 AND delegation.link_id = event.source_link_id)\n",
   "describe": {
     "columns": [
       {
@@ -200,11 +200,26 @@
       },
       {
         "ordinal": 39,
+        "name": "guests_can_modify",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 40,
+        "name": "guests_can_invite_others",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 41,
+        "name": "guests_can_see_other_guests",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 42,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 40,
+        "ordinal": 43,
         "name": "updated_at!",
         "type_info": "Timestamptz"
       }
@@ -257,8 +272,11 @@
       false,
       false,
       false,
+      false,
+      false,
+      false,
       null
     ]
   },
-  "hash": "c6e14a0b35e4dff3ec4bb010cc520fa9a0b66565686bc09a01dbab11f8b64550"
+  "hash": "31883e5d7024ed50c4f5ba7d75e1b038f3792fbb0b23d23b471090fe51bde490"
 }

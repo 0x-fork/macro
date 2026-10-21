@@ -33,8 +33,9 @@ use crate::domain::{
         DisconnectedCalendar, DueCalendarReminder, EventReminderOverride, EventReminders,
         EventStart, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
         GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
-        OccurrenceException, OccurrenceListing, OccurrenceRange, ProviderCalendar,
-        StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar, is_system_calendar,
+        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, ProviderCalendar,
+        StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities, VisibleCalendar,
+        is_system_calendar,
     },
     ports::{
         CalendarBackfillRepository, CalendarEventChange, CalendarEventWrite,
@@ -393,6 +394,9 @@ struct OccurrenceJoinRow {
     is_read_only: bool,
     reminders_use_default: bool,
     reminder_overrides: serde_json::Value,
+    guests_can_modify: bool,
+    guests_can_invite_others: bool,
+    guests_can_see_other_guests: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -910,6 +914,7 @@ impl CalendarRepository for PgCalendarRepository {
                 conference_url, conference_provider, sequence, is_read_only,
                 canonical_source_kind,
                 reminders_use_default, reminder_overrides,
+                guests_can_modify, guests_can_invite_others, guests_can_see_other_guests,
                 created_at, updated_at, schedule_updated_at
             )
             VALUES (
@@ -920,6 +925,7 @@ impl CalendarRepository for PgCalendarRepository {
                 $28, $29,
                 $19, $27, $20, $21, $22,
                 $25, $26,
+                $31, $32, $33,
                 $23, $24, $24
             )
             ON CONFLICT (owner_id, source_link_id, ical_uid) DO NOTHING
@@ -958,6 +964,9 @@ impl CalendarRepository for PgCalendarRepository {
             upsert.event.creator_email.as_deref(),
             upsert.event.creator_name.as_deref(),
             upsert.event.event_type.as_str(),
+            upsert.event.guest_policy.can_modify,
+            upsert.event.guest_policy.can_invite_others,
+            upsert.event.guest_policy.can_see_other_guests,
         )
         .fetch_optional(&mut *tx)
         .await
@@ -1101,6 +1110,9 @@ impl CalendarRepository for PgCalendarRepository {
                 event.is_read_only,
                 event.reminders_use_default,
                 event.reminder_overrides,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 event.created_at,
                 event.updated_at
             FROM calendar_event_occurrences occurrence
@@ -3380,6 +3392,9 @@ async fn apply_content_projection(
             canonical_source_kind = $12,
             reminders_use_default = $13,
             reminder_overrides = $14,
+            guests_can_modify = $18,
+            guests_can_invite_others = $19,
+            guests_can_see_other_guests = $20,
             created_at = $15,
             updated_at = GREATEST(calendar_events.updated_at, $16)
         WHERE id = $1
@@ -3401,6 +3416,9 @@ async fn apply_content_projection(
         projection.event.created_at,
         projection.event.updated_at,
         source_id,
+        projection.event.guest_policy.can_modify,
+        projection.event.guest_policy.can_invite_others,
+        projection.event.guest_policy.can_see_other_guests,
     )
     .execute(&mut **tx)
     .await
@@ -4434,6 +4452,12 @@ fn series_event_from_join(
                 .unwrap_or_default(),
         },
         attendees,
+        guest_policy: GuestPolicy {
+            can_modify: row.guests_can_modify,
+            can_invite_others: row.guests_can_invite_others,
+            can_see_other_guests: row.guests_can_see_other_guests,
+        },
+        viewer_can: ViewerCapabilities::NONE,
         created_at: row.created_at,
         updated_at: row.updated_at,
     };

@@ -5,6 +5,8 @@ import type { CalendarOccurrenceItem } from '@service-storage/generated/schemas/
 import type { EventReminders } from '@service-storage/generated/schemas/eventReminders';
 import type { EventTransparency } from '@service-storage/generated/schemas/eventTransparency';
 import type { EventType } from '@service-storage/generated/schemas/eventType';
+import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy';
+import type { ViewerCapabilities } from '@service-storage/generated/schemas/viewerCapabilities';
 import {
   isTimedPointEvent,
   multiDayTimedDisplayRange,
@@ -86,6 +88,13 @@ export interface CalendarEvent {
   creatorEmail?: string;
   /** Attendees and their RSVP metadata. */
   attendees: CalendarAttendee[];
+  /** What the organizer lets guests do. */
+  guestPolicy: GuestPolicy;
+  /**
+   * What the viewer may do with the displayed copy. Nothing when that copy's
+   * calendar is read-only, even if another copy is writable.
+   */
+  viewerCan: ViewerCapabilities;
   /**
    * Reminder configuration of the primary copy, the one Macro's alerts
    * follow whichever copy a chip shows. Absent means the calendar default.
@@ -138,6 +147,22 @@ export interface CalendarEvent {
 
 /** Source id every teammate out-of-office event carries; hiding it hides the overlay. */
 export const TEAM_OOO_SOURCE_ID = 'team-ooo';
+
+/** Google's guest policy, which the backend omits while it holds. */
+export const DEFAULT_GUEST_POLICY: GuestPolicy = {
+  canModify: false,
+  canInviteOthers: true,
+  canSeeOtherGuests: true,
+};
+
+/** No capability at all, which the backend omits. */
+export const NO_VIEWER_CAPABILITIES: ViewerCapabilities = {
+  editDetails: false,
+  inviteGuests: false,
+  removeGuests: false,
+  setGuestPolicy: false,
+  rsvp: false,
+};
 
 /** Shared presentation source until calendar/account metadata is exposed. */
 export const DEFAULT_CALENDAR_SOURCE: CalendarSource = {
@@ -265,6 +290,10 @@ export function mapCalendarOccurrence(
     creatorName: optionalText(content.creatorName),
     creatorEmail: optionalText(content.creatorEmail),
     attendees: event.attendees ?? [],
+    guestPolicy: event.guestPolicy ?? DEFAULT_GUEST_POLICY,
+    viewerCan: content.isReadOnly
+      ? NO_VIEWER_CAPABILITIES
+      : (event.viewerCan ?? NO_VIEWER_CAPABILITIES),
     reminders: canonical.reminders ?? undefined,
     reminderCalendarId: canonical.calendarId ?? undefined,
     reminderEventType: canonical.eventType ?? undefined,

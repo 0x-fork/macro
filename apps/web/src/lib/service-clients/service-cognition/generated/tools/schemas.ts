@@ -9486,6 +9486,13 @@ export const ListCalendarEventsResponse = z.object({
       organizerEmail: z.union([z.string(), z.null()]).optional(),
       conferenceUrl: z.union([z.string(), z.null()]).optional(),
       isReadOnly: z.boolean(),
+      viewerCan: z.object({
+        editDetails: z.boolean(),
+        inviteGuests: z.boolean(),
+        removeGuests: z.boolean(),
+        setGuestPolicy: z.boolean(),
+        rsvp: z.boolean(),
+      }),
       calendarId: z.union([z.string().uuid(), z.null()]).optional(),
       copies: z
         .array(

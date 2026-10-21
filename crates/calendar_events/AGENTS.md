@@ -12,6 +12,8 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   recurrence-occurrence projections.
 - `src/domain/mutations.rs`, `src/domain/invitations.rs`, `src/domain/meeting_links.rs`:
   write paths — mutations, email invitations, and Macro-call meeting links.
+- `src/domain/capabilities.rs`: Google's organizer-set `GuestPolicy` and the
+  `ViewerCapabilities` every read surface exposes as `viewerCan`.
 - `src/domain/team_availability.rs` + `src/domain/team.rs`: team sharing/availability.
 - `src/outbound/google.rs`, `src/outbound/pg.rs`: Google Calendar and Postgres adapters.
 - `src/outbound/pg/outlook.rs`: durable Outlook synchronization; preserve
@@ -56,6 +58,11 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   occurrence projections, not separate events — don't model them as new entities.
 - Imported point (non-recurring) events must survive sync and cache round-trips
   unchanged (#7762) — a regression here silently drops user events.
+- `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
+  `ActorInboxes::mark_event` wherever a read path marks the viewer, and never
+  store it. `guest_policy` is stored on the entity row (the canonical copy's
+  values) and in each source's projection, omitted there while it holds Google's
+  default.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 

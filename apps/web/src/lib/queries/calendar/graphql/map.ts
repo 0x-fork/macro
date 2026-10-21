@@ -114,6 +114,18 @@ export function mapCalendarEvent(
     isReadOnly: event.isReadOnly,
     attendees: event.attendees.map(mapAttendee),
     reminders: mapReminders(event.reminders),
+    guestPolicy: {
+      canModify: event.guestPolicy.canModify,
+      canInviteOthers: event.guestPolicy.canInviteOthers,
+      canSeeOtherGuests: event.guestPolicy.canSeeOtherGuests,
+    },
+    viewerCan: {
+      editDetails: event.viewerCan.editDetails,
+      inviteGuests: event.viewerCan.inviteGuests,
+      removeGuests: event.viewerCan.removeGuests,
+      setGuestPolicy: event.viewerCan.setGuestPolicy,
+      rsvp: event.viewerCan.rsvp,
+    },
     createdAt: restInstant(event.createdAt),
     updatedAt: restInstant(event.updatedAt),
   };

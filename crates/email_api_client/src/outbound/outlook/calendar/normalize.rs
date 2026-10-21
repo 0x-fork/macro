@@ -235,6 +235,8 @@ pub(super) fn projection(
         is_read_only: target.is_read_only,
         attendees: attendees(&master),
         reminders,
+        guest_policy: GuestPolicy::default(),
+        viewer_can: ViewerCapabilities::NONE,
         created_at: created,
         updated_at: updated,
     };

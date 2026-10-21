@@ -10865,6 +10865,7 @@ export interface CalendarEventListItem {
    * Whether the user's calendar prohibits modifying this event.
    */
   isReadOnly: boolean;
+  viewerCan: ViewerCapabilities;
   /**
    * Calendar the event belongs to, when known.
    */
@@ -10875,6 +10876,31 @@ export interface CalendarEventListItem {
    * or DeleteCalendarEvent to address that copy instead of the primary.
    */
   copies?: CalendarEventCopyItem[];
+}
+/**
+ * What the viewing requester may do with an event.
+ */
+export interface ViewerCapabilities {
+  /**
+   * Change the event's details (title, time, description, conference).
+   */
+  editDetails: boolean;
+  /**
+   * Add guests.
+   */
+  inviteGuests: boolean;
+  /**
+   * Remove guests.
+   */
+  removeGuests: boolean;
+  /**
+   * Change the event's guest policy.
+   */
+  setGuestPolicy: boolean;
+  /**
+   * Answer the invitation.
+   */
+  rsvp: boolean;
 }
 /**
  * One calendar's copy of an event synced from several calendars.

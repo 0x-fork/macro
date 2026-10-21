@@ -1,6 +1,10 @@
 import type { CalendarAttendee } from '@service-storage/generated/schemas/calendarAttendee';
 import { describe, expect, it } from 'vitest';
-import type { CalendarEvent } from '../types';
+import {
+  type CalendarEvent,
+  DEFAULT_GUEST_POLICY,
+  NO_VIEWER_CAPABILITIES,
+} from '../types';
 import { guestListChanged, viewerCanEditGuests } from './event-guest-editing';
 
 function attendee(overrides: Partial<CalendarAttendee>): CalendarAttendee {
@@ -21,6 +25,8 @@ function event(overrides: Partial<CalendarEvent>): CalendarEvent {
     occurrenceKey: 'occurrence',
     isCancelled: false,
     isReadOnly: false,
+    guestPolicy: DEFAULT_GUEST_POLICY,
+    viewerCan: NO_VIEWER_CAPABILITIES,
     attendees: [],
     recurrenceLines: [],
     sourceCalendarIds: [],

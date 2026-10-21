@@ -152,6 +152,31 @@ describe('mapCalendarOccurrence', () => {
     expect(event.visibleCalendars).toEqual([SHARED]);
   });
 
+  it('withholds the viewer capabilities while a read-only copy shows', () => {
+    const occurrence = twoCopies();
+    occurrence.event.viewerCan = {
+      editDetails: false,
+      inviteGuests: true,
+      removeGuests: false,
+      setGuestPolicy: false,
+      rsvp: true,
+    };
+
+    const primary = mapCalendarOccurrence(occurrence, {
+      sourceById,
+      isSourceVisible: hidden(),
+    });
+    const shared = mapCalendarOccurrence(occurrence, {
+      sourceById,
+      isSourceVisible: hidden('primary'),
+    });
+
+    expect(primary.viewerCan.inviteGuests).toBe(true);
+    expect(primary.viewerCan.rsvp).toBe(true);
+    expect(shared.viewerCan.inviteGuests).toBe(false);
+    expect(shared.viewerCan.rsvp).toBe(false);
+  });
+
   it('keeps the reminders that fire on the primary copy whichever copy shows', () => {
     const event = mapCalendarOccurrence(twoCopies(), {
       sourceById,

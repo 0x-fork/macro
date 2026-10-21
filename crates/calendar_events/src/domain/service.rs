@@ -109,7 +109,7 @@ where
             ActorInboxes::from_owned(self.repository.owned_inbox_emails(requester_id).await?)
         {
             for listing in &mut rows {
-                viewer.mark_attendees(&mut listing.event.attendees);
+                viewer.mark_event(&mut listing.event);
                 if let Some(attendees) = &mut listing.exception.attendees {
                     viewer.mark_attendees(attendees);
                 }

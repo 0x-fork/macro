@@ -20898,6 +20898,10 @@
             "$ref": "#/components/schemas/EventType",
             "description": "Provider event type. Skipped when it is the regular type so\nprojections stored before event types were modeled still compare\nequal."
           },
+          "guestPolicy": {
+            "$ref": "#/components/schemas/GuestPolicy",
+            "description": "What the organizer lets guests do. Skipped when it is Google's\ndefault so projections stored before the policy was modeled still\ncompare equal."
+          },
           "icalUid": {
             "type": "string",
             "description": "RFC 5545 UID used to reconcile provider and email sources."
@@ -20971,6 +20975,10 @@
             "type": "string",
             "format": "date-time",
             "description": "Entity update time."
+          },
+          "viewerCan": {
+            "$ref": "#/components/schemas/ViewerCapabilities",
+            "description": "What the viewing requester may do with the event. Resolved only on\nthe read path, alongside each attendee's `is_self`, so stored\nprojections omit it."
           },
           "visibility": {
             "$ref": "#/components/schemas/EventVisibility",
@@ -30981,6 +30989,25 @@
           "displayName": {
             "type": "string",
             "description": "Guest's name, displayed to everyone in the room."
+          }
+        }
+      },
+      "GuestPolicy": {
+        "type": "object",
+        "description": "The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.",
+        "required": ["canModify", "canInviteOthers", "canSeeOtherGuests"],
+        "properties": {
+          "canInviteOthers": {
+            "type": "boolean",
+            "description": "Whether guests may invite others."
+          },
+          "canModify": {
+            "type": "boolean",
+            "description": "Whether guests may change the event, including its guest list."
+          },
+          "canSeeOtherGuests": {
+            "type": "boolean",
+            "description": "Whether guests may see the guest list."
           }
         }
       },
@@ -42315,6 +42342,39 @@
           }
         ],
         "description": "What happened to a view."
+      },
+      "ViewerCapabilities": {
+        "type": "object",
+        "description": "What the viewing requester may do with an event.",
+        "required": [
+          "editDetails",
+          "inviteGuests",
+          "removeGuests",
+          "setGuestPolicy",
+          "rsvp"
+        ],
+        "properties": {
+          "editDetails": {
+            "type": "boolean",
+            "description": "Change the event's details (title, time, description, conference)."
+          },
+          "inviteGuests": {
+            "type": "boolean",
+            "description": "Add guests."
+          },
+          "removeGuests": {
+            "type": "boolean",
+            "description": "Remove guests."
+          },
+          "rsvp": {
+            "type": "boolean",
+            "description": "Answer the invitation."
+          },
+          "setGuestPolicy": {
+            "type": "boolean",
+            "description": "Change the event's guest policy."
+          }
+        }
       },
       "ViewsResponse": {
         "type": "object",

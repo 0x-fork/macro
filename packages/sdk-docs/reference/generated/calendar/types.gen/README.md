@@ -66,6 +66,7 @@
 - [GetTeamSharingData](type-aliases/GetTeamSharingData.md)
 - [GetTeamSharingResponse](type-aliases/GetTeamSharingResponse.md)
 - [GetTeamSharingResponses](type-aliases/GetTeamSharingResponses.md)
+- [GuestPolicy](type-aliases/GuestPolicy.md)
 - [HealthHandlerData](type-aliases/HealthHandlerData.md)
 - [HealthHandlerResponse](type-aliases/HealthHandlerResponse.md)
 - [HealthHandlerResponses](type-aliases/HealthHandlerResponses.md)
@@ -105,4 +106,5 @@
 - [UpdateCalendarEventRequest](type-aliases/UpdateCalendarEventRequest.md)
 - [UpdateCalendarEventResponse](type-aliases/UpdateCalendarEventResponse.md)
 - [UpdateCalendarEventResponses](type-aliases/UpdateCalendarEventResponses.md)
+- [ViewerCapabilities](type-aliases/ViewerCapabilities.md)
 - [VisibleCalendar](type-aliases/VisibleCalendar.md)

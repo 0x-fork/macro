@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use super::acting::ActorInboxes;
+pub use super::capabilities::{GuestPolicy, ViewerCapabilities};
 
 /// Read and write events on every calendar the user can access. Covers the
 /// event list, get, instances, insert, patch, and watch calls.
@@ -668,6 +669,16 @@ pub struct CalendarEvent {
     /// compare equal.
     #[serde(default, skip_serializing_if = "EventReminders::is_default")]
     pub reminders: EventReminders,
+    /// What the organizer lets guests do. Skipped when it is Google's
+    /// default so projections stored before the policy was modeled still
+    /// compare equal.
+    #[serde(default, skip_serializing_if = "GuestPolicy::is_default")]
+    pub guest_policy: GuestPolicy,
+    /// What the viewing requester may do with the event. Resolved only on
+    /// the read path, alongside each attendee's `is_self`, so stored
+    /// projections omit it.
+    #[serde(default, skip_serializing_if = "ViewerCapabilities::is_none")]
+    pub viewer_can: ViewerCapabilities,
     /// Entity creation time.
     pub created_at: DateTime<Utc>,
     /// Entity update time.

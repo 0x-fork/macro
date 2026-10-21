@@ -83,6 +83,18 @@ export function graphqlEvent(
     isReadOnly: false,
     attendees: [attendee('me@example.com', 'NEEDS_ACTION')],
     reminders,
+    guestPolicy: {
+      canModify: false,
+      canInviteOthers: true,
+      canSeeOtherGuests: true,
+    },
+    viewerCan: {
+      editDetails: false,
+      inviteGuests: true,
+      removeGuests: false,
+      setGuestPolicy: false,
+      rsvp: true,
+    },
     createdAt: '2026-09-01T12:00:00+00:00',
     updatedAt: '2026-09-02T12:00:00.250+00:00',
     ...overrides,

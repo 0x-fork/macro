@@ -1573,6 +1573,12 @@ export type CalendarEvent = {
      */
     eventType?: EventType;
     /**
+     * What the organizer lets guests do. Skipped when it is Google's
+     * default so projections stored before the policy was modeled still
+     * compare equal.
+     */
+    guestPolicy?: GuestPolicy;
+    /**
      * RFC 5545 UID used to reconcile provider and email sources.
      */
     icalUid: string;
@@ -1641,6 +1647,12 @@ export type CalendarEvent = {
      * Entity update time.
      */
     updatedAt: string;
+    /**
+     * What the viewing requester may do with the event. Resolved only on
+     * the read path, alongside each attendee's `is_self`, so stored
+     * projections omit it.
+     */
+    viewerCan?: ViewerCapabilities;
     /**
      * Event visibility.
      */
@@ -8040,6 +8052,25 @@ export type GuestJoinRequest = {
      * Guest's name, displayed to everyone in the room.
      */
     displayName: string;
+};
+
+/**
+ * The switches an organizer sets on an event to bound what its guests may
+ * do. Google omits a switch from the payload while it holds its default.
+ */
+export type GuestPolicy = {
+    /**
+     * Whether guests may invite others.
+     */
+    canInviteOthers: boolean;
+    /**
+     * Whether guests may change the event, including its guest list.
+     */
+    canModify: boolean;
+    /**
+     * Whether guests may see the guest list.
+     */
+    canSeeOtherGuests: boolean;
 };
 
 /**
@@ -15088,6 +15119,32 @@ export type ViewResult = {
      * The positions written, the moved card's last.
      */
     positions: Array<CardPosition>;
+};
+
+/**
+ * What the viewing requester may do with an event.
+ */
+export type ViewerCapabilities = {
+    /**
+     * Change the event's details (title, time, description, conference).
+     */
+    editDetails: boolean;
+    /**
+     * Add guests.
+     */
+    inviteGuests: boolean;
+    /**
+     * Remove guests.
+     */
+    removeGuests: boolean;
+    /**
+     * Answer the invitation.
+     */
+    rsvp: boolean;
+    /**
+     * Change the event's guest policy.
+     */
+    setGuestPolicy: boolean;
 };
 
 export type ViewsResponse = {

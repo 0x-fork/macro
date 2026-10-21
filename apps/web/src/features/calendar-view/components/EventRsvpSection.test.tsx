@@ -1,6 +1,8 @@
 import {
   type CalendarEvent,
   DEFAULT_CALENDAR_SOURCE,
+  DEFAULT_GUEST_POLICY,
+  NO_VIEWER_CAPABILITIES,
 } from '@app/features/calendar/types';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { type JSX, Show } from 'solid-js';
@@ -44,6 +46,8 @@ const event: CalendarEvent = {
   recurrenceId: 'instance',
   isCancelled: false,
   isReadOnly: false,
+  guestPolicy: DEFAULT_GUEST_POLICY,
+  viewerCan: NO_VIEWER_CAPABILITIES,
   sourceCalendarIds: [],
   recurrenceLines: ['RRULE:FREQ=WEEKLY'],
   title: 'Team meeting',

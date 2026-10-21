@@ -1766,6 +1766,14 @@ type GraphqlCalendarEvent {
 	"""
 	reminders: GraphqlCalendarReminders!
 	"""
+	What the organizer lets guests do.
+	"""
+	guestPolicy: GraphqlCalendarGuestPolicy!
+	"""
+	What the viewer may do with the event.
+	"""
+	viewerCan: GraphqlCalendarViewerCapabilities!
+	"""
 	Entity creation time in RFC 3339 format.
 	"""
 	createdAt: String!
@@ -2033,6 +2041,24 @@ enum GraphqlCalendarEventVisibility {
 }
 
 """
+What the organizer lets an event's guests do.
+"""
+type GraphqlCalendarGuestPolicy {
+	"""
+	Whether guests may change the event, including its guest list.
+	"""
+	canModify: Boolean!
+	"""
+	Whether guests may invite others.
+	"""
+	canInviteOthers: Boolean!
+	"""
+	Whether guests may see the guest list.
+	"""
+	canSeeOtherGuests: Boolean!
+}
+
+"""
 How far the viewer's client has read one connected inbox's calendar
 change log.
 """
@@ -2259,6 +2285,32 @@ enum GraphqlCalendarUpdateScope {
 	One occurrence.
 	"""
 	THIS_EVENT
+}
+
+"""
+What the viewer may do with an event.
+"""
+type GraphqlCalendarViewerCapabilities {
+	"""
+	Change the event's details (title, time, description, conference).
+	"""
+	editDetails: Boolean!
+	"""
+	Add guests.
+	"""
+	inviteGuests: Boolean!
+	"""
+	Remove guests.
+	"""
+	removeGuests: Boolean!
+	"""
+	Change the event's guest policy.
+	"""
+	setGuestPolicy: Boolean!
+	"""
+	Answer the invitation.
+	"""
+	rsvp: Boolean!
 }
 
 """

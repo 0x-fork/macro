@@ -211,6 +211,9 @@ impl CalendarChangeRepository for PgCalendarRepository {
                 event.is_read_only,
                 event.reminders_use_default,
                 event.reminder_overrides,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 event.created_at,
                 event.updated_at
             FROM calendar_event_occurrences occurrence

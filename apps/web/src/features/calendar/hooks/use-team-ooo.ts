@@ -10,7 +10,12 @@ import { EventType } from '@service-storage/generated/schemas/eventType';
 import type { TeamOutOfOfficeItem } from '@service-storage/generated/schemas/teamOutOfOfficeItem';
 import { parseISO } from 'date-fns';
 import { type Accessor, createMemo } from 'solid-js';
-import { type CalendarEvent, TEAM_OOO_SOURCE_ID } from '../types';
+import {
+  type CalendarEvent,
+  DEFAULT_GUEST_POLICY,
+  NO_VIEWER_CAPABILITIES,
+  TEAM_OOO_SOURCE_ID,
+} from '../types';
 import { isCalendarRangeSupported } from '../utils/calendar-supported-range';
 import { useCalendarTeamOooFlag } from './use-calendar-ui-flag';
 
@@ -63,6 +68,8 @@ function mapTeamOooItem(item: TeamOutOfOfficeItem): CalendarEvent {
     isCancelled: false,
     isReadOnly: true,
     attendees: [],
+    guestPolicy: DEFAULT_GUEST_POLICY,
+    viewerCan: NO_VIEWER_CAPABILITIES,
     recurrenceLines: [],
     sourceCalendarIds: [TEAM_OOO_SOURCE_ID],
     eventType: EventType.out_of_office,

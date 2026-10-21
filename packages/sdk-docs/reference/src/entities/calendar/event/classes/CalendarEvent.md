@@ -21,6 +21,7 @@ mutations, but reading a field on it throws.
 | <a id="property-attendees"></a> `attendees` | `readonly` | () => `Promise`\<[`CalendarAttendee`](../../../../../generated/calendar/types.gen/type-aliases/CalendarAttendee.md)[]\> | Attendees on the canonical copy. | - |
 | <a id="property-calendar"></a> `calendar` | `readonly` | () => `Promise`\<[`Calendar`](../../calendar/classes/Calendar.md) \| `undefined`\> | The calendar the canonical source belongs to, when known. | - |
 | <a id="property-description"></a> `description` | `readonly` | () => `Promise`\<`string` \| `undefined`\> | Optional event body. | - |
+| <a id="property-guestpolicy"></a> `guestPolicy` | `readonly` | () => `Promise`\<[`GuestPolicy`](../../../../../generated/calendar/types.gen/type-aliases/GuestPolicy.md)\> | What the organizer lets guests do: modify, invite others, see the guest list. | - |
 | <a id="property-id"></a> `id` | `public readonly` | `string` | - | [`MacroEntity`](../../../entity/classes/MacroEntity.md).[`id`](../../../entity/classes/MacroEntity.md#property-id) |
 | <a id="property-isreadonly"></a> `isReadOnly` | `readonly` | () => `Promise`\<`boolean`\> | Whether the canonical source's calendar prohibits editing. | - |
 | <a id="property-location"></a> `location` | `readonly` | () => `Promise`\<`string` \| `undefined`\> | Optional physical or virtual location label. | - |
@@ -29,6 +30,7 @@ mutations, but reading a field on it throws.
 | <a id="property-time"></a> `time` | `readonly` | () => `Promise`\<[`EventTime`](../../../../../generated/calendar/types.gen/type-aliases/EventTime.md)\> | Timed or all-day shape. | - |
 | <a id="property-title"></a> `title` | `readonly` | () => `Promise`\<`string`\> | Display title. | - |
 | <a id="property-transparency"></a> `transparency` | `readonly` | () => `Promise`\<[`EventTransparency`](../../../../../generated/calendar/types.gen/type-aliases/EventTransparency.md)\> | Availability behavior. | - |
+| <a id="property-viewercan"></a> `viewerCan` | `readonly` | () => `Promise`\<[`ViewerCapabilities`](../../../../../generated/calendar/types.gen/type-aliases/ViewerCapabilities.md)\> | What the connected account may do with this event under its guest policy. | - |
 
 ## Methods
 

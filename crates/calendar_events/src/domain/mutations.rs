@@ -228,7 +228,7 @@ where
                 .await;
         }
         if let Some(viewer) = viewer {
-            viewer.mark_attendees(&mut event.attendees);
+            viewer.mark_event(&mut event);
         }
         Ok(event)
     }
@@ -542,7 +542,7 @@ where
                 self.retire_gone_source(&target).await;
                 event.id = target.event_id;
                 if let Some(actor) = &target.actor {
-                    actor.mark_attendees(&mut event.attendees);
+                    actor.mark_event(&mut event);
                 }
                 Ok(*event)
             }

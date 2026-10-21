@@ -6,7 +6,8 @@ use calendar_events::domain::{
         CalendarCapabilities, CalendarEvent, CalendarMentionPreview, CalendarMentionRequestItem,
         CalendarOccurrence, CalendarOccurrenceCursor, CalendarProvider, CalendarSyncStatus,
         EventReminders, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
-        OccurrenceException, OccurrenceListing, OccurrenceRange, TeamOutOfOffice, VisibleCalendar,
+        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, TeamOutOfOffice,
+        ViewerCapabilities, VisibleCalendar,
     },
     ports::CalendarOccurrenceService,
 };
@@ -57,6 +58,8 @@ fn listing() -> OccurrenceListing {
             is_read_only: false,
             attendees: Vec::new(),
             reminders: EventReminders::default(),
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at,
         },

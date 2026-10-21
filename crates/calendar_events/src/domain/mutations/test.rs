@@ -4,9 +4,9 @@ use crate::domain::models::{
     CalendarBackfillJobKey, CalendarCreationTarget, CalendarEventOverride, CalendarEventSource,
     CalendarLinkTokenIdentity, CalendarOccurrenceCursor, CalendarSyncStatus, CalendarWatchRelease,
     ConferenceChange, DisconnectedCalendar, EventStart, EventStatus, EventTransparency, EventType,
-    EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel, OutOfOfficeAutoDeclineMode,
-    OutOfOfficeProperties, ProviderCalendar, ProviderCalendarTarget, ProviderEventSource,
-    StoredGoogleCalendar, VisibleCalendar,
+    EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel, GuestPolicy,
+    OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, ProviderCalendar, ProviderCalendarTarget,
+    ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::RetiredCalendarEvent;
 use chrono::{Duration, TimeZone};
@@ -102,6 +102,8 @@ fn echo_upsert(target_owner: &str) -> CalendarEventUpsert {
             is_read_only: false,
             attendees: Vec::new(),
             reminders: EventReminders::default(),
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         },

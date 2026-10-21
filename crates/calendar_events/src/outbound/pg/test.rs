@@ -166,6 +166,8 @@ fn timed_upsert(
                 comment: None,
             }],
             reminders: EventReminders::default(),
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at + Duration::minutes(i64::from(sequence)),
         },
@@ -1444,6 +1446,68 @@ async fn occurrence_range_uses_overlap_indexes_and_preserves_attendees(pool: PgP
         event.creator_email.as_deref() == Some("creator@example.com")
             && event.creator_name.as_deref() == Some("Creator")
     }));
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn guest_policy_follows_the_canonical_copy(pool: PgPool) {
+    let owner_id = "macro|calendar-guests@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool);
+    let provider = provider_ids(&repo, link_id).await;
+    let locked_down = GuestPolicy {
+        can_modify: false,
+        can_invite_others: false,
+        can_see_other_guests: false,
+    };
+    let range = OccurrenceRange {
+        starts_at: Utc.with_ymd_and_hms(2026, 7, 24, 0, 0, 0).unwrap(),
+        ends_at: Utc.with_ymd_and_hms(2026, 7, 26, 0, 0, 0).unwrap(),
+        start_date: NaiveDate::from_ymd_opt(2026, 7, 24).unwrap(),
+        end_date: NaiveDate::from_ymd_opt(2026, 7, 26).unwrap(),
+    };
+    let mut first = timed_upsert(
+        owner_id,
+        link_id,
+        provider,
+        "guests@example.com",
+        "Planning",
+        1,
+    );
+    first.event.guest_policy = locked_down;
+    repo.upsert_event_fixture(first).await.unwrap();
+
+    let listed = repo
+        .list_occurrences(owner_id, range.clone(), None, 100)
+        .await
+        .unwrap();
+    assert!(!listed.is_empty());
+    assert!(
+        listed
+            .iter()
+            .all(|listing| listing.event.guest_policy == locked_down)
+    );
+
+    // The organizer restores Google's defaults; the next sync carries no
+    // switch at all and the entity follows.
+    let second = timed_upsert(
+        owner_id,
+        link_id,
+        provider,
+        "guests@example.com",
+        "Planning",
+        2,
+    );
+    repo.upsert_event_fixture(second).await.unwrap();
+
+    let listed = repo
+        .list_occurrences(owner_id, range, None, 100)
+        .await
+        .unwrap();
+    assert!(
+        listed
+            .iter()
+            .all(|listing| listing.event.guest_policy == GuestPolicy::default())
+    );
 }
 
 /// A Google out-of-office auto-decline records the decline on the exception
@@ -3395,6 +3459,8 @@ fn reminder_upsert(
             is_read_only: false,
             attendees: Vec::new(),
             reminders,
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at - Duration::days(1),
             updated_at: starts_at - Duration::days(1),
         },

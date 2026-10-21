@@ -1013,6 +1013,24 @@ export const listOccurrencesResponse = zod
                 .describe(
                   "Google's event type: ordinary meetings versus the status-style entries\n(working location, out of office, focus time, birthdays) Google renders\nand notifies differently. Immutable at the provider after creation."
                 ),
+              guestPolicy: zod
+                .object({
+                  canInviteOthers: zod
+                    .boolean()
+                    .describe('Whether guests may invite others.'),
+                  canModify: zod
+                    .boolean()
+                    .describe(
+                      'Whether guests may change the event, including its guest list.'
+                    ),
+                  canSeeOtherGuests: zod
+                    .boolean()
+                    .describe('Whether guests may see the guest list.'),
+                })
+                .optional()
+                .describe(
+                  'The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.'
+                ),
               icalUid: zod
                 .string()
                 .describe(
@@ -1225,6 +1243,22 @@ export const listOccurrencesResponse = zod
                 .enum(['opaque', 'transparent'])
                 .describe('Whether an event blocks availability.'),
               updatedAt: zod.iso.datetime({}).describe('Entity update time.'),
+              viewerCan: zod
+                .object({
+                  editDetails: zod
+                    .boolean()
+                    .describe(
+                      "Change the event's details (title, time, description, conference)."
+                    ),
+                  inviteGuests: zod.boolean().describe('Add guests.'),
+                  removeGuests: zod.boolean().describe('Remove guests.'),
+                  rsvp: zod.boolean().describe('Answer the invitation.'),
+                  setGuestPolicy: zod
+                    .boolean()
+                    .describe("Change the event's guest policy."),
+                })
+                .optional()
+                .describe('What the viewing requester may do with an event.'),
               visibility: zod
                 .enum(['default', 'public', 'private', 'confidential'])
                 .describe('Visibility of event details.'),

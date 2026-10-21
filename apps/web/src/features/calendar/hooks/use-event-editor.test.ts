@@ -5,7 +5,11 @@ import {
   calendarEventToEditorInitialValues,
   type EventEditorSubmitValues,
 } from '../components/composer/event-form-model';
-import type { CalendarEvent } from '../types';
+import {
+  type CalendarEvent,
+  DEFAULT_GUEST_POLICY,
+  NO_VIEWER_CAPABILITIES,
+} from '../types';
 import { useEventEditor } from './use-event-editor';
 
 const mocks = vi.hoisted(() => ({
@@ -69,6 +73,8 @@ const savedEvent: CalendarEvent = {
   occurrenceKey: '2026-09-22T14:00:00Z',
   isCancelled: false,
   isReadOnly: false,
+  guestPolicy: DEFAULT_GUEST_POLICY,
+  viewerCan: NO_VIEWER_CAPABILITIES,
   attendees: [],
   recurrenceLines: [],
   title: 'Planning',

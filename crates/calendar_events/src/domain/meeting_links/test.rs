@@ -5,7 +5,8 @@ use chrono::{NaiveDate, TimeZone, Utc};
 use super::*;
 use crate::domain::models::{
     AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, EventReminders, EventStatus,
-    EventTransparency, EventType, EventVisibility, OutOfOfficeProperties, VisibleCalendar,
+    EventTransparency, EventType, EventVisibility, GuestPolicy, OutOfOfficeProperties,
+    ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarRsvpScope, CalendarUpdateScope, UnavailableMeetingLinks,
@@ -39,6 +40,8 @@ fn sample_event() -> CalendarEvent {
         is_read_only: false,
         attendees: Vec::new(),
         reminders: EventReminders::default(),
+        guest_policy: GuestPolicy::default(),
+        viewer_can: ViewerCapabilities::NONE,
         created_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
         updated_at: Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap(),
     }
