@@ -110,6 +110,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started` and native launch/termination/update counters; termination coverage is iOS/macOS only, and a pageview alone also includes SPA navigation. See `tauri/src-tauri/README.md`.
 - All API/network calls live in service-clients.
+- Keep early DOCX opens loading while exports return processing (409); retry only
+  that response, with a bounded wait. See the Word editor walkthrough in
+  `docs/agent-guide/documents.md` at the repository root.
 - Add Google Meet account hints only to join actions using the displayed calendar's
   connected email; keep stored and copied conference links unchanged. See the
   [calendar walkthrough](../../docs/agent-guide/calendar.md).

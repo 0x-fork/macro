@@ -36,6 +36,8 @@ excluded from source linting.
 
 - Regenerate Rust OpenAPI and web service clients before `bun run sync-specs &&
   bun run generate`; do not copy deployed schemas over a local API change.
+- Regenerate `../sdk-docs/reference` after SDK source or generated type changes;
+  run that package's checks because web CI verifies the reference is current.
 - `generated/agent-fold/` is not from OpenAPI: `cargo run -p agent_fold --bin
   export_types` writes it, and `foldedLog()` casts the opaque wire schema to it.
 - Workspace advanced filters use the server's serialized AST names, not Rust
