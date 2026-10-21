@@ -5256,6 +5256,7 @@ dependencies = [
  "unfurl",
  "utoipa",
  "uuid",
+ "wiremock",
  "workspace-hack",
 ]
 

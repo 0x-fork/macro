@@ -371,7 +371,8 @@ async fn main() -> anyhow::Result<()> {
     ));
 
     // The CRM crate's company-metadata resolver is consulted by
-    // `crm_service.populate_contact` only on `crm_domain_directory` misses.
+    // `crm_service.populate_contact` on `crm_domain_directory` misses and by
+    // the enrichment worker for pending entries other binaries leave behind.
     // `USE_APOLLO_CRM_ENRICHMENT` selects Apollo.io vs. the unfurl-backed
     // resolver; we also fall back to unfurl when the Apollo key can't be
     // loaded. The resolver is cheap to clone.
@@ -409,6 +410,10 @@ async fn main() -> anyhow::Result<()> {
         crm::outbound::companies_repo::CompaniesRepositoryImpl::new(db.clone()),
         metadata_resolver.clone(),
     );
+    worker_tracker.spawn(email_service::crm_enrichment_worker::run(
+        crm_service.clone(),
+        worker_cancellation_token.clone(),
+    ));
 
     // Backfill workers run against a dedicated pool to keep their writes
     // off the primary worker pool. CRM writes are part of the backfill

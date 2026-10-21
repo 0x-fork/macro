@@ -16,6 +16,8 @@ the gateway `/email` prefix.
   `crm_cleanup`, `worker_lifecycle`.
 - `src/backfill_outbox.rs`, `src/backfill_init_service.rs`,
   `src/backfill_completion_service.rs`: Gmail history backfill orchestration.
+- `src/crm_enrichment_worker.rs`: periodic pass that resolves pending CRM
+  company directory entries (names/logos) left by binaries without a resolver.
 - `src/bin/`: standalone binaries — `pubsub_workers` (the queue consumer
   process), plus one-off backfill/cleanup scripts.
 
