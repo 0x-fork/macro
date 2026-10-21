@@ -105,7 +105,10 @@ async fn imports_are_private_idempotent_owner_scoped_and_revision_ordered(pool: 
     fixtures(path = "../../../fixtures", scripts("import_users"))
 )]
 async fn imports_require_a_complete_source_identity(pool: PgPool) {
-    let service = CallImportServiceImpl(PgImportedCallRepository::new(pool));
+    let service = CallImportServiceImpl(
+        PgImportedCallRepository::new(pool),
+        macro_event_broker::NoopMacroEventBroker,
+    );
     let mut call = snapshot("import-a", Utc::now());
     call.source.external_id = ExternalCallId(String::new());
     assert!(service.ingest(call).await.is_err());

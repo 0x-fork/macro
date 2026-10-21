@@ -1,6 +1,6 @@
 use super::*;
 use crate::domain::events::CallTopicEvent;
-use crate::domain::records::CallProvider;
+use crate::domain::records::{CallProvider, ExternalCallId};
 use macro_event_broker::{EventBrokerError, MacroEvent};
 use std::sync::{Arc, Mutex};
 
@@ -55,7 +55,7 @@ fn snapshot(namespace: &str) -> ImportedCall {
             namespace: namespace.into(),
             provider: CallProvider::Granola,
             object_type: "note".into(),
-            external_id: "not_123456789abcde".to_owned().try_into().unwrap(),
+            external_id: ExternalCallId("not_123456789abcde".to_owned()),
             external_url: None,
             external_updated_at: None,
             synced_at: None,
