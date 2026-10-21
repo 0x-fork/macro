@@ -859,7 +859,13 @@ export function createSoupLiveQuery(
       const initial =
         'initial' in local.input ? local.input.initial : undefined;
       const host = getGraphqlSoupCacheHost();
-      if (!initial || !host || !isCachedMailView(initial.emailView)) return;
+      if (
+        !initial ||
+        !host ||
+        !isCachedMailView(initial.emailView) ||
+        initial.sortMethod === 'NOTIFIED_AT'
+      )
+        return;
       const mailView = initial.emailView;
       setFetchingMailPage(true);
       try {

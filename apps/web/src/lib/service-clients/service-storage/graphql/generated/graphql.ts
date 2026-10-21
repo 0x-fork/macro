@@ -1607,10 +1607,15 @@ export type GraphqlSharedEmailFilter =
   /** The only option. */
   | 'ONLY';
 
-/** GraphQL representation of supported simple Soup sorts. */
+/** GraphQL representation of supported Soup sorts. */
 export type GraphqlSimpleSortMethod =
   /** Sort by creation timestamp. */
   | 'CREATED_AT'
+  /**
+   * Only entities the caller holds a live notification for, most recently
+   * notified first. Descending `soup` only; not supported by `groupSoup`.
+   */
+  | 'NOTIFIED_AT'
   /** Sort by update timestamp. */
   | 'UPDATED_AT'
   /** Sort by most recently viewed. */
