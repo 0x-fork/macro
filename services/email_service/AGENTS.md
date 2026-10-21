@@ -56,6 +56,8 @@ the gateway `/email` prefix.
   attachment bytes through the provider-aware reader.
 - Preserve the calendar domain's `team_ooo_changed` hint when forwarding a
   calendar refresh so unrelated invitation updates retain teammates' OOO rows.
+- Spawn `run_transfers` regardless of the Outlook flags. Gmail inbox moves
+  finish there; with writes off it pauses only the Outlook retire step.
 
 ## Related
 

@@ -299,6 +299,7 @@ pub trait DraftRetirementGateway: Send + Sync + 'static {
 pub struct DraftRetirementService<R, G> {
     pub repository: R,
     pub gateway: G,
+    pub writes_enabled: bool,
 }
 impl<R: DraftTransferRepository, G: DraftRetirementGateway> DraftRetirementService<R, G> {
     pub async fn execute_once(&self) -> Result<bool, MailboxError> {
@@ -319,6 +320,9 @@ impl<R: DraftTransferRepository, G: DraftRetirementGateway> DraftRetirementServi
             }
             if plan.source_provider == UserProvider::Gmail {
                 return Ok(RetirementOutcome::OriginalRemains);
+            }
+            if !self.writes_enabled {
+                return Ok(RetirementOutcome::Retry);
             }
             let Some(facts) = self.gateway.inspect(&plan).await? else {
                 return Ok(RetirementOutcome::Removed);

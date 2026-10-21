@@ -478,17 +478,16 @@ async fn main() -> anyhow::Result<()> {
             ),
         },
     );
-    if config.outlook_writes_enabled {
-        worker_tracker.spawn(email_service::mailbox_sync_worker::run_transfers(
-            email::domain::draft_transfer::DraftRetirementService {
-                repository: email::outbound::EmailPgRepo::new(db.clone()),
-                gateway: email_service::outbound::email_api::ProviderMailboxGateway(
-                    outlook_api.clone(),
-                ),
-            },
-            worker_cancellation_token.clone(),
-        ));
-    }
+    worker_tracker.spawn(email_service::mailbox_sync_worker::run_transfers(
+        email::domain::draft_transfer::DraftRetirementService {
+            repository: email::outbound::EmailPgRepo::new(db.clone()),
+            gateway: email_service::outbound::email_api::ProviderMailboxGateway(
+                outlook_api.clone(),
+            ),
+            writes_enabled: config.outlook_writes_enabled,
+        },
+        worker_cancellation_token.clone(),
+    ));
     worker_tracker.spawn(email_service::mailbox_sync_worker::run_drafts(
         email::domain::mailbox::drafts::MailboxDraftService::new(
             mailbox_repository.clone(),

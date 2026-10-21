@@ -488,7 +488,13 @@ impl DraftTransferRepository for EmailPgRepo {
             RetirementOutcome::OriginalRemains => ("conflict", Some("move_original_remains")),
             RetirementOutcome::Sent => ("conflict", Some("move_source_sent")),
             RetirementOutcome::Reauthorization => ("conflict", Some("move_reauthorization")),
-            RetirementOutcome::Retry => ("cleanup", None),
+            RetirementOutcome::Retry => {
+                let changed=sqlx::query!("UPDATE email_draft_transfers SET lease_id=NULL,lease_until=NULL,available_at=now()+interval '30 seconds' WHERE id=$1 AND lease_id=$2 AND lease_until>now() AND state='cleanup'",plan.request.id,lease).execute(&self.pool).await.map_err(|_|MailboxError::Persistence)?.rows_affected();
+                if changed != 1 {
+                    return Err(MailboxError::Stale);
+                }
+                return Ok(());
+            }
         };
         let mut tx = self
             .pool
