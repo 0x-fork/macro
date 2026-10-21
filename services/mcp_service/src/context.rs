@@ -553,6 +553,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
             ai_tools::build_image_generator_from_env(),
             recorder.clone(),
         )?,
+        message_tool_context: ai_tools::build_message_tool_context(&document_tool_context),
         document_tool_context,
         properties_tool_context,
         email_tool_context,

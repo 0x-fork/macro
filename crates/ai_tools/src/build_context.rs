@@ -627,6 +627,9 @@ pub async fn build_tool_service_context_from_env(
             recorder.clone(),
         )?,
         cognition_tool_context: build_cognition_tool_context()?,
+        message_tool_context: crate::tool_context::build_message_tool_context(
+            &document_tool_context,
+        ),
         document_tool_context,
         properties_tool_context,
         email_tool_context,

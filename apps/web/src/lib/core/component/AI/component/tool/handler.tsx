@@ -74,6 +74,14 @@ import {
   listCodingAgentsHandler,
 } from './CodingAgents';
 import { decideHandler, generateObjectHandler } from './Cognition';
+import {
+  commentHandler,
+  commentOnTextHandler,
+  deleteCommentHandler,
+  editCommentHandler,
+  readDiscussionHandler,
+  resolveCommentHandler,
+} from './Comments';
 import { createDocumentHandler } from './CreateDocument';
 import { createProjectHandler } from './CreateProject';
 import { createSkillHandler } from './CreateSkill';
@@ -91,12 +99,6 @@ import {
 } from './DesignDocument';
 import { discoverConnectorsHandler } from './DiscoverConnectors';
 import { displayResultsHandler } from './DisplayResults';
-import {
-  commentOnDocumentHandler,
-  deleteDocumentCommentHandler,
-  editDocumentCommentHandler,
-  resolveDocumentCommentHandler,
-} from './DocumentComments';
 import { editDocumentHandler } from './EditDocument';
 import { editTagHandler } from './EditTag';
 import {
@@ -312,10 +314,12 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ReadSkill: readSkillHandler,
   RenameChannel: renameChannelHandler,
   RenameDocument: renameDocumentHandler,
-  CommentOnDocument: commentOnDocumentHandler,
-  ResolveDocumentComment: resolveDocumentCommentHandler,
-  EditDocumentComment: editDocumentCommentHandler,
-  DeleteDocumentComment: deleteDocumentCommentHandler,
+  ReadDiscussion: readDiscussionHandler,
+  Comment: commentHandler,
+  CommentOnText: commentOnTextHandler,
+  ResolveComment: resolveCommentHandler,
+  EditComment: editCommentHandler,
+  DeleteComment: deleteCommentHandler,
   SearchSkills: searchSkillsHandler,
   SearchTools: searchToolsHandler,
   SelfKnowledge: selfKnowledgeHandler,

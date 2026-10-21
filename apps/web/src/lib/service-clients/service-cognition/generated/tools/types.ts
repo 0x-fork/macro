@@ -210,6 +210,14 @@ export type BookingStatus =
   | 'processing'
   | 'failed';
 /**
+ * The kinds of item that carry a Discussion.
+ */
+export type DiscussionParentType =
+  | 'document'
+  | 'initiative'
+  | 'crm_company'
+  | 'crm_contact';
+/**
  * The runtimes an agent can be moved onto.
  */
 export type AgentHarnessOption =
@@ -5554,9 +5562,48 @@ export interface Booking {
   };
 }
 /**
- * Comment on a document on behalf of the user. Pass threadId to reply in an existing inline or Discussion thread; pass quote to start a new inline comment on a passage of a Macro markdown or Word (DOCX) document; omit both to start a new Discussion comment on the document as a whole. Replies and Discussion comments support any document type. Only use this when explicitly asked to reply to or comment on a document. Thread ids come from the comments ReadContent returns. For an inline comment, quote the passage exactly as the document reads, as plain text without markdown syntax, within a single paragraph, heading, list item or table cell. If the passage appears more than once the tool refuses and lists each occurrence so you can choose one with occurrence, counting from 1; if the text is not found, read the document again rather than guessing. Do not combine threadId with quote. occurrence only applies with quote. Comments made here stay in Macro and are not written into a Word file; for comments that must travel with a Word document to its recipient (a redline for a counterparty), use EditWordDocument's addComment operation instead.
+ * Add a comment to the Discussion of a document, task, Tasks project (initiative), CRM company or CRM contact on behalf of the user, or reply in an existing comment thread on any of them. For a new comment, address the item by entityType and entityId. For a reply, pass threadId; a thread id is enough to find its item, so entityType and entityId may be omitted. Thread ids come from ReadDiscussion, or from ReadContent for a document. Only use this when explicitly asked to comment or reply. Write content in Macro markdown and link people and items with the same mention tags as in documents; they render as chips and notify the people mentioned. To comment on a passage of text in a document, use CommentOnText instead; for a message in a channel, use SendChannelMessage.
  */
-export interface CommentOnDocument {
+export interface Comment {
+  /**
+   * The kind of item to comment on. Required with entityId for a new comment; optional for a reply.
+   */
+  entityType?: DiscussionParentType | null;
+  /**
+   * The id of the item to comment on. Required with entityType for a new comment; optional for a reply.
+   */
+  entityId?: string | null;
+  /**
+   * The id of the thread to reply in. Omit to start a new Discussion comment on the item.
+   */
+  threadId?: string | null;
+  /**
+   * Comment content in Macro markdown, the same syntax as markdown documents, including mention tags.
+   */
+  content: string;
+}
+/**
+ * The posted comment.
+ */
+export interface CommentResponse {
+  entityType: DiscussionParentType;
+  /**
+   * The item the comment is on.
+   */
+  entityId: string;
+  /**
+   * The thread the comment is in; a new comment starts its own.
+   */
+  threadId: string;
+  /**
+   * The posted comment.
+   */
+  commentId: string;
+}
+/**
+ * Start an inline comment on a passage of a Macro markdown or Word (DOCX) document on behalf of the user, anchored to the quoted text. Only use this when explicitly asked to comment on specific text. Quote the passage exactly as the document reads, as plain text without markdown syntax, within a single paragraph, heading, list item or table cell. If the passage appears more than once the tool refuses and lists each occurrence so you can choose one with occurrence, counting from 1; if the text is not found, read the document again rather than guessing. For a comment on a document as a whole, or a reply in an existing thread, use Comment. Comments made here stay in Macro and are not written into a Word file; for comments that must travel with a Word document to its recipient (a redline for a counterparty), use EditWordDocument's addComment operation instead.
+ */
+export interface CommentOnText {
   /**
    * The id of the document to comment on.
    */
@@ -5566,28 +5613,24 @@ export interface CommentOnDocument {
    */
   content: string;
   /**
-   * The id of the inline or Discussion thread to reply in, from ReadContent. Cannot be combined with quote. Omit both threadId and quote to post a new Discussion comment on the document as a whole.
+   * The passage to comment on, quoted exactly as the document reads: plain text without markdown syntax such as ** or link brackets. Keep it to the words the comment is about; a longer quote is more likely to be unique.
    */
-  threadId?: string | null;
+  quote: string;
   /**
-   * The passage to comment on, quoted exactly as the document reads: plain text without markdown syntax such as ** or link brackets. Keep it to the words the comment is about; a longer quote is more likely to be unique. Starts a new inline comment on a markdown or Word (DOCX) document. Cannot be combined with threadId.
-   */
-  quote?: string | null;
-  /**
-   * Which appearance of the quoted passage to comment on, counting from 1 in document order. Only applies with quote; only needed when the passage appears more than once.
+   * Which appearance of the quoted passage to comment on, counting from 1 in document order. Only needed when the passage appears more than once.
    */
   occurrence?: number | null;
 }
 /**
  * The posted comment.
  */
-export interface CommentOnDocumentResponse {
+export interface CommentOnTextResponse {
   /**
    * The document the comment was posted on.
    */
   documentId: string;
   /**
-   * The thread the comment is in; a new comment starts its own.
+   * The thread the comment starts.
    */
   threadId: string;
   /**
@@ -5595,9 +5638,9 @@ export interface CommentOnDocumentResponse {
    */
   commentId: string;
   /**
-   * The text the new inline comment is anchored to, as the document reads.
+   * The text the comment is anchored to, as the document reads.
    */
-  markedText?: string | null;
+  markedText: string;
 }
 /**
  * Update the instructions or settings of an AI agent the current user can manage. Provide only the fields that should change; everything else keeps its current value. Read the agent first with ListAgents: instructions are replaced whole, so to edit them, apply the edit to the current text and pass the complete result. Changes apply to sessions opened afterwards; running sessions keep the instructions they started with. Use ConfigureBot for the display name, handle, description, or picture, and ManageBotChannelAccess for plain webhook bots.
@@ -8097,6 +8140,33 @@ export interface DeleteChannelMessageResponse {
   summary: string;
 }
 /**
+ * Delete a comment or reply in the Discussion of a document, task, Tasks project, CRM company or CRM contact. Deleting the first comment of a thread deletes the whole thread with its replies. Authors can delete their own comments, and the item's owner can delete any comment. This cannot be undone. A comment id is enough to find its item. Comment ids come from ReadDiscussion, or from ReadContent for a document. Use only when the user explicitly asks to delete a comment; use ResolveComment to close a thread instead.
+ */
+export interface DeleteComment {
+  /**
+   * The id of the comment or reply to delete. Pass the thread id to delete the whole thread.
+   */
+  commentId: string;
+}
+/**
+ * The deleted comment.
+ */
+export interface DeleteCommentResponse {
+  entityType: DiscussionParentType;
+  /**
+   * The item the comment was on.
+   */
+  entityId: string;
+  /**
+   * The deleted comment.
+   */
+  commentId: string;
+  /**
+   * Whether the whole thread was deleted.
+   */
+  deletedThread: boolean;
+}
+/**
  * Delete a saved table or board view of a Macro database by its id, from DescribeDatabase. Views are shared with everyone who can open the database, so deleting one needs edit access and removes it for everyone. The table and its records stay; a board's hand-arranged card order goes with it. Only do it when the user asked for that view to go.
  */
 export interface DeleteDatabaseView {
@@ -8129,36 +8199,6 @@ export interface DeletedDatabaseView {
    * The name it went by.
    */
   name: string;
-}
-/**
- * Delete a comment or reply on a document. Deleting the first comment of a thread deletes the whole thread with its replies. Authors can delete their own comments, and the document owner can delete any comment. This cannot be undone. Comment ids come from the comments ReadContent returns. Use only when the user explicitly asks to delete a comment; use ResolveDocumentComment to close a thread instead.
- */
-export interface DeleteDocumentComment {
-  /**
-   * The id of the document the comment is on.
-   */
-  documentId: string;
-  /**
-   * The id of the comment or reply to delete, from ReadContent. Pass the thread id to delete the whole thread.
-   */
-  commentId: string;
-}
-/**
- * The deleted comment.
- */
-export interface DeleteDocumentCommentResponse {
-  /**
-   * The document the comment was on.
-   */
-  documentId: string;
-  /**
-   * The deleted comment.
-   */
-  commentId: string;
-  /**
-   * Whether the whole thread was deleted.
-   */
-  deletedThread: boolean;
 }
 /**
  * Decline a staged import candidate on the user's behalf. The item is remembered as declined so it won't be proposed again; only the user's own staged items can be declined.
@@ -8557,6 +8597,33 @@ export interface EditChannelMessageResponse {
   summary: string;
 }
 /**
+ * Replace the text of a comment or reply in the Discussion of a document, task, Tasks project, CRM company or CRM contact. Only a comment's author can edit it, so this edits comments the user wrote and comments this assistant wrote for them. A comment id is enough to find its item. Comment ids come from ReadDiscussion, or from ReadContent for a document. Use only when the user asks to edit a comment.
+ */
+export interface EditComment {
+  /**
+   * The id of the comment or reply to edit. For the first comment of a thread this is the thread id.
+   */
+  commentId: string;
+  /**
+   * The full replacement text of the comment, in Macro markdown.
+   */
+  content: string;
+}
+/**
+ * The edited comment.
+ */
+export interface EditCommentResponse {
+  entityType: DiscussionParentType;
+  /**
+   * The item the comment is on.
+   */
+  entityId: string;
+  /**
+   * The edited comment.
+   */
+  commentId: string;
+}
+/**
  * Apply AI-driven edits to a Macro markdown document in place -- rewriting, inserting, formatting, or restructuring. Use EditSpreadsheet for native Macro spreadsheets. Markdown documents only: these are authored in Macro's collaborative editor, and are the only documents whose content this tool can rewrite. Edit uploaded Word (.docx) files with ReadWordDocument and EditWordDocument instead. Other uploaded files -- PDFs, images, source files such as .py or .ts -- are readable but not editable, and are rejected. If the response contains a `clarification` field, invoke again with the requested info appended to `instructions`. To insert @-mention chips, include each referenced item's ids and details in `instructions`: userId/email for people; documentId/documentName/blockName (and blockParams when needed) for documents, channels, chats, projects, tasks, emails, calendar events, skills, calls, and routines; session id (and optional expanded card) for agent sessions; ISO datetime plus displayFormat for time chips; profileId/slug/url for booking links. To insert document-card(s), include each document's documentId and documentName.
  */
 export interface EditDocument {
@@ -8583,36 +8650,6 @@ export interface EditDocumentResponse {
    * If present, invoke this tool again with this information appended to `instructions`.
    */
   clarification?: string | null;
-}
-/**
- * Replace the text of a comment or reply on a document. Only a comment's author can edit it, so this edits comments the user wrote and comments this assistant wrote for them. Comment ids come from the comments ReadContent returns. Use only when the user asks to edit a comment.
- */
-export interface EditDocumentComment {
-  /**
-   * The id of the document the comment is on.
-   */
-  documentId: string;
-  /**
-   * The id of the comment or reply to edit, from ReadContent. For the first comment of a thread this is the thread id.
-   */
-  commentId: string;
-  /**
-   * The full replacement text of the comment, in markdown.
-   */
-  content: string;
-}
-/**
- * The edited comment.
- */
-export interface EditDocumentCommentResponse {
-  /**
-   * The document the comment is on.
-   */
-  documentId: string;
-  /**
-   * The edited comment.
-   */
-  commentId: string;
 }
 /**
  * Edit the live form using typed targeted operations. ReadForm provides stable question/section IDs. Edits produce granular CRDT updates; concurrent changes merge using the same rules as the builder. Omitted fields stay unchanged. Invalid merged layouts are refused. Changes can add or move questions/sections, edit requiredness/help/screeners and attach an existing booking target. New columns use explicit stable IDs. Question labels follow backing column names; rename them through database tools. Removing a question keeps its column and answers. Schema retyping and conditional column cleanup are unsupported. Keep screeners after the questions they test and booking last. Read the current form after a timeout or partial result before proceeding. Opening and sharing require SetFormAccess.
@@ -9397,7 +9434,7 @@ export interface EditTagResponse {
   summary: string;
 }
 /**
- * Edit an uploaded Word (.docx) document in place: an ordered batch of operations applied atomically to its live copy, so everyone with it open sees the change at once, and nothing changes if any operation fails. ReadWordDocument first and address paragraphs, tables and blocks by the ids it reports (they are not numbers). Use replaceText for wording changes (exact text within one paragraph; formatting is kept), setText to rewrite a whole paragraph, formatText for bold, italic, underline or strikethrough, insertParagraph to add paragraphs (each line of text becomes one; a style is optional), setStyle to change a paragraph style such as Heading1, delete to remove a paragraph, table or block, and addComment to add a Word comment on text. Only insertParagraph and addComment text may contain line breaks. Paragraphs inside table cells are edited the same way. Tracked changes (a redline): with trackChanges true, or when the document already tracks changes and trackChanges is omitted, edits are recorded as real Word revisions (insertions, deletions, formatting and style changes) that the counterparty can accept or reject in Word; pass trackChanges true whenever the user asks for a redline, tracked changes or a markup. Revisions and addComment comments are attributed to the requesting user by name, not to you; pass author only when the user names someone else (a firm or another person). addComment comments are saved in the file and travel with it to Word; use them for comments meant for whoever receives the document, and CommentOnDocument for discussion inside Macro. Returns the changed blocks as they now read, with the ids of new paragraphs; check them. At most 50 operations.
+ * Edit an uploaded Word (.docx) document in place: an ordered batch of operations applied atomically to its live copy, so everyone with it open sees the change at once, and nothing changes if any operation fails. ReadWordDocument first and address paragraphs, tables and blocks by the ids it reports (they are not numbers). Use replaceText for wording changes (exact text within one paragraph; formatting is kept), setText to rewrite a whole paragraph, formatText for bold, italic, underline or strikethrough, insertParagraph to add paragraphs (each line of text becomes one; a style is optional), setStyle to change a paragraph style such as Heading1, delete to remove a paragraph, table or block, and addComment to add a Word comment on text. Only insertParagraph and addComment text may contain line breaks. Paragraphs inside table cells are edited the same way. Tracked changes (a redline): with trackChanges true, or when the document already tracks changes and trackChanges is omitted, edits are recorded as real Word revisions (insertions, deletions, formatting and style changes) that the counterparty can accept or reject in Word; pass trackChanges true whenever the user asks for a redline, tracked changes or a markup. Revisions and addComment comments are attributed to the requesting user by name, not to you; pass author only when the user names someone else (a firm or another person). addComment comments are saved in the file and travel with it to Word; use them for comments meant for whoever receives the document, and Comment or CommentOnText for discussion inside Macro. Returns the changed blocks as they now read, with the ids of new paragraphs; check them. At most 50 operations.
  */
 export interface EditWordDocument {
   /**
@@ -13214,6 +13251,83 @@ export interface ReadDesignResponse {
   content: string;
 }
 /**
+ * Read the comment threads in the Discussion of a document, task, Tasks project (initiative), CRM company or CRM contact: each thread's id, resolved state and comments, with their ids, authors and text, oldest thread first. Thread and comment ids are what Comment, EditComment, DeleteComment and ResolveComment take. For a document, ReadContent returns the same threads alongside the content, with the live text each inline comment is on.
+ */
+export interface ReadDiscussion {
+  entityType: DiscussionParentType;
+  /**
+   * The id of the item.
+   */
+  entityId: string;
+}
+/**
+ * The item's Discussion.
+ */
+export interface ReadDiscussionResponse {
+  entityType: DiscussionParentType;
+  /**
+   * The item.
+   */
+  entityId: string;
+  /**
+   * The live threads, oldest first.
+   */
+  threads: DiscussionThread[];
+}
+/**
+ * A comment thread: its first comment followed by the replies.
+ */
+export interface DiscussionThread {
+  /**
+   * The thread id, which is the id of its first comment. Replies and
+   * resolution address the thread by this id.
+   */
+  id: string;
+  /**
+   * Whether the thread has been resolved.
+   */
+  resolved: boolean;
+  /**
+   * For an inline comment on a document, the text it was written on;
+   * absent for a comment on the item as a whole. ReadContent has the
+   * text as the document reads now.
+   */
+  markedText?: string | null;
+  /**
+   * The comments in order, first comment first.
+   */
+  comments: DiscussionComment[];
+}
+/**
+ * A single comment in a thread.
+ */
+export interface DiscussionComment {
+  /**
+   * The comment id.
+   */
+  id: string;
+  /**
+   * The user or bot id of the author.
+   */
+  author: string;
+  /**
+   * The author's display name, for bots and imported comments.
+   */
+  authorName?: string | null;
+  /**
+   * The comment body in markdown; absent when the comment was deleted.
+   */
+  content?: string | null;
+  /**
+   * When the comment was written.
+   */
+  createdAt: string;
+  /**
+   * When the comment was last edited.
+   */
+  editedAt?: string | null;
+}
+/**
  * Read a known form before editing. Authoring view requires Edit and returns the actual durable collaborative draft, current schema, stable IDs and current settings. Respondent view returns only safe projected content, never hidden booking targets or response rows. Optional summary requires Edit. After a partial write, inspect the returned formId before making further changes. A respondent link may exist while responses are closed; check acceptingResponses.
  */
 export interface ReadForm {
@@ -13860,15 +13974,11 @@ export interface RenameItemResponse {
   name: string;
 }
 /**
- * Resolve or reopen a comment thread on a document on behalf of the user. Only use this when explicitly asked to resolve or reopen a comment. Thread ids come from the comments ReadContent returns.
+ * Resolve or reopen a comment thread in the Discussion of a document, task, Tasks project, CRM company or CRM contact on behalf of the user. A thread id is enough to find its item. Only use this when explicitly asked to resolve or reopen a comment. Thread ids come from ReadDiscussion, or from ReadContent for a document.
  */
-export interface ResolveDocumentComment {
+export interface ResolveComment {
   /**
-   * The id of the document the comment is on.
-   */
-  documentId: string;
-  /**
-   * The id of the inline or Discussion thread, from ReadContent.
+   * The id of the thread to resolve or reopen.
    */
   threadId: string;
   /**
@@ -13879,11 +13989,12 @@ export interface ResolveDocumentComment {
 /**
  * The thread's state after the change.
  */
-export interface ResolveDocumentCommentResponse {
+export interface ResolveCommentResponse {
+  entityType: DiscussionParentType;
   /**
-   * The document the thread is on.
+   * The item the thread is on.
    */
-  documentId: string;
+  entityId: string;
   /**
    * The thread that was changed.
    */

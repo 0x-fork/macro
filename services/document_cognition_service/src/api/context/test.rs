@@ -512,6 +512,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         image_generation_tool_context: ai_tools::build_image_generation_tool_context_test(
             &document_tool_context,
         ),
+        message_tool_context: ai_tools::build_message_tool_context(&document_tool_context),
         document_tool_context: document_tool_context.clone(),
         properties_tool_context: properties_tool_context.clone(),
         email_tool_context: email_tool_context.clone(),

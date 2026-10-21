@@ -1103,6 +1103,21 @@ pub type ToolDocumentToolContext = DocumentToolContext<
     documents::outbound::editing_worker_client::ReqwestEditingWorkerClient,
 >;
 
+/// Type alias for the discussion tool context.
+pub type ToolMessageToolContext =
+    messages::inbound::toolset::MessageToolContext<ToolEntityAccessService>;
+
+/// Build the discussion tool context over the message service and access
+/// checks the document tools comment through, so a host wires one message
+/// service for every Discussion.
+pub fn build_message_tool_context(documents: &ToolDocumentToolContext) -> ToolMessageToolContext {
+    messages::inbound::toolset::MessageToolContext::new(
+        documents.messages.clone(),
+        documents.entity_access_service.clone(),
+    )
+    .with_actor(documents.actor)
+}
+
 /// Type alias for the foreign entity service implementation used by AI tools.
 pub type ToolForeignEntityService = ForeignEntityServiceImpl<PgForeignEntityRepo>;
 
@@ -1833,6 +1848,9 @@ pub struct ToolServiceContext {
     pub project_tool_context: ToolProjectToolContext,
     /// Favorite toggles; the same favorites back `soup_service`'s favorites filter.
     pub favorites_tool_context: ToolFavoritesToolContext,
+    /// The Discussion of any item: the same message service the document
+    /// tools comment through.
+    pub message_tool_context: ToolMessageToolContext,
     /// Native task project lifecycle, properties, sharing and history.
     pub initiative_tool_context: ToolInitiativeToolContext,
     pub team_tool_context: ToolTeamToolContext,
@@ -1903,6 +1921,7 @@ impl ToolServiceContext {
     /// call this once when they build the context for that agent's session.
     pub fn with_actor(mut self, actor: bot_id::BotId) -> Self {
         self.document_tool_context = self.document_tool_context.with_actor(actor);
+        self.message_tool_context = self.message_tool_context.with_actor(actor);
         self.image_generation_tool_context = self.image_generation_tool_context.with_actor(actor);
         self.properties_tool_context = self.properties_tool_context.with_actor(actor);
         self.project_tool_context = self.project_tool_context.with_actor(actor);

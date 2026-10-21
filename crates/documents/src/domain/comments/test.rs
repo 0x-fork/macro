@@ -5,7 +5,11 @@ use entity_access::domain::models::{Entity, EntityPermission, EntityType};
 use macro_user_id::user_id::MacroUserIdStr;
 use messages::domain::{
     api::MockMessageReader,
-    models::{BotSenderProfile, MessageParent, MessageThread, MessageThreadPreview, ThreadState},
+    discussions::{MAX_DISCUSSIONS, PAGE_SIZE},
+    models::{
+        BotSenderProfile, MessageListItem, MessageParent, MessageThread, MessageThreadPreview,
+        ThreadState,
+    },
     ports::{MessageCursor, MessagePage},
 };
 use models_permissions::share_permission::access_level::AccessLevel;

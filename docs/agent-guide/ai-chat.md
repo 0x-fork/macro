@@ -1096,14 +1096,17 @@ list, create, and update projects (initiatives in the API) and move tasks in or 
 render `displayResults` views). Requests go to `POST /cognition/stream/chat/message`; results
 stream over the app's websocket, not the HTTP response.
 
-When explicitly asked, the agent uses `CommentOnDocument` to reply with `threadId`,
-start an inline markdown comment with `quote`, or start a Discussion comment with
-neither. `threadId` and `quote` cannot be combined; `occurrence` only applies with
-`quote`. Thread ids come from the comments returned by `ReadContent`. A reply row reads
-**Replied to a comment on** (or **Commented on** for a new Discussion comment) followed
-by the document, and expands to the posted text; a resolve row reads **Resolved** or
-**Reopened a comment on** the document. Asked to comment on part of a markdown
-document, the agent starts an inline comment on the quoted passage: the row reads
+When explicitly asked, the agent uses `Comment` to start a Discussion comment on an
+item, addressed by `entityType` and `entityId` (a `document`, which includes tasks and
+PDFs, an `initiative`, which is a Tasks project, a `crm_company` or a `crm_contact`),
+or to reply with `threadId` alone: a thread id is enough to find its item. It reads any
+item's threads with `ReadDiscussion`, and edits, deletes and resolves comments by their
+ids with `EditComment`, `DeleteComment` and `ResolveComment`. For a document,
+`ReadContent` returns the same threads with the content. A reply row reads **Replied to
+a comment on** (or **Commented on** for a new Discussion comment) followed by the item,
+and expands to the posted text; a resolve row reads **Resolved** or **Reopened a comment
+on** the item. Asked to comment on part of a markdown document, the agent uses
+`CommentOnText` with `quote` (`occurrence` picks a repeated passage): the row reads
 **Commented on text in** the document and expands to the quoted text and the comment,
 and the passage is highlighted in the document with the comment floating beside it.
 A passage that is missing, spans blocks, or repeats with no occurrence chosen is

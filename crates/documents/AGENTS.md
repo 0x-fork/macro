@@ -28,7 +28,10 @@ word docs, Illustrator/Photoshop files).
   markdown backfill, comments, AI-editing tools, and file-type domain services
   (spreadsheet, presentation, word, illustrator, photoshop).
 - Not here: realtime collaborative sync of document content → sync-service;
-  the lexical markdown node/editor implementation → `packages/lexical-core`.
+  the lexical markdown node/editor implementation → `packages/lexical-core`;
+  Discussion comments, replies and thread state on any entity → the `messages`
+  toolset (this crate keeps only `CommentOnText`, the inline comment that
+  places a mark).
 
 ## Boundaries
 

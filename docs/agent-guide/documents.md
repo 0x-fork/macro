@@ -2810,7 +2810,7 @@ updates live and shows each collaborator's caret with their name
   the file on download; reply with a Macro comment.
 - Threads whose text was deleted are listed under `Comments on text that has
   changed`, above the `Discussion` composer.
-- AI `CommentOnDocument` works on DOCX by quote. The editor pins each quote to
+- AI `CommentOnText` works on DOCX by quote. The editor pins each quote to
   the first matching text the next time someone opens the file.
 - AI `EditWordDocument` can record its edits as tracked changes
   (`trackChanges`, or by default when the document tracks changes) and add

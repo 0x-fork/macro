@@ -26,9 +26,10 @@ type ToolParserMap = {
     response: types.SpreadsheetResponse;
   };
   ChangeBooking: { call: types.ChangeBooking; response: types.Booking };
-  CommentOnDocument: {
-    call: types.CommentOnDocument;
-    response: types.CommentOnDocumentResponse;
+  Comment: { call: types.Comment; response: types.CommentResponse };
+  CommentOnText: {
+    call: types.CommentOnText;
+    response: types.CommentOnTextResponse;
   };
   ConfigureAgent: {
     call: types.ConfigureAgent;
@@ -109,13 +110,13 @@ type ToolParserMap = {
     call: types.DeleteChannelMessage;
     response: types.DeleteChannelMessageResponse;
   };
+  DeleteComment: {
+    call: types.DeleteComment;
+    response: types.DeleteCommentResponse;
+  };
   DeleteDatabaseView: {
     call: types.DeleteDatabaseView;
     response: types.DeletedDatabaseView;
-  };
-  DeleteDocumentComment: {
-    call: types.DeleteDocumentComment;
-    response: types.DeleteDocumentCommentResponse;
   };
   DeleteImportEntity: {
     call: types.DeleteImportEntity;
@@ -159,13 +160,10 @@ type ToolParserMap = {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
   };
+  EditComment: { call: types.EditComment; response: types.EditCommentResponse };
   EditDocument: {
     call: types.EditDocument;
     response: types.EditDocumentResponse;
-  };
-  EditDocumentComment: {
-    call: types.EditDocumentComment;
-    response: types.EditDocumentCommentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
   EditPipeline: {
@@ -375,6 +373,10 @@ type ToolParserMap = {
   ReadChat: { call: types.ReadChat; response: types.ReadChatResponse };
   ReadContent: { call: types.ReadContent; response: types.ReadContentResponse };
   ReadDesign: { call: types.ReadDesign; response: types.ReadDesignResponse };
+  ReadDiscussion: {
+    call: types.ReadDiscussion;
+    response: types.ReadDiscussionResponse;
+  };
   ReadForm: { call: types.ReadForm; response: types.ReadResult };
   ReadIllustratorDocument: {
     call: types.ReadIllustratorDocument;
@@ -425,9 +427,9 @@ type ToolParserMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
-  ResolveDocumentComment: {
-    call: types.ResolveDocumentComment;
-    response: types.ResolveDocumentCommentResponse;
+  ResolveComment: {
+    call: types.ResolveComment;
+    response: types.ResolveCommentResponse;
   };
   RunRoutine: { call: types.RunRoutine; response: types.RoutineRunStarted };
   SaveDatabaseQuery: {
@@ -538,9 +540,10 @@ const toolParserMap = {
     response: schemas.SpreadsheetResponse,
   },
   ChangeBooking: { call: schemas.ChangeBooking, response: schemas.Booking },
-  CommentOnDocument: {
-    call: schemas.CommentOnDocument,
-    response: schemas.CommentOnDocumentResponse,
+  Comment: { call: schemas.Comment, response: schemas.CommentResponse },
+  CommentOnText: {
+    call: schemas.CommentOnText,
+    response: schemas.CommentOnTextResponse,
   },
   ConfigureAgent: {
     call: schemas.ConfigureAgent,
@@ -624,13 +627,13 @@ const toolParserMap = {
     call: schemas.DeleteChannelMessage,
     response: schemas.DeleteChannelMessageResponse,
   },
+  DeleteComment: {
+    call: schemas.DeleteComment,
+    response: schemas.DeleteCommentResponse,
+  },
   DeleteDatabaseView: {
     call: schemas.DeleteDatabaseView,
     response: schemas.DeletedDatabaseView,
-  },
-  DeleteDocumentComment: {
-    call: schemas.DeleteDocumentComment,
-    response: schemas.DeleteDocumentCommentResponse,
   },
   DeleteImportEntity: {
     call: schemas.DeleteImportEntity,
@@ -677,13 +680,13 @@ const toolParserMap = {
     call: schemas.EditChannelMessage,
     response: schemas.EditChannelMessageResponse,
   },
+  EditComment: {
+    call: schemas.EditComment,
+    response: schemas.EditCommentResponse,
+  },
   EditDocument: {
     call: schemas.EditDocument,
     response: schemas.EditDocumentResponse,
-  },
-  EditDocumentComment: {
-    call: schemas.EditDocumentComment,
-    response: schemas.EditDocumentCommentResponse,
   },
   EditForm: { call: schemas.EditForm, response: schemas.MutationResult },
   EditPipeline: {
@@ -926,6 +929,10 @@ const toolParserMap = {
     call: schemas.ReadDesign,
     response: schemas.ReadDesignResponse,
   },
+  ReadDiscussion: {
+    call: schemas.ReadDiscussion,
+    response: schemas.ReadDiscussionResponse,
+  },
   ReadForm: { call: schemas.ReadForm, response: schemas.ReadResult },
   ReadIllustratorDocument: {
     call: schemas.ReadIllustratorDocument,
@@ -982,9 +989,9 @@ const toolParserMap = {
     call: schemas.RenameItem,
     response: schemas.RenameItemResponse,
   },
-  ResolveDocumentComment: {
-    call: schemas.ResolveDocumentComment,
-    response: schemas.ResolveDocumentCommentResponse,
+  ResolveComment: {
+    call: schemas.ResolveComment,
+    response: schemas.ResolveCommentResponse,
   },
   RunRoutine: { call: schemas.RunRoutine, response: schemas.RoutineRunStarted },
   SaveDatabaseQuery: {
@@ -1115,9 +1122,10 @@ type ToolDataMap = {
     response: types.SpreadsheetResponse;
   };
   ChangeBooking: { call: types.ChangeBooking; response: types.Booking };
-  CommentOnDocument: {
-    call: types.CommentOnDocument;
-    response: types.CommentOnDocumentResponse;
+  Comment: { call: types.Comment; response: types.CommentResponse };
+  CommentOnText: {
+    call: types.CommentOnText;
+    response: types.CommentOnTextResponse;
   };
   ConfigureAgent: {
     call: types.ConfigureAgent;
@@ -1198,13 +1206,13 @@ type ToolDataMap = {
     call: types.DeleteChannelMessage;
     response: types.DeleteChannelMessageResponse;
   };
+  DeleteComment: {
+    call: types.DeleteComment;
+    response: types.DeleteCommentResponse;
+  };
   DeleteDatabaseView: {
     call: types.DeleteDatabaseView;
     response: types.DeletedDatabaseView;
-  };
-  DeleteDocumentComment: {
-    call: types.DeleteDocumentComment;
-    response: types.DeleteDocumentCommentResponse;
   };
   DeleteImportEntity: {
     call: types.DeleteImportEntity;
@@ -1248,13 +1256,10 @@ type ToolDataMap = {
     call: types.EditChannelMessage;
     response: types.EditChannelMessageResponse;
   };
+  EditComment: { call: types.EditComment; response: types.EditCommentResponse };
   EditDocument: {
     call: types.EditDocument;
     response: types.EditDocumentResponse;
-  };
-  EditDocumentComment: {
-    call: types.EditDocumentComment;
-    response: types.EditDocumentCommentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
   EditPipeline: {
@@ -1464,6 +1469,10 @@ type ToolDataMap = {
   ReadChat: { call: types.ReadChat; response: types.ReadChatResponse };
   ReadContent: { call: types.ReadContent; response: types.ReadContentResponse };
   ReadDesign: { call: types.ReadDesign; response: types.ReadDesignResponse };
+  ReadDiscussion: {
+    call: types.ReadDiscussion;
+    response: types.ReadDiscussionResponse;
+  };
   ReadForm: { call: types.ReadForm; response: types.ReadResult };
   ReadIllustratorDocument: {
     call: types.ReadIllustratorDocument;
@@ -1514,9 +1523,9 @@ type ToolDataMap = {
     response: types.RenameDocumentResponse;
   };
   RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
-  ResolveDocumentComment: {
-    call: types.ResolveDocumentComment;
-    response: types.ResolveDocumentCommentResponse;
+  ResolveComment: {
+    call: types.ResolveComment;
+    response: types.ResolveCommentResponse;
   };
   RunRoutine: { call: types.RunRoutine; response: types.RoutineRunStarted };
   SaveDatabaseQuery: {

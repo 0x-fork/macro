@@ -905,19 +905,81 @@ export const Booking = z.object({
   questionLabels: z.record(z.string()).optional(),
 });
 
-export const CommentOnDocument = z.object({
+export const Comment = z.object({
+  entityType: z
+    .union([
+      z.any().superRefine((x, ctx) => {
+        const schemas = [
+          z.literal('document'),
+          z.literal('initiative'),
+          z.literal('crm_company'),
+          z.literal('crm_contact'),
+        ];
+        const errors = schemas.reduce<z.ZodError[]>(
+          (errors, schema) =>
+            ((result) => (result.error ? [...errors, result.error] : errors))(
+              schema.safeParse(x)
+            ),
+          []
+        );
+        if (schemas.length - errors.length !== 1) {
+          ctx.addIssue({
+            path: ctx.path,
+            code: 'invalid_union',
+            unionErrors: errors,
+            message: 'Invalid input: Should pass single schema',
+          });
+        }
+      }),
+      z.null(),
+    ])
+    .optional(),
+  entityId: z.union([z.string(), z.null()]).optional(),
+  threadId: z.union([z.string().uuid(), z.null()]).optional(),
+  content: z.string(),
+});
+
+export const CommentResponse = z.object({
+  entityType: z.any().superRefine((x, ctx) => {
+    const schemas = [
+      z.literal('document'),
+      z.literal('initiative'),
+      z.literal('crm_company'),
+      z.literal('crm_contact'),
+    ];
+    const errors = schemas.reduce<z.ZodError[]>(
+      (errors, schema) =>
+        ((result) => (result.error ? [...errors, result.error] : errors))(
+          schema.safeParse(x)
+        ),
+      []
+    );
+    if (schemas.length - errors.length !== 1) {
+      ctx.addIssue({
+        path: ctx.path,
+        code: 'invalid_union',
+        unionErrors: errors,
+        message: 'Invalid input: Should pass single schema',
+      });
+    }
+  }),
+  entityId: z.string(),
+  threadId: z.string().uuid(),
+  commentId: z.string().uuid(),
+});
+
+export const CommentOnText = z.object({
   documentId: z.string().uuid(),
   content: z.string(),
-  threadId: z.union([z.string().uuid(), z.null()]).optional(),
-  quote: z.union([z.string(), z.null()]).optional(),
+  quote: z.string(),
   occurrence: z.union([z.number().int().gte(1), z.null()]).optional(),
 });
 
-export const CommentOnDocumentResponse = z.object({
+export const CommentOnTextResponse = z.object({
   documentId: z.string().uuid(),
   threadId: z.string().uuid(),
   commentId: z.string().uuid(),
-  markedText: z.union([z.string(), z.null()]).optional(),
+  markedText: z.string(),
 });
 
 export const ConfigureAgent = z.object({
@@ -4288,6 +4350,37 @@ export const DeleteChannelMessageResponse = z.object({
   summary: z.string(),
 });
 
+export const DeleteComment = z.object({ commentId: z.string().uuid() });
+
+export const DeleteCommentResponse = z.object({
+  entityType: z.any().superRefine((x, ctx) => {
+    const schemas = [
+      z.literal('document'),
+      z.literal('initiative'),
+      z.literal('crm_company'),
+      z.literal('crm_contact'),
+    ];
+    const errors = schemas.reduce<z.ZodError[]>(
+      (errors, schema) =>
+        ((result) => (result.error ? [...errors, result.error] : errors))(
+          schema.safeParse(x)
+        ),
+      []
+    );
+    if (schemas.length - errors.length !== 1) {
+      ctx.addIssue({
+        path: ctx.path,
+        code: 'invalid_union',
+        unionErrors: errors,
+        message: 'Invalid input: Should pass single schema',
+      });
+    }
+  }),
+  entityId: z.string(),
+  commentId: z.string().uuid(),
+  deletedThread: z.boolean(),
+});
+
 export const DeleteDatabaseView = z.object({
   databaseId: z.string().uuid(),
   viewId: z.string().uuid(),
@@ -4298,17 +4391,6 @@ export const DeletedDatabaseView = z.object({
   tableId: z.string().uuid(),
   viewId: z.string().uuid(),
   name: z.string(),
-});
-
-export const DeleteDocumentComment = z.object({
-  documentId: z.string().uuid(),
-  commentId: z.string().uuid(),
-});
-
-export const DeleteDocumentCommentResponse = z.object({
-  documentId: z.string().uuid(),
-  commentId: z.string().uuid(),
-  deletedThread: z.boolean(),
 });
 
 export const DeleteImportEntity = z.object({ id: z.string().uuid() });
@@ -4656,6 +4738,39 @@ export const EditChannelMessageResponse = z.object({
   summary: z.string(),
 });
 
+export const EditComment = z.object({
+  commentId: z.string().uuid(),
+  content: z.string(),
+});
+
+export const EditCommentResponse = z.object({
+  entityType: z.any().superRefine((x, ctx) => {
+    const schemas = [
+      z.literal('document'),
+      z.literal('initiative'),
+      z.literal('crm_company'),
+      z.literal('crm_contact'),
+    ];
+    const errors = schemas.reduce<z.ZodError[]>(
+      (errors, schema) =>
+        ((result) => (result.error ? [...errors, result.error] : errors))(
+          schema.safeParse(x)
+        ),
+      []
+    );
+    if (schemas.length - errors.length !== 1) {
+      ctx.addIssue({
+        path: ctx.path,
+        code: 'invalid_union',
+        unionErrors: errors,
+        message: 'Invalid input: Should pass single schema',
+      });
+    }
+  }),
+  entityId: z.string(),
+  commentId: z.string().uuid(),
+});
+
 export const EditDocument = z.object({
   document_id: z.string(),
   instructions: z.string(),
@@ -4665,17 +4780,6 @@ export const EditDocument = z.object({
 export const EditDocumentResponse = z.object({
   summary: z.string(),
   clarification: z.union([z.string(), z.null()]).optional(),
-});
-
-export const EditDocumentComment = z.object({
-  documentId: z.string().uuid(),
-  commentId: z.string().uuid(),
-  content: z.string(),
-});
-
-export const EditDocumentCommentResponse = z.object({
-  documentId: z.string().uuid(),
-  commentId: z.string().uuid(),
 });
 
 export const EditForm = z.object({
@@ -12502,6 +12606,79 @@ export const ReadDesign = z.object({
 
 export const ReadDesignResponse = z.object({ content: z.string() });
 
+export const ReadDiscussion = z.object({
+  entityType: z.any().superRefine((x, ctx) => {
+    const schemas = [
+      z.literal('document'),
+      z.literal('initiative'),
+      z.literal('crm_company'),
+      z.literal('crm_contact'),
+    ];
+    const errors = schemas.reduce<z.ZodError[]>(
+      (errors, schema) =>
+        ((result) => (result.error ? [...errors, result.error] : errors))(
+          schema.safeParse(x)
+        ),
+      []
+    );
+    if (schemas.length - errors.length !== 1) {
+      ctx.addIssue({
+        path: ctx.path,
+        code: 'invalid_union',
+        unionErrors: errors,
+        message: 'Invalid input: Should pass single schema',
+      });
+    }
+  }),
+  entityId: z.string(),
+});
+
+export const ReadDiscussionResponse = z.object({
+  entityType: z.any().superRefine((x, ctx) => {
+    const schemas = [
+      z.literal('document'),
+      z.literal('initiative'),
+      z.literal('crm_company'),
+      z.literal('crm_contact'),
+    ];
+    const errors = schemas.reduce<z.ZodError[]>(
+      (errors, schema) =>
+        ((result) => (result.error ? [...errors, result.error] : errors))(
+          schema.safeParse(x)
+        ),
+      []
+    );
+    if (schemas.length - errors.length !== 1) {
+      ctx.addIssue({
+        path: ctx.path,
+        code: 'invalid_union',
+        unionErrors: errors,
+        message: 'Invalid input: Should pass single schema',
+      });
+    }
+  }),
+  entityId: z.string(),
+  threads: z.array(
+    z.object({
+      id: z.string().uuid(),
+      resolved: z.boolean(),
+      markedText: z.union([z.string(), z.null()]).optional(),
+      comments: z.array(
+        z.object({
+          id: z.string().uuid(),
+          author: z.string(),
+          authorName: z.union([z.string(), z.null()]).optional(),
+          content: z.union([z.string(), z.null()]).optional(),
+          createdAt: z.string().datetime({ offset: true }),
+          editedAt: z
+            .union([z.string().datetime({ offset: true }), z.null()])
+            .optional(),
+        })
+      ),
+    })
+  ),
+});
+
 export const ReadForm = z.object({
   formId: z.string().uuid(),
   view: z
@@ -14042,14 +14219,36 @@ export const RenameItemResponse = z.object({
   name: z.string(),
 });
 
-export const ResolveDocumentComment = z.object({
-  documentId: z.string().uuid(),
+export const ResolveComment = z.object({
   threadId: z.string().uuid(),
   resolved: z.boolean().optional(),
 });
 
-export const ResolveDocumentCommentResponse = z.object({
-  documentId: z.string().uuid(),
+export const ResolveCommentResponse = z.object({
+  entityType: z.any().superRefine((x, ctx) => {
+    const schemas = [
+      z.literal('document'),
+      z.literal('initiative'),
+      z.literal('crm_company'),
+      z.literal('crm_contact'),
+    ];
+    const errors = schemas.reduce<z.ZodError[]>(
+      (errors, schema) =>
+        ((result) => (result.error ? [...errors, result.error] : errors))(
+          schema.safeParse(x)
+        ),
+      []
+    );
+    if (schemas.length - errors.length !== 1) {
+      ctx.addIssue({
+        path: ctx.path,
+        code: 'invalid_union',
+        unionErrors: errors,
+        message: 'Invalid input: Should pass single schema',
+      });
+    }
+  }),
+  entityId: z.string(),
   threadId: z.string().uuid(),
   resolved: z.boolean(),
 });
