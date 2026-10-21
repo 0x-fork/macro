@@ -80,6 +80,42 @@ describe('Effect worker transport', () => {
     await Effect.runPromise(transport.close());
   });
 
+  it('reports a restarted runner on an already-ready port', async () => {
+    const endpoint = new FakeMessagePort();
+    const onError = vi.fn();
+    const transport = createEffectWorkerTransport({
+      endpoint: endpoint as unknown as MessagePort,
+      onMessage: vi.fn(),
+      onError,
+    });
+    try {
+      endpoint.ready();
+      await transport.ready;
+      endpoint.ready();
+      expect(onError).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ name: 'WorkerRestartedError' })
+      );
+    } finally {
+      await Effect.runPromise(transport.close());
+    }
+  });
+
+  it('rejects startup when a second ready frame arrives before readiness settles', async () => {
+    const endpoint = new FakeMessagePort();
+    const transport = createEffectWorkerTransport({
+      endpoint: endpoint as unknown as MessagePort,
+      onMessage: vi.fn(),
+      onError: vi.fn(),
+    });
+    const rejected = expect(transport.ready).rejects.toMatchObject({
+      name: 'WorkerRestartedError',
+    });
+    endpoint.ready();
+    endpoint.ready();
+    await rejected;
+    await Effect.runPromise(transport.close());
+  });
+
   it('does not start its protocol fiber when listener setup fails', () => {
     const endpoint = new FakeMessagePort();
     const addEventListener = endpoint.addEventListener.bind(endpoint);

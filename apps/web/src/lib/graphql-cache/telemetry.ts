@@ -130,6 +130,7 @@ export const CACHE_OWNER_EVENTS = [
   'graceful-drain-started',
   'graceful-drain-completed',
   'navigation-departure',
+  'coordinator-restarted',
   'abrupt-loss',
   'replacement',
   'multiple-owner-detected',

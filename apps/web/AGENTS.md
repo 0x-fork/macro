@@ -10,6 +10,9 @@
 - The app does not register a service worker. Keep `public/sw.js` as a retirement
   endpoint for existing installations; see the [startup bundle rule](../../.agents/rules/web/startup-bundle.md).
   Loro uses async WASM loading and HTML preloads independently of service workers.
+- Web asset publication and cache headers are covered by
+  [web-app delivery](../../infra/stacks/web-app/README.md); its publisher tests
+  are backend-free, and its Pulumi tests must not run real staging/cloud commands.
 
 ## Verifying a change in a real browser
 
@@ -96,6 +99,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   shared HttpOnly dev cookies are not visible to JavaScript or localStorage.
 - Disable GraphQL cache sessions and clear login hints on confirmed auth 401s,
   even with retained user data; preserve session state on transient failures.
+- Treat a repeated worker-ready frame as a coordinator restart: retire the old
+  engine and re-register in place, preserving durable storage and never replaying
+  uncertain enqueues. See `docs/graphql-normalized-cache-plan.md`.
 - Mobile dock customization shares the navigation island’s measured capacity; persist ordering per user with `mobile-dock-order.ts`, preserve gated destinations, and keep Search and More fixed. Reorder handles drag without a hold delay; the rest of each row scrolls.
 - Share sidebar and mobile dock unread presence through `components/app/use-navigation-unread.ts`; keep badges reactive to read/done changes and avoid fetching extra pages for counts.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
