@@ -9,8 +9,9 @@ import type {
   CrmDisplayOptions,
   CrmListColumnId,
 } from '../core/display-options';
+import type { CrmActivityTab } from '../core/navigation';
 import type { Pipeline } from '../core/pipeline';
-import type { CrmRecordScope } from '../core/record';
+import type { CrmRecordScope, CrmTaskRecord } from '../core/record';
 import type {
   CompanyImporter,
   CompanySource,
@@ -80,6 +81,13 @@ export type CrmContext = {
     scope: Accessor<CrmEmailScope>,
     signal: Accessor<CrmEmailSignal>
   ): ItemListSource;
+  /** Paged CRM-wide activity, limited to associated records. */
+  createActivity(tab: Accessor<CrmActivityTab>): ItemListSource;
+  openTaskComposer(): void;
+  /** Newest mounted record source wins; cleanup restores the parent record source. */
+  registerTaskComposerRecord(
+    source: Accessor<CrmTaskRecord | undefined>
+  ): () => void;
   /** Files associated with the record or attached to its emails. */
   createRecordFiles(
     scope: Accessor<CrmRecordScope | undefined>

@@ -88,6 +88,26 @@ describe('loaded grouped pages', () => {
 });
 
 describe('local grouped Soup projection', () => {
+  it('retains server membership for an unknown grouping field', () => {
+    const futureInput: GroupedSoupInitialInput = JSON.parse(
+      '{"groupBy":{"field":"FUTURE"},"sortMethod":"UPDATED_AT"}'
+    );
+    const item = groupedDocument('a');
+    const baseline = [
+      { key: 'server-group', items: [item], totalCount: 1, nextCursor: null },
+    ];
+
+    expect(localSoupGroupKeys(item, futureInput, now)).toBeUndefined();
+    expect(
+      projectLocalGroupedSoup(
+        baseline,
+        new Map(),
+        snapshot([item]),
+        futureInput,
+        now
+      )
+    ).toEqual(baseline);
+  });
   it('moves normalized rows and removes filter nonmatches without losing unknown rows', () => {
     const a = groupedDocument('a');
     const b = groupedDocument('b');

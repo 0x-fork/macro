@@ -14,8 +14,10 @@ import { SoupViewContextGroup } from '@app/features/next-soup/soup-view/filters-
 import { SoupViewContextSort } from '@app/features/next-soup/soup-view/filters-bar/soup-view-context-sort';
 import { UnifiedFilterDropdown } from '@app/features/next-soup/soup-view/filters-bar/unified-filter-dropdown';
 import { useFilterRefinements } from '@app/features/next-soup/soup-view/filters-bar/use-filter-refinements';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { usePreference } from '@app/preferences/use-preference';
 import { SplitPanel } from '@components/app/split-panel';
+import { enableCrmActivity } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { debounce } from '@core/util/debounce';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -33,6 +35,7 @@ import {
   createEffect,
   createSignal,
   type JSX,
+  on,
   onCleanup,
   onMount,
   Show,
@@ -45,9 +48,16 @@ import { PipelineDialog } from '../components/pipeline-dialog';
 import { PipelineSidebar } from '../components/pipeline-sidebar';
 import { useCrmContext } from '../context/crm-context';
 import { useCrmWorkspace } from '../context/workspace-context';
-import { CRM_RECORDS, pipelineIdOfTab, pipelineTab } from '../core/navigation';
+import {
+  CRM_ACTIVITY_TABS,
+  CRM_RECORDS,
+  isCrmActivityTab,
+  pipelineIdOfTab,
+  pipelineTab,
+} from '../core/navigation';
 import type { CrmRecordRef } from '../core/record';
 import { createCrmExportLoader } from '../primitives/export-source';
+import { CrmActivityView } from './activity';
 import { useApplyCrmView } from './apply-view';
 import { Crm as CrmSettings } from './crm-settings';
 import { CrmExport } from './export-companies';
@@ -211,6 +221,7 @@ export function CrmWorkspaceView(props: {
     onOpenEntity?: (entity: EntityData) => boolean;
   }) => JSX.Element;
 }) {
+  const activityFlag = useFeatureFlag(enableCrmActivity);
   const {
     openCreateCompany: openCreateCompanyModal,
     openCreateContact: openCreateContactModal,
@@ -284,6 +295,12 @@ export function CrmWorkspaceView(props: {
   const [importing, setImporting] = createSignal(false);
   const active = () => view.activeTab() ?? 'active';
   const peopleActive = () => active() === 'people';
+  const activityTab = () => {
+    const tab = active();
+    return activityFlag().enabled && isCrmActivityTab(tab) ? tab : undefined;
+  };
+  const activityPending = () =>
+    isCrmActivityTab(active()) && activityFlag().loading;
   const [exporting, setExporting] = createSignal(false);
   const activeList = () =>
     lists.lists().find((list) => `list:${list.id}` === active());
@@ -312,17 +329,27 @@ export function CrmWorkspaceView(props: {
   const activeRecord = () => {
     const id = pipelineId();
     if (id) return pipelineTab(id);
-    return active().startsWith('list:') || peopleActive() ? active() : 'active';
+    return active().startsWith('list:') || peopleActive() || activityTab()
+      ? active()
+      : 'active';
   };
   const title = () =>
     activeList()?.name ??
-    CRM_RECORDS.find((record) => record.id === activeRecord())?.label ??
+    [...CRM_RECORDS, ...CRM_ACTIVITY_TABS].find(
+      (record) => record.id === activeRecord()
+    )?.label ??
     'Companies';
   const navigate = (id: string) => {
     settings.close();
     if (!listsEnabled() && id.startsWith('list:')) id = 'active';
-    if (id !== 'people' && !id.startsWith('list:')) id = 'active';
+    if (!activityFlag().enabled && isCrmActivityTab(id)) id = 'active';
+    if (id !== 'people' && !id.startsWith('list:') && !isCrmActivityTab(id))
+      id = 'active';
     if (id === active()) view.host.record.close();
+    if (isCrmActivityTab(id)) {
+      view.setActiveTab(id);
+      return;
+    }
     if (id === 'people') {
       // Re-applying would clear a search the People search bar still shows.
       if (peopleActive()) return;
@@ -356,6 +383,15 @@ export function CrmWorkspaceView(props: {
   onMount(() => {
     if (!listsEnabled() && active().startsWith('list:')) navigate('active');
   });
+  // Keep cold activity links intact until PostHog resolves; off falls back to Companies.
+  createEffect(
+    on(
+      () => [activityFlag().loading, activityFlag().enabled, active()] as const,
+      ([loading, enabled, tab]) => {
+        if (!loading && !enabled && isCrmActivityTab(tab)) navigate('active');
+      }
+    )
+  );
   const sidebar = (onCollapse?: () => void) => (
     <CrmSidebar
       pipelines={
@@ -451,7 +487,9 @@ export function CrmWorkspaceView(props: {
                   else navigate(id);
                 }}
                 leading={
-                  <Show when={!peopleActive() && !pipelineId()}>
+                  <Show
+                    when={!peopleActive() && !pipelineId() && !activityTab()}
+                  >
                     <Suspense>
                       <MobileFilterDrawer />
                     </Suspense>
@@ -459,7 +497,7 @@ export function CrmWorkspaceView(props: {
                 }
               />
             </ViewShell.Header>
-            <Show when={!peopleActive() && !pipelineId()}>
+            <Show when={!peopleActive() && !pipelineId() && !activityTab()}>
               <Suspense>
                 <SoupFiltersBar />
               </Suspense>
@@ -526,7 +564,42 @@ export function CrmWorkspaceView(props: {
               </Button>
             </div>
           </Show>
-          <Show when={!recordOpen() && !pipelineId()}>
+          <Show when={!recordOpen() && !pipelineId() && activityPending()}>
+            <div class="p-4 text-sm text-ink-muted">Loading CRM activity…</div>
+          </Show>
+          <Show when={!recordOpen() && !pipelineId() && activityTab()} keyed>
+            {(tab) => (
+              <>
+                <Show when={!isTouchDevice()}>
+                  <div class="flex h-12 shrink-0 items-center gap-3 px-4">
+                    <NavigationToggle onExpand={() => setCollapsed(false)}>
+                      <Suspense>{sidebar()}</Suspense>
+                    </NavigationToggle>
+                    <h1 class="flex h-7 min-w-0 flex-1 items-center px-1 text-sm font-semibold tracking-[-0.03em]">
+                      {title()}
+                    </h1>
+                  </div>
+                </Show>
+                <Suspense
+                  fallback={
+                    <div class="p-4 text-sm text-ink-muted">
+                      Loading CRM activity…
+                    </div>
+                  }
+                >
+                  <CrmActivityView tab={tab} />
+                </Suspense>
+              </>
+            )}
+          </Show>
+          <Show
+            when={
+              !recordOpen() &&
+              !pipelineId() &&
+              !activityTab() &&
+              !activityPending()
+            }
+          >
             <Show when={!isTouchDevice() || peopleActive()}>
               <Show when={!isTouchDevice()}>
                 <div class="flex h-12 shrink-0 items-center gap-3 px-4">

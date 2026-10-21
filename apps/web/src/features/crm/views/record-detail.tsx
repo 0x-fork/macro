@@ -16,12 +16,14 @@ import {
   For,
   type JSX,
   on,
+  onCleanup,
   onMount,
   Show,
   Suspense,
   untrack,
 } from 'solid-js';
 import { RecordTabs } from '../components/record-tabs';
+import { useCrmContext } from '../context/crm-context';
 import type { CrmCommentTarget } from '../context/workspace-context';
 import {
   COMPANY_SECTIONS,
@@ -81,6 +83,8 @@ export function CrmRecordDetail(props: {
   const current = createMemo(() => trail()[trail().length - 1]!, undefined, {
     equals: (left, right) => recordKey(left) === recordKey(right),
   });
+  // Keep the selected identity available even if the detail body shows an error.
+  onCleanup(useCrmContext().registerTaskComposerRecord(current));
   const companySection = (): CompanySection =>
     sectionOf(COMPANY_SECTIONS, props.section);
   const contactSection = (): ContactSection =>

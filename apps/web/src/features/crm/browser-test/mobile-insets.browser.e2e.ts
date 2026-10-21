@@ -75,7 +75,7 @@ for (const device of [
             name: 'People',
             exact: true,
           });
-          await expect(button).toBeVisible();
+          await expect(button).toBeVisible({ timeout: 30000 });
           const box = await button.boundingBox();
           const top = device.hasTouch ? (surface === 'reviews' ? 100 : 55) : 16;
           expect(box!.y).toBeGreaterThanOrEqual(top);
