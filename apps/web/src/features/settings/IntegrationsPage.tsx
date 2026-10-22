@@ -62,17 +62,14 @@ function AccountConnections() {
       class="pb-5 outline-none"
     >
       <h2 class="mb-4 text-lg font-medium text-ink">Core Integrations</h2>
-      <div class="grid grid-cols-1 items-stretch gap-3 @[760px]/settings-page:auto-rows-fr @[760px]/settings-page:grid-cols-2">
+      <div class="flex flex-col gap-3">
         <Show when={ENABLE_EMAIL}>
           <Suspense>
-            <EmailCard
-              class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4"
-              onOpenSettings={() => openSettings('Email')}
-            />
+            <EmailCard onOpenSettings={() => openSettings('Email')} />
           </Suspense>
         </Show>
         <Suspense>
-          <GitHubCard class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4" />
+          <GitHubCard />
         </Suspense>
         <Suspense>
           <GranolaCard />

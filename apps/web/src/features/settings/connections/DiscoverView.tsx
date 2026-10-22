@@ -10,12 +10,11 @@ import CheckIcon from '@phosphor/check.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
-import XIcon from '@phosphor/x.svg';
 import type { PipedreamCatalogEntryResponse } from '@service-cognition/client';
-import { Button, Tooltip } from '@ui';
+import { Button, InputGroup, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { SettingsSelect } from '../components/settings-select';
-import { IntegrationRow } from '../primitives';
+import { IntegrationRow, SettingsSurface } from '../primitives';
 import { AddCustomMcpDialog } from './add-custom-mcp-dialog';
 import { groupCatalogByCategory } from './catalog-categories';
 import type { ConnectionsModel } from './model';
@@ -90,7 +89,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={EMPTY_STARTERS}>
             {(item) => (
-              <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
+              <SettingsSurface class="@container overflow-hidden">
                 <button
                   type="button"
                   class="flex h-full w-full flex-col items-stretch text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
@@ -109,7 +108,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                     </Show>
                   </IntegrationRow>
                 </button>
-              </div>
+              </SettingsSurface>
             )}
           </For>
         </div>
@@ -127,46 +126,43 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             <PlusIcon class="size-4" /> Add Custom
           </Button>
         </div>
-        <div class="mb-5 grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
-          <label class="relative block min-w-0">
-            <span class="sr-only">Search apps</span>
-            <MagnifyingGlassIcon
-              class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={catalog.searchInput()}
-              onInput={(event) => {
-                setSelectedCategory('all');
-                catalog.onSearchInput(event.currentTarget.value);
-              }}
-              placeholder="Search apps"
-              class="h-10 w-full rounded-full border border-edge-muted bg-ink/4 pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
-            />
-            <Show when={catalog.searchInput()}>
-              <button
-                type="button"
-                aria-label="Clear search"
-                class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-ink/4 hover:text-ink focus-visible:bg-ink/6"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => {
+        <div class="mb-5 grid grid-cols-1 items-end gap-3 @[560px]/catalog:grid-cols-[minmax(0,1fr)_14rem]">
+          <div class="flex min-w-0 flex-col gap-1.5">
+            <span class="text-xs font-medium text-ink-muted">Search apps</span>
+            <InputGroup
+              size="lg"
+              class="h-11 rounded-xl border-edge-muted bg-input"
+            >
+              <InputGroup.Addon>
+                <MagnifyingGlassIcon class="size-4" aria-hidden="true" />
+              </InputGroup.Addon>
+              <InputGroup.Input
+                type="search"
+                aria-label="Search apps"
+                value={catalog.searchInput()}
+                onInput={(event) => {
                   setSelectedCategory('all');
-                  catalog.onSearchInput('');
+                  catalog.onSearchInput(event.currentTarget.value);
                 }}
-              >
-                <XIcon class="size-4" />
-              </button>
-            </Show>
-          </label>
-          <SettingsSelect
-            label="Filter apps by category"
-            options={categoryOptions()}
-            value={activeCategory()}
-            onChange={setSelectedCategory}
-            class="w-full @[440px]/catalog:w-52"
-            triggerClass="h-10 w-full border-0 bg-ink/4 px-3 text-sm text-ink hover:bg-ink/6"
-          />
+                placeholder="Search by name or description"
+                class="text-sm touch:text-base"
+              />
+              <InputGroup.Addon align="inline-end">
+                <InputGroup.ClearButton />
+              </InputGroup.Addon>
+            </InputGroup>
+          </div>
+          <div class="flex min-w-0 flex-col gap-1.5">
+            <span class="text-xs font-medium text-ink-muted">Category</span>
+            <SettingsSelect
+              label="Filter apps by category"
+              options={categoryOptions()}
+              value={activeCategory()}
+              onChange={setSelectedCategory}
+              class="min-w-0 w-full"
+              triggerClass="h-11 w-full rounded-xl border-edge-muted bg-input px-3 text-sm text-ink not-touch:hover:bg-hover touch:text-base"
+            />
+          </div>
         </div>
         <div class="grid grid-cols-1 gap-6">
           <Show when={catalog.query.isError && catalog.entries().length === 0}>
@@ -331,7 +327,7 @@ function CatalogRow(props: {
   );
 
   return (
-    <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
+    <SettingsSurface class="@container overflow-hidden">
       <Show when={!props.added} fallback={row()}>
         <button
           type="button"
@@ -345,6 +341,6 @@ function CatalogRow(props: {
           {row()}
         </button>
       </Show>
-    </div>
+    </SettingsSurface>
   );
 }

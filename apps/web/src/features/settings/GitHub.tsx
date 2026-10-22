@@ -15,7 +15,7 @@ import {
   type ConnectionState,
   StatusDot,
 } from './integration-ui';
-import { IntegrationRow, SettingsCard, SettingsRow } from './primitives';
+import { IntegrationRow, SettingsCard } from './primitives';
 
 /** GitHub integration as a Connected-accounts card. */
 export function GitHubCard(props: { class?: string } = {}) {
@@ -69,18 +69,13 @@ export function GitHubCard(props: { class?: string } = {}) {
 
   return (
     <SettingsCard class={props.class}>
-      <IntegrationRow icon={<GithubIcon />} title="GitHub" />
-
-      <SettingsRow
-        label={
-          <span class="flex items-center gap-2">
-            <span>Account</span>
-            <Show when={connectionState()}>
-              {(state) => (
-                <StatusDot state={state()} label={connectionLabel()} />
-              )}
-            </Show>
-          </span>
+      <IntegrationRow
+        icon={<GithubIcon />}
+        title="GitHub"
+        status={
+          <Show when={connectionState()}>
+            {(state) => <StatusDot state={state()} label={connectionLabel()} />}
+          </Show>
         }
       >
         <Show
@@ -120,21 +115,7 @@ export function GitHubCard(props: { class?: string } = {}) {
             </Match>
           </Switch>
         </Show>
-      </SettingsRow>
-
-      <SettingsRow label="Repositories">
-        {/* The install callback rejects users without a linked account, so
-            don't offer the flow until the account above is connected. */}
-        <Show
-          when={status() === 'linked'}
-          fallback={
-            <span class="text-sm text-ink-muted">
-              {githubLink.isLoading
-                ? 'Loading…'
-                : 'Connect your GitHub account first'}
-            </span>
-          }
-        >
+        <Show when={status() === 'linked'}>
           <a
             href={`${SERVER_HOSTS['document-storage-service']}/github/install-sync`}
             target="_blank"
@@ -145,7 +126,7 @@ export function GitHubCard(props: { class?: string } = {}) {
             <ArrowUpRightIcon class="size-3.5 opacity-70" />
           </a>
         </Show>
-      </SettingsRow>
+      </IntegrationRow>
     </SettingsCard>
   );
 }

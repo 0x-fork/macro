@@ -14,7 +14,7 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { SettingsPage } from '../primitives';
+import { SettingsPage, SettingsSurface } from '../primitives';
 import { ConnectedView } from './ConnectedView';
 import { DiscoverView } from './DiscoverView';
 import { capabilitiesFor, type ProviderId } from './model';
@@ -33,7 +33,7 @@ function IntegrationSetupCallouts(props: {
 }) {
   return (
     <div class="flex flex-col gap-2">
-      <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
+      <SettingsSurface class="flex items-center justify-between gap-4 px-4 py-2">
         <p class="text-base font-medium text-ink">
           Use Macro in your favorite AI harness with the official Macro MCP
         </p>
@@ -45,9 +45,9 @@ function IntegrationSetupCallouts(props: {
         >
           Set up
         </Button>
-      </div>
+      </SettingsSurface>
       <Show when={props.onOpenLocalAgents}>
-        <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
+        <SettingsSurface class="flex items-center justify-between gap-4 px-4 py-2">
           <p class="text-base font-medium text-ink">
             Stream sessions from your local AI harness to Macro
           </p>
@@ -59,7 +59,7 @@ function IntegrationSetupCallouts(props: {
           >
             Set up
           </Button>
-        </div>
+        </SettingsSurface>
       </Show>
     </div>
   );
@@ -145,11 +145,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
             when={ready() && view.provider()}
             keyed
             fallback={
-              <SettingsPage
-                title="Integrations"
-                contentClass="max-w-[1200px]"
-                bodyClass="mt-6 gap-6"
-              >
+              <SettingsPage title="Integrations" bodyClass="mt-6 gap-6">
                 <IntegrationSetupCallouts
                   onOpenMacroMcp={props.onOpenMacroMcp}
                   onOpenLocalAgents={props.onOpenLocalAgents}
