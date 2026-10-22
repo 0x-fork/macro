@@ -859,6 +859,7 @@ dependencies = [
  "chrono",
  "lru",
  "maybe_send",
+ "miniz_oxide",
  "postcard",
  "predicate-index",
  "serde",

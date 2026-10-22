@@ -322,7 +322,15 @@ paths remain behind the same `CacheHost` interface.
 | Turso over filesystem IO | Tauri native | records, search projection, mutation queue, optimistic layers, and metadata; WAL mode |
 | Turso over OPFS | browser | the same frozen schema behind the OPFS IO adapter and coordinated worker lifecycle |
 
-Normalized records are serialized with `postcard` into `records.value`.
+Normalized records are serialized with `postcard` into `records.value`, behind a
+one-byte encoding tag: records of 256 bytes or more are stored deflated when that
+is smaller, and everything else stays raw. Other persisted payloads (queued
+mutations, optimistic layers, projections) remain plain postcard. A format bump
+that only changes the record encoding carries the previous database forward by
+dropping records, search projections, index facts, and calendar ranges — all
+refetchable — while keeping queued mutations, optimistic layers, and their
+projections. Native storage then compacts the migrated file with `VACUUM INTO`, so
+the upgrade reclaims the space instead of leaving freed pages behind.
 Both hosts use the same `Storage` implementation and compound entity keys.
 Wasm futures are not `Send`, so the `Storage` trait's futures are bound by
 `MaybeSend` (`crates/maybe_send`): `Send` on native targets, where Tauri drives

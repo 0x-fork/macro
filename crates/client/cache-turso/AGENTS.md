@@ -46,6 +46,11 @@ GraphQL cache — native for tests/Tauri, OPFS-backed on wasm32.
 - The compound-key schema and payload encoding are frozen; an incompatible or
   uncertain on-disk state is classified for physical reset, never silently
   migrated, copied, or redirected to a fallback backend.
+- The one exception is a cache format version listed in
+  `MIGRATABLE_CACHE_FORMAT_VERSIONS`: `migrate_previous_format` drops the
+  refetchable records, search projections, index facts, and calendar ranges in
+  one transaction, keeps queued mutations, optimistic layers, and their
+  projections, and rewrites the namespace. Everything else still resets.
 
 ## Related
 

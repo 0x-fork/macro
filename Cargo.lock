@@ -3608,6 +3608,7 @@ dependencies = [
  "chrono",
  "lru 0.16.4",
  "maybe_send",
+ "miniz_oxide",
  "pollster",
  "postcard",
  "predicate-index",
@@ -3626,6 +3627,7 @@ dependencies = [
  "cache-core",
  "chrono",
  "maybe_send",
+ "miniz_oxide",
  "pollster",
  "predicate-index",
  "proptest",
@@ -3640,7 +3642,7 @@ dependencies = [
 
 [[package]]
 name = "cache-wasm"
-version = "0.6.48"
+version = "0.6.49"
 dependencies = [
  "async-lock",
  "cache-core",
