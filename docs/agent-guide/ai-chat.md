@@ -259,7 +259,8 @@ code files, images, canvases, spreadsheets, email, channels, calls, and projects
 also open agent sessions. Like command-menu Ask AI, they open the bare session in
 a new split, without the Agents workspace's conversation sidebar. Their entity mention stays
 in the composer as an unsent draft. Spreadsheet mentions retain the current sheet
-and selected range; channel-message actions retain the referenced message.
+and selected range; channel-message actions retain the referenced message. On
+phones, the channel message long-press drawer offers the same action as **Ask Macro**.
 Add a question and press Send to submit that context. These actions do not create
 legacy cognition chats, regardless of the Agents workspace feature flag.
 
