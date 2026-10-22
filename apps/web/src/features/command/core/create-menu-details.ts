@@ -250,13 +250,18 @@ export function groupCreateMenuItems(
   return sections.filter((section) => section.items.length > 0);
 }
 
-/** Recent choices appear first and remain available in their categories. */
+/**
+ * Recent choices appear first and leave their categories: the list shows no
+ * section headers, so a second copy would read as a duplicate.
+ */
 export function groupRecentCreateMenuItems(
   items: CreatableBlock[],
   recentItems: CreatableBlock[]
 ): CreateMenuSection[] {
   const recent = recentItems.filter((item) => items.includes(item));
-  const categories = groupCreateMenuItems(items);
+  const categories = groupCreateMenuItems(
+    items.filter((item) => !recent.includes(item))
+  );
   return recent.length
     ? [
         {
