@@ -299,10 +299,15 @@ function LoadedEmailComposeView(
             <ComposeLayout
               toolbar={<EmailComposeToolbar editor={editor} />}
               notice={
-                hasInboxError() ? (
-                  <EmailPermissionsBanner />
-                ) : sync.state() ? (
-                  <SyncStatus />
+                // A missing inbox must not hide a draft that only this
+                // device holds, so both notices can show together.
+                hasInboxError() || sync.state() ? (
+                  <div class="flex flex-col gap-2">
+                    <Show when={hasInboxError()}>
+                      <EmailPermissionsBanner />
+                    </Show>
+                    <SyncStatus />
+                  </div>
                 ) : undefined
               }
               // Full-frame mobile/tablet: the surface runs under the floating
