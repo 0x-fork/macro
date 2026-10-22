@@ -40,6 +40,12 @@ const NO_INVITES: GuestPolicy = GuestPolicy {
     can_see_other_guests: true,
 };
 
+const HIDDEN_LIST: GuestPolicy = GuestPolicy {
+    can_modify: false,
+    can_invite_others: true,
+    can_see_other_guests: false,
+};
+
 #[tokio::test]
 async fn a_guest_who_may_invite_sends_only_new_guests_through_the_partial_patch() {
     let provider = FakeProvider::new(FakeProviderBehavior::Echo);
@@ -121,16 +127,16 @@ async fn someone_neither_organizing_nor_invited_is_not_an_attendee() {
 }
 
 #[tokio::test]
-async fn a_refusal_from_google_records_that_guests_cannot_invite() {
+async fn a_refusal_from_google_records_the_policy_it_reported() {
     let repo = guest_repo(GuestPolicy::default());
-    let disabled = repo.disabled_guest_invites.clone();
+    let event_id = repo.mutation_target.as_ref().unwrap().event_id;
+    let recorded = repo.recorded_guest_policies.clone();
     let refresh = RecordingRefreshNotifier::default();
     let notified = refresh.notified.clone();
-    let event_id = Uuid::now_v7();
 
     let error = service_with_refresh(
         repo,
-        FakeProvider::new(FakeProviderBehavior::Forbidden),
+        FakeProvider::new(FakeProviderBehavior::Forbidden(NO_INVITES)),
         FakeTokens::ok(),
         refresh,
     )
@@ -145,11 +151,89 @@ async fn a_refusal_from_google_records_that_guests_cannot_invite() {
     .unwrap_err();
 
     assert!(matches!(error, CalendarMutationError::GuestsCannotInvite));
-    assert_eq!(disabled.lock().unwrap().as_slice(), [event_id]);
+    assert_eq!(
+        recorded.lock().unwrap().as_slice(),
+        [(event_id, NO_INVITES)]
+    );
     assert_eq!(
         notified.lock().unwrap().len(),
         1,
         "viewers refetch so the invite control turns into the explanation"
+    );
+}
+
+#[tokio::test]
+async fn a_guest_cannot_add_to_a_guest_list_the_organizer_hides() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let calls = provider.calls.clone();
+
+    let error = service(guest_repo(HIDDEN_LIST), provider, FakeTokens::ok())
+        .invite_guests(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            vec![guest("ada@example.com")],
+            CalendarUpdateScope::All,
+        )
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, CalendarMutationError::GuestListHidden));
+    assert!(
+        calls.lock().unwrap().is_empty(),
+        "a full write from a copy of a hidden list would drop the guests it cannot see"
+    );
+}
+
+#[tokio::test]
+async fn a_hidden_list_google_reports_is_refused_and_recorded() {
+    let repo = guest_repo(GuestPolicy::default());
+    let event_id = repo.mutation_target.as_ref().unwrap().event_id;
+    let recorded = repo.recorded_guest_policies.clone();
+
+    let error = service(
+        repo,
+        FakeProvider::new(FakeProviderBehavior::GuestListHidden(HIDDEN_LIST)),
+        FakeTokens::ok(),
+    )
+    .invite_guests(
+        "macro|user",
+        event_id,
+        None,
+        vec![guest("ada@example.com")],
+        CalendarUpdateScope::All,
+    )
+    .await
+    .unwrap_err();
+
+    assert!(matches!(error, CalendarMutationError::GuestListHidden));
+    assert_eq!(
+        recorded.lock().unwrap().as_slice(),
+        [(event_id, HIDDEN_LIST)]
+    );
+}
+
+#[tokio::test]
+async fn the_organizer_may_add_to_a_hidden_guest_list() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let invited = provider.invited_guests.clone();
+    let mut repo = guest_repo(HIDDEN_LIST);
+    repo.mutation_target.as_mut().unwrap().organizer_email = Some("self@example.com".to_string());
+
+    service(repo, provider, FakeTokens::ok())
+        .invite_guests(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            vec![guest("ada@example.com")],
+            CalendarUpdateScope::All,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        invited.lock().unwrap().as_slice(),
+        [vec![guest("ada@example.com")]]
     );
 }
 

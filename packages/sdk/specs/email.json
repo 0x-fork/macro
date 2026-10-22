@@ -4737,6 +4737,8 @@
           "sequence",
           "isReadOnly",
           "attendees",
+          "guestPolicy",
+          "viewerCan",
           "createdAt",
           "updatedAt"
         ],
@@ -4791,7 +4793,7 @@
           },
           "guestPolicy": {
             "$ref": "#/components/schemas/GuestPolicy",
-            "description": "What the organizer lets guests do. Skipped when it is Google's\ndefault so projections stored before the policy was modeled still\ncompare equal."
+            "description": "What the organizer lets guests do: the canonical copy's values, or\nGoogle's defaults for an event synced before the policy was modeled."
           },
           "icalUid": {
             "type": "string",
@@ -4869,7 +4871,7 @@
           },
           "viewerCan": {
             "$ref": "#/components/schemas/ViewerCapabilities",
-            "description": "What the viewing requester may do with the event. Resolved only on\nthe read path, alongside each attendee's `is_self`, so stored\nprojections omit it."
+            "description": "What the viewing requester may do with the event. Resolved only on\nthe read path, alongside each attendee's `is_self`; nothing when no\nviewer is known. Source projections never store it."
           },
           "visibility": {
             "$ref": "#/components/schemas/EventVisibility",

@@ -165,6 +165,29 @@ fn a_guest_who_may_invite_may_add_guests_and_answer() {
 }
 
 #[test]
+fn a_guest_cannot_change_a_hidden_guest_list_even_with_permission() {
+    let capabilities = ViewerCapabilities::for_event(
+        &meeting(GuestPolicy {
+            can_modify: true,
+            can_invite_others: true,
+            can_see_other_guests: false,
+        }),
+        &ActorInboxes::sole(GUEST),
+    );
+
+    assert_eq!(
+        capabilities,
+        ViewerCapabilities {
+            edit_details: true,
+            invite_guests: false,
+            remove_guests: false,
+            set_guest_policy: false,
+            rsvp: true,
+        }
+    );
+}
+
+#[test]
 fn a_guest_without_permissions_may_only_answer() {
     let capabilities =
         ViewerCapabilities::for_event(&meeting(LOCKED_DOWN), &ActorInboxes::sole(GUEST));

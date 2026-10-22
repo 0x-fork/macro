@@ -102,7 +102,8 @@ not just additions. That holds when `viewerCan.removeGuests` from ListCalendarEv
 true (the user organizes the event, or the organizer lets guests modify it). When it is \
 false, the list may only grow: pass the current attendees plus the additions; the additions \
 are invited without touching anyone else, and dropping any guest fails. Adding guests then \
-needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invite others. \
+needs `viewerCan.inviteGuests`; otherwise the organizer doesn't let guests invite others \
+or hides the guest list. \
 An empty string for `description` or `location` clears it. Fails on events from calendars \
 the user cannot edit.\n\
 \n\

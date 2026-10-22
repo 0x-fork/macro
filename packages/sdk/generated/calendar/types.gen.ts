@@ -178,11 +178,10 @@ export type CalendarEvent = {
      */
     eventType?: EventType;
     /**
-     * What the organizer lets guests do. Skipped when it is Google's
-     * default so projections stored before the policy was modeled still
-     * compare equal.
+     * What the organizer lets guests do: the canonical copy's values, or
+     * Google's defaults for an event synced before the policy was modeled.
      */
-    guestPolicy?: GuestPolicy;
+    guestPolicy: GuestPolicy;
     /**
      * RFC 5545 UID used to reconcile provider and email sources.
      */
@@ -254,10 +253,10 @@ export type CalendarEvent = {
     updatedAt: string;
     /**
      * What the viewing requester may do with the event. Resolved only on
-     * the read path, alongside each attendee's `is_self`, so stored
-     * projections omit it.
+     * the read path, alongside each attendee's `is_self`; nothing when no
+     * viewer is known. Source projections never store it.
      */
-    viewerCan?: ViewerCapabilities;
+    viewerCan: ViewerCapabilities;
     /**
      * Event visibility.
      */
@@ -361,7 +360,7 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'guests_cannot_invite' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'guests_cannot_invite' | 'guest_list_hidden' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
 
 /**
  * Provider selected from the persisted calendar account and email binding.

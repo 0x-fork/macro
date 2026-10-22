@@ -481,6 +481,11 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
              this event. Suggest asking the organizer to add them."
                 .to_string()
         }
+        CalendarMutationError::GuestListHidden => {
+            "The organizer hides this event's guest list, so the user cannot add guests to it. \
+             Suggest asking the organizer to add them."
+                .to_string()
+        }
         CalendarMutationError::InvalidInput(message) => message.clone(),
         CalendarMutationError::ReauthRequired(_) => {
             "Calendar access must be re-authorized. Ask the user to reconnect their calendar in \

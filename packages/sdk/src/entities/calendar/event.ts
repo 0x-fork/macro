@@ -11,10 +11,8 @@ import type {
   EventTime,
   EventTransparency,
   EventVisibility,
-  GuestPolicy,
   OutOfOfficeProperties,
   UpdateCalendarEventRequest,
-  ViewerCapabilities,
 } from '../../../generated/calendar/types.gen';
 import { MacroError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
@@ -97,22 +95,6 @@ export interface RsvpEventOptions {
   calendar?: Calendar;
 }
 
-/** Google's guest policy, which the calendar service omits while it holds. */
-const DEFAULT_GUEST_POLICY: GuestPolicy = {
-  canModify: false,
-  canInviteOthers: true,
-  canSeeOtherGuests: true,
-};
-
-/** No capability at all, which the calendar service omits. */
-const NO_VIEWER_CAPABILITIES: ViewerCapabilities = {
-  editDetails: false,
-  inviteGuests: false,
-  removeGuests: false,
-  setGuestPolicy: false,
-  rsvp: false,
-};
-
 /**
  * A Macro calendar event: a handle exposing the event's synced fields and the
  * mutations that act on it ({@link CalendarEvent.update},
@@ -174,16 +156,10 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
   readonly recurrenceLines = this.field('recurrenceLines');
 
   /** What the organizer lets guests do: modify, invite others, see the guest list. */
-  readonly guestPolicy = this.mappedField(
-    'guestPolicy',
-    (policy) => policy ?? DEFAULT_GUEST_POLICY,
-  );
+  readonly guestPolicy = this.field('guestPolicy');
 
   /** What the connected account may do with this event under its guest policy. */
-  readonly viewerCan = this.mappedField(
-    'viewerCan',
-    (capabilities) => capabilities ?? NO_VIEWER_CAPABILITIES,
-  );
+  readonly viewerCan = this.field('viewerCan');
 
   /** The calendar the canonical source belongs to, when known. */
   readonly calendar = this.mappedField('calendarId', (id) =>

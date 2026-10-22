@@ -148,14 +148,14 @@ export interface CalendarEvent {
 /** Source id every teammate out-of-office event carries; hiding it hides the overlay. */
 export const TEAM_OOO_SOURCE_ID = 'team-ooo';
 
-/** Google's guest policy, which the backend omits while it holds. */
+/** Google's default guest policy, for events Macro builds itself. */
 export const DEFAULT_GUEST_POLICY: GuestPolicy = {
   canModify: false,
   canInviteOthers: true,
   canSeeOtherGuests: true,
 };
 
-/** No capability at all, which the backend omits. */
+/** No capability at all. */
 export const NO_VIEWER_CAPABILITIES: ViewerCapabilities = {
   editDetails: false,
   inviteGuests: false,
@@ -290,10 +290,8 @@ export function mapCalendarOccurrence(
     creatorName: optionalText(content.creatorName),
     creatorEmail: optionalText(content.creatorEmail),
     attendees: event.attendees ?? [],
-    guestPolicy: event.guestPolicy ?? DEFAULT_GUEST_POLICY,
-    viewerCan: content.isReadOnly
-      ? NO_VIEWER_CAPABILITIES
-      : (event.viewerCan ?? NO_VIEWER_CAPABILITIES),
+    guestPolicy: event.guestPolicy,
+    viewerCan: content.isReadOnly ? NO_VIEWER_CAPABILITIES : event.viewerCan,
     reminders: canonical.reminders ?? undefined,
     reminderCalendarId: canonical.calendarId ?? undefined,
     reminderEventType: canonical.eventType ?? undefined,

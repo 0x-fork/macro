@@ -4,9 +4,11 @@ import { describe, expect, it } from 'vitest';
 import {
   type CalendarEvent,
   type CalendarSource,
+  DEFAULT_GUEST_POLICY,
   isCalendarEventVisible,
   mapCalendarEventToFullCalendar,
   mapCalendarOccurrence,
+  NO_VIEWER_CAPABILITIES,
 } from './types';
 import { canEditCalendarEventTime } from './utils/event-interaction';
 
@@ -76,6 +78,8 @@ function item(sources: CalendarEventSourceContent[]): CalendarOccurrenceItem {
       recurrenceLines: [],
       sequence: 0,
       isReadOnly: false,
+      guestPolicy: DEFAULT_GUEST_POLICY,
+      viewerCan: NO_VIEWER_CAPABILITIES,
       attendees: [],
       createdAt: '2026-09-01T00:00:00Z',
       updatedAt: '2026-09-01T00:00:00Z',

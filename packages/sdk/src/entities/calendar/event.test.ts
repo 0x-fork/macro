@@ -30,6 +30,18 @@ const record: CalendarEventRecord = {
   },
   transparency: 'opaque',
   visibility: 'default',
+  guestPolicy: {
+    canModify: false,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  },
+  viewerCan: {
+    editDetails: true,
+    inviteGuests: true,
+    removeGuests: true,
+    setGuestPolicy: true,
+    rsvp: false,
+  },
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
 };

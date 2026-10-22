@@ -92,7 +92,10 @@ impl ViewerCapabilities {
     /// everything, and so may anyone on a writable event without attendees,
     /// which is treated as the actor's own. A guest's rights follow the
     /// event's [`GuestPolicy`]: modify allows everything except changing the
-    /// policy, invite allows adding guests, and every guest may answer.
+    /// policy, invite allows adding guests, and every guest may answer. A
+    /// guest may change the guest list only while it is visible: Google takes
+    /// guest additions as a whole new list, and a guest's copy of a hidden
+    /// list holds only themselves and the organizer.
     /// Anyone else, including a teammate or channel member looking at someone
     /// else's projection, may do nothing. Answering always needs the actor's
     /// own attendee row, since that is the row the answer is written to.
@@ -143,8 +146,9 @@ impl ViewerCapabilities {
         let policy = access.guest_policy;
         Self {
             edit_details: policy.can_modify,
-            invite_guests: policy.can_modify || policy.can_invite_others,
-            remove_guests: policy.can_modify,
+            invite_guests: policy.can_see_other_guests
+                && (policy.can_modify || policy.can_invite_others),
+            remove_guests: policy.can_see_other_guests && policy.can_modify,
             set_guest_policy: false,
             rsvp: true,
         }

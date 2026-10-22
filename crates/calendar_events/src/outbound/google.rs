@@ -1475,7 +1475,10 @@ impl<G: GoogleRequestGate> CalendarMutationProvider for GoogleCalendarClient<G> 
             InvitePatch::Applied => true,
             InvitePatch::NothingNew => false,
             InvitePatch::NotAttendee => return Ok(ProviderInviteOutcome::NotAttendee),
-            InvitePatch::Forbidden => return Ok(ProviderInviteOutcome::Forbidden),
+            InvitePatch::Forbidden(policy) => return Ok(ProviderInviteOutcome::Forbidden(policy)),
+            InvitePatch::GuestListHidden(policy) => {
+                return Ok(ProviderInviteOutcome::GuestListHidden(policy));
+            }
             InvitePatch::Gone => return Ok(ProviderInviteOutcome::Gone),
         };
         // As for RSVPs, Google owns recurrence expansion, so every scope
@@ -1545,7 +1548,10 @@ enum InvitePatch {
     /// Every guest was already on the event; nothing was written.
     NothingNew,
     NotAttendee,
-    Forbidden,
+    /// Carries the policy Google reported for the event.
+    Forbidden(GuestPolicy),
+    /// Carries the policy Google reported for the event.
+    GuestListHidden(GuestPolicy),
     Gone,
 }
 
@@ -1631,14 +1637,15 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
 }
 
 impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
-    /// Add guests to one provider event, leaving every attendee already on
-    /// it untouched and notifying the new guests.
+    /// Add guests to one provider event, keeping every attendee already on
+    /// it with their answer, and notify the new guests.
     ///
     /// The read distinguishes a vanished event from an actor who neither
-    /// organizes nor attends it, and drops guests Google already lists. On a
-    /// hidden guest list the actor's copy lists only themselves and the
-    /// organizer, so a guest already invited can still be sent; Google keeps
-    /// one entry per address.
+    /// organizes nor attends it, supplies the list the write keeps, and
+    /// carries the organizer's live guest policy: the stored one can predate
+    /// it. A guest is refused when the policy does not let guests invite, and
+    /// when it hides the guest list, since their copy then lists only
+    /// themselves and the organizer and the write would drop everyone else.
     async fn patch_new_attendees(
         &self,
         access_token: &str,
@@ -1658,14 +1665,23 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
         else {
             return Ok(InvitePatch::Gone);
         };
-        let attendees = current.attendees.unwrap_or_default();
+        let policy = guest_policy(&current);
         let organizes = current
             .organizer
             .as_ref()
             .and_then(|organizer| organizer.email.as_deref())
             .is_some_and(|email| actor.matches(email));
-        if !organizes && find_actor_attendee(&attendees, actor).is_none() {
-            return Ok(InvitePatch::NotAttendee);
+        let attendees = current.attendees.unwrap_or_default();
+        if !organizes {
+            if find_actor_attendee(&attendees, actor).is_none() {
+                return Ok(InvitePatch::NotAttendee);
+            }
+            if !(policy.can_modify || policy.can_invite_others) {
+                return Ok(InvitePatch::Forbidden(policy));
+            }
+            if !policy.can_see_other_guests {
+                return Ok(InvitePatch::GuestListHidden(policy));
+            }
         }
         let listed: HashSet<String> = attendees
             .iter()
@@ -1685,7 +1701,7 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
                 access_token,
                 target,
                 provider_event_id,
-                invite_patch_body(&additions),
+                invite_attendees_body(&attendees, &additions),
             )
             .await
         {
@@ -1693,26 +1709,36 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
             Ok(None) => Ok(InvitePatch::Gone),
             Err(PatchFailure::Forbidden(error)) => {
                 tracing::warn!(error = ?error, "Google refused to add guests to the event");
-                Ok(InvitePatch::Forbidden)
+                Ok(InvitePatch::Forbidden(GuestPolicy {
+                    can_modify: false,
+                    can_invite_others: false,
+                    ..policy
+                }))
             }
             Err(PatchFailure::Failed(error)) => Err(error),
         }
     }
 }
 
-/// Body adding guests without touching anyone already on the event.
+/// Body adding guests while keeping everyone already on the event.
 ///
-/// `attendeesOmitted` tells Google the list is partial, the mechanism the
-/// RSVP patch uses for one attendee. Google's handling of a guest's partial
-/// additions is to be confirmed on a dev account; if it does not merge
-/// them, the fallback is a full list of the stored guests plus these, sent
-/// only when the actor can see the guest list, and it changes nothing
-/// outside this builder and its caller.
-fn invite_patch_body(guests: &[CalendarAttendeeInput]) -> serde_json::Value {
-    serde_json::json!({
-        "attendeesOmitted": true,
-        "attendees": google_attendees_body(guests),
-    })
+/// Google's `attendeesOmitted` mode only updates attendees already on the
+/// event and refuses new ones (`omittedAttendeesSpecified`), so the patch
+/// carries the whole list: every attendee Google returned, unchanged so their
+/// answers, comments, and other fields survive, then the new guests. With
+/// `sendUpdates=all` Google invites the new guests.
+fn invite_attendees_body(
+    current: &[GoogleAttendee],
+    additions: &[CalendarAttendeeInput],
+) -> serde_json::Value {
+    let mut attendees: Vec<serde_json::Value> = current
+        .iter()
+        .map(|attendee| serde_json::json!(attendee))
+        .collect();
+    if let serde_json::Value::Array(new) = google_attendees_body(additions) {
+        attendees.extend(new);
+    }
+    serde_json::json!({ "attendees": attendees })
 }
 
 /// Parse a stored occurrence key (RFC 3339 instant or local date).

@@ -170,8 +170,8 @@ struct FakeRepo {
     visible_calendars: Vec<VisibleCalendar>,
     fail_list_visible: bool,
     fail_owned_inboxes: bool,
-    /// Events whose stored policy was switched to refuse guest invites.
-    disabled_guest_invites: Arc<Mutex<Vec<Uuid>>>,
+    /// Guest policies recorded after the provider refused an invite.
+    recorded_guest_policies: Arc<Mutex<Vec<(Uuid, GuestPolicy)>>>,
 }
 
 impl Default for FakeRepo {
@@ -192,7 +192,7 @@ impl Default for FakeRepo {
             visible_calendars: Vec::new(),
             fail_list_visible: false,
             fail_owned_inboxes: false,
-            disabled_guest_invites: Default::default(),
+            recorded_guest_policies: Default::default(),
         }
     }
 }
@@ -385,8 +385,15 @@ impl CalendarRepository for FakeRepo {
         Ok(self.occurrence_override_attendees.clone())
     }
 
-    async fn disable_guest_invites(&self, event_id: Uuid) -> Result<(), rootcause::Report> {
-        self.disabled_guest_invites.lock().unwrap().push(event_id);
+    async fn record_guest_policy(
+        &self,
+        event_id: Uuid,
+        policy: GuestPolicy,
+    ) -> Result<(), rootcause::Report> {
+        self.recorded_guest_policies
+            .lock()
+            .unwrap()
+            .push((event_id, policy));
         Ok(())
     }
 
@@ -450,7 +457,8 @@ enum FakeProviderBehavior {
     Gone,
     OccurrenceGone,
     NotAttendee,
-    Forbidden,
+    Forbidden(GuestPolicy),
+    GuestListHidden(GuestPolicy),
     Fail(CalendarProviderErrorKind),
 }
 
@@ -608,7 +616,10 @@ impl CalendarMutationProvider for FakeProvider {
                 ProviderInviteOutcome::OccurrenceGone(Box::new(self.echo(&target.owner_id)))
             }
             FakeProviderBehavior::NotAttendee => ProviderInviteOutcome::NotAttendee,
-            FakeProviderBehavior::Forbidden => ProviderInviteOutcome::Forbidden,
+            FakeProviderBehavior::Forbidden(policy) => ProviderInviteOutcome::Forbidden(policy),
+            FakeProviderBehavior::GuestListHidden(policy) => {
+                ProviderInviteOutcome::GuestListHidden(policy)
+            }
             _ => ProviderInviteOutcome::Applied(Box::new(self.echo(&target.owner_id))),
         })
     }

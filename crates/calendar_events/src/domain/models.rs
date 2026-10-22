@@ -669,15 +669,16 @@ pub struct CalendarEvent {
     /// compare equal.
     #[serde(default, skip_serializing_if = "EventReminders::is_default")]
     pub reminders: EventReminders,
-    /// What the organizer lets guests do. Skipped when it is Google's
-    /// default so projections stored before the policy was modeled still
-    /// compare equal.
-    #[serde(default, skip_serializing_if = "GuestPolicy::is_default")]
+    /// What the organizer lets guests do: the canonical copy's values, or
+    /// Google's defaults for an event synced before the policy was modeled.
+    #[serde(default)]
+    #[cfg_attr(feature = "schema", schema(required = true))]
     pub guest_policy: GuestPolicy,
     /// What the viewing requester may do with the event. Resolved only on
-    /// the read path, alongside each attendee's `is_self`, so stored
-    /// projections omit it.
-    #[serde(default, skip_serializing_if = "ViewerCapabilities::is_none")]
+    /// the read path, alongside each attendee's `is_self`; nothing when no
+    /// viewer is known. Source projections never store it.
+    #[serde(default)]
+    #[cfg_attr(feature = "schema", schema(required = true))]
     pub viewer_can: ViewerCapabilities,
     /// Entity creation time.
     pub created_at: DateTime<Utc>,

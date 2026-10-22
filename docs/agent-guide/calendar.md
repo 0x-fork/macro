@@ -443,8 +443,10 @@ list opens with `Only the organizer can invite guests.`, and the same happens af
 provider refuses an invitation. In the event editor, the organizer edits guests as before,
 while a guest who may invite gets an add-only guests pill whose additions are sent as an
 invitation on save (other edits are saved first); a guest who may not invite keeps a
-read-only pill that explains why. To check the refusal state without a Google account,
-answer `POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+read-only pill that explains why. A guest on an event whose organizer hides the guest list
+may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
+`guest_list_hidden`). To check the refusal state without a Google account, answer
+`POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description

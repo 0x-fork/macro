@@ -34,6 +34,20 @@ fn domain_errors_map_to_distinct_transport_semantics() {
         (StatusCode::CONFLICT, CalendarMutationErrorCode::NotAttendee)
     );
     assert_eq!(
+        transport_of(CalendarMutationError::GuestsCannotInvite),
+        (
+            StatusCode::FORBIDDEN,
+            CalendarMutationErrorCode::GuestsCannotInvite
+        )
+    );
+    assert_eq!(
+        transport_of(CalendarMutationError::GuestListHidden),
+        (
+            StatusCode::FORBIDDEN,
+            CalendarMutationErrorCode::GuestListHidden
+        )
+    );
+    assert_eq!(
         transport_of(CalendarMutationError::InvalidInput("bad".to_string())),
         (
             StatusCode::BAD_REQUEST,

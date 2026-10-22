@@ -20,7 +20,7 @@ use super::models::{
     CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
     CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, GoogleCalendarSyncSnapshot,
     GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig,
-    OccurrenceListing, OccurrenceRange, ProviderCalendar, ProviderCalendarTarget,
+    GuestPolicy, OccurrenceListing, OccurrenceRange, ProviderCalendar, ProviderCalendarTarget,
     StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
 };
 
@@ -229,13 +229,16 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
     ) -> impl Future<Output = Result<ProviderRsvpOutcome, CalendarProviderError>> + Send;
 
     /// Add guests to the master ([`CalendarUpdateScope::All`]) or one
-    /// occurrence ([`CalendarUpdateScope::ThisEvent`]) without touching
-    /// anyone already invited, notify the new guests, and refresh the series.
+    /// occurrence ([`CalendarUpdateScope::ThisEvent`]), keeping every guest
+    /// already invited with their answer, notify the new guests, and refresh
+    /// the series.
     ///
     /// The provider event is read first: a vanished event surfaces as
     /// [`ProviderInviteOutcome::Gone`], an actor who neither organizes nor
-    /// attends it as [`ProviderInviteOutcome::NotAttendee`]. Guests already
-    /// on the event are dropped, and nothing is written when none remain.
+    /// attends it as [`ProviderInviteOutcome::NotAttendee`], and a guest the
+    /// event's live policy refuses as [`ProviderInviteOutcome::Forbidden`] or
+    /// [`ProviderInviteOutcome::GuestListHidden`]. Guests already on the
+    /// event are dropped, and nothing is written when none remain.
     fn add_attendees(
         &self,
         access_token: &str,
@@ -349,7 +352,7 @@ pub enum ProviderRsvpOutcome {
     Gone,
 }
 
-/// Result of adding guests to an event with a partial attendee patch.
+/// Result of adding guests to an event.
 pub enum ProviderInviteOutcome {
     /// The guests were added, or were already on the event; the echo carries
     /// the refreshed event.
@@ -359,9 +362,12 @@ pub enum ProviderInviteOutcome {
     OccurrenceGone(Box<CalendarEventUpsert>),
     /// The connected account neither organizes nor attends the event.
     NotAttendee,
-    /// The provider refused the write: the organizer does not let guests
-    /// invite others.
-    Forbidden,
+    /// The organizer does not let this guest add guests. Carries the policy
+    /// the provider reported, for the stored copy to follow.
+    Forbidden(GuestPolicy),
+    /// The organizer hides the guest list from guests. Carries the policy the
+    /// provider reported, for the stored copy to follow.
+    GuestListHidden(GuestPolicy),
     /// The event no longer exists at the provider.
     Gone,
 }
@@ -672,12 +678,14 @@ pub trait CalendarRepository: Send + Sync + 'static {
         recurrence_id: &str,
     ) -> impl Future<Output = Result<Option<Vec<CalendarAttendee>>, Report>> + Send;
 
-    /// Record that the organizer does not let guests invite others, once the
-    /// provider refused a guest's invite. Incremental sync resends only
-    /// changed events, so the stored policy can predate the organizer's choice.
-    fn disable_guest_invites(
+    /// Store the guest policy the provider reported when it refused an
+    /// invite, on the entity and every copy's projection. Incremental sync
+    /// resends only changed events, so the stored policy can predate the
+    /// organizer's choice.
+    fn record_guest_policy(
         &self,
         event_id: Uuid,
+        policy: GuestPolicy,
     ) -> impl Future<Output = Result<(), Report>> + Send;
 
     /// Resolve the calendar a requester-created event lands in: the exact
@@ -919,6 +927,10 @@ pub enum CalendarMutationError {
     /// The organizer does not let guests invite others.
     #[error("the organizer doesn't let guests invite others")]
     GuestsCannotInvite,
+    /// The organizer hides the guest list, so a guest's copy cannot hold the
+    /// whole list a guest addition must write.
+    #[error("guests cannot be added while the organizer hides the guest list")]
+    GuestListHidden,
     /// The supplied fields were invalid.
     #[error("invalid calendar mutation: {0}")]
     InvalidInput(String),

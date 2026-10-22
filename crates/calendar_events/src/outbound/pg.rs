@@ -459,9 +459,28 @@ struct AttendeeRow {
 struct StoredSourceProjection {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     automatic_decline: Option<crate::domain::models::AutomaticDeclinePolicy>,
+    #[serde(serialize_with = "serialize_stored_event")]
     event: CalendarEvent,
     overrides: Vec<CalendarEventOverride>,
     occurrences: Vec<CalendarOccurrence>,
+}
+
+/// The entity as a source projection stores it: never the viewer's
+/// capabilities, and the guest policy only when it differs from Google's
+/// default, so projections stored before either was modeled still compare
+/// equal and an unchanged event is not rewritten.
+fn serialize_stored_event<S: serde::Serializer>(
+    event: &CalendarEvent,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut value = serde_json::to_value(event).map_err(serde::ser::Error::custom)?;
+    if let Some(fields) = value.as_object_mut() {
+        fields.remove("viewerCan");
+        if event.guest_policy.is_default() {
+            fields.remove("guestPolicy");
+        }
+    }
+    value.serialize(serializer)
 }
 
 impl From<&CalendarEventUpsert> for StoredSourceProjection {
@@ -2126,31 +2145,30 @@ impl CalendarRepository for PgCalendarRepository {
     }
 
     #[tracing::instrument(skip(self), err)]
-    async fn disable_guest_invites(&self, event_id: Uuid) -> Result<(), Report> {
+    async fn record_guest_policy(&self, event_id: Uuid, policy: GuestPolicy) -> Result<(), Report> {
         let mut tx = self.pool.begin().await.map_err(report)?;
-        let event = sqlx::query!(
+        let source_link_id = sqlx::query_scalar!(
             r#"
             UPDATE calendar_events
-            SET guests_can_invite_others = false
+            SET guests_can_modify = $2,
+                guests_can_invite_others = $3,
+                guests_can_see_other_guests = $4
             WHERE id = $1
-            RETURNING source_link_id, guests_can_modify, guests_can_see_other_guests
+            RETURNING source_link_id
             "#,
             event_id,
+            policy.can_modify,
+            policy.can_invite_others,
+            policy.can_see_other_guests,
         )
         .fetch_optional(&mut *tx)
         .await
         .map_err(report)?;
-        let Some(event) = event else {
+        let Some(source_link_id) = source_link_id else {
             return Ok(());
         };
         // Each copy's stored projection carries the policy too, so a restore
-        // from another copy cannot bring the stale switch back.
-        let policy = serde_json::to_value(GuestPolicy {
-            can_modify: event.guests_can_modify,
-            can_invite_others: false,
-            can_see_other_guests: event.guests_can_see_other_guests,
-        })
-        .map_err(report)?;
+        // from another copy cannot bring the stale switches back.
         sqlx::query!(
             r#"
             UPDATE calendar_event_sources
@@ -2159,16 +2177,13 @@ impl CalendarRepository for PgCalendarRepository {
               AND normalized_payload ? 'event'
             "#,
             event_id,
-            policy,
+            serde_json::to_value(policy).map_err(report)?,
         )
         .execute(&mut *tx)
         .await
         .map_err(report)?;
         let mut log = ChangeLogBatch::default();
-        log.record(
-            event.source_link_id,
-            CalendarChangeOp::UpsertEvent(event_id),
-        );
+        log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
         log.commit(tx).await
     }
 

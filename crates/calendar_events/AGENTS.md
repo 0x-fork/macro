@@ -59,14 +59,19 @@ reminder dispatch, team availability, and provider/Postgres persistence.
 - Imported point (non-recurring) events must survive sync and cache round-trips
   unchanged (#7762) — a regression here silently drops user events.
 - Only an organizer (or a guest the organizer lets modify) may replace an
-  event's attendee list. Everyone else adds guests through `invite_guests`, a
-  partial `attendeesOmitted` patch (`src/domain/mutations/invite.rs`); a guest's
-  `update_event` attendees are routed there and removals are refused.
+  event's attendee list. Everyone else adds guests through `invite_guests`
+  (`src/domain/mutations/invite.rs`); a guest's `update_event` attendees are
+  routed there and removals are refused. Google refuses new attendees in
+  `attendeesOmitted` mode (`omittedAttendeesSpecified`), so the invite writes
+  the whole list Google returned plus the new guests, and a guest is refused
+  (`guest_list_hidden`) while the organizer hides the guest list, since their
+  copy lacks the guests it would drop.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` wherever a read path marks the viewer, and never
   store it. `guest_policy` is stored on the entity row (the canonical copy's
   values) and in each source's projection, omitted there while it holds Google's
-  default.
+  default. Event responses always carry both; `StoredSourceProjection` strips
+  them so unchanged events keep comparing equal.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 

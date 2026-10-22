@@ -158,6 +158,7 @@ fn error_from_response(status: StatusCode, body: Option<String>) -> CalendarMuta
         "no_writable_calendar" => CalendarMutationError::NoWritableCalendar,
         "not_attendee" => CalendarMutationError::NotAttendee,
         "guests_cannot_invite" => CalendarMutationError::GuestsCannotInvite,
+        "guest_list_hidden" => CalendarMutationError::GuestListHidden,
         "invalid_input" => CalendarMutationError::InvalidInput(error.message),
         "reauth_required" => CalendarMutationError::ReauthRequired(error.message),
         "provider_rejected" => CalendarMutationError::ProviderRejected(error.message),

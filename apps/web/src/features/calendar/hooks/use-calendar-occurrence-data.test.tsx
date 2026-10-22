@@ -12,7 +12,11 @@ import {
 } from '@tanstack/solid-query';
 import { type Accessor, createSignal, For, Suspense } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_CALENDAR_SOURCE } from '../types';
+import {
+  DEFAULT_CALENDAR_SOURCE,
+  DEFAULT_GUEST_POLICY,
+  NO_VIEWER_CAPABILITIES,
+} from '../types';
 import {
   type CalendarOccurrenceData,
   useCalendarOccurrenceData,
@@ -114,6 +118,8 @@ function occurrenceData(): CalendarOccurrencesData {
           recurrenceLines: [],
           sequence: 0,
           isReadOnly: false,
+          guestPolicy: DEFAULT_GUEST_POLICY,
+          viewerCan: NO_VIEWER_CAPABILITIES,
           status: 'confirmed',
           transparency: 'opaque',
           visibility: 'default',

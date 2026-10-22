@@ -1,9 +1,9 @@
-//! Adding guests through a partial attendee patch, for organizers and for
-//! guests the organizer lets invite others.
+//! Adding guests with a full attendee write, for organizers and for guests
+//! the organizer lets invite others while the guest list is visible.
 use std::collections::HashSet;
 
 use super::*;
-use crate::domain::capabilities::{EventAccess, ViewerCapabilities};
+use crate::domain::capabilities::{EventAccess, GuestPolicy, ViewerCapabilities};
 
 impl<R, G, T, B, N> CalendarMutationServiceImpl<R, G, T, B, N>
 where
@@ -63,12 +63,7 @@ where
         let stored = self.stored_attendees(event_id, &scope).await?;
         let capabilities = copy_capabilities(&target, &stored);
         if !capabilities.invite_guests {
-            // Every guest may answer, so a seat on the event shows as `rsvp`.
-            return Err(if capabilities.rsvp {
-                CalendarMutationError::GuestsCannotInvite
-            } else {
-                CalendarMutationError::NotAttendee
-            });
+            return Err(invite_refusal(capabilities, target.guest_policy));
         }
         let guests = uninvited_guests(guests, &stored);
         let access_token = self.fetch_token(&target.token_identity).await?;
@@ -108,30 +103,68 @@ where
                 Err(CalendarMutationError::OccurrenceNotFound)
             }
             ProviderInviteOutcome::NotAttendee => Err(CalendarMutationError::NotAttendee),
-            ProviderInviteOutcome::Forbidden => {
-                // The stored policy predates the organizer's choice; record it
-                // so every viewer stops offering the invite.
-                match self.repository.disable_guest_invites(event_id).await {
-                    Ok(()) => {
-                        self.refresh
-                            .calendar_changed(&target.owner_id, target.email_link_id, false)
-                            .await;
-                    }
-                    Err(error) => {
-                        tracing::warn!(
-                            error = ?error,
-                            event_id = %event_id,
-                            "failed to record that guests cannot invite others"
-                        );
-                    }
-                }
+            ProviderInviteOutcome::Forbidden(policy) => {
+                self.record_guest_policy(&target, policy).await;
                 Err(CalendarMutationError::GuestsCannotInvite)
+            }
+            ProviderInviteOutcome::GuestListHidden(policy) => {
+                self.record_guest_policy(&target, policy).await;
+                Err(CalendarMutationError::GuestListHidden)
             }
             ProviderInviteOutcome::Gone => {
                 self.retire_gone_source(&target).await;
                 Err(CalendarMutationError::NotFound)
             }
         }
+    }
+}
+
+impl<R, G, T, B, N> CalendarMutationServiceImpl<R, G, T, B, N>
+where
+    R: CalendarRepository,
+    G: CalendarMutationProvider,
+    T: CalendarAccessTokenProvider,
+    B: MacroEventBroker,
+    N: CalendarRefreshNotifier,
+{
+    /// Store the guest policy Google reported when it refused an invite.
+    /// Incremental sync resends only changed events, so the stored policy can
+    /// predate the organizer's choice; recording it stops every viewer from
+    /// offering the invite.
+    async fn record_guest_policy(&self, target: &CalendarEventMutationTarget, policy: GuestPolicy) {
+        if policy == target.guest_policy {
+            return;
+        }
+        match self
+            .repository
+            .record_guest_policy(target.event_id, policy)
+            .await
+        {
+            Ok(()) => {
+                self.refresh
+                    .calendar_changed(&target.owner_id, target.email_link_id, false)
+                    .await;
+            }
+            Err(error) => {
+                tracing::warn!(
+                    error = ?error,
+                    event_id = %target.event_id,
+                    "failed to record the guest policy Google reported"
+                );
+            }
+        }
+    }
+}
+
+/// Why an actor without `invite_guests` may not add guests. Every guest may
+/// answer, so a seat on the event shows as `rsvp`.
+fn invite_refusal(capabilities: ViewerCapabilities, policy: GuestPolicy) -> CalendarMutationError {
+    if !capabilities.rsvp {
+        CalendarMutationError::NotAttendee
+    } else if !(policy.can_modify || policy.can_invite_others) {
+        CalendarMutationError::GuestsCannotInvite
+    } else {
+        CalendarMutationError::GuestListHidden
     }
 }
 
@@ -206,6 +239,7 @@ pub(super) fn invite_outcome(
     match result {
         Ok(_) => "invited",
         Err(CalendarMutationError::GuestsCannotInvite) => "guests_cannot_invite",
+        Err(CalendarMutationError::GuestListHidden) => "guest_list_hidden",
         Err(CalendarMutationError::NotAttendee) => "not_attendee",
         Err(CalendarMutationError::ReadOnly) => "read_only",
         Err(CalendarMutationError::NotFound | CalendarMutationError::OccurrenceNotFound) => {

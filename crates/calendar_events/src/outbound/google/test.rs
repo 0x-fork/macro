@@ -1055,6 +1055,48 @@ fn rsvp_patch_updates_only_the_connected_attendee() {
     assert_eq!(attendees[0]["comment"], "unrelated state that must survive");
 }
 
+/// Google refuses new attendees in `attendeesOmitted` mode
+/// (`omittedAttendeesSpecified`), so an invite writes the whole list and
+/// must carry every existing attendee exactly as Google returned it.
+#[test]
+fn invite_body_keeps_every_attendee_as_google_returned_it_and_appends_the_guests() {
+    let current: Vec<GoogleAttendee> = serde_json::from_value(serde_json::json!([
+        {
+            "email": "olivia@example.com",
+            "organizer": true,
+            "responseStatus": "accepted"
+        },
+        {
+            "email": "jacob@example.com",
+            "self": true,
+            "responseStatus": "tentative",
+            "comment": "running late",
+            "additionalGuests": 1
+        }
+    ]))
+    .unwrap();
+
+    let body = invite_attendees_body(
+        &current,
+        &[CalendarAttendeeInput {
+            email: "ada@example.com".to_string(),
+            is_optional: true,
+            response_status: None,
+        }],
+    );
+
+    assert!(body.get("attendeesOmitted").is_none());
+    let attendees = body["attendees"].as_array().unwrap();
+    assert_eq!(attendees.len(), 3);
+    assert_eq!(attendees[0]["responseStatus"], "accepted");
+    assert_eq!(attendees[1]["responseStatus"], "tentative");
+    assert_eq!(attendees[1]["comment"], "running late");
+    assert_eq!(attendees[1]["additionalGuests"], 1);
+    assert_eq!(attendees[2]["email"], "ada@example.com");
+    assert_eq!(attendees[2]["optional"], true);
+    assert!(attendees[2].get("responseStatus").is_none());
+}
+
 fn google_attendee(email: &str, is_self: bool) -> GoogleAttendee {
     serde_json::from_value(serde_json::json!({
         "email": email,

@@ -337,9 +337,8 @@ where
                 preserve_retained_attendee_state(&mut attendees, &stored);
                 patch.attendees = Some(attendees);
             } else {
-                // Google refuses a replacement list from a guest, and a guest's
-                // copy can hide part of it, so a guest only adds, through the
-                // partial patch the invite path writes.
+                // A guest who may not remove guests only adds, through the
+                // invite path, which keeps every guest Google already holds.
                 let additions =
                     invite::guest_list_additions(attendees, &stored, target.actor.as_ref())?;
                 if !additions.is_empty() {

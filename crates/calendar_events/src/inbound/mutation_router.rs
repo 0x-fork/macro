@@ -356,6 +356,8 @@ pub enum CalendarMutationErrorCode {
     NotAttendee,
     /// The organizer does not let guests invite others.
     GuestsCannotInvite,
+    /// The organizer hides the guest list, so a guest cannot add guests.
+    GuestListHidden,
     /// The request was invalid.
     InvalidInput,
     /// The calendar grant must be re-consented.
@@ -429,6 +431,11 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::FORBIDDEN,
                 CalendarMutationErrorCode::GuestsCannotInvite,
                 "The organizer doesn't let guests invite others.".to_string(),
+            ),
+            CalendarMutationError::GuestListHidden => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestListHidden,
+                "Guests cannot be added while the organizer hides the guest list.".to_string(),
             ),
             CalendarMutationError::InvalidInput(message) => (
                 StatusCode::BAD_REQUEST,

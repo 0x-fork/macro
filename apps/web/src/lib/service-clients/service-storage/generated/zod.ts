@@ -1027,7 +1027,6 @@ export const listOccurrencesResponse = zod
                     .boolean()
                     .describe('Whether guests may see the guest list.'),
                 })
-                .optional()
                 .describe(
                   'The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.'
                 ),
@@ -1257,7 +1256,6 @@ export const listOccurrencesResponse = zod
                     .boolean()
                     .describe("Change the event's guest policy."),
                 })
-                .optional()
                 .describe('What the viewing requester may do with an event.'),
               visibility: zod
                 .enum(['default', 'public', 'private', 'confidential'])

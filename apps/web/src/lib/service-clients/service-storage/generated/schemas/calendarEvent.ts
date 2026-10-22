@@ -54,10 +54,9 @@ compare equal. */
 projections stored before event types were modeled still compare
 equal. */
   eventType?: EventType;
-  /** What the organizer lets guests do. Skipped when it is Google's
-default so projections stored before the policy was modeled still
-compare equal. */
-  guestPolicy?: GuestPolicy;
+  /** What the organizer lets guests do: the canonical copy's values, or
+Google's defaults for an event synced before the policy was modeled. */
+  guestPolicy: GuestPolicy;
   /** RFC 5545 UID used to reconcile provider and email sources. */
   icalUid: string;
   /** Macro entity identifier. */
@@ -99,9 +98,9 @@ only on the read path, so stored projections omit it. */
   /** Entity update time. */
   updatedAt: string;
   /** What the viewing requester may do with the event. Resolved only on
-the read path, alongside each attendee's `is_self`, so stored
-projections omit it. */
-  viewerCan?: ViewerCapabilities;
+the read path, alongside each attendee's `is_self`; nothing when no
+viewer is known. Source projections never store it. */
+  viewerCan: ViewerCapabilities;
   /** Event visibility. */
   visibility: EventVisibility;
 }
