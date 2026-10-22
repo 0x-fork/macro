@@ -431,6 +431,20 @@ carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every 
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
 touch devices — and is hidden when you are the only guest.
+With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
+whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
+organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
+phones): the current guests are listed under `Invited` without a remove control, the picker
+adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
+event` / `All events`, and `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape
+closes. The new guests appear at once as unanswered and a toast confirms the invitation
+once the provider accepts it. A guest who may not invite gets no button; instead the guest
+list opens with `Only the organizer can invite guests.`, and the same happens after the
+provider refuses an invitation. In the event editor, the organizer edits guests as before,
+while a guest who may invite gets an add-only guests pill whose additions are sent as an
+invitation on save (other edits are saved first); a guest who may not invite keeps a
+read-only pill that explains why. To check the refusal state without a Google account,
+answer `POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description

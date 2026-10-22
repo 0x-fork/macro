@@ -33,6 +33,7 @@ const policies = {
   UpdateCalendarEvent: 'custom: event and occurrence edits',
   DeleteCalendarEvent: 'custom: event and occurrence removal',
   RespondToCalendarEvent: 'custom: attendee response',
+  InviteCalendarEventGuests: 'custom: added attendees',
   MarkWorkFeedItemsDone:
     'custom: feed rows stay hidden until the server removes them',
   CreateInitiative: 'authoritative: server assigns the project ID',

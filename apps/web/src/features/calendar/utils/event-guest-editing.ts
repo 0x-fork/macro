@@ -1,8 +1,15 @@
 import { eventGuestEmails } from '../components/composer/event-form-model';
 import type { CalendarEvent } from '../types';
 
+/** Shown where a guest would add guests when the organizer does not allow it. */
+export const GUEST_INVITES_RESTRICTED = 'Only the organizer can invite guests.';
+
+function normalizeGuestEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
 function normalizeGuestEmails(emails: readonly string[]): string[] {
-  return [...new Set(emails.map((email) => email.trim().toLowerCase()))].sort();
+  return [...new Set(emails.map(normalizeGuestEmail))].sort();
 }
 
 function emailListsEqual(first: readonly string[], second: readonly string[]) {
@@ -15,20 +22,61 @@ function emailListsEqual(first: readonly string[], second: readonly string[]) {
 }
 
 /**
- * Whether the viewer may change the guest list of an existing event. A
- * read-only event never qualifies. Otherwise only the organizer can: the
- * editor's replacement attendee list would otherwise drop the viewer, whose
- * own email is seeded only when they organize the event.
+ * How the viewer may change an existing event's guest list.
  *
- * A writable event with no attendees at all is treated as the viewer's own
- * (a solo event they created), so the first guest can still be added — there
- * is no attendee to drop in that case.
+ * - `replace`: add and remove guests; a save replaces the whole list.
+ * - `add`: add guests through an invitation; the current guests stay fixed.
+ * - `none`: the list is read-only.
  */
-export function viewerCanEditGuests(event: CalendarEvent): boolean {
-  if (event.isReadOnly) return false;
-  const organizer = event.attendees.find((attendee) => attendee.isOrganizer);
-  if (organizer) return organizer.isSelf;
-  return event.attendees.length === 0;
+export type EventGuestEditing = 'replace' | 'add' | 'none';
+
+/**
+ * Whether the viewer may replace the event's guest list. Only the organizer,
+ * the one viewer who may also set the guest policy, does: the editor's list
+ * omits a guest's own entry, so a guest's replacement would drop them, and
+ * guests add but never remove.
+ */
+export function viewerReplacesGuests(event: CalendarEvent): boolean {
+  return (
+    !event.isReadOnly &&
+    !event.teamProjection &&
+    event.viewerCan.removeGuests &&
+    event.viewerCan.setGuestPolicy
+  );
+}
+
+/**
+ * How the viewer may change an existing event's guest list, from the
+ * server's capabilities. A guest the organizer lets invite adds through a
+ * separate invitation, while guest invites are enabled.
+ */
+export function eventGuestEditing(
+  event: CalendarEvent,
+  invitesEnabled: boolean
+): EventGuestEditing {
+  if (viewerReplacesGuests(event)) return 'replace';
+  if (
+    invitesEnabled &&
+    !event.isReadOnly &&
+    !event.teamProjection &&
+    event.viewerCan.inviteGuests
+  ) {
+    return 'add';
+  }
+  return 'none';
+}
+
+/**
+ * Whether the viewer is a guest on a writable event whose organizer does not
+ * let guests invite others, so the guest list explains why it cannot grow.
+ */
+export function guestInvitesRestricted(event: CalendarEvent): boolean {
+  return (
+    !event.isReadOnly &&
+    !event.teamProjection &&
+    !event.viewerCan.inviteGuests &&
+    event.attendees.some((attendee) => attendee.isSelf)
+  );
 }
 
 /**
@@ -41,4 +89,20 @@ export function guestListChanged(
   nextGuestEmails: readonly string[]
 ): boolean {
   return !emailListsEqual(eventGuestEmails(event), nextGuestEmails);
+}
+
+/** Submitted guests the event does not have yet, in submitted order. */
+export function addedGuestEmails(
+  event: CalendarEvent,
+  nextGuestEmails: readonly string[]
+): string[] {
+  const seen = new Set(
+    event.attendees.map((attendee) => normalizeGuestEmail(attendee.email))
+  );
+  return nextGuestEmails.filter((email) => {
+    const normalized = normalizeGuestEmail(email);
+    if (seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
 }

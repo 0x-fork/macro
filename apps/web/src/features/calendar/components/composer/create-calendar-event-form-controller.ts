@@ -141,17 +141,14 @@ export function createCalendarEventFormController(
   );
   const [state, setState] = createSignal(cloneValue(options.initialValue));
 
-  const initialGuests = initialGuestOptions(
-    options.initialValue.guests,
-    options.guestOptions()
+  const [initialGuests, setInitialGuests] = createSignal(
+    initialGuestOptions(options.initialValue.guests, options.guestOptions())
   );
+  const initialGuestEmails = () => initialGuests().map(guestEmail);
 
-  const [initialGuestEmails, setInitialGuestEmails] = createSignal(
-    initialGuests.map(guestEmail)
-  );
-
-  const [selectedGuests, setSelectedGuestsState] =
-    createSignal<SelectedEventEditorGuest[]>(initialGuests);
+  const [selectedGuests, setSelectedGuestsState] = createSignal<
+    SelectedEventEditorGuest[]
+  >(initialGuests());
 
   const recurrence = createEventEditorState({
     initialValues: options.initialValue,
@@ -545,7 +542,7 @@ export function createCalendarEventFormController(
     batch(() => {
       setInitialValue(cloned);
       setState(cloned);
-      setInitialGuestEmails(guests.map(guestEmail));
+      setInitialGuests(guests);
       setSelectedGuestsState(guests);
       setReminderEdits(undefined);
       recurrence.replaceInitialValues(cloned);
@@ -557,6 +554,7 @@ export function createCalendarEventFormController(
     value,
     calendarOptions: availableCalendarOptions,
     guestOptions: options.guestOptions,
+    initialGuests,
     selectedGuests,
     effectiveCalendarId,
     selectedCalendarOption,

@@ -10,6 +10,7 @@ import type {
   CalendarEventProviderUrl,
   CalendarReplacementView,
   CreateCalendarEventRequest,
+  InviteCalendarEventGuestsRequest,
   ListCalendarsResponse,
   PrepareCalendarReplacementRequest,
   RsvpCalendarEventRequest,
@@ -77,6 +78,9 @@ export type CalendarRsvpScope = 'all' | 'this_event';
 
 /** How much of a recurring series a calendar update applies to. */
 export type CalendarUpdateScope = 'all' | 'this_event';
+
+/** How much of a recurring series an invitation adds guests to. */
+export type CalendarInviteScope = 'all' | 'this_event';
 
 function emailLinkHeaders(linkId?: string): Record<string, string> | undefined {
   return linkId ? { [EMAIL_LINK_ID_HEADER]: linkId } : undefined;
@@ -842,6 +846,19 @@ export const emailClient = {
       `${calendarHost}/events/${eventId}/rsvp`,
       {
         method: 'PUT',
+        body: JSON.stringify(args),
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async inviteCalendarEventGuests(
+    eventId: string,
+    args: InviteCalendarEventGuestsRequest
+  ) {
+    return fetchWithToken<CalendarEvent, CalendarMutationErrorCode>(
+      `${calendarHost}/events/${eventId}/guests`,
+      {
+        method: 'POST',
         body: JSON.stringify(args),
         errorResponseHandler: calendarMutationErrorHandler,
       }

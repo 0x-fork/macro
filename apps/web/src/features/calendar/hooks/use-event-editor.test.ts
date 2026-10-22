@@ -5,11 +5,7 @@ import {
   calendarEventToEditorInitialValues,
   type EventEditorSubmitValues,
 } from '../components/composer/event-form-model';
-import {
-  type CalendarEvent,
-  DEFAULT_GUEST_POLICY,
-  NO_VIEWER_CAPABILITIES,
-} from '../types';
+import { type CalendarEvent, DEFAULT_GUEST_POLICY } from '../types';
 import { useEventEditor } from './use-event-editor';
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   failure: vi.fn(),
   alert: vi.fn(),
   updateEvent: vi.fn(),
+  inviteGuests: vi.fn(),
   updateMeeting: vi.fn(),
   fetchMeeting: vi.fn(),
   quickCalls: true,
@@ -44,6 +41,10 @@ vi.mock('@queries/calendar/mutations', () => ({
   }),
   useUpdateCalendarEventMutation: () => ({
     mutateAsync: mocks.updateEvent,
+    isPending: false,
+  }),
+  useInviteCalendarEventGuestsMutation: () => ({
+    mutateAsync: mocks.inviteGuests,
     isPending: false,
   }),
 }));
@@ -74,7 +75,14 @@ const savedEvent: CalendarEvent = {
   isCancelled: false,
   isReadOnly: false,
   guestPolicy: DEFAULT_GUEST_POLICY,
-  viewerCan: NO_VIEWER_CAPABILITIES,
+  // The viewer's own event with no guests yet: they organize it.
+  viewerCan: {
+    editDetails: true,
+    inviteGuests: true,
+    removeGuests: true,
+    setGuestPolicy: true,
+    rsvp: false,
+  },
   attendees: [],
   recurrenceLines: [],
   title: 'Planning',
@@ -97,6 +105,7 @@ beforeEach(() => {
     calendarId: 'calendar-1',
   });
   mocks.updateEvent.mockResolvedValue({ id: 'event-1' });
+  mocks.inviteGuests.mockResolvedValue({ id: 'event-1' });
   mocks.createMeeting.mockResolvedValue({
     shareToken: '8m8mGwzHqxzYjeIN5-nJRquRbzyTEhGF',
   });
@@ -797,6 +806,13 @@ describe('scheduling a Macro call', () => {
   it('retains an invited event link without managing another organizer’s call', async () => {
     const event = {
       ...savedEvent,
+      viewerCan: {
+        editDetails: false,
+        inviteGuests: true,
+        removeGuests: false,
+        setGuestPolicy: false,
+        rsvp: true,
+      },
       attendees: [
         {
           email: 'host@example.com',
@@ -987,6 +1003,175 @@ describe('scheduling a Macro call', () => {
         scheduledEnd: '2026-09-22T15:00:00Z',
       });
       expect(saved).toHaveBeenCalledOnce();
+    } finally {
+      dispose();
+    }
+  });
+});
+
+describe('guests of an event the viewer was invited to', () => {
+  const invitedEvent = (
+    viewerCan: CalendarEvent['viewerCan'],
+    overrides: Partial<CalendarEvent> = {}
+  ): CalendarEvent => ({
+    ...savedEvent,
+    location: '',
+    viewerCan,
+    attendees: [
+      {
+        email: 'host@example.com',
+        isOrganizer: true,
+        isOptional: false,
+        isSelf: false,
+        responseStatus: 'accepted',
+      },
+      {
+        email: 'me@example.com',
+        isOrganizer: false,
+        isOptional: false,
+        isSelf: true,
+        responseStatus: 'accepted',
+      },
+    ],
+    ...overrides,
+  });
+  const mayInvite = {
+    editDetails: false,
+    inviteGuests: true,
+    removeGuests: false,
+    setGuestPolicy: false,
+    rsvp: true,
+  };
+  const mayNotInvite = { ...mayInvite, inviteGuests: false };
+  const unchanged: EventEditorSubmitValues = {
+    ...values,
+    location: '',
+    description: '',
+    conferenceChoice: 'none',
+    guestEmails: ['host@example.com'],
+  };
+
+  function editorFor(event: CalendarEvent, invitesEnabled: boolean) {
+    return createRoot((dispose) => ({
+      editor: useEventEditor({
+        event: () => event,
+        onSaved: vi.fn(),
+        macroCallsEnabled: () => false,
+        guestInvitesEnabled: () => invitesEnabled,
+      }),
+      dispose,
+    }));
+  }
+
+  it('invites only the added guests instead of replacing the guest list', async () => {
+    const { editor, dispose } = editorFor(invitedEvent(mayInvite), true);
+    try {
+      expect(editor.addOnlyGuests()).toBe(true);
+      expect(editor.disabledFields()?.guests).toBe(false);
+      expect(editor.disabledFields()?.conference).toBe(true);
+
+      await editor.save({
+        ...unchanged,
+        title: 'Planning review',
+        guestEmails: ['host@example.com', 'dana@example.com'],
+      });
+
+      expect(mocks.updateEvent).toHaveBeenCalledOnce();
+      expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
+        title: 'Planning review',
+      });
+      expect(mocks.inviteGuests).toHaveBeenCalledWith({
+        eventId: 'event-1',
+        calendarId: 'calendar-1',
+        guests: [{ email: 'dana@example.com' }],
+        scope: 'all',
+        recurrenceId: undefined,
+        occurrenceKey: undefined,
+      });
+      expect(mocks.updateEvent.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.inviteGuests.mock.invocationCallOrder[0]
+      );
+    } finally {
+      dispose();
+    }
+  });
+
+  it('sends no request when the guest added nobody', async () => {
+    const { editor, dispose } = editorFor(invitedEvent(mayInvite), true);
+    try {
+      await editor.save(unchanged);
+      expect(mocks.updateEvent).not.toHaveBeenCalled();
+      expect(mocks.inviteGuests).not.toHaveBeenCalled();
+    } finally {
+      dispose();
+    }
+  });
+
+  it('invites to the one occurrence an edit is scoped to', async () => {
+    const { editor, dispose } = editorFor(
+      invitedEvent(mayInvite, {
+        recurrenceLines: ['RRULE:FREQ=WEEKLY'],
+        recurrenceId: '2026-09-22T14:00:00Z',
+      }),
+      true
+    );
+    try {
+      await editor.save(
+        {
+          ...unchanged,
+          recurrenceLines: ['RRULE:FREQ=WEEKLY'],
+          guestEmails: ['host@example.com', 'dana@example.com'],
+        },
+        'this_event'
+      );
+      expect(mocks.inviteGuests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scope: 'this_event',
+          recurrenceId: '2026-09-22T14:00:00Z',
+          occurrenceKey: '2026-09-22T14:00:00Z',
+        })
+      );
+    } finally {
+      dispose();
+    }
+  });
+
+  it('reports a refused invitation as a failed save', async () => {
+    mocks.inviteGuests.mockRejectedValueOnce(
+      new Error('Only the organizer can invite guests.')
+    );
+    const { editor, dispose } = editorFor(invitedEvent(mayInvite), true);
+    try {
+      await editor.save({
+        ...unchanged,
+        guestEmails: ['host@example.com', 'dana@example.com'],
+      });
+      expect(mocks.failure).toHaveBeenCalledWith('Failed to update event', {
+        subtext: 'Only the organizer can invite guests.',
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it('keeps the guest list read-only while guest invites are off', () => {
+    const { editor, dispose } = editorFor(invitedEvent(mayInvite), false);
+    try {
+      expect(editor.addOnlyGuests()).toBe(false);
+      expect(editor.disabledFields()?.guests).toBe(true);
+      expect(editor.guestsReadOnlyReason()).toBeUndefined();
+    } finally {
+      dispose();
+    }
+  });
+
+  it('explains why a guest the organizer does not let invite cannot add guests', () => {
+    const { editor, dispose } = editorFor(invitedEvent(mayNotInvite), true);
+    try {
+      expect(editor.disabledFields()?.guests).toBe(true);
+      expect(editor.guestsReadOnlyReason()).toBe(
+        'Only the organizer can invite guests.'
+      );
     } finally {
       dispose();
     }

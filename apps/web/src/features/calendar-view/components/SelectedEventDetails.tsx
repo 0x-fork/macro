@@ -1,33 +1,25 @@
 import { hasEveryoneElseDeclined } from '@app/features/calendar/components/EventContent';
-import {
-  EventAttendeesSection,
-  EventDetails,
-} from '@app/features/calendar/components/EventDetails';
+import { EventDetails } from '@app/features/calendar/components/EventDetails';
+import { createGuestInviteController } from '@app/features/calendar/hooks/create-guest-invite-controller';
+import { useCalendarGuestInvitesFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import {
   type CalendarEvent,
   type CalendarTimeFormat,
   reminderCalendarIdOf,
 } from '@app/features/calendar/types';
-import {
-  eventEmailRecipients,
-  guestEmails,
-} from '@app/features/calendar/utils/guest-emails';
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
+import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
 import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
-import { useOpenEventEmail } from '@app/features/calendar-view/components/use-open-event-email';
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
-import { copyGuestEmails } from '@app/features/calendar-view/copy-guest-emails';
 import { downloadCalendarEventIcs } from '@app/features/calendar-view/download-event-ics';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { openExternalUrl } from '@core/util/url';
 import { Popover } from '@kobalte/core/popover';
-import CopyIcon from '@phosphor/copy.svg';
 import DownloadSimpleIcon from '@phosphor/download-simple.svg';
-import EnvelopeIcon from '@phosphor/envelope.svg';
 import ExclamationIcon from '@phosphor/exclamation-mark.svg';
 import LinkIcon from '@phosphor/link.svg';
 import PencilSimpleIcon from '@phosphor/pencil-simple.svg';
@@ -176,56 +168,16 @@ function EveryoneElseDeclinedNotice(props: {
   );
 }
 
-/**
- * The guest-row actions Google Calendar users know: copy every guest's
- * address, or start an email to the other guests (hidden when the viewer is
- * the only one). Emailing closes the details first: closing hands focus back
- * to the calendar chip, and the composer's To field has to win that exchange.
- */
-function EventGuestActions(props: {
-  event: CalendarEvent;
-  closeDetails: () => void;
-}) {
-  const openEventEmail = useOpenEventEmail();
-
-  return (
-    <Show when={!props.event.teamProjection}>
-      <Button
-        label="Copy guest emails"
-        variant="ghost"
-        size="icon-sm"
-        depth={3}
-        class="text-ink-muted [&_svg]:size-4"
-        onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
-      >
-        <CopyIcon />
-      </Button>
-      <Show when={eventEmailRecipients(props.event).length > 0}>
-        <Button
-          label="Email guests"
-          variant="ghost"
-          size="icon-sm"
-          depth={3}
-          class="text-ink-muted [&_svg]:size-4"
-          onClick={() => {
-            const event = props.event;
-            props.closeDetails();
-            openEventEmail(event);
-          }}
-        >
-          <EnvelopeIcon />
-        </Button>
-      </Show>
-    </Show>
-  );
-}
-
 function EventDetailsDrawer(props: EventDetailsOverlayProps) {
   const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
   });
+  const invites = createGuestInviteController(
+    () => props.event,
+    useCalendarGuestInvitesFlag()
+  );
   const canModify = () =>
     !props.event.teamProjection &&
     !props.event.isReadOnly &&
@@ -240,7 +192,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
       side="bottom"
       open
       onOpenChange={(open) => {
-        if (!open && deleteDialog.isOpen()) return;
+        if (!open && (deleteDialog.isOpen() || invites.editorOpen())) return;
         props.onOpenChange(open);
       }}
       preventScroll={false}
@@ -337,14 +289,10 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               </Show>
             </div>
             <Show when={!props.event.teamProjection}>
-              <EventAttendeesSection
-                attendees={props.event.attendees}
-                actions={
-                  <EventGuestActions
-                    event={props.event}
-                    closeDetails={() => props.onOpenChange(false)}
-                  />
-                }
+              <EventGuests
+                event={props.event}
+                invites={invites}
+                closeDetails={() => props.onOpenChange(false)}
               />
             </Show>
             <Show when={!props.event.teamProjection}>
@@ -474,6 +422,10 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
   });
+  const invites = createGuestInviteController(
+    () => props.event,
+    useCalendarGuestInvitesFlag()
+  );
   const canModify = () =>
     !props.event.teamProjection &&
     !props.event.isReadOnly &&
@@ -489,8 +441,9 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
       boundary={() => props.boundary}
       open
       onOpenChange={(open) => {
-        // Keep the popover mounted while its delete dialog is open.
-        if (!open && deleteDialog.isOpen()) return;
+        // Keep the popover mounted while its delete dialog or guest editor
+        // is open.
+        if (!open && (deleteDialog.isOpen() || invites.editorOpen())) return;
         props.onOpenChange(open);
       }}
       placement="right-start"
@@ -614,14 +567,10 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   </Show>
                 </div>
                 <Show when={!props.event.teamProjection}>
-                  <EventAttendeesSection
-                    attendees={props.event.attendees}
-                    actions={
-                      <EventGuestActions
-                        event={props.event}
-                        closeDetails={() => props.onOpenChange(false)}
-                      />
-                    }
+                  <EventGuests
+                    event={props.event}
+                    invites={invites}
+                    closeDetails={() => props.onOpenChange(false)}
                   />
                 </Show>
               </div>

@@ -4,9 +4,10 @@ import {
   defaultEditorInitialValues,
   type EventEditorInitialValues,
 } from '@app/features/calendar/components/composer/event-form-model';
+import { useCalendarGuestInvitesFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { useEventEditor } from '@app/features/calendar/hooks/use-event-editor';
 import type { CalendarEvent } from '@app/features/calendar/types';
-import { viewerCanEditGuests } from '@app/features/calendar/utils/event-guest-editing';
+import { viewerReplacesGuests } from '@app/features/calendar/utils/event-guest-editing';
 import { EventReplacementAction } from '@app/features/calendar/views/event-replacement';
 import { useQuickCallsFlag } from '@app/features/meetings/use-quick-calls-flag';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
@@ -57,6 +58,7 @@ function EventComposerContent(
   const editor = useEventEditor({
     event: () => props.event,
     macroCallsEnabled,
+    guestInvitesEnabled: useCalendarGuestInvitesFlag(),
     onSaved: () => {
       props.onSaveSuccess?.();
       close();
@@ -90,6 +92,8 @@ function EventComposerContent(
         isEdit={isEdit()}
         saveError={editor.saveError()}
         disabledFields={editor.disabledFields()}
+        addOnlyGuests={editor.addOnlyGuests()}
+        guestsReadOnlyReason={editor.guestsReadOnlyReason()}
         showRecurringEditNotice={editor.showRecurringEditNotice()}
         pending={editor.pending()}
         onCalendarChange={props.onCalendarChange}
@@ -102,7 +106,7 @@ function EventComposerContent(
           props.event?.calendar.provider === 'outlook' &&
           props.event &&
           !props.event.isCancelled &&
-          viewerCanEditGuests(props.event)
+          viewerReplacesGuests(props.event)
             ? props.event
             : undefined
         }

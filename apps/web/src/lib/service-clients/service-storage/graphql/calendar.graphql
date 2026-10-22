@@ -229,3 +229,9 @@ mutation RespondToCalendarEvent($input: RespondToCalendarEventInput!) {
 		...CalendarMutationPayloadFields
 	}
 }
+
+mutation InviteCalendarEventGuests($input: InviteCalendarEventGuestsInput!) {
+	inviteCalendarEventGuests(input: $input) {
+		...CalendarMutationPayloadFields
+	}
+}

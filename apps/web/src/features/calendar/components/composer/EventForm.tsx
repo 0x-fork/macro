@@ -40,6 +40,10 @@ export interface EventFormProps {
   macroCallsEnabled: boolean;
   isEdit?: boolean;
   disabledFields?: EventEditorDisabledFields;
+  /** The viewer may add guests but not remove the event's current ones. */
+  addOnlyGuests?: boolean;
+  /** Why a read-only guest list cannot change. */
+  guestsReadOnlyReason?: string;
   showRecurringEditNotice?: boolean;
   /** Disable interaction without presenting the form as an in-flight save. */
   disabled?: boolean;
@@ -268,6 +272,10 @@ export function EventForm(props: EventFormProps) {
                 onChange={controller.setSelectedGuests}
                 disabled={formIsDisabled()}
                 readOnly={fieldIsReadOnly('guests')}
+                readOnlyReason={props.guestsReadOnlyReason}
+                currentGuests={
+                  props.addOnlyGuests ? controller.initialGuests() : undefined
+                }
               />
               <EventComposerConferencePill
                 value={state().conference}

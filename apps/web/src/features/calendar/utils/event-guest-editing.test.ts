@@ -1,11 +1,12 @@
 import type { CalendarAttendee } from '@service-storage/generated/schemas/calendarAttendee';
 import { describe, expect, it } from 'vitest';
+import type { CalendarEvent } from '../types';
 import {
-  type CalendarEvent,
-  DEFAULT_GUEST_POLICY,
-  NO_VIEWER_CAPABILITIES,
-} from '../types';
-import { guestListChanged, viewerCanEditGuests } from './event-guest-editing';
+  addedGuestEmails,
+  eventGuestEditing,
+  guestInvitesRestricted,
+  guestListChanged,
+} from './event-guest-editing';
 
 function attendee(overrides: Partial<CalendarAttendee>): CalendarAttendee {
   return {
@@ -18,6 +19,35 @@ function attendee(overrides: Partial<CalendarAttendee>): CalendarAttendee {
   };
 }
 
+const ORGANIZER = {
+  editDetails: true,
+  inviteGuests: true,
+  removeGuests: true,
+  setGuestPolicy: true,
+  rsvp: true,
+};
+const MODIFYING_GUEST = {
+  editDetails: true,
+  inviteGuests: true,
+  removeGuests: true,
+  setGuestPolicy: false,
+  rsvp: true,
+};
+const INVITING_GUEST = {
+  editDetails: false,
+  inviteGuests: true,
+  removeGuests: false,
+  setGuestPolicy: false,
+  rsvp: true,
+};
+const GUEST = {
+  editDetails: false,
+  inviteGuests: false,
+  removeGuests: false,
+  setGuestPolicy: false,
+  rsvp: true,
+};
+
 function event(overrides: Partial<CalendarEvent>): CalendarEvent {
   return {
     id: '["event","occurrence"]',
@@ -25,8 +55,12 @@ function event(overrides: Partial<CalendarEvent>): CalendarEvent {
     occurrenceKey: 'occurrence',
     isCancelled: false,
     isReadOnly: false,
-    guestPolicy: DEFAULT_GUEST_POLICY,
-    viewerCan: NO_VIEWER_CAPABILITIES,
+    guestPolicy: {
+      canModify: false,
+      canInviteOthers: true,
+      canSeeOtherGuests: true,
+    },
+    viewerCan: ORGANIZER,
     attendees: [],
     recurrenceLines: [],
     sourceCalendarIds: [],
@@ -40,63 +74,96 @@ function event(overrides: Partial<CalendarEvent>): CalendarEvent {
   };
 }
 
-describe('viewerCanEditGuests', () => {
-  it('allows the organizer to edit guests', () => {
-    expect(
-      viewerCanEditGuests(
-        event({
-          attendees: [
-            attendee({
-              email: 'me@example.com',
-              isOrganizer: true,
-              isSelf: true,
-            }),
-            attendee({ email: 'teo@example.com' }),
-          ],
-        })
-      )
-    ).toBe(true);
+const invited = (viewerCan: CalendarEvent['viewerCan']) =>
+  event({
+    viewerCan,
+    attendees: [
+      attendee({ email: 'host@example.com', isOrganizer: true }),
+      attendee({ email: 'me@example.com', isSelf: true }),
+    ],
   });
 
-  it('blocks a mere guest from editing the list', () => {
+describe('eventGuestEditing', () => {
+  it('lets the organizer replace the guest list whether or not invites are enabled', () => {
+    expect(eventGuestEditing(event({ viewerCan: ORGANIZER }), false)).toBe(
+      'replace'
+    );
+    expect(eventGuestEditing(event({ viewerCan: ORGANIZER }), true)).toBe(
+      'replace'
+    );
+  });
+
+  it('lets a guest who may invite add guests only while invites are enabled', () => {
+    expect(eventGuestEditing(invited(INVITING_GUEST), true)).toBe('add');
+    expect(eventGuestEditing(invited(INVITING_GUEST), false)).toBe('none');
+  });
+
+  it('keeps a guest who may modify the event to adding guests', () => {
+    expect(eventGuestEditing(invited(MODIFYING_GUEST), true)).toBe('add');
+  });
+
+  it('gives a guest who may not invite a read-only list', () => {
+    expect(eventGuestEditing(invited(GUEST), true)).toBe('none');
+  });
+
+  it('gives a read-only copy or a team projection a read-only list', () => {
+    expect(eventGuestEditing(event({ isReadOnly: true }), true)).toBe('none');
     expect(
-      viewerCanEditGuests(
+      eventGuestEditing(
+        event({ teamProjection: { ownerId: 'teammate', kind: 'details' } }),
+        true
+      )
+    ).toBe('none');
+  });
+});
+
+describe('guestInvitesRestricted', () => {
+  it('explains the list of a guest the organizer does not let invite', () => {
+    expect(guestInvitesRestricted(invited(GUEST))).toBe(true);
+  });
+
+  it('stays quiet for guests who may invite and for the organizer', () => {
+    expect(guestInvitesRestricted(invited(INVITING_GUEST))).toBe(false);
+    expect(guestInvitesRestricted(invited(ORGANIZER))).toBe(false);
+  });
+
+  it('stays quiet when the viewer is not on the event or cannot write to it', () => {
+    expect(
+      guestInvitesRestricted(
         event({
-          attendees: [
-            attendee({ email: 'host@example.com', isOrganizer: true }),
-            attendee({ email: 'me@example.com', isSelf: true }),
-          ],
+          viewerCan: GUEST,
+          attendees: [attendee({ email: 'host@example.com' })],
         })
       )
     ).toBe(false);
-  });
-
-  it('allows editing a writable event that has no attendees yet', () => {
-    expect(viewerCanEditGuests(event({ attendees: [] }))).toBe(true);
-  });
-
-  it('blocks editing a read-only event with no attendees', () => {
     expect(
-      viewerCanEditGuests(event({ attendees: [], isReadOnly: true }))
+      guestInvitesRestricted({ ...invited(GUEST), isReadOnly: true })
     ).toBe(false);
   });
+});
 
-  it('blocks editing a read-only event even when self organizes it', () => {
+describe('addedGuestEmails', () => {
+  const current = invited(INVITING_GUEST);
+
+  it('returns only the submitted guests the event lacks, in order', () => {
     expect(
-      viewerCanEditGuests(
-        event({
-          isReadOnly: true,
-          attendees: [
-            attendee({
-              email: 'me@example.com',
-              isOrganizer: true,
-              isSelf: true,
-            }),
-            attendee({ email: 'teo@example.com' }),
-          ],
-        })
-      )
-    ).toBe(false);
+      addedGuestEmails(current, [
+        'host@example.com',
+        'dana@example.com',
+        'ada@example.com',
+      ])
+    ).toEqual(['dana@example.com', 'ada@example.com']);
+  });
+
+  it('ignores case, surrounding space, repeats and the viewer', () => {
+    expect(
+      addedGuestEmails(current, [
+        ' HOST@example.com',
+        'me@example.com',
+        'Dana@example.com',
+        'dana@example.com ',
+      ])
+    ).toEqual(['Dana@example.com']);
   });
 });
 
@@ -137,12 +204,6 @@ describe('guestListChanged', () => {
   it('does not count the viewer-as-guest against the seed', () => {
     // A non-organizer self attendee is excluded from the seed, so resubmitting
     // the visible guest list alone is not a change.
-    const invited = event({
-      attendees: [
-        attendee({ email: 'host@example.com', isOrganizer: true }),
-        attendee({ email: 'me@example.com', isSelf: true }),
-      ],
-    });
-    expect(guestListChanged(invited, ['host@example.com'])).toBe(false);
+    expect(guestListChanged(invited(GUEST), ['host@example.com'])).toBe(false);
   });
 });

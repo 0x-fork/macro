@@ -28,14 +28,49 @@ vi.mock('@core/component/UserIcon', () => ({
   },
 }));
 
-vi.mock('@property/editors/selectors/PropertyEntitySelector', () => ({
-  PropertyEntitySelector: () => {
-    const input = document.createElement('input');
-    input.setAttribute('aria-label', 'Search for guests');
-    input.setAttribute('placeholder', 'Add guests...');
-    return input;
-  },
-}));
+// Stands in for the shared picker: offers every pool member it is not told
+// to exclude, and toggles the clicked one.
+vi.mock('@property/editors/selectors/PropertyEntitySelector', async () => {
+  const { createRenderEffect } = await import('solid-js');
+  return {
+    PropertyEntitySelector: (props: {
+      config: {
+        placeholder: string;
+        users?: () => { id: string; name: string }[];
+        excludedIds?: () => ReadonlySet<string>;
+      };
+      selectedOptions: () => Set<string>;
+      setSelectedOptions: (ids: Set<string>) => void;
+    }) => {
+      const root = document.createElement('div');
+      const input = document.createElement('input');
+      input.setAttribute('aria-label', 'Search for guests');
+      input.setAttribute('placeholder', props.config.placeholder);
+      const suggestions = document.createElement('div');
+      root.append(input, suggestions);
+      createRenderEffect(() => {
+        const excluded = props.config.excludedIds?.() ?? new Set();
+        suggestions.replaceChildren(
+          ...(props.config.users?.() ?? [])
+            .filter((user) => !excluded.has(user.id))
+            .map((user) => {
+              const option = document.createElement('button');
+              option.type = 'button';
+              option.textContent = `Suggest ${user.name}`;
+              option.addEventListener('click', () => {
+                const next = new Set(props.selectedOptions());
+                if (next.has(user.id)) next.delete(user.id);
+                else next.add(user.id);
+                props.setSelectedOptions(next);
+              });
+              return option;
+            })
+        );
+      });
+      return root;
+    },
+  };
+});
 
 function guest(email: string, name: string): EventEditorGuestOption {
   return recipientEntityMapper('user')({
@@ -161,6 +196,74 @@ describe('EventComposerGuestsPill', () => {
     // trigger) is aria-hidden while the list is open.
     expect(guests.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByPlaceholderText('Add guests...')).toBeTruthy();
+  });
+});
+
+describe('EventComposerGuestsPill for a guest who may only add guests', () => {
+  it('keeps the current guests fixed and adds or drops new ones', async () => {
+    const user = userEvent.setup();
+    const host = guest('host@example.com', 'Host Person');
+    const [selected, setSelected] = createSignal<SelectedEventEditorGuest[]>([
+      host,
+    ]);
+    render(() => (
+      <Dialog open>
+        <input aria-label="Title" />
+        <EventComposerGuestsPill
+          options={() => [host, guest('ada@example.com', 'Ada Lovelace')]}
+          selected={selected()}
+          currentGuests={[host]}
+          onChange={setSelected}
+        />
+      </Dialog>
+    ));
+    screen.getByLabelText('Title').focus();
+
+    await user.click(screen.getByRole('button', { name: 'Guests' }));
+    expect(
+      screen.getByRole('list', { name: 'Invited guests' }).textContent
+    ).toContain('Host Person');
+    expect(
+      screen.queryByRole('button', { name: 'Remove Host Person' })
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Suggest Host Person' })
+    ).toBeNull();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Suggest Ada Lovelace' })
+    );
+    expect(selected().map((selectedGuest) => selectedGuest.data.email)).toEqual(
+      ['host@example.com', 'ada@example.com']
+    );
+    expect(
+      screen.getByRole('list', { name: 'New guests' }).textContent
+    ).toContain('Ada Lovelace');
+
+    await user.click(
+      screen.getByRole('button', { name: 'Remove Ada Lovelace' })
+    );
+    expect(selected().map((selectedGuest) => selectedGuest.data.email)).toEqual(
+      ['host@example.com']
+    );
+  });
+
+  it('explains a read-only guest list inside its popover', async () => {
+    const user = userEvent.setup();
+    render(() => (
+      <EventComposerGuestsPill
+        options={() => []}
+        selected={[guest('host@example.com', 'Host Person')]}
+        onChange={vi.fn()}
+        readOnly
+        readOnlyReason="Only the organizer can invite guests."
+      />
+    ));
+
+    await user.click(screen.getByRole('button', { name: 'Guests' }));
+    expect(
+      screen.getByText('Only the organizer can invite guests.')
+    ).toBeTruthy();
   });
 });
 
