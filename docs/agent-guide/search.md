@@ -48,23 +48,29 @@ preserving that Search history entry's query, category, mode, result order, and
 scroll position. Opening a result does not promote it within that saved list,
 even when its last-viewed time changes. Swiping back, pressing the native Back control, or using browser Back
 returns to those results without focusing the input or reopening the keyboard.
-Native search captures its state when covered: it retains mounted results while
-it is among the front two panes, and restores them after deeper navigation evicts
-it. A remounted history entry immediately restores its loaded results,
-virtualizer measurements and offset (or the full-text scroller's offset).
-Snapshots are released when their history entry is removed or replaced, or its
-pane closes; entries still reachable with Back/Forward retain their snapshots.
-Refreshing sources rebuild the loaded window and update matching rows in place;
-new pages append without reordering saved rows. A saved row missing from an
-incomplete source page remains until it is found or pagination exhausts.
-Changing the query/category or starting a new dock search computes a fresh order.
-Native dock searches carry a new session ID in Search's route state; returning
-through history retains the earlier ID and its saved window without changing the URL.
-Saved rows and scroll measurements belong to their account; switching accounts
-resets the result sources and scrollers and cannot restore another account's window.
-Available results show no loading footer. Failed background reads retain the window;
-successful empty results replace it, and authoritative errors discard the saved
-window in favor of the current source result. A later search
+Name-result ordering and scroll anchors identify a one-to-one DM by its other
+participant, so a person keeps their place when opening them creates a conversation
+with a new channel ID. Group conversations keep their own channel identity.
+Native Search captures lightweight state when covered so deeper navigation can
+unmount it. History saves the query/category/mode, an account-scoped item ID and
+offset within that row, a fallback pixel offset, and at most 200 ordering IDs per
+mode. It never stores result row objects or virtualizer measurement caches.
+A remount reads current source data; it may show loading while those rows are
+unavailable. Restoration waits for layout and fetches at most three additional
+pages to find the anchor. Missing anchors, exhausted/no-progress pagination, or
+the page limit use the available scroll range instead. Touch, pointer, or wheel
+interaction cancels pending restoration so later pages cannot move the user.
+Automatic viewport paging stays paused after recovery until the user interacts
+or changes the query/category.
+Matching current rows follow the bounded saved order; absent rows are not revived
+from history. The live source owns result data and its cache lifetime. Leaving
+Search through native dock navigation disposes its result view while lightweight
+entries may remain reachable through history. Starting a new dock Search supplies
+a fresh route session ID and computes a fresh order.
+Snapshots are released when their history entry is removed/replaced or its pane
+closes. Account changes recreate result sources/scrollers and cannot restore
+another account's anchor or ordering. A failed or empty source cannot revive rows
+from a historical snapshot. A later search
 cannot overwrite an earlier entry. **Close search** ends the
 session; opening Search from the dock starts in All/name mode. Mobile search state
 does not modify desktop search state. The dock search row has no Ask AI button.
@@ -80,17 +86,22 @@ then revisit the earlier history entry and confirm its query is intact.
 Open a result from midway through the list and confirm it keeps its original
 position after Back, both when Search stays mounted and after deeper navigation
 evicts it. Refresh row metadata and append pages; existing rows must keep their order.
+Include a person without a DM: open them from midway through All/People results,
+then go Back and confirm that person's new DM is still in the same place and opens
+the existing conversation on a second selection. Repeat with the DM arriving after
+Search unmounts, and verify group DMs stay separate.
 Switch accounts with a scrolled Search entry still mounted, then remount that
 entry: neither path should retain the previous account's rows or scroll offset.
-Repeat with a slow refresh: the saved rows and scroll should appear before it
-finishes, and its first page must not shrink a previously paginated list.
-If the viewport changes on return, scroll manually and confirm
-later pages preserve that new position instead of returning to the saved offset.
-In full-text mode, repeat Back several times from deep in a long result list;
-browser scroll anchoring must not move the viewport after the saved offset is
-restored. Restoration waits for responsive row measurement so the temporary wide
-layout cannot clamp a deep mobile offset. Check the same row remains at the same
-position while results reconcile, including the first return after a fresh search.
+Repeat with a slow refresh: a remount waits for current rows rather than showing
+saved row objects. Use an anchor on a later page and confirm restoration waits
+for that page and responsive layout. Remove the anchor or keep it beyond three
+additional pages and verify recovery stops at the available position. While
+recovery is pending, scroll manually and confirm later pages do not move the
+viewport. In full-text mode, repeat Back from a deep list and check the same row
+returns to the same position when it is available within the recovery limit.
+Inspect captured Search entry state: it contains bounded IDs and scalar state,
+with no row objects, snippets, or virtualizer caches. Switch dock views repeatedly
+and confirm old source rows can be collected even while lightweight history remains.
 Clear with whitespace and check category
 retention; select Projects from full-text mode and confirm it shows name results.
 Repeat opening with a large recent list: results are virtualized, so transferring

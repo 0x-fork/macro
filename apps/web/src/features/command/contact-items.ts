@@ -10,6 +10,26 @@ import {
 import type { CrmContactEntity } from '@entity';
 import type { CommandMenuItem } from './useCommandItems';
 
+function directMessageRecipient(
+  item: CommandMenuItem,
+  viewerId: string | undefined
+) {
+  if (item.kind !== 'entity' || item.data.type !== 'channel') return;
+  if (item.data.channelType !== 'direct_message') return;
+  const others = (item.data.participantIds ?? []).filter(
+    (id) => id !== viewerId
+  );
+  return others.length === 1 ? others[0] : undefined;
+}
+
+/** A person keeps their search position when opening them creates a DM. */
+export function commandSearchResultKey(
+  item: CommandMenuItem,
+  viewerId: string | undefined
+): string {
+  return directMessageRecipient(item, viewerId) ?? item.id;
+}
+
 function directMessagesByUser(
   directMessages: readonly QuickAccessItem[],
   viewerId: string | undefined
@@ -17,11 +37,8 @@ function directMessagesByUser(
   const byUser = new Map<string, EntityItem>();
   for (const item of directMessages) {
     if (item.kind !== 'entity' || item.data.type !== 'channel') continue;
-    if (item.data.channelType !== 'direct_message') continue;
-    const others = (item.data.participantIds ?? []).filter(
-      (id) => id !== viewerId
-    );
-    if (others.length === 1) byUser.set(others[0], item);
+    const recipient = directMessageRecipient(item, viewerId);
+    if (recipient) byUser.set(recipient, item);
   }
   return byUser;
 }

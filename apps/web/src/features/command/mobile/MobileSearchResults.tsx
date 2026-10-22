@@ -4,7 +4,6 @@ import { projectRouteId } from '@app/features/projects/core/route';
 import { createSoupRowStore } from '@app/features/soup/collection/row-store';
 import { MobileTopEdgeFade } from '@components/app/mobile/MobileEdgeFade';
 import { MobileViewsRow } from '@components/app/mobile/MobileViewsRow';
-import { useEntryState } from '@components/app/split-layout/entry-state';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -23,20 +22,11 @@ import { Telemetry } from '@macro-inc/observability';
 import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-create-dm';
 import { useDatabaseDiscoverySync } from '@queries/storage/databases';
 import { Button, CommandMenuListItem } from '@ui';
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  on,
-  Show,
-  Suspense,
-  untrack,
-} from 'solid-js';
+import { createMemo, createSignal, For, Show, Suspense } from 'solid-js';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { ItemDisplay } from '../CommandItem';
+import { commandSearchResultKey } from '../contact-items';
 import {
-  type EntitySearchCategory,
   type EntitySearchItem,
   useEntitySearch,
 } from '../queries/entity-search';
@@ -44,16 +34,9 @@ import { createMobileFullTextSearch } from '../queries/mobile-full-text-search';
 import { createMobileSearchEntry } from './create-mobile-search-entry';
 import { createSearchPagination } from './create-search-pagination';
 import { createSearchResultWindow } from './create-search-result-window';
+import { createSearchScrollRestoration } from './create-search-scroll-restoration';
 import type { MobileSearchSession } from './mobileSearchState';
 import { useMobileSearchCategory } from './use-mobile-search-category';
-
-type SearchScrollState = {
-  accountId: string;
-  query: string;
-  category: EntitySearchCategory;
-  offset: number;
-  cache?: VirtualizerHandle['cache'];
-};
 
 function MobileNameResults(props: {
   session: MobileSearchSession;
@@ -63,17 +46,6 @@ function MobileNameResults(props: {
   const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
   const [container, setContainer] = createSignal<HTMLDivElement>();
   const category = useMobileSearchCategory(state.category);
-  const [scroll, setScroll] = useEntryState<SearchScrollState | undefined>(
-    'mobileSearch.nameScroll',
-    { default: undefined }
-  );
-  const initialScroll = untrack(() => scroll());
-  let restore =
-    initialScroll?.accountId === props.accountId &&
-    initialScroll.query === state.query() &&
-    initialScroll.category === category()
-      ? initialScroll
-      : undefined;
   const source = useEntitySearch(state.query, category, {
     enabled: () => true,
     contactDiscovery: useCrmContactDiscovery,
@@ -82,26 +54,60 @@ function MobileNameResults(props: {
   const incoming = createMemo(() =>
     source.rankItems(source.items(), state.query())
   );
+  const itemKey = (item: EntitySearchItem) =>
+    commandSearchResultKey(item, props.accountId);
   const results = createSearchResultWindow({
-    key: 'mobileSearch.nameResults',
+    key: 'mobileSearch.nameOrder',
     accountId: () => props.accountId,
     query: state.query,
     category,
     items: incoming,
-    pending: () =>
-      source.isSettling() ||
-      source.pagination.isLoadingMore() ||
-      source.hasError(),
+    itemKey,
     discard: source.hasAuthoritativeError,
-    hasMore: source.pagination.hasMore,
   });
   const items = results.items;
+  const restoration = createSearchScrollRestoration({
+    key: 'mobileSearch.nameScroll',
+    accountId: () => props.accountId,
+    query: state.query,
+    category,
+    items,
+    ready: () => !!virtualizer() || items().length === 0,
+    busy: () => source.isSettling() || source.pagination.isLoadingMore(),
+    failed: source.hasError,
+    hasMore: source.pagination.hasMore,
+    loadMore: source.pagination.loadMore,
+    read: () => {
+      const handle = virtualizer();
+      const offset = handle?.scrollOffset ?? 0;
+      const index = handle?.findItemIndex(offset) ?? 0;
+      const item = items()[index];
+      return {
+        id: item ? itemKey(item) : undefined,
+        offset,
+        within: offset - (handle?.getItemOffset(index) ?? 0),
+      };
+    },
+    apply: (anchor) => {
+      const handle = virtualizer();
+      if (!handle) return !anchor.id && items().length === 0;
+      if (!anchor.id) {
+        handle.scrollTo(anchor.offset);
+        return true;
+      }
+      const index = items().findIndex((item) => itemKey(item) === anchor.id);
+      if (index < 0) return false;
+      handle.scrollToIndex(index, { align: 'start', offset: anchor.within });
+      return true;
+    },
+  });
   const loadMoreNearEnd = createSearchPagination({
     items: incoming,
+    enabled: restoration.paginationAllowed,
     container,
     remaining: () => {
       const handle = virtualizer();
-      return results.needsMore() || items().length === 0
+      return items().length === 0
         ? 0
         : handle
           ? handle.scrollSize - handle.scrollOffset - handle.viewportSize
@@ -141,32 +147,6 @@ function MobileNameResults(props: {
       }
     });
   };
-  createEffect(
-    on([items, virtualizer, source.hasAuthoritativeError], () => {
-      if (source.hasAuthoritativeError()) restore = undefined;
-      const handle = virtualizer();
-      if (!restore || !handle || items().length === 0) return;
-      if (restore.query !== state.query() || restore.category !== category()) {
-        restore = undefined;
-        return;
-      }
-      handle.scrollTo(restore.offset);
-      // The saved window is already mounted; later pages must not move the user.
-      restore = undefined;
-    })
-  );
-  const onScroll = () => {
-    const handle = virtualizer();
-    if (handle && !restore)
-      setScroll({
-        accountId: props.accountId,
-        query: state.query(),
-        category: category(),
-        offset: handle.scrollOffset,
-        cache: handle.cache,
-      });
-    loadMoreNearEnd();
-  };
   const select = async (item: EntitySearchItem) => {
     results.preserveOrder();
     try {
@@ -178,6 +158,9 @@ function MobileNameResults(props: {
   return (
     <div
       ref={setContainer}
+      onWheel={restoration.cancel}
+      onTouchStart={restoration.cancel}
+      onPointerDown={restoration.cancel}
       class="flex h-full min-h-0 flex-col px-3 touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)"
     >
       <Show when={state.query().trim() && category() !== 'projects'}>
@@ -197,11 +180,10 @@ function MobileNameResults(props: {
         <VList
           ref={setVirtualizer}
           data={items()}
-          cache={restore?.cache}
           role="region"
           aria-label="Search results"
           class="min-h-0 flex-1 overscroll-none"
-          onScroll={onScroll}
+          onScroll={loadMoreNearEnd}
         >
           {(item) => (
             <CommandMenuListItem
@@ -237,63 +219,63 @@ function MobileFullTextResults(props: {
   const panel = useSplitPanelOrThrow();
   const [container, setContainer] = createSignal<HTMLDivElement>();
   const [layoutReady, setLayoutReady] = createSignal(false);
-  const [scroll, setScroll] = useEntryState<SearchScrollState | undefined>(
-    'mobileSearch.fullTextScroll',
-    { default: undefined }
-  );
-  const initialScroll = untrack(() => scroll());
-  let restore =
-    initialScroll?.accountId === props.accountId ? initialScroll : undefined;
   const incoming = createMemo(() => (search.isSettling() ? [] : search.data()));
   const results = createSearchResultWindow({
-    key: 'mobileSearch.fullTextResults',
+    key: 'mobileSearch.fullTextOrder',
     accountId: () => props.accountId,
     query: state.query,
     category,
     items: incoming,
-    pending: () =>
-      search.isSettling() || search.isFetchingNextPage() || !!search.error(),
     discard: hasAuthoritativeError,
-    hasMore: search.hasNextPage,
   });
   // Page selection rematerializes entities; retain row identity as pages append.
   const rows = createSoupRowStore(results.items);
-  let restoreQueued = false;
-  createEffect(
-    on([results.items, container, layoutReady, hasAuthoritativeError], () => {
-      if (hasAuthoritativeError()) restore = undefined;
+  const restoration = createSearchScrollRestoration({
+    key: 'mobileSearch.fullTextScroll',
+    accountId: () => props.accountId,
+    query: state.query,
+    category,
+    items: results.items,
+    ready: layoutReady,
+    busy: () => search.isSettling() || search.isFetchingNextPage(),
+    failed: () => !!search.error(),
+    hasMore: search.hasNextPage,
+    loadMore: search.fetchNextPage,
+    read: () => {
       const list = container();
-      if (
-        !restore ||
-        !list ||
-        !layoutReady() ||
-        !results.items().length ||
-        restoreQueued
-      )
-        return;
-      restoreQueued = true;
-      // ResizeObserver selects narrow/wide rows; let that DOM update commit
-      // before assigning an offset that the temporary wide layout could clamp.
-      queueMicrotask(() => {
-        restoreQueued = false;
-        if (!restore || !list.isConnected || list !== container()) return;
-        if (
-          restore.query !== state.query() ||
-          restore.category !== category()
-        ) {
-          restore = undefined;
-          return;
-        }
-        list.scrollTop = restore.offset;
-        restore = undefined;
-      });
-    })
-  );
+      const top = list?.getBoundingClientRect().top ?? 0;
+      const row = Array.from(
+        list?.querySelectorAll<HTMLElement>('[data-mobile-search-id]') ?? []
+      ).find((element) => element.getBoundingClientRect().bottom > top);
+      return {
+        id: row?.dataset.mobileSearchId,
+        offset: list?.scrollTop ?? 0,
+        within: row ? top - row.getBoundingClientRect().top : 0,
+      };
+    },
+    apply: (anchor) => {
+      const list = container();
+      if (!list) return false;
+      if (!anchor.id) {
+        list.scrollTop = anchor.offset;
+        return true;
+      }
+      const row = Array.from(
+        list.querySelectorAll<HTMLElement>('[data-mobile-search-id]')
+      ).find((element) => element.dataset.mobileSearchId === anchor.id);
+      if (!row) return false;
+      list.scrollTop +=
+        row.getBoundingClientRect().top -
+        list.getBoundingClientRect().top +
+        anchor.within;
+      return true;
+    },
+  });
   const loadMoreNearEnd = createSearchPagination({
     items: incoming,
+    enabled: restoration.paginationAllowed,
     container,
     remaining: () => {
-      if (results.needsMore()) return 0;
       const list = container();
       return list
         ? list.scrollHeight - list.scrollTop - list.clientHeight
@@ -325,16 +307,10 @@ function MobileFullTextResults(props: {
       ref={setContainer}
       role="region"
       aria-label="Search results"
-      onScroll={(event) => {
-        if (!restore)
-          setScroll({
-            accountId: props.accountId,
-            query: state.query(),
-            category: category(),
-            offset: event.currentTarget.scrollTop,
-          });
-        loadMoreNearEnd();
-      }}
+      onScroll={loadMoreNearEnd}
+      onWheel={restoration.cancel}
+      onTouchStart={restoration.cancel}
+      onPointerDown={restoration.cancel}
       class="soup-list h-full overflow-y-auto overscroll-none [overflow-anchor:none] touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)"
     >
       <ListEntityMetadataQueryProvider>
@@ -347,6 +323,9 @@ function MobileFullTextResults(props: {
               {(entity) => (
                 <ListEntity
                   entity={entity}
+                  ref={(element) => {
+                    element.dataset.mobileSearchId = entity.id;
+                  }}
                   hideCheckbox
                   hideContentHits={false}
                   onClick={() => fireAndForget(open(entity), 'mobile-search')}
