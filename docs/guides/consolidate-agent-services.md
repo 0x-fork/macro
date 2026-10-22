@@ -46,19 +46,28 @@ The cognition CloudFront signer setting must retain its Secrets Manager
 reference, replacing any obsolete inline harness value under that name. The
 AI tool context uses the separate `_SECRET_NAME` setting for the same key.
 
-`MCP_PUBLIC_URL` is the original `https://mcp-server[-dev].macro.com` server
-base. `MCP_CLIENT_PUBLIC_URL` is the original
-`https://document-cognition[-dev].macro.com` outbound integration callback base.
-The former services used `MCP_PUBLIC_URL` for both meanings. The gateway keeps
-its existing feature-prefix routes as well. Host rules on the shared gateway
-forward the original MCP paths unchanged and prepend `/cognition` internally
-for the original cognition host. The browser URL and OAuth redirect URI remain
-unchanged. The shared wildcard certificate already covers both hostnames.
-Local instance generation sets both values separately and sets `APP_BASE_URL`
-to the instance's frontend origin. Its FusionAuth configuration permits callbacks
-through both loopback and the machine hostname; the default harness API is
-published on port 8101, matching the SDK port map. The `local/lcl_personal` Doppler config also
-contains the renamed client setting.
+Stable public origins now come from `macro_service_urls`: `McpPublicUrl` is the
+original `https://mcp-server[-dev].macro.com` server base and `CognitionPublicUrl`
+is the original `https://document-cognition[-dev].macro.com` integration callback
+base. Keep these distinct from internal gateway API routes. The shared gateway
+forwards MCP paths unchanged and prepends `/cognition` for the cognition host;
+registered OAuth redirects and browser URLs are unchanged.
+
+`AppServiceUrl` supplies browser links and preview form origins. Preview control
+uses the host of `PreviewGatewayUrl`; local instances also accept their app and
+loopback hosts. Local instance generation supplies process-level
+`OVERRIDE_MCP_PUBLIC_URL`, `OVERRIDE_COGNITION_PUBLIC_URL`, and
+`OVERRIDE_APP_SERVICE_URL`. `PREVIEW_DOMAIN` and `PREVIEW_SSH_HOST` remain in
+Doppler because infrastructure generates them.
+
+The Pulumi stack temporarily retains the old `MCP_PUBLIC_URL`,
+`MCP_CLIENT_PUBLIC_URL`, `PREVIEW_APP_ORIGIN`, and `PREVIEW_CONTROL_HOSTS`
+resources with frozen values and `retainOnDelete`. This allows automatic ECS
+rollback to the previous image, which still requires these keys. New binaries
+ignore them. After the new version is the rollback baseline in both environments,
+remove those compatibility resource declarations; do not delete the retained
+Doppler values while historical-image rollback is still needed. `APP_BASE_URL`
+is also ignored by the new harness; other services may still consume it.
 
 `POSTHOG_API_KEY` and `POSTHOG_HOST` are already typed harness fields. They
 remain available for existing feature flags and future analytics. No MCP

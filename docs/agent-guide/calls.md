@@ -48,7 +48,7 @@ Soup lists without a refresh; history is not backfilled. Imported calls appear
 in `All` and `Attended`, never in a channel's `Calls` tab, and open in the
 normal call detail with title, summary, attendees
 (shown as guests), and transcript but no recording. Rename and delete do not
-apply to imported calls yet. Webhooks require a public HTTPS `MCP_PUBLIC_URL`;
+apply to imported calls yet. Webhooks require a public HTTPS cognition callback origin (`CognitionPublicUrl`);
 on a laptop stack, expose the webhook path with a tunnel such as Tailscale Funnel.
 
 A channel's `Calls` tab lists that channel's recordings with the same rows, filtered

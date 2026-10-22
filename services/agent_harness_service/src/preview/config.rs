@@ -18,10 +18,6 @@ pub struct Config {
     pub preview_ssh_public_port: u16,
     #[macro_config_default(443)]
     pub preview_https_port: u16,
-    /// Exact origin allowed to submit the browser authentication form.
-    pub preview_app_origin: String,
-    /// Comma separated DNS hostnames accepted on the internal MCP listener.
-    pub preview_control_hosts: String,
     #[macro_config_default(8111)]
     pub preview_http_port: u16,
     #[macro_config_default(2222)]

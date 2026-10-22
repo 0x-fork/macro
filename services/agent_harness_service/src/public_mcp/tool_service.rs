@@ -34,8 +34,7 @@ pub struct AuthenticatedToolService<Context> {
     toolset: Arc<AsyncToolCollection<Context>>,
     context: Context,
     /// Base URL of the Macro web app used to build links to Macro items in MCP
-    /// responses (e.g. `https://macro.com`). Comes from the `APP_BASE_URL`
-    /// environment variable.
+    /// responses (e.g. `https://macro.com`). Resolved at startup from `AppServiceUrl`.
     item_base_url: String,
     /// Static file CDN used for attachments returned by authorized channel reads.
     static_file_base_url: url::Url,

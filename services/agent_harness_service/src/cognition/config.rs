@@ -149,8 +149,6 @@ pub struct Config {
     /// AI editing worker URL
     #[macro_config_default(AiEditingWorkerUrl::unwrap_new().to_string())]
     pub ai_editing_worker_url: String,
-    /// Browser-facing base URL used for MCP OAuth redirects and client metadata.
-    pub mcp_client_public_url: String,
     /// JWT secret for minting document permission tokens for the editing worker.
     pub document_permission_jwt: DocumentPermissionJwt,
     /// Comma-separated Kafka bootstrap servers for the macro event broker.
@@ -249,7 +247,6 @@ impl Config {
             pipedream_webhook_secret: PipedreamWebhookSecret::Unset,
             internal_api_key: InternalApiKey::Comptime(""),
             ai_editing_worker_url: AiEditingWorkerUrl::unwrap_new().to_string(),
-            mcp_client_public_url: "http://localhost:8101/cognition".to_string(),
             document_permission_jwt: DocumentPermissionJwt::Comptime("DOCUMENT_PERMISSION_JWT"),
             kafka_brokers: KafkaBrokers::Comptime("localhost:9092"),
             enable_non_user_owners: EnableNonUserOwners::Unset,

@@ -39,7 +39,9 @@ service and gateway, resolved from `macro_env::Environment` with an
 ## Agent service URLs
 
 Cognition, scheduling, preview control, and public MCP have distinct API base
-paths but share the agent harness process. Their direct local defaults use
+paths but share the agent harness process. `McpPublicUrl` and
+`CognitionPublicUrl` separately preserve the registered public OAuth identities;
+do not substitute the internal API routes when building callbacks. Their direct local defaults use
 port 8101 with `/cognition`, `/scheduled-action`, `/preview`, and the MCP base
 at the root. Gateway paths remain unchanged.
 

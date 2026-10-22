@@ -74,8 +74,6 @@ pub struct Config {
     /// Shared pool for sessions, chat, integrations, and routine workers.
     #[macro_config_default(30)]
     pub database_max_connections: u32,
-    /// Public workspace MCP base, including its gateway prefix.
-    pub mcp_public_url: McpPublicUrl,
     /// FusionAuth API origin used by the public MCP OAuth broker.
     pub fusionauth_base_url: FusionauthBaseUrl,
     /// FusionAuth application used for MCP sign-in.
@@ -88,8 +86,6 @@ pub struct Config {
     pub google_client_id: GoogleClientId,
     /// Secret name of the Google OAuth client credential.
     pub google_client_secret_key: GoogleClientSecretKey,
-    /// Frontend origin used to link items in MCP responses.
-    pub app_base_url: AppBaseUrl,
     /// Browser-reachable FusionAuth origin, when different from the API.
     pub fusionauth_public_url: FusionauthPublicUrl,
     /// Additional trusted client callback hosts, overriding the built-in list.
@@ -330,8 +326,6 @@ impl Config {
 
 macro_env_var::env_vars! {
     /// Public MCP OAuth configuration.
-    pub struct McpPublicUrl;
-    /// Public MCP OAuth configuration.
     pub struct FusionauthBaseUrl;
     /// Public MCP OAuth configuration.
     pub struct FusionauthClientId;
@@ -343,8 +337,6 @@ macro_env_var::env_vars! {
     pub struct GoogleClientId;
     /// Public MCP OAuth configuration.
     pub struct GoogleClientSecretKey;
-    /// Public MCP OAuth configuration.
-    pub struct AppBaseUrl;
 }
 macro_env_var::maybe_env_vars! {
     /// Optional public MCP OAuth configuration.

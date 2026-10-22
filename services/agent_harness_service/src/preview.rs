@@ -34,6 +34,22 @@ pub async fn build(
     shutdown: tokio_util::sync::CancellationToken,
     tasks: tokio_util::task::TaskTracker,
 ) -> Result<Router, rootcause::Report> {
+    let app_url = macro_service_urls::AppServiceUrl::new()?;
+    let control_url = macro_service_urls::PreviewGatewayUrl::new()?;
+    let mut allowed_hosts = Vec::new();
+    let mut control_urls = vec![control_url.parse_url()?];
+    if matches!(config.environment, macro_env::Environment::Local) {
+        control_urls.push(app_url.parse_url()?);
+    }
+    for url in control_urls {
+        let host = url
+            .host_str()
+            .ok_or_else(|| rootcause::report!("preview control URL requires a host"))?;
+        allowed_hosts.push(host.to_owned());
+    }
+    if matches!(config.environment, macro_env::Environment::Local) {
+        allowed_hosts.extend(["localhost".to_owned(), "127.0.0.1".to_owned()]);
+    }
     let aws = macro_aws_config::get_macro_aws_config().await;
     let secrets =
         secretsmanager_client::SecretsManager::new(aws_sdk_secretsmanager::Client::new(&aws));
@@ -76,7 +92,7 @@ pub async fn build(
                 .preview_ssh_proxy_host
                 .filter(|host| !host.is_empty()),
             host_key: public_key,
-            app_origin: config.preview_app_origin,
+            app_origin: app_url.to_string(),
         },
         Arc::new(adapters::MacroAuthority {
             sessions: agent_session::outbound::postgres::PgAgentSessionRepo::new(
@@ -105,12 +121,6 @@ pub async fn build(
         access,
         MacroAuthorizationState::new(Arc::new(auth)),
     ));
-    let allowed_hosts: Vec<String> = config
-        .preview_control_hosts
-        .split(',')
-        .map(|s| s.trim().to_owned())
-        .filter(|host| !host.is_empty())
-        .collect();
     tracing::info!(
         hosts = ?allowed_hosts,
         "preview control listener ready"

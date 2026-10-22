@@ -131,16 +131,10 @@ const fusionauthSecretArns = [
   (name) => aws.secretsmanager.getSecretOutput({ name: `${name}-${stack}` }).arn
 );
 
-// Public addresses must publish before ECS reads APP_SECRETS_JSON.
+// Only infrastructure-generated preview addresses are runtime configuration.
 const configurationSecrets = Object.entries({
   PREVIEW_DOMAIN: preview.requireOutput('previewDomain'),
   PREVIEW_SSH_HOST: preview.requireOutput('previewSshHost'),
-  PREVIEW_APP_ORIGIN:
-    stack === 'prod' ? 'https://macro.com' : 'https://dev.macro.com',
-  PREVIEW_CONTROL_HOSTS:
-    stack === 'prod' ? 'gateway.macro.com' : 'dev-gateway.macro.com',
-  MCP_PUBLIC_URL: AGENT_PUBLIC_URLS.mcp,
-  MCP_CLIENT_PUBLIC_URL: AGENT_PUBLIC_URLS.cognition,
 }).map(
   ([key, value]) =>
     new doppler.Secret(`harness-${key}-${stack}`, {
@@ -150,6 +144,31 @@ const configurationSecrets = Object.entries({
       value,
     })
 );
+
+// Retain the previous binary's required keys through this rolling deployment
+// and automatic rollback. The harness no longer reads these mirrors. After this
+// version is the rollback baseline, remove these resources; retainOnDelete keeps
+// that later removal from deleting values still needed by historical images.
+const legacyUrlSecrets = Object.entries({
+  PREVIEW_APP_ORIGIN: getServiceUrl(ServiceUrl.APP_SERVICE_URL),
+  PREVIEW_CONTROL_HOSTS: new URL(getServiceUrl(ServiceUrl.PREVIEW_GATEWAY_URL))
+    .hostname,
+  MCP_PUBLIC_URL: AGENT_PUBLIC_URLS.mcp,
+  MCP_CLIENT_PUBLIC_URL: AGENT_PUBLIC_URLS.cognition,
+}).map(
+  ([key, value]) =>
+    new doppler.Secret(
+      `harness-${key}-${stack}`,
+      {
+        project: 'agent-harness-service',
+        config: stack === 'prod' ? 'prd' : 'dev',
+        name: key,
+        value,
+      },
+      { retainOnDelete: true, ignoreChanges: ['value'] }
+    )
+);
+configurationSecrets.push(...legacyUrlSecrets);
 
 const service = new AgentHarnessService(
   `agent-harness-service-${stack}`,

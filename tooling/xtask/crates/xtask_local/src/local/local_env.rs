@@ -47,7 +47,6 @@ pub struct LocalEnv {
     preview_ssh_proxy_host: Option<String>,
     preview_ssh_port: u16,
     preview_https_port: u16,
-    preview_control_hosts: String,
     /// Browser-facing origin for post-login redirects and Pipedream CORS.
     /// Both attached and headless frontends are exposed through HTTPS.
     frontend_origin: String,
@@ -107,10 +106,6 @@ impl LocalEnv {
             mcp_client_public_url: format!("{frontend_origin}/cognition"),
             static_file_public_url: format!("{frontend_origin}/static-file"),
             frontend_origin,
-            preview_control_hosts: format!(
-                "localhost,127.0.0.1,agent-harness-service,{}",
-                super::tls::hostname()?
-            ),
             external_egress_url: tunnels.egress.map(str::to_owned).unwrap_or_else(|| {
                 format!(
                     "http://localhost:{}",
@@ -141,11 +136,11 @@ impl LocalEnv {
         env.insert("FRONTEND_ORIGIN".into(), self.frontend_origin.clone());
         env.insert("APP_BASE_URL".into(), self.frontend_origin.clone());
         env.insert(
-            "MCP_CLIENT_PUBLIC_URL".into(),
+            "OVERRIDE_COGNITION_PUBLIC_URL".into(),
             self.mcp_client_public_url.clone(),
         );
         env.insert(
-            "MCP_PUBLIC_URL".into(),
+            "OVERRIDE_MCP_PUBLIC_URL".into(),
             self.mcp_client_public_url
                 .trim_end_matches("/cognition")
                 .to_owned()
@@ -194,10 +189,9 @@ impl LocalEnv {
             "PREVIEW_HTTPS_PORT".into(),
             self.preview_https_port.to_string(),
         );
-        env.insert("PREVIEW_APP_ORIGIN".into(), self.frontend_origin.clone());
         env.insert(
-            "PREVIEW_CONTROL_HOSTS".into(),
-            self.preview_control_hosts.clone(),
+            "OVERRIDE_APP_SERVICE_URL".into(),
+            self.frontend_origin.clone(),
         );
         self.infra.write(&mut env);
         self.storage.write(&mut env);

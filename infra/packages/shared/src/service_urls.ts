@@ -10,6 +10,8 @@ export const AGENT_PUBLIC_URLS = {
  * Service url for all macro services
  */
 export enum ServiceUrl {
+  APP_SERVICE_URL = 'APP_SERVICE_URL',
+  PREVIEW_GATEWAY_URL = 'PREVIEW_GATEWAY_URL',
   SYNC_SERVICE_URL = 'SYNC_SERVICE_URL',
   EMAIL_SERVICE_URL = 'EMAIL_SERVICE_URL',
   STATIC_FILE_SERVICE_URL = 'STATIC_FILE_SERVICE_URL',
@@ -36,6 +38,8 @@ type ServiceUrlMap = {
  * Dev Service URLs
  */
 const DEV_SERVICE_URLS: ServiceUrlMap = {
+  [ServiceUrl.APP_SERVICE_URL]: 'https://dev.macro.com',
+  [ServiceUrl.PREVIEW_GATEWAY_URL]: 'https://dev-gateway.macro.com/preview',
   [ServiceUrl.SYNC_SERVICE_URL]:
     'https://sync-service-dev3.macroverse.workers.dev',
   [ServiceUrl.EMAIL_SERVICE_URL]: 'https://dev-gateway.macro.com/email',
@@ -63,6 +67,8 @@ const DEV_SERVICE_URLS: ServiceUrlMap = {
  * Prod Service URLs
  */
 const PROD_SERVICE_URLS: ServiceUrlMap = {
+  [ServiceUrl.APP_SERVICE_URL]: 'https://macro.com',
+  [ServiceUrl.PREVIEW_GATEWAY_URL]: 'https://gateway.macro.com/preview',
   [ServiceUrl.SYNC_SERVICE_URL]:
     'https://sync-service-prod2.macroverse.workers.dev',
   [ServiceUrl.EMAIL_SERVICE_URL]: 'https://gateway.macro.com/email',
