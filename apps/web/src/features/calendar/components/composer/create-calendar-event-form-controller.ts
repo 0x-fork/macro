@@ -128,6 +128,17 @@ function cloneValue(value: EventEditorInitialValues): EventEditorInitialValues {
   };
 }
 
+function sameEditorFields(
+  current: EventEditorInitialValues,
+  next: EventEditorInitialValues
+) {
+  const fields = new Set([
+    ...Object.keys(current),
+    ...Object.keys(next),
+  ]) as Set<keyof EventEditorInitialValues>;
+  return [...fields].every((field) => Object.is(current[field], next[field]));
+}
+
 function normalizedReminderMinutes(minutes: readonly number[]) {
   return [...new Set(minutes)].sort((first, second) => first - second);
 }
@@ -364,7 +375,8 @@ export function createCalendarEventFormController(
     field: Key,
     next: EventEditorInitialValues[Key]
   ) => {
-    const value = { ...state(), [field]: next };
+    const current = state();
+    const value = { ...current, [field]: next };
     if (field === 'calendarId') {
       const capabilities = calendarOptionFor(value.calendarId)?.capabilities;
       if (
@@ -382,6 +394,11 @@ export function createCalendarEventFormController(
           declineMessage: '',
         };
     }
+    // A set that leaves every field as it was is not an edit. Writing one
+    // anyway hands every reader a new object, and a control that answers a
+    // changed value by re-asserting its own selection would set the same field
+    // right back — an edit loop the form never settles out of.
+    if (sameEditorFields(current, value)) return;
     replaceState(value);
   };
 

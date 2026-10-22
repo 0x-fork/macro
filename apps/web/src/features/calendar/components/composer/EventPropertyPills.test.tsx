@@ -324,6 +324,24 @@ describe('EventComposerConferencePill', () => {
     expect(trigger.textContent).toContain('Macro call');
   });
 
+  it('keeps its selection to itself while the form around it changes', async () => {
+    const onChange = vi.fn();
+    const [edits, setEdits] = createSignal(0);
+    render(() => (
+      <EventComposerConferencePill
+        value="macro"
+        // The real provider arrives through the selected calendar, which the
+        // composer rereads on every edit even when the answer is the same.
+        provider={edits() >= 0 ? 'google_meet' : null}
+        macroCallsEnabled
+        canKeepExisting={false}
+        onChange={onChange}
+      />
+    ));
+    setEdits(1);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('does not offer a new Macro call when calls are unavailable', async () => {
     const user = userEvent.setup();
     render(() => (

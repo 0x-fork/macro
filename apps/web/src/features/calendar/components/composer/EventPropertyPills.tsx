@@ -381,14 +381,21 @@ export function EventComposerConferencePill(
   const includesMacroCall = createMemo(
     () => props.macroCallsEnabled || props.value === 'macro'
   );
+  // The list must keep its identity while its contents do. A fresh array makes
+  // the select re-assert its selection, which calls `onChange` again; with an
+  // editor that rebuilds its state on every keystroke that is an endless loop.
+  // The provider and the existing-conferencing flag reach us through accessors
+  // that read the whole event, so each one is read through its own memo.
+  const provider = createMemo(() => props.provider);
+  const canKeepExisting = createMemo(() => props.canKeepExisting);
   const options = createMemo(() => [
     ...(includesMacroCall() ? [MACRO_CALL_OPTION] : []),
-    ...(props.provider === 'microsoft_teams'
+    ...(provider() === 'microsoft_teams'
       ? [MICROSOFT_TEAMS_OPTION]
-      : props.provider === null || props.provider === 'other'
+      : provider() === null || provider() === 'other'
         ? []
         : [GOOGLE_MEET_OPTION]),
-    ...(props.canKeepExisting ? [EXISTING_CONFERENCING_OPTION] : []),
+    ...(canKeepExisting() ? [EXISTING_CONFERENCING_OPTION] : []),
     NO_CONFERENCING_OPTION,
   ]);
   const selectedOption = () =>
