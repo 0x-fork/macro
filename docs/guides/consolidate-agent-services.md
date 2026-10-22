@@ -42,6 +42,9 @@ It restores the existing Pipedream webhook URL from the cognition config, includ
 its secret query parameter. Public URLs do not change when the process moves.
 Preserve the preview SSH host key and MCP credential encryption key; replacing
 them breaks pinned clients and stored credentials.
+The cognition CloudFront signer setting must retain its Secrets Manager
+reference, replacing any obsolete inline harness value under that name. The
+AI tool context uses the separate `_SECRET_NAME` setting for the same key.
 
 `MCP_PUBLIC_URL` is the original `https://mcp-server[-dev].macro.com` server
 base. `MCP_CLIENT_PUBLIC_URL` is the original
@@ -178,7 +181,11 @@ Copy each running service image by digest into the existing harness ECR
 repository under a unique rollback tag, including the previous harness image,
 and verify each destination digest. Old repositories use `forceDelete`, so
 their tags are not a rollback backup. Save the deployed refresh Lambda ZIP and
-archive non-empty CloudWatch log groups before their retirement.
+archive non-empty CloudWatch log groups or retain them in AWS before retirement.
+For retention, set `retainOnDelete` on all six existing log-group resources
+after the DNS handoff and verify it in fresh stack exports immediately before
+retirement. An intervening update from the old source can reset that metadata.
+Verify the groups remain after retirement; their existing retention periods apply.
 
 For the hostname handoff, restore the saved DNS aliases to the old ALBs while
 those endpoints are still healthy, and wait for DNS caches to expire before
@@ -194,7 +201,8 @@ Do not retire old compute until the routed checks pass.
 After retiring a service, move the harness rules back to verified unused
 temporary priorities if their final priorities have already been applied. Restore
 the pre-cutover stack revision, copying preserved images back into recreated
-repositories first. Recreate task definition revisions from the saved definitions
+repositories first. Import retained CloudWatch log groups into the restored stack
+instead of attempting to create them again. Recreate task definition revisions from the saved definitions
 rather than assuming deregistered revisions remain usable. Wait for healthy targets before removing the
 temporary harness rules to return traffic.
 

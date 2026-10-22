@@ -10,6 +10,30 @@ from unittest.mock import patch
 
 
 class ConsolidateAgentConfigTest(unittest.TestCase):
+    def test_missing_signer_reference_aborts_without_uploading(self):
+        spec = importlib.util.spec_from_file_location(
+            "consolidate_agent_config",
+            Path(__file__).with_name("consolidate-agent-config.py"),
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        key = "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY"
+        for source in ({}, {key: ""}):
+            with self.subTest(source=source):
+                def download(project, config):
+                    if project == "agent-harness-service":
+                        return {key: "obsolete-private-fixture"}
+                    return source if project == "document-cognition" else {}
+
+                with (
+                    patch.object(module, "download", side_effect=download),
+                    patch.object(module.subprocess, "run") as upload,
+                    patch("sys.argv", ["consolidate-agent-config.py", "--config", "dev", "--apply"]),
+                    self.assertRaisesRegex(SystemExit, "missing or empty"),
+                ):
+                    module.main()
+                upload.assert_not_called()
+
     def test_existing_empty_values_are_preserved_and_missing_values_are_copied(self):
         spec = importlib.util.spec_from_file_location(
             "consolidate_agent_config",
@@ -21,6 +45,8 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
             "OPTIONAL_INTEGRATION": "",
             "EXISTING_SECRET": "private-fixture",
             "MCP_PUBLIC_URL": "https://old.example",
+            "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY": "private-pem-fixture",
+            "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME": "signer-key-secret",
         }
         sources = {
             "document-cognition": {
@@ -29,6 +55,7 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
                 "MISSING_SETTING": "first-source",
                 "PIPEDREAM_WEBHOOK_URI": "https://old.example/webhook?secret=fixture",
                 "PORT": "8085",
+                "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY": "signer-key-secret",
             },
             "mcp-server": {"MISSING_SETTING": "later-source"},
             "agent-schedule-service": {},
@@ -55,6 +82,14 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
 
         self.assertEqual(target["OPTIONAL_INTEGRATION"], "")
         self.assertEqual(target["EXISTING_SECRET"], "private-fixture")
+        self.assertEqual(
+            target["DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY"],
+            "signer-key-secret",
+        )
+        self.assertEqual(
+            target["DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME"],
+            "signer-key-secret",
+        )
         self.assertEqual(target["MISSING_SETTING"], "first-source")
         self.assertNotIn("PORT", target)
         self.assertEqual(target["MCP_PUBLIC_URL"], "https://mcp-server-dev.macro.com")
@@ -66,6 +101,7 @@ class ConsolidateAgentConfigTest(unittest.TestCase):
         self.assertNotIn("private-fixture", output.getvalue())
         self.assertNotIn("replacement-fixture", output.getvalue())
         self.assertNotIn("secret=fixture", output.getvalue())
+        self.assertNotIn("private-pem-fixture", output.getvalue())
 
 
 if __name__ == "__main__":

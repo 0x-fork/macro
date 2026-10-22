@@ -82,6 +82,9 @@ server origin (`mcp-server[-dev].macro.com`); `MCP_CLIENT_PUBLIC_URL` is the
 integrations callback origin (`document-cognition[-dev].macro.com`). The shared
 gateway preserves these hostnames and internally rewrites cognition paths. Both settings are required; keep them separate. `POSTHOG_API_KEY` and `POSTHOG_HOST` remain
 available for feature flags and future analytics; MCP emits no analytics events.
+In deployed configs, `DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY`
+is cognition's Secrets Manager reference; AI tools resolve the separate
+`DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY_SECRET_NAME` reference.
 
 The shared Postgres pool defaults to 30 connections (`DATABASE_MAX_CONNECTIONS`).
 Routine dispatch waits for the shared HTTP listener and calls its loopback

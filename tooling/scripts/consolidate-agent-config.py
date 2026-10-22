@@ -37,6 +37,14 @@ def main():
     merged["MCP_CLIENT_PUBLIC_URL"] = f"https://document-cognition{suffix}.macro.com"
     if sources["document-cognition"].get("PIPEDREAM_WEBHOOK_URI"):
         merged["PIPEDREAM_WEBHOOK_URI"] = sources["document-cognition"]["PIPEDREAM_WEBHOOK_URI"]
+    # Cognition resolves this setting through Secrets Manager in deployed
+    # environments. An old, unused harness PEM under the same name must not
+    # override that reference; AI tools use the separate *_SECRET_NAME setting.
+    signer = "DOCUMENT_STORAGE_SERVICE_CLOUDFRONT_SIGNER_PRIVATE_KEY"
+    signer_reference = sources["document-cognition"].get(signer)
+    if not signer_reference:
+        raise SystemExit("Cognition signer reference is missing or empty.")
+    merged[signer] = signer_reference
     updates = {key: value for key, value in merged.items() if target.get(key) != value}
     print(f"agent-harness-service/{args.config}: {len(updates)} keys to merge")
     print(", ".join(sorted(updates)))
