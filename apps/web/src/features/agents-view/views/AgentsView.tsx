@@ -446,9 +446,6 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                   target={previewBlockTarget(conversation)}
                                   orchestrator={orchestrator}
                                   splitPanelContext={panel}
-                                  headerLeading={
-                                    <SplitPanel.CloseButton class="hidden shrink-0 @max-[720px]/view-shell:flex" />
-                                  }
                                 />
                               </ChatEmptyStateContext.Provider>
                             </Suspense>

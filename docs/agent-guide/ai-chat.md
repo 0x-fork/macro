@@ -302,6 +302,12 @@ the shimmer.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
   Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
 
+  In a secondary desktop split, the new-conversation page and existing chats show
+  one close button beside **Show navigation** while the sidebar is collapsed.
+  Verify this below 720px pane width, then expand and collapse navigation and
+  check that closing the split works. Mobile **Back to conversations** still
+  returns to the conversation list.
+
   To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
   appears only for a connected, enabled Pipedream Slack account. Click **Find

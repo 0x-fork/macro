@@ -8,9 +8,6 @@ vi.mock('@app/components/view-shell/ViewShell', () => ({
     TopBar: (props: ParentProps) => <div>{props.children}</div>,
   },
 }));
-vi.mock('@components/app/split-panel', () => ({
-  SplitPanel: { CloseButton: () => null },
-}));
 afterEach(cleanup);
 
 it('uses the block title control without duplicating its title or session menu', () => {
