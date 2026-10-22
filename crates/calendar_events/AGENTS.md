@@ -65,12 +65,20 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   `attendeesOmitted` mode (`omittedAttendeesSpecified`), so the invite writes
   the whole list Google returned plus the new guests, and a guest is refused
   (`guest_list_hidden`) while the organizer hides the guest list, since their
-  copy lacks the guests it would drop.
+  copy lacks the guests it would drop. Microsoft Graph has no attendee-side
+  write either: an Outlook organizer adds guests with the same full-list write
+  (`email_api_client`'s `outlook/calendar/invite.rs`), and an Outlook guest may
+  only answer (`guests_cannot_invite`).
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
-  `ActorInboxes::mark_event` wherever a read path marks the viewer, and never
-  store it. `guest_policy` is stored on the entity row (the canonical copy's
-  values) and in each source's projection, omitted there while it holds Google's
-  default. Event responses always carry both; `StoredSourceProjection` strips
+  `ActorInboxes::mark_event` and the copy's source link wherever a read path
+  marks the viewer, and never store it. Each connected inbox gets its own copy
+  (entity) of an event, written through that inbox's grant, so the viewer
+  organizes or attends a copy only as its inbox: another of their inboxes on
+  the same event lends it nothing, and only that inbox's row is `is_self`.
+  Mutations act as `CalendarEventMutationTarget::copy_inbox`. A delegate owns
+  no copy inbox and gets nothing beyond the no-attendees rule. `guest_policy` is
+  stored on the entity row (the canonical copy's values) and in each source's
+  projection, omitted there while it holds Google's default. Event responses always carry both; `StoredSourceProjection` strips
   them so unchanged events keep comparing equal.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).

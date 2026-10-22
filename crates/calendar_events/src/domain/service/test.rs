@@ -171,7 +171,10 @@ impl CalendarRepository for FakeRepo {
         Ok(None)
     }
 
-    async fn owned_inbox_emails(&self, _requester_id: &str) -> Result<Vec<String>, Report> {
+    async fn owned_inboxes(
+        &self,
+        _requester_id: &str,
+    ) -> Result<Vec<crate::domain::models::OwnedInbox>, Report> {
         Ok(Vec::new())
     }
 

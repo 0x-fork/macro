@@ -16,7 +16,7 @@ use crate::domain::{
         CalendarChange, CalendarChangeRepository, CalendarEventChange, CalendarLinkLog,
         CalendarLinkWatermark, CalendarWatermark, EventChangeLoad, EventOccurrence,
     },
-    models::VisibleCalendar,
+    models::{OwnedInbox, VisibleCalendar},
     ports::CalendarRepository,
 };
 
@@ -355,7 +355,7 @@ impl CalendarChangeRepository for PgCalendarRepository {
         Ok(rows.into_iter().map(visible_calendar).collect())
     }
 
-    async fn owned_inbox_emails(&self, viewer: &str) -> Result<Vec<String>, Report> {
-        CalendarRepository::owned_inbox_emails(self, viewer).await
+    async fn owned_inboxes(&self, viewer: &str) -> Result<Vec<OwnedInbox>, Report> {
+        CalendarRepository::owned_inboxes(self, viewer).await
     }
 }

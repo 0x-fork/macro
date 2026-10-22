@@ -1112,8 +1112,7 @@ fn rsvp_patches_the_actor_row_not_the_google_self_flag() {
         google_attendee("jacob@example.com", true),
         google_attendee("jackson@example.com", false),
     ];
-    let actor = ActorInboxes::from_owned(vec!["jackson@example.com".to_string()])
-        .expect("owned addresses remain after normalize");
+    let actor = ActorInboxes::sole("jackson@example.com");
     let found = find_actor_attendee(&attendees, &actor);
     assert_eq!(
         found.and_then(|attendee| attendee.email.as_deref()),
@@ -1124,8 +1123,7 @@ fn rsvp_patches_the_actor_row_not_the_google_self_flag() {
 #[test]
 fn rsvp_does_not_patch_another_attendee_when_the_requester_is_absent() {
     let attendees = vec![google_attendee("jacob@example.com", true)];
-    let actor = ActorInboxes::from_owned(vec!["jackson@example.com".to_string()])
-        .expect("owned addresses remain after normalize");
+    let actor = ActorInboxes::sole("jackson@example.com");
     assert!(find_actor_attendee(&attendees, &actor).is_none());
 }
 

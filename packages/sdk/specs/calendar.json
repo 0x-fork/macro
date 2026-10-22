@@ -404,7 +404,7 @@
             "description": "Authentication required"
           },
           "403": {
-            "description": "Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization",
+            "description": "Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization",
             "content": {
               "application/json": {
                 "schema": {

@@ -6,7 +6,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub use super::acting::ActorInboxes;
+pub use super::acting::{ActorInboxes, OwnedInbox};
 pub use super::capabilities::{GuestPolicy, ViewerCapabilities};
 
 /// Read and write events on every calendar the user can access. Covers the
@@ -1387,6 +1387,14 @@ pub struct CalendarEventMutationTarget {
 }
 
 impl CalendarEventMutationTarget {
+    /// The actor's inbox the addressed copy syncs through: every write to the
+    /// copy goes out through its grant, so the actor organizes or attends the
+    /// copy only as this inbox. `None` when the actor does not own it, as for
+    /// a delegate.
+    pub fn copy_inbox(&self) -> Option<&OwnedInbox> {
+        self.actor.as_ref()?.inbox(self.email_link_id)
+    }
+
     /// Provider identifier the mutation must address: the recurring master
     /// when the stored source is an expanded instance acting as canonical.
     pub fn master_provider_event_id(&self) -> &str {

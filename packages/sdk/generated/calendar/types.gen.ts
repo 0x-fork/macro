@@ -1106,7 +1106,7 @@ export type InviteCalendarEventGuestsErrors = {
      */
     401: unknown;
     /**
-     * Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization
+     * Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization
      */
     403: CalendarMutationApiError;
     /**

@@ -225,7 +225,7 @@ pub(crate) fn mutation_error(error: CalendarMutationError) -> async_graphql::Err
         ),
         CalendarMutationError::GuestsCannotInvite => (
             "guests_cannot_invite",
-            "The organizer doesn't let guests invite others.".into(),
+            "Only the organizer can invite guests to this event.".into(),
         ),
         CalendarMutationError::GuestListHidden => (
             "guest_list_hidden",

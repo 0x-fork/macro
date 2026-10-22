@@ -1,6 +1,7 @@
 //! Microsoft Graph calendar adapter using the same transport and admission as mail.
 mod automatic_decline;
 mod conference_body;
+mod invite;
 mod normalize;
 mod recurrence;
 mod replacement;
@@ -889,17 +890,22 @@ impl CalendarMutationProvider for OutlookApiClientRepository {
     }
     async fn add_attendees(
         &self,
-        _token: &str,
-        _target: &ProviderCalendarTarget,
-        _master: &str,
+        token: &str,
+        target: &ProviderCalendarTarget,
+        id: &str,
         _actor: &ActorInboxes,
-        _guests: &[CalendarAttendeeInput],
-        _scope: &CalendarUpdateScope,
+        guests: &[CalendarAttendeeInput],
+        scope: &CalendarUpdateScope,
     ) -> Result<ProviderInviteOutcome, CalendarProviderError> {
-        Err(unsupported(
-            "Microsoft Graph has no partial attendee write; an Outlook organizer adds guests by \
-             updating the attendee list",
-        ))
+        self.calendar_scope(target)?
+            .add_calendar_guests(
+                &AccessToken::new(token.to_owned()),
+                target,
+                id,
+                guests,
+                scope,
+            )
+            .await
     }
     async fn stop_watch_channel(
         &self,

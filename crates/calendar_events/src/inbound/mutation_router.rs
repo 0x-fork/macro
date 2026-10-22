@@ -354,7 +354,8 @@ pub enum CalendarMutationErrorCode {
     NoWritableCalendar,
     /// The connected account is not an attendee of the event.
     NotAttendee,
-    /// The organizer does not let guests invite others.
+    /// Only the organizer may invite guests: the organizer does not let
+    /// guests invite others, or the event is an Outlook meeting.
     GuestsCannotInvite,
     /// The organizer hides the guest list, so a guest cannot add guests.
     GuestListHidden,
@@ -430,7 +431,7 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
             CalendarMutationError::GuestsCannotInvite => (
                 StatusCode::FORBIDDEN,
                 CalendarMutationErrorCode::GuestsCannotInvite,
-                "The organizer doesn't let guests invite others.".to_string(),
+                "Only the organizer can invite guests to this event.".to_string(),
             ),
             CalendarMutationError::GuestListHidden => (
                 StatusCode::FORBIDDEN,
@@ -813,7 +814,7 @@ where
         (status = 200, description = "The updated calendar event", body = CalendarEvent),
         (status = 400, description = "Invalid guests or scope", body = CalendarMutationApiError),
         (status = 401, description = "Authentication required"),
-        (status = 403, description = "Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization", body = CalendarMutationApiError),
+        (status = 403, description = "Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization", body = CalendarMutationApiError),
         (status = 404, description = "Event or occurrence not found", body = CalendarMutationApiError),
         (status = 409, description = "The connected account neither organizes nor attends the event", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),

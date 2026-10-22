@@ -20,8 +20,8 @@ use super::models::{
     CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
     CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, GoogleCalendarSyncSnapshot,
     GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig,
-    GuestPolicy, OccurrenceListing, OccurrenceRange, ProviderCalendar, ProviderCalendarTarget,
-    StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
+    GuestPolicy, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
+    ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -233,12 +233,15 @@ pub trait CalendarMutationProvider: Send + Sync + 'static {
     /// already invited with their answer, notify the new guests, and refresh
     /// the series.
     ///
-    /// The provider event is read first: a vanished event surfaces as
+    /// `actor` is the inbox the addressed copy syncs through. The provider
+    /// event is read first: a vanished event surfaces as
     /// [`ProviderInviteOutcome::Gone`], an actor who neither organizes nor
     /// attends it as [`ProviderInviteOutcome::NotAttendee`], and a guest the
     /// event's live policy refuses as [`ProviderInviteOutcome::Forbidden`] or
-    /// [`ProviderInviteOutcome::GuestListHidden`]. Guests already on the
-    /// event are dropped, and nothing is written when none remain.
+    /// [`ProviderInviteOutcome::GuestListHidden`]. Outlook takes guests only
+    /// from the organizer, so it refuses anyone else with a permanent
+    /// provider error. Guests already on the event are dropped, and nothing
+    /// is written when none remain.
     fn add_attendees(
         &self,
         access_token: &str,
@@ -713,13 +716,13 @@ pub trait CalendarRepository: Send + Sync + 'static {
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send;
 
-    /// Addresses of every connected inbox the requester owns
+    /// Every connected inbox the requester owns
     /// (`email_links.macro_id = requester`). Raw and unnormalized;
     /// [`ActorInboxes::from_owned`] is the single normalization point.
-    fn owned_inbox_emails(
+    fn owned_inboxes(
         &self,
         requester_id: &str,
-    ) -> impl Future<Output = Result<Vec<String>, Report>> + Send;
+    ) -> impl Future<Output = Result<Vec<OwnedInbox>, Report>> + Send;
 
     /// Retire a Google source the provider confirmed deleted (a recurring
     /// master also retires its expanded instances), restoring the best
@@ -924,8 +927,10 @@ pub enum CalendarMutationError {
     /// The connected account is not an attendee of the event.
     #[error("the connected account is not an attendee of this event")]
     NotAttendee,
-    /// The organizer does not let guests invite others.
-    #[error("the organizer doesn't let guests invite others")]
+    /// Only the organizer may invite guests: the organizer does not let
+    /// guests invite others, or the event is an Outlook meeting, which
+    /// gives its attendees no way to change it.
+    #[error("only the organizer can invite guests to this event")]
     GuestsCannotInvite,
     /// The organizer hides the guest list, so a guest's copy cannot hold the
     /// whole list a guest addition must write.

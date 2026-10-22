@@ -452,6 +452,12 @@ read-only pill that explains why. A guest on an event whose organizer hides the 
 may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
 `guest_list_hidden`). To check the refusal state without a Google account, answer
 `POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+An event that reached several connected inboxes shows one chip per inbox (overlapping;
+tell them apart by calendar color), and each copy answers only for its own inbox: a
+guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
+another connected inbox organizes the event. An Outlook guest copy never offers `Add
+guests` (Outlook lets only the organizer change a meeting) and shows the same
+explanation; an Outlook organizer adds guests like a Google one.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description

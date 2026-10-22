@@ -5,12 +5,25 @@ use crate::domain::models::{
     CalendarLinkTokenIdentity, CalendarOccurrenceCursor, CalendarSyncStatus, CalendarWatchRelease,
     ConferenceChange, DisconnectedCalendar, EventStart, EventStatus, EventTransparency, EventType,
     EventVisibility, GoogleCalendarSyncSnapshot, GoogleWatchChannel, GuestPolicy,
-    OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, ProviderCalendar, ProviderCalendarTarget,
-    ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities, VisibleCalendar,
+    OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, OwnedInbox, ProviderCalendar,
+    ProviderCalendarTarget, ProviderEventSource, StoredGoogleCalendar, ViewerCapabilities,
+    VisibleCalendar,
 };
 use crate::domain::ports::RetiredCalendarEvent;
 use chrono::{Duration, TimeZone};
 use std::sync::{Arc, Mutex};
+
+/// The inbox the fixture targets sync through: the link
+/// [`ActorInboxes::sole`] gives its inbox.
+const SELF_LINK: Uuid = Uuid::nil();
+
+fn owned(link_id: Uuid, email: &str) -> OwnedInbox {
+    OwnedInbox {
+        link_id,
+        email: email.to_string(),
+        provider: super::super::models::CalendarProvider::Google,
+    }
+}
 
 fn token_identity() -> CalendarLinkTokenIdentity {
     CalendarLinkTokenIdentity {
@@ -29,7 +42,7 @@ fn mutation_target(is_read_only: bool) -> CalendarEventMutationTarget {
         provider_event_id: "instance-id".to_string(),
         provider_recurring_event_id: Some("master-id".to_string()),
         owner_id: "macro|self@example.com".to_string(),
-        email_link_id: Uuid::now_v7(),
+        email_link_id: SELF_LINK,
         account_id: Uuid::now_v7(),
         calendar_id: Uuid::now_v7(),
         provider_calendar_id: "primary".to_string(),
@@ -56,7 +69,7 @@ fn creation_target(is_read_only: bool) -> CalendarCreationTarget {
     CalendarCreationTarget {
         observed_access_role: Some(if is_read_only { "reader" } else { "owner" }.to_owned()),
         owner_id: "macro|self@example.com".to_string(),
-        email_link_id: Uuid::now_v7(),
+        email_link_id: SELF_LINK,
         account_id: Uuid::now_v7(),
         calendar_id: Uuid::now_v7(),
         provider_calendar_id: "primary".to_string(),
@@ -426,10 +439,10 @@ impl CalendarRepository for FakeRepo {
         Ok(None)
     }
 
-    async fn owned_inbox_emails(
+    async fn owned_inboxes(
         &self,
         _requester_id: &str,
-    ) -> Result<Vec<String>, rootcause::Report> {
+    ) -> Result<Vec<OwnedInbox>, rootcause::Report> {
         if self.fail_owned_inboxes {
             return Err(rootcause::report!("owned inboxes unavailable"));
         }
@@ -473,6 +486,7 @@ struct FakeProvider {
     created_drafts: Arc<Mutex<Vec<CalendarEventDraft>>>,
     updated_patches: Arc<Mutex<Vec<CalendarEventPatch>>>,
     invited_guests: Arc<Mutex<Vec<Vec<CalendarAttendeeInput>>>>,
+    invited_as: Arc<Mutex<Vec<Vec<String>>>>,
 }
 
 impl FakeProvider {
@@ -487,11 +501,13 @@ impl FakeProvider {
             created_drafts: Arc::new(Mutex::new(Vec::new())),
             updated_patches: Arc::new(Mutex::new(Vec::new())),
             invited_guests: Arc::new(Mutex::new(Vec::new())),
+            invited_as: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
-    fn echo(&self, owner_id: &str) -> CalendarEventUpsert {
-        let mut upsert = echo_upsert(owner_id);
+    fn echo(&self, target: &ProviderCalendarTarget) -> CalendarEventUpsert {
+        let mut upsert = echo_upsert(&target.owner_id);
+        upsert.source.details_mut().email_link_id = target.email_link_id;
         upsert.event.attendees = self.echo_attendees.clone();
         upsert.overrides = self.echo_overrides.clone();
         if let Some(time) = &self.echo_time {
@@ -525,7 +541,7 @@ impl CalendarMutationProvider for FakeProvider {
         if let Some(error) = self.fail() {
             return Err(error);
         }
-        Ok(self.echo(&target.owner_id))
+        Ok(self.echo(target))
     }
 
     async fn update_event(
@@ -546,7 +562,7 @@ impl CalendarMutationProvider for FakeProvider {
         if matches!(self.behavior, FakeProviderBehavior::Gone) {
             return Ok(None);
         }
-        Ok(Some(self.echo(&target.owner_id)))
+        Ok(Some(self.echo(target)))
     }
 
     async fn update_event_instance(
@@ -567,9 +583,9 @@ impl CalendarMutationProvider for FakeProvider {
         Ok(match self.behavior {
             FakeProviderBehavior::Gone => ProviderInstanceUpdateOutcome::SeriesGone,
             FakeProviderBehavior::OccurrenceGone => {
-                ProviderInstanceUpdateOutcome::OccurrenceGone(Box::new(self.echo(&target.owner_id)))
+                ProviderInstanceUpdateOutcome::OccurrenceGone(Box::new(self.echo(target)))
             }
-            _ => ProviderInstanceUpdateOutcome::Applied(Box::new(self.echo(&target.owner_id))),
+            _ => ProviderInstanceUpdateOutcome::Applied(Box::new(self.echo(target))),
         })
     }
 
@@ -594,10 +610,14 @@ impl CalendarMutationProvider for FakeProvider {
         _access_token: &str,
         target: &ProviderCalendarTarget,
         master_provider_event_id: &str,
-        _actor: &ActorInboxes,
+        actor: &ActorInboxes,
         guests: &[CalendarAttendeeInput],
         scope: &CalendarUpdateScope,
     ) -> Result<ProviderInviteOutcome, CalendarProviderError> {
+        self.invited_as
+            .lock()
+            .unwrap()
+            .push(actor.iter().map(str::to_string).collect());
         let scope = match scope {
             CalendarUpdateScope::All => "all".to_string(),
             CalendarUpdateScope::ThisEvent { recurrence_id } => format!("this:{recurrence_id}"),
@@ -613,14 +633,14 @@ impl CalendarMutationProvider for FakeProvider {
         Ok(match self.behavior {
             FakeProviderBehavior::Gone => ProviderInviteOutcome::Gone,
             FakeProviderBehavior::OccurrenceGone => {
-                ProviderInviteOutcome::OccurrenceGone(Box::new(self.echo(&target.owner_id)))
+                ProviderInviteOutcome::OccurrenceGone(Box::new(self.echo(target)))
             }
             FakeProviderBehavior::NotAttendee => ProviderInviteOutcome::NotAttendee,
             FakeProviderBehavior::Forbidden(policy) => ProviderInviteOutcome::Forbidden(policy),
             FakeProviderBehavior::GuestListHidden(policy) => {
                 ProviderInviteOutcome::GuestListHidden(policy)
             }
-            _ => ProviderInviteOutcome::Applied(Box::new(self.echo(&target.owner_id))),
+            _ => ProviderInviteOutcome::Applied(Box::new(self.echo(target))),
         })
     }
 
@@ -656,7 +676,7 @@ impl CalendarMutationProvider for FakeProvider {
         }
         Ok(match self.behavior {
             FakeProviderBehavior::Gone => ProviderSeriesMutationOutcome::Gone,
-            _ => ProviderSeriesMutationOutcome::Applied(Box::new(self.echo(&target.owner_id))),
+            _ => ProviderSeriesMutationOutcome::Applied(Box::new(self.echo(target))),
         })
     }
 
@@ -675,7 +695,7 @@ impl CalendarMutationProvider for FakeProvider {
         }
         Ok(match self.behavior {
             FakeProviderBehavior::Gone => ProviderSeriesMutationOutcome::SeriesDeleted,
-            _ => ProviderSeriesMutationOutcome::Applied(Box::new(self.echo(&target.owner_id))),
+            _ => ProviderSeriesMutationOutcome::Applied(Box::new(self.echo(target))),
         })
     }
 
@@ -706,7 +726,7 @@ impl CalendarMutationProvider for FakeProvider {
         Ok(match self.behavior {
             FakeProviderBehavior::Gone => ProviderRsvpOutcome::Gone,
             FakeProviderBehavior::NotAttendee => ProviderRsvpOutcome::NotAttendee,
-            _ => ProviderRsvpOutcome::Applied(Box::new(self.echo(&target.owner_id))),
+            _ => ProviderRsvpOutcome::Applied(Box::new(self.echo(target))),
         })
     }
 }
@@ -925,7 +945,7 @@ async fn create_does_not_write_when_inbox_lookup_fails() {
 }
 
 #[tokio::test]
-async fn create_returned_echo_marks_requester_inboxes_as_self() {
+async fn create_returned_echo_marks_the_copys_inbox_as_self() {
     let mut provider = FakeProvider::new(FakeProviderBehavior::Echo);
     provider.echo_attendees = vec![
         echo_attendee("jacob@example.com", true),
@@ -934,7 +954,7 @@ async fn create_returned_echo_marks_requester_inboxes_as_self() {
     let created = service(
         FakeRepo {
             creation_target: Some(CalendarCreationTarget {
-                actor: ActorInboxes::from_owned(vec!["jackson@example.com".to_string()]),
+                actor: ActorInboxes::from_owned(vec![owned(SELF_LINK, "jackson@example.com")]),
                 ..creation_target(false)
             }),
             ..FakeRepo::default()
@@ -2201,7 +2221,7 @@ async fn rsvp_addresses_the_requester_inbox_not_the_source_calendar() {
     let provider = FakeProvider::new(FakeProviderBehavior::Echo);
     let emails = provider.rsvp_self_emails.clone();
     let mut target = mutation_target(false);
-    target.actor = ActorInboxes::from_owned(vec!["jackson@example.com".to_string()]);
+    target.actor = ActorInboxes::from_owned(vec![owned(Uuid::now_v7(), "jackson@example.com")]);
     service(
         FakeRepo {
             mutation_target: Some(target),
@@ -2238,7 +2258,7 @@ async fn rsvp_through_a_delegated_inbox_never_hands_the_subject_email_to_the_pro
         email_address: "jacob@example.com".to_string(),
         provider: super::super::models::CalendarProvider::Google,
     };
-    target.actor = ActorInboxes::from_owned(vec!["jackson@example.com".to_string()]);
+    target.actor = ActorInboxes::from_owned(vec![owned(Uuid::now_v7(), "jackson@example.com")]);
     service(
         FakeRepo {
             mutation_target: Some(target),
@@ -2702,8 +2722,8 @@ async fn rsvp_uses_only_the_selected_owned_address_for_both_scopes() {
         let emails = provider.rsvp_self_emails.clone();
         let mut target = mutation_target(false);
         target.actor = ActorInboxes::from_owned(vec![
-            "first@example.com".into(),
-            "chosen@example.com".into(),
+            owned(SELF_LINK, "first@example.com"),
+            owned(Uuid::now_v7(), "chosen@example.com"),
         ]);
         service(
             FakeRepo {

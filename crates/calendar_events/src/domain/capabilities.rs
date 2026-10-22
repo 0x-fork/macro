@@ -1,8 +1,10 @@
-//! What a viewer may do with an event, following Google's guest permissions.
+//! What a viewer may do with an event, following the organizer's guest
+//! permissions and what the provider of the viewer's copy allows.
 
 use serde::{Deserialize, Serialize};
 
-use super::models::{ActorInboxes, CalendarAttendee, CalendarEvent, EventStatus};
+use super::acting::OwnedInbox;
+use super::models::{CalendarAttendee, CalendarEvent, CalendarProvider, EventStatus};
 
 /// The switches an organizer sets on an event to bound what its guests may
 /// do. Google omits a switch from the payload while it holds its default.
@@ -86,20 +88,29 @@ impl ViewerCapabilities {
         *self == Self::NONE
     }
 
-    /// Resolve what `actor` may do with `event`.
+    /// Resolve what the owner of `inbox`, the inbox this copy of `event`
+    /// syncs through, may do with it.
     ///
     /// A read-only or cancelled event allows nothing. The organizer may do
     /// everything, and so may anyone on a writable event without attendees,
-    /// which is treated as the actor's own. A guest's rights follow the
-    /// event's [`GuestPolicy`]: modify allows everything except changing the
-    /// policy, invite allows adding guests, and every guest may answer. A
-    /// guest may change the guest list only while it is visible: Google takes
-    /// guest additions as a whole new list, and a guest's copy of a hidden
-    /// list holds only themselves and the organizer.
-    /// Anyone else, including a teammate or channel member looking at someone
-    /// else's projection, may do nothing. Answering always needs the actor's
-    /// own attendee row, since that is the row the answer is written to.
-    pub fn for_event(event: &CalendarEvent, actor: &ActorInboxes) -> Self {
+    /// which is treated as the actor's own. A guest of a Google copy follows
+    /// the event's [`GuestPolicy`]: modify allows everything except changing
+    /// the policy, invite allows adding guests, and every guest may answer.
+    /// A guest may change the guest list only while it is visible: Google
+    /// takes guest additions as a whole new list, and a guest's copy of a
+    /// hidden list holds only themselves and the organizer. Outlook gives
+    /// attendees no way to change the organizer's meeting, so a guest of an
+    /// Outlook copy may only answer.
+    ///
+    /// Only the copy's own inbox counts: another of the actor's inboxes
+    /// organizing or attending the event makes them nothing on this copy,
+    /// which is written through this inbox's grant. `None` is an actor who
+    /// does not own the copy's inbox, such as a delegate, or a teammate or
+    /// channel member looking at someone else's projection; they may do
+    /// nothing beyond the event-without-attendees rule. Answering always
+    /// needs the inbox's own attendee row, since that is the row the answer
+    /// is written to.
+    pub fn for_event(event: &CalendarEvent, inbox: Option<&OwnedInbox>) -> Self {
         if event.status == EventStatus::Cancelled {
             return Self::NONE;
         }
@@ -110,27 +121,31 @@ impl ViewerCapabilities {
                 attendees: &event.attendees,
                 guest_policy: event.guest_policy,
             },
-            actor,
+            inbox,
         )
     }
 
-    /// Resolve what `actor` may do with a live copy of an event; see
-    /// [`Self::for_event`].
-    pub fn for_access(access: EventAccess<'_>, actor: &ActorInboxes) -> Self {
+    /// Resolve what the owner of `inbox` may do with a live copy of an
+    /// event; see [`Self::for_event`].
+    pub fn for_access(access: EventAccess<'_>, inbox: Option<&OwnedInbox>) -> Self {
         if access.is_read_only {
             return Self::NONE;
         }
-        let is_guest = access
-            .attendees
-            .iter()
-            .any(|attendee| actor.matches(&attendee.email));
-        let is_organizer = access
-            .organizer_email
-            .is_some_and(|email| actor.matches(email))
-            || access
+        let is_guest = inbox.is_some_and(|inbox| {
+            access
                 .attendees
                 .iter()
-                .any(|attendee| attendee.is_organizer && actor.matches(&attendee.email));
+                .any(|attendee| inbox.matches(&attendee.email))
+        });
+        let is_organizer = inbox.is_some_and(|inbox| {
+            access
+                .organizer_email
+                .is_some_and(|email| inbox.matches(email))
+                || access
+                    .attendees
+                    .iter()
+                    .any(|attendee| attendee.is_organizer && inbox.matches(&attendee.email))
+        });
         if is_organizer || access.attendees.is_empty() {
             return Self {
                 edit_details: true,
@@ -140,17 +155,26 @@ impl ViewerCapabilities {
                 rsvp: is_guest,
             };
         }
-        if !is_guest {
-            return Self::NONE;
+        match inbox {
+            Some(inbox) if is_guest => Self::for_guest(inbox.provider, access.guest_policy),
+            _ => Self::NONE,
         }
-        let policy = access.guest_policy;
-        Self {
-            edit_details: policy.can_modify,
-            invite_guests: policy.can_see_other_guests
-                && (policy.can_modify || policy.can_invite_others),
-            remove_guests: policy.can_see_other_guests && policy.can_modify,
-            set_guest_policy: false,
-            rsvp: true,
+    }
+
+    fn for_guest(provider: CalendarProvider, policy: GuestPolicy) -> Self {
+        match provider {
+            CalendarProvider::Google => Self {
+                edit_details: policy.can_modify,
+                invite_guests: policy.can_see_other_guests
+                    && (policy.can_modify || policy.can_invite_others),
+                remove_guests: policy.can_see_other_guests && policy.can_modify,
+                set_guest_policy: false,
+                rsvp: true,
+            },
+            CalendarProvider::Outlook => Self {
+                rsvp: true,
+                ..Self::NONE
+            },
         }
     }
 }

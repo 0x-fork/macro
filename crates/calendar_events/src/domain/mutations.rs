@@ -230,7 +230,7 @@ where
                 .await;
         }
         if let Some(viewer) = viewer {
-            viewer.mark_event(&mut event);
+            viewer.mark_event(&mut event, email_link_id);
         }
         Ok(event)
     }
@@ -338,9 +338,9 @@ where
                 patch.attendees = Some(attendees);
             } else {
                 // A guest who may not remove guests only adds, through the
-                // invite path, which keeps every guest Google already holds.
+                // invite path, which keeps every guest the provider holds.
                 let additions =
-                    invite::guest_list_additions(attendees, &stored, target.actor.as_ref())?;
+                    invite::guest_list_additions(attendees, &stored, target.copy_inbox())?;
                 if !additions.is_empty() {
                     let invited = self
                         .invite_guests(
@@ -557,7 +557,7 @@ where
                 self.retire_gone_source(&target).await;
                 event.id = target.event_id;
                 if let Some(actor) = &target.actor {
-                    actor.mark_event(&mut event);
+                    actor.mark_event(&mut event, target.email_link_id);
                 }
                 Ok(*event)
             }
@@ -579,6 +579,7 @@ where
                 CalendarUpdateScope::All => "all",
                 CalendarUpdateScope::ThisEvent { .. } => "this_event",
             },
+            provider = tracing::field::Empty,
             outcome = tracing::field::Empty,
         ),
         err
