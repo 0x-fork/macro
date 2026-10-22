@@ -2,7 +2,7 @@
 //! over the Macro product toolset.
 //!
 //! Consumption mirrors the scheduled-action executor
-//! (`services/scheduled_action/src/outbound/inprocess_executor/agent_task.rs`):
+//! (`crates/scheduled_action/src/outbound/inprocess_executor/agent_task.rs`):
 //! the full static toolset, the agent's name and handle, the agent-session
 //! preamble, the static Macro prompt (immediately before any session
 //! instructions), and the owner's memory, with usage recorded per turn

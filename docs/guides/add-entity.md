@@ -378,8 +378,8 @@ the skill doesn't cover:
   host-specific branches of `tools_for`), eager or deferred.
 - Give its context to every place `ToolServiceContext` is built:
   `crates/ai_tools/src/build_context.rs`,
-  `services/document_cognition_service/src/server.rs` and its
-  `services/document_cognition_service/src/api/context/test.rs`, and `services/mcp_service/src/context.rs`. Add it to
+  `services/agent_harness_service/src/cognition/server.rs` and its
+  `services/agent_harness_service/src/cognition/api/context/test.rs`, and `services/agent_harness_service/src/public_mcp/context.rs`. Add it to
   `with_actor` in `crates/ai_tools/src/tool_context.rs`, or agent writes are
   attributed to the default bot. Add a test in `crates/ai_tools/src/test.rs` that
   the tools resolve on every host; hosts have shipped with tools unwired.

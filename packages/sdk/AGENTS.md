@@ -32,6 +32,12 @@ Run from this directory: `bun test`, `bun run check`, `bun run coverage`, and
 explicitly classified in `src/coverage/skipped.ts`. Build output in `dist/` is
 excluded from source linting.
 
+## Local agent APIs
+
+The default cognition and routine URLs use the harness host port 8101, with
+`/cognition` and `/scheduled-action` respectively. Deployed base URLs retain
+the existing gateway prefixes.
+
 ## Gotchas
 
 - Regenerate Rust OpenAPI and web service clients before `bun run sync-specs &&

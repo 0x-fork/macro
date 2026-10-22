@@ -1,7 +1,9 @@
 import * as aws from '@pulumi/aws';
 import * as pulumi from '@pulumi/pulumi';
+import * as doppler from '@pulumiverse/doppler';
 import { createBucket } from '../../packages/resources';
 import {
+  AGENT_PUBLIC_URLS,
   config,
   CODEX_OAUTH_KMS_ALIAS,
   getAiToolsInfra,
@@ -108,60 +110,126 @@ const githubPullRequestPatchBucketName = cloudStorageServiceStack
 
 const vpc = get_coparse_api_vpc();
 
-const service = new AgentHarnessService(`agent-harness-service-${stack}`, {
-  vpc,
-  tags,
-  platform: { family: 'linux', architecture: 'amd64' },
-  serviceContainerPort: 8101,
-  egressContainerPort: 8102,
-  healthCheckPath: '/health',
-  ecsClusterArn: cloudStorageClusterArn,
-  cloudStorageClusterName,
-  secretKeyArns: [
-    jwtSecretKeyArn,
-    MACRO_API_TOKENS.macroApiTokenPublicKeyArn,
-    macroApiTokenPrivateKeyArn,
-    githubSyncAppPemArn,
-    ...aiTools.secretArns,
-  ],
-  queueArns: [...aiTools.queueArns],
-  bucketArns: [
-    ...aiTools.bucketArns,
-    sessionChangesBucket.arn,
-    githubPullRequestPatchBucketArn,
-  ],
-  containerEnvVars: [
-    { name: 'DENO_BINARY', value: '/usr/local/bin/deno' },
-    {
-      name: 'CODEX_OAUTH_KMS_KEY_ID',
-      value: CODEX_OAUTH_KMS_ALIAS,
-    },
-    {
-      name: 'ENVIRONMENT',
-      value: stack,
-    },
-    {
-      name: 'AGENT_SESSION_CHANGES_BUCKET',
-      value: sessionChangesBucket.bucket,
-    },
-    {
-      name: 'GITHUB_PULL_REQUEST_PATCH_BUCKET',
-      value: githubPullRequestPatchBucketName,
-    },
-    // Datadog
-    {
-      name: 'DD_SERVICE',
-      value: 'agent-harness-service',
-    },
-    {
-      name: 'DD_ENV',
-      value: stack,
-    },
-  ],
+const preview = new pulumi.StackReference('preview-network', {
+  name: `macro-inc/preview-gateway/${stack}`,
 });
+const cognition = new pulumi.StackReference('cognition-resources', {
+  name: `macro-inc/document-cognition/${stack}`,
+});
+const connection = new pulumi.StackReference('connection-resources', {
+  name: `macro-inc/connection-gateway/${stack}`,
+});
+const extractor = new pulumi.StackReference('text-extractor-resources', {
+  name: `macro-inc/document-text-extractor/${stack}`,
+});
+const fusionauthSecretArns = [
+  'fusionauth-client-secret',
+  'fusionauth-api-key',
+  'google-client-secret',
+  'authentication-service-internal-api-key',
+].map(
+  (name) => aws.secretsmanager.getSecretOutput({ name: `${name}-${stack}` }).arn
+);
+
+// Public addresses must publish before ECS reads APP_SECRETS_JSON.
+const configurationSecrets = Object.entries({
+  PREVIEW_DOMAIN: preview.requireOutput('previewDomain'),
+  PREVIEW_SSH_HOST: preview.requireOutput('previewSshHost'),
+  PREVIEW_APP_ORIGIN:
+    stack === 'prod' ? 'https://macro.com' : 'https://dev.macro.com',
+  PREVIEW_CONTROL_HOSTS:
+    stack === 'prod' ? 'gateway.macro.com' : 'dev-gateway.macro.com',
+  MCP_PUBLIC_URL: AGENT_PUBLIC_URLS.mcp,
+  MCP_CLIENT_PUBLIC_URL: AGENT_PUBLIC_URLS.cognition,
+}).map(
+  ([key, value]) =>
+    new doppler.Secret(`harness-${key}-${stack}`, {
+      project: 'agent-harness-service',
+      config: stack === 'prod' ? 'prd' : 'dev',
+      name: key,
+      value,
+    })
+);
+
+const service = new AgentHarnessService(
+  `agent-harness-service-${stack}`,
+  {
+    vpc,
+    tags,
+    previewSecurityGroupId: preview.requireOutput('previewTaskSecurityGroupId'),
+    previewControlTargetGroupArn: preview.requireOutput(
+      'previewControlTargetGroupArn'
+    ),
+    previewHttpTargetGroupArn: preview.requireOutput(
+      'previewHttpTargetGroupArn'
+    ),
+    previewSshTargetGroupArn: preview.requireOutput('previewSshTargetGroupArn'),
+    platform: { family: 'linux', architecture: 'amd64' },
+    serviceContainerPort: 8101,
+    configurationSecrets,
+    egressContainerPort: 8102,
+    healthCheckPath: '/health',
+    ecsClusterArn: cloudStorageClusterArn,
+    cloudStorageClusterName,
+    secretKeyArns: [
+      jwtSecretKeyArn,
+      MACRO_API_TOKENS.macroApiTokenPublicKeyArn,
+      macroApiTokenPrivateKeyArn,
+      githubSyncAppPemArn,
+      ...aiTools.secretArns,
+      ...fusionauthSecretArns,
+    ],
+    projectionQueueArn: cognition.requireOutput('aiProjectionQueueArn'),
+    queueArns: [
+      ...aiTools.queueArns,
+      cognition.requireOutput('aiProjectionQueueArn'),
+      cloudStorageServiceStack.requireOutput('deleteChatQueueArn'),
+      extractor.requireOutput('documentTextExtractorLambdaQueueArn'),
+    ],
+    bucketArns: [
+      ...aiTools.bucketArns,
+      sessionChangesBucket.arn,
+      githubPullRequestPatchBucketArn,
+    ],
+    containerEnvVars: [
+      { name: 'DENO_BINARY', value: '/usr/local/bin/deno' },
+      {
+        name: 'CODEX_OAUTH_KMS_KEY_ID',
+        value: CODEX_OAUTH_KMS_ALIAS,
+      },
+      {
+        name: 'ENVIRONMENT',
+        value: stack,
+      },
+      {
+        name: 'AGENT_SESSION_CHANGES_BUCKET',
+        value: sessionChangesBucket.bucket,
+      },
+      {
+        name: 'GITHUB_PULL_REQUEST_PATCH_BUCKET',
+        value: githubPullRequestPatchBucketName,
+      },
+      // Datadog
+      {
+        name: 'DD_SERVICE',
+        value: 'agent-harness-service',
+      },
+      {
+        name: 'DD_ENV',
+        value: stack,
+      },
+    ],
+  },
+  { dependsOn: configurationSecrets }
+);
 
 export const agentHarnessServiceUrl = getServiceUrl(
   ServiceUrl.AGENT_HARNESS_SERVICE_URL
 );
 export const agentHarnessEgressUrl = pulumi.interpolate`${service.egressDomain}`;
 export const agentHarnessServiceRoleArn = service.role.arn;
+
+new aws.iam.RolePolicyAttachment('harness-connection-table', {
+  role: service.role.name,
+  policyArn: connection.requireOutput('connectionGatewayTablePolicyArn'),
+});

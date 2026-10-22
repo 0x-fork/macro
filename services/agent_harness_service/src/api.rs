@@ -69,6 +69,11 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     gateway: RuntimeGatewayState<Auth>,
     models: AgentModelsRouterState<Models, Auth>,
     repositories: AgentRepositoriesRouterState<Auth>,
+    public_mcp: Router,
+    listening: Option<tokio::sync::watch::Sender<bool>>,
+    cognition: Router,
+    scheduling: Router,
+    preview: Router,
     claude_auth: Router,
     sharing: Router,
     routine_sessions: Router,
@@ -101,6 +106,11 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             gateway,
             models,
             repositories,
+            public_mcp: Router::new(),
+            listening: None,
+            cognition: Router::new(),
+            scheduling: Router::new(),
+            preview: Router::new(),
             claude_auth: Router::new(),
             sharing: Router::new(),
             routine_sessions: Router::new(),
@@ -112,6 +122,36 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             code_executions: Router::new(),
             changes,
         }
+    }
+
+    /// Release background dispatch only once this process has bound HTTP.
+    pub fn with_listening_signal(mut self, listening: tokio::sync::watch::Sender<bool>) -> Self {
+        self.listening = Some(listening);
+        self
+    }
+
+    /// Mount the public MCP and OAuth routes outside the browser API middleware.
+    pub fn with_public_mcp(mut self, router: Router) -> Self {
+        self.public_mcp = router;
+        self
+    }
+
+    /// Mount chat, completions, and integrations at their existing public paths.
+    pub fn with_cognition(mut self, router: Router) -> Self {
+        self.cognition = router;
+        self
+    }
+
+    /// Attach routine APIs with their existing scheduling middleware.
+    pub fn with_scheduling(mut self, router: Router) -> Self {
+        self.scheduling = router;
+        self
+    }
+
+    /// Attach preview controls; public preview apps retain their isolated origin.
+    pub fn with_preview(mut self, router: Router) -> Self {
+        self.preview = router;
+        self
     }
 
     /// Attach model-specific harness capability discovery routes.
@@ -217,6 +257,11 @@ where
     Models: AgentModelsService,
     Changes: AgentChanges,
 {
+    let listening = states.listening.clone();
+    let public_mcp = states.public_mcp.clone();
+    let cognition = states.cognition.clone();
+    let scheduling = states.scheduling.clone();
+    let preview = states.preview.clone();
     let inner = api_router(states)
         .layer(MacroRequestIdAndTracingLayer::new(Duration::from_millis(200)).into_inner())
         .merge(health_router(runtime_commands_ready))
@@ -231,6 +276,10 @@ where
                 .quality(CompressionLevel::Fastest),
         );
     let app = mount_at_root_and_prefix(inner, GATEWAY_PATH_PREFIX)
+        .merge(cognition)
+        .merge(scheduling)
+        .merge(preview)
+        .merge(public_mcp)
         .merge(SwaggerUi::new("/docs").url("/api-doc/openapi.json", swagger::ApiDoc::openapi()))
         .merge(SwaggerUi::new("/agent-harness/docs").url(
             "/agent-harness/api-doc/openapi.json",
@@ -241,6 +290,9 @@ where
         .await
         .with_context(|| format!("failed to bind agent harness service to port {port}"))?;
 
+    if let Some(listening) = listening {
+        listening.send_replace(true);
+    }
     tracing::info!(port, "agent harness service http listening");
 
     axum::serve(listener, app.into_make_service())

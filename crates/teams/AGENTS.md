@@ -33,7 +33,7 @@ event contract (schema, sanitization, delivery semantics).
   `analytics_client`, `ai_toolset` (feature `ai_tools`).
 - Used by: `services/authentication_service`, `services/document_storage_service`,
   `services/calendar_service`, `services/agent_harness_service`,
-  `services/mcp_service`, `services/scheduled_action`, `crates/ai_tools`,
+  `services/agent_harness_service`, `crates/scheduled_action`, `crates/ai_tools`,
   `crates/ai_billing`, `crates/calendar_scheduling`.
 
 ## Recipes

@@ -312,7 +312,7 @@
             "--all-features"
             "--bin document_storage_service_openapi"
             "--bin properties_service_openapi"
-            "--bin document_cognition_service_openapi"
+            "--bin agent_harness_cognition_openapi"
             "--bin authentication_service_openapi"
             "--bin notification_service_openapi"
             "--bin static_file_service_openapi"
@@ -323,7 +323,6 @@
             "--bin email_service_openapi"
             "--bin search_service_openapi"
             "--bin scheduled_action_openapi"
-            "--bin document_cognition_service_models"
             "--bin gen_tool_schemas"
           ];
         }
@@ -357,19 +356,9 @@
 
       deployServiceBinaryDefinitions = [
         {
-          serviceName = "preview-gateway";
-          packageName = "preview_gateway";
-          binaries = [ "preview_gateway" ];
-        }
-        {
           serviceName = "agent-harness-service";
           packageName = "agent_harness_service";
           binaries = [ "agent_harness_service" ];
-        }
-        {
-          serviceName = "agent-schedule-service";
-          packageName = "scheduled_action";
-          binaries = [ "service" ];
         }
         {
           serviceName = "authentication-service";
@@ -397,11 +386,6 @@
           binaries = [ "convert_service" ];
         }
         {
-          serviceName = "document-cognition-service";
-          packageName = "document_cognition_service";
-          binaries = [ "document_cognition_service" ];
-        }
-        {
           serviceName = "document-storage-service";
           packageName = "document_storage_service";
           binaries = [ "document_storage_service" ];
@@ -423,11 +407,6 @@
           serviceName = "image-proxy-service";
           packageName = "image_proxy_service";
           binaries = [ "image_proxy_service" ];
-        }
-        {
-          serviceName = "mcp-server";
-          packageName = "mcp_service";
-          binaries = [ "mcp_service" ];
         }
         {
           serviceName = "notification-service";
@@ -569,17 +548,13 @@
       );
 
       localStackDeployServiceNames = [
-        "preview-gateway"
         "agent-harness-service"
-        "agent-schedule-service"
         "calendar-service"
         "connection-gateway"
         "contacts-service"
-        "document-cognition-service"
         "document-storage-service"
         "email-service"
         "image-proxy-service"
-        "mcp-server"
         "notification-service"
         "static-file-service"
         "unfurl-service"
@@ -1011,7 +986,7 @@
             crateToDir = {
               document_storage_service = "service-storage";
               properties_service = "service-properties";
-              document_cognition_service = "service-cognition";
+              agent_harness_cognition = "service-cognition";
               authentication_service = "service-auth";
               notification_service = "service-notification";
               static_file_service = "service-static-files";

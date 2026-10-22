@@ -1,5 +1,11 @@
 import { stack } from '.';
 
+/** Public OAuth identities remain stable when their processes move to the harness. */
+export const AGENT_PUBLIC_URLS = {
+  cognition: `https://document-cognition${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
+  mcp: `https://mcp-server${stack === 'prod' ? '' : `-${stack}`}.macro.com`,
+};
+
 /**
  * Service url for all macro services
  */

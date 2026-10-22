@@ -25,8 +25,8 @@ AI system prompts: one module per prompt section, each exporting a
 ## Boundaries
 
 - Used by: `ai_tools`, `agent_inmem`, `channel_bots`, `agent`,
-  `system_skills`, `services/document_cognition_service`,
-  `services/mcp_service`, `services/agent_harness_service`.
+  `system_skills`, `services/agent_harness_service`,
+  `services/agent_harness_service`, `services/agent_harness_service`.
 
 ## Recipes
 

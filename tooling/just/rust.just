@@ -60,7 +60,6 @@ build_lambdas compiler="":
     ulimit -n 10240 && just services/email_scheduled_handler/build {{compiler}}
     ulimit -n 10240 && just services/email_sfs_delete_handler/build {{compiler}}
     ulimit -n 10240 && just services/image_optimizer/build {{compiler}}
-    ulimit -n 10240 && just services/ai_projections_refresh_handler/build {{compiler}}
 
 # TESTING
 
@@ -69,14 +68,13 @@ setup_test_envs:
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/contacts/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/delete_chat_handler/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/email_sfs_delete_handler/.env
-    echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/scheduled_action/.env
+    echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/scheduled_action/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/notification_db_client/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/notification/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/macro_db_client/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/email_db_client/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/email_refresh_handler/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/comms_db_client/.env
-    echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/document_cognition_service/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/document_text_extractor/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/organization_retention_handler/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/organization_retention_trigger/.env
@@ -123,7 +121,6 @@ setup_test_envs:
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/call_recording_preview_handler/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/share_permission_db_utils/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/ai_projections/.env
-    echo "DATABASE_URL={{ DATABASE_URL }}" >> ./services/ai_projections_refresh_handler/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/ai_billing/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/webhook/.env
     echo "DATABASE_URL={{ DATABASE_URL }}" >> ./crates/calendar_events/.env

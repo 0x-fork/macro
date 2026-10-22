@@ -74,7 +74,7 @@ models_permissions = { path = "../models_permissions" }
 models_properties = { path = "../models_properties" }
 models_soup = { path = "../models_soup" }
 rootcause = { workspace = true }
-scheduled_action = { path = "../../services/scheduled_action" }
+scheduled_action = { path = "../scheduled_action" }
 serde = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }

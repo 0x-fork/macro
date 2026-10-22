@@ -338,3 +338,9 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 3. **Run it on the device, not the Simulator**, with Safari Web Inspector attached (Develop → the iPhone → the Macro webview), filter the console by the prefix, reproduce, and read the order. A `mousedown` arriving after a `pointerdown` logged with `defaultPrevented: true`, followed by `focusout` whose `relatedTarget` is a container, is this bug.
 
 4. **Strip the instrumentation before committing.**
+
+### Agent backend hosting
+
+Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Direct local hosts use port 8101 with the existing feature prefixes; the
+instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.

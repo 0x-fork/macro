@@ -60,3 +60,7 @@ For the standalone marketing site, verify cold product-page navigation with the
 route module delayed: prerendered content must remain until the page is ready.
 On mobile, the single hamburger opens and closes navigation; there is no separate
 caret. Check Escape focus return and keyboard wrapping inside the open menu.
+
+Agent API hosting: chat, routines, preview control, and public MCP share the
+agent harness service; browser gateway paths remain unchanged. See the
+[service consolidation guide](../guides/consolidate-agent-services.md).

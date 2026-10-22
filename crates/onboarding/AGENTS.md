@@ -26,7 +26,7 @@ connectors authenticate during onboarding.
 
 - Depends on: `import`, `mcp_client`, `mcp_select`, `generic_email_domains`,
   `macro_authorization`.
-- Used by: `services/document_cognition_service`,
+- Used by: `services/agent_harness_service`,
   `services/authentication_service` (onboarding deletes its row during
   account deletion).
 
