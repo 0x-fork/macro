@@ -2294,7 +2294,12 @@ keeps the default behavior.
 
 1. `Create` → `Document D`. The app navigates to `/app/md/<uuid>` with the **title field
    focused**.
-2. `type_text` the title, then `submitKey: "Enter"` to drop into the body.
+2. `type_text` the title, then `submitKey: "Enter"` to drop into the body. Tab
+   from the title also moves to the start of the body, without inserting a
+   paragraph. While a document is open, Tab and Shift+Tab never switch the
+   hosting view's tabs (e.g. Drive's My Files / Recent): opened from Drive,
+   focus a non-editable control in the document, press Tab, and the
+   document must stay open.
 3. Type paragraphs with plain `type_text`; use Enter between paragraphs. Do NOT use `fill` —
    the editor is contenteditable and `fill` does not work on it.
 4. The document auto-saves continuously (collaborative CRDT; no save button). The tab title

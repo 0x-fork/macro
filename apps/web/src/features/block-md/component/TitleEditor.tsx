@@ -35,6 +35,7 @@ import {
   KEY_ARROW_RIGHT_COMMAND,
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
+  KEY_TAB_COMMAND,
   type LexicalEditor,
 } from 'lexical';
 import {
@@ -119,6 +120,21 @@ function titleNavigationPlugin(
 
           event?.preventDefault();
           // A node selection places no DOM caret, so focus the body first.
+          documentEditor.getRootElement()?.focus({ preventScroll: true });
+          documentEditor.update($selectDocumentStart);
+          return true;
+        },
+        COMMAND_PRIORITY_NORMAL
+      ),
+      // Press tab in the title. Without this the browser moves focus to the
+      // tag controls below the title instead of the body.
+      titleEditor.registerCommand(
+        KEY_TAB_COMMAND,
+        (event: KeyboardEvent) => {
+          if (ignoreArrows()) return true;
+          if (event.shiftKey) return false;
+
+          event.preventDefault();
           documentEditor.getRootElement()?.focus({ preventScroll: true });
           documentEditor.update($selectDocumentStart);
           return true;
