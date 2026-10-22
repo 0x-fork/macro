@@ -757,6 +757,16 @@
         };
       };
       tauriDesktopDmgSigningIdentity = builtins.getEnv "APPLE_SIGNING_IDENTITY";
+      # The Developer ID provisioning profile that authorizes the communication
+      # notifications entitlement. Profiles ship inside every app, so copying
+      # it to the store exposes nothing.
+      tauriDesktopDmgProvisioningProfilePath = builtins.getEnv "MACOS_PROVISIONING_PROFILE";
+      tauriDesktopDmgProvisioningProfile = lib.optionalString (tauriDesktopDmgProvisioningProfilePath != "") (
+        builtins.path {
+          path = /. + tauriDesktopDmgProvisioningProfilePath;
+          name = "macro.provisionprofile";
+        }
+      );
       tauriDesktopDmgAppleLd = pkgs.writeShellScriptBin "ld" ''
         appleDeveloperDir=$(
           unset DEVELOPER_DIR
@@ -952,6 +962,7 @@
         pname = "macro-tauri-desktop-dmg";
         version = appVersion;
         APPLE_SIGNING_IDENTITY = tauriDesktopDmgSigningIdentity;
+        MACOS_PROVISIONING_PROFILE = tauriDesktopDmgProvisioningProfile;
         nativeBuildInputs = [
           pkgs.coreutils
           (pkgs.python3.withPackages (ps: [ ps.ds-store ]))
@@ -962,6 +973,10 @@
         installPhase = ''
           if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
             echo "APPLE_SIGNING_IDENTITY must be set when building the signed macOS DMG; use nix build --impure." >&2
+            exit 1
+          fi
+          if [ "$APPLE_SIGNING_IDENTITY" != "-" ] && [ -z "$MACOS_PROVISIONING_PROFILE" ]; then
+            echo "MACOS_PROVISIONING_PROFILE must name the Developer ID provisioning profile when signing with a Developer ID; use nix build --impure." >&2
             exit 1
           fi
           export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -1071,16 +1086,53 @@
             fi
 
             # Helper executables (the macrod sidecar) must be signed
-            # individually for notarization; the --deep pass below re-seals
-            # the bundle on top of them.
+            # individually for notarization.
             while IFS= read -r -d "" file; do
               if otool -hv "$file" >/dev/null 2>&1; then
                 codesign "''${executable_sign_args[@]}" "$file"
               fi
             done < <(find "$app/Contents/MacOS" -type f -print0)
 
-            codesign "''${executable_sign_args[@]}" --deep "$app"
+            # Nested code is signed above, so seal the bundle without --deep:
+            # the app's restricted entitlements must not reach the CEF helpers
+            # or the macrod sidecar.
+            local -a app_sign_args=("''${executable_sign_args[@]}")
+            if [ "$APPLE_SIGNING_IDENTITY" != "-" ]; then
+              cp "$MACOS_PROVISIONING_PROFILE" "$app/Contents/embedded.provisionprofile"
+              write_app_entitlements "$app" "$TMPDIR/macro.entitlements"
+              app_sign_args=("''${sign_args[@]}" --entitlements "$TMPDIR/macro.entitlements")
+            fi
+            codesign "''${app_sign_args[@]}" "$app"
             codesign --verify --deep --strict --verbose=2 "$app"
+          }
+
+          # Add the profile-backed entitlements to CEF's, after checking the
+          # profile grants them to this bundle identifier. Communication
+          # notifications show senders' avatars in macOS notifications.
+          write_app_entitlements() {
+            local app="$1" out="$2"
+            local profile="$TMPDIR/macro-provisionprofile.plist"
+            security cms -D -i "$MACOS_PROVISIONING_PROFILE" > "$profile"
+            local team_id bundle_id app_id communication
+            team_id=$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile")
+            bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist")
+            app_id=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' "$profile")
+            if [ "$app_id" != "$team_id.$bundle_id" ]; then
+              echo "Provisioning profile is for $app_id, not $team_id.$bundle_id" >&2
+              exit 1
+            fi
+            communication=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.developer.usernotifications.communication' "$profile" 2>/dev/null || true)
+            if [ "$communication" != "true" ]; then
+              echo "Provisioning profile does not grant com.apple.developer.usernotifications.communication" >&2
+              exit 1
+            fi
+            cp ${../apps/web/tauri/desktop-cef/entitlements.plist} "$out"
+            chmod u+w "$out"
+            /usr/libexec/PlistBuddy \
+              -c "Add :com.apple.application-identifier string $app_id" \
+              -c "Add :com.apple.developer.team-identifier string $team_id" \
+              -c 'Add :com.apple.developer.usernotifications.communication bool true' \
+              "$out"
           }
 
           bundle_nix_dylibs "$appPath"

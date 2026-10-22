@@ -110,6 +110,10 @@ fn configure_signing_identity() -> Step<Run> {
             "MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD",
             vars::MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD,
         ))
+        .add_env((
+            "MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64",
+            vars::MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64,
+        ))
 }
 
 fn nix_build_dmg() -> Step<Run> {

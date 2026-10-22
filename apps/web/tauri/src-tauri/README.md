@@ -323,6 +323,23 @@ builds ignore the added ID and cannot navigate. Previously delivered alerts have
 no destination to recover. Verify the [notification walkthrough](../../../../docs/agent-guide/notifications.md)
 in an installed macOS bundle before release.
 
+`send_macos_notification` also takes an optional `subtitle` (the conversation),
+`threadId` (stacks a conversation's alerts), and `sender` (`id`, `name`,
+`avatarUrl`). A sender makes it a communication notification, as on iOS: the
+downloaded avatar replaces the app icon and group conversations show their name.
+The new arguments are optional, so older frontends and native builds keep
+working together. macOS honors this only for an app signed with the restricted
+`com.apple.developer.usernotifications.communication` entitlement and
+`INSendMessageIntent` in `NSUserActivityTypes`; local and ad-hoc builds show the
+plain title and subtitle. A Developer ID build carries the entitlement only with
+an embedded provisioning profile, so the release workflow requires the
+`MACOS_DEVELOPER_ID_PROVISIONING_PROFILE_BASE64` secret next to the certificate.
+Create it in the Apple Developer portal: enable **Communication Notifications**
+on the `com.macro.app.prod` App ID, create a **Developer ID** macOS provisioning
+profile for that App ID and the certificate, and store the base64 profile as the
+secret. The DMG build fails if the profile is missing or does not grant the
+entitlement to the bundle identifier; renew the secret when the profile expires.
+
 Linux notification activation requires `send_linux_notification` and
 `close_linux_notification`. Ship a full native AppImage containing these commands;
 a frontend-only update cannot add clickable system notifications. Before publishing

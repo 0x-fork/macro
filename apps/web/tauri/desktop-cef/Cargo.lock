@@ -276,6 +276,8 @@ dependencies = [
  "objc2 0.5.3",
  "objc2 0.6.5",
  "objc2-foundation",
+ "objc2-intents",
+ "objc2-ui-kit",
  "objc2-user-notifications",
  "reqwest",
  "rootcause",
@@ -821,6 +823,7 @@ dependencies = [
  "chrono",
  "lru",
  "maybe_send",
+ "miniz_oxide 0.8.9",
  "postcard",
  "predicate-index",
  "serde",
@@ -4112,6 +4115,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "uuid",
  "zip 6.0.0",
 ]
 
@@ -4769,6 +4773,17 @@ dependencies = [
  "libc",
  "objc2 0.6.5",
  "objc2-core-foundation",
+]
+
+[[package]]
+name = "objc2-intents"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80fac082e6de12282b24ea745e9707cd374363c7ae0b2f813bf1813cfc289325"
+dependencies = [
+ "block2",
+ "objc2 0.6.5",
+ "objc2-foundation",
 ]
 
 [[package]]

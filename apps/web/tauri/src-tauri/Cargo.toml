@@ -94,8 +94,23 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "NSBundle",
+  "NSData",
   "NSError",
   "NSString",
+] }
+objc2-intents = { version = "0.3", default-features = false, features = [
+  "std",
+  "block2",
+  "INImage",
+  "INIntent",
+  "INIntentResponse",
+  "INInteraction",
+  "INOutgoingMessageType",
+  "INPerson",
+  "INPersonHandle",
+  "INSendMessageAttachment",
+  "INSendMessageIntent",
+  "INSpeakableString",
 ] }
 objc2-user-notifications = { version = "0.3", default-features = false, features = [
   "std",
@@ -105,6 +120,7 @@ objc2-user-notifications = { version = "0.3", default-features = false, features
   "UNNotificationContent",
   "UNNotificationRequest",
   "UNNotificationSettings",
+  "UNNotificationSound",
   "UNNotificationTrigger",
   "UNUserNotificationCenter",
 ] }

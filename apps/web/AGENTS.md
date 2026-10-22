@@ -241,7 +241,11 @@ Install and retain the UserNotifications delegate before the native event loop
 starts. Clicking restores and focuses the main window; receipt and dismissal do
 not navigate. Preserve iOS and Android `createPushApi` tap navigation when changing
 desktop delivery, including buffered launch taps before device registration.
-This requires a native macOS release; see the
+Send the sender and conversation as their own fields so macOS can show a
+communication notification (avatar, sender, conversation); keep new native
+arguments optional for OTA compatibility. Releases need the Developer ID
+provisioning profile for the communication entitlement; see
+`tauri/src-tauri/README.md`. This requires a native macOS release; see the
 [notification walkthrough](../../docs/agent-guide/notifications.md).
 
 ## Desktop page zoom
