@@ -593,7 +593,7 @@ where
     /// finalize. The fallback Haiku session exists for pages this can't
     /// handle — routing page content through a model means re-emitting the
     /// whole page as output tokens, which is an order of magnitude slower.
-    #[tracing::instrument(skip(self, user, mcp_tools, row), fields(id = %row.id), err)]
+    #[tracing::instrument(skip(self, user, mcp_tools, row), fields(id = %row.id), err(level = "debug"))]
     async fn import_notion_page_direct<M: ToolSet<()>>(
         &self,
         user: &MacroUserIdStr<'static>,
