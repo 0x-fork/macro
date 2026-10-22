@@ -30,6 +30,7 @@ function useProductionContext(): ConnectorImportContext {
 
   // Opens the OAuth tab synchronously, inside the click, so it isn't blocked.
   function connectNative(app: {
+    appSlug: string;
     name: string;
     mcpUrl: string;
   }): Promise<ConnectOutcome> {
@@ -37,6 +38,7 @@ function useProductionContext(): ConnectorImportContext {
     return Telemetry.span(
       'mcp.authorize',
       async (span): Promise<ConnectOutcome> => {
+        span.setAttr('connector.app_slug', app.appSlug);
         span.setAttr('connector.server_url', app.mcpUrl);
         try {
           const { authorization_url } = await startMcpAuth.mutateAsync({
@@ -44,6 +46,7 @@ function useProductionContext(): ConnectorImportContext {
             server_name: app.name,
           });
           assignOauthUrl(popup, authorization_url);
+          span.setAttr('connector.outcome', 'started');
           return 'started';
         } catch (error) {
           popup?.close();
@@ -80,7 +83,7 @@ function useProductionContext(): ConnectorImportContext {
     },
     connect: (app, container) =>
       app.mcpUrl
-        ? connectNative({ name: app.name, mcpUrl: app.mcpUrl })
+        ? connectNative({ ...app, mcpUrl: app.mcpUrl })
         : connectPipedreamApp({
             appSlug: app.appSlug,
             serverName: app.name,
