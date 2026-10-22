@@ -147,14 +147,16 @@ function HomeThreadTitle(
     const entity = props.entity;
     if (entity.type !== 'channel_thread') return undefined;
     const notification = entity.notifications?.()?.[0];
-    if (
-      notification?.notification_metadata?.tag === 'channel_message_reply' ||
-      notification?.notification_metadata?.tag === 'channel_mention'
-    ) {
+    if (notification) {
+      // The row's scoped notifications also include document mentions and
+      // reactions; none should fall back to the thread's original author.
+      const content = notification.notification_metadata.content;
       return {
         id: notification.sender_id,
         displayName:
-          notification.notification_metadata.content.senderDisplayName,
+          'senderDisplayName' in content
+            ? content.senderDisplayName
+            : undefined,
         details: undefined,
       };
     }

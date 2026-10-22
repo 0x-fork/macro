@@ -11,7 +11,11 @@ vi.mock('@app/features/agents-view/views/AgentSessionListItem', () => ({
 vi.mock('@core/context/user', () => ({ useUserId: () => () => 'test-user' }));
 vi.mock('@core/user', () => ({
   getDisplayName: (id: string) =>
-    id === 'macro|teo@macro.com' ? 'Teo' : 'Peter',
+    id === 'macro|teo@macro.com'
+      ? 'Teo'
+      : id === 'macro|eric.hayes@macro.com'
+        ? 'Eric'
+        : 'Peter',
   tryMacroId: (id: string) => id,
 }));
 vi.mock('@components/app/split-panel', () => ({
@@ -61,19 +65,22 @@ describe('Home channel reply row', () => {
     },
   });
 
-  const renderThread = (initial: UnifiedNotification[] = []) => {
+  const renderThread = (
+    initial: UnifiedNotification[] = [],
+    senderId = 'macro|peter@macro.com'
+  ) => {
     const [notifications, setNotifications] = createSignal(initial);
     const entity: WithNotification<ChannelThreadEntity> = {
       type: 'channel_thread',
       id: 'root',
       name: 'bug-reports',
-      ownerId: 'macro|peter@macro.com',
+      ownerId: senderId,
       channelId: 'bug-reports',
       channelType: 'private',
       messageId: 'root',
       threadId: 'root',
-      senderId: 'macro|peter@macro.com',
-      sender: { id: 'macro|peter@macro.com', type: 'user' },
+      senderId,
+      sender: { id: senderId, type: 'user' },
       content: 'calendar invite has raw html',
       attachments: [],
       reactions: [],
@@ -141,6 +148,47 @@ describe('Home channel reply row', () => {
 
   it('uses the thread author when there is no notification', () => {
     expect(renderThread().row.textContent).toContain('Peter in #bug-reports');
+  });
+
+  it('keeps the reply sender when the same message also mentions a document', () => {
+    const reply = replyNotification('macro|eric.hayes@macro.com');
+    const { row, setNotifications } = renderThread([reply], 'test-user');
+    expect(row.textContent).toContain('Eric in #bug-reports');
+
+    const documentMention: UnifiedNotification = {
+      ...reply,
+      id: 'document-mention',
+      created_at: '2026-10-01T16:34:48.028Z',
+      updated_at: '2026-10-01T16:34:48.028Z',
+      notification_event_type: 'document_mention',
+      notification_metadata: {
+        tag: 'document_mention',
+        content: {
+          messageId: 'reply',
+          messageContent: 'Reply with a document mention',
+          threadId: 'root',
+          channelType: 'private',
+          documentName: 'Owners',
+          owner: 'macro|teo@macro.com',
+          fileType: 'md',
+          subType: null,
+          senderDisplayName: null,
+        },
+      },
+    };
+    setNotifications([documentMention, reply]);
+    expect(row.textContent).toContain('Eric in #bug-reports');
+    expect(row.textContent).not.toContain('You in');
+
+    setNotifications([{ ...documentMention, state: 'done' }, reply]);
+    expect(row.textContent).toContain('Eric in #bug-reports');
+
+    setNotifications([
+      replyNotification(null, 'Macro'),
+      documentMention,
+      reply,
+    ]);
+    expect(row.textContent).toContain('Macro in #bug-reports');
   });
 
   it('does not attribute an unnamed bot reply to the thread author', () => {

@@ -79,7 +79,11 @@ Channel thread replies remain separate Home entries from their parent channel,
 using single-line rows and a reply arrow icon on desktop, labeled
 with the sender and channel (for example, **Peter in #battlefield**). Replies and
 mentions name the latest notification's sender, including bots, even after the
-notification is read. To verify, mention yourself from a second account in a
+notification is read. Document-mention and reaction notifications also name
+their sender, never the thread's original author. Verify a reply containing a
+document chip in your own thread: the row must keep the replier's name when
+the document-mention notification arrives, including after it is marked done.
+To verify user mentions, mention yourself from a second account in a
 thread started by someone else: the row must name the mentioner and open their
 message. Channel names
 prefer the current channel cache, then a matching thread notification's name,
