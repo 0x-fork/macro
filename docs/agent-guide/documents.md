@@ -2599,6 +2599,11 @@ without changing the card size or header text wrapping. New comments, replies,
 and edits use plain inputs on the card or drawer's background. On desktop, with
 the margin card focused: Enter opens a reply (same as the Reply action; Enter in
 the composer then sends), and Escape closes the reply composer, then the card.
+A press anywhere outside the comments and the document text (another split, the
+sidebar, the document header or empty page) returns a selected card and its
+highlighted text to their resting state; menus and dialogs opened from the card
+do not, and an unsent new comment keeps its composer. Clicking the commented
+text again selects the card again.
 The pinned reply keeps at least 16px of
 bottom clearance above the drawer's curve, including while the keyboard is open,
 and accounts for the home-indicator safe area when the keyboard is closed.
