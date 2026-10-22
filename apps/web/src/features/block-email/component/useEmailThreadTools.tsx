@@ -264,6 +264,7 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
       icon: TrashIcon,
       action: trashThread,
       condition: isOwnThread,
+      hotkeyToken: TOKENS.email.trash,
     },
     {
       group: 'sender',
