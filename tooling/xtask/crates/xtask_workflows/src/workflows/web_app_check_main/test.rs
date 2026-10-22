@@ -20,6 +20,28 @@ fn android_native_check_is_an_unconditional_required_merge_check() {
     assert!(android.contains("bun scripts/android-version-check.mjs"));
     assert!(android.contains("bun scripts/android-play-status.mjs --version-code"));
     assert!(android.contains("id-token: write"));
+    // skip-android-update bypasses the bump too, like skip-ios-update: the
+    // labels are read first, and the version check only runs without it.
+    let labels = android.find("id: labels").expect("labels step");
+    let version = android
+        .find("id: android-version")
+        .expect("version check step");
+    assert!(
+        labels < version,
+        "labels must be read before the version check: {android}"
+    );
+    let version_step = android[version..]
+        .split("\n    - ")
+        .next()
+        .expect("version check step body");
+    assert!(
+        version_step.contains("if: steps.labels.outputs.skip != 'true'"),
+        "the version check runs only without the skip label: {android}"
+    );
+    assert!(
+        !android.contains("!steps.labels"),
+        "never negate a comparison with a leading `!`: {android}"
+    );
     let status = yaml
         .split("\n  status-check:\n")
         .nth(1)

@@ -137,16 +137,20 @@ job of the web app PR checks enforce it:
 
 **`Android Native Check`** runs on every PR against `main`. Its native tree
 excludes platform-specific desktop/iOS files and Markdown docs, which do not
-ship in the Android binary. It always requires a `versionCode` bump when the
-Android native code changed (see
-"Native release identity" above for what counts), and, when it changed, asks
-Google Play whether that version code is a production release that Google
-has **published** (through review and available to users — the edit API's
-`status: completed` only describes the rollout, so the gate also reads the
-release list's `releaseLifecycleState`), built from the native code of the
-PR's merge result. Until both hold the check fails and the required
-`Web App Status Check` fails with it. Add **`skip-android-update`** for
-native changes that don't break the native/web contract; the `Native Check
+ship in the Android binary (`apps/web/scripts/android-native.mjs` defines
+what counts). When the Android native code changed, it requires a
+`versionCode` bump and asks Google Play whether that version code is a
+production release that Google has **published** (through review and
+available to users — the edit API's `status: completed` only describes the
+rollout, so the gate also reads the release list's `releaseLifecycleState`),
+built from the native code of the PR's merge result. Until both hold the
+check fails and the required `Web App Status Check` fails with it.
+
+Add **`skip-android-update`** instead for native changes that don't break
+the native/web contract: it skips the whole gate, bump included, like
+`skip-ios-update`. Such a PR never releases, and the bump only feeds the
+Play release, which checks it again before building; the next PR that
+releases bumps against whatever `main` has by then. The `Native Check
 Label` workflow re-runs just the gate job when that label is added or
 removed.
 
