@@ -113,6 +113,9 @@ maintenance window:
    replacements. Preview and apply this staged harness while the old feature
    services remain live. Explicitly wait for two healthy combined tasks:
    `continueBeforeSteadyState` means Pulumi completion alone is insufficient.
+   After an ECS rollback, verify and restore the full service configuration,
+   including both security groups and all intended target attachments; retrying
+   only the task definition can leave preview ingress blocked.
 4. In that checkout, restore the three feature rules with their final logical
    resource names, temporarily using verified unused priorities numerically
    lower than the old rules. Keep preview target attachments omitted. Preview
@@ -135,12 +138,18 @@ maintenance window:
    step: omitted resources can cause Pulumi to demand their deletion. Apply
    those exact DNS-only plans, wait at least two observed DNS TTLs, and verify
    the original URLs through normal DNS before applying the retirement programs.
-6. Apply the retired `mcp-server` and `agent-schedule-service` stack programs,
-   then `document-cognition` (directory `document-cognition-service`). Remove
-   their old ECS services and rules, plus cognition's refresh Lambda/EventBridge
-   rules, retaining the projection queue and DLQ. The temporary harness rules
-   continue serving traffic. The retired MCP and scheduler stacks are no longer
-   automatic service builds; do not destroy the shared gateway or database.
+6. In the old-source cognition checkout, preview a targeted
+   `pulumi destroy --target <refresh-lambda-urn> --target-dependents --preview-only`.
+   Verify
+   that it deletes only the refresh function, its invocation permissions and
+   EventBridge targets, and its alarms. Keep the execution role, EC2 cleanup
+   permissions, and Lambda security group. Repeat without `--preview-only`,
+   then wait for its VPC network interfaces to disappear before removing the
+   role or security group. Do not run the old program again after this deletion:
+   it would recreate the function. See [AWS VPC cleanup guidance](https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html).
+   Apply the retired MCP, scheduler, and cognition stack programs, retaining
+   the projection queue and DLQ. The temporary harness rules continue serving
+   traffic. Do not destroy the shared gateway or database.
 7. Apply network-only `preview-gateway`, removing its ECS task while retaining
    the domain, certificates, HTTPS/SSH load balancers, security group, and target
    groups. Preserve the control target group's default port to avoid replacing
