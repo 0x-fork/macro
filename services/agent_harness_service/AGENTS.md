@@ -24,9 +24,6 @@ Pulumi stacks; they do not host extra agent processes.
 - `src/internal_mcp.rs`: the internal MCP server exposed to running sessions.
 - `src/public_mcp.rs` + `src/public_mcp/`: public workspace MCP and OAuth;
   reuses the harness tool context and retains bearer authentication.
-- `OPENAI_SUBMISSION.md` + `openai-plugin-package/`: OpenAI submission assets;
-  `src/public_mcp.rs` preserves the domain verification endpoint configured by
-  `OPENAI_DOMAIN_VERIFICATION_TOKEN`.
 - `src/cognition/`: existing chat, completions, integrations, and projection
   workers; the library also exports their OpenAPI document.
 - `src/scheduling.rs`: routine HTTP routes and background scheduling;

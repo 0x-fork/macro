@@ -372,13 +372,7 @@ export class AgentHarnessService extends pulumi.ComponentResource {
             conditions: [
               {
                 pathPattern: {
-                  values: [
-                    prefix,
-                    `${prefix}/*`,
-                    ...(service === GatewayService.MCP_SERVER
-                      ? ['/.well-known/openai-apps-challenge']
-                      : []),
-                  ],
+                  values: [prefix, `${prefix}/*`],
                 },
               },
             ],

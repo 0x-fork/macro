@@ -33,13 +33,6 @@ const DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS: [&str; 5] = [
     "www.cursor.com",
 ];
 
-/// Preserve the public MCP domain verification endpoint from the former host.
-async fn openai_domain_verification() -> String {
-    crate::config::OpenaiDomainVerificationToken::new()
-        .and_then(|token| token.value().map(str::to_string))
-        .unwrap_or_else(|| "PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN".to_string())
-}
-
 /// Build public MCP routes using the harness's shared tools and identities.
 pub async fn router(
     config: &Config,
@@ -101,10 +94,6 @@ pub async fn router(
     // browser API layers, with the same tracing layer as the harness API.
     Ok(
         mcp_auth_proxy::inbound::axum_router::mounted_mcp_router(auth_proxy, jwt_args, mcp_service)
-            .route(
-                "/.well-known/openai-apps-challenge",
-                axum::routing::get(openai_domain_verification),
-            )
             .layer(
                 macro_tower_layers::MacroRequestIdAndTracingLayer::new(
                     std::time::Duration::from_millis(200),

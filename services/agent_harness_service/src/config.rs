@@ -375,6 +375,4 @@ macro_env_var::maybe_env_vars! {
     pub struct FusionauthPublicUrl;
     /// Optional public MCP OAuth configuration.
     pub struct McpAllowedRedirectHosts;
-    /// OpenAI domain verification token for ChatGPT Apps Directory submission.
-    pub struct OpenaiDomainVerificationToken;
 }
