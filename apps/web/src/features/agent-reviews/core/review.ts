@@ -8,8 +8,6 @@ export type Review = {
   revision: number;
   updatedAt: number;
   presentedAt?: number | null;
-  notificationId?: string | null;
-  notificationAttemptAt?: number | null;
   items: ReviewItem[];
 };
 export type ReviewItem = {

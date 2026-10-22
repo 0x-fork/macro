@@ -76,6 +76,7 @@ async fn prompted_by(rig: &Rig, user: Option<MacroUserIdStr<'static>>) {
         .set_turn_prompter(
             rig.session,
             &TurnPrompter {
+                kind: agent_session::domain::model::PrompterKind::User,
                 action_id: AgentActionId::mint(),
                 user,
             },

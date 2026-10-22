@@ -31,6 +31,9 @@ agent loop.
 - Depends on: `macro_env_var` (reads `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`).
 - Used by: `agent`, `agent_inmem`, `agent_session`, `ai_toolset`.
 
+`propagation::link` connects delayed outbox delivery to each producer's span
+without replacing the delivery worker's own parent.
+
 ## Checks
 
 - `cargo test -p genai_telemetry`.

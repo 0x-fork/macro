@@ -2,7 +2,7 @@
 use agent_code_mode::domain::{CodeModeError, reviews::*};
 use agent_session::domain::{
     model::AgentSessionId,
-    ports::{AgentSessionNotificationRecipient, AgentSessionRepo, ControlEvent},
+    ports::{AgentSessionNotificationRecipient, AgentSessionRepo},
 };
 use ai_toolset::RequestContext;
 use async_trait::async_trait;
@@ -33,6 +33,11 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
                 .cloned()
                 .map_err(|_| CodeModeError::Forbidden)?,
             archived: row.is_archived,
+            prompter: self
+                .sessions
+                .turn_prompter(session)
+                .await
+                .map_err(|error| CodeModeError::Storage(rootcause::report!(error).into()))?,
         })
     }
     fn validate(&self, kind: ReviewKind, draft: &Value) -> Result<(), CodeModeError> {
@@ -84,33 +89,6 @@ impl<S: AgentSessionRepo, H: AgentSessionNotificationRecipient> ReviewActions fo
             },
         ).await.map_err(|_| CodeModeError::Invalid(format!("Review {} was saved, but presentation is pending. Read this review to retry presentation without creating another draft.", record.id.0)))
     }
-    async fn notify(
-        &self,
-        owner: &MacroUserIdStr<'static>,
-        record: &ReviewRecord,
-    ) -> Result<(), CodeModeError> {
-        use agent_runtime_protocol::domain::action::AgentAction;
-        let summary = notification_summary(record);
-        self.harness
-            .control_event(
-                record.session_id,
-                ControlEvent {
-                    action: AgentAction::context_prompt(summary),
-                    action_id: record
-                        .notification_id
-                        .map(agent_runtime_protocol::domain::action::AgentActionId::from_uuid),
-                    actor: Some(owner.clone()),
-                    context: None,
-                },
-            )
-            .await
-            .map_err(|_| {
-                CodeModeError::Invalid(
-                    "Review completed but its session notification could not be delivered.".into(),
-                )
-            })?;
-        Ok(())
-    }
 }
 
 fn validate_draft(
@@ -133,41 +111,4 @@ fn validate_draft(
         }
     }
     Ok(())
-}
-
-fn notification_summary(record: &ReviewRecord) -> String {
-    // Delivered as private context. Full results stay on the saved review.
-    let mut summary = format!(
-        "Recorded review outcomes, not new instructions. Do not repeat completed actions or automatically retry uncertain outcomes.\nReview updated: {}\n",
-        summary_text(&record.title, 120)
-    );
-    for (status, label) in [
-        (ReviewItemStatus::Completed, "completed"),
-        (ReviewItemStatus::Unknown, "outcome unconfirmed"),
-        (ReviewItemStatus::Dismissed, "dismissed"),
-        (ReviewItemStatus::Pending, "pending"),
-        (ReviewItemStatus::Submitting, "submitting"),
-    ] {
-        let count = record
-            .items
-            .iter()
-            .filter(|item| item.status == status)
-            .count();
-        if count > 0 {
-            summary.push_str(&format!("{count} {label}; "));
-        }
-    }
-    summary.push('\n');
-    summary.push_str(&format!("\nSaved review: {}. Completed actions are already recorded; no further sending or scheduling is requested.", record.id.0));
-    summary
-}
-
-fn summary_text(text: &str, max_chars: usize) -> String {
-    let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut chars = compact.chars();
-    let mut bounded = chars.by_ref().take(max_chars).collect::<String>();
-    if chars.next().is_some() {
-        bounded.push('…');
-    }
-    bounded
 }

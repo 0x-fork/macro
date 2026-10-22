@@ -191,6 +191,24 @@ export type ControlOutcome =
 /**  The error's message, verbatim. */
 message: string };
 
+/**  Overall review decision. */
+export type DecisionOutcome =
+/**  All selected actions were approved. */
+"approved" |
+/**  All selected items were dismissed. */
+"dismissed" |
+/**  The batch contains mixed or unconfirmed results. */
+"partial";
+
+/**  Surface of a review decision. */
+export type DecisionVia =
+/**  Review card. */
+"card" |
+/**  Owner request in chat. */
+"chat" |
+/**  Inbox action. */
+"inbox";
+
 /**  One choice in a select. */
 export type ElicitationOption = {
 	/**  The value sent back when chosen. */
@@ -499,23 +517,57 @@ export type FoldedMessage = {
  *  message under the same session, turn, and author, or replaces its metadata
  *  outright.
  */
-export type FoldedStreamEvent =
+export type FoldedStreamEvent = FoldedStreamEvent_Serialize | FoldedStreamEvent_Deserialize;
+
+/**
+ *  One change a pushed frame implied.
+ *
+ *  Payloads are carried whole rather than as deltas: a reader replaces the
+ *  message under the same session, turn, and author, or replaces its metadata
+ *  outright.
+ */
+export type FoldedStreamEvent_Deserialize =
 /**  A message derived for the first time. */
-{ kind: "new";
+({ kind: "new";
 /**  The message as it now stands. */
-message: FoldedMessage } |
+message: FoldedMessage }) & { messages?: never; metadata?: never } |
 /**  A previously reported message, changed. */
-{ kind: "update";
+({ kind: "update";
 /**  The message as it now stands. */
-message: FoldedMessage } |
+message: FoldedMessage }) & { messages?: never; metadata?: never } |
 /**  Replace all messages for this session, including removal of old rows. */
-{ kind: "replace";
+({ kind: "replace";
 /**  The complete committed conversation. */
-messages: FoldedMessage[] } |
+messages: FoldedMessage[] }) & { message?: never; metadata?: never } |
 /**  The session's metadata changed; here it is in full. */
-{ kind: "metadata";
+({ kind: "metadata";
 /**  The metadata as it now stands. */
-metadata: SessionMetadata };
+metadata: SessionMetadata_Deserialize }) & { message?: never; messages?: never };
+
+/**
+ *  One change a pushed frame implied.
+ *
+ *  Payloads are carried whole rather than as deltas: a reader replaces the
+ *  message under the same session, turn, and author, or replaces its metadata
+ *  outright.
+ */
+export type FoldedStreamEvent_Serialize =
+/**  A message derived for the first time. */
+({ kind: "new";
+/**  The message as it now stands. */
+message: FoldedMessage }) & { messages?: never; metadata?: never } |
+/**  A previously reported message, changed. */
+({ kind: "update";
+/**  The message as it now stands. */
+message: FoldedMessage }) & { messages?: never; metadata?: never } |
+/**  Replace all messages for this session, including removal of old rows. */
+({ kind: "replace";
+/**  The complete committed conversation. */
+messages: FoldedMessage[] }) & { message?: never; metadata?: never } |
+/**  The session's metadata changed; here it is in full. */
+({ kind: "metadata";
+/**  The metadata as it now stands. */
+metadata: SessionMetadata_Serialize }) & { message?: never; messages?: never };
 
 /**
  *  Which ACP agent produced a session's log.
@@ -548,6 +600,19 @@ export type Harness =
 /**  OpenClaw. */
 "open_claw" |
 /**  Not announced, or an agent this fold does not know. */
+"unknown";
+
+/**  Review item state, shared with notification consumers. */
+export type ItemStatus =
+/**  Still awaiting a decision. */
+"pending" |
+/**  Claimed for execution. */
+"submitting" |
+/**  Confirmed complete. */
+"completed" |
+/**  Dismissed by the owner. */
+"dismissed" |
+/**  Outcome requires reconciliation. */
 "unknown";
 
 /**  A unit of renderable content. */
@@ -696,6 +761,33 @@ export type ModelOption = {
 	 */
 	group: string | null,
 };
+
+/**  Supported event contracts. Add new kinds here rather than inventing prompts. */
+export type NotificationEvent = NotificationEvent_Serialize | NotificationEvent_Deserialize;
+
+/**  Supported event contracts. Add new kinds here rather than inventing prompts. */
+export type NotificationEvent_Deserialize =
+/**  Owner decision and its confirmed results. */
+{ kind: "review.decided"; payload: ReviewOutcome_Deserialize } |
+/**  Completion of work initiated by a prior review decision. */
+{ kind: "review.settled"; payload: ReviewOutcome_Deserialize } |
+/**  An app connection became available to the session. */
+{ kind: "app.connected"; payload: {
+	/**  Connected application's display name. */
+	app: string,
+} };
+
+/**  Supported event contracts. Add new kinds here rather than inventing prompts. */
+export type NotificationEvent_Serialize =
+/**  Owner decision and its confirmed results. */
+{ kind: "review.decided"; payload: ReviewOutcome_Serialize } |
+/**  Completion of work initiated by a prior review decision. */
+{ kind: "review.settled"; payload: ReviewOutcome_Serialize } |
+/**  An app connection became available to the session. */
+{ kind: "app.connected"; payload: {
+	/**  Connected application's display name. */
+	app: string,
+} };
 
 /**
  *  The one elicitation the user can answer right now, surfaced on
@@ -854,6 +946,60 @@ export type PlanEntryStatus =
 /**  Successfully completed. */
 "completed";
 
+/**  One reviewed action's outcome. */
+export type ReviewItemOutcome = ReviewItemOutcome_Serialize | ReviewItemOutcome_Deserialize;
+
+/**  One reviewed action's outcome. */
+export type ReviewItemOutcome_Deserialize = {
+	/**  Stable item identity. */
+	id: string,
+	/**  Confirmed state. */
+	status: ItemStatus,
+	/**  Whether the owner changed its draft before deciding. */
+	edited: boolean,
+	/**  Failure detail when work could not be confirmed. */
+	error: string | null,
+};
+
+/**  One reviewed action's outcome. */
+export type ReviewItemOutcome_Serialize = {
+	/**  Stable item identity. */
+	id: string,
+	/**  Confirmed state. */
+	status: ItemStatus,
+	/**  Whether the owner changed its draft before deciding. */
+	edited: boolean,
+	/**  Failure detail when work could not be confirmed. */
+	error?: string | null,
+};
+
+/**  The result of a review batch, with no draft content. */
+export type ReviewOutcome = ReviewOutcome_Serialize | ReviewOutcome_Deserialize;
+
+/**  The result of a review batch, with no draft content. */
+export type ReviewOutcome_Deserialize = {
+	/**  Overall result. */
+	outcome: DecisionOutcome,
+	/**  Authenticated owner who made the decision. */
+	by: string,
+	/**  Surface through which the owner acted. */
+	via: DecisionVia,
+	/**  Exact affected items and their final states. */
+	items: ReviewItemOutcome_Deserialize[],
+};
+
+/**  The result of a review batch, with no draft content. */
+export type ReviewOutcome_Serialize = {
+	/**  Overall result. */
+	outcome: DecisionOutcome,
+	/**  Authenticated owner who made the decision. */
+	by: string,
+	/**  Surface through which the owner acted. */
+	via: DecisionVia,
+	/**  Exact affected items and their final states. */
+	items: ReviewItemOutcome_Serialize[],
+};
+
 /**  A run of a reply's parts that reads as one unit. */
 export type Segment = {
 	/**  Position among the reply's segments, from zero. */
@@ -925,7 +1071,19 @@ export type SessionConfigSelectOption = {
  *
  *  `PartialEq` only: a pending form's numeric bounds are `f64`.
  */
-export type SessionMetadata = {
+export type SessionMetadata = SessionMetadata_Serialize | SessionMetadata_Deserialize;
+
+/**
+ *  Session-level state derived from the log, latest-wins and carried whole.
+ *  Fields start absent and fill in as the log reveals them.
+ *
+ *  `PartialEq` only: a pending form's numeric bounds are `f64`.
+ */
+export type SessionMetadata_Deserialize = {
+	/**  System events, projected independently of the conversation messages. */
+	notifications: SessionNotification_Deserialize[],
+	/**  The last notification turn whose entire answer was suppressed. */
+	noopTurn: number | null,
 	/**  The agent that produced the log. See [`Harness`]. */
 	harness: Harness,
 	/**
@@ -966,6 +1124,93 @@ export type SessionMetadata = {
 	 */
 	turn: TurnState,
 };
+
+/**
+ *  Session-level state derived from the log, latest-wins and carried whole.
+ *  Fields start absent and fill in as the log reveals them.
+ *
+ *  `PartialEq` only: a pending form's numeric bounds are `f64`.
+ */
+export type SessionMetadata_Serialize = {
+	/**  System events, projected independently of the conversation messages. */
+	notifications: SessionNotification_Serialize[],
+	/**  The last notification turn whose entire answer was suppressed. */
+	noopTurn: number | null,
+	/**  The agent that produced the log. See [`Harness`]. */
+	harness: Harness,
+	/**
+	 *  Current model per the runtime's own `configOptions` responses, so a
+	 *  rejected model change never moves it.
+	 */
+	model: string | null,
+	/**  The models the runtime offers, in the order it listed them. */
+	supportedModels: ModelOption[],
+	/**
+	 *  Every setting the ACP agent currently advertises. The list is replaced
+	 *  whole whenever ACP returns a new `configOptions` snapshot.
+	 */
+	configOptions: SessionConfigOption[],
+	/**  Session title, when the harness reports one. */
+	title: string | null,
+	/**
+	 *  The slash commands the harness most recently advertised, in the order
+	 *  it listed them. Empty until the first `available_commands_update`,
+	 *  which arrives right after session setup, before any turn.
+	 */
+	availableCommands: AvailableCommand[],
+	/**
+	 *  The last system event's wire name (`"acp_ready"`, `"disconnected"`),
+	 *  `None` until the runtime reports one.
+	 */
+	status: string | null,
+	/**
+	 *  Requests the user can answer on the current turn and connection.
+	 *  Multiple permissions may coexist with the one allowed elicitation.
+	 *  History remains in the transcript after these live requests clear.
+	 */
+	pendingInteractions: PendingInteraction[],
+	/**
+	 *  Where the newest turn stands, as one value. Readers used to derive it
+	 *  from the transcript's tail, the status, and their own record of what
+	 *  they had posted; this is that derivation done once, in the fold.
+	 */
+	turn: TurnState,
+};
+
+/**  A timeline event or a card state change. Never a conversation message. */
+export type SessionNotification = SessionNotification_Serialize | SessionNotification_Deserialize;
+
+/**  A timeline event or a card state change. Never a conversation message. */
+export type SessionNotification_Deserialize = {
+	/**  Outbox identity. */
+	id: string,
+	/**  Subject identity used to find an existing card. */
+	subjectId: string,
+	/**  Event creation time, RFC3339. */
+	createdAt: string,
+	/**  Turn that received it. */
+	turn: number,
+	/**  Stable delivery action identity. */
+	actionId: string,
+	/**  Whether this turn had no user prompt. */
+	systemTurn: boolean,
+} & NotificationEvent_Deserialize;
+
+/**  A timeline event or a card state change. Never a conversation message. */
+export type SessionNotification_Serialize = {
+	/**  Outbox identity. */
+	id: string,
+	/**  Subject identity used to find an existing card. */
+	subjectId: string,
+	/**  Event creation time, RFC3339. */
+	createdAt: string,
+	/**  Turn that received it. */
+	turn: number,
+	/**  Stable delivery action identity. */
+	actionId: string,
+	/**  Whether this turn had no user prompt. */
+	systemTurn: boolean,
+} & NotificationEvent_Serialize;
 
 /**
  *  Why a turn stopped.

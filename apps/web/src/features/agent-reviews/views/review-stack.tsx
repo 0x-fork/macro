@@ -49,7 +49,6 @@ export function ReviewStack(props: {
     Boolean(controller.error()) ||
     controller.stale() ||
     record().presentedAt == null ||
-    Boolean(record().notificationId) ||
     record().items.some((item) => item.status === 'submitting');
 
   function capture(): boolean {

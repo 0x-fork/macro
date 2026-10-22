@@ -127,6 +127,7 @@ fn parse_sandbox_size(value: &str) -> anyhow::Result<SandboxSize> {
 /// The wire direction and JSON payload for a [`Message`].
 fn message_columns(message: &Message) -> anyhow::Result<(&'static str, serde_json::Value)> {
     let (direction, mut content) = match message {
+        Message::Notification(message) => ("notification", serde_json::to_value(message)?),
         Message::ToServer(message) => ("to_server", serde_json::to_value(message)?),
         Message::ToRuntime(message) => ("to_runtime", serde_json::to_value(message)?),
     };
@@ -171,6 +172,7 @@ fn parse_message(direction: &str, content: serde_json::Value) -> anyhow::Result<
         "to_server" => Ok(Message::ToServer(
             serde_json::from_value::<ToServerMessage>(content)?,
         )),
+        "notification" => Ok(Message::Notification(serde_json::from_value(content)?)),
         "to_runtime" => Ok(Message::ToRuntime(serde_json::from_value::<
             ToRuntimeMessage,
         >(content)?)),
@@ -829,10 +831,11 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
 
     async fn set_turn_prompter(&self, id: AgentSessionId, prompter: &TurnPrompter) -> Result<()> {
         sqlx::query!(
-            "UPDATE agent_session SET turn_action_id = $2, turn_prompter = $3 WHERE id = $1",
+            "UPDATE agent_session SET turn_action_id = $2, turn_prompter = $3, turn_prompter_kind = $4 WHERE id = $1",
             id.as_uuid(),
             prompter.action_id.as_uuid(),
-            prompter.user.as_ref().map(|user| user.as_ref()),
+            prompter.user.as_ref().filter(|_| prompter.kind != crate::domain::model::PrompterKind::System).map(|user| user.as_ref()),
+            prompter.kind.as_ref(),
         )
         .execute(&self.pool)
         .await
@@ -843,7 +846,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
     async fn turn_prompter(&self, id: AgentSessionId) -> Result<Option<TurnPrompter>> {
         let row = sqlx::query!(
             r#"
-            SELECT turn_action_id, turn_prompter AS "turn_prompter: MacroUserIdStr<'static>"
+            SELECT turn_action_id, turn_prompter_kind, turn_prompter AS "turn_prompter: MacroUserIdStr<'static>"
             FROM agent_session
             WHERE id = $1
             "#,
@@ -854,6 +857,11 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
         .context("failed to read the turn prompter")?;
         Ok(row.and_then(|row| {
             row.turn_action_id.map(|action_id| TurnPrompter {
+                kind: if row.turn_prompter_kind == "system" {
+                    crate::domain::model::PrompterKind::System
+                } else {
+                    crate::domain::model::PrompterKind::User
+                },
                 action_id: agent_runtime_protocol::domain::action::AgentActionId::from_uuid(
                     action_id,
                 ),
@@ -1635,13 +1643,22 @@ impl<B: BotFacts + 'static> AgentSessionLogRepo for PgAgentSessionRepo<B> {
             FROM agent_session_log AS log
             WHERE log.agent_session_id = $1
               AND (log.created_at, log.id) >= (
-                  COALESCE((SELECT boundary.created_at
-                    FROM agent_session AS session
-                    JOIN agent_session_log AS boundary ON boundary.id = session.history_start_log_id
-                      AND boundary.agent_session_id = session.id
-                    WHERE session.id = $1), '-infinity'::timestamptz),
-                  COALESCE((SELECT history_start_log_id FROM agent_session WHERE id = $1),
-                    '00000000-0000-0000-0000-000000000000'::uuid)
+                  SELECT COALESCE(boundary.created_at, '-infinity'::timestamptz),
+                         COALESCE(boundary.id, '00000000-0000-0000-0000-000000000000'::uuid)
+                  FROM agent_session AS session
+                  LEFT JOIN LATERAL (
+                    SELECT id, created_at FROM agent_session_log
+                    WHERE id = session.history_start_log_id
+                      AND agent_session_id = $1
+                      AND NOT EXISTS (
+                          SELECT 1 FROM agent_session_log AS trusted
+                          WHERE trusted.agent_session_id = $1
+                            AND trusted.direction IN ('notification', 'to_runtime')
+                            AND trusted.content->'params'->'_meta' ? 'macro.dev/notifications'
+                      )
+                    LIMIT 1
+                  ) AS boundary ON true
+                  WHERE session.id = $1
               )
             ORDER BY log.created_at ASC, log.id ASC
             "#,
@@ -1672,7 +1689,7 @@ impl<B: BotFacts + 'static> AgentSessionLogRepo for PgAgentSessionRepo<B> {
               AND EXISTS (
                   SELECT 1 FROM agent_session_log AS prompt
                   WHERE prompt.agent_session_id = $1
-                    AND prompt.direction = 'to_runtime'
+                    AND prompt.direction IN ('to_runtime', 'notification')
                     AND prompt.content->>'method' = 'session/prompt'
                     AND prompt.content->>'id' = $2
               )

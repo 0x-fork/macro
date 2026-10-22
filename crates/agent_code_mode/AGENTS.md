@@ -27,6 +27,13 @@ session presentation. Never replay an uncertain submitted action.
 
 - Keep native `NameSearch` and `ListEntities` available for session-aware discovery; agent SDK documentation excludes legacy chats and workspace feeds.
 
+Reviews write `review.decided` and `review.settled` through the injected
+transaction-aware notification writer in the same revision-checked transaction.
+Cards require direct user authentication; `DecideReview` uses the same claim and
+execute path but requires a real owner-prompted turn. `GetReview` reads final
+drafts and outcomes. Legacy notificationId/notificationAttemptAt fields are no
+longer delivery state.
+
 ## Checks
 
 - `cargo test -p agent_code_mode --lib` from the repository root, with live local

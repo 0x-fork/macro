@@ -1,5 +1,5 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import { Show, Suspense } from 'solid-js';
+import { createEffect, on, Show, Suspense } from 'solid-js';
 import { useReview, useReviewActions } from '../queries/reviews';
 import { ReviewStack } from './review-stack';
 
@@ -8,6 +8,9 @@ export function PersistedReview(props: {
   sessionId: string;
   reviewId: string;
   canAct: boolean;
+  eventId?: string;
+  onDecision?: () => void;
+  onDecisionFailed?: () => void;
 }) {
   const query = useReview(
     () => props.sessionId,
@@ -17,6 +20,26 @@ export function PersistedReview(props: {
     () => props.sessionId,
     () => props.reviewId
   );
+  createEffect(
+    on(
+      () => props.eventId,
+      (id) => {
+        if (id) fireAndForget(query.refetch(), 'agent-reviews');
+      }
+    )
+  );
+  const decisions = {
+    reload: actions.reload,
+    decide: async (decision: Parameters<typeof actions.decide>[0]) => {
+      if (decision.action !== 'edit') props.onDecision?.();
+      try {
+        return await actions.decide(decision);
+      } catch (error) {
+        if (decision.action !== 'edit') props.onDecisionFailed?.();
+        throw error;
+      }
+    },
+  };
   return (
     <Suspense fallback={<p class="text-xs text-ink-muted">Loading review…</p>}>
       <Show when={query.isError}>
@@ -36,7 +59,7 @@ export function PersistedReview(props: {
           <ReviewStack
             review={record()}
             canAct={props.canAct}
-            actions={actions}
+            actions={decisions}
           />
         )}
       </Show>

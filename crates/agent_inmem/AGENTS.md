@@ -40,6 +40,12 @@ milliseconds instead of waiting on container provisioning.
 - Add a new tool gate or admission check: `src/domain/tool_gate.rs` /
   `src/domain/admission.rs` → `src/outbound/approval_gate.rs`.
 
+Approval gating uses `TurnPrompter::acting_user()` so a System invocation
+cannot inherit owner authority from a retained user field. Model-context replay
+retains notification ACP inputs and their replies; the transcript fold separately
+omits system input from its message projection. PresentReview, GetReview and
+DecideReview are eager internal tools in both standard and code modes.
+
 ## Checks
 
 - `cargo test -p agent_inmem` (`SQLX_OFFLINE` unset).

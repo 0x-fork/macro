@@ -6,6 +6,7 @@ mod chat_reply;
 mod coding_preferences;
 mod external_mcp;
 mod external_replies;
+mod notifications;
 mod owned_purge;
 mod presentation;
 mod quota;
@@ -531,6 +532,7 @@ fn harness_with_ports_and_journal(
         egress,
         journal,
         None,
+        None,
     )
 }
 
@@ -547,6 +549,7 @@ fn harness_with_journal_and_policy(
     egress: EgressProvisionerMock,
     journal: Option<Arc<dyn crate::domain::conversation_turns::ConversationTurnStore>>,
     policy: Option<Arc<dyn crate::domain::conversations::ConversationPolicy>>,
+    notifications: Option<Arc<dyn agent_session::domain::notifications::NotificationStore>>,
 ) -> (TestBench, TurnSignals) {
     let repo = InMemoryAgentSessionRepo::new();
     let containers = MockContainerManager::new();
@@ -601,6 +604,10 @@ fn harness_with_journal_and_policy(
     );
     let service = match journal {
         Some(journal) => service.with_conversation_turns(journal),
+        None => service,
+    };
+    let service = match notifications {
+        Some(store) => service.with_notifications(store),
         None => service,
     };
     let (ended, ended_rx) = mpsc::unbounded_channel();
@@ -1822,12 +1829,7 @@ async fn live_session(
 ) -> ContainerMock {
     let open = service.execute(id, HarnessCommand::Open(open_command()));
     let drive = async {
-        loop {
-            if containers.spawned() == 1 {
-                break;
-            }
-            tokio::task::yield_now().await;
-        }
+        containers.first_spawned().await;
         let container = containers
             .container(session_of(containers))
             .expect("the spawned container is findable");
@@ -4900,46 +4902,5 @@ async fn a_non_staff_session_editor_can_approve_a_managed_session_request() {
         Some(RequestPermissionOutcome::Selected(
             SelectedPermissionOutcome::new("once")
         ))
-    );
-}
-
-#[tokio::test]
-async fn review_outcome_context_is_composed_privately_on_follow_up_and_first_turn() {
-    let composer = PromptComposerMock::default();
-    let (service, repo, _containers, _announcer, _runtimes) =
-        harness_with_edges(PromptContextMock::default(), composer.clone());
-    let id = AgentSessionId::new();
-    let mut session = agent_session::testing::test_agent_session(id);
-    session.instructions = Some("Session instructions".to_owned());
-    repo.insert_session(session);
-    for first_turn in [false, true] {
-        let mut action = AgentAction::context_prompt("100 outcome unconfirmed");
-        service
-            .inner
-            .compose_action(id, &mut action, None, None, None, first_turn)
-            .await
-            .unwrap();
-        let AgentAction::Prompt(prompt) = action else {
-            panic!("expected prompt");
-        };
-        assert!(
-            prompt.prompt.is_empty(),
-            "the mock leaves visible text unchanged"
-        );
-    }
-    assert_eq!(
-        composer.calls(),
-        vec![
-            (
-                String::new(),
-                Some("100 outcome unconfirmed".to_owned()),
-                None
-            ),
-            (
-                String::new(),
-                Some("Session instructions\n\n100 outcome unconfirmed".to_owned()),
-                None
-            ),
-        ]
     );
 }

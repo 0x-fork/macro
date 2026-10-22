@@ -253,7 +253,7 @@ impl SessionGrant {
     pub fn held_prompter(&self) -> Option<&TurnPrompter> {
         self.prompter
             .as_ref()
-            .filter(|prompter| prompter.user.as_ref() != Some(&self.owner))
+            .filter(|prompter| prompter.acting_user() != Some(&self.owner))
     }
 
     /// What to call `slug` when speaking to the model: the agent's own name

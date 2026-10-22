@@ -27,6 +27,7 @@ class FakeMessagePort extends EventTarget {
         ? transfers
         : (transfers as StructuredSerializeOptions | undefined)?.transfer,
     });
+    this.dispatchEvent(new Event('sent'));
   }
 
   start(): void {}
@@ -158,10 +159,13 @@ describe('Effect worker transport', () => {
     await transport.ready;
 
     const channel = new MessageChannel();
+    const sent = new Promise<void>((resolve) => {
+      endpoint.addEventListener('sent', () => resolve(), { once: true });
+    });
     await Effect.runPromise(
       transport.send({ port: channel.port1 }, [channel.port1])
     );
-    await vi.waitFor(() => expect(endpoint.sent).toHaveLength(1));
+    await sent;
     const framed = endpoint.sent[0]?.message as
       | [number, { port: MessagePort }]
       | undefined;

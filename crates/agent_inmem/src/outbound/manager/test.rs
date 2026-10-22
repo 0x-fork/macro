@@ -194,7 +194,7 @@ async fn logged_frames(repo: &InMemoryAgentSessionRepo, id: AgentSessionId) -> V
                     agent_runtime_protocol::domain::schema::v0::ToServerMessage::Acp(acp) => &acp.0,
                     _ => return "system-event".to_owned(),
                 },
-                Message::ToRuntime(message) => match message {
+                Message::ToRuntime(message) | Message::Notification(message) => match message {
                     agent_runtime_protocol::domain::schema::v0::ToRuntimeMessage::Acp(acp) => {
                         &acp.0
                     }

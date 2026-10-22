@@ -1,6 +1,10 @@
 //! Persistent session interactions; completing an execution never closes a review.
 use super::{CodeModeError, ExecutionId, ExecutionStore};
-use agent_session::domain::model::AgentSessionId;
+use agent_runtime_protocol::domain::notification::{
+    DecisionOutcome, DecisionVia, ItemStatus, NotificationEvent, ReviewItemOutcome, ReviewOutcome,
+};
+use agent_session::domain::model::{AgentSessionId, TurnPrompter};
+use agent_session::domain::notifications::{PendingNotification, ProduceNotification};
 use async_trait::async_trait;
 use entity_access::domain::models::{
     EditAccessLevel, EntityAccessReceipt, EntityType, ViewAccessLevel,
@@ -10,13 +14,13 @@ use macro_uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
+use tracing::Instrument as _;
 use utoipa::ToSchema;
 
 #[cfg(test)]
 mod test;
 
 const MAX_REVIEWS_PER_SESSION: u16 = 100;
-const NOTIFICATION_RETRY_MS: i64 = 30_000;
 const MAX_DRAFT_BYTES: usize = 128 * 1024;
 const MAX_RECORD_BYTES: usize = 2 * 1024 * 1024;
 const MAX_INPUT_BYTES: usize = 1024 * 1024;
@@ -25,7 +29,9 @@ const ACTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 const MAX_RESULT_BYTES: usize = 8192;
 
 /// Persisted review identity.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema, schemars::JsonSchema,
+)]
 #[serde(transparent)]
 pub struct ReviewId(pub Uuid);
 
@@ -72,21 +78,8 @@ pub struct CreateReview {
     pub drafts: Vec<Value>,
 }
 
-/// A review item never retries an ambiguous external result automatically.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ReviewItemStatus {
-    /// Still editable and not submitted.
-    Pending,
-    /// Claimed before external work begins.
-    Submitting,
-    /// External success was observed and saved.
-    Completed,
-    /// User dismissed this draft.
-    Dismissed,
-    /// External work might have happened; reconcile before retrying.
-    Unknown,
-}
+/// Persisted review item state shared with typed system notifications.
+pub use agent_runtime_protocol::domain::notification::ItemStatus as ReviewItemStatus;
 
 /// One editable item and its durable outcome.
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
@@ -96,6 +89,9 @@ pub struct ReviewItem {
     pub id: Uuid,
     /// Validated arguments for the existing composer/action.
     pub draft: Value,
+    /// Whether the owner edited this draft before deciding.
+    #[serde(default)]
+    pub edited: bool,
     /// Current outcome.
     pub status: ReviewItemStatus,
     /// Actual backend response, never a model assertion.
@@ -128,17 +124,27 @@ pub struct ReviewRecord {
     pub updated_at: i64,
     /// Drafts and per-item outcomes.
     pub items: Vec<ReviewItem>,
-    /// Stable queued-action identity until the outcome has reached the session.
-    /// A failed notification may be retried without repeating external actions.
+    /// Current batch's authenticated decision, preserved for interrupted work.
     #[serde(default)]
-    pub notification_id: Option<Uuid>,
-    /// Most recent delivery claim, allowing retry after a replica stops.
-    #[serde(default)]
-    pub notification_attempt_at: Option<i64>,
+    pub decision: Option<ReviewDecisionContext>,
+}
+
+/// Facts about the most recent owner decision.
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewDecisionContext {
+    /// Authenticated owner.
+    pub by: String,
+    /// Entry surface.
+    pub via: DecisionVia,
+    /// Revision claimed by this batch, used in notification deduplication.
+    pub revision: i64,
+    /// Items selected by this decision.
+    pub items: Vec<Uuid>,
 }
 
 /// One atomic user decision against the displayed revision.
-#[derive(Clone, Deserialize, Serialize, ToSchema)]
+#[derive(Clone, Deserialize, Serialize, ToSchema, schemars::JsonSchema)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum ReviewDecision {
     /// Save one edited draft.
@@ -188,7 +194,12 @@ pub trait ReviewStore: Send + Sync + 'static {
         execution: ExecutionId,
     ) -> Result<Vec<ReviewRecord>, CodeModeError>;
     /// Save iff the persisted revision equals `expected`.
-    async fn save(&self, expected: i64, record: &ReviewRecord) -> Result<(), CodeModeError>;
+    async fn save(
+        &self,
+        expected: i64,
+        record: &ReviewRecord,
+        notification: Option<&PendingNotification>,
+    ) -> Result<(), CodeModeError>;
 }
 
 /// Authoritative session facts used by review authorization and dispatch.
@@ -197,6 +208,8 @@ pub struct ReviewSession {
     pub owner: MacroUserIdStr<'static>,
     /// Archived sessions cannot start actions or new notification turns.
     pub archived: bool,
+    /// Current invocation authority, used only for agent-initiated decisions.
+    pub prompter: Option<TurnPrompter>,
 }
 
 /// Existing domain actions and session control composed by the harness.
@@ -216,12 +229,6 @@ pub trait ReviewActions: Send + Sync + 'static {
     /// Persist and stream a completed presentation without waiting for user action.
     /// Repeated calls with the same review ID must not duplicate its ACP frames.
     async fn present(
-        &self,
-        owner: &MacroUserIdStr<'static>,
-        record: &ReviewRecord,
-    ) -> Result<(), CodeModeError>;
-    /// Deliver one batch outcome through the existing ordered session control queue.
-    async fn notify(
         &self,
         owner: &MacroUserIdStr<'static>,
         record: &ReviewRecord,
@@ -322,14 +329,14 @@ impl ReviewService {
             title: input.title,
             revision: 0,
             updated_at: chrono::Utc::now().timestamp_millis(),
-            notification_id: None,
-            notification_attempt_at: None,
+            decision: None,
             items: input
                 .drafts
                 .into_iter()
                 .map(|draft| ReviewItem {
                     id: macro_uuid::generate_uuid_v7(),
                     draft,
+                    edited: false,
                     status: ReviewItemStatus::Pending,
                     result: None,
                     error: None,
@@ -351,7 +358,7 @@ impl ReviewService {
         // retry after the writer succeeded but this acknowledgment was interrupted.
         self.actions.present(actor, &record).await?;
         record.presented_at = Some(chrono::Utc::now().timestamp_millis());
-        match self.save(&mut record).await {
+        match self.save(&mut record, None).await {
             Ok(()) => Ok(record),
             Err(CodeModeError::Conflict) => self.store.get(record.session_id, record.id).await,
             Err(error) => Err(error),
@@ -391,6 +398,21 @@ impl ReviewService {
                 .iter()
                 .any(|item| item.status == ReviewItemStatus::Submitting)
         {
+            // Old review records predate typed decision context. Preserve their
+            // interrupted batch when replacing the former mini-outbox.
+            if record.decision.is_none() {
+                record.decision = Some(ReviewDecisionContext {
+                    by: self.owner(record.session_id).await?.to_string(),
+                    via: DecisionVia::Card,
+                    revision: record.revision,
+                    items: record
+                        .items
+                        .iter()
+                        .filter(|item| item.status == ReviewItemStatus::Submitting)
+                        .map(|item| item.id)
+                        .collect(),
+                });
+            }
             for item in &mut record.items {
                 if item.status == ReviewItemStatus::Submitting {
                     item.status = ReviewItemStatus::Unknown;
@@ -399,28 +421,17 @@ impl ReviewService {
                     );
                 }
             }
-            match self.save(&mut record).await {
+            let event = record
+                .decision
+                .as_ref()
+                .map(|_| NotificationEvent::ReviewSettled(review_outcome(&record)));
+            match self.save(&mut record, event).await {
                 Ok(()) => {}
                 Err(CodeModeError::Conflict) => {
                     record = self.store.get(record.session_id, record.id).await?
                 }
                 Err(error) => return Err(error),
             }
-        }
-        if record.notification_id.is_some()
-            && record.notification_attempt_at.is_none_or(|attempt| {
-                chrono::Utc::now().timestamp_millis() - attempt >= NOTIFICATION_RETRY_MS
-            })
-            && !record
-                .items
-                .iter()
-                .any(|item| item.status == ReviewItemStatus::Submitting)
-        {
-            let service = self.clone();
-            let pending = record.clone();
-            tokio::spawn(async move {
-                service.deliver_notification(pending).await;
-            });
         }
         Ok(record)
     }
@@ -430,49 +441,39 @@ impl ReviewService {
         }
         self.actions.validate(kind, draft)
     }
-    async fn deliver_notification(&self, mut record: ReviewRecord) {
-        let Some(_) = record.notification_id else {
-            return;
-        };
-        let now = chrono::Utc::now().timestamp_millis();
-        if record
-            .notification_attempt_at
-            .is_some_and(|attempt| now - attempt < NOTIFICATION_RETRY_MS)
-        {
-            return;
-        }
-        record.notification_attempt_at = Some(now);
-        if self.save(&mut record).await.is_err() {
-            return;
-        }
-        let Ok(owner) = self.owner(record.session_id).await else {
-            return;
-        };
-        // Persisted pending state is retained on failure. A later read retries using
-        // the same queue identity; it never re-enters the external action path.
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            self.actions.notify(&owner, &record),
-        )
-        .await
-        {
-            Ok(Ok(())) => {
-                record.notification_id = None;
-                if let Err(error) = self.save(&mut record).await {
-                    tracing::warn!(?error, "could not acknowledge review notification");
-                }
-            }
-            _ => tracing::warn!("review notification pending retry"),
-        }
-    }
-    async fn save(&self, record: &mut ReviewRecord) -> Result<(), CodeModeError> {
+    async fn save(
+        &self,
+        record: &mut ReviewRecord,
+        event: Option<NotificationEvent>,
+    ) -> Result<(), CodeModeError> {
         if serde_json::to_vec(record).map_err(|_| invalid())?.len() > MAX_RECORD_BYTES {
             return Err(invalid());
         }
         let previous = record.revision;
         record.revision += 1;
         record.updated_at = chrono::Utc::now().timestamp_millis();
-        self.store.save(previous, record).await
+        let pending = event
+            .map(|event| {
+                let wake = true;
+                PendingNotification::new(ProduceNotification {
+                    session_id: record.session_id,
+                    subject_id: record.id.0.to_string(),
+                    dedupe_key: Some(format!(
+                        "{}:{}:{}",
+                        event.kind(),
+                        record.id.0,
+                        record
+                            .decision
+                            .as_ref()
+                            .map_or(previous, |decision| decision.revision)
+                    )),
+                    event,
+                    wake,
+                })
+                .map_err(|error| CodeModeError::Storage(rootcause::report!(error).into()))
+            })
+            .transpose()?;
+        self.store.save(previous, record, pending.as_ref()).await
     }
     /// Claim the exact saved revision, then complete independently of the request.
     /// Persisted submitting states become unknown after interrupted work.
@@ -485,6 +486,55 @@ impl ReviewService {
         decision: ReviewDecision,
     ) -> Result<ReviewRecord, CodeModeError> {
         let session = self.authorize(access, actor).await?;
+        self.decide_owned(session, actor, id, decision, DecisionVia::Card)
+            .await
+    }
+
+    /// Read final drafts and results from an authenticated session tool.
+    pub async fn read_for_session(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        if self.owner(session).await? != *actor {
+            return Err(CodeModeError::Forbidden);
+        }
+        self.refresh(self.store.get(session, id).await?).await
+    }
+
+    /// Owner-only actions in chat require a real owner prompt. A system event
+    /// cannot approve itself, even when tools authenticate with owner credentials.
+    pub async fn decide_for_session(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+        decision: ReviewDecision,
+    ) -> Result<ReviewRecord, CodeModeError> {
+        let state = self.actions.session(session).await?;
+        if state.archived
+            || state.owner != *actor
+            || !state.prompter.is_some_and(|prompter| {
+                prompter.kind == agent_session::domain::model::PrompterKind::User
+                    && prompter.user.as_ref() == Some(actor)
+            })
+        {
+            return Err(CodeModeError::Forbidden);
+        }
+        self.decide_owned(session, actor, id, decision, DecisionVia::Chat)
+            .await
+    }
+
+    #[tracing::instrument(name = "review.decide", skip_all, fields(session_id = %session, review_id = %id.0), err)]
+    async fn decide_owned(
+        &self,
+        session: AgentSessionId,
+        actor: &MacroUserIdStr<'static>,
+        id: ReviewId,
+        decision: ReviewDecision,
+        via: DecisionVia,
+    ) -> Result<ReviewRecord, CodeModeError> {
         let mut record = self.store.get(session, id).await?;
         let revision = match &decision {
             ReviewDecision::Edit { revision, .. }
@@ -493,7 +543,6 @@ impl ReviewService {
         };
         if revision != record.revision
             || record.presented_at.is_none()
-            || record.notification_id.is_some()
             || record
                 .items
                 .iter()
@@ -509,6 +558,7 @@ impl ReviewService {
                 .find(|entry| entry.id == item && entry.status == ReviewItemStatus::Pending)
                 .ok_or(CodeModeError::Conflict)?;
             target.draft = draft;
+            target.edited = true;
             if record
                 .items
                 .iter()
@@ -522,7 +572,7 @@ impl ReviewService {
             {
                 return Err(invalid());
             }
-            self.save(&mut record).await?;
+            self.save(&mut record, None).await?;
             return Ok(record);
         }
         let (ids, submit) = match decision {
@@ -558,14 +608,23 @@ impl ReviewService {
                 ReviewItemStatus::Dismissed
             };
         }
-        record.notification_id = Some(macro_uuid::generate_uuid_v7());
-        record.notification_attempt_at = None;
-        self.save(&mut record).await?;
+        record.decision = Some(ReviewDecisionContext {
+            by: actor.to_string(),
+            via,
+            revision,
+            items: selected
+                .iter()
+                .map(|index| record.items[*index].id)
+                .collect(),
+        });
+        let event = NotificationEvent::ReviewDecided(review_outcome(&record));
+        self.save(&mut record, Some(event)).await?;
         let response = record.clone();
         let service = self.clone();
         let actor = actor.clone();
         tokio::spawn(async move {
             if submit {
+                let last = selected.last().copied();
                 for index in selected {
                     let outcome = tokio::time::timeout(ACTION_TIMEOUT, async {
                         if service.owner(record.session_id).await? != actor {
@@ -596,13 +655,14 @@ impl ReviewService {
                             item.error = Some("The submission outcome could not be confirmed. Check the destination before retrying.".into());
                         }
                     }
-                    if service.save(&mut record).await.is_err() {
+                    let event = (Some(index) == last)
+                        .then(|| NotificationEvent::ReviewSettled(review_outcome(&record)));
+                    if service.save(&mut record, event).await.is_err() {
                         return;
                     }
                 }
             }
-            service.deliver_notification(record).await;
-        });
+        }.in_current_span());
         Ok(response)
     }
 }
@@ -616,4 +676,39 @@ fn session_id(kind: EntityType, id: &str) -> Result<AgentSessionId, CodeModeErro
 }
 fn invalid() -> CodeModeError {
     CodeModeError::Invalid("Provide a title and 1–100 valid drafts within 1 MiB.".into())
+}
+
+/// Bounded outcome facts; final drafts and provider results stay on the review.
+pub fn review_outcome(record: &ReviewRecord) -> ReviewOutcome {
+    let decision = record.decision.as_ref();
+    let items: Vec<_> = record
+        .items
+        .iter()
+        .filter(|item| decision.is_some_and(|decision| decision.items.contains(&item.id)))
+        .map(|item| ReviewItemOutcome {
+            id: item.id,
+            status: item.status,
+            edited: item.edited,
+            error: item.error.clone(),
+        })
+        .collect();
+    let outcome = if items
+        .iter()
+        .all(|item| item.status == ItemStatus::Dismissed)
+    {
+        DecisionOutcome::Dismissed
+    } else if items
+        .iter()
+        .all(|item| matches!(item.status, ItemStatus::Completed | ItemStatus::Submitting))
+    {
+        DecisionOutcome::Approved
+    } else {
+        DecisionOutcome::Partial
+    };
+    ReviewOutcome {
+        outcome,
+        by: decision.map_or_else(String::new, |decision| decision.by.clone()),
+        via: decision.map_or(DecisionVia::Card, |decision| decision.via),
+        items,
+    }
 }

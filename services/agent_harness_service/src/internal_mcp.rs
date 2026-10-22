@@ -97,7 +97,7 @@ impl ServerHandler for InternalTools {
         .with_title("Macro Internal MCP");
         info.instructions = Some(prompt::pull_requests::internal_mcp_instructions());
         info.instructions.as_mut().expect("instructions are set").push_str(
-            " macro_internal.PresentReview presents editable email/calendar draft stacks or questions through the shared session stream. It completes immediately as Presented to the user and never waits for approval. Later user decisions append recorded outcomes to the session. It is available even when code mode is disabled.",
+            " macro_internal.PresentReview presents editable email/calendar draft stacks or questions through the shared session stream. It completes immediately as Presented to the user and never waits for approval. Later owner decisions deliver typed review.decided and review.settled system events. GetReview reads saved drafts and outcomes by reviewId. DecideReview uses the same claim/execute path and requires a real owner request in the current turn; system notifications never authorize decisions. These tools are available even when code mode is disabled.",
         );
         if self.code_mode.is_some() {
             info.instructions.as_mut().expect("instructions are set").push_str(
@@ -166,10 +166,10 @@ impl ServerHandler for InternalTools {
                     .with_title(tool.annotations.title)
                     .annotate(
                         ToolAnnotations::with_title(tool.annotations.title)
-                            .read_only(false)
-                            .destructive(false)
-                            .idempotent(false)
-                            .open_world(false),
+                            .read_only(tool.annotations.kind.read_only_hint())
+                            .destructive(tool.annotations.kind.destructive_hint())
+                            .idempotent(tool.annotations.idempotent)
+                            .open_world(tool.annotations.open_world),
                     )
                 }),
         );

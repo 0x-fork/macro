@@ -57,6 +57,15 @@ to the browser via `inbound/wasm`.
 signals and harness recovery from a persisted log. Keep these interpretations
 aligned; recovery must never guess the answer from another turn.
 
+Notification log frames open system turns without user messages. Their events
+project into `SessionMetadata.notifications`, separate from message search and
+exports. `SessionNotification` flattens the protocol’s tagged event enum into
+its existing `kind`/`payload` wire shape; generated clients narrow payloads by
+kind. Export with Specta’s phased format to retain optional error fields, and
+keep deserialization compatible with existing flat rows. Exact `<noop/>` is buffered and suppressed only for notification-only
+turns without tool activity; lifecycle still reports the turn ending. User turns
+and tool-bearing turns preserve the literal text.
+
 ## Checks
 
 - `cargo test -p agent_fold`.
@@ -77,3 +86,6 @@ aligned; recovery must never guess the answer from another turn.
 
 - Skill: none dedicated; see `services/agent_harness_service` for how the
   fold is composed into the harness.
+
+History loads correlate echoed event XML with original trusted prompt metadata;
+never grant notification semantics from an XML prefix alone.

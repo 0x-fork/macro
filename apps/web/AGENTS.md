@@ -341,6 +341,20 @@ On a physical iPhone, WKWebView still synthesises the compatibility `mousedown`/
 
 4. **Strip the instrumentation before committing.**
 
+### Agent system events
+
+Accept `notification` in both fetched and subscribed GraphQL session log rows.
+System notifications live in fold metadata, separate from messages. Review
+subjects refresh their existing card; other subjects render quiet timeline rows
+through `block-agent/components/session-event-row.tsx`. Match typed event
+payloads exhaustively, summarize outcomes without draft content, and keep the
+icon, truncated summary, timestamp, and optional subject action on one line on
+desktop and mobile.
+Keep Responding bound to the notification turn, including rejection and noop.
+The backend-free desktop/mobile check is
+`bunx playwright test --config src/features/block-agent/browser-test/playwright.config.ts`.
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
+
 ### Agent backend hosting
 
 Cognition, routines, preview control, and MCP share `agent_harness_service`.

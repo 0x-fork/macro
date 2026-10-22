@@ -56,6 +56,22 @@ Remember successful announcements. After 24 hours, recover replies without a
 persisted completion at most hourly, preserving late answers after lost callbacks.
 Persisted completions bypass this backoff; direct completion handling is immediate.
 
+Durable system events use the `agent_session` outbox, distinct from the user
+push notifications planned in `domain/notifications.rs`. The serialized session
+worker drains waking batches after a turn; quiet batches join a real prompt.
+Recovery reconciles the original action before rebinding/retrying, preserves
+prompter authority, and waits for a running invocation instead of re-prompting.
+Attach notifications before claiming the conversation journal, so a recovered
+running batch leaves the next real message queued. Recovery retains one drain
+future per session and waits at most two seconds per sweep; lease renewals and
+other sessions continue after a slow drain or an individual renewal error.
+Keep duplicate-completion suppression bounded to recent actions.
+Advance the bounded discovery cursor even when a session is busy or unreachable;
+wrap after its final page so those sessions cannot starve later ones.
+Reconcile active leases against terminal log evidence too: an observer can miss a
+completion during takeover. Previously bound quiet attempts reconcile before new
+wakes; interrupted quiet batches return to the next real prompt.
+
 ## Checks
 
 - `cargo test -p agent_harness` (`SQLX_OFFLINE` unset).

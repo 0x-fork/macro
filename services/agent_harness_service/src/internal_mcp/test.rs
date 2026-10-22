@@ -215,12 +215,21 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         assert_eq!(
             names,
             [
+                "DecideReview",
+                "GetReview",
                 "PresentReview",
                 "link_task",
                 "set_pull_request",
                 "task_pull_requests"
             ]
         );
+        let read_review = listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "GetReview")
+            .unwrap();
+        assert_eq!(read_review["annotations"]["readOnlyHint"], true);
         // The presentation tool is advertised without code mode, but startup
         // wiring must be complete before a call can create a saved review.
         let (_, unavailable) = rpc(

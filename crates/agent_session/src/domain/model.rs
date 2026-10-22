@@ -407,6 +407,17 @@ pub struct SessionBot {
     pub avatar_url: Option<String>,
 }
 
+/// The authority behind an invocation. System events never borrow owner access.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, strum::AsRefStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum PrompterKind {
+    /// A human or runtime prompt; user identifies any acting human.
+    #[default]
+    User,
+    /// An internal event with no user authority.
+    System,
+}
+
 /// Who prompted the turn a session is running, or last ran.
 ///
 /// Written at dispatch, before the runtime can act on the prompt, so the
@@ -414,10 +425,22 @@ pub struct SessionBot {
 /// prompted from one somebody else did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TurnPrompter {
+    /// Source of the turn's authority.
+    pub kind: PrompterKind,
     /// The action that opened the turn.
     pub action_id: agent_runtime_protocol::domain::action::AgentActionId,
     /// The user who prompted it, absent when a bot acted on nobody's behalf.
     pub user: Option<MacroUserIdStr<'static>>,
+}
+
+impl TurnPrompter {
+    /// Effective human authority. System turns never act as a user even if
+    /// malformed or old storage includes a user alongside the system kind.
+    pub fn acting_user(&self) -> Option<&MacroUserIdStr<'static>> {
+        (self.kind == PrompterKind::User)
+            .then_some(self.user.as_ref())
+            .flatten()
+    }
 }
 
 /// One waiting action as the session store records it.

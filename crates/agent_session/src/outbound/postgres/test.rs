@@ -3275,3 +3275,93 @@ async fn active_execution_turn_excludes_stopped_archived_and_deleted_sessions(po
     .unwrap();
     assert!(repo.active_turn(session.id).await.unwrap().is_none());
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn system_action_history_and_loads_retain_trusted_provenance(pool: PgPool) {
+    use crate::domain::{
+        model::{AgentSessionLog, Message},
+        ports::AgentSessionLogRepo,
+    };
+    use agent_client_protocol::schema::v1::SessionId;
+    use agent_runtime_protocol::domain::{
+        action::{AgentAction, AgentActionId},
+        notification::{Notification, NotificationEvent},
+    };
+    sqlx::raw_sql("INSERT INTO agent_session (id, owner_id, bot_id, model, harness, workspace) VALUES ('00000000-0000-0000-0000-000000000001','macro|owner@example.com','00000000-0000-0000-0000-00000000a9e7','test','macrod','/workspace')").execute(&pool).await.unwrap();
+    let session = AgentSessionId::new_from_uuid(Uuid::from_u128(1));
+    let action_id = AgentActionId::mint();
+    let request = AgentAction::notification(vec![Notification {
+        id: macro_uuid::generate_uuid_v7(),
+        subject_id: "app".into(),
+        created_at: "2026-10-21T00:00:00Z".into(),
+        event: NotificationEvent::AppConnected {
+            app: "Calendar".into(),
+        },
+    }])
+    .to_runtime(&SessionId::new("s"), action_id.to_request_id())
+    .unwrap();
+    let repo = test_repo(&pool);
+    repo.set_turn_prompter(
+        session,
+        &crate::domain::model::TurnPrompter {
+            kind: crate::domain::model::PrompterKind::System,
+            action_id,
+            user: Some(MacroUserIdStr::try_from_email("owner@example.com").unwrap()),
+        },
+    )
+    .await
+    .unwrap();
+    let prompter = repo.turn_prompter(session).await.unwrap().unwrap();
+    assert_eq!(prompter.kind, crate::domain::model::PrompterKind::System);
+    assert_eq!(prompter.action_id, action_id);
+    assert!(prompter.user.is_none());
+    assert!(prompter.acting_user().is_none());
+    let first = AgentSessionLogRepo::create(
+        &repo,
+        AgentSessionLog {
+            agent_session_id: session,
+            user_id: None,
+            content: Message::Notification(request),
+            logged_at: None,
+        },
+    )
+    .await
+    .unwrap();
+    let second = AgentSessionLogRepo::create(
+        &repo,
+        AgentSessionLog {
+            agent_session_id: session,
+            user_id: None,
+            content: Message::ToServer(
+                agent_runtime_protocol::domain::schema::v0::ToServerMessage::Event {
+                    event: agent_runtime_protocol::domain::schema::v0::SystemEvent::AcpReady,
+                },
+            ),
+            logged_at: None,
+        },
+    )
+    .await
+    .unwrap();
+    sqlx::query!(
+        "UPDATE agent_session SET history_start_log_id = $2 WHERE id = $1",
+        session.as_uuid(),
+        second.id
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        AgentSessionLogRepo::list_by_session(&repo, session)
+            .await
+            .unwrap()[0]
+            .id,
+        first.id
+    );
+    assert_eq!(
+        repo.list_action_history(session, action_id)
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+}

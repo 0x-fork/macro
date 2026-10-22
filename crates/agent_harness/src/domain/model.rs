@@ -524,6 +524,8 @@ pub struct DeliverAction {
 /// it.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HarnessCommand {
+    /// Drain durable system events when this session is idle.
+    DrainNotifications,
     /// Open or continue the durably reserved session of an agent's conversation.
     ConversationMessage(OpenSession),
     /// Persist a nonblocking tool card on the replica owning this session.

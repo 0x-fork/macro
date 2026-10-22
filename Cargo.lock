@@ -287,6 +287,7 @@ dependencies = [
 name = "agent_code_mode"
 version = "0.1.0"
 dependencies = [
+ "agent_runtime_protocol",
  "agent_session",
  "ai_toolset",
  "anyhow",
@@ -422,6 +423,7 @@ dependencies = [
  "entity_registry",
  "entity_registry_db_utils",
  "futures",
+ "genai_telemetry",
  "github",
  "harness_id",
  "kafka_util",

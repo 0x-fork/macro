@@ -83,6 +83,7 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     pull_requests: Router,
     tool_approvals: Router,
     code_executions: Router,
+    notifications: Router,
     changes: AgentChangesRouterState<Changes, Access, Auth>,
 }
 
@@ -120,8 +121,15 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             pull_requests: Router::new(),
             tool_approvals: Router::new(),
             code_executions: Router::new(),
+            notifications: Router::new(),
             changes,
         }
+    }
+
+    /// Attach internal durable system-event production.
+    pub fn with_notifications(mut self, router: Router) -> Self {
+        self.notifications = router;
+        self
     }
 
     /// Release background dispatch only once this process has bound HTTP.
@@ -326,6 +334,7 @@ where
         .merge(states.pull_requests)
         .merge(states.tool_approvals)
         .merge(states.code_executions)
+        .merge(states.notifications)
         .merge(agent_changes_router(states.changes));
     Router::new()
         .nest("/agent-sessions", agent_sessions)

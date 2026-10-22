@@ -1037,6 +1037,11 @@ export type CreateSessionThread = {
 };
 
 /**
+ * Surface of a review decision.
+ */
+export type DecisionVia = 'card' | 'chat' | 'inbox';
+
+/**
  * HTTP request selecting one provider to probe.
  */
 export type DiscoverAgentCapabilitiesRequest = {
@@ -1272,7 +1277,7 @@ export type LoadAgentModelsResponse = {
 /**
  * Which way a logged frame travelled, mirroring [`Message`]'s discriminant.
  */
-export type LogDirectionDto = 'to_server' | 'to_runtime';
+export type LogDirectionDto = 'notification' | 'to_server' | 'to_runtime';
 
 /**
  * The two fields [`AgentSessionLogEntryDto`] flattens in.
@@ -1629,6 +1634,28 @@ export type ReviewDecision = {
 };
 
 /**
+ * Facts about the most recent owner decision.
+ */
+export type ReviewDecisionContext = {
+    /**
+     * Authenticated owner.
+     */
+    by: string;
+    /**
+     * Items selected by this decision.
+     */
+    items: Array<string>;
+    /**
+     * Revision claimed by this batch, used in notification deduplication.
+     */
+    revision: number;
+    /**
+     * Entry surface.
+     */
+    via: DecisionVia;
+};
+
+/**
  * Persisted review identity.
  */
 export type ReviewId = string;
@@ -1641,6 +1668,10 @@ export type ReviewItem = {
      * Validated arguments for the existing composer/action.
      */
     draft: unknown;
+    /**
+     * Whether the owner edited this draft before deciding.
+     */
+    edited?: boolean;
     /**
      * Failure or uncertainty description.
      */
@@ -1660,7 +1691,7 @@ export type ReviewItem = {
 };
 
 /**
- * A review item never retries an ambiguous external result automatically.
+ * Review item state, shared with notification consumers.
  */
 export type ReviewItemStatus = 'pending' | 'submitting' | 'completed' | 'dismissed' | 'unknown';
 
@@ -1673,6 +1704,7 @@ export type ReviewKind = 'email' | 'calendar';
  * Full UI record, fetched outside the model context.
  */
 export type ReviewRecord = {
+    decision?: null | ReviewDecisionContext;
     executionId?: null | ExecutionId;
     /**
      * Review identity.
@@ -1686,15 +1718,6 @@ export type ReviewRecord = {
      * Component kind.
      */
     kind: ReviewKind;
-    /**
-     * Most recent delivery claim, allowing retry after a replica stops.
-     */
-    notificationAttemptAt?: number | null;
-    /**
-     * Stable queued-action identity until the outcome has reached the session.
-     * A failed notification may be retried without repeating external actions.
-     */
-    notificationId?: string | null;
     /**
      * Durable presentation acknowledgment, separate from user decisions.
      */

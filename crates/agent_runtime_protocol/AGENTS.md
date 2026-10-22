@@ -41,6 +41,14 @@ payloads.
   (conformance test) → `src/bin/export_types.rs` if the frontend needs the
   generated type.
 
+`domain/notification.rs` owns typed system events and their ACP metadata/XML.
+Notification-only invocations use `AgentAction::notification`; public control must
+reject caller-supplied notification metadata. Payloads contain facts, not drafts.
+The fold reuses this tagged event enum for its generated TypeScript union;
+retain Specta derives on event payloads and preserve the producer wire shape.
+Allow exact `<noop/>` only before any tool call in a notification turn; prompt
+instructions must match the fold's conservative treatment of all tool activity.
+
 ## Checks
 
 - `cargo test -p agent_runtime_protocol` (`SQLX_OFFLINE` unset).

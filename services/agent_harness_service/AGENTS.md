@@ -64,6 +64,12 @@ unfinished external chat replies alongside conversation recovery every ten secon
 Both the backend and macrod's source-message action IDs are required for replies
 from newly triggered external chat turns to finish in their channel threads.
 
+The cancellable, tracked notification worker calls `recover_notifications`
+every two seconds. It routes delivery and acknowledgments through each
+session's serialized worker. Internal producers use
+`POST /agent-sessions/internal/notifications`; only internal credentials may
+produce events, independently of public session control.
+
 ## Checks
 
 - `cargo test -p agent_harness_service` (`SQLX_OFFLINE` unset).

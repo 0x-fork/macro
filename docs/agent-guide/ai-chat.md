@@ -1998,11 +1998,14 @@ Invalid drafts remain editable; navigation opens the first draft needing attenti
 A revision conflict or uncertain request shows **Reload saved review**. Reload
 reads the saved version and discards the local edit; it never retries an external
 send automatically. If the outcome is unknown, check the inbox/calendar before
-attempting another send elsewhere. A completed review queues bounded outcome
-context for the agent through the normal session queue, without interrupting its
-current turn. The existing context
-control exposes this metadata on demand; individual outcomes remain on the review
-card instead of appearing as a long user message. Questions and their answers use
+attempting another send elsewhere. Owner decisions produce durable system events
+for the same review ID. The card refreshes in place, with **Responding** below it
+until the agent starts its reply. This behaves the same on mobile. These events
+create no user bubble; events without an existing card use a quiet timeline row.
+The agent can read final drafts and confirmed outcomes through **GetReview**.
+An exact silent response produces no assistant message or unread notification.
+An owner decision in chat uses the same saved-revision claim as the card;
+a system event cannot approve a review. Ordinary questions still use
 the existing ACP question tool; they are not saved reviews.
 
 For browser verification, inspect email stacks without clicking Send, or dismiss
@@ -2063,3 +2066,9 @@ can share a session into a channel. These tools cannot approve permission
 requests on a user's behalf.
 
 ![Expanded session read with a terminal failure visible after truncated text](media/ai-chat/read-agent-session.png)
+
+Agent-session system events appear as a single quiet row with a kind-specific
+icon, an outcome summary, and relative time (hover for the exact timestamp).
+Failures and unconfirmed outcomes use the error tone. Review events refresh
+the existing card without adding a second timeline row when that card is
+already in the thread. The row stays on one line and truncates on phones.

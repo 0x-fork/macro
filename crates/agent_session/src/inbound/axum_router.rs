@@ -1579,6 +1579,8 @@ pub struct LogFrameDto {
 #[derive(Debug, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum LogDirectionDto {
+    /// Trusted system-event invocation, separate from user prompts.
+    Notification,
     /// Runtime → server.
     ToServer,
     /// Server → runtime.

@@ -1463,3 +1463,41 @@ async fn macrod_rejects_an_unsupported_base_before_dispatch() {
 }
 
 mod tool_actions;
+
+#[tokio::test]
+async fn internal_notifications_use_the_session_mount_once() {
+    use crate::inbound::notifications::{NotificationRouterState, notification_router};
+    let authorization = MacroAuthorizationState::new(Arc::new(MacroAuthorizationServiceImpl::new(
+        FakeJwtValidator,
+        InternalAuthConfig {
+            api_key: "test-internal-key".into(),
+            default_user_id: None,
+        },
+        SelfBotAuthorizer,
+        NoUserApiKeyAuthorizer,
+    )));
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .connect_lazy("postgres://user:password@localhost/macrodb")
+        .unwrap();
+    let service = Arc::new(crate::domain::notifications::NotificationService(Arc::new(
+        crate::outbound::notifications::PgNotificationStore(pool),
+    )));
+    let app = Router::new().nest(
+        "/agent-sessions",
+        notification_router(NotificationRouterState {
+            authorization,
+            service,
+        }),
+    );
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/agent-sessions/internal/notifications")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}

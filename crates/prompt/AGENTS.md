@@ -38,6 +38,9 @@ AI system prompts: one module per prompt section, each exporting a
 
 - Direct session-aware search/listing stays available in code mode; do not route conversation work to legacy chat tools or SDK namespaces.
 
+The agent-session prompt distinguishes typed `<m-notifications>` system facts
+from user requests and defines the notification-only `<noop/>` contract.
+
 ## Checks
 
 - `cargo test -p prompt` (`SQLX_OFFLINE` unset).

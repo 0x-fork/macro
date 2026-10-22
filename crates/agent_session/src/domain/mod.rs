@@ -50,3 +50,6 @@ pub mod list_visibility;
 
 /// User-scoped AI session actions.
 pub mod tool_actions;
+
+/// Durable system notifications.
+pub mod notifications;

@@ -63,7 +63,7 @@ where
             return Ok(NativeToolVerdict::Refuse(UNDECIDED.to_owned()));
         };
         let prompter = self.sessions.turn_prompter(session).await?;
-        let Some(prompter) = prompter.filter(|prompter| prompter.user.as_ref() != Some(&owner))
+        let Some(prompter) = prompter.filter(|prompter| prompter.acting_user() != Some(&owner))
         else {
             return Ok(NativeToolVerdict::Run);
         };

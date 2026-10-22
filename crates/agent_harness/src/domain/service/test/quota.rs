@@ -418,6 +418,7 @@ async fn enqueue_waiting(service: &TestHarness, id: AgentSessionId) -> Vec<Agent
 
 fn turn_ended() -> HarnessCommand {
     HarnessCommand::Turn(TurnSignal::TurnEnded {
+        notification_noop: false,
         turn: agent_fold::domain::model::TurnId(0),
         action_id: None,
         stop: agent_fold::domain::model::StopReason::EndTurn,
