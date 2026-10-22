@@ -20,8 +20,8 @@ import {
   initializeEditorEmpty,
 } from '@core/component/LexicalMarkdown/utils';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
+import { onElementConnect } from '@core/util/onElementConnect';
 import { createPeerIdValidator } from '@macro-inc/lexical-core';
-import { onElementConnect } from '@solid-primitives/lifecycle';
 import type { LexicalEditor } from 'lexical';
 import {
   type Accessor,

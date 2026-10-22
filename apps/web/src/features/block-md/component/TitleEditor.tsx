@@ -18,11 +18,11 @@ import {
 } from '@core/component/LexicalMarkdown/utils';
 import { blockNameToDefaultFile } from '@core/constant/allBlocks';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { onElementConnect } from '@core/util/onElementConnect';
 import { createRenameDssEntityMutation } from '@entity';
 import { mergeRegister } from '@lexical/utils';
 import { useDocTags } from '@property/tags';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
-import { onElementConnect } from '@solid-primitives/lifecycle';
 import { debounce } from '@solid-primitives/scheduled';
 import {
   $createParagraphNode,
@@ -206,6 +206,8 @@ export function TitleEditor(props: { autoFocusOnMount?: boolean } = {}) {
   };
 
   const debouncedFlushRename = debounce(flushPendingRename, 400);
+  // Unmount cancels the debounce timer, so save a pending rename now.
+  onCleanup(flushPendingRename);
 
   const [state, setState] = createSignal('');
   const [initialized, setInitialized] = createSignal(false);
@@ -217,6 +219,7 @@ export function TitleEditor(props: { autoFocusOnMount?: boolean } = {}) {
       return canEdit() ?? false;
     }),
   });
+  onCleanup(cleanup);
 
   initializeEditorEmpty(editor);
 
@@ -282,9 +285,6 @@ export function TitleEditor(props: { autoFocusOnMount?: boolean } = {}) {
     el.addEventListener('blur', onBlur);
     setRootConnected(true);
     onCleanup(() => {
-      debouncedFlushRename.clear();
-      flushPendingRename();
-      cleanup();
       el.removeEventListener('focus', onFocus);
       el.removeEventListener('blur', onBlur);
     });

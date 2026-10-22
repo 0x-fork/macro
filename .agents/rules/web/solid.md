@@ -87,3 +87,11 @@ State ownership, reactivity, and async error handling.
   `create-calendar-event-form-controller.ts`): without both, the control's
   answer edits the state that produced it and the loop only ends in a stack
   overflow that takes the app down.
+- **FE-59** Browser callbacks (observers, timers, listeners) run without a
+  Solid owner: `onCleanup` there never runs, and computations created there,
+  including the memo behind a `cond && value` prop read, are never disposed.
+  Wait for an element to enter the document with `onElementConnect` from
+  `@core/util/onElementConnect`, which runs the callback under the caller's
+  owner, and register cleanup for setup-time resources (plugins, debounced
+  saves) at setup, not in that callback. Enforced by ast-grep
+  `ts-/tsx-no-ownerless-element-connect`, CI error.

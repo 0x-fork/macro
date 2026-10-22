@@ -37,6 +37,7 @@ import {
   setEditorStateFromMarkdown,
 } from '@core/component/LexicalMarkdown/utils';
 import { ENABLE_MARKDOWN_LIVE_COLLABORATION } from '@core/constant/featureFlags';
+import { onElementConnect } from '@core/util/onElementConnect';
 import { bufToString } from '@core/util/string';
 import type { LoroManager } from '@macro-inc/collaboration/collab/manager';
 import {
@@ -48,7 +49,6 @@ import {
   peerIdPlugin,
 } from '@macro-inc/lexical-core';
 import { Telemetry } from '@macro-inc/observability';
-import { onElementConnect } from '@solid-primitives/lifecycle';
 import { debounce } from '@solid-primitives/scheduled';
 import type { EditorState } from 'lexical';
 import {
