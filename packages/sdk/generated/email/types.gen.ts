@@ -2967,6 +2967,12 @@ export type MailboxSettingsOperationsResponse = MailboxSettingsOperationsRespons
 
 export type DisableSyncData = {
     body?: never;
+    headers?: {
+        /**
+         * Inbox link ID to act on instead of the caller's primary inbox; may name a delegated inbox.
+         */
+        'X-Email-Link-Id'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/email/sync';
@@ -2975,6 +2981,9 @@ export type DisableSyncData = {
 export type DisableSyncErrors = {
     400: ErrorResponse;
     401: ErrorResponse;
+    403: ErrorResponse;
+    404: ErrorResponse;
+    409: ErrorResponse;
     500: ErrorResponse;
 };
 

@@ -2722,8 +2722,21 @@
     "/email/sync": {
       "delete": {
         "tags": ["Sync"],
-        "summary": "Disables inbox syncing for user.",
+        "summary": "Disables inbox syncing for the selected inbox.",
+        "description": "The inbox is the caller's primary, or the one named by `X-Email-Link-Id`,\nwhich may be an inbox the caller only reaches through delegation. Removal\ntherefore follows the same policy as `DELETE /email/links/{link_id}`: an\nowner's inbox is torn down, while a delegate only loses their\n`macro_user_links` edge and the owner's data stays intact.",
         "operationId": "disable_sync",
+        "parameters": [
+          {
+            "name": "X-Email-Link-Id",
+            "in": "header",
+            "description": "Inbox link ID to act on instead of the caller's primary inbox; may name a delegated inbox.",
+            "required": false,
+            "schema": {
+              "type": ["string", "null"],
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": "",
@@ -2746,6 +2759,36 @@
             }
           },
           "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
