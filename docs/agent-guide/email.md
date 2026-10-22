@@ -485,16 +485,12 @@ inbox after inboxes load. Repeat on mobile using the expanded `Cc/Bcc, From:` ro
 With GraphQL draft queuing enabled, working copies and pending attachment bytes
 are saved on this device independently of the mutation queue. A failed server
 save must leave the draft discoverable in **Drafts** (including grouped views)
-and in its reply thread. **Draft saved** sits immediately left of the desktop
-delete button after editing pauses for 500 ms and the latest local save completes,
-then fades out after two seconds, including offline saves. Resuming typing hides
-it immediately; another pause and saved version restart the timer. Background
-sync updates do not. Failures replace it with persistent **Retry** in the same place; hover for details.
-Clicking Send must not show the badge for its preparatory draft save, including
-when delivery fails. Later edits can show it again after the usual pause.
-Verify the label does not cycle through saving/syncing text on each edit and
-that retry remains accessible beside the actions on mobile. Editing while failed
-continues saving locally without repeatedly submitting the rejected request.
+and in its reply thread. Saving is silent on desktop and mobile: no saved or
+syncing text appears, including offline. A failure shows a banner inside the
+composer, above the recipients, with **Retry** (or **Retry discard**); it never
+appears in the toolbar or the mobile header actions. Verify the banner on mobile
+sits below the header and that editing while failed continues saving locally
+without repeatedly submitting the rejected request.
 Local draft storage reopens unexpectedly closed IndexedDB connections. If creating
 a transaction fails because the connection is closing, it retries once before
 running any writes. Verify by closing the draft database connection, then editing:
@@ -598,19 +594,31 @@ final sent update, then switching offline and opening Sent. Existing provider
 timestamps and timestamps from repeated finalization remain unchanged; an unsent
 or cancelled draft must not acquire Sent membership.
 
-**Send** and **Send Later** always persist new messages, replies, and forwards
-for Gmail and Outlook in device email storage; no outbox feature flag is required.
-This works with either thread read transport, including when normalized-cache
+**Send** always persists new messages, replies, and forwards for Gmail and
+Outlook in device email storage; no outbox feature flag is required. This works
+with either thread read transport, including when normalized-cache
 initialization has failed. Recipients, inbox, sender alias, body, displayed
-signature, attachment references, and any scheduled time are frozen under one
-attempt ID. Completed uploads are required; adding files offline is unavailable.
+signature, and attachment references are frozen under one attempt ID. Completed
+uploads are required; adding files offline is unavailable.
+
+**Send Later** schedules the saved draft through the schedule endpoint instead
+of the outbox. It shows **Email scheduled** with the send time, **Undo**, and
+**View message**; the message stays a draft, is listed under **Scheduled**, and
+opens with **Scheduled for …** and **Cancel**. Cancelling leaves it an editable
+draft. Sends scheduled through the outbox before this change still show in the
+status panel with **Cancel**.
 
 An authenticated app-level dispatcher submits online immediately and retries the
 same attempt independently of unrelated draft, archive, and property mutations.
-**Queued on this device** means the app must run again to submit. **Accepted by
-server** means delivery continues after the browser closes. Never equate local
-queueing or server acceptance with provider delivery. Only one active send can
-own a draft across tabs; queued composers remain read-only.
+An online send shows **Email sent** with **Undo**: a new message opens its
+conversation and a reply closes its composer, and the message appears as sent
+there immediately, before the server or provider confirms it. An offline send
+shows **Email queued to send** and returns to the email list. Routine delivery
+is otherwise silent: the status panel shows a send only while it waits on this
+device (**Queued on this device**), needs attention, or is scheduled
+(**Scheduled**). On phones the panel sits below the safe area and the floating
+header. Only one active send can own a draft across tabs; queued composers
+remain read-only.
 
 Queued sends remain visible in **Drafts** and their conversation with a persistent
 status and **Cancel** action. A never-attempted send can be cancelled offline.
@@ -625,9 +633,12 @@ authority commit together. It preserves newer edits and fences callbacks from
 before cancellation; older autosaves cannot overwrite or delete the restored copy. A failed queue attempt retains recovery content;
 cancel it before restoring and sending again. The server starts the undo delay
 at first admission, so reconnecting does not consume that delay while offline.
-The send toast's **Undo** works after navigation closes the composer. It restores
-the draft only after cancellation is confirmed. Pending cancellation, an expired
-undo window, and failed cancellation each display a notice. Delivered attempts
+The send toast's **Undo** works after navigation closes the composer. It shows
+**Cancelling send…** until the server confirms, then **Send cancelled**, and
+restores the draft only after that confirmation. The open conversation reads the
+thread again, so the cancelled message never stays visible as sent beside the
+restored draft. Cancellation that cannot be confirmed in time, an expired undo
+window, and failed cancellation each display a notice. Delivered attempts
 remain complete even if the sent message is later deleted from the provider.
 After Undo, delay the accepted cache record's refresh: the newer restored draft
 must still reopen with its body and attachments. A later confirmed send must still
@@ -663,8 +674,7 @@ Verify: queue a new message and a reply offline, close and reopen the app, and
 check their persistent status and read-only content. Cancel one before reconnect
 and confirm its send mutation is never issued. Reconnect the other and check
 that one stable attempt is replayed even after a lost response. Also test a
-cancel racing admission, unavailable local storage, and a pending upload. Queue
-admission means **Email queued to send** or **Email sending**, not provider delivery.
+cancel racing admission, unavailable local storage, and a pending upload.
 Send a standalone message, let it open its thread, then use the toast's Undo and
 confirm the original draft reopens. Repeat after delivery starts and check the
 visible failure notice. Cancel a draft-only thread and check it returns to Drafts
@@ -693,8 +703,8 @@ the stale submission, and old send cleanup must preserve a restored draft and
 its attachments. Logout should warn about queued sends even after their original
 local working copies have been retired; it must not claim to cancel server sends.
 Approved local sends survive sign-out, are hidden from other accounts, and resume
-only when the same account signs back in. The status panel also lists pending and
-failed server attempts from other devices, with pagination. Cancelling one must
+only when the same account signs back in. The status panel also lists failed,
+unconfirmed, and scheduled server attempts from other devices, with pagination. Cancelling one must
 preserve this device's unsynced edits. A malformed or newer-version journal record
 shows a recovery warning, retains its recognizable draft locks, and does not stop
 unrelated valid sends. Reconnecting an expired email account requires **Check

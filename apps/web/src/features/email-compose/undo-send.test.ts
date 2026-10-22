@@ -1,4 +1,5 @@
 import {
+  EmailSendCancellationPending,
   EmailSendCancellationTooLate,
   EmailSendDeliveryUnconfirmed,
   type EmailSendIntent,
@@ -10,8 +11,8 @@ import { runQueuedUndoSend } from './undo-send';
 
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
-  cancel: vi.fn(),
-  restore: vi.fn(),
+  confirm: vi.fn(),
+  promise: vi.fn(async (pending: Promise<unknown>) => await pending),
   success: vi.fn(),
   failure: vi.fn(),
   alert: vi.fn(),
@@ -26,9 +27,8 @@ vi.mock('@queries/soup/cache', () => ({}));
 vi.mock('./primitives/prepare-email-body', () => ({}));
 vi.mock('@queries/email/send-queue', () => ({
   readEmailSendIntents: mocks.read,
-  cancelEmailSendQueued: mocks.cancel,
-  restoreCancelledEmailSend: mocks.restore,
-  emailSendLocked: (intent: EmailSendIntent) => !intent.locallyCancelled,
+  cancelEmailSendAndConfirm: mocks.confirm,
+  EmailSendCancellationPending: class extends Error {},
   EmailSendCancellationTooLate: class extends Error {},
   EmailSendDeliveryUnconfirmed: class extends Error {
     constructor() {
@@ -72,15 +72,13 @@ const intent: EmailSendIntent = {
   },
 };
 
-const cancelled = { ...intent, locallyCancelled: true };
 const onUndone = vi.fn();
 const options = { draftId: 'draft', attemptId: intent.uuid, onUndone };
 beforeEach(() => {
   vi.clearAllMocks();
   endUndoSend(options.draftId);
   mocks.read.mockResolvedValue([intent]);
-  mocks.cancel.mockResolvedValue(cancelled);
-  mocks.restore.mockResolvedValue(undefined);
+  mocks.confirm.mockResolvedValue(undefined);
 });
 
 it('restores the persisted cancellation and reopens the draft after navigation disposes the composer', async () => {
@@ -90,24 +88,24 @@ it('restores the persisted cancellation and reopens the draft after navigation d
     return undo;
   });
   await undo();
-  expect(mocks.restore).toHaveBeenCalledWith(cancelled);
+  expect(mocks.confirm).toHaveBeenCalledWith(intent);
   expect(onUndone).toHaveBeenCalledOnce();
   expect(mocks.success).toHaveBeenCalledWith('Send cancelled');
   await undo();
-  expect(mocks.cancel).toHaveBeenCalledOnce();
+  expect(mocks.confirm).toHaveBeenCalledOnce();
 });
 
-it('keeps uncertain cancellation locked, gives feedback, and allows a confirmed retry', async () => {
-  mocks.cancel.mockResolvedValueOnce(intent);
+it('keeps unconfirmed cancellation locked, gives feedback, and allows a confirmed retry', async () => {
+  mocks.confirm.mockRejectedValueOnce(new EmailSendCancellationPending());
   await runQueuedUndoSend(options);
-  expect(mocks.restore).not.toHaveBeenCalled();
   expect(onUndone).not.toHaveBeenCalled();
+  expect(mocks.failure).not.toHaveBeenCalled();
   expect(mocks.alert).toHaveBeenCalledWith(
     'Cancellation pending — waiting for confirmation'
   );
   await runQueuedUndoSend(options);
-  expect(mocks.restore).toHaveBeenCalledWith(cancelled);
   expect(onUndone).toHaveBeenCalledOnce();
+  expect(mocks.success).toHaveBeenCalledWith('Send cancelled');
 });
 
 it.each([
@@ -116,6 +114,7 @@ it.each([
     'Too late to undo — delivery has already started',
   ],
   [new Error('storage unavailable'), 'Failed to undo send'],
+  [new Error('restore failed'), 'Failed to undo send'],
   [
     new EmailSendDeliveryUnconfirmed(),
     'Delivery unconfirmed; check your sent mail. We will not resend automatically.',
@@ -123,23 +122,13 @@ it.each([
 ])(
   'shows cancellation failures and allows retry: %s',
   async (error, message) => {
-    mocks.cancel.mockRejectedValueOnce(error);
+    mocks.confirm.mockRejectedValueOnce(error);
     await runQueuedUndoSend(options);
     expect(mocks.failure).toHaveBeenCalledWith(message);
     expect(mocks.error).toHaveBeenCalledWith(error);
-    expect(mocks.restore).not.toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
     expect(onUndone).not.toHaveBeenCalled();
     await runQueuedUndoSend(options);
     expect(onUndone).toHaveBeenCalledOnce();
   }
 );
-
-it('reports failed restoration without claiming success or losing the recovery intent', async () => {
-  mocks.restore.mockRejectedValueOnce(new Error('restore failed'));
-  await runQueuedUndoSend(options);
-  expect(mocks.failure).toHaveBeenCalledWith('Failed to undo send');
-  expect(mocks.success).not.toHaveBeenCalled();
-  expect(onUndone).not.toHaveBeenCalled();
-  await runQueuedUndoSend(options);
-  expect(onUndone).toHaveBeenCalledOnce();
-});

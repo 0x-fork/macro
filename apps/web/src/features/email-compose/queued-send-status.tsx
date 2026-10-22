@@ -1,3 +1,4 @@
+import { deviceLooksOffline } from '@core/util/connectivity';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { cancelServerEmailSend } from '@queries/email/cancel-server-send';
 import { useQueuedEmailSends } from '@queries/email/queued-sends';
@@ -21,6 +22,33 @@ import {
 import { Button } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 
+/**
+ * Routine delivery is silent. A send shows here only while it waits on this
+ * device, needs the user, or is scheduled for later.
+ */
+function sendNeedsNotice(intent: EmailSendIntent, offline: boolean) {
+  const status = settledSendAttempt(intent)?.status;
+  if (status === 'SENT') return false;
+  if (
+    intent.metadata.payload.input.message.sendTime ||
+    !emailSendLocked(intent) ||
+    intent.dispatch?.paused ||
+    intent.phase === 'failed' ||
+    status === 'FAILED' ||
+    status === 'DELIVERY_UNCONFIRMED'
+  )
+    return true;
+  // Delivery and Undo in progress stay silent unless they are stuck.
+  if (
+    !intent.cancellationRequested &&
+    (status === 'ACCEPTED' ||
+      status === 'SENDING' ||
+      intent.phase === 'committed')
+  )
+    return false;
+  return offline || (intent.dispatch?.failures ?? 0) > 0;
+}
+
 /** App-facing persistent send status, shared by Drafts and conversation hosts. */
 export function QueuedSendStatus(props: {
   threadId?: string;
@@ -32,7 +60,7 @@ export function QueuedSendStatus(props: {
       const { draft, input } = intent.metadata.payload;
       const attempt = settledSendAttempt(intent);
       return (
-        attempt?.status !== 'SENT' &&
+        sendNeedsNotice(intent, deviceLooksOffline()) &&
         (!props.threadId ||
           intent.resolvedThreadId === props.threadId ||
           draft.threadDbId === props.threadId ||
@@ -51,8 +79,9 @@ export function QueuedSendStatus(props: {
               local.uuid === row.attempt.attemptId &&
               local.metadata.payload.input.attempt.linkId === row.linkId
           ) &&
-        row.attempt.status !== 'SENT' &&
-        row.attempt.status !== 'CANCELLED' &&
+        (row.attempt.status === 'FAILED' ||
+          row.attempt.status === 'DELIVERY_UNCONFIRMED' ||
+          (row.attempt.status === 'ACCEPTED' && !!row.attempt.sendTime)) &&
         (!props.threadId || row.attempt.threadId === props.threadId) &&
         (!props.inboxIds?.length || props.inboxIds.includes(row.linkId))
     );
@@ -65,8 +94,10 @@ export function QueuedSendStatus(props: {
         emailSendStorageWarning()
       }
     >
+      {/* Full-frame phone views leave the top inset to their content. This
+          panel sits above that content, so it takes the inset in its place. */}
       <div
-        class="shrink-0 border-b border-edge-muted p-3"
+        class="shrink-0 border-b border-edge-muted p-3 touch:pt-[calc(var(--mobile-content-inset-top,0px)+0.75rem)] touch:[&~*]:[--mobile-content-inset-top:0px]"
         aria-label="Queued email sends"
       >
         <For each={visible()}>
@@ -130,7 +161,7 @@ function ServerSendStatus(props: { row: ServerEmailSend }) {
         </div>
         <div class="text-xs text-ink-muted" role="status">
           {status() === 'ACCEPTED'
-            ? 'Accepted by server'
+            ? 'Scheduled'
             : status() === 'FAILED'
               ? 'Send failed before delivery. Cancel to recover this draft.'
               : status() === 'DELIVERY_UNCONFIRMED'
@@ -175,7 +206,7 @@ function SendStatus(props: {
       return 'Send needs attention. Cancel to recover this draft.';
     if (emailSendLocked(props.intent) && props.intent.cancellationRequested)
       return 'Cancellation pending';
-    if (status() === 'ACCEPTED') return 'Accepted by server';
+    if (status() === 'ACCEPTED') return 'Scheduled';
     if (status() === 'SENDING' || props.intent.phase === 'committed')
       return 'Sending';
     return props.intent.submissionStarted

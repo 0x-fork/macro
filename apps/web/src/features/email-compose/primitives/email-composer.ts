@@ -568,16 +568,13 @@ export function createEmailComposer(props: EmailComposerOptions) {
     );
     try {
       return persistence.confirmed(
-        await autosave.save(
-          {
-            draft: collectDraft(true),
-            inboxId: activeInboxId(),
-            generation: identityVersion,
-            revision: editVersion,
-            attachments: [...form.attachments.list()],
-          },
-          { acknowledge: false }
-        )
+        await autosave.save({
+          draft: collectDraft(true),
+          inboxId: activeInboxId(),
+          generation: identityVersion,
+          revision: editVersion,
+          attachments: [...form.attachments.list()],
+        })
       );
     } finally {
       cleanupWatermark();
@@ -795,14 +792,12 @@ export function createEmailComposer(props: EmailComposerOptions) {
   ) => {
     const draftId = identity.draftId;
     const threadId = identity.threadId;
+    // The outbox delivers an online send right away; offline it waits on this device.
+    const offline = props.connectivity.looksOffline();
     if (draftId) endUndoSend(draftId);
     try {
       const toastId = props.notices.feedback.success(
-        identity.sendAttemptId
-          ? identity.persistence === 'queued'
-            ? 'Email queued to send'
-            : 'Email sending'
-          : 'Email sent',
+        offline ? 'Email queued to send' : 'Email sent',
         {
           actions: draftId
             ? [
@@ -828,7 +823,9 @@ export function createEmailComposer(props: EmailComposerOptions) {
       props.notices.reportError(error);
     }
     try {
-      if (threadId) props.host?.showThread?.(threadId);
+      // The server has no thread to show until an offline send goes out.
+      if (offline) props.host?.goBack?.();
+      else if (threadId) props.host?.showThread?.(threadId);
     } catch (error) {
       props.notices.reportError(error);
     }
@@ -901,31 +898,15 @@ export function createEmailComposer(props: EmailComposerOptions) {
       return refuseSend(props.notices, 'media-not-uploaded');
     if (attachmentLinks.uploading())
       return refuseSend(props.notices, 'files-uploading');
+    // Send Later schedules the saved draft; only immediate sends use the outbox.
     const scheduleAction = schedule.action();
-    const queuedLater =
-      scheduleAction === 'schedule' &&
-      !!props.delivery.queueActive?.(activeInboxId());
-    const selectedTime = queuedLater ? schedule.selectedTime() : undefined;
-    if (
-      queuedLater &&
-      (!selectedTime ||
-        !Number.isFinite(selectedTime.getTime()) ||
-        selectedTime.getTime() <= Date.now())
-    ) {
-      props.notices.feedback.alert('Choose a future send time.');
-      return;
-    }
-    const sendTime = selectedTime?.toISOString();
     if (scheduleAction === 'unavailable') {
       props.notices.feedback.alert(
         `This email is scheduled for ${schedule.confirmedTime()?.toLocaleString()}. Choose a new time to update it, or cancel the schedule to edit.`
       );
       return;
     }
-    if (
-      (scheduleAction === 'schedule' && !queuedLater) ||
-      scheduleAction === 'update'
-    ) {
+    if (scheduleAction === 'schedule' || scheduleAction === 'update') {
       const result = await schedule.submit();
       if (result === 'scheduled') {
         const scheduledDraftId = currentDraftId();
@@ -964,7 +945,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
         await autosave.saveLocal();
       } else {
         try {
-          await autosave.save(undefined, { acknowledge: false });
+          await autosave.save();
         } catch {
           // Legacy standalone sends can proceed without a saved draft.
         }
@@ -990,8 +971,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
         completed() ||
         terminalState() ||
         schedule.pending() ||
-        (schedule.action() !== 'send' &&
-          !(queuedLater && schedule.selectedTime()?.toISOString() === sendTime))
+        schedule.action() !== 'send'
       )
         return;
 
@@ -1022,7 +1002,6 @@ export function createEmailComposer(props: EmailComposerOptions) {
       try {
         setSendPhase('sending');
         const result = await props.delivery.sendMessage({
-          sendTime,
           expectedLocalVersion,
           clientHandles: {
             draftId: currentDraftId()!,
@@ -1562,7 +1541,6 @@ export function createEmailComposer(props: EmailComposerOptions) {
     retryDraft,
     flushLocal: autosave.flushLocal,
     localSaveState: autosave.localSaveState,
-    acknowledgeSaved: autosave.acknowledgeSaved,
     context: ctxValue,
     editor,
     form,

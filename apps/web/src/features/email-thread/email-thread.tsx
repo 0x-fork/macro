@@ -58,14 +58,10 @@ export function EmailThread(props: EmailThreadProps) {
   const contacts = useContacts();
   const viewerEmail = useEmail();
   const user = useUserContext();
-  const composeContext = createEmailComposeContext({
+  const compose = createEmailComposeContext({
     threadTransport: props.threadTransport,
   });
-  const { source, delivery } = createOptimisticThreadSend(
-    props.source,
-    composeContext
-  );
-  const compose = { ...composeContext, delivery };
+  const source = createOptimisticThreadSend(props.source, compose);
   const threadContext: EmailThreadContext = {
     source,
     viewerEmail,

@@ -5,7 +5,6 @@ import { type JSX, Show } from 'solid-js';
 
 /** Shared header actions for new emails, replies, and forwards. */
 export function MobileComposeActions(props: {
-  status?: JSX.Element;
   attachRef?: (element: HTMLButtonElement) => void;
   editingDisabled: boolean;
   scheduleControl?: JSX.Element;
@@ -17,7 +16,6 @@ export function MobileComposeActions(props: {
 }) {
   return (
     <HeaderIsland class="h-(--mobile-chrome-button-size) p-[5px]">
-      {props.status}
       <Show when={props.attachRef}>
         <Button
           ref={props.attachRef}

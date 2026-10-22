@@ -154,7 +154,7 @@ The compose controllers now assemble these smaller responsibilities:
 | Module | Responsibility and boundary |
 | --- | --- |
 | `attachment-persistence.ts` | Upload/remove operations and completion tracking. Receives attachment state and three transport capabilities. A saved attachment ID does not mean its content upload has finished; every save waits for outstanding uploads. |
-| `email-send-schedule.ts` | Confirmed send time, pending changes, unscheduling and archive feedback. Send Later freezes its deadline in the send intent; updating an existing legacy schedule saves first. Cancellation only unlocks editing after confirmation. |
+| `email-send-schedule.ts` | Confirmed send time, pending changes, unscheduling and archive feedback. Send Later and schedule updates save the draft first, then schedule it through the REST endpoint. Cancellation only unlocks editing after confirmation. |
 | `draft-session.ts` / `draft-persistence.ts` | Shared draft identity, queued-write status, rejection policy, and save/delete ordering. Server identity and a committed latest save are separate facts; uploads and updates to existing legacy schedules wait for a committed save. |
 | `send-readiness.ts` | Outbox admission allows offline delivery with complete attachment references and rejects unfinished uploads. |
 | `draft-autosave.ts` | One debounce and serialized write queue used by reply and standalone compose. Captures editor values before queueing, flushes pending edits on disposal, and exposes cancellation and completion for send/discard. |
@@ -502,8 +502,11 @@ boundaries and exclusive all-day ends without mounting a calendar grid.
 
 ## Independent send outbox
 
-All composer sends use a device email journal for Gmail and Outlook,
-independent of GraphQL normalized-cache availability and read transport.
+All immediate composer sends use a device email journal for Gmail and Outlook,
+independent of GraphQL normalized-cache availability and read transport. Send
+Later schedules the saved draft through the REST schedule endpoint, so it stays a
+draft listed by `/email/drafts/scheduled`; outbox admission makes a message
+non-draft, which that list excludes.
 `send-queue.ts` freezes approval and reserves the draft in IndexedDB before
 returning local acceptance. `outbox-session.ts` runs dispatch and recovery from
 the authenticated app shell; mounted composers only observe them.
@@ -563,7 +566,12 @@ attachment handles retain the generation captured at reservation.
 The status panel combines device intents with actor/inbox-authorized, cursor-paged
 `pendingEmailSends`, with batched message hydration. Server listing grants observation and cancellation authority,
 never automatic resubmission. Delivery state distinguishes local queueing,
-server acceptance, provider processing, sent, failed, and unconfirmed outcomes.
+server acceptance, provider processing, sent, failed, and unconfirmed outcomes,
+but the panel stays silent for routine delivery: it lists a send only while it
+waits on this device, needs attention, or is scheduled. Thread surfaces project
+approved immediate sends from the journal as sent messages
+(`email-thread/primitives/optimistic-send.ts`) until the thread read shows them,
+and read the thread once when delivery is confirmed.
 
 Deploy schema/migrations and all generation-aware backend writers before
 releasing this frontend, including before applying `ios-update`: that workflow

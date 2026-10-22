@@ -8,43 +8,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it.each([false, true])(
-  'suppresses a delivery flush acknowledgement until another edit (failure=%s)',
-  async (fails) => {
-    vi.useFakeTimers();
-    const persist = vi.fn(async () => {
-      if (fails) throw new Error('Delivery preparation failed');
-    });
-    const local = vi.fn(async () => {});
-    const autosave = createRoot((dispose) => {
-      disposers.push(dispose);
-      return createDraftAutosave({
-        capture: () => 'draft',
-        persist,
-        saveLocalSnapshot: local,
-        paused: () => false,
-      });
-    });
-    autosave.schedule();
-    await autosave.flushLocal();
-    const flush = autosave.save(undefined, { acknowledge: false });
-    expect(autosave.acknowledgeSaved()).toBe(false);
-    if (fails)
-      await expect(flush).rejects.toThrow('Delivery preparation failed');
-    else await flush;
-    expect(local).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(2_000);
-    expect(autosave.acknowledgeSaved()).toBe(false);
-    fails = false;
-    autosave.schedule();
-    await autosave.flushLocal();
-    expect(autosave.acknowledgeSaved()).toBe(false);
-    await vi.advanceTimersByTimeAsync(500);
-    expect(autosave.acknowledgeSaved()).toBe(true);
-  }
-);
-
-it('keeps input active through continuous edits without delaying local saves', async () => {
+it('saves locally on every edit and persists once input pauses', async () => {
   vi.useFakeTimers();
   const local = vi.fn(async () => {});
   const persist = vi.fn(async () => {});
@@ -61,26 +25,18 @@ it('keeps input active through continuous edits without delaying local saves', a
     autosave.schedule();
     await autosave.flushLocal();
     expect(autosave.localSaveState()).toBe('saved');
-    expect(autosave.acknowledgeSaved()).toBe(false);
     expect(local).toHaveBeenCalledTimes(edit + 1);
     await vi.advanceTimersByTimeAsync(200);
-    expect(autosave.acknowledgeSaved()).toBe(false);
     expect(persist).not.toHaveBeenCalled();
   }
   await vi.advanceTimersByTimeAsync(299);
-  expect(autosave.acknowledgeSaved()).toBe(false);
+  expect(persist).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(1);
-  expect(autosave.acknowledgeSaved()).toBe(true);
   await autosave.settled();
   expect(persist).toHaveBeenCalledOnce();
-
-  autosave.schedule();
-  expect(autosave.acknowledgeSaved()).toBe(false);
-  autosave.cancel();
-  expect(autosave.acknowledgeSaved()).toBe(true);
 });
 
-it('distinguishes a typing pause from a slow local save', async () => {
+it('reports a slow local save as saving after input pauses', async () => {
   vi.useFakeTimers();
   const write = Promise.withResolvers<void>();
   const autosave = createRoot((dispose) => {
@@ -94,7 +50,6 @@ it('distinguishes a typing pause from a slow local save', async () => {
   });
   autosave.schedule();
   await vi.advanceTimersByTimeAsync(500);
-  expect(autosave.acknowledgeSaved()).toBe(true);
   expect(autosave.localSaveState()).toBe('saving');
   write.resolve();
   await autosave.settled();

@@ -5,12 +5,11 @@ import { saveEmailComposeDraft } from '@queries/email/graphql/compose';
 import { unscheduleEmailMessage } from '@queries/email/integration';
 import { emailKeys } from '@queries/email/keys';
 import {
-  cancelEmailSendQueued,
+  cancelEmailSendAndConfirm,
+  EmailSendCancellationPending,
   EmailSendCancellationTooLate,
   EmailSendDeliveryUnconfirmed,
-  emailSendLocked,
   readEmailSendIntents,
-  restoreCancelledEmailSend,
 } from '@queries/email/send-queue';
 import { invalidateSoupEntity } from '@queries/soup/cache';
 import type { EmailDraft } from './core/email-draft';
@@ -62,17 +61,19 @@ export async function runQueuedUndoSend(options: {
       (row) => row.uuid === attemptId
     );
     if (!intent) throw new Error('This send is no longer available to undo');
-    const updated = await cancelEmailSendQueued(intent);
-    if (emailSendLocked(updated)) {
-      endUndoSend(draftId);
-      toast.alert('Cancellation pending — waiting for confirmation');
-      return;
-    }
-    await restoreCancelledEmailSend(updated);
+    // A submitted send waits for the server to confirm the cancellation,
+    // which online takes a moment; only then is the draft restored.
+    await toast.promise(cancelEmailSendAndConfirm(intent), {
+      loading: 'Cancelling send…',
+    });
     await options.onUndone();
     toast.success('Send cancelled');
   } catch (error) {
     endUndoSend(draftId);
+    if (error instanceof EmailSendCancellationPending) {
+      toast.alert('Cancellation pending — waiting for confirmation');
+      return;
+    }
     Telemetry.error(
       error instanceof Error ? error : new Error('Failed to undo send')
     );

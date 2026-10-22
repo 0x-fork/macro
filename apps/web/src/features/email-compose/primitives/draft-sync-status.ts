@@ -15,7 +15,6 @@ export function createDraftSyncStatus(options: {
   drafts: EmailDraftStorage;
   draftId: Accessor<string | undefined>;
   localSaveState: Accessor<'saving' | 'saved' | 'failed'>;
-  acknowledgeSaved: Accessor<boolean>;
   retry(): Promise<unknown>;
   discard(): Promise<unknown>;
 }) {
@@ -40,7 +39,7 @@ export function createDraftSyncStatus(options: {
     (local()?.status === 'deleting' &&
       (!local()?.queuedAttemptId ||
         local()?.queuedAttemptId !== local()?.latestAttemptId));
-  const state = createMemo<DraftSyncViewState | undefined>((previous) => {
+  const state = createMemo<DraftSyncViewState | undefined>(() => {
     if (!options.drafts.saveLocalDraft || !options.draftId()) return;
     const disk = options.localSaveState();
     const draft = local();
@@ -75,24 +74,8 @@ export function createDraftSyncStatus(options: {
         canKeepEditing: false,
       };
     }
-    // Only a newly persisted version restarts the brief acknowledgement.
-    // Queue notifications and identity adoption do not count as another save.
-    if (!failed) {
-      if (!draft && (disk === 'saving' || saved.loading))
-        return previous && { ...previous, savedVersion: undefined };
-      if (!draft && !saved.latest?.draft) return;
-      return {
-        message: 'Draft saved',
-        savedVersion:
-          disk === 'saved' && options.acknowledgeSaved()
-            ? draft
-              ? `${draft.generation}:${draft.revision}`
-              : saved.latest?.draft?.updated_at
-            : undefined,
-        failed: false,
-        canKeepEditing: false,
-      };
-    }
+    // Saving is silent; only failures that need the user surface here.
+    if (!failed) return;
     return {
       message:
         disk === 'failed'

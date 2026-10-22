@@ -80,8 +80,6 @@ export type DraftAttempt = {
 /** Presentation of local persistence and explicit server recovery. */
 export type DraftSyncViewState = {
   message: string;
-  /** Identifies a saved version to acknowledge after editing pauses. */
-  savedVersion?: string;
   detail?: string;
   failed: boolean;
   action?: 'retry' | 'retry-discard';

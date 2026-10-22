@@ -149,6 +149,13 @@ export class EmailSendCancellationTooLate extends Error {
   }
 }
 
+export class EmailSendCancellationPending extends Error {
+  constructor() {
+    super('Cancellation is pending. Check email send status before editing.');
+    this.name = 'EmailSendCancellationPending';
+  }
+}
+
 export class EmailSendDeliveryUnconfirmed extends Error {
   constructor() {
     super(
@@ -192,10 +199,7 @@ export async function cancelEmailSendAndConfirm(
       throw new EmailSendCancellationTooLate();
     if (status === 'DELIVERY_UNCONFIRMED')
       throw new EmailSendDeliveryUnconfirmed();
-    if (Date.now() >= deadline)
-      throw new Error(
-        'Cancellation is pending. Check email send status before editing.'
-      );
+    if (Date.now() >= deadline) throw new EmailSendCancellationPending();
     await new Promise<void>((resolve) => setTimeout(resolve, 250));
     const latest = (await readEmailSendIntents()).find(
       (row) => row.uuid === intent.uuid

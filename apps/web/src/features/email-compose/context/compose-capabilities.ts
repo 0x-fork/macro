@@ -211,11 +211,35 @@ export interface EmailAttachmentStorage {
   removeForwardedAttachment(input: EmailAttachmentChange): Promise<void>;
 }
 
+/** An approved immediate send the thread read may not show yet. */
+export interface OutgoingEmail {
+  sendAttemptId: string;
+  /** The approved draft's handles and, once accepted, the server's message id. */
+  messageIds: string[];
+  threadIds: string[];
+  inboxId: string;
+  /** The provider confirmed delivery, so a fresh thread read shows it. */
+  delivered: boolean;
+  message: Pick<
+    EmailMessage,
+    | 'to'
+    | 'cc'
+    | 'bcc'
+    | 'subject'
+    | 'body_text'
+    | 'body_macro'
+    | 'body_html_sanitized'
+    | 'replying_to_id'
+  >;
+}
+
 export interface EmailDelivery {
   /** Whether sends can be persisted and replayed without connectivity. */
   queueActive?: (inboxId?: string) => boolean;
   /** Persisted locks, scoped to the composing surface's owner. */
   sendLocked?: (draftId: string | undefined) => boolean;
+  /** Durable sends on their way; cancelled, failed and scheduled sends are excluded. */
+  outgoing?: () => OutgoingEmail[];
   sendMessage(input: SendEmailDraft): Promise<PersistedEmailIdentity>;
   unschedule(input: {
     draftGeneration?: number;

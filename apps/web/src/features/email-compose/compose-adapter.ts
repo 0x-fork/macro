@@ -78,6 +78,7 @@ import {
   emailSendLocked,
   emailSendMatchesDraft,
   sendEmailQueued,
+  settledSendAttempt,
 } from '@queries/email/send-queue';
 import { serverEmailSends } from '@queries/email/server-sends';
 import {
@@ -505,6 +506,57 @@ export function createEmailComposeContext(
     },
     delivery: {
       queueActive: () => true,
+      outgoing: () =>
+        sends.intents().flatMap((intent) => {
+          const attempt = settledSendAttempt(intent);
+          const { draft, input } = intent.metadata.payload;
+          if (
+            !emailSendLocked(intent) ||
+            intent.phase === 'failed' ||
+            attempt?.status === 'FAILED' ||
+            input.message.sendTime
+          )
+            return [];
+          const contacts = (list: typeof draft.to) =>
+            (list ?? []).map((contact) => ({
+              email: contact.email,
+              name: contact.name,
+              photo_url: contact.photoUrl,
+            }));
+          const ids = (values: (string | null | undefined)[]) => [
+            ...new Set(values.filter((value) => !!value).map(String)),
+          ];
+          return [
+            {
+              sendAttemptId: intent.uuid,
+              messageIds: ids([
+                String(input.message.draftId),
+                intent.resolvedDraftId,
+                attempt?.message?.id,
+              ]),
+              threadIds: ids([
+                draft.threadDbId,
+                intent.resolvedThreadId,
+                attempt?.threadId,
+              ]),
+              inboxId: draft.senderLinkId,
+              delivered: attempt?.status === 'SENT',
+              message: {
+                to: contacts(draft.to),
+                cc: contacts(draft.cc),
+                bcc: contacts(draft.bcc),
+                subject: draft.subject,
+                body_text: draft.bodyText,
+                body_macro: draft.bodyMacro,
+                body_html_sanitized: draft.optimisticBodyHtml,
+                replying_to_id:
+                  draft.replyingToId == null
+                    ? null
+                    : String(draft.replyingToId),
+              },
+            },
+          ];
+        }),
       sendLocked: (draftId) =>
         !sends.ready() ||
         (!!draftId &&
