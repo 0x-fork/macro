@@ -51,6 +51,7 @@ export function EmailStarAction(props: {
         label={props.starred ? 'Unstar email' : 'Star email'}
         class={props.starred ? 'text-ink-muted' : 'text-ink-extra-muted'}
         tooltip={props.starred ? 'Remove from favorites' : 'Add to favorites'}
+        hotkey={TOKENS.email.star}
         aria-pressed={props.starred}
         disabled={props.pending}
         onClick={props.onStar}

@@ -29,9 +29,27 @@ Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
 Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
-`Archived` / `All`. Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
+`Archived` / `All`, plus `Reminders` when reminders are enabled. Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
 shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connections
-use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` within the surface.
+use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` or `/` within the surface.
+
+Mail-client keys work in the list, the reading pane, and the open thread while
+Email is focused: `s` star, `z` undo the last action, and `g` then a letter
+for a tab (`i` Signal, `o` Noise, `s` Favorites, `t` Sent, `d` Drafts, `e`
+Archived, `a` All). These letters replace the app-wide `g` targets only inside
+Email (`g t` is still Tasks elsewhere); `g h` still goes Home. `Escape` in a
+list with nothing selected returns to Signal; in the reading pane it first
+hands the keyboard back to the list. `?` lists every shortcut for the focused
+view. `Shift+M` mutes the selected rows or the open thread, and `S` and
+`Shift+M` also work on a thread opened in its own split. In a thread, `O` opens
+or closes the selected message (the latest when none is selected), `Shift+O`
+opens every message including the collapsed middle run, and `N`/`P` step
+messages like the arrows. `Cmd+Up`/`Cmd+Down` jump to either end of a list.
+In every composer `Cmd+Shift+.`, `Cmd+Shift+,` and `Cmd+Shift+D` discard the
+draft exactly like its trash button, `Cmd+Shift+U` opens the attach picker, and
+`Cmd+Shift+X`, `7`, `8` and `9` apply strikethrough, numbered list, bulleted
+list and quote. Check discard from both a reply (the reply closes) and
+standalone compose (the view goes back), with focus in the body.
 
 Outlook connections support personal Outlook.com and individual Microsoft 365
 inboxes. Choose the inbox explicitly when testing mixed-provider accounts. The

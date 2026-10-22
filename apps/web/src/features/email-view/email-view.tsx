@@ -38,6 +38,7 @@ import { EmailViewProvider, useEmailView } from './email-view-context';
 import type { EmailListPane } from './reader-pane';
 import { emailTour } from './tour';
 import type { EmailTab, EmailViewStateOptions } from './types';
+import { useEmailViewHotkeys } from './use-email-view-hotkeys';
 import { useReadingPaneHotkey } from './use-reading-pane-hotkey';
 
 export type EmailViewProps = {
@@ -213,7 +214,14 @@ function EmailMobileLayout(props: ParentProps) {
 
 function EmailViewRoot() {
   const panel = useSplitPanelOrThrow();
-  const { readingPane, setReadingPane } = useEmailView();
+  const {
+    state,
+    setTab,
+    selectedThread,
+    list: listController,
+    readingPane,
+    setReadingPane,
+  } = useEmailView();
   const [listElement, setListElement] = createSignal<HTMLDivElement>();
   const [listPane, setListPane] = createSignal<EmailListPane>();
   const focusList = () => listElement()?.focus();
@@ -225,6 +233,20 @@ function EmailViewRoot() {
     enabled: () => panel.isPanelActive() && !isTouchDevice(),
     readingPane,
     setReadingPane,
+  });
+
+  useEmailViewHotkeys({
+    scopeId: panel.splitHotkeyScope,
+    enabled: () => panel.isPanelActive() && !isTouchDevice(),
+    tab: () => state.tab,
+    setTab,
+    // Beside the reading pane the list stays on screen with a thread open;
+    // without it an open thread replaces the list.
+    listHasKeyboard: () => {
+      const pane = listPane();
+      return pane ? !pane.readerHasKeyboard() : selectedThread() === undefined;
+    },
+    hasSelection: () => listController.selection.count() > 0,
   });
 
   const list = () => (

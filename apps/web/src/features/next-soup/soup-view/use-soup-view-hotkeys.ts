@@ -84,9 +84,9 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
 
   const group = createHotkeyGroup();
 
-  // home - Jump to top of list
+  // home, cmd+arrowup - Jump to top of list
   registerHotkey({
-    hotkey: ['home'],
+    hotkey: ['home', 'cmd+arrowup'],
     scopeId,
     hotkeyToken: TOKENS.entity.jump.home,
     description: 'Go to top of list',
@@ -117,9 +117,9 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     registrationType: 'add',
   }).withGroup(group);
 
-  // shift+g, end - Jump to bottom of list
+  // shift+g, end, cmd+arrowdown - Jump to bottom of list
   registerHotkey({
-    hotkey: ['shift+g', 'end'],
+    hotkey: ['shift+g', 'end', 'cmd+arrowdown'],
     scopeId,
     hotkeyToken: TOKENS.entity.jump.end,
     description: 'Go to bottom of list',

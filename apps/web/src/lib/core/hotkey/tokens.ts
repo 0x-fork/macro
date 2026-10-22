@@ -153,11 +153,17 @@ export const TOKENS = {
     previousMessage: 'email.previousMessage',
     nextMessage: 'email.nextMessage',
     cancelReply: 'email.cancelReply',
+    discardDraft: 'email.discardDraft',
+    attach: 'email.attach',
+    expandMessage: 'email.expandMessage',
+    expandAllMessages: 'email.expandAllMessages',
     trash: 'email.trash',
     blockSender: 'email.blockSender',
     markSenderSignal: 'email.markSenderSignal',
     markSenderNoise: 'email.markSenderNoise',
     toggleReadingPane: 'email.toggleReadingPane',
+    star: 'email.star',
+    mute: 'email.mute',
     compose: {
       edit: {
         recipients: 'email.compose.edit.recipients',

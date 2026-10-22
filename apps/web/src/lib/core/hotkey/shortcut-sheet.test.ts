@@ -1,6 +1,6 @@
 import { createRoot, createSignal } from 'solid-js';
 import { afterEach, expect, test } from 'vitest';
-import { getShortcutSheet } from './getCommands';
+import { getRunnableHotkeys, getShortcutSheet } from './getCommands';
 import { registerHotkey } from './hotkeys';
 import { hotkeyScopeTree } from './state';
 import { registerScope, removeScope } from './utils';
@@ -165,4 +165,40 @@ test('keeps the keys of a partly shadowed command and follows handler priority',
     description: 'Select',
     bindings: [['x']],
   });
+});
+
+test('runnable keys include hidden commands and only those whose condition holds', () => {
+  const goTo = leaderScope('runnable-go-to');
+  const [viewFocused, setViewFocused] = createSignal(false);
+  createRoot((dispose) => {
+    disposers.push(dispose);
+    const handler = () => true;
+    registerHotkey({
+      scopeId: goTo,
+      hotkey: 'h',
+      description: 'Go to Home',
+      keyDownHandler: handler,
+      registrationType: 'add',
+    });
+    registerHotkey({
+      scopeId: goTo,
+      hotkey: 's',
+      description: 'Go to Favorites',
+      keyDownHandler: handler,
+      condition: viewFocused,
+      registrationType: 'add',
+    });
+    registerHotkey({
+      scopeId: goTo,
+      hotkey: 'g',
+      description: 'Go to top',
+      keyDownHandler: handler,
+      hide: true,
+      registrationType: 'add',
+    });
+  });
+
+  expect([...getRunnableHotkeys(goTo)].sort()).toEqual(['g', 'h']);
+  setViewFocused(true);
+  expect([...getRunnableHotkeys(goTo)].sort()).toEqual(['g', 'h', 's']);
 });
