@@ -1,6 +1,7 @@
 import { formatOrdinal, plural } from '@core/util/string';
 import { TZDateMini } from '@date-fns/tz';
 import { format } from 'date-fns';
+import type { CalendarEvent } from '../types';
 
 const POSITIVE_INTEGER_REGEX = /^\d+$/;
 const BYDAY_VALUE_REGEX = /^([+-]?\d{1,2})?(MO|TU|WE|TH|FR|SA|SU)$/i;
@@ -687,4 +688,16 @@ export function defaultCustomConfig(start: Date): RecurrenceConfig {
     byDay: [WEEKDAY_CODES[start.getDay()] as WeekdayCode],
     ends: NEVER,
   };
+}
+
+/** How an event repeats, as event details describe it; undefined for a one-off event. */
+export function eventRecurrenceDescription(
+  event: Pick<CalendarEvent, 'recurrenceLines' | 'recurrenceId'>
+): string | undefined {
+  const description = formatRecurrenceDescription(event.recurrenceLines);
+  if (description) return description;
+
+  return event.recurrenceLines.length > 0 || event.recurrenceId !== undefined
+    ? 'Recurring event'
+    : undefined;
 }

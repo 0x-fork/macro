@@ -43,11 +43,6 @@ import {
 import { Dynamic } from 'solid-js/web';
 import type { CalendarEvent, CalendarTimeFormat } from '../types';
 import {
-  isSameLocalDate,
-  isTimedPointEvent,
-  parseLocalDate,
-} from '../utils/calendar-date';
-import {
   parseMacroAppLink,
   sanitizeCalendarDescription,
 } from '../utils/calendar-description';
@@ -66,24 +61,16 @@ import {
   resolveReminderOverrides,
 } from '../utils/event-reminders';
 import {
+  formatEventSchedule,
+  parseCalendarDate,
+} from '../utils/event-schedule';
+import {
   calendarMacroCallUrl,
   removeCalendarMacroCall,
 } from '../utils/macro-call-link';
-import { formatRecurrenceDescription } from '../utils/recurrence';
-import {
-  CALENDAR_TIME_FORMAT_OPTIONS,
-  formatCalendarTime,
-} from '../utils/time-format';
+import { eventRecurrenceDescription } from '../utils/recurrence';
+import { CALENDAR_TIME_FORMAT_OPTIONS } from '../utils/time-format';
 
-const formatDate = new Intl.DateTimeFormat(undefined, {
-  weekday: 'short',
-  month: 'long',
-  day: 'numeric',
-});
-const formatShortDate = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-  day: 'numeric',
-});
 const ATTENDEE_RESPONSE = {
   accepted: {
     label: 'Accepted',
@@ -313,34 +300,6 @@ function ScrollableAttendeeList(props: { attendees: CalendarAttendee[] }) {
   );
 }
 
-function parseCalendarDate(value: string) {
-  return parseLocalDate(value) ?? new Date(value);
-}
-
-function formatEventSchedule(
-  event: CalendarEvent,
-  timeFormat: CalendarTimeFormat
-) {
-  const start = parseCalendarDate(event.start);
-  const end = parseCalendarDate(event.end);
-
-  if (event.allDay) {
-    const inclusiveEnd = new Date(end);
-    inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
-    return isSameLocalDate(start, inclusiveEnd)
-      ? `${formatDate.format(start)} · All day`
-      : `${formatShortDate.format(start)}–${formatShortDate.format(inclusiveEnd)} · All day`;
-  }
-
-  if (isTimedPointEvent(event)) {
-    return `${formatDate.format(start)} · ${formatCalendarTime(start, timeFormat)} · No duration`;
-  }
-
-  return isSameLocalDate(start, end)
-    ? `${formatDate.format(start)} · ${formatCalendarTime(start, timeFormat)}–${formatCalendarTime(end, timeFormat)}`
-    : `${formatDate.format(start)}, ${formatCalendarTime(start, timeFormat)}–${formatDate.format(end)}, ${formatCalendarTime(end, timeFormat)}`;
-}
-
 /**
  * The location row. A phone number written into the location becomes a call
  * link, so a dial-in number takes one click instead of being retyped into a
@@ -542,17 +501,9 @@ export function EventDetails(props: {
     }
     openExternalUrl(anchor.href);
   });
-  const recurrenceDescription = createMemo(() => {
-    const description = formatRecurrenceDescription(
-      props.event.recurrenceLines
-    );
-    if (description) return description;
-
-    return props.event.recurrenceLines.length > 0 ||
-      props.event.recurrenceId !== undefined
-      ? 'Recurring event'
-      : undefined;
-  });
+  const recurrenceDescription = createMemo(() =>
+    eventRecurrenceDescription(props.event)
+  );
 
   return (
     <div class="ph-no-capture grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] gap-x-4 gap-y-5 p-1 text-sm text-ink-muted sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3 sm:gap-y-3 sm:text-xs">

@@ -1,4 +1,5 @@
 import type { CalendarEvent } from '@app/features/calendar/types';
+import { eventDisplayTitle } from '@app/features/calendar/utils/event-forward-summary';
 import { toast } from '@core/component/Toast/Toast';
 import { downloadFile } from '@filesystem/download';
 import { fetchCalendarEventIcs } from '@queries/calendar/ics';
@@ -10,8 +11,5 @@ export async function downloadCalendarEventIcs(event: CalendarEvent) {
     toast.failure('Failed to download event');
     return;
   }
-  await downloadFile(
-    file.value,
-    `${event.title.trim() || 'Untitled event'}.ics`
-  );
+  await downloadFile(file.value, `${eventDisplayTitle(event)}.ics`);
 }

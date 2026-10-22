@@ -132,6 +132,17 @@ export type EmailComposerOptions = {
   initialTo?: string[];
   /** Initial sending inbox for new messages. Existing drafts retain their sender. */
   initialInboxId?: string;
+  /** Prefill for the subject of a new message. */
+  initialSubject?: string;
+  /** Prefill for the body of a new message, as plain text. */
+  initialBodyText?: string;
+  /**
+   * Files the app generated for a new message, such as an event's `.ics`.
+   * They attach as picked files do once the editor holds the body; like the
+   * other prefills, they are not an edit, so no draft exists until the user
+   * changes something.
+   */
+  initialAttachments?: File[];
 };
 
 export function createEmailComposer(props: EmailComposerOptions) {
@@ -162,6 +173,10 @@ export function createEmailComposer(props: EmailComposerOptions) {
 
   if (!initialDraftId && props.initialInboxId) {
     form.setSelectedInbox(props.initialInboxId);
+  }
+
+  if (!initialDraftId && props.initialSubject) {
+    form.setSubject(props.initialSubject);
   }
 
   if (props.localAttachments) {
@@ -625,7 +640,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
     editorFiles: props.editorFiles,
   });
 
-  const handleAddAttachments = async (files: File[]) => {
+  const addAttachments = async (files: File[], { edit }: { edit: boolean }) => {
     if (persistencePaused()) return;
     if (await refuseAttachmentsOffline(props.connectivity, props.notices))
       return;
@@ -642,13 +657,40 @@ export function createEmailComposer(props: EmailComposerOptions) {
     for (const file of attachable) {
       form.attachments.add({ type: 'local', file });
     }
-    if (attachable.length > 0) markDirtyAndScheduleSave();
+    if (edit && attachable.length > 0) markDirtyAndScheduleSave();
     try {
       await attachmentLinks.share(oversized, limit);
     } catch (error) {
       props.notices.reportError(error);
     }
   };
+  const handleAddAttachments = (files: File[]) =>
+    addAttachments(files, { edit: true });
+
+  // Generated files wait for the editor, which a link offer writes into, and
+  // for the composer to accept attachments: the outbox locks it until it loads.
+  const [initialAttachmentsPending, setInitialAttachmentsPending] =
+    createSignal(false);
+  let editorInitialized = false;
+  const addInitialAttachments = () => {
+    if (editorInitialized) return;
+    editorInitialized = true;
+    if (!initialDraftId && props.initialAttachments?.length)
+      setInitialAttachmentsPending(true);
+  };
+  createEffect(
+    on(
+      () => initialAttachmentsPending() && !persistencePaused(),
+      (ready) => {
+        if (!ready) return;
+        setInitialAttachmentsPending(false);
+        fireAndForget(
+          addAttachments(props.initialAttachments ?? [], { edit: false }),
+          'email-compose'
+        );
+      }
+    )
+  );
 
   const handleRemoveAttachment = async (attachment: DraftFormAttachment) => {
     if (persistencePaused()) return;
@@ -1332,7 +1374,11 @@ export function createEmailComposer(props: EmailComposerOptions) {
     }
 
     const draft = form.draft;
-    if (!draft) return;
+    if (!draft) {
+      return !initialDraftId && props.initialBodyText
+        ? plainTextToHtml(props.initialBodyText)
+        : undefined;
+    }
 
     if (draft.body_html_sanitized) {
       return decodeBase64Utf8(draft.body_html_sanitized);
@@ -1407,6 +1453,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
 
     // Editor
     captureEditor: setEditor,
+    onEditorInitialized: addInitialAttachments,
 
     // Actions
     onSend: () => fireAndForget(onSubmit(), 'email-compose'),

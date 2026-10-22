@@ -459,6 +459,15 @@ as plain text, location and organizer, never the guest list or join link. Like `
 is absent from teammates' out-of-office chips. Its endpoint, document storage's
 `GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
 belongs to.
+Beside it, `Forward by email` (shown under the same rule) passes the event on the way Gmail
+forwards an invitation: it closes the details, fetches the same file, and opens a new email
+where `Email guests` does (its own composer, even when another one is open), with no recipients, the title as subject, a plain-text summary in
+the body (title, when in the viewer's zone, the repeat rule in words, location, organizer and
+description, never guests or a join link) and the `.ics` attached as a picked file would be.
+Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLISH`, so
+recipients get a copy to add to their calendar, not an invitation they can answer. If the file
+cannot be fetched, no composer opens and a `Failed to forward event` toast shows; to check it,
+answer the `.ics` route with an error.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's
