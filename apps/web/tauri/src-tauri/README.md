@@ -11,7 +11,8 @@ Only desktop icons carry the ALPHA badge; iOS and Android icons are unbadged.
 The macOS icon uses the badged artwork in the Icon Composer source
 `icons/macos/Macro.icon`; this artwork is no longer copied from iOS. The macOS-only
 Tauri configuration bundles its compiled `Assets.car` and `Macro.icns`, and
-merges the generated icon names into Info.plist. Tahoe uses the icon
+declares the icon names in the hand-maintained `icons/macos/Info.plist`, which
+the script below does not overwrite. Tahoe uses the icon
 composition; older macOS uses the generated fallback. The artwork has no
 baked-in rounded tile or transparent border for macOS to place inside another
 enclosure.

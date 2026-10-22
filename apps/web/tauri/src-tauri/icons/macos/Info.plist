@@ -10,5 +10,9 @@
 	<array>
 		<string>INSendMessageIntent</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Macro uses the camera for video calls.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Macro uses the microphone for calls and dictation.</string>
 </dict>
 </plist>

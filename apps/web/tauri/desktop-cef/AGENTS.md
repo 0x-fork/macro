@@ -48,7 +48,9 @@ thin binary over `../src-tauri` (`app_lib::run_with`) that selects
   framework and helper apps from macOS bundles.
 - Keep `entitlements.plist` on the CEF config and the Nix DMG signing step. The
   release signs the unsigned Nix app after bundling, and Chromium needs the JIT
-  entitlements under the hardened runtime.
+  entitlements under the hardened runtime. Calls and dictation need its camera
+  and audio-input entitlements, plus the usage descriptions in
+  `../src-tauri/icons/macos/Info.plist`; without either, macOS refuses capture.
 - Keep `tauri.conf.json` aligned with `../src-tauri/tauri.conf.json` and
   `tauri.macos.conf.json`: the CLI bundles from this file, while the app's
   runtime config still comes from `../src-tauri`.
