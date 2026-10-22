@@ -338,6 +338,12 @@ export function createMutationQueueRunner(
   const { host, client, options, owner, forward, writeThrough } = deps;
   const liveQueuedOps = new Map<string, LiveQueuedOperation>();
   let storageGeneration = 0;
+  let activeAttempt: AttemptToken | undefined;
+  // Queue IDs advance in order; retries advance their lease.
+  // Keep the watermark after settlement so a late claim cannot revive an old head.
+  let latestClaim:
+    | Pick<ClaimedMutation, 'transactionId' | 'leaseGeneration'>
+    | undefined;
   // The durable queue is strictly ordered. A confirmed head keeps its server
   // response until local settlement succeeds, without repeating a server
   // effect after a cache failure. Process loss still requires server-side
@@ -351,8 +357,25 @@ export function createMutationQueueRunner(
   let deferredUntil: number | undefined;
   let drainTimer: ReturnType<typeof setTimeout> | undefined;
 
-  function isCurrent(token: StorageEpoch): boolean {
-    return token.storageGeneration === storageGeneration;
+  function isNewClaim(claim: ClaimedMutation): boolean {
+    if (!latestClaim) return true;
+    const id = BigInt(claim.transactionId);
+    const previousId = BigInt(latestClaim.transactionId);
+    return (
+      id > previousId ||
+      (id === previousId &&
+        BigInt(claim.leaseGeneration) > BigInt(latestClaim.leaseGeneration))
+    );
+  }
+
+  function isCurrent(token: StorageEpoch | AttemptToken): boolean {
+    if (token.storageGeneration !== storageGeneration) return false;
+    if (!('leaseGeneration' in token)) return true;
+    return (
+      activeAttempt?.transactionId === token.transactionId &&
+      activeAttempt?.leaseOwner === token.leaseOwner &&
+      activeAttempt?.leaseGeneration === token.leaseGeneration
+    );
   }
 
   /** Moves the head only while `token` has survived every storage reset. */
@@ -408,6 +431,9 @@ export function createMutationQueueRunner(
       serverFailureCount: claimed.serverFailureCount ?? 0,
       storageGeneration: epoch.storageGeneration,
     };
+    if (!isCurrent(epoch) || !isNewClaim(claimed)) return;
+    latestClaim = claimed;
+    activeAttempt = attempt;
     const confirmed = confirmedOf(head);
     if (confirmed?.transactionId === claimed.transactionId) {
       // claim → settling: re-apply the server's response before admission
@@ -728,7 +754,26 @@ export function createMutationQueueRunner(
     enqueue: EnqueueOptimisticMutationResult,
     epoch: StorageEpoch
   ): Promise<OperationResult | undefined> {
+    notifyOptimisticMutationEnqueued(op);
+    // Enqueue IDs are monotonic and immutable. A delayed acknowledgement must
+    // not replace the live observer for a head already claimed by the pump.
+    const stale =
+      enqueue.initialClaim.kind === 'claimed'
+        ? !isNewClaim(enqueue.initialClaim.mutation)
+        : latestClaim !== undefined &&
+          BigInt(enqueue.transactionId) <= BigInt(latestClaim.transactionId);
+    if (!isCurrent(epoch) || stale)
+      return queuedMutationResult(op, enqueue.transactionId);
     if (enqueue.upsertKind.kind === 'replaced-pending') {
+      const removedId = enqueue.upsertKind.removedTransactionId;
+      if (
+        activeAttempt?.transactionId === removedId ||
+        confirmedOf(head)?.transactionId === removedId
+      ) {
+        activeAttempt = undefined;
+        head = IDLE;
+        deferredUntil = undefined;
+      }
       const superseded = liveQueuedOps.get(
         enqueue.upsertKind.removedTransactionId
       );
@@ -748,7 +793,6 @@ export function createMutationQueueRunner(
         resolveRoute: resolve,
       });
     });
-    notifyOptimisticMutationEnqueued(op);
     try {
       await match(enqueue.initialClaim)
         .with({ kind: 'claimed' }, ({ mutation }) =>
@@ -890,7 +934,10 @@ export function createMutationQueueRunner(
           }
         }
       } else {
-        const confirmed = { transactionId: attempt.transactionId, result };
+        const confirmed: ConfirmedMutation = {
+          transactionId: attempt.transactionId,
+          result,
+        };
         if (!transition(attempt, confirm(confirmed))) return detachedResult();
         await recordAttemptResult(attempt, result, false);
         if (!isCurrent(attempt)) return detachedResult();
@@ -985,6 +1032,8 @@ export function createMutationQueueRunner(
 
   function resetStorage(): void {
     storageGeneration += 1;
+    activeAttempt = undefined;
+    latestClaim = undefined;
     head = IDLE;
     deferredUntil = undefined;
     resolveLiveOperationsAsQueued();

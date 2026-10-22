@@ -64,4 +64,9 @@ the existing gateway prefixes.
 - Email sends and other writes against hosted data are real actions; use mocks
   for automated SDK mutation tests.
 
+- Carry the generation read with the draft through each mutation, including
+  transfer and save. Attachment handles retain their reservation generation
+  through completion and removal. A stale-generation rejection requires a fresh
+  draft read and explicit reapproval; never refresh the generation to replay an
+  old edit.
 - SQL result schemas are dynamic typed-cell unions; inspect `truncatedTables` before interpreting aggregates. Queries can write and are never retried automatically.

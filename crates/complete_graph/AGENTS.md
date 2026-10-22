@@ -113,6 +113,10 @@ The exported `static_assets/schema.graphql` feeds both the client codegen
 keep persisted client caches; a change that makes stored records unsafe needs a
 bump of `CACHE_SCHEMA_COMPATIBILITY_EPOCH` in `crates/client/cache-core/src/codec.rs`.
 
+Email send admission, cancellation and status are exposed by `graphql_email`;
+`GraphqlUser.pendingEmailSends` lists authorized inbox attempts with cursor pagination.
+Keep this viewer-scoped listing independent of normalized-cache initialization.
+
 Never remove or narrow anything deployed clients send without a dated
 deprecation (`Remove after YYYY-MM-DD`, at least 30 days out).
 `cargo x graphql-schema-compat` checks the SDL against `origin/main`, and CI runs

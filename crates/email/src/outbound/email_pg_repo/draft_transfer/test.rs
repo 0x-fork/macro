@@ -30,6 +30,7 @@ async fn fixture(db: &PgPool) -> (EmailPgRepo, DraftTransferRequest) {
     (
         EmailPgRepo::new(db.clone()),
         DraftTransferRequest {
+            draft_generation: 0,
             id: Uuid::now_v7(),
             source_id: draft,
             source_link_id: source,
@@ -97,7 +98,8 @@ async fn transfer_preserves_uploads_and_fences_old_saves_deletes_and_delivery(db
             request.source_id,
             plan.source_thread_id,
             &[request.source_link_id],
-            Some(ACTOR)
+            Some(ACTOR),
+            0
         )
         .await
         .unwrap()
@@ -279,6 +281,7 @@ async fn paused_outlook_writes_still_finish_gmail_moves_and_keep_outlook_origina
     let gmail_move = prepare(
         &repo,
         &DraftTransferRequest {
+            draft_generation: 0,
             id: Uuid::now_v7(),
             source_id: gmail_draft,
             source_link_id: gmail_source,
@@ -292,6 +295,7 @@ async fn paused_outlook_writes_still_finish_gmail_moves_and_keep_outlook_origina
     let outlook_move = prepare(
         &repo,
         &DraftTransferRequest {
+            draft_generation: 0,
             id: Uuid::now_v7(),
             source_id: outlook_draft,
             source_link_id: outlook,
@@ -414,6 +418,7 @@ async fn recovery_before_a_delayed_request_prevents_it_from_committing(db: PgPoo
             .is_err()
     );
     let retry = DraftTransferRequest {
+        draft_generation: 0,
         id: Uuid::now_v7(),
         ..request
     };
@@ -556,6 +561,7 @@ async fn returning_a_reply_to_its_original_inbox_never_rebinds_the_old_draft(db:
         .await
         .unwrap();
     let back = DraftTransferRequest {
+        draft_generation: 0,
         id: Uuid::now_v7(),
         source_id: moved.message_id,
         source_link_id: request.destination_link_id,

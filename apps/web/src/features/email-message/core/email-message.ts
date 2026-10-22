@@ -41,6 +41,7 @@ export interface EmailLabel {
 }
 
 export interface EmailMessage {
+  draft_generation?: number;
   operation?: MessageOperation | null;
   calendar_invitations?: CalendarInvitation[];
   attachments: EmailAttachment[];
@@ -63,6 +64,12 @@ export interface EmailMessage {
   provider_id?: string | null;
   replying_to_id?: string | null;
   scheduled_send_time?: string | null;
+  scheduled_send_status?:
+    | 'pending'
+    | 'sending'
+    | 'failed'
+    | 'unconfirmed'
+    | null;
   sent_at?: string | null;
   snippet?: string | null;
   subject?: string | null;

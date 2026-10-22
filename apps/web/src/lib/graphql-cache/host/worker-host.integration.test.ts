@@ -186,7 +186,7 @@ class IntegrationCore {
     if (request.kind === 'read') result = { kind: 'miss' };
     if (request.kind === 'enqueue-optimistic-mutation') {
       result = {
-        transactionId: `integration-${request.id}`,
+        transactionId: String(request.id),
         changed: [],
         affectedOps: [],
         reset: false,

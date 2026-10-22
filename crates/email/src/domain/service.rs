@@ -3,6 +3,7 @@ mod draft;
 mod followup;
 mod previews;
 mod send;
+mod send_attempt;
 mod senders;
 mod sending_inbox;
 pub(crate) mod signature;
@@ -220,6 +221,14 @@ where
     anyhow::Error: From<T::Err>,
     anyhow::Error: From<E::Err>,
 {
+    async fn resolve_thread_read_id(
+        &self,
+        macro_id: macro_user_id::user_id::MacroUserIdStr<'_>,
+        thread_id: Uuid,
+    ) -> Result<Uuid, EmailErr> {
+        self.resolve_thread_read_id_impl(macro_id, thread_id).await
+    }
+
     async fn get_email_thread_previews(
         &self,
         req: GetEmailsRequest,
@@ -326,8 +335,11 @@ where
         &self,
         macro_id: macro_user_id::user_id::MacroUserIdStr<'_>,
         draft_id: uuid::Uuid,
+
+        expected_generation: i32,
     ) -> Result<crate::domain::models::DeletedUserDraft, EmailErr> {
-        self.delete_draft_for_user_impl(macro_id, draft_id).await
+        self.delete_draft_for_user_impl(macro_id, draft_id, expected_generation)
+            .await
     }
 
     async fn send_message_for_user(

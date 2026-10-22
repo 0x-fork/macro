@@ -265,6 +265,8 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
   const dialogOwner = getOwner();
   const attachmentLinks = createAttachmentLinkOffer({
     editor,
+    canEdit: () => !isSending() && !uiDisabled() && !finalized,
+    version: () => `${sendingLink()?.id ?? ''}:${fromAddress() ?? ''}`,
     notices: {
       confirm: (input) => confirmDialog(input, { owner: dialogOwner }),
     },

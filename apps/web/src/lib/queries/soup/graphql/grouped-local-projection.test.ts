@@ -88,26 +88,36 @@ describe('loaded grouped pages', () => {
 });
 
 describe('local grouped Soup projection', () => {
-  it('retains server membership for an unknown grouping field', () => {
-    const futureInput: GroupedSoupInitialInput = JSON.parse(
-      '{"groupBy":{"field":"FUTURE"},"sortMethod":"UPDATED_AT"}'
-    );
-    const item = groupedDocument('a');
-    const baseline = [
-      { key: 'server-group', items: [item], totalCount: 1, nextCursor: null },
-    ];
+  it('retains server membership for an unfamiliar grouping while refreshing rows', () => {
+    const before = groupedDocument('a');
+    const next = { ...groupedDocument('a', ['done']), displayName: 'Updated' };
+    const fromNewerServer = JSON.parse('"ASSIGNEE"');
 
-    expect(localSoupGroupKeys(item, futureInput, now)).toBeUndefined();
     expect(
       projectLocalGroupedSoup(
-        baseline,
+        [
+          {
+            key: 'server-group',
+            items: [before],
+            totalCount: 30,
+            nextCursor: 'more',
+          },
+        ],
         new Map(),
-        snapshot([item]),
-        futureInput,
+        snapshot([next]),
+        { ...input, groupBy: { field: fromNewerServer } },
         now
       )
-    ).toEqual(baseline);
+    ).toEqual([
+      {
+        key: 'server-group',
+        items: [next],
+        totalCount: 30,
+        nextCursor: 'more',
+      },
+    ]);
   });
+
   it('moves normalized rows and removes filter nonmatches without losing unknown rows', () => {
     const a = groupedDocument('a');
     const b = groupedDocument('b');

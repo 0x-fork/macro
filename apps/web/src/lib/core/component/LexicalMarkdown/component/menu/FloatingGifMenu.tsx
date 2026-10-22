@@ -94,6 +94,7 @@ export function FloatingGifMenu(
   };
 
   const handleOpenPicker = createCallback(() => {
+    if (!canEdit() || !editor()?.isEditable()) return;
     if (menuOpen()) {
       resetMenu();
       return;
@@ -101,19 +102,30 @@ export function FloatingGifMenu(
     insertAt = $getSelection()?.clone() ?? null;
     // Defer past the keystroke that ran the command, as FloatingTableMenu does.
     setTimeout(() => {
+      if (!canEdit() || !editor()?.isEditable()) return;
       setMenuOpen(true);
       inputRef?.focus();
     }, 0);
   });
 
   const insertGif = (gif: Gif) => {
+    const currentEditor = editor();
+    if (!canEdit() || !currentEditor?.isEditable()) {
+      resetMenu();
+      return;
+    }
     const selection = insertAt;
-    editor()?.update(() => {
+    currentEditor.update(() => {
+      if (!canEdit() || !currentEditor.isEditable()) return;
       if (selection) $setSelection(selection.clone());
       $insertGifNode(gif);
     });
     closeToEditor();
   };
+
+  createEffect(() => {
+    if (!canEdit()) resetMenu();
+  });
 
   createEffect(() => {
     const currentPlugins = plugins();

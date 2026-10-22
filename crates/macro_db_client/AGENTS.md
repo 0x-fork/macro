@@ -84,3 +84,12 @@ unreferenced replicas. These additive tables do not change agent-session claims.
 
 - Rules: `.agents/rules/rust/db.md`, `.agents/rules/rust/architecture.md` ·
   Docs: `docs/development/database.md` · Skill: `dump-schema`
+
+Email send migrations add `email_messages.draft_generation` and attempt handle/inbox
+fences. Deploy the additive migrations and all generation-aware writers before
+enabling the independent email outbox; old writers do not enforce these fences.
+
+`preserve_deleted_email_send_delivery` defers active-send deletion before compacting
+content. Bypass retention for inboxes marked `deleting_at` and direct inbox
+cascades; other parent cascades must not destroy unresolved delivery state. Deferred markers retain provider identity and
+draft generation so Undo/resend cannot inherit an old deletion.

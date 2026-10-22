@@ -3644,7 +3644,7 @@ dependencies = [
 
 [[package]]
 name = "cache-wasm"
-version = "0.6.49"
+version = "0.6.52"
 dependencies = [
  "async-lock",
  "cache-core",
@@ -7272,6 +7272,8 @@ dependencies = [
  "aws-sdk-sqs",
  "aws_lambda_events",
  "chrono",
+ "email",
+ "futures",
  "lambda_runtime",
  "macro_aws_config",
  "macro_db_migrator",

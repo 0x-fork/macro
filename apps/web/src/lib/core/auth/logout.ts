@@ -17,6 +17,11 @@ import {
   flushLocalDrafts,
   listLocalDrafts,
 } from '@queries/email/local-drafts';
+import { setEmailOutboxSession } from '@queries/email/outbox-session';
+import {
+  readEmailSendIntents,
+  settledSendAttempt,
+} from '@queries/email/send-queue';
 import { resetGraphqlSoupDoneSession } from '@queries/soup/graphql/done-session';
 import { clearDocumentQueryCache } from '@queries/storage/document-cache';
 import { clearOfflineDocumentContexts } from '@queries/storage/documentLoad/offline-context-runtime';
@@ -52,6 +57,7 @@ export async function clearLocalAuthSession() {
   clearPipedreamCallbacks();
   document.cookie =
     'login=false; expires=Thu, 01 Jan 1970 00:00:00 UTC; max-age=0; path=/; SameSite=Lax';
+  setEmailOutboxSession(undefined);
   syncLoginStorage(false);
   const documentContextsCleared = clearOfflineDocumentContexts();
   clearDocumentQueryCache(queryClient);
@@ -85,9 +91,13 @@ export function useLogout() {
     try {
       const inspectDrafts = async () => {
         await flushLocalDrafts();
-        return await listLocalDrafts();
+        const [drafts, sends] = await Promise.all([
+          listLocalDrafts(),
+          readEmailSendIntents(),
+        ]);
+        return { drafts, sends };
       };
-      const drafts = await Promise.race([
+      const { drafts, sends } = await Promise.race([
         inspectDrafts(),
         new Promise<never>((_, reject) => {
           timer = setTimeout(
@@ -99,9 +109,16 @@ export function useLogout() {
       const unsynced = drafts.filter((draft) => draft.status !== 'synced');
       if (unsynced.length)
         warning = `${unsynced.length} draft(s) have changes saved only on this device. Signing out removes those changes and their pending attachments.`;
+      if (sends.some((send) => settledSendAttempt(send)?.status !== 'SENT'))
+        warning = [
+          warning,
+          'Pending sends remain saved for this account and resume when you sign in again. Sends already accepted by the server may still be delivered; signing out does not cancel them.',
+        ]
+          .filter(Boolean)
+          .join(' ');
     } catch {
       warning =
-        'Draft storage could not be checked. Signing out removes drafts and attachments saved only on this device, including any changes that have not synced.';
+        'Draft storage could not be checked. Signing out removes unsubmitted drafts and their pending attachments. Approved sends stay saved for this account; sends already accepted by the server may still be delivered.';
     } finally {
       clearTimeout(timer);
     }
