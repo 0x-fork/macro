@@ -561,7 +561,8 @@ export const SoupView = (props: SoupViewProps) => {
             !isTouchDevice() &&
             ENABLE_UNIFIED_LIST_AI_INPUT &&
             !isHomeView() &&
-            !isComponentListView('search')
+            !isComponentListView('search') &&
+            !isComponentListView('calls')
           }
         >
           <div class="absolute bottom-0 inset-x-px pb-2.5 px-2 flex justify-center pointer-events-none">
