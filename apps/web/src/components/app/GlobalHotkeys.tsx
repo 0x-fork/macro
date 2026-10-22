@@ -23,8 +23,9 @@ import {
   type SettingsTab,
   useSettingsState,
 } from '@core/constant/SettingsState';
+import { getShortcutSheet, type ShortcutSheet } from '@core/hotkey/getCommands';
 import { registerHotkey } from '@core/hotkey/hotkeys';
-import { setActiveScope } from '@core/hotkey/state';
+import { activeScope, setActiveScope } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -61,6 +62,7 @@ import {
   resolveActiveThemeId,
   scheduleThemePreviewEnd,
 } from '@theme/utils/themeUtils';
+import { ResultAsync } from 'neverthrow';
 import { type Component, onCleanup, Show } from 'solid-js';
 import { useSplitLayout } from './split-layout/layout';
 
@@ -125,6 +127,29 @@ function useHotkeyAnalytics(): void {
   onCleanup(() => {
     debouncedTrack.clear();
   });
+}
+
+/** The sheet loads on demand; it is not part of the startup bundle. */
+async function toggleKeyboardShortcuts(sheet: ShortcutSheet) {
+  const span = Telemetry.span('hotkeys.shortcut_sheet.toggle');
+  try {
+    span.setAttr('shortcut_sheet.view_count', sheet.view.length);
+    span.setAttr('shortcut_sheet.app_count', sheet.app.length);
+    const loaded = await ResultAsync.fromPromise(
+      import('./KeyboardShortcutsDialog'),
+      (error) => error
+    );
+    if (loaded.isErr()) {
+      span.setAttr('shortcut_sheet.outcome', 'load_failed');
+      span.error(loaded.error);
+      toast.failure('Unable to show keyboard shortcuts');
+      return;
+    }
+    loaded.value.toggleKeyboardShortcuts(sheet);
+    span.setAttr('shortcut_sheet.outcome', 'toggled');
+  } finally {
+    span.end();
+  }
 }
 
 export default function GlobalShortcuts() {
@@ -568,6 +593,29 @@ export default function GlobalShortcuts() {
           await handleFileUpload(entries, false);
         });
       });
+      return true;
+    },
+  });
+
+  registerHotkey({
+    hotkeyToken: TOKENS.global.keyboardShortcuts,
+    // '?' arrives as shift+/ and prints back as '?'.
+    hotkey: 'shift+/',
+    scopeId: 'global',
+    description: 'Show keyboard shortcuts',
+    keywords: ['hotkeys', 'keys', 'help', 'cheat sheet'],
+    // Only the key: run from the command menu, the sheet would describe the
+    // menu rather than the view it was opened from.
+    hide: true,
+    keyDownHandler: (e) => {
+      // German and French layouts type `/` with Shift, which also reads as
+      // shift+/; only an actual `?` opens the sheet.
+      if (e && e.key !== '?') return false;
+      // Read before the sheet takes focus and changes the active scope.
+      fireAndForget(
+        toggleKeyboardShortcuts(getShortcutSheet(activeScope())),
+        'global-hotkeys'
+      );
       return true;
     },
   });
