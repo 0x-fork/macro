@@ -244,6 +244,15 @@ Both layouts share one grouping, which restores with the Tasks navigation entry.
 List-only None and Date groupings display Status columns in Board; switching
 back to List retains those selections and collapsed groups until grouping changes.
 
+Each column header has an icon-only **Add task** plus button. It opens the task
+composer with that column's Status, Priority, Assignee, or Project preselected,
+while preserving the originating pane's other creation presets. **Unassigned**
+and **No priority** start with that property empty. **No project** starts empty
+outside project boards; project boards always retain the current project.
+**No status** starts with **Not started**, because new tasks require a status.
+Each pane or project scope and column keeps a separate composer draft. Project
+boards hide creation actions when the project is read-only.
+
 Click a card's body or title to open the task. Move at least 10 pixels with the
 mouse button held to start dragging to another column; holding still does not
 start a drag. Property pills remain interactive and do not start a drag.

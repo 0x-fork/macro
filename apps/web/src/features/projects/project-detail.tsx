@@ -27,6 +27,7 @@ import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import type { Property } from '@property/types';
 import { Button } from '@ui';
 import { createSignal, Match, Show, Suspense, Switch } from 'solid-js';
+import type { TaskCreateOptions } from '../tasks-view/types';
 import { DeleteProjectsDialog } from './components/delete-projects-dialog';
 import { ProjectMenuDropdown } from './components/project-row-menu';
 import { ProjectContentSkeleton } from './components/project-skeletons';
@@ -218,7 +219,7 @@ function ProjectDetailHost(props: ProjectDetailProps) {
       route: projectDetailRoute,
       params: { projectId: props.route.id, section },
     });
-  const createTask = (dueDate?: Date) => {
+  const createTask = (options?: TaskCreateOptions) => {
     const projectId = props.route.id;
     layout.popoverSplit({
       type: 'component',
@@ -228,7 +229,8 @@ function ProjectDetailHost(props: ProjectDetailProps) {
           ...args: Parameters<NonNullable<ComposeTaskProps['createTask']>>
         ) => commands.createTask(projectId, ...args),
         initialProjectId: projectId,
-        initialDueDate: dueDate,
+        initialDueDate: options?.dueDate,
+        composerContext: options?.composerContext,
         onSuccess: () => section('tasks'),
       },
     });
