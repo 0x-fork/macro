@@ -134,6 +134,7 @@ export function ThreadBody(props: ThreadBodyProps) {
             flat={props.flatComposer}
             input={{ mode: 'reply', placeholder: 'Leave a comment...' }}
             onClose={() => context.setActiveThread(null)}
+            onEscape={() => context.setActiveThread(null)}
             onSend={async (snapshot) => {
               const { thread_id: _threadId, ...message } =
                 buildPostMessageSendPayload({ snapshot }).message;
@@ -163,6 +164,7 @@ export function ThreadBody(props: ThreadBodyProps) {
             canWrite={context.canComment()}
             canModerate={context.isDocumentOwner()}
             monorail
+            keyboardActive={props.isActive}
             hideReplyInput={props.hideReplyInput}
             onEditingChange={context.setMessageEditing}
             targetId={targetId()}
@@ -294,6 +296,7 @@ export function ThreadCard(props: {
   /** Nudge the active card toward the text it annotates. */
   shifted?: boolean;
 }) {
+  const context = useContext(CommentsContext);
   return (
     <Layer depth={2}>
       <div
@@ -307,6 +310,11 @@ export function ThreadCard(props: {
         }}
         style={{
           width: props.width ? `${props.width}px` : 'auto',
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== 'Escape' || e.defaultPrevented) return;
+          e.preventDefault();
+          context.setActiveThread(null);
         }}
       >
         {/* The card is narrow, so long comments fold behind "Show more". */}
