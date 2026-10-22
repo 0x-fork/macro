@@ -126,7 +126,8 @@ Two things:
   Android-only by Tauri's naming convention (a path component `android`,
   `android_*`, `android.*` or `*.android.*` — the `android_*` plugins, every
   `android/` directory, `android.rs`, `tauri.android.conf.json` and so on),
-  `desktop-release.json`, and `.helix/`.
+  `desktop-release.json`, `.helix/`, and Markdown docs. Desktop, macOS,
+  Linux, and Windows-only paths are excluded too.
 - **A bump of the client cache wasm package version** in
   `crates/client/cache-wasm/Cargo.toml`. The app compiles the cache crates
   (`crates/client/cache-core`, `cache-turso` and what they pull in)

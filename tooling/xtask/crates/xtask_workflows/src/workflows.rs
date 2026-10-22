@@ -143,7 +143,7 @@ const WORKFLOWS: &[WorkflowFile] = &[
     WorkflowFile {
         slug: "build_dmg_on_tag",
         file_name: "build_dmg_on_tag.yml",
-        render_yaml: || render_gh_workflow(build_dmg_on_tag::build_dmg)(),
+        render_yaml: || render_patched(build_dmg_on_tag::build_dmg, build_dmg_on_tag::patch),
     },
     WorkflowFile {
         slug: "build_desktop_on_tag",

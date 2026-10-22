@@ -45,7 +45,8 @@ an increased updater count identifies an app-requested update reload attempt.
 Dispatch does not prove the JavaScript reload completed. A new native launch ID
 means the host process restarted. Missing counters on an older binary mean
 unknown, not zero. The properties are also attached to subsequent PostHog events.
-Termination reporting is available only on iOS and macOS. On other platforms,
+Termination reporting is available on iOS and older macOS WKWebView builds. On
+Chromium macOS and other platforms,
 startup events mark it unavailable and omit termination counts/timestamps even
 when the native snapshot includes an unused zero-valued counter.
 
@@ -123,8 +124,11 @@ The same tests without that environment variable check for drift.
 ## Running in development
 
 ```sh
-# Desktop shell (macOS/Linux/Windows)
+# Linux and Windows desktop shell (from this directory)
 cargo tauri dev
+
+# macOS desktop shell (from ../desktop-cef, using the macro-cef cargo-tauri CLI)
+RUSTUP_TOOLCHAIN=1.95.0 cargo-tauri dev
 
 # iOS simulator
 cargo tauri ios dev
@@ -215,7 +219,10 @@ document-rendering finding; passing the smoke test is not full iOS 26/27 parity.
 ## Building bundles
 
 ```sh
-# Desktop bundle
+# macOS desktop bundle (Chromium; from the repository root)
+nix build --option sandbox false .#tauri-desktop-cef-app
+
+# Linux and Windows desktop bundles (system webview; from this directory)
 cargo tauri build
 
 # iOS / Android release artifacts
@@ -478,8 +485,11 @@ These are process memory measurements, not JavaScript heap/allocation profiles.
 RSS and macOS physical footprint have different accounting; sums are explicitly
 process sums and need not equal Activity Monitor's app total.
 
-macOS sampling uses `proc_pid_rusage`. WebKit helpers are XPC processes, so PPID
-alone is insufficient. Attribution resolves the optional private libSystem SPI
+macOS sampling uses `proc_pid_rusage`. The sampler recognizes WebKit helpers in
+older WKWebView builds; Chromium desktop builds currently report only native
+process memory and mark frontend coverage unavailable. WebKit helpers are XPC
+processes, so PPID alone is insufficient. Attribution resolves the optional
+private libSystem SPI
 `responsibility_get_pid_responsible_for_pid` at runtime and includes only known
 WebKit helpers whose responsible PID is this app. If the SPI, permissions, or
 attribution are unavailable, frontend coverage is explicitly unavailable. Never

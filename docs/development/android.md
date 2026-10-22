@@ -135,8 +135,10 @@ Android releases are driven from pull requests, like iOS (see
 deployment cycle. Three generated workflows plus the `Android Native Check`
 job of the web app PR checks enforce it:
 
-**`Android Native Check`** runs on every PR against `main`. It always
-requires a `versionCode` bump when the Android native code changed (see
+**`Android Native Check`** runs on every PR against `main`. Its native tree
+excludes platform-specific desktop/iOS files and Markdown docs, which do not
+ship in the Android binary. It always requires a `versionCode` bump when the
+Android native code changed (see
 "Native release identity" above for what counts), and, when it changed, asks
 Google Play whether that version code is a production release that Google
 has **published** (through review and available to users — the edit API's

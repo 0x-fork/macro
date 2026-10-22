@@ -76,6 +76,14 @@ fn status_check_requires_the_ios_native_check() {
         gate.contains("predicate-quantifier: every"),
         "negated path filters need the `every` quantifier: {gate}"
     );
+    assert!(
+        gate.contains("!apps/web/tauri/**/*.md"),
+        "documentation must not trigger an iOS native release: {gate}"
+    );
+    assert!(
+        gate.contains("!apps/web/tauri/**/desktop-*/**"),
+        "macOS CEF files must not trigger an iOS native release: {gate}"
+    );
     // `!` binds tighter than `==` in GitHub expressions: `!x == 'true'` is
     // always false, which silently skipped every gated step.
     assert!(

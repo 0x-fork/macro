@@ -47,10 +47,13 @@
       # (`ios_production_telemetry` in `apps/web/scripts/ios-native-env.sh`);
       # export either variable and build with `--impure` to send elsewhere.
       # Export stays behind the `enable-browser-otel` PostHog flag.
-      envOr = name: fallback:
-        let value = builtins.getEnv name; in if value == "" then fallback else value;
-      otelExporterUrl =
-        envOr "VITE_OTEL_EXPORTER_URL" "https://macro-prox-prod.macroverse.workers.dev/i/otlp/v1/traces";
+      envOr =
+        name: fallback:
+        let
+          value = builtins.getEnv name;
+        in
+        if value == "" then fallback else value;
+      otelExporterUrl = envOr "VITE_OTEL_EXPORTER_URL" "https://macro-prox-prod.macroverse.workers.dev/i/otlp/v1/traces";
       otelEnv = envOr "VITE_OTEL_ENV" "prod";
 
       rustToolchain = fenix.packages.${system}.fromToolchainFile {
@@ -58,6 +61,12 @@
         sha256 = "sha256-qqF33vNuAdU5vua96VKVIwuc43j4EFeEXbjQ6+l4mO4=";
       };
       craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+      cefRustToolchain =
+        (fenix.packages.${system}.fromToolchainName {
+          name = "1.95.0";
+          sha256 = "sha256-gh/xTkxKHL4eiRXzWv8KP7vfjSk61Iq48x47BEDFgfk=";
+        }).toolchain;
+      cefCraneLib = (crane.mkLib pkgs).overrideToolchain cefRustToolchain;
 
       jsRoot = ../.;
       jsSrc = lib.cleanSourceWith {
@@ -809,202 +818,311 @@
           touch "$out"
         '';
       };
-      tauriDesktopDmgConfig = builtins.toJSON (
-        lib.recursiveUpdate
-          {
-            version = appVersion;
-            plugins = desktopPlugins;
-            build = {
-              frontendDist = "${frontend}";
-              beforeBuildCommand = "";
-            };
-            bundle = {
-              active = true;
-              targets = [ "app" ];
-              externalBin = [ "binaries/macrod" ];
-            };
+      cefCliVendorDir = cefCraneLib.vendorCargoDeps {
+        src = inputs.tauri-cef;
+        cargoLock = inputs.tauri-cef + "/Cargo.lock";
+        outputHashes = {
+          "git+https://github.com/tauri-apps/plugins-workspace?branch=feat/cef#1423992771e0b57582ca3b06a6adc46ec26aa784" =
+            "sha256-D2OrQkCjh8VrtWO+/0orsefx47ES8L5eT0AmaDVmoUg=";
+          "git+https://github.com/tauri-apps/winit-gtk4?branch=master#3d7c7cd19d3c752f75762ceea535444e63bdf8de" =
+            "sha256-2mFNnZcPnVqPQ2iakMoXSKXrlHiIv+HuQZ7iOwtrKb4=";
+        };
+      };
+      cefTauriCli = cefCraneLib.mkCargoDerivation {
+        pname = "cargo-tauri-cef";
+        version = "2.11.4";
+        src = inputs.tauri-cef;
+        cargoArtifacts = null;
+        cargoVendorDir = cefCliVendorDir;
+        cargoLock = inputs.tauri-cef + "/Cargo.lock";
+        nativeBuildInputs = [ pkgs.pkg-config ];
+        buildInputs = [
+          pkgs.openssl
+          pkgs.libiconv
+        ];
+        CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER = tauriDesktopDmgAppleLinker;
+        doCheck = false;
+        buildPhaseCargoCommand = "cargo build --release -p tauri-cli";
+        installPhaseCommand = ''
+          install -Dm0755 target/release/cargo-tauri "$out/bin/cargo-tauri"
+        '';
+        doInstallCargoArtifacts = false;
+      };
+      cefCargoVendorDir = cefCraneLib.vendorCargoDeps {
+        src = ../apps/web/tauri/desktop-cef;
+        cargoLock = ../apps/web/tauri/desktop-cef/Cargo.lock;
+        outputHashes = {
+          "git+https://github.com/macro-inc/plugins-workspace?rev=06474e4c446600627cf37a11f0c22c27bcf764ca#06474e4c446600627cf37a11f0c22c27bcf764ca" =
+            "sha256-ngH5sltERe8DlP/zjsin9jmlGOZFeABk8SxJ5AnZG18=";
+          "git+https://github.com/macro-inc/tauri-plugins?rev=6ddd6600e20436388f169e936b610fe93944b7b0#6ddd6600e20436388f169e936b610fe93944b7b0" =
+            "sha256-5ErLW2po5ZlTTuJjsCExwC//rHYcQo2tKXiyz3w/0kQ=";
+          "git+https://github.com/macro-inc/tauri?rev=285fb6b1#285fb6b1cb2fc20666da1688f4c74e240a100035" =
+            "sha256-++WQc4YpvoMPBFTuDj//856BguC1ArS6AeLTbIOn38Q=";
+          "git+https://github.com/tauri-apps/winit-gtk4?rev=3d7c7cd19d3c752f75762ceea535444e63bdf8de#3d7c7cd19d3c752f75762ceea535444e63bdf8de" =
+            "sha256-2mFNnZcPnVqPQ2iakMoXSKXrlHiIv+HuQZ7iOwtrKb4=";
+          "git+https://github.com/tursodatabase/turso?rev=79163249538197d01dec5ea7f65519454ed792e2#79163249538197d01dec5ea7f65519454ed792e2" =
+            "sha256-7Noz7RMN+4nhlU5BBLzxZZ53nNFGewrr8BFMO1adkCo=";
+          "git+https://github.com/voxelbee/tauri-plugin-virtual-keyboard?branch=main#70e8e8325b5ff7d681ef5f3b996ac083d4fc5a01" =
+            "sha256-OdEp5mw0l5Euj0ry7gzNVxdB0jlGUq0N7XINXUhtE+c=";
+        };
+      };
+      cefCargoSources = cefCraneLib.fileset.commonCargoSources ../.;
+      cefAppSrc = lib.fileset.toSource {
+        root = ../.;
+        fileset = lib.fileset.unions [
+          cefCargoSources
+          ../static_assets/schema.graphql
+          ../apps/web/tauri/desktop-cef/tauri.conf.json
+          ../apps/web/tauri/desktop-cef/entitlements.plist
+          ../apps/web/tauri/src-tauri/tauri.conf.json
+          ../apps/web/tauri/src-tauri/tauri.macos.conf.json
+          ../apps/web/tauri/src-tauri/capabilities
+          ../apps/web/tauri/src-tauri/icons
+        ];
+      };
+      tauriDesktopCefConfig = builtins.toJSON {
+        version = appVersion;
+        plugins = desktopPlugins;
+        build = {
+          frontendDist = "${frontend}";
+          beforeBuildCommand = "";
+        };
+        bundle = {
+          active = true;
+          targets = [ "app" ];
+          externalBin = [ "binaries/macrod" ];
+          cef.embed = true;
+        };
+      };
+      tauriDesktopCefApp = cefCraneLib.mkCargoDerivation {
+        pname = "macro-tauri-desktop-cef-app";
+        version = appVersion;
+        src = cefAppSrc;
+        cargoArtifacts = null;
+        cargoVendorDir = cefCargoVendorDir;
+        cargoLock = ../apps/web/tauri/desktop-cef/Cargo.lock;
+        TAURI_CONFIG = tauriDesktopCefConfig;
+        nativeBuildInputs = [
+          cefTauriCli
+          pkgs.cmake
+          pkgs.ninja
+          pkgs.pkg-config
+        ];
+        buildInputs = [
+          pkgs.openssl
+          pkgs.libiconv
+        ];
+        CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER = tauriDesktopDmgAppleLinker;
+        doCheck = false;
+        preConfigure = ''
+          export CARGO_TARGET_DIR="$PWD/apps/web/tauri/desktop-cef/target"
+        '';
+        preBuild = ''
+          export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
+          export CEF_PATH="$TMPDIR/tauri-cef"
+          cp ${../apps/web/package.json} apps/web/package.json
+          rm -rf apps/web/dist
+          cp -r ${frontend} apps/web/dist
+          printf production > apps/web/tauri/src-tauri/.macro-tauri-env
+          install -Dm0755 ${macrodBinary}/bin/macrod \
+            "apps/web/tauri/desktop-cef/binaries/macrod-${rustHostTriple}"
+          install -Dm0755 ${macrodBinary}/bin/macrod \
+            "apps/web/tauri/src-tauri/binaries/macrod-${rustHostTriple}"
+          cd apps/web/tauri/desktop-cef
+        '';
+        buildPhaseCargoCommand = ''
+          cargo tauri build --bundles app \
+            --features tauri/custom-protocol \
+            --config "$TAURI_CONFIG"
+        '';
+        installPhaseCommand = ''
+          appPath=$(find "$CARGO_TARGET_DIR" -type d -path '*/release/bundle/macos/*.app' -print -quit)
+          if [ -z "$appPath" ]; then
+            echo "failed to locate built macOS Chromium app bundle" >&2
+            find "$CARGO_TARGET_DIR" -path '*/bundle/*' -print >&2 || true
+            exit 1
+          fi
+          test -d "$appPath/Contents/Frameworks/Chromium Embedded Framework.framework"
+          mkdir -p "$out"
+          cp -a "$appPath" "$out/Macro.app"
+        '';
+        doInstallCargoArtifacts = false;
+      };
+      tauriDesktopDmg = pkgs.stdenvNoCC.mkDerivation {
+        pname = "macro-tauri-desktop-dmg";
+        version = appVersion;
+        APPLE_SIGNING_IDENTITY = tauriDesktopDmgSigningIdentity;
+        nativeBuildInputs = [
+          pkgs.coreutils
+          (pkgs.python3.withPackages (ps: [ ps.ds-store ]))
+        ];
+        dontUnpack = true;
+        dontConfigure = true;
+        dontBuild = true;
+        installPhase = ''
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "APPLE_SIGNING_IDENTITY must be set when building the signed macOS DMG; use nix build --impure." >&2
+            exit 1
+          fi
+          export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
+          appPath="$TMPDIR/Macro.app"
+          cp -a ${tauriDesktopCefApp}/Macro.app "$appPath"
+          chmod -R u+w "$appPath"
+
+          bundle_nix_dylibs() {
+            local app="$1"
+            local frameworks="$app/Contents/Frameworks"
+            mkdir -p "$frameworks"
+
+            local -a queue=()
+            while IFS= read -r -d "" mach_o; do
+              if otool -hv "$mach_o" >/dev/null 2>&1; then
+                queue+=("$mach_o")
+              fi
+            done < <(find "$app/Contents/MacOS" "$frameworks" -type f -print0)
+
+            local processed="$TMPDIR/bundled-mach-o-files"
+            : > "$processed"
+
+            copy_dep() {
+              local dep="$1"
+              local base
+              base=$(basename "$dep")
+              local dest="$frameworks/$base"
+              if [ ! -e "$dest" ]; then
+                echo "Bundling Nix dylib $dep -> $dest" >&2
+                cp -L "$dep" "$dest"
+                chmod u+w "$dest"
+                queue+=("$dest")
+              fi
+            }
+
+            local i=0
+            while [ "$i" -lt "''${#queue[@]}" ]; do
+              local binary="''${queue[$i]}"
+              i=$((i + 1))
+
+              if grep -Fxq "$binary" "$processed"; then
+                continue
+              fi
+              printf '%s\n' "$binary" >> "$processed"
+
+              local deps
+              deps=$(otool -L "$binary" 2>/dev/null | awk 'NR > 1 { print $1 }' | grep '^/nix/store/.*\.dylib$' || true)
+              if [ -z "$deps" ]; then
+                continue
+              fi
+
+              chmod u+w "$binary"
+              local relative_frameworks
+              relative_frameworks=$(${pkgs.python3}/bin/python -c \
+                'import os, sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))' \
+                "$frameworks" "$(dirname "$binary")")
+              local prefix="@loader_path/$relative_frameworks"
+              if [ "$(dirname "$binary")" = "$frameworks" ]; then
+                install_name_tool -id "@loader_path/$(basename "$binary")" "$binary"
+              fi
+
+              while IFS= read -r dep; do
+                [ -n "$dep" ] || continue
+                copy_dep "$dep"
+                install_name_tool -change "$dep" "$prefix/$(basename "$dep")" "$binary"
+              done <<< "$deps"
+            done
+
+            local remaining_refs="$TMPDIR/remaining-nix-dylib-refs"
+            : > "$remaining_refs"
+            while IFS= read -r -d "" file; do
+              otool -L "$file" 2>/dev/null \
+                | awk -v file="$file" 'NR > 1 && $1 ~ "^/nix/store/.*\\.dylib$" { print file ": " $1 }' \
+                >> "$remaining_refs" || true
+            done < <(find "$app/Contents/MacOS" "$app/Contents/Frameworks" -type f -print0)
+
+            if [ -s "$remaining_refs" ]; then
+              echo "App bundle still contains absolute Nix dylib references:" >&2
+              cat "$remaining_refs" >&2
+              exit 1
+            fi
           }
-          (
-            lib.optionalAttrs (tauriDesktopDmgSigningIdentity != "") {
-              bundle.macOS.signingIdentity = tauriDesktopDmgSigningIdentity;
-            }
-          )
-      );
-      tauriDesktopDmg = craneLib.mkCargoDerivation (
-        tauri.commonArgs
-        // {
-          cargoArtifacts = tauri.cargoArtifacts;
-          pname = "macro-tauri-desktop-dmg";
-          TAURI_CONFIG = tauriDesktopDmgConfig;
-          APPLE_SIGNING_IDENTITY = tauriDesktopDmgSigningIdentity;
-          nativeBuildInputs = tauri.commonArgs.nativeBuildInputs ++ [ pkgs.cargo-tauri ];
-          preBuild = ''
-            if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
-              echo "APPLE_SIGNING_IDENTITY must be set when building the signed macOS DMG; use nix build --impure." >&2
-              exit 1
+
+          sign_darwin_app() {
+            local app="$1"
+            local -a sign_args=(--force --sign "$APPLE_SIGNING_IDENTITY")
+            if [ "$APPLE_SIGNING_IDENTITY" != "-" ]; then
+              sign_args+=(--timestamp --options runtime)
             fi
-            export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
-            ${tauriDesktopPreBuild}
-            ${installMacrodSidecar}
-          '';
-          buildPhaseCargoCommand = ''
-            cargo tauri build --bundles app \
-              --features tauri/custom-protocol \
-              --config "$TAURI_CONFIG"
-          '';
-          installPhaseCommand = ''
-            export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
+            local -a executable_sign_args=("''${sign_args[@]}" --entitlements ${../apps/web/tauri/desktop-cef/entitlements.plist})
 
-            appPath=$(find target -type d -path '*/release/bundle/macos/*.app' -print -quit)
-            if [ -z "$appPath" ]; then
-              echo "failed to locate built macOS app bundle" >&2
-              find target -path '*/bundle/*' -print >&2 || true
-              exit 1
-            fi
-
-            bundle_nix_dylibs() {
-              local app="$1"
-              local frameworks="$app/Contents/Frameworks"
-              mkdir -p "$frameworks"
-
-              local -a queue=()
-              while IFS= read -r -d "" mach_o; do
-                if otool -hv "$mach_o" >/dev/null 2>&1; then
-                  queue+=("$mach_o")
-                fi
-              done < <(find "$app/Contents/MacOS" "$frameworks" -type f -print0)
-
-              local processed="$TMPDIR/bundled-mach-o-files"
-              : > "$processed"
-
-              copy_dep() {
-                local dep="$1"
-                local base
-                base=$(basename "$dep")
-                local dest="$frameworks/$base"
-                if [ ! -e "$dest" ]; then
-                  echo "Bundling Nix dylib $dep -> $dest" >&2
-                  cp -L "$dep" "$dest"
-                  chmod u+w "$dest"
-                  queue+=("$dest")
-                fi
-              }
-
-              local i=0
-              while [ "$i" -lt "''${#queue[@]}" ]; do
-                local binary="''${queue[$i]}"
-                i=$((i + 1))
-
-                if grep -Fxq "$binary" "$processed"; then
-                  continue
-                fi
-                printf '%s\n' "$binary" >> "$processed"
-
-                chmod u+w "$binary" || true
-                local prefix="@loader_path"
-                case "$binary" in
-                  "$app/Contents/MacOS/"*) prefix="@executable_path/../Frameworks" ;;
-                  *) install_name_tool -id "@loader_path/$(basename "$binary")" "$binary" 2>/dev/null || true ;;
-                esac
-
-                local deps
-                deps=$(otool -L "$binary" 2>/dev/null | awk 'NR > 1 { print $1 }' | grep '^/nix/store/.*\.dylib$' || true)
-                if [ -z "$deps" ]; then
-                  continue
-                fi
-
-                while IFS= read -r dep; do
-                  [ -n "$dep" ] || continue
-                  copy_dep "$dep"
-                  install_name_tool -change "$dep" "$prefix/$(basename "$dep")" "$binary"
-                done <<< "$deps"
-              done
-
-              local remaining_refs="$TMPDIR/remaining-nix-dylib-refs"
-              : > "$remaining_refs"
-              while IFS= read -r -d "" file; do
-                otool -L "$file" 2>/dev/null \
-                  | awk -v file="$file" 'NR > 1 && $1 ~ "^/nix/store/.*\\.dylib$" { print file ": " $1 }' \
-                  >> "$remaining_refs" || true
-              done < <(find "$app/Contents/MacOS" "$app/Contents/Frameworks" -type f -print0)
-
-              if [ -s "$remaining_refs" ]; then
-                echo "App bundle still contains absolute Nix dylib references:" >&2
-                cat "$remaining_refs" >&2
-                exit 1
-              fi
-            }
-
-            sign_darwin_app() {
-              local app="$1"
-              local -a sign_args=(--force --sign "$APPLE_SIGNING_IDENTITY")
-              if [ "$APPLE_SIGNING_IDENTITY" != "-" ]; then
-                sign_args+=(--timestamp --options runtime)
-              fi
-
-              if [ -d "$app/Contents/Frameworks" ]; then
-                while IFS= read -r -d "" file; do
-                  if otool -hv "$file" >/dev/null 2>&1; then
-                    codesign "''${sign_args[@]}" "$file"
-                  fi
-                done < <(find "$app/Contents/Frameworks" -type f -print0)
-              fi
-
-              # Helper executables (the macrod sidecar) must be signed
-              # individually for notarization; the --deep pass below re-seals
-              # the bundle on top of them.
+            if [ -d "$app/Contents/Frameworks" ]; then
               while IFS= read -r -d "" file; do
                 if otool -hv "$file" >/dev/null 2>&1; then
                   codesign "''${sign_args[@]}" "$file"
                 fi
-              done < <(find "$app/Contents/MacOS" -type f -print0)
-
-              codesign "''${sign_args[@]}" --deep "$app"
-              codesign --verify --deep --strict --verbose=2 "$app"
-            }
-
-            bundle_nix_dylibs "$appPath"
-            sign_darwin_app "$appPath"
-
-            mkdir -p "$out"
-            # Export the final, relocated and signed app for updater packaging.
-            # Notarization, stapling and updater signing happen outside the store.
-            cp -a "$appPath" "$out/Macro.app"
-            dmgPath="$out/Macro-${appVersion}-${system}.dmg"
-            # Package a drag-to-install volume, including Finder's icon layout.
-            dmgRoot=$(mktemp -d "$TMPDIR/macro-dmg.XXXXXX")
-            cp -a "$appPath" "$dmgRoot/Macro.app"
-            ln -s /Applications "$dmgRoot/Applications"
-            ${pkgs.python3.withPackages (ps: [ ps.ds-store ])}/bin/python \
-              ${./dmg-layout.py} "$dmgRoot"
-            # hdiutil's automatic APFS sizing can run out of space while copying
-            # the app. Budget logical bytes (including sparse files), then leave
-            # 25% plus 64 MiB for filesystem metadata and temporary allocations.
-            appSize=$(${pkgs.coreutils}/bin/du --apparent-size --count-links --block-size=1 --summarize "$appPath")
-            read -r appBytes _ <<< "$appSize"
-            appSizeMiB=$(( (appBytes + 1048575) / 1048576 ))
-            dmgSizeMiB=$(( appSizeMiB + (appSizeMiB + 3) / 4 + 64 ))
-            echo "DMG sizing: app=$appBytes logical bytes, image=$dmgSizeMiB MiB"
-            df -h "$TMPDIR" "$out"
-            hdiutil create \
-              -fs APFS \
-              -size "$dmgSizeMiB"m \
-              -volname "Macro" \
-              -srcfolder "$dmgRoot" \
-              -ov \
-              -format UDZO \
-              "$dmgPath"
-
-            if [ "$APPLE_SIGNING_IDENTITY" = "-" ]; then
-              codesign --force --sign - "$dmgPath"
-            else
-              codesign --force --sign "$APPLE_SIGNING_IDENTITY" --timestamp "$dmgPath"
+              done < <(find "$app/Contents/Frameworks" -type f -print0)
+              # CEF ships a framework and five nested helper apps. Seal the
+              # bundles after their Mach-O files, from the inside out.
+              while IFS= read -r -d "" bundle; do
+                case "$bundle" in
+                  *.app) codesign "''${executable_sign_args[@]}" "$bundle" ;;
+                  *) codesign "''${sign_args[@]}" "$bundle" ;;
+                esac
+              done < <(find "$app/Contents/Frameworks" -depth -type d \
+                \( -name '*.framework' -o -name '*.app' \) -print0)
             fi
-            codesign --verify --strict --verbose=2 "$dmgPath"
-          '';
-          doInstallCargoArtifacts = false;
-        }
-      );
+
+            # Helper executables (the macrod sidecar) must be signed
+            # individually for notarization; the --deep pass below re-seals
+            # the bundle on top of them.
+            while IFS= read -r -d "" file; do
+              if otool -hv "$file" >/dev/null 2>&1; then
+                codesign "''${executable_sign_args[@]}" "$file"
+              fi
+            done < <(find "$app/Contents/MacOS" -type f -print0)
+
+            codesign "''${executable_sign_args[@]}" --deep "$app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+          }
+
+          bundle_nix_dylibs "$appPath"
+          sign_darwin_app "$appPath"
+
+          mkdir -p "$out"
+          # Export the final, relocated and signed app for updater packaging.
+          # Notarization, stapling and updater signing happen outside the store.
+          cp -a "$appPath" "$out/Macro.app"
+          dmgPath="$out/Macro-${appVersion}-${system}.dmg"
+          # Package a drag-to-install volume, including Finder's icon layout.
+          dmgRoot=$(mktemp -d "$TMPDIR/macro-dmg.XXXXXX")
+          cp -a "$appPath" "$dmgRoot/Macro.app"
+          ln -s /Applications "$dmgRoot/Applications"
+          ${pkgs.python3.withPackages (ps: [ ps.ds-store ])}/bin/python \
+            ${./dmg-layout.py} "$dmgRoot"
+          # hdiutil's automatic APFS sizing can run out of space while copying
+          # the app. Budget logical bytes (including sparse files), then leave
+          # 25% plus 64 MiB for filesystem metadata and temporary allocations.
+          appSize=$(${pkgs.coreutils}/bin/du --apparent-size --count-links --block-size=1 --summarize "$appPath")
+          read -r appBytes _ <<< "$appSize"
+          appSizeMiB=$(( (appBytes + 1048575) / 1048576 ))
+          dmgSizeMiB=$(( appSizeMiB + (appSizeMiB + 3) / 4 + 64 ))
+          echo "DMG sizing: app=$appBytes logical bytes, image=$dmgSizeMiB MiB"
+          df -h "$TMPDIR" "$out"
+          hdiutil create \
+            -fs APFS \
+            -size "$dmgSizeMiB"m \
+            -volname "Macro" \
+            -srcfolder "$dmgRoot" \
+            -ov \
+            -format UDZO \
+            "$dmgPath"
+
+          if [ "$APPLE_SIGNING_IDENTITY" = "-" ]; then
+            codesign --force --sign - "$dmgPath"
+          else
+            codesign --force --sign "$APPLE_SIGNING_IDENTITY" --timestamp "$dmgPath"
+          fi
+          codesign --verify --strict --verbose=2 "$dmgPath"
+        '';
+      };
 
       tauriAppImagePackagingTests =
         pkgs.runCommand "tauri-appimage-packaging-tests"
@@ -1134,9 +1252,9 @@
       }
       // lib.optionalAttrs isAarch64Darwin {
         tauri-frontend = frontend;
+        tauri-desktop-cef-app = tauriDesktopCefApp;
         tauri-desktop-dmg = tauriDesktopDmg;
         tauri-desktop-apple-linker-smoke = tauriDesktopDmgAppleLinkerSmoke;
-        tauri-desktop-cargo-artifacts = tauri.cargoArtifacts;
       };
     };
 }
