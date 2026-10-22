@@ -857,6 +857,8 @@ receive its fallback alert.
 Call pushes are data-only, high priority, have a 60-second TTL, and include a recipient-specific
 LiveKit token and HTTPS ring-status URL. The receiver checks the registered
 account and message age. Tokens are kept in memory and never logged or persisted.
+A dropped call push logs its reason under the `MacroCall` logcat tag (another
+account, invalid payload, stale, recently ended, or another call active).
 While ringing, the native coordinator polls the existing ring-status endpoint;
 answering rechecks it before connecting. Answered-elsewhere, cancelled, expired,
 and invalid-token rings are dismissed. Transient verification failures allow a
@@ -866,7 +868,14 @@ The **Calls** notification channel presents Answer/Decline and an ongoing End
 call action. Telecom handles headset/system actions and coordinates interruptions.
 Android's full-screen-intent setting controls whether a locked phone opens the
 call activity automatically; when unavailable, the call notification remains the
-entry point. Test both permission states. Microphone access is required to join;
+entry point. Android 14+ revokes it by default for Play installs unless the Play
+Console's full-screen intent declaration names calling as core functionality;
+check with `adb shell appops get <package> USE_FULL_SCREEN_INTENT`. Once
+notifications are on, Macro shows a toast while the setting is off; **Allow**
+opens Android's per-app setting, and the toast stays until returning to Macro
+finds access granted; **Hide** stops the prompt on that device. The
+call notification is public, so the lock screen shows the call and its actions.
+Test both permission states. Microphone access is required to join;
 camera access is requested when enabling video, and Bluetooth access when selecting
 that route on Android 12 or newer. A denied permission does not silently enable
 capture.
@@ -874,14 +883,25 @@ capture.
 The native call activity presents a themed drawer at approximately 92% of the
 safe screen height, above navigation bars/cutouts. A large participant tile sits
 above a horizontally scrolling participant strip; tapping a strip tile selects
-it as primary. Speaker, Mute and Video form a compact control row, with Leave
-in the header and camera switching on the primary local video tile. Hold Speaker
-to select headset/Bluetooth routing. Back,
-tapping the scrim, or swiping the handle down enters PiP on supported devices.
-Without PiP support, dismissal returns to Macro while retaining audio. Audio continues in the
-foreground service while backgrounded. Camera capture stops when the call activity
-is backgrounded outside PiP. PiP uses native renderers and requires device support.
-The web call controls can reopen the native activity after returning to Macro.
+it as primary. Agent participants such as the transcriber are hidden. Speaker,
+Mute and Video form a labelled control row of Phosphor icons, with Leave in the
+header and camera switching on the primary local video tile. Hold Speaker to
+select headset/Bluetooth routing.
+
+As on iOS, Back, tapping the scrim, or swiping the handle down shrinks the drawer
+to a thumbnail over Macro (you on the left, the active speaker on the right).
+Tapping it reopens the drawer, dragging snaps it to a corner, and dragging it
+past a side tucks it away; once someone else is in the call an edge tab brings
+it back, and **Open call controls** reopens the drawer. On a locked phone the drawer
+goes straight to PiP where the device supports it. Leaving Macro continues the call in system PiP:
+from the thumbnail, Macro's main activity enters PiP (auto-enter on Android 12+,
+which needs `android:supportsPictureInPicture` on `MainActivity`) and hides the
+WebView so it keeps its size; from the drawer, the drawer enters PiP and
+reopens when Macro returns. PiP uses the same layout as iOS, its menu offers
+Mute and Leave, and expanding it reopens the drawer. A tap on a system PiP
+always shows Android's menu first. Audio continues in the foreground service
+while backgrounded; camera capture stops once neither the drawer, the thumbnail
+nor PiP is visible. The web call controls can also reopen the drawer.
 
 After a debug build generates Tauri's Gradle includes, run the plugin unit tests
 from `tauri/src-tauri/gen/android` with
@@ -898,10 +918,11 @@ For isolated native media testing, run a local LiveKit server in `--dev` mode
 bound to `0.0.0.0`, then add
 `-Pandroid.testInstrumentationRunnerArguments.livekitUrl=ws://10.0.2.2:7880`
 to the connected-test command on the standard Android emulator. The optional
-media test uses LiveKit's development credentials, a second native participant,
+media tests use LiveKit's development credentials, a second native participant,
 and emulator microphone/camera permissions to verify video subscription, mute,
-camera start/stop, duplicate start, network interruption/reconnect, navigation/PiP
-and resource cleanup. Cleartext
+camera start/stop, duplicate start, network interruption/reconnect, navigation/PiP,
+the in-app thumbnail and its PiP handoff (`MiniWindowTest`, Android 12+), and
+resource cleanup. Cleartext
 access is enabled only in the instrumentation APK. This test does not validate
 production FCM delivery or hardware audio quality.
 
@@ -916,6 +937,7 @@ record Android version, APK revision, permissions, route/accessory and results:
 | Audio | Microphone denied/revoked, earpiece/speaker, wired headset, Bluetooth connect/disconnect, cellular-call interruption |
 | Lifecycle | Wi-Fi/cellular transitions, temporary offline/reconnect, navigation, WebView reload, foreground resume, no duplicate participant |
 | Video | Camera denial, front/back switch, remote video, supported PiP, PiP dismissal, background without PiP, end and reopen; granting camera permission for an ended call must not enable video on a replacement call |
+| In-app thumbnail | Drawer to thumbnail and back, drag to each corner, edge tab, leave the app into PiP (Android 12+ and older), expand PiP to the drawer, close PiP, call ending in PiP |
 
 A local build or JVM/shared-state test does not prove this hardware matrix. Play
 installation/distribution regression belongs to release workstream 07.
