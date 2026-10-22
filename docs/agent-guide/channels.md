@@ -122,8 +122,10 @@ internal rollout. Model usage continues through the existing session metering.
 
 ## Imported Slack history
 
-Import starts from the **Import from Slack** card at the bottom of the Chat
-sidebar, or **Settings → Team → Connections → Import from Slack**. The card is
+Import starts from the **Create or import channels** card's **Import Slack**
+button at the bottom of the Chat sidebar, or **Settings → Team → Connections →
+Import from Slack**. The card's **New channel** button beside it opens the new
+channel dialog instead. The card is
 the shared connector-import card (see
 [Import from connected apps](setup-cards.md#import-from-connected-apps)) and is
 visible to team admins and owners when Slack archive import is enabled. It
