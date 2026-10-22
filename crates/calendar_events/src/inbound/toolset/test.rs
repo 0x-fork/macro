@@ -232,6 +232,15 @@ impl CalendarMutationService for MockMutations {
         unreachable!("the toolset adds guests through update_event")
     }
 
+    async fn copy_shared_event(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("no calendar tool copies shared events")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,

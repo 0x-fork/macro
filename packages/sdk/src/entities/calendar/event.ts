@@ -252,6 +252,24 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
     return CalendarEvent.fromRecord(this.client, record);
   }
 
+  /** Add a private copy of an event shared with one of the requester's
+   * channels to one of their Google calendars, and return a handle to the
+   * synced copy. The copy keeps the meeting's iCalendar UID and carries no
+   * guests or join link; nobody is notified. Refused with
+   * `already_on_calendar` when the meeting is already on one of their
+   * calendars. */
+  async addToCalendar(
+    options: { calendar?: Calendar } = {},
+  ): Promise<CalendarEvent> {
+    const record = await this.mutate((client) =>
+      client.calendar.copyCalendarEvent({
+        path: { event_id: this.id },
+        body: { calendarId: options.calendar?.id },
+      }),
+    );
+    return CalendarEvent.fromRecord(this.client, record);
+  }
+
   /** The event as an iCalendar (`.ics`) document: its series, title,
    * description, location and organizer, never its guests or join link.
    * Available for the requester's own events and ones shared with a channel

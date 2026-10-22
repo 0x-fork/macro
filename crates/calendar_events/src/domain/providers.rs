@@ -242,6 +242,23 @@ impl<G: CalendarMutationProvider, O: CalendarMutationProvider> CalendarMutationP
             }
         }
     }
+    async fn import_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &super::ics::CalendarEventExport,
+    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+        match target.provider {
+            CalendarProvider::Google => {
+                self.google.import_event(access_token, target, source).await
+            }
+            CalendarProvider::Outlook => {
+                self.outlook
+                    .import_event(access_token, target, source)
+                    .await
+            }
+        }
+    }
     async fn stop_watch_channel(
         &self,
         access_token: &str,

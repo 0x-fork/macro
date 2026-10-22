@@ -352,6 +352,100 @@
         }
       }
     },
+    "/events/{event_id}/copy": {
+      "post": {
+        "tags": ["calendar_events"],
+        "summary": "Add a private copy of an event shared with one of the requester's\nchannels to one of their Google calendars and return the synced copy. The\ncopy keeps the meeting's iCalendar UID and carries no guests or join link;\nnobody is notified.",
+        "operationId": "copy_calendar_event",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "description": "Shared calendar event entity id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyCalendarEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The copy on the requester's calendar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The event cannot be copied, or the calendar is not a Google calendar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Calendar is read-only or needs reauthorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Event not found or not shared with the requester",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already on the requester's calendar, no writable calendar, or the provider rejected the copy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transient provider failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/events/{event_id}/guests": {
       "post": {
         "tags": ["calendar_events"],
@@ -1251,6 +1345,7 @@
           "not_attendee",
           "guests_cannot_invite",
           "guest_list_hidden",
+          "already_on_calendar",
           "invalid_input",
           "reauth_required",
           "provider_rejected",
@@ -1359,6 +1454,17 @@
         "type": "string",
         "description": "The conferencing system backing an event's join URL.\n\nCalendars can create Google Meet or Microsoft Teams according to their\ncapabilities. Imported third-party conferences are labeled separately.\nOmitting a conference change preserves the current conference; explicit\nchanges still require provider and calendar capability validation.",
         "enum": ["microsoft_teams", "google_meet", "other"]
+      },
+      "CopyCalendarEventRequest": {
+        "type": "object",
+        "description": "Request body adding a channel-shared event to the requester's calendar.",
+        "properties": {
+          "calendarId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Google calendar to add the copy to; defaults to the requester's\nprimary inbox's primary calendar."
+          }
+        }
       },
       "CreateCalendarEventRequest": {
         "type": "object",

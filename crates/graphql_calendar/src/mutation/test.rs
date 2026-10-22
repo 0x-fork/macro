@@ -148,6 +148,15 @@ impl CalendarMutationService for FakeMutations {
         Ok(series_event())
     }
 
+    async fn copy_shared_event(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("GraphQL has no copy mutation")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,
@@ -786,6 +795,11 @@ async fn every_failure_carries_its_rest_code_and_hides_provider_details() {
         (
             CalendarMutationError::GuestListHidden,
             "guest_list_hidden",
+            false,
+        ),
+        (
+            CalendarMutationError::AlreadyOnCalendar,
+            "already_on_calendar",
             false,
         ),
         (

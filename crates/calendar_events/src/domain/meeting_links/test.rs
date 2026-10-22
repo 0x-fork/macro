@@ -153,6 +153,15 @@ impl CalendarMutationService for FakeMutations {
         unreachable!("creating with a Macro call invites no one afterwards")
     }
 
+    async fn copy_shared_event(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, CalendarMutationError> {
+        unreachable!("creating with a Macro call copies nothing")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,

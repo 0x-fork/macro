@@ -500,7 +500,15 @@ own copy of the meeting. When a person holds the event on their own calendar and
 mention, it is shared read-only with the channel's current members: a member without a copy of
 their own sees the mention's title and time, and its hover card adds a `Shared with you · not on
 your calendar` line with no open action. Clicking such a mention shows that hover card
-instead of opening the calendar. A classic `@Macro` reply that mentions an event does not share
+instead of opening the calendar; on a touch device, tapping it opens the same card as a bottom
+sheet. That card also offers `Add to calendar`, which imports a private copy (no guests, no join
+link, nobody is notified) onto the viewer's only writable Google calendar, or onto one they pick
+from a menu when they have several; Outlook calendars are not offered, since Microsoft cannot
+keep the meeting's iCalendar UID. The mention then opens that copy. If Google already holds the
+meeting on that calendar (an invitation Macro has not synced yet), nothing is imported, a sync
+is scheduled and the card reports that it is already on their calendar. `Download .ics` saves
+the event as an iCalendar file. The copy is a snapshot: later changes by the organizer do not
+reach it. A classic `@Macro` reply that mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee

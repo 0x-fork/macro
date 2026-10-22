@@ -10,10 +10,12 @@ import {
   useMaybeBlockName,
 } from '@core/block';
 import {
+  type DocumentPreviewContentProps,
   getMentionsIcon,
   mentionsAccessories,
   PopupPreview,
 } from '@core/component/DocumentPreview';
+import { DocumentPreviewSheet } from '@core/component/DocumentPreviewSheet';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { HoverCard } from '@core/component/HoverCard';
 import { InlineTaskProperties } from '@core/component/InlineTaskProperties';
@@ -27,6 +29,7 @@ import {
   ENABLE_BLOCK_IN_BLOCK,
   enableDatabases,
 } from '@core/constant/featureFlags';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { canNestBlock } from '@core/orchestrator';
 import { formatDate } from '@core/util/date';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -694,6 +697,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
   });
 
   const [previewCardOpen, setPreviewCardOpen] = createSignal(false);
+  const [previewSheetOpen, setPreviewSheetOpen] = createSignal(false);
 
   const calendarOpen = createMemo(() =>
     verifyBlockName(props.blockName) === 'calendar'
@@ -709,11 +713,12 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     // The calendar is a singleton block: open it aimed at the viewer's own
     // copy of the meeting. A meeting shared through the channel but absent
     // from the viewer's calendars has nothing to open, so its read-only
-    // preview card is shown instead.
+    // preview card is shown instead, as a sheet on touch devices.
     const target = calendarOpen();
     if (target) {
       if (target.kind === 'read_only') {
-        setPreviewCardOpen(true);
+        if (isTouchDevice()) setPreviewSheetOpen(true);
+        else setPreviewCardOpen(true);
         return;
       }
       fireAndForget(
@@ -812,84 +817,102 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     }
   });
 
+  // One set of preview props for the hover card and the touch sheet.
+  const previewContentProps: DocumentPreviewContentProps = {
+    get delete() {
+      return editor?.isEditable() ? deleteMention : undefined;
+    },
+    get collapseInfo() {
+      return {
+        isCollapsed: isCollapsed(),
+        isCollapsable: isCollapsable(),
+        handleCollapse: () => {
+          const state = !isCollapsed();
+          setIsCollapsed(state);
+          editor?.update(() => {
+            const node = $getNodeByKey(props.key);
+            if ($isDocumentMentionNode(node)) {
+              node.setCollapsed(state);
+            }
+          });
+        },
+      };
+    },
+    get documentInfo() {
+      return {
+        id: props.documentId,
+        name: shouldUseFallbackForRecentMention(item(), isRecentMention())
+          ? props.documentName
+          : undefined,
+        type: verifyBlockName(props.blockName),
+        params: props.blockParams ?? {},
+        isOpenable: currentBlockId !== props.documentId,
+      };
+    },
+    get previewInfo() {
+      return {
+        isPreviewable: isEmbeddable(),
+        showPreview: showEmbedOption(),
+        handlePreviewToggle: convertToCard,
+      };
+    },
+    get useFallbackData() {
+      return shouldUseFallbackForRecentMention(item(), isRecentMention());
+    },
+  };
+
   return (
-    <HoverCard
-      open={previewCardOpen()}
-      onOpenChange={setPreviewCardOpen}
-      keepOpenOnTriggerPress={calendarOpen()?.kind === 'read_only'}
-      trigger={
-        <span class="relative">
-          <span
-            class="size-full py-[0.125em] cursor-default rounded-xs hover:bg-hover focus:bg-active"
-            classList={{
-              'bg-active text-ink': isSelectedAsNode(),
-            }}
-            style={{
-              'user-select': 'inherit',
-            }}
-            {...navHandlers}
-          >
-            <Switch>
-              <Match when={item()}>
-                <InlinePreview
-                  previewData={previewData}
-                  entity={itemEntity()}
-                  blockName={verifyBlockName(props.blockName)}
-                  blockParams={props.blockParams || {}}
-                  theme={props.theme}
-                  collapsed={isCollapsed()}
-                  documentName={props.documentName}
-                  createdAt={props.createdAt}
-                  isRecentMention={isRecentMention}
-                />
-              </Match>
-            </Switch>
-          </span>
-          <MentionTooltip show={isSelectedAsNode()} text="Open" />
-        </span>
-      }
-      content={
-        <PopupPreview
-          mouseEnter={() => {}}
-          mouseLeave={() => {}}
-          delete={editor?.isEditable() ? deleteMention : undefined}
-          collapseInfo={{
-            isCollapsed: isCollapsed(),
-            isCollapsable: isCollapsable(),
-            handleCollapse: () => {
-              const state = !isCollapsed();
-              setIsCollapsed(state);
-              editor?.update(() => {
-                const node = $getNodeByKey(props.key);
-                if ($isDocumentMentionNode(node)) {
-                  node.setCollapsed(state);
-                }
-              });
-            },
-          }}
-          documentInfo={{
-            id: props.documentId,
-            name: (() => {
-              const i = item();
-              return shouldUseFallbackForRecentMention(i, isRecentMention())
-                ? props.documentName
-                : undefined;
-            })(),
-            type: verifyBlockName(props.blockName),
-            params: props.blockParams ?? {},
-            isOpenable: currentBlockId !== props.documentId,
-          }}
-          previewInfo={{
-            isPreviewable: isEmbeddable(),
-            showPreview: showEmbedOption(),
-            handlePreviewToggle: convertToCard,
-          }}
-          useFallbackData={shouldUseFallbackForRecentMention(
-            item(),
-            isRecentMention()
-          )}
+    <>
+      <Show when={isTouchDevice() && calendarOpen()?.kind === 'read_only'}>
+        <DocumentPreviewSheet
+          open={previewSheetOpen()}
+          onOpenChange={setPreviewSheetOpen}
+          {...previewContentProps}
         />
-      }
-    />
+      </Show>
+      <HoverCard
+        open={previewCardOpen()}
+        onOpenChange={setPreviewCardOpen}
+        keepOpenOnTriggerPress={calendarOpen()?.kind === 'read_only'}
+        trigger={
+          <span class="relative">
+            <span
+              class="size-full py-[0.125em] cursor-default rounded-xs hover:bg-hover focus:bg-active"
+              classList={{
+                'bg-active text-ink': isSelectedAsNode(),
+              }}
+              style={{
+                'user-select': 'inherit',
+              }}
+              {...navHandlers}
+            >
+              <Switch>
+                <Match when={item()}>
+                  <InlinePreview
+                    previewData={previewData}
+                    entity={itemEntity()}
+                    blockName={verifyBlockName(props.blockName)}
+                    blockParams={props.blockParams || {}}
+                    theme={props.theme}
+                    collapsed={isCollapsed()}
+                    documentName={props.documentName}
+                    createdAt={props.createdAt}
+                    isRecentMention={isRecentMention}
+                  />
+                </Match>
+              </Switch>
+            </span>
+            <MentionTooltip show={isSelectedAsNode()} text="Open" />
+          </span>
+        }
+        content={
+          <PopupPreview
+            mouseEnter={() => {}}
+            mouseLeave={() => {}}
+            {...previewContentProps}
+          />
+        }
+      />
+    </>
   );
 }

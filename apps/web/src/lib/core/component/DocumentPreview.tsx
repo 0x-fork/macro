@@ -3,6 +3,7 @@ import {
   parseMacroAppLink,
   sanitizeCalendarDescription,
 } from '@app/features/calendar/utils/calendar-description';
+import { SharedEventActions } from '@app/features/calendar-view/components/SharedEventActions';
 import {
   type CalendarMentionTarget,
   copyCalendarEventMentionTarget,
@@ -346,6 +347,9 @@ export function calendarPreviewSchedule(
 /** Meeting-level rows of the calendar mention hover card. */
 function CalendarEventPreviewDetails(props: {
   event: PreviewCalendarEventAccess['event'];
+  /** The mentioned event, which a read-only share copies from. */
+  mentionedEventId: string;
+  onAddedToCalendar?: () => void;
 }) {
   const organizer = () =>
     props.event.organizerName ?? props.event.organizerEmail;
@@ -418,6 +422,13 @@ function CalendarEventPreviewDetails(props: {
           </span>
         </MetadataInfo>
       </Show>
+      <Show when={!props.event.viewerEventId}>
+        <SharedEventActions
+          eventId={props.mentionedEventId}
+          title={props.event.title}
+          onAdded={props.onAddedToCalendar}
+        />
+      </Show>
     </div>
   );
 }
@@ -452,6 +463,8 @@ export type DocumentPreviewContentProps = {
     characterCount?: number;
   };
   useFallbackData?: boolean;
+  /** Called once a channel-shared event is added to the viewer's calendar. */
+  onAddedToCalendar?: () => void;
 };
 
 /**
@@ -938,7 +951,11 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
                 {/* Calendar event schedule, location, and people */}
                 <Show when={matches(item(), isCalendarEventPreviewItem)}>
                   {(calendarItem) => (
-                    <CalendarEventPreviewDetails event={calendarItem().event} />
+                    <CalendarEventPreviewDetails
+                      event={calendarItem().event}
+                      mentionedEventId={props.documentInfo.id}
+                      onAddedToCalendar={props.onAddedToCalendar}
+                    />
                   )}
                 </Show>
 

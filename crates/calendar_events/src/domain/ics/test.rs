@@ -1,12 +1,17 @@
 use chrono::{NaiveDate, TimeZone, Utc};
 
-use super::{CalendarEventExport, render_event_ics};
-use crate::domain::{meeting_links::attach_macro_call, models::EventTime};
+use super::{CalendarEventExport, CalendarEventExportAccess, render_event_ics};
+use crate::domain::{
+    meeting_links::attach_macro_call,
+    models::{EventTime, EventType},
+};
 
 const CALL_URL: &str = "https://macro.com/app/meet/join/0123456789abcdef0123456789abcdef";
 
 fn export(time: EventTime) -> CalendarEventExport {
     CalendarEventExport {
+        access: CalendarEventExportAccess::ChannelShared,
+        event_type: EventType::Default,
         ical_uid: "abc123@google.com".to_string(),
         sequence: 2,
         title: "Planning, part 1; kickoff".to_string(),

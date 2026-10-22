@@ -14,7 +14,7 @@ use crate::domain::{
     models::{AccessToken, EmailApiError, MailboxAccess, StreamToken},
     ports::ScopedMailboxRepository,
 };
-use calendar_events::domain::{models::*, outlook::*, ports::*};
+use calendar_events::domain::{ics::CalendarEventExport, models::*, outlook::*, ports::*};
 use reqwest::Method;
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -906,6 +906,16 @@ impl CalendarMutationProvider for OutlookApiClientRepository {
                 scope,
             )
             .await
+    }
+    async fn import_event(
+        &self,
+        _token: &str,
+        _target: &ProviderCalendarTarget,
+        _source: &CalendarEventExport,
+    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+        Err(unsupported(
+            "Microsoft Graph cannot create an event under another meeting's iCalendar UID",
+        ))
     }
     async fn stop_watch_channel(
         &self,

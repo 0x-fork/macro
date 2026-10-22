@@ -5,7 +5,9 @@ import { downloadFile } from '@filesystem/download';
 import { fetchCalendarEventIcs } from '@queries/calendar/ics';
 
 /** Save an event as an `.ics` file named after its title. */
-export async function downloadCalendarEventIcs(event: CalendarEvent) {
+export async function downloadCalendarEventIcs(
+  event: Pick<CalendarEvent, 'eventId' | 'title'>
+) {
   const file = await fetchCalendarEventIcs(event.eventId);
   if (file.isErr()) {
     toast.failure('Failed to download event');

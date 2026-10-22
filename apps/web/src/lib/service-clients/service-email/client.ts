@@ -9,6 +9,7 @@ import type {
   CalendarEvent,
   CalendarEventProviderUrl,
   CalendarReplacementView,
+  CopyCalendarEventRequest,
   CreateCalendarEventRequest,
   InviteCalendarEventGuestsRequest,
   ListCalendarsResponse,
@@ -875,6 +876,16 @@ export const emailClient = {
   ) {
     return fetchWithToken<CalendarEvent, CalendarMutationErrorCode>(
       `${calendarHost}/events/${eventId}/guests`,
+      {
+        method: 'POST',
+        body: JSON.stringify(args),
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async copyCalendarEvent(eventId: string, args: CopyCalendarEventRequest) {
+    return fetchWithToken<CalendarEvent, CalendarMutationErrorCode>(
+      `${calendarHost}/events/${eventId}/copy`,
       {
         method: 'POST',
         body: JSON.stringify(args),

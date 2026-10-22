@@ -304,6 +304,15 @@ impl calendar_events::domain::ports::CalendarMutationService for RecordingCalend
         unreachable!("only deletion is exercised")
     }
 
+    async fn copy_shared_event(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+        _calendar_id: Option<Uuid>,
+    ) -> Result<CalendarEvent, calendar_events::domain::ports::CalendarMutationError> {
+        unreachable!("only deletion is exercised")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,

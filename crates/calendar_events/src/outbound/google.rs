@@ -8,7 +8,10 @@ use rootcause::Report;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
+mod import;
+
 use crate::domain::{
+    ics::CalendarEventExport,
     models::{
         ActorInboxes, AttendeeResponseStatus, CalendarAttendee, CalendarAttendeeInput,
         CalendarEvent, CalendarEventDraft, CalendarEventOverride, CalendarEventPatch,
@@ -1499,6 +1502,20 @@ impl<G: GoogleRequestGate> CalendarMutationProvider for GoogleCalendarClient<G> 
                 Ok(ProviderInviteOutcome::Gone)
             }
         }
+    }
+
+    #[tracing::instrument(
+        skip(self, access_token, target, source),
+        fields(calendar_id = %target.calendar_id),
+        err
+    )]
+    async fn import_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        source: &CalendarEventExport,
+    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+        self.import_copy(access_token, target, source).await
     }
 
     #[tracing::instrument(skip(self, access_token), err)]
