@@ -1,7 +1,9 @@
 use chrono::{NaiveDate, TimeZone, Utc};
 
 use super::{CalendarEventExport, render_event_ics};
-use crate::domain::models::EventTime;
+use crate::domain::{meeting_links::attach_macro_call, models::EventTime};
+
+const CALL_URL: &str = "https://macro.com/app/meet/join/0123456789abcdef0123456789abcdef";
 
 fn export(time: EventTime) -> CalendarEventExport {
     CalendarEventExport {
@@ -120,6 +122,66 @@ fn plain_text_description_keeps_its_line_breaks() {
     let lines = unfolded(&render_event_ics(&event));
 
     assert!(lines.contains(&"DESCRIPTION:Dial in first\\nthen share your screen".to_string()));
+}
+
+#[test]
+fn a_macro_call_leaves_neither_its_join_line_nor_its_link_as_the_location() {
+    let mut event = export(all_day());
+    let (description, location) =
+        attach_macro_call(Some("<p>Bring the budget draft</p>"), None, CALL_URL);
+    event.description = Some(description);
+    event.location = Some(location);
+
+    let document = render_event_ics(&event);
+    let lines = unfolded(&document);
+
+    assert!(
+        lines.contains(&"DESCRIPTION:Bring the budget draft".to_string()),
+        "{lines:?}"
+    );
+    assert!(
+        !lines.iter().any(|line| line.starts_with("LOCATION")),
+        "{lines:?}"
+    );
+    assert!(!document.contains("/meet/join/"), "{lines:?}");
+}
+
+#[test]
+fn a_macro_call_keeps_a_physical_location_and_drops_an_empty_description() {
+    let mut event = export(all_day());
+    let (description, location) = attach_macro_call(None, Some("Room 4"), CALL_URL);
+    event.description = Some(description);
+    event.location = Some(location);
+
+    let lines = unfolded(&render_event_ics(&event));
+
+    assert!(lines.contains(&"LOCATION:Room 4".to_string()), "{lines:?}");
+    assert!(
+        !lines.iter().any(|line| line.starts_with("DESCRIPTION")),
+        "{lines:?}"
+    );
+}
+
+#[test]
+fn the_join_line_goes_even_when_an_earlier_call_link_is_found_first() {
+    let earlier = "https://macro.com/app/meet/join/fedcba9876543210fedcba9876543210";
+    let mut event = export(all_day());
+    let (description, location) = attach_macro_call(
+        Some(&format!("<p>Last week: {earlier}</p>")),
+        Some("Room 4"),
+        CALL_URL,
+    );
+    event.description = Some(description);
+    event.location = Some(location);
+
+    let document = render_event_ics(&event);
+    let lines = unfolded(&document);
+
+    assert!(
+        lines.contains(&format!("DESCRIPTION:Last week: {earlier}")),
+        "{lines:?}"
+    );
+    assert!(!document.contains(CALL_URL), "{lines:?}");
 }
 
 #[test]

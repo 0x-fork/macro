@@ -462,7 +462,9 @@ explanation; an Outlook organizer adds guests like a Google one.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
-as plain text, location and organizer, never the guest list or join link. Like `Copy event`, it
+as plain text, location and organizer, never the guest list or join link. A Macro call's
+`Join Macro call` line and a location that is only its link are left out too, as event details
+leave them out. Like `Copy event`, it
 is absent from teammates' out-of-office chips. Its endpoint, document storage's
 `GET /calendar-events/{event_id}/ics`, also exports an event shared with a channel the viewer
 belongs to.
