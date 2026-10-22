@@ -40,21 +40,22 @@ Each frontend startup emits `native_webview_started` to PostHog and a
 native version and launch ID, and navigation type. Native diagnostics retain
 WebContent termination counts/timestamps and bundle-update reload dispatch
 counts/last source across WebView replacements. Compare counters within the same
-native launch: an increased termination count identifies WebKit process recovery;
-an increased updater count identifies an app-requested update reload attempt.
+native launch: an increased termination count identifies web content process
+recovery; an increased updater count identifies an app-requested update reload
+attempt.
 Dispatch does not prove the JavaScript reload completed. A new native launch ID
 means the host process restarted. Missing counters on an older binary mean
 unknown, not zero. The properties are also attached to subsequent PostHog events.
-Termination reporting is available on iOS and older macOS WKWebView builds. On
-Chromium macOS and other platforms,
-startup events mark it unavailable and omit termination counts/timestamps even
+Termination reporting is available on iOS and macOS, including Chromium macOS.
+Other platforms mark it unavailable and omit termination counts/timestamps even
 when the native snapshot includes an unused zero-valued counter.
 
 The Apple termination callback preserves Tauri's default reload behavior and adds
-the native evidence before reloading. It does not establish why WebKit terminated
-(for example, memory pressure versus a crash); device crash/termination reports
-are needed for that distinction. Native counters require a full app release,
-while the frontend remains compatible with older binaries.
+the native evidence before reloading. It does not establish why the web content
+process terminated (for example, memory pressure versus a crash); device
+crash/termination reports are needed for that distinction. Native counters
+require a full app release, while the frontend remains compatible with older
+binaries.
 
 `frontend_instance_id` is generated once per document and attached to every
 PostHog event (including automatic exceptions/pageviews) and OTel resource.

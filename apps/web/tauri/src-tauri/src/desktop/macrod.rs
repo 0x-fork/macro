@@ -544,4 +544,3 @@ pub(crate) fn autostart(app: &AppHandle) {
         }
     });
 }
-

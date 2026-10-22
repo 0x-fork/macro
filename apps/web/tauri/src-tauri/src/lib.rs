@@ -200,7 +200,7 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
 
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
-        builder = builder.on_web_content_process_terminate(|webview| {
+        let on_terminate = |webview: &tauri::Webview<AppRuntime>| {
             tracing::warn!(webview = %webview.label(), "WebContent process terminated; reloading");
             if let Some(state) = webview.try_state::<diagnostics::Diagnostics>() {
                 let _ = state.record_web_content_termination().inspect_err(|error| {
@@ -212,7 +212,16 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
             let _ = webview.reload().inspect_err(|error| {
                 tracing::error!(%error, "Failed to reload terminated WebContent process");
             });
-        });
+        };
+        #[cfg(feature = "cef")]
+        {
+            builder = builder
+                .on_web_content_process_terminate(move |webview, _details| on_terminate(webview));
+        }
+        #[cfg(not(feature = "cef"))]
+        {
+            builder = builder.on_web_content_process_terminate(on_terminate);
+        }
     }
 
     #[cfg(desktop)]

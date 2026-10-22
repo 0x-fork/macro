@@ -17,8 +17,8 @@ export function recordNativeWebviewStart(
     .querySelector('meta[name="macro-bundle-build"]')
     ?.getAttribute('content');
   const navigation = performance.getEntriesByType('navigation')[0];
-  // Native snapshots include this field on every platform, but only Apple's
-  // WebKit termination callback records it. Other platforms remain unknown.
+  // Native snapshots include this field on every platform, but only the iOS
+  // and macOS termination callbacks record it. Other platforms remain unknown.
   const webContent =
     snapshot?.identity.os === 'ios' || snapshot?.identity.os === 'macos'
       ? snapshot.webContent

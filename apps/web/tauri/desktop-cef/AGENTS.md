@@ -38,6 +38,9 @@ thin binary over `../src-tauri` (`app_lib::run_with`) that selects
 - The `cef` feature of `../src-tauri` adds no dependencies; it switches the
   served origin to `http://tauri.localhost` and the `AppRuntime` alias to
   `tauri::DynRuntime`. It only compiles in this workspace.
+- The CEF Tauri fork's `on_web_content_process_terminate` callback takes a
+  webview and termination details; the regular fork takes only a webview.
+  Check both workspaces when changing shared callback registration.
 - Needs Rust 1.95 (the repo pins 1.94), `cmake`, and `ninja`; the first build
   downloads about 1 GB of CEF into `~/Library/Caches/tauri-cef`.
 - Nix pins Rust 1.95 and the `macro-cef` Tauri CLI separately for macOS. Keep
