@@ -382,7 +382,7 @@ pub trait TeamService: Clone + Send + Sync + 'static {
         subscription_id: Option<&stripe::SubscriptionId>,
     ) -> impl Future<Output = Result<Team, CreateTeamError>> + Send;
 
-    /// Returns the user's active stripe subscription id when the user is premium.
+    /// Returns the user's active or trialing Stripe subscription id, if any.
     fn is_user_premium(
         &self,
         user_id: &MacroUserIdStr<'_>,

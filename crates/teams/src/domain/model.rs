@@ -726,7 +726,7 @@ pub enum CustomerError {
     #[error("No stripe customer id")]
     /// The customer does not have a stripe customer id
     NoStripeCustomerId,
-    /// The subscription is not active
+    /// The customer has no active or trialing subscription
     #[error("Subscription is not active")]
     SubscriptionNotActive,
     /// Invalid promotion code

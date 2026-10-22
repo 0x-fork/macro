@@ -131,6 +131,8 @@ auto-join must keep working beyond five members and the former stage-plan limits
 Free-team joins do not create a paid subscription, bill a seat, or grant premium
 roles. Teams with an existing paid subscription retain their per-seat billing;
 enterprise teams retain their billing bypass.
+A team created or invited from while its owner is on a Pro trial bills through
+that trial, so members who join get Pro, like on an active subscription.
 
 On a local stack started with `--no-doppler`, verify free-team creation from a
 fresh passwordless signup. It must work without Stripe credentials.
