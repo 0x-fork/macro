@@ -8,37 +8,31 @@ Chat sidebar's Slack card is the same component under the Slack import gates;
 see [channels](channels.md#imported-slack-history)):
 overlapping provider logos, a two-line pitch, and **Import files**, **Import
 tasks**, or **Import customers**. Customers shows it only to team members.
-**Dismiss import files** (or tasks, customers) hides that card for good; a
-server-confirmed native import also hides it. See
+**Dismiss import files** (or tasks, customers) hides that card for good. See
 [Dismissing cards](#dismissing-cards).
 
 The button opens a dialog listing that category's apps (Files: Notion, Google
 Drive, Dropbox, OneDrive, Box, Confluence; Tasks: Linear, Jira, Asana, GitHub,
 Trello, monday.com; Customers: HubSpot, Salesforce, Close, Airtable). A
-disconnected row offers **Connect** (`Connect <App>`), which opens Pipedream's
-Connect UI inside the dialog. A connected row shows a check and **Import**
-(`Import from <App>`).
+disconnected row offers **Connect** (`Connect <App>`). GitHub connects through
+Macro's native GitHub MCP server (`api.githubcopilot.com/mcp`): authorization
+opens in a new tab, and the row flips to connected when the app regains focus.
+Every other app opens Pipedream's Connect UI inside the dialog. A connected row
+(native MCP or Pipedream) shows a check and **Import** (`Import from <App>`).
 
-- **Notion**, **Linear**, and **Slack** import natively. Connecting one opens
-  **Import from <App>** and starts discovery
-  (`POST /import/runs/<source>/discover`) unless rows are already staged: a
-  gather agent stages recent pages or issues, and Slack discovery stages every
-  visible public channel. Click a title to select it, then **Import N**. Lists
-  longer than eight rows get a filter; selections hidden by the filter still
-  import. Rows spin while importing and then link to the created document,
-  task, or channel. **Search again** rediscovers; **Back to apps** returns to
-  the list.
-- Every other app is labelled "with the agent". **Import** closes the dialog
-  and opens an agent chat with an unsent prompt such as "Import my most recent
+- Every **Import** closes the dialog and opens an agent chat in a split beside
+  the current view, with an unsent prompt such as "Import my most recent
   issues and tasks from Jira into Macro tasks.". Private instructions tell the
   agent to list candidates and ask before creating anything, and never to
-  write to the source.
+  write to the source. Notion pages import through `ImportNotionPage`; Linear
+  and Slack items are checked against and recorded in the import ledger
+  (`ListImportEntities`, `CreateImportEntity`) so nothing imports twice.
 - Files also offers **Upload files** and **Upload a folder** (Drive's own
   uploads), and Customers offers **Upload a CSV** (the existing CSV import).
   Each closes the dialog first.
 
-`src/features/connector-import/browser-test/` exercises both paths without a
-backend.
+`src/features/connector-import/browser-test/` exercises the connect and
+handoff paths without a backend.
 
 ## Sidebar setup cards
 

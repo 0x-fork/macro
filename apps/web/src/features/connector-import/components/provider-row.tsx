@@ -9,7 +9,7 @@ export type ProviderRowState =
   /** Connections are still loading; no action is offered yet. */
   'unknown' | 'disconnected' | 'connecting' | 'connected';
 
-/** One app in the import dialog: connect it, then import from it. */
+/** One app in the import dialog: connect it, then import with the agent. */
 export function ProviderRow(props: {
   provider: ImportProvider;
   state: ProviderRowState;
@@ -18,7 +18,6 @@ export function ProviderRow(props: {
   onConnect(): void;
   onImport(): void;
 }) {
-  const native = () => props.provider.native !== undefined;
   return (
     <li class="flex items-center gap-3 py-2.5">
       <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-dialog">
@@ -40,7 +39,6 @@ export function ProviderRow(props: {
         </span>
         <span class="block truncate text-xs text-ink-muted">
           {props.provider.detail}
-          {native() ? '' : ' · with the agent'}
         </span>
       </span>
       <Show
@@ -68,9 +66,7 @@ export function ProviderRow(props: {
           aria-label={`Import from ${props.provider.name}`}
           onClick={() => props.onImport()}
         >
-          <Show when={!native()}>
-            <SparkleIcon aria-hidden="true" />
-          </Show>
+          <SparkleIcon aria-hidden="true" />
           Import
         </Button>
       </Show>

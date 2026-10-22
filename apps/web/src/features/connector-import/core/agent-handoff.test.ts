@@ -15,6 +15,22 @@ describe('agent import handoff', () => {
     expect(handoff.instructions).toContain('never edit or delete');
   });
 
+  it("imports Notion pages through Macro's importer", () => {
+    const files = IMPORT_CATEGORIES.files;
+    const notion = files.providers.find((p) => p.appSlug === 'notion')!;
+    const { instructions } = agentImportHandoff(files, notion);
+    expect(instructions).toContain('ImportNotionPage');
+    expect(instructions).not.toContain('CreateDocument, converting');
+  });
+
+  it('records ledger sources so nothing imports twice', () => {
+    const tasks = IMPORT_CATEGORIES.tasks;
+    const linear = tasks.providers.find((p) => p.appSlug === 'linear')!;
+    const { instructions } = agentImportHandoff(tasks, linear);
+    expect(instructions).toContain('ListImportEntities for source linear');
+    expect(instructions).toContain('CreateImportEntity');
+  });
+
   it('creates tasks as task documents', () => {
     const tasks = IMPORT_CATEGORIES.tasks;
     const jira = tasks.providers.find((p) => p.appSlug === 'jira')!;
@@ -25,12 +41,12 @@ describe('agent import handoff', () => {
 });
 
 describe('import catalog', () => {
-  it('gives every category unique providers led by a native source where one exists', () => {
+  it('gives every category unique providers led by a ledger source where one exists', () => {
     for (const config of Object.values(IMPORT_CATEGORIES)) {
       const slugs = config.providers.map((p) => p.appSlug);
       expect(new Set(slugs).size).toBe(slugs.length);
-      const native = config.providers.findIndex((p) => p.native);
-      expect(native === -1 || native === 0).toBe(true);
+      const ledger = config.providers.findIndex((p) => p.ledger);
+      expect(ledger === -1 || ledger === 0).toBe(true);
     }
   });
 });

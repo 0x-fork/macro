@@ -125,17 +125,17 @@ internal rollout. Model usage continues through the existing session metering.
 Import starts from the **Import from Slack** card at the bottom of the Chat
 sidebar, or **Settings → Team → Connections → Import from Slack**. The card is
 the shared connector-import card (see
-[Import from connected apps](surfaces.md#import-from-connected-apps)) and is
+[Import from connected apps](setup-cards.md#import-from-connected-apps)) and is
 visible to team admins and owners when Slack archive import is enabled. It
 opens the shared import dialog: a **Slack** row connects through Pipedream,
-then discovers channels for a filterable pick list (**Import N**), and
-**Import with history** closes it and opens the archive upload below. Without
+then **Import from Slack** hands channel picking to an agent chat in a split,
+and **Import with history** closes it and opens the archive upload below. Without
 an available Slack connector (Slack's Pipedream app is dev-only), the card opens
 the archive upload directly. **Dismiss import from slack** hides the card for
 that user on every device (see
-[Dismissing cards](surfaces.md#dismissing-cards)); successful archive imports (including partial
-imports with a completed channel) and server-confirmed channel imports also
-hide it. Failed or cancelled imports do not. Dismissing or completing an import
+[Dismissing cards](setup-cards.md#dismissing-cards)); successful archive imports (including partial
+imports with a completed channel) and Settings channel imports also hide
+it. Failed or cancelled imports do not. Dismissing or completing an import
 keeps the Settings entry available; completion does not close an open progress
 dialog. Closing the archive dialog returns focus to the card's button when it
 is still visible.

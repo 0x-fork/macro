@@ -552,7 +552,7 @@ also show up in Files/`All` and in AI-chat document listings.
 
 To bring tasks over from Linear, Jira, Asana, and other apps, use the **Import
 tasks** card at the bottom of the Tasks sidebar; see
-[Import from connected apps](surfaces.md#import-from-connected-apps).
+[Import from connected apps](setup-cards.md#import-from-connected-apps).
 
 ## Projects
 

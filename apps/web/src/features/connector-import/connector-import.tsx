@@ -6,7 +6,6 @@ import {
 } from '@app/features/sidebar-promotion/sidebar-promotion';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { enableSidebarPromotions } from '@core/constant/featureFlags';
-import { useUserId } from '@core/context/user';
 import {
   usePipedreamMcpFlag,
   usePipedreamMcpFlagResult,
@@ -16,7 +15,7 @@ import { lazyNamed } from '@core/util/lazyNamed';
 import { createSignal, type JSX, Show, Suspense } from 'solid-js';
 import { IMPORT_CATEGORIES } from './core/catalog';
 import type { ImportCategory } from './core/providers';
-import { hideImportPromotion, importPromotionId } from './primitives/promotion';
+import { importPromotionId } from './primitives/promotion';
 import type { ImportAlternative } from './views/import-dialog';
 
 export type { ImportAlternative } from './views/import-dialog';
@@ -65,7 +64,6 @@ export function ConnectorImportPromotion(props: {
   alternatives?: readonly ImportAlternative[];
   class?: string;
 }): JSX.Element {
-  const userId = useUserId();
   const pipedream = usePipedreamMcpFlag();
   const config = () => IMPORT_CATEGORIES[props.category];
   const dialogConfig = () => ({
@@ -76,7 +74,6 @@ export function ConnectorImportPromotion(props: {
   // The dialog's code loads on first open (and is fetched ahead on hover).
   const [opened, setOpened] = createSignal(false);
   const [opener, setOpener] = createSignal<HTMLButtonElement>();
-  const hide = () => hideImportPromotion(userId(), props.category);
   // Alternatives open their own dialogs; hand them the card button for focus.
   const alternatives = (): ImportAlternative[] =>
     (props.alternatives ?? []).map((base) => ({
@@ -118,7 +115,7 @@ export function ConnectorImportPromotion(props: {
           }}
         />
       </div>
-      {/* Beside the card: a finished import hides the card, not the dialog. */}
+      {/* Beside the card, so the dialog outlives the card's own gates. */}
       <Show when={opened()}>
         <Suspense>
           <ConnectorImportDialogHost
@@ -127,7 +124,6 @@ export function ConnectorImportPromotion(props: {
             onOpenChange={openDialog}
             opener={opener()}
             alternatives={alternatives()}
-            onImported={hide}
           />
         </Suspense>
       </Show>
