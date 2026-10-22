@@ -32,6 +32,11 @@ that path. Calendar navigation defaults to Day on phones and Week on desktop; th
 recent choice is remembered locally for navigation that does not specify a period. An
 opened event is reflected in the pane-owned `sN.calendar.eventId` search parameter.
 
+Opening a calendar row in Home clears its loaded reminder dots immediately;
+failed read writes restore them. Opening event details directly from the grid
+also marks the event's notifications read. Verify both on desktop and mobile,
+including a delayed read response and a failed write followed by another click.
+
 Period selection updates its label and route immediately. The active grid redraws
 on a deferred task; hidden neighboring periods follow on separate tasks. Calendar
 grids stay mounted and undimmed while occurrences load. An uncached range never

@@ -87,7 +87,6 @@ import {
   getChannelNotificationParams,
   getDocumentCommentLocation,
   getDocumentCommentNotification,
-  markNotificationsForEntityAsReadInBackground,
   type NotificationSource,
   notificationIsRead,
   setDoneOverride,
@@ -888,21 +887,7 @@ export function markChannelNotificationsSeenOnOpen(
   });
 }
 
-/** Mark calendar-event notifications seen when opening their occurrence. */
-export function markCalendarNotificationSeenOnOpen(
-  entity: EntityData,
-  notificationSource: NotificationSource
-) {
-  // Calendar events open a component split without a block to clear notifications.
-  if (entity.type !== 'calendar_event') return;
-  fireAndForget(
-    markNotificationsForEntityAsReadInBackground(notificationSource, {
-      type: entity.type,
-      id: entity.id,
-    }),
-    'open-entity-in-split'
-  );
-}
+export { markCalendarNotificationSeenOnOpen } from '../calendar/mark-event-notifications-seen';
 
 /**
  * The event and instance a calendar row points at, resolved exactly as the

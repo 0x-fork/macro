@@ -9,9 +9,11 @@ import {
   useNavigate,
   useParams,
 } from '@app/lib/split-router';
+import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { markNotificationsForEntityAsRead } from '@notifications/notification-helpers';
 import { useCalendarOccurrencesQuery } from '@queries/calendar/occurrences';
 import deepEqual from 'fast-deep-equal';
 import {
@@ -56,6 +58,7 @@ export function CalendarView(props: CalendarViewProps) {
   const posthog = usePosthog();
   const userId = useUserId();
   const analytics = useAnalytics();
+  const notificationSource = useGlobalNotificationSource();
   const panel = useSplitPanelOrThrow();
   const navigate = useNavigate();
   const routeParams = useParams<{ period: CalendarPeriodView }>();
@@ -189,7 +192,18 @@ export function CalendarView(props: CalendarViewProps) {
       if (!next) return;
       const landed = next === aimingEventId;
       aimingEventId = undefined;
+      // List activation already marks its row; landing must not send a second
+      // overlapping read write that could interfere with optimistic rollback.
       if (landed) return;
+    }
+    if (eventId) {
+      fireAndForget(
+        markNotificationsForEntityAsRead(notificationSource, {
+          type: 'calendar_event',
+          id: eventId,
+        }),
+        'calendar-notification-read'
+      );
     }
     // Inline, a dismissed popover is not a destination change: the host's
     // selection still names this event, and clearing it would make the next
