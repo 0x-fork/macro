@@ -73,13 +73,14 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy
   (entity) of an event, written through that inbox's grant, so the viewer
-  organizes or attends a copy only as its inbox: another of their inboxes on
-  the same event lends it nothing, and only that inbox's row is `is_self`.
-  Mutations act as `CalendarEventMutationTarget::copy_inbox`. A delegate owns
-  no copy inbox and gets nothing beyond the no-attendees rule. `guest_policy` is
-  stored on the entity row (the canonical copy's values) and in each source's
-  projection, omitted there while it holds Google's default. Event responses always carry both; `StoredSourceProjection` strips
-  them so unchanged events keep comparing equal.
+  organizes or attends a copy only as its inbox: another of their inboxes on the
+  same event lends it nothing, and only that inbox's row is `is_self`. Mutations
+  act as `CalendarEventMutationTarget::copy_inbox`, and so does an RSVP without
+  a `responding_email`. A delegate owns no copy inbox and gets nothing beyond
+  the no-attendees rule. `guest_policy` is stored on the entity row (the
+  canonical copy's values) and in each source's projection, omitted there while
+  it holds Google's default. Event responses always carry both;
+  `StoredSourceProjection` strips them so unchanged events keep comparing equal.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 

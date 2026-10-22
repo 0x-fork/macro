@@ -1882,7 +1882,10 @@ export type RespondToCalendarEventInput = {
   eventId: string | number;
   /** Original-start key of the occurrence the response targets. */
   recurrenceId?: string | null | undefined;
-  /** The owned connected address whose attendance is changed. */
+  /**
+   * The owned connected address whose attendance is changed. Omit to
+   * answer as the inbox the addressed copy syncs through.
+   */
   respondingEmail?: string | null | undefined;
   /** The response to record. */
   response: GraphqlCalendarAttendeeResponseStatus;

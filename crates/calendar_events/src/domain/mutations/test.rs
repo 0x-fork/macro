@@ -2248,6 +2248,41 @@ async fn rsvp_addresses_the_requester_inbox_not_the_source_calendar() {
 }
 
 #[tokio::test]
+async fn rsvp_without_an_address_answers_as_the_copys_inbox() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let emails = provider.rsvp_self_emails.clone();
+    let mut target = mutation_target(false);
+    // Another connected inbox of the requester is also on the event.
+    target.actor = ActorInboxes::from_owned(vec![
+        owned(Uuid::now_v7(), "another@example.com"),
+        owned(SELF_LINK, "self@example.com"),
+    ]);
+    service(
+        FakeRepo {
+            mutation_target: Some(target),
+            ..FakeRepo::default()
+        },
+        provider,
+        FakeTokens::ok(),
+    )
+    .respond_to_event(
+        "macro|user",
+        Uuid::now_v7(),
+        None,
+        AttendeeResponseStatus::Accepted,
+        CalendarRsvpScope::All,
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        emails.lock().unwrap().as_slice(),
+        [vec!["self@example.com".to_string()]]
+    );
+}
+
+#[tokio::test]
 async fn rsvp_through_a_delegated_inbox_never_hands_the_subject_email_to_the_provider() {
     let provider = FakeProvider::new(FakeProviderBehavior::Echo);
     let emails = provider.rsvp_self_emails.clone();

@@ -283,6 +283,7 @@ pub enum CalendarRsvpScopeParam {
 #[serde(rename_all = "camelCase")]
 pub struct RsvpCalendarEventRequest {
     /// The owned connected address whose attendance is changed. Validated by the domain.
+    /// Omit to answer as the inbox the addressed copy syncs through.
     pub responding_email: Option<String>,
     /// Calendar whose copy of the event is answered, for an event synced
     /// from more than one calendar. Omit to answer on the canonical copy.

@@ -482,7 +482,8 @@ pub struct RespondToCalendarEventInput {
     pub scope: Option<GraphqlCalendarRsvpScope>,
     /// Original-start key of the occurrence the response targets.
     pub recurrence_id: Option<String>,
-    /// The owned connected address whose attendance is changed.
+    /// The owned connected address whose attendance is changed. Omit to
+    /// answer as the inbox the addressed copy syncs through.
     pub responding_email: Option<String>,
 }
 

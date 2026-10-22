@@ -727,6 +727,7 @@ export type RsvpCalendarEventRequest = {
     recurrenceId?: string | null;
     /**
      * The owned connected address whose attendance is changed. Validated by the domain.
+     * Omit to answer as the inbox the addressed copy syncs through.
      */
     respondingEmail?: string | null;
     /**

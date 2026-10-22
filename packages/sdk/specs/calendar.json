@@ -1755,7 +1755,7 @@
           },
           "respondingEmail": {
             "type": ["string", "null"],
-            "description": "The owned connected address whose attendance is changed. Validated by the domain."
+            "description": "The owned connected address whose attendance is changed. Validated by the domain.\nOmit to answer as the inbox the addressed copy syncs through."
           },
           "response": {
             "$ref": "#/components/schemas/AttendeeResponseStatus",

@@ -109,7 +109,8 @@ the user cannot edit.\n\
 \n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
-the rest of the call, and only works on events the user is actually an attendee of."
+the rest of the call and answers as the connected inbox the event's copy belongs to, so \
+it only works when that inbox is an attendee."
 )]
 pub struct UpdateCalendarEvent {
     /// Event to update.

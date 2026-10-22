@@ -524,14 +524,17 @@ where
         let Some(actor) = target.actor.as_ref() else {
             return Err(CalendarMutationError::NotAttendee);
         };
-        let selected_actor = responding_email
-            .as_deref()
-            .map(|email| {
+        // Without an address, answer as the copy's own inbox, as the web does by
+        // sending the copy's `is_self` row. A delegate owns no copy inbox and
+        // keeps answering as their own inboxes.
+        let selected_actor = match responding_email.as_deref() {
+            Some(email) => Some(
                 actor
                     .select(email)
-                    .ok_or(CalendarMutationError::NotAttendee)
-            })
-            .transpose()?;
+                    .ok_or(CalendarMutationError::NotAttendee)?,
+            ),
+            None => actor.through(target.email_link_id),
+        };
         let access_token = self.fetch_token(&target.token_identity).await?;
         let outcome = self
             .provider

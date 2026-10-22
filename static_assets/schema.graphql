@@ -9719,7 +9719,8 @@ input RespondToCalendarEventInput {
 	"""
 	recurrenceId: String
 	"""
-	The owned connected address whose attendance is changed.
+	The owned connected address whose attendance is changed. Omit to
+	answer as the inbox the addressed copy syncs through.
 	"""
 	respondingEmail: String
 }
