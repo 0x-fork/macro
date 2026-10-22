@@ -67,11 +67,13 @@ rows, initiatives, ...) and get back a single unified, paginated result.
   `expanded` path instead.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;
   changing it changes what every entity kind can return.
-- Queries over a known id list (`*/by_ids.rs`, hydration) check access per id
-  with `EXISTS` on `entity_access`, matching sources with
-  `= ANY(ARRAY(SELECT ...))` so they are collected once rather than semi-joined
-  per row. Building the caller's whole accessible set first scans all of
-  `entity_access`, so cost grows with the table, not the page.
+- Queries over a known id list (`*/by_ids.rs`, hydration) and the initiative
+  listing (`initiative_access_clause`) check access per row with `EXISTS` on
+  `entity_access`, matching sources with `= ANY(ARRAY(SELECT ...))` so they are
+  collected once rather than semi-joined per row. Building the caller's whole
+  accessible set first scans `entity_access` once per source, so cost grows
+  with the table and the caller's channels, not the page. A listing `EXISTS`
+  also needs `PER_CANDIDATE`, or Postgres hashes it back into the whole set.
 
 ## Related
 
