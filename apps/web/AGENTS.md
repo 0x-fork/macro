@@ -136,6 +136,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
+- Open projects through `openProject` (`features/projects/open-project.ts`): it
+  retargets an already-open project split to the section or comment in place.
+  Opening the legacy `initiative-view` component route beside an open project
+  mounts a redirect shim that stays on "Loading project".
 - Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in
