@@ -511,7 +511,8 @@ the shimmer.
   the catalog in place with a Back action. Search includes every model.
 - Desktop keeps the model selector and speedometer as separate controls. The
   speedometer opens a slider with a stop for each advertised effort level. Arrow keys
-  adjust the level; pointer drags commit on release. The popover stays open, and
+  and drags preview the level; it is applied once, when the popover closes, and
+  only if it differs from the current level. The popover stays open, and
   the model selector opens the full catalog independently. On mobile, the **speedometer-style
   effort** button opens its own sheet after the input expands. Choosing a level
   applies it and closes the sheet. Models with fewer than two effort choices
@@ -1769,7 +1770,7 @@ There is no periodic PR lookup polling.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
@@ -2015,7 +2016,7 @@ creating an event is a real action, including from a local app connected to dev.
 On desktop, open the speedometer beside the model selector to adjust the
 current model with the **Reasoning effort** slider. The header and accessible value announce the
 selected level. Arrow keys move between supported levels; the menu stays open
-until dismissed. The model selector opens the full catalog independently; other
+until dismissed, and the chosen level is applied when it closes. The model selector opens the full catalog independently; other
 models still offer their own effort submenu with Right Arrow. On mobile, tap a model
 to select it, then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
