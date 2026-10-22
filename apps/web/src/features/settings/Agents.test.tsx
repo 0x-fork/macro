@@ -52,25 +52,6 @@ vi.mock('./components/coding-preferences-setting', () => ({
   CodingPreferencesSetting: () => null,
 }));
 
-const claudeFlag = vi.hoisted(() => ({ enabled: true }));
-vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: (flag: { key: string }) => {
-    expect(flag.key).toBe('claude-cloud');
-    return () => ({ enabled: claudeFlag.enabled });
-  },
-}));
-
-vi.mock('@queries/claude-auth/connection', () => ({
-  useClaudeConnectionSource: () => ({
-    status: () => ({ enabled: true, connected: false, ephemeral: true }),
-    failed: () => false,
-    begin: vi.fn(),
-    complete: vi.fn(),
-    disconnect: vi.fn(),
-    refresh: vi.fn(),
-  }),
-}));
-
 const [searchParams, updateSearchParams] = createStore<{
   createAgent?: string;
 }>({});
@@ -349,31 +330,6 @@ const MACROD_HARNESS = {
 } satisfies Harness;
 
 describe('Agents', () => {
-  it.each([false, true])(
-    'gates Claude harness selection and discovery when enabled=%s',
-    (enabled) => {
-      claudeFlag.enabled = enabled;
-      modelMocks.queries['claude-cloud:'] = successfulModels([
-        { id: 'claude-default', name: 'Subscription default' },
-      ]);
-      try {
-        render(() => <Agents {...agentsPageProps} />);
-        fireEvent.click(screen.getByRole('button', { name: 'Add agent' }));
-        const dialog = screen.getByRole('region', { name: 'New agent' });
-        const option = within(dialog).queryByRole('radio', {
-          name: 'In Claude Code',
-        });
-        expect(Boolean(option)).toBe(enabled);
-        const targets = vi.mocked(useAgentModelsQueries).mock.lastCall?.[0]();
-        expect(
-          targets?.some((target) => target.harness === 'claude-cloud')
-        ).toBe(enabled);
-      } finally {
-        claudeFlag.enabled = true;
-      }
-    }
-  );
-
   it('opens the new-agent form from a link and clears the action on cancel', () => {
     updateSearchParams({ createAgent: 'true' });
     render(() => <Agents {...agentsPageProps} />);
@@ -465,94 +421,6 @@ describe('Agents', () => {
       client.clear();
     }
   );
-
-  it('keeps a saved Claude harness selected while discovery loads and scopes Fable to it', async () => {
-    agentMocks.query.data = [
-      {
-        bot: {
-          id: 'agent-1',
-          kind: 'owned',
-          owner: { type: 'user', user_id: 'macro|user@example.com' },
-          name: 'Bug fixer',
-          handle: 'bug-fixer',
-          has_agent: true,
-          created_at: '2026-08-27T12:00:00Z',
-          updated_at: '2026-08-27T12:00:00Z',
-        },
-        instructions: 'Fix the root cause.',
-        harness: 'claude-cloud',
-        default_model: 'claude-fable-5-1',
-        channel_scope: 'all',
-        channel_ids: [],
-      },
-    ];
-    let resolveModels!: (models: LoadAgentModelsResponse) => void;
-    const response = new Promise<LoadAgentModelsResponse>((resolve) => {
-      resolveModels = resolve;
-    });
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    vi.mocked(useAgentModelsQueries).mockImplementationOnce((targets) =>
-      targets().map((target) =>
-        useQuery(() => ({
-          queryKey: ['pending-models', target.harness],
-          queryFn: () =>
-            target.harness === 'claude-cloud'
-              ? response
-              : Promise.resolve(modelMocks.queries['in-memory:'].data!),
-        }))
-      )
-    );
-    const view = render(() => (
-      <QueryClientProvider client={client}>
-        <Suspense fallback={<p>Settings suspended</p>}>
-          <Agents {...agentsPageProps} />
-        </Suspense>
-      </QueryClientProvider>
-    ));
-    try {
-      fireEvent.click(screen.getByRole('button', { name: 'Edit Bug fixer' }));
-      const claude = screen.getByRole('radio', { name: 'In Claude Code' });
-      expect(claude).toHaveProperty('checked', true);
-      expect(screen.getByText('Loading models…')).toBeTruthy();
-      resolveModels({
-        status: 'available',
-        currentModel: 'claude-fable-5-1',
-        models: [{ id: 'claude-fable-5-1', name: 'Fable 5.1' }],
-      });
-      await waitFor(() => expect(screen.getByText('Fable 5.1')).toBeTruthy());
-      expect(
-        screen.getByRole('radio', { name: 'In Claude Code' })
-      ).toHaveProperty('checked', true);
-      fireEvent.click(screen.getByRole('radio', { name: 'In Macro' }));
-      await waitFor(() =>
-        expect(screen.getByLabelText('Default model')).toHaveProperty(
-          'textContent',
-          'Claude Sonnet 4.5'
-        )
-      );
-      expect(
-        selectOptions(screen.getByLabelText('Default model')).queryByRole(
-          'option',
-          { name: /Fable/i }
-        )
-      ).toBeNull();
-      fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-      await waitFor(() =>
-        expect(agentMocks.update).toHaveBeenCalledWith(
-          expect.objectContaining({
-            agentId: 'agent-1',
-            harness: 'in-memory',
-            defaultModel: Model.sonnet55,
-          })
-        )
-      );
-    } finally {
-      view.unmount();
-      client.clear();
-    }
-  });
 
   it('lists the built-in global Macro agent as a team agent', () => {
     render(() => <Agents {...agentsPageProps} />);
@@ -729,21 +597,6 @@ describe('Agents', () => {
       },
       {
         bot: {
-          id: 'agent-claude',
-          kind: 'owned',
-          owner,
-          name: 'Claude helper',
-          handle: 'claude-helper',
-          has_agent: true,
-        },
-        instructions: '',
-        harness: 'claude-cloud',
-        default_model: 'claude-default',
-        channel_scope: 'all',
-        channel_ids: [],
-      },
-      {
-        bot: {
           id: 'agent-macrod',
           kind: 'owned',
           owner,
@@ -781,9 +634,6 @@ describe('Agents', () => {
 
     expect(
       within(list).getByText('In Cursor · cursor-small · All channels')
-    ).toBeTruthy();
-    expect(
-      within(list).getByText('In Claude Code · claude-default · All channels')
     ).toBeTruthy();
     expect(
       within(list).getByText('In your harness · Dev box · codex · All channels')
@@ -1186,9 +1036,6 @@ describe('Agents', () => {
     expect(
       within(dialog).getByRole('radio', { name: 'In Macro' })
     ).toHaveProperty('checked', true);
-    expect(
-      within(dialog).queryByRole('radio', { name: 'In Claude Code' })
-    ).toBeNull();
     expect(
       within(dialog).getByRole('radio', { name: 'In Cursor' })
     ).toHaveProperty('disabled', true);
@@ -1734,56 +1581,6 @@ describe('Agents', () => {
     ).toBeTruthy();
   });
 
-  it('keeps a saved Claude harness visible when model discovery fails', async () => {
-    modelMocks.queries['claude-cloud:'] = {
-      isPending: false,
-      isError: true,
-      isSuccess: false,
-      refetch: vi.fn(),
-    };
-    agentMocks.query.data = [
-      {
-        bot: {
-          id: 'agent-1',
-          kind: 'owned',
-          owner: { type: 'user', user_id: 'macro|user@example.com' },
-          name: 'Bug fixer',
-          handle: 'bug-fixer',
-          has_agent: true,
-          created_at: '2026-08-27T12:00:00Z',
-          updated_at: '2026-08-27T12:00:00Z',
-        },
-        instructions: 'Fix the root cause.',
-        harness: 'claude-cloud',
-        default_model: 'saved-claude-model',
-        channel_scope: 'all',
-        channel_ids: [],
-      },
-    ];
-
-    render(() => <Agents {...agentsPageProps} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Bug fixer' }));
-
-    const dialog = screen.getByRole('region', { name: /^(New|Edit) agent$/ });
-    expect(
-      within(dialog).getByRole('radio', { name: 'In Claude Code' })
-    ).toHaveProperty('checked', true);
-    expect(
-      within(dialog).getByText(/Could not load models for Claude Cloud/)
-    ).toBeTruthy();
-    fireEvent.click(
-      within(dialog).getByRole('button', { name: 'Save changes' })
-    );
-    await waitFor(() => {
-      expect(agentMocks.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          harness: 'claude-cloud',
-          defaultModel: 'saved-claude-model',
-        })
-      );
-    });
-  });
-
   it('preselects the bound macrod harness when editing', () => {
     harnessMocks.query.data = [MACROD_HARNESS];
     modelMocks.queries[`macrod:${MACROD_HARNESS.id}`] = successfulModels([
@@ -2057,7 +1854,7 @@ it('offers bypass only after harness consent and resets the choice on harness ch
   expect(within(dialog).queryByLabelText('Always bypass')).toBeNull();
 });
 
-it.each(['in-memory', 'cursor', 'claude-cloud'])(
+it.each(['in-memory', 'cursor'])(
   'hides permission choices and saves bypass for built-in %s',
   async (harness) => {
     cursorMocks.status.data.registered = true;
@@ -2076,7 +1873,6 @@ it.each(['in-memory', 'cursor', 'claude-cloud'])(
         name: {
           'in-memory': 'In Macro',
           cursor: 'In Cursor',
-          'claude-cloud': 'In Claude Code',
         }[harness]!,
       })
     );

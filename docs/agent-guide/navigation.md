@@ -968,31 +968,6 @@ Settings → Agents → Agents ends with **Coding sessions**: per-user **Create
 tasks** and **Open pull requests** switches, both off by default. Each saves on
 toggle and reverts with a toast if the save fails.
 
-With the `claude-cloud` feature flag enabled, Claude Cloud connection setup is in
-Settings → Agents → Runtimes (Manage on Bring your own agent), above Cursor, with the
-Anthropic logo. The agent editor's Where it runs offers In Claude Code but does not host
-Claude's connection form. **Connect Claude** starts authorization and opens sign-in
-on the first click; a fallback link remains if the browser blocks the tab.
-Approve on Claude's page, copy the complete `code#state`, then use **Finish
-connecting**. Hosted and local deployments use the same flow. Grants and pending
-sign-in attempts are encrypted in MacroDB and survive restarts or replica changes.
-If the card says sign-in is not configured, the deployment is missing its Claude
-OAuth KMS key; changing the frontend flag cannot fix that backend configuration.
-Claude's model picker uses provider-reported IDs,
-names, descriptions, and order. Settings discovers from recent account sessions;
-session catalogs update through replay, polling, and streaming. Before any catalog
-is available, only subscription default is shown with an explanation. It saves the next-turn preference
-without waking an idle worker; provider model rejections surface during the turn.
-Claude agents use their saved MCP selection through the shared authenticated
-session egress path. Remote HTTP/SSE servers are supported; stdio servers are
-rejected. Tool permission requests use Macro's standard session policy. MCP setup
-failures surface as turn errors and request interruption; the first prompt also
-wakes the cloud worker, so setup failure may occur after submission. Reconnecting
-refreshes the session credential and restores the saved selection.
-Claude sessions expose **Open in Claude** in the header
-toolbar (or its overflow menu). With a live runtime, messages sent in Claude are
-polled into Macro about every two seconds; disconnected runtimes must resume first.
-
 Home does not bind Delete or Backspace to deleting list items. These keys remain
 available to the open editor (for example, clearing a selected spreadsheet range).
 Use the item menu to delete an item from Home.

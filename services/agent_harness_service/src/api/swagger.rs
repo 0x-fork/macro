@@ -35,7 +35,6 @@ use agent_session::inbound::axum_router::{
     PreviewAgentSessionsResponse, QueuedActionDto, RenameAgentSessionRequest, SandboxSizeBody,
     SessionStatusDto, SetAgentSessionArchivedRequest, WithAgentSessionId,
 };
-use claude_cloud_agents::inbound::auth as claude_auth;
 use utoipa::{
     Modify, OpenApi,
     openapi::security::{Http, HttpAuthScheme, SecurityScheme},
@@ -64,10 +63,6 @@ impl Modify for SecurityAddon {
         agent_code_mode::inbound::axum_router::get_review,
         agent_code_mode::inbound::axum_router::list_reviews,
         agent_code_mode::inbound::axum_router::decide_review,
-        claude_auth::status,
-        claude_auth::start,
-        claude_auth::complete,
-        claude_auth::disconnect,
         axum_router::create_agent_session_handler,
         axum_router::warm_agent_session_handler,
         axum_router::get_agent_session_handler,
@@ -107,10 +102,6 @@ impl Modify for SecurityAddon {
         tool_approvals::answer_tool_approval_handler,
     ),
     components(schemas(
-        claude_auth::StatusResponse,
-        claude_auth::StartResponse,
-        claude_auth::CompleteRequest,
-        claude_auth::EmptyRequest,
         CreateAgentSessionRequest,
         CreateAgentSessionResponse,
         CreateSessionThread,

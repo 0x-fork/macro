@@ -426,14 +426,6 @@ where
                 if session.is_archived {
                     return Err(AgentSessionError::Archived(session_id).into());
                 }
-                if AgentKind::for_session(session.bot_id, &session.harness)
-                    == AgentKind::ClaudeCloud
-                    && !actor
-                        .as_ref()
-                        .is_some_and(|actor| session.owner_id.is_user(actor))
-                {
-                    return Err(AgentSessionError::Forbidden.into());
-                }
                 if AgentKind::of(session.bot_id) == AgentKind::SandboxedCoder
                     && !actor.as_ref().is_some_and(is_macro_staff)
                 {

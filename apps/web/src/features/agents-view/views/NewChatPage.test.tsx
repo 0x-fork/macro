@@ -690,7 +690,7 @@ describe('agent-led new conversation', () => {
       modelOverride: 'google/gemini-3.8-flash',
     });
   });
-  it.each(['claude-cloud', 'codex-cloud', 'future-runtime'])(
+  it.each(['codex-cloud', 'future-runtime'])(
     'shows the drawer for a saved %s coding agent without forwarding unsupported repository overrides',
     async (harness) => {
       const send = page(

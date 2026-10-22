@@ -109,13 +109,6 @@ impl ContainerManager for TaggedManager {
 #[derive(Clone)]
 struct FixedBotSessions(BotId);
 
-const CLAUDE_TEST_BOT: BotId = BotId::TEST_B;
-
-#[test]
-fn first_party_claude_routes_to_the_claude_provider() {
-    assert_eq!(AgentKind::of(bot_id::CLAUDE_BOT_ID), AgentKind::ClaudeCloud);
-}
-
 impl AgentSessionRepo for FixedBotSessions {
     async fn create(&self, _params: CreateAgentSessionParams) -> SessionResult<AgentSession> {
         unimplemented!("the router never creates sessions")
@@ -155,12 +148,7 @@ impl AgentSessionRepo for FixedBotSessions {
             originating_message_id: None,
             bot_id: self.0,
             model: "auto".to_owned(),
-            harness: if self.0 == CLAUDE_TEST_BOT {
-                "claude-cloud"
-            } else {
-                "cursor"
-            }
-            .to_owned(),
+            harness: "cursor".to_owned(),
             repo_url: None,
             workspace: "/workspace".to_owned(),
             name: DEFAULT_AGENT_SESSION_NAME.to_owned(),
@@ -329,7 +317,6 @@ async fn the_cursor_bot_routes_to_cursor_and_everything_else_to_the_sandbox() {
         sandbox.clone(),
         cursor.clone(),
         TaggedManager::new("codex"),
-        TaggedManager::new("claude"),
         FixedBotSessions(bot_id::CURSOR_BOT_ID),
     );
 
@@ -354,12 +341,10 @@ async fn preflight_routes_by_kind_before_any_session_exists() {
     let sandbox = TaggedManager::new("sandbox");
     let cursor = TaggedManager::new("cursor");
     let codex = TaggedManager::new("codex");
-    let claude = TaggedManager::new("claude");
     let router = RoutedContainerManager::new(
         sandbox.clone(),
         cursor.clone(),
         codex.clone(),
-        claude.clone(),
         FixedBotSessions(bot_id::CURSOR_BOT_ID),
     );
     let owner = MacroUserIdStr::try_from_email("asker@example.com").expect("a valid user id");
@@ -379,18 +364,10 @@ async fn preflight_routes_by_kind_before_any_session_exists() {
             .unwrap(),
         None
     );
-    assert_eq!(
-        router
-            .preflight(AgentKind::ClaudeCloud, &owner)
-            .await
-            .unwrap(),
-        None
-    );
     assert!(router.preflight(AgentKind::External, &owner).await.is_err());
     assert_eq!(cursor.calls(), ["cursor:preflight"]);
     assert_eq!(sandbox.calls(), ["sandbox:preflight"]);
     assert_eq!(codex.calls(), ["codex:preflight"]);
-    assert_eq!(claude.calls(), ["claude:preflight"]);
 }
 
 /// Resume and teardown route by the session row's bot — the repo says cursor
@@ -403,7 +380,6 @@ async fn resume_and_teardown_route_by_the_stored_bot() {
         sandbox.clone(),
         cursor.clone(),
         TaggedManager::new("codex"),
-        TaggedManager::new("claude"),
         FixedBotSessions(bot_id::CURSOR_BOT_ID),
     );
 
@@ -422,7 +398,6 @@ async fn a_database_backed_cursor_agent_routes_by_its_stored_harness() {
         sandbox.clone(),
         cursor.clone(),
         TaggedManager::new("codex"),
-        TaggedManager::new("claude"),
         FixedBotSessions(BotId::TEST_A),
     );
 
@@ -446,7 +421,6 @@ async fn codex_routes_all_lifecycle_operations_and_rejects_resize() {
         sandbox.clone(),
         cursor.clone(),
         codex.clone(),
-        TaggedManager::new("claude"),
         FixedBotSessions(bot_id::CODEX_BOT_ID),
     );
     router
@@ -474,40 +448,4 @@ async fn codex_routes_all_lifecycle_operations_and_rejects_resize() {
         AgentKind::from_harness("codex-cloud"),
         AgentKind::CodexCloud
     );
-}
-
-#[tokio::test]
-async fn claude_routes_by_harness_through_the_shared_provider_router() {
-    let sandbox = TaggedManager::new("sandbox");
-    let cursor = TaggedManager::new("cursor");
-    let codex = TaggedManager::new("codex");
-    let claude = TaggedManager::new("claude");
-    let router = RoutedContainerManager::new(
-        sandbox.clone(),
-        cursor.clone(),
-        codex.clone(),
-        claude.clone(),
-        FixedBotSessions(CLAUDE_TEST_BOT),
-    );
-    router
-        .spawn(spawn_for(AgentKind::ClaudeCloud))
-        .await
-        .unwrap()
-        .map_transport(|transport| assert!(matches!(transport, RoutedTransport::Claude(_))));
-    let session = AgentSessionId::new();
-    router.resume(session).await.unwrap();
-    router.session_token(session).await.unwrap();
-    router.teardown(session).await.unwrap();
-    assert_eq!(
-        claude.calls(),
-        [
-            "claude:spawn",
-            "claude:resume",
-            "claude:session_token",
-            "claude:teardown"
-        ]
-    );
-    assert!(sandbox.calls().is_empty());
-    assert!(cursor.calls().is_empty());
-    assert!(codex.calls().is_empty());
 }

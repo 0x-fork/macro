@@ -1,4 +1,3 @@
-import { useClaudeAgentsAccess } from '@core/claude/flag';
 import { useCodexAgentsAccess } from '@core/codex/flag';
 import { toast } from '@core/component/Toast/Toast';
 import { MACRO_HARNESS_NAME } from '@core/constant/macroAgent';
@@ -20,7 +19,6 @@ import type { Harness as RegisteredHarness } from '@service-storage/client';
 import { useSearchParams } from '@solidjs/router';
 import { Button, confirmDialog, Dialog, Panel } from '@ui';
 import { createSignal, For, onMount, Show } from 'solid-js';
-import { ClaudeConnection } from '../claude-connection/claude-connection';
 import { CodexHarness } from './codex/views/CodexHarness';
 import { CursorDefaultModel } from './components/cursor-default-model';
 import { LocalRuntimeCard } from './components/local-runtime-card';
@@ -47,7 +45,6 @@ function lastConnectedText(harness: RegisteredHarness): string {
 export function Harness(
   props: { onBack?: () => void; backLabel?: string } = {}
 ) {
-  const canUseClaude = useClaudeAgentsAccess();
   const canUseCodex = useCodexAgentsAccess();
   const [cursorApiKey, setCursorApiKey] = createSignal('');
   const cursorStatus = useCursorApiKeyStatusQuery();
@@ -171,10 +168,6 @@ export function Harness(
                   </p>
                 </div>
               </section>
-
-              <Show when={canUseClaude()}>
-                <ClaudeConnection />
-              </Show>
 
               <section class="flex gap-4 px-6 py-5">
                 <HarnessIcon>

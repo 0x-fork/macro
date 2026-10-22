@@ -182,8 +182,6 @@ function SessionContent(props: {
                           {
                             label: () => {
                               const provider = session()?.external?.provider;
-                              if (provider === 'claude-cloud')
-                                return 'Open in Claude';
                               return provider
                                 ? `Open in ${provider.charAt(0).toUpperCase()}${provider.slice(1)}`
                                 : 'Open externally';

@@ -26,9 +26,6 @@ pub mod trigger_router;
 /// Per-owner hosted Codex runtime authorization.
 pub mod codex;
 
-/// Owner-bound Claude conversation lifecycle.
-pub mod claude;
-
 /// Compatible agent model discovery.
 pub mod model_load;
 /// Admitted model-backed repository choice, with deterministic paths kept free.

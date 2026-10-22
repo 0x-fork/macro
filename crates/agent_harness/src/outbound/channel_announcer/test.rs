@@ -57,7 +57,6 @@ fn declined_mentions_target_their_harness_settings() {
             "codex-cloud",
             "Codex",
         ),
-        (SessionBlocker::ClaudeNotConnected, "claude-cloud", "Claude"),
     ] {
         let prompt = connection_prompt(blocker);
         assert_eq!(

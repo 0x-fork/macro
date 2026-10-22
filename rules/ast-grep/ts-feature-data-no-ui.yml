@@ -59,7 +59,6 @@ files:
   - apps/web/src/features/block-spreadsheet/primitives/**
   - apps/web/src/features/property/tags/queries/**
   - apps/web/src/features/property/tags/primitives/**
-  - apps/web/src/features/claude-connection/primitives/**
   - apps/web/src/features/activity/queries/**
   - apps/web/src/features/drive-view/queries/**
   - apps/web/src/features/activity/primitives/**

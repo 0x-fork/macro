@@ -33,7 +33,7 @@ payloads.
 - Depends on: nothing crate-specific (foundational protocol crate).
 - Used by: `agent_session`, `agent_session_realtime`, `agent_harness`,
   `agent_egress`, `agent_inmem`, `webhook`, `complete_graph`, and the
-  Cursor/Codex/Claude cloud-agent adapter crates.
+  Cursor/Codex cloud-agent adapter crates.
 
 ## Recipes
 

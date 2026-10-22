@@ -4,14 +4,14 @@
 
 Part of agent sessions: orchestrates sandboxed coding-agent sessions end to
 end — provisioning containers, speaking to each coding-agent runtime
-(Claude, Codex), routing triggers to a session, and relaying ACP traffic
+(Cursor, Codex), routing triggers to a session, and relaying ACP traffic
 between the sandbox and the rest of the product.
 
 ## Start here
 
 - `src/domain/service.rs` + `src/domain/ports.rs`: the harness service and
   the ports every runtime/container provider implements.
-- `src/domain/claude.rs` / `src/domain/codex.rs`: per-runtime session setup.
+- `src/domain/codex.rs`: per-runtime session setup.
 - `src/outbound/sidecar.rs` + `sidecar_pump.rs`: the container sidecar
   transport that speaks `agent_runtime_protocol`.
 - `src/outbound/containers.rs` / `managed_containers.rs`: container

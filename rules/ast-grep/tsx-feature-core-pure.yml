@@ -36,7 +36,6 @@ files:
   - apps/web/src/features/meetings/core/**
   - apps/web/src/features/block-spreadsheet/core/**
   - apps/web/src/features/property/tags/core/**
-  - apps/web/src/features/claude-connection/core/**
   - apps/web/src/features/activity/core/**
   - apps/web/src/features/drive-view/core/**
   - apps/web/src/features/email-message/core/**

@@ -48,8 +48,6 @@ macro_env_var::maybe_env_vars!(
     pub struct PosthogApiKey;
     /// Regional PostHog ingestion origin; defaults to the US origin.
     pub struct PosthogHost;
-    /// KMS key for encrypted per-owner Claude OAuth connections.
-    pub struct ClaudeOauthKmsKeyId;
     /// Dedicated KMS key for encrypted per-owner Codex OAuth state.
     pub struct CodexOauthKmsKeyId;
     /// Rollout gate for sessions owned by a bot.
@@ -129,8 +127,6 @@ pub struct Config {
     /// Markup on paid AI usage past the allowance, as a whole percent of
     /// provider cost. Mandatory; set in Doppler.
     pub ai_usage_overage_markup_percent: ai_billing::OverageMarkupPercent,
-    /// OAuth encryption key; deployments without a key do not advertise sign-in.
-    pub claude_oauth_kms_key_id: ClaudeOauthKmsKeyId,
     /// The environment we are in.
     #[macro_config_default(Environment::new_or_prod())]
     pub environment: Environment,
@@ -276,26 +272,6 @@ impl Config {
             },
             self.ai_usage_overage_markup_percent,
         )
-    }
-
-    /// Resolve the deployment-injected encryption key. Local stacks use their
-    /// existing LocalStack key with a separate Claude encryption context.
-    pub fn claude_oauth_kms_key_id(&self) -> Option<String> {
-        self.claude_oauth_kms_key_id
-            .value()
-            .filter(|key| !key.trim().is_empty())
-            .map(str::to_owned)
-            .or_else(|| {
-                ClaudeOauthKmsKeyId::new().and_then(|key| {
-                    key.value()
-                        .filter(|key| !key.trim().is_empty())
-                        .map(str::to_owned)
-                })
-            })
-            .or_else(|| {
-                matches!(self.environment, Environment::Local)
-                    .then(|| "alias/macro-local-cursor-api-key".to_owned())
-            })
     }
 
     /// Resolve the optional key from Doppler or the deployment-injected environment.

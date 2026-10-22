@@ -287,7 +287,7 @@ identity, feature exemption, or `count_usage` from a client; never substitute
 `SYSTEM_USER_ID` for a missing real caller. Non-user session owners remain rejected.
 
 Macro-funded in-memory and managed sandbox sessions require AgentSession admission.
-Cursor, Codex Cloud, Claude Cloud, and externally paired runtime execution is funded
+Cursor, Codex Cloud, and externally paired runtime execution is funded
 externally and skips that gate; independently Macro-funded naming, repository
 selection, and tool calls still have their own gates.
 

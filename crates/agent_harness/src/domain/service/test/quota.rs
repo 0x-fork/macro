@@ -224,7 +224,7 @@ async fn spending_actions_charge_the_persisted_owner_not_the_actor() {
 
 #[tokio::test]
 async fn externally_funded_runtimes_accept_spending_actions_without_quota_io() {
-    for harness in ["cursor", "codex-cloud", "claude-cloud", "macrod", "custom"] {
+    for harness in ["cursor", "codex-cloud", "macrod", "custom"] {
         let (service, repo, admission) = bench(Some(denied()));
         let id = session(&repo, BotId::TEST_A, harness, Owner::User(staff_sender())).await;
         service.inner.busy.admit(id);

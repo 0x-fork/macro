@@ -379,7 +379,7 @@ someone who holds it on their own calendar. The bot's prompt carries the current
 own time zone (their primary calendar's), so it resolves relative times ("tomorrow at 4",
 "EOD") without asking; when no calendar is connected the prompt falls back to UTC and the
 bot asks before scheduling a specific clock time. Within the rollout, `@Macro` — plus
-`@cursor` / `@codex` / `@claude` when available — opens
+`@cursor` / `@codex` when available — opens
 an agent session; follow-up
 `@` mentions of that bot in the same thread route to it.
 Macro Coding Agent (`@coder`) is unavailable in mention suggestions, including
@@ -426,15 +426,14 @@ collapse control. The card never expands in place.
 
 Built-in provider agents are offered before account setup, each within its own
 rollout: `@cursor` requires the `enable-cursor-agents` flag (local override:
-`VITE_ENABLE_CURSOR_AGENTS`), `@claude` requires the `claude-cloud` flag
-(local override: `VITE_CLAUDE_CLOUD`), and `@codex` requires both
+`VITE_ENABLE_CURSOR_AGENTS`), and `@codex` requires both
 `enable-chat-v3-agents` and `enable-codex-agents` (local override:
 `VITE_ENABLE_CODEX_AGENTS`). Outside a rollout the entry is absent from
 the mention menu and from task agent assignees, even when that bot is already a
 channel participant. Custom agents keep their channel visibility rules
 regardless of which harness they use.
 A mention without a connected account creates no session and replies in the thread
-with a **Connect Cursor**, **Connect Codex**, or **Connect Claude** chip. Each chip
+with a **Connect Cursor** or **Connect Codex** chip. Each chip
 opens Settings → Agents → Runtimes, where the connection cards in the reader's rollout are visible. The same
 chip reads **connected** after setup; mention the bot again to start a session.
 Codex also prompts for a cloud environment when ChatGPT is connected but no

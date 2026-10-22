@@ -17,7 +17,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const editorMocks = vi.hoisted(() => ({
   agentsEnabled: false,
-  claudeEnabled: false,
   codexEnabled: false,
   cursorEnabled: false,
   clear: vi.fn(),
@@ -125,9 +124,6 @@ vi.mock('@core/codex/flag', () => ({
 }));
 vi.mock('@core/cursor/flag', () => ({
   useCursorAgentsAccess: () => () => editorMocks.cursorEnabled,
-}));
-vi.mock('@core/claude/flag', () => ({
-  useClaudeAgentsAccess: () => () => editorMocks.claudeEnabled,
 }));
 vi.mock('../../use-chat-v3-agents-flag', () => ({
   useChatV3AgentsFlag: () => () => editorMocks.agentsEnabled,
@@ -374,11 +370,7 @@ vi.mock('@queries/messages/typing', () => ({
 
 import { MACRO_AGENT_PRINCIPAL_ID } from '@core/constant/macroAgent';
 import { MACRO_NEW_PRINCIPAL_ID } from '@core/constant/macroNew';
-import {
-  claudeMentionUser,
-  codexMentionUser,
-  cursorMentionUser,
-} from '../../macroAi';
+import { codexMentionUser, cursorMentionUser } from '../../macroAi';
 import { ThreadReplyChannelInput } from '../../Thread/ThreadReplyChannelInput';
 import { createInputAttachmentTracker } from '../attachment-tracker';
 import { ChannelInput } from '../ChannelInput';
@@ -410,7 +402,6 @@ function render(ui: () => JSX.Element) {
 describe('Input slots', () => {
   beforeEach(() => {
     editorMocks.agentsEnabled = false;
-    editorMocks.claudeEnabled = false;
     editorMocks.codexEnabled = false;
     editorMocks.cursorEnabled = false;
     editorMocks.clear.mockClear();
@@ -497,13 +488,12 @@ describe('Input slots', () => {
     expect(screen.queryByRole('group', { name: 'Dictation' })).toBeNull();
   });
 
-  it('offers Cursor, Claude, and Codex within their rollouts before account setup', () => {
+  it('offers Cursor and Codex within their rollouts before account setup', () => {
     editorMocks.cursorEnabled = true;
-    editorMocks.claudeEnabled = true;
     editorMocks.codexEnabled = true;
     render(() => <ChannelInput input={baseInput} />);
     expect(editorMocks.mentionUsers?.().map((user) => user.name)).toEqual(
-      expect.arrayContaining(['Cursor', 'Claude', 'Codex'])
+      expect.arrayContaining(['Cursor', 'Codex'])
     );
   });
 
@@ -556,18 +546,13 @@ describe('Input slots', () => {
     ]);
   });
 
-  it('hides Cursor, Claude, and Codex outside their rollouts, including supplied bot entries', () => {
-    const builtIns = () => [
-      cursorMentionUser(),
-      claudeMentionUser(),
-      codexMentionUser(),
-    ];
+  it('hides Cursor and Codex outside their rollouts, including supplied bot entries', () => {
+    const builtIns = () => [cursorMentionUser(), codexMentionUser()];
     render(() => (
       <ChannelInput input={baseInput} participants={builtIns} bots={builtIns} />
     ));
     const names = editorMocks.mentionUsers?.().map((user) => user.name);
     expect(names).not.toContain('Cursor');
-    expect(names).not.toContain('Claude');
     expect(names).not.toContain('Codex');
   });
 
