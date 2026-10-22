@@ -477,6 +477,10 @@ Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLIS
 recipients get a copy to add to their calendar, not an invitation they can answer. If the file
 cannot be fetched, no composer opens and a `Failed to forward event` toast shows; to check it,
 answer the `.ics` route with an error.
+On desktop, every icon button in the details header (`Copy event`, `Download .ics`, `Forward
+by email`, `Edit event`, `Delete event`, `Close event details`) and in the guests row shows its
+name as a tooltip on hover, as does the close button of the recurring RSVP dialog. Touch
+devices show no tooltips; the phone drawer's buttons keep the same accessible names.
 
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's

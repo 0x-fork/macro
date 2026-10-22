@@ -227,7 +227,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
             <div class="flex items-center gap-1">
               <Show when={!props.event.teamProjection}>
                 <Button
-                  aria-label="Copy event"
+                  label="Copy event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -237,7 +237,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <LinkIcon />
                 </Button>
                 <Button
-                  aria-label="Download .ics"
+                  label="Download .ics"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -247,7 +247,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <DownloadSimpleIcon />
                 </Button>
                 <Button
-                  aria-label="Forward by email"
+                  label="Forward by email"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -259,7 +259,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               </Show>
               <Show when={canModify()}>
                 <Button
-                  aria-label="Edit event"
+                  label="Edit event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -269,7 +269,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
                   <PencilSimpleIcon />
                 </Button>
                 <Button
-                  aria-label="Delete event"
+                  label="Delete event"
                   variant="ghost"
                   size="icon-md"
                   depth={3}
@@ -512,7 +512,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
               <div class="flex shrink-0 items-center justify-end gap-1 px-2 pt-2">
                 <Show when={!props.event.teamProjection}>
                   <Button
-                    aria-label="Copy event"
+                    label="Copy event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -522,7 +522,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <LinkIcon />
                   </Button>
                   <Button
-                    aria-label="Download .ics"
+                    label="Download .ics"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -532,7 +532,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <DownloadSimpleIcon />
                   </Button>
                   <Button
-                    aria-label="Forward by email"
+                    label="Forward by email"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -544,7 +544,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                 </Show>
                 <Show when={canModify()}>
                   <Button
-                    aria-label="Edit event"
+                    label="Edit event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -554,7 +554,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <PencilSimpleIcon />
                   </Button>
                   <Button
-                    aria-label="Delete event"
+                    label="Delete event"
                     variant="ghost"
                     size="icon-sm"
                     depth={3}
@@ -564,9 +564,12 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                     <TrashIcon />
                   </Button>
                 </Show>
+                {/* Kobalte names the button "Dismiss" unless it gets an
+                    aria-label, which Button prefers over `label`. */}
                 <Popover.CloseButton
                   as={Button}
                   aria-label="Close event details"
+                  tooltip="Close event details"
                   variant="ghost"
                   size="icon-sm"
                   depth={3}
