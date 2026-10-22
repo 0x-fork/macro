@@ -50,7 +50,8 @@ DMs, and the shared message store other domains discuss things on.
 
 ## Checks
 
-- `cargo test -p channels` (`SQLX_OFFLINE` unset).
+- `cargo test -p channels --all-features` (`SQLX_OFFLINE` unset); the
+  repository tests are feature-gated and skipped without it.
 
 ## Gotchas
 
@@ -62,6 +63,10 @@ DMs, and the shared message store other domains discuss things on.
   records, calls) are authorized in `ChannelServiceImpl::get_attachment_references`
   through the `CommentParentAccess` port; the repo returns every parent. A
   service built without `with_comment_parent_access` withholds them.
+- The channel list's unseen/seen filter matches a set built once from the
+  user's notifications (`= ANY(ARRAY(...))`). A per-channel `EXISTS` or plain
+  `IN` walks every candidate channel's notification history; that was ~24% of
+  the prod read replica's buffer hits.
 
 ## Related
 
