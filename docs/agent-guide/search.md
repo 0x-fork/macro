@@ -52,6 +52,8 @@ Native search captures its state when covered: it retains mounted results while
 it is among the front two panes, and restores them after deeper navigation evicts
 it. A remounted history entry immediately restores its loaded results,
 virtualizer measurements and offset (or the full-text scroller's offset).
+Snapshots are released when their history entry is removed or replaced, or its
+pane closes; entries still reachable with Back/Forward retain their snapshots.
 Refreshing sources rebuild the loaded window and update matching rows in place;
 new pages append without reordering saved rows. A saved row missing from an
 incomplete source page remains until it is found or pagination exhausts.

@@ -10,6 +10,7 @@ import type {
   SplitRouter,
   SplitSearchUpdate,
 } from '@app/lib/split-router';
+import { trackNavigationLifecycle } from '@app/observability/navigation-lifecycle';
 import type {
   BlockAlias,
   BlockAliasContext,
@@ -267,9 +268,7 @@ export type SplitEventWithType =
   | ({
       type: SplitEvent.ContentChange;
     } & SplitEventPayload[SplitEvent.ContentChange])
-  | ({
-      type: SplitEvent.ReturnFocus;
-    } & SplitEventPayload[SplitEvent.ReturnFocus]);
+  | { type: SplitEvent.ReturnFocus };
 
 /**
  * If a split layout helper passes and aliased block type, make sure to wrap
@@ -323,7 +322,7 @@ export type SplitManager = {
   readonly activeSplitId: Accessor<SplitId | undefined>;
   readonly activeSplit: Accessor<SplitHandle | undefined>;
   readonly lastActiveSplitId: Accessor<SplitId | undefined>;
-  readonly events: Accessor<SplitEventWithType>;
+  readonly events: Accessor<SplitEventWithType | undefined>;
   readonly resizeContext: Accessor<ResizeZoneCtx | undefined>;
 
   // methods
@@ -583,7 +582,6 @@ export function createSplitLayout(
     activeSplitId: SplitId | undefined;
     lastActiveSplitId: SplitId | undefined;
     spotlightId: SplitId | undefined;
-    events: SplitEventWithType[];
     popovers: Map<
       string,
       {
@@ -600,9 +598,9 @@ export function createSplitLayout(
     activeSplitId: undefined,
     lastActiveSplitId: undefined,
     spotlightId: undefined,
-    events: [],
     popovers: new Map(),
   });
+  const [lastEvent, setLastEvent] = createSignal<SplitEventWithType>();
 
   const contentInstances = createContentInstanceRegistry();
   const unregisterContentInstances = contentInstances.register(() => [
@@ -720,10 +718,9 @@ export function createSplitLayout(
     type: SplitEvent,
     payload: SplitEventPayload[SplitEvent]
   ) {
-    setState('events', (prev) => [
-      ...prev,
-      { type, ...payload } as SplitEventWithType,
-    ]);
+    // Consumers read only the latest event. Keeping older payloads retains
+    // the departed views' params and captured state for the whole document.
+    setLastEvent({ type, ...payload } as SplitEventWithType);
   }
 
   const findSplitById = (id: SplitId) => state.splits.find((s) => s.id === id);
@@ -1411,6 +1408,17 @@ export function createSplitLayout(
   // The router owns each pane's history; splits mirror what its panes show.
   const paneSplits = mapArray(router.panes, (pane) => {
     const id = splitOf(pane);
+    let entryIds = new Set<string>();
+
+    createComputed(() => {
+      const retained = new Set(
+        router.history(pane)?.entries.map((entry) => entry.id)
+      );
+      for (const entryId of entryIds) {
+        if (!retained.has(entryId)) entryStates.delete(entryId);
+      }
+      entryIds = retained;
+    });
 
     createComputed(() => {
       const entry = router.entry(pane);
@@ -1431,6 +1439,7 @@ export function createSplitLayout(
 
     onCleanup(() => {
       unregisterGuard();
+      for (const entryId of entryIds) entryStates.delete(entryId);
       untrack(() => dropSplit(id));
     });
 
@@ -1442,7 +1451,7 @@ export function createSplitLayout(
     untrack(() => orderSplits(ids));
   });
 
-  const lastEvent = createMemo(() => state.events[state.events.length - 1]);
+  trackNavigationLifecycle(router, () => entryStates.size);
 
   const tabTitle = () => {
     if (state.activeSplitId === undefined) return undefined;
