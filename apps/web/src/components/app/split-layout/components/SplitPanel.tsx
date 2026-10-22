@@ -52,6 +52,7 @@ export function SplitPanel(props: SplitPanelProps) {
   );
   const [panelRef, setPanelRef] = createSignal<HTMLDivElement | null>(null);
   const [contentOffsetTop, setContentOffsetTop] = createSignal(0);
+  const navigationCollapsed = createSignal(true);
   const [titleFileMenuRef, setTitleFileMenuRef] =
     createSignal<HTMLDivElement>();
   const [titleFileMenuTrigger, setTitleFileMenuTrigger] =
@@ -210,6 +211,7 @@ export function SplitPanel(props: SplitPanelProps) {
             handle: props.handle,
             setContentOffsetTop,
             contentOffsetTop,
+            navigationCollapsed,
             splitHotkeyScope,
             bottomPanel,
             registerBottomPanel: (panel) => {

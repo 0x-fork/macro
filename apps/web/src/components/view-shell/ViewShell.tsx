@@ -181,19 +181,21 @@ function Root(props: ViewShellRootProps) {
   ]);
 
   const panel = useContext(SplitPanelContext);
-  // A view opened beside another split starts without navigation; only the
-  // primary split follows, and writes, the saved preference.
+  // A view opened beside another split starts without navigation, then keeps
+  // that split's choice as the split moves between views; only the primary
+  // split follows, and writes, the saved preference.
   const secondarySplit =
     local.asidePreferenceKey !== undefined &&
     panel !== undefined &&
     !untrack(panel.handle.isFirst);
-  const [wideAsideCollapsed, setWideAsideCollapsed] =
-    local.asidePreferenceKey && !secondarySplit
+  const [wideAsideCollapsed, setWideAsideCollapsed] = secondarySplit
+    ? (panel?.navigationCollapsed ?? createSignal(true))
+    : local.asidePreferenceKey
       ? usePreference(
           `macro:pref:view-sidebar:collapsed:${local.asidePreferenceKey}`,
           { default: false }
         )
-      : createSignal(secondarySplit);
+      : createSignal(false);
   const id = createUniqueId();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const animateSidebar = createSidebarMotion(root);
