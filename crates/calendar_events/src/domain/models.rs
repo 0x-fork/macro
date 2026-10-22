@@ -1328,6 +1328,27 @@ impl CalendarEventPatch {
     }
 }
 
+/// The stored details of an event or one of its occurrences: what every
+/// guest shares and only those who may modify the event change.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EventDetails {
+    /// Display title.
+    pub title: String,
+    /// Event body.
+    pub description: Option<String>,
+    /// Location label.
+    pub location: Option<String>,
+    /// Event visibility.
+    pub visibility: EventVisibility,
+    /// Timed or all-day shape. `None` for an occurrence whose time is not
+    /// stored, outside the materialized window.
+    pub time: Option<EventTime>,
+    /// Raw RFC 5545 recurrence properties of the series.
+    pub recurrence_lines: Vec<String>,
+    /// Whether a conference is attached.
+    pub has_conference: bool,
+}
+
 /// OAuth identity used to mint an access token for a connected inbox.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CalendarLinkTokenIdentity {

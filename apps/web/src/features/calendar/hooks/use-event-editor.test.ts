@@ -47,6 +47,8 @@ vi.mock('@queries/calendar/mutations', () => ({
     mutateAsync: mocks.inviteGuests,
     isPending: false,
   }),
+  isGuestEditRefused: (error: unknown) =>
+    (error as { code?: string }).code === 'guests_cannot_modify',
 }));
 vi.mock('@queries/call/meetings', () => ({
   useCreateMeetingMutation: () => ({ mutateAsync: mocks.createMeeting }),
@@ -806,8 +808,9 @@ describe('scheduling a Macro call', () => {
   it('retains an invited event link without managing another organizer’s call', async () => {
     const event = {
       ...savedEvent,
+      // A guest the organizer lets modify the event.
       viewerCan: {
-        editDetails: false,
+        editDetails: true,
         inviteGuests: true,
         removeGuests: false,
         setGuestPolicy: false,
@@ -1043,6 +1046,11 @@ describe('guests of an event the viewer was invited to', () => {
     rsvp: true,
   };
   const mayNotInvite = { ...mayInvite, inviteGuests: false };
+  const mayModify = { ...mayInvite, editDetails: true, removeGuests: true };
+  const thirtyMinutes = {
+    useDefault: false,
+    overrides: [{ method: 'popup', minutes: 30 }],
+  };
   const unchanged: EventEditorSubmitValues = {
     ...values,
     location: '',
@@ -1072,13 +1080,13 @@ describe('guests of an event the viewer was invited to', () => {
 
       await editor.save({
         ...unchanged,
-        title: 'Planning review',
+        reminders: thirtyMinutes,
         guestEmails: ['host@example.com', 'dana@example.com'],
       });
 
       expect(mocks.updateEvent).toHaveBeenCalledOnce();
       expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
-        title: 'Planning review',
+        reminders: thirtyMinutes,
       });
       expect(mocks.inviteGuests).toHaveBeenCalledWith({
         eventId: 'event-1',
@@ -1172,6 +1180,92 @@ describe('guests of an event the viewer was invited to', () => {
       expect(editor.guestsReadOnlyReason()).toBe(
         'Only the organizer can invite guests.'
       );
+    } finally {
+      dispose();
+    }
+  });
+
+  it('locks the details of a guest the organizer does not let modify, but not their reminders', () => {
+    const { editor, dispose } = editorFor(invitedEvent(mayInvite), true);
+    try {
+      expect(editor.disabledFields()).toMatchObject({
+        title: true,
+        allDay: true,
+        start: true,
+        end: true,
+        recurrence: true,
+        location: true,
+        description: true,
+        conference: true,
+        reminders: false,
+      });
+      expect(editor.detailsReadOnlyReason()).toBe(
+        'Only the organizer can change this event.'
+      );
+    } finally {
+      dispose();
+    }
+  });
+
+  it('saves only the reminders of a guest the organizer does not let modify', async () => {
+    const { editor, dispose } = editorFor(invitedEvent(mayInvite), true);
+    try {
+      await editor.save({
+        ...unchanged,
+        title: 'Planning review',
+        location: 'Room 4',
+        time: {
+          kind: 'timed',
+          startsAt: '2026-09-22T16:00:00Z',
+          endsAt: '2026-09-22T17:00:00Z',
+          timeZone: 'America/New_York',
+        },
+        reminders: thirtyMinutes,
+      });
+      expect(mocks.updateEvent).toHaveBeenCalledOnce();
+      expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
+        reminders: thirtyMinutes,
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it('leaves the details editable for a guest the organizer lets modify', async () => {
+    const { editor, dispose } = editorFor(invitedEvent(mayModify), true);
+    try {
+      expect(editor.disabledFields()?.title).toBeUndefined();
+      expect(editor.detailsReadOnlyReason()).toBeUndefined();
+      await editor.save({ ...unchanged, title: 'Planning review' });
+      expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
+        title: 'Planning review',
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it('locks the details when the server refuses a guest’s change', async () => {
+    mocks.updateEvent.mockRejectedValueOnce({ code: 'guests_cannot_modify' });
+    const { editor, dispose } = editorFor(invitedEvent(mayModify), true);
+    try {
+      await editor.save({ ...unchanged, title: 'Planning review' });
+      expect(mocks.failure).toHaveBeenCalledWith(
+        'Only the organizer can change this event.'
+      );
+      expect(editor.disabledFields()?.title).toBe(true);
+      expect(editor.detailsReadOnlyReason()).toBe(
+        'Only the organizer can change this event.'
+      );
+
+      await editor.save({
+        ...unchanged,
+        title: 'Planning review',
+        reminders: thirtyMinutes,
+      });
+      expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
+        reminders: thirtyMinutes,
+      });
     } finally {
       dispose();
     }

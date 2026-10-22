@@ -364,6 +364,8 @@ pub enum CalendarMutationErrorCode {
     GuestsCannotInvite,
     /// The organizer hides the guest list, so a guest cannot add guests.
     GuestListHidden,
+    /// The organizer does not let guests change the event's details.
+    GuestsCannotModify,
     /// The meeting is already on one of the requester's calendars.
     AlreadyOnCalendar,
     /// The request was invalid.
@@ -444,6 +446,11 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::FORBIDDEN,
                 CalendarMutationErrorCode::GuestListHidden,
                 "Guests cannot be added while the organizer hides the guest list.".to_string(),
+            ),
+            CalendarMutationError::GuestsCannotModify => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::GuestsCannotModify,
+                "The organizer doesn't let guests change this event.".to_string(),
             ),
             CalendarMutationError::AlreadyOnCalendar => (
                 StatusCode::CONFLICT,

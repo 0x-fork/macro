@@ -255,7 +255,7 @@ async fn a_guests_update_adds_through_the_invite_path_and_keeps_its_other_fields
         Uuid::now_v7(),
         None,
         CalendarEventPatch {
-            title: Some("Planning".to_string()),
+            transparency: Some(EventTransparency::Transparent),
             // The editor leaves the viewer's own row out of the list.
             attendees: Some(vec![guest(ORGANIZER), guest("ada@example.com")]),
             ..CalendarEventPatch::default()
@@ -278,7 +278,7 @@ async fn a_guests_update_adds_through_the_invite_path_and_keeps_its_other_fields
         sent[0].attendees, None,
         "the replacement list never reaches Google"
     );
-    assert_eq!(sent[0].title.as_deref(), Some("Planning"));
+    assert_eq!(sent[0].transparency, Some(EventTransparency::Transparent));
 }
 
 #[tokio::test]

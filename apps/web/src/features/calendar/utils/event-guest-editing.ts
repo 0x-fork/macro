@@ -4,6 +4,21 @@ import type { CalendarEvent } from '../types';
 /** Shown where a guest would add guests when the organizer does not allow it. */
 export const GUEST_INVITES_RESTRICTED = 'Only the organizer can invite guests.';
 
+/** Shown where a guest would change the event when the organizer does not allow it. */
+export const GUEST_EDITS_RESTRICTED =
+  'Only the organizer can change this event.';
+
+/**
+ * Whether the viewer is a guest the organizer does not let modify the event,
+ * so its title, time, description, location, recurrence and conferencing stay
+ * as the organizer set them. Reminders stay the guest's own. Someone neither
+ * organizing nor invited keeps what their calendar access allows, as on the
+ * server.
+ */
+export function guestEditsRestricted(event: CalendarEvent): boolean {
+  return event.viewerCan.rsvp && !event.viewerCan.editDetails;
+}
+
 function normalizeGuestEmail(email: string) {
   return email.trim().toLowerCase();
 }

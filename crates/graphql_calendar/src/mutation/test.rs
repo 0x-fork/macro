@@ -798,6 +798,11 @@ async fn every_failure_carries_its_rest_code_and_hides_provider_details() {
             false,
         ),
         (
+            CalendarMutationError::GuestsCannotModify,
+            "guests_cannot_modify",
+            false,
+        ),
+        (
             CalendarMutationError::AlreadyOnCalendar,
             "already_on_calendar",
             false,

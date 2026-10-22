@@ -18,10 +18,11 @@ use super::models::{
     CalendarGrantIntent, CalendarLinkTokenIdentity, CalendarMentionPreview,
     CalendarMentionRequestItem, CalendarOccurrenceCursor, CalendarReminderDeliveryOutcome,
     CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
-    CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, GoogleCalendarSyncSnapshot,
-    GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan, GoogleWatchChannel, GoogleWatchConfig,
-    GuestPolicy, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
-    ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice, VisibleCalendar,
+    CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, EventDetails,
+    GoogleCalendarSyncSnapshot, GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan,
+    GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, OccurrenceListing, OccurrenceRange,
+    OwnedInbox, ProviderCalendar, ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice,
+    VisibleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -696,6 +697,15 @@ pub trait CalendarRepository: Send + Sync + 'static {
         recurrence_id: &str,
     ) -> impl Future<Output = Result<Option<Vec<CalendarAttendee>>, Report>> + Send;
 
+    /// The stored details of a canonical event, or of one occurrence when
+    /// `occurrence_key` names it: the occurrence's own content and time where
+    /// it overrides the series. `None` covers an unknown event.
+    fn get_event_details(
+        &self,
+        event_id: Uuid,
+        occurrence_key: Option<&str>,
+    ) -> impl Future<Output = Result<Option<EventDetails>, Report>> + Send;
+
     /// Store the guest policy the provider reported when it refused an
     /// invite, on the entity and every copy's projection. Incremental sync
     /// resends only changed events, so the stored policy can predate the
@@ -963,6 +973,9 @@ pub enum CalendarMutationError {
     /// whole list a guest addition must write.
     #[error("guests cannot be added while the organizer hides the guest list")]
     GuestListHidden,
+    /// The organizer does not let guests change the event's details.
+    #[error("the organizer doesn't let guests change this event")]
+    GuestsCannotModify,
     /// The meeting is already on one of the requester's calendars.
     #[error("the event is already on one of the requester's calendars")]
     AlreadyOnCalendar,

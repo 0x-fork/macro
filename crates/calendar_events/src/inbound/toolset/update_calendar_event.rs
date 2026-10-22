@@ -107,6 +107,12 @@ or hides the guest list, or the event is an Outlook meeting the user doesn't org
 An empty string for `description` or `location` clears it. Fails on events from calendars \
 the user cannot edit.\n\
 \n\
+A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rsvp` is \
+true) may only change their own `reminders`, add guests where `viewerCan.inviteGuests` \
+allows it, and answer with `rsvp`; changing the title, time, description, location, \
+recurrence or conference fails because the organizer doesn't let guests change the \
+event.\n\
+\n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
 the rest of the call and answers as the connected inbox the event's copy belongs to, so \

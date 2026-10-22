@@ -4,7 +4,7 @@
 
 import { cleanup, render, screen } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
-import { createMemo } from 'solid-js';
+import { type ComponentProps, createMemo } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 vi.mock('@components/app/split-layout/split-router/mention-links', () => ({
@@ -50,7 +50,7 @@ const WORK_CALENDAR: EventEditorCalendarOption = {
 };
 
 /** Renders the form and counts the edits it reports back to its host. */
-function showForm() {
+function showForm(props: Partial<ComponentProps<typeof EventForm>> = {}) {
   const edits = { count: 0 };
   render(() => {
     const calendarOptions = createMemo(() => [WORK_CALENDAR]);
@@ -83,6 +83,7 @@ function showForm() {
         pending={false}
         onCancel={vi.fn()}
         onSubmit={vi.fn()}
+        {...props}
       />
     );
   });
@@ -119,4 +120,42 @@ it('settles after a Macro call is picked', async () => {
   await user.click(screen.getByRole('option', { name: 'Macro call' }));
   expect(trigger.textContent).toContain('Macro call');
   expect(edits.count).toBeLessThan(10);
+});
+
+it('keeps a guest the organizer does not let modify to their own reminders', async () => {
+  const user = userEvent.setup();
+  showForm({
+    isEdit: true,
+    disabledFields: {
+      calendar: true,
+      title: true,
+      allDay: true,
+      start: true,
+      end: true,
+      recurrence: true,
+      location: true,
+      description: true,
+      conference: true,
+    },
+    detailsReadOnlyReason: 'Only the organizer can change this event.',
+  });
+
+  await user.type(screen.getByLabelText('Title'), 'ab');
+  expect(screen.getByLabelText('Title')).toHaveProperty(
+    'value',
+    'Customer demo'
+  );
+  expect(screen.getByRole('button', { name: 'Location' })).toHaveProperty(
+    'disabled',
+    true
+  );
+  expect(
+    screen.getByRole('button', { name: /Video conferencing/ })
+  ).toHaveProperty('disabled', true);
+  expect(
+    screen.getByText('Only the organizer can change this event.')
+  ).toBeTruthy();
+
+  await user.click(screen.getByRole('button', { name: /Notifications/ }));
+  expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
 });

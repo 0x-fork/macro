@@ -312,6 +312,30 @@ describe('mapCalendarEventToFullCalendar', () => {
     expect(rendered.durationEditable).toBe(false);
   });
 
+  it('fixes a guest’s event in place unless the organizer lets them modify it', () => {
+    const guest = {
+      editDetails: false,
+      inviteGuests: true,
+      removeGuests: false,
+      setGuestPolicy: false,
+      rsvp: true,
+    };
+    const source = item([copy('primary')]);
+    source.event.viewerCan = guest;
+    const invited = mapCalendarEventToFullCalendar(
+      mapCalendarOccurrence(source, { sourceById })
+    );
+    source.event.viewerCan = { ...guest, editDetails: true };
+    const modifiable = mapCalendarEventToFullCalendar(
+      mapCalendarOccurrence(source, { sourceById })
+    );
+
+    expect(invited.startEditable).toBe(false);
+    expect(invited.durationEditable).toBe(false);
+    expect(modifiable.startEditable).toBe(true);
+    expect(modifiable.durationEditable).toBe(true);
+  });
+
   it('keeps the occurrence identity and displayed title on the rendered event', () => {
     const rendered = mapCalendarEventToFullCalendar(
       mapCalendarOccurrence(item([copy('primary'), sharedCopy]), {

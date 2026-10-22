@@ -69,6 +69,12 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   write either: an Outlook organizer adds guests with the same full-list write
   (`email_api_client`'s `outlook/calendar/invite.rs`), and an Outlook guest may
   only answer (`guests_cannot_invite`).
+- A guest without `edit_details` may change only what Google keeps on each
+  guest's copy (reminders, availability) and add guests where allowed:
+  `update_event` drops details the patch repeats at their stored value
+  (`get_event_details`, the series or the addressed occurrence) and refuses
+  any other detail change with `GuestsCannotModify` before inviting anyone.
+  Someone neither organizing nor invited is left to their calendar access.
 - A channel-shared event reaches a member's calendar as a copy, not a seat:
   `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under the
   meeting's iCalendar UID with no guests or join link, behind the same

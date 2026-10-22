@@ -1,6 +1,7 @@
 //! PostgreSQL implementation of the calendar repository port.
 mod change_log;
 mod changes;
+mod details;
 mod export;
 mod invitations;
 #[cfg(feature = "outlook")]
@@ -32,11 +33,11 @@ use crate::domain::{
         CalendarLinkTokenIdentity, CalendarMentionEvent, CalendarMentionPreview,
         CalendarMentionRequestItem, CalendarOccurrence, CalendarOccurrenceCursor, CalendarProvider,
         CalendarReminderFiring, CalendarSyncStatus, CalendarWatchRelease, ConferenceProvider,
-        DisconnectedCalendar, DueCalendarReminder, EventReminderOverride, EventReminders,
-        EventStart, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
-        GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel,
-        GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange, OwnedInbox,
-        ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
+        DisconnectedCalendar, DueCalendarReminder, EventDetails, EventReminderOverride,
+        EventReminders, EventStart, EventStatus, EventTime, EventTransparency, EventType,
+        EventVisibility, GOOGLE_CALENDAR_SCOPES, GoogleCalendarSyncSnapshot, GoogleScopeSet,
+        GoogleWatchChannel, GuestPolicy, OccurrenceException, OccurrenceListing, OccurrenceRange,
+        OwnedInbox, ProviderCalendar, StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities,
         VisibleCalendar, is_system_calendar,
     },
     ports::{
@@ -2142,6 +2143,15 @@ impl CalendarRepository for PgCalendarRepository {
                 can_see_other_guests: row.guests_can_see_other_guests,
             },
         }))
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_event_details(
+        &self,
+        event_id: Uuid,
+        occurrence_key: Option<&str>,
+    ) -> Result<Option<EventDetails>, Report> {
+        details::event_details(&self.pool, event_id, occurrence_key).await
     }
 
     #[tracing::instrument(skip(self), err)]

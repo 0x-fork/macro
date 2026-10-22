@@ -3,6 +3,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { recipientEntityMapper, useContacts } from '@core/user';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import {
+  isGuestEditRefused,
   useCreateCalendarEventMutation,
   useInviteCalendarEventGuestsMutation,
   useUpdateCalendarEventMutation,
@@ -35,7 +36,9 @@ import {
   addedGuestEmails,
   type EventGuestEditing,
   eventGuestEditing,
+  GUEST_EDITS_RESTRICTED,
   GUEST_INVITES_RESTRICTED,
+  guestEditsRestricted,
   guestInvitesRestricted,
   guestListChanged,
   viewerReplacesGuests,
@@ -48,6 +51,18 @@ import {
 
 const EDIT_DISABLED_FIELDS = {
   calendar: true,
+} satisfies EventEditorDisabledFields;
+
+/** What a guest the organizer does not let modify the event cannot change. */
+const DETAIL_FIELDS = {
+  title: true,
+  allDay: true,
+  start: true,
+  end: true,
+  recurrence: true,
+  location: true,
+  description: true,
+  outOfOffice: true,
 } satisfies EventEditorDisabledFields;
 
 /**
@@ -166,6 +181,16 @@ export function useEventEditor(props: UseEventEditorProps) {
     return event && guestInvitesRestricted(event)
       ? GUEST_INVITES_RESTRICTED
       : undefined;
+  };
+  // A refusal means the stored guest policy was newer than the event shown,
+  // so the details lock without waiting for the refetch.
+  const [detailEditsRefused, setDetailEditsRefused] = createSignal(false);
+  const detailsLocked = () => {
+    const event = props.event();
+    return (
+      event !== undefined &&
+      (detailEditsRefused() || guestEditsRestricted(event))
+    );
   };
 
   const updateMeeting = useUpdateMeetingMutation();
@@ -330,6 +355,21 @@ export function useEventEditor(props: UseEventEditorProps) {
         guestEditing() === 'add'
           ? addedGuestEmails(event, values.guestEmails)
           : [];
+      const detailChanges = {
+        ...(values.title !== event.title ? { title: values.title } : {}),
+        ...(hasTimeChanged(event, values.time) ? { time: values.time } : {}),
+        ...(content.location !== (event.location ?? '')
+          ? { location: content.location }
+          : {}),
+        ...(content.description !== (event.description ?? '')
+          ? { description: content.description }
+          : {}),
+        ...(recurrenceChanged
+          ? { recurrenceLines: values.recurrenceLines }
+          : {}),
+        ...(conference ? { conference } : {}),
+        ...(values.outOfOffice ? { outOfOffice: values.outOfOffice } : {}),
+      };
       const updateArgs = {
         eventId: event.eventId,
         calendarId: event.calendarId,
@@ -339,26 +379,15 @@ export function useEventEditor(props: UseEventEditorProps) {
           : undefined,
         occurrenceKey: targetsOneOccurrence ? event.occurrenceKey : undefined,
         patch: {
-          ...(values.title !== event.title ? { title: values.title } : {}),
-          ...(hasTimeChanged(event, values.time) ? { time: values.time } : {}),
-          ...(content.location !== (event.location ?? '')
-            ? { location: content.location }
-            : {}),
-          ...(content.description !== (event.description ?? '')
-            ? { description: content.description }
-            : {}),
-          ...(recurrenceChanged
-            ? { recurrenceLines: values.recurrenceLines }
-            : {}),
+          // A guest who may not modify the event sends only their own fields.
+          ...(detailsLocked() ? {} : detailChanges),
           ...(guestEditing() === 'replace' &&
           guestListChanged(event, values.guestEmails)
             ? {
                 attendees: values.guestEmails.map((email) => ({ email })),
               }
             : {}),
-          ...(conference ? { conference } : {}),
           ...(values.reminders ? { reminders: values.reminders } : {}),
-          ...(values.outOfOffice ? { outOfOffice: values.outOfOffice } : {}),
         },
       };
       if (Object.keys(updateArgs.patch).length > 0) {
@@ -403,6 +432,9 @@ export function useEventEditor(props: UseEventEditorProps) {
             'Your event is saved, but its call link could not be added. Save again to retry.'
           );
         }
+      } else if (event && isGuestEditRefused(error)) {
+        setDetailEditsRefused(true);
+        toast.failure(GUEST_EDITS_RESTRICTED);
       } else {
         toast.failure(
           event ? 'Failed to update event' : 'Failed to create event',
@@ -425,6 +457,7 @@ export function useEventEditor(props: UseEventEditorProps) {
       const editsOtherCopy = !editsPrimaryCopy(event);
       return {
         ...EDIT_DISABLED_FIELDS,
+        ...(detailsLocked() ? DETAIL_FIELDS : {}),
         guests: guestEditing() === 'none',
         conference: editsOtherCopy || !viewerReplacesGuests(event),
         reminders: editsOtherCopy,
@@ -437,6 +470,8 @@ export function useEventEditor(props: UseEventEditorProps) {
     disabledFields,
     addOnlyGuests: () => guestEditing() === 'add',
     guestsReadOnlyReason,
+    detailsReadOnlyReason: () =>
+      detailsLocked() ? GUEST_EDITS_RESTRICTED : undefined,
     calendarOptions,
     guestOptions,
     showRecurringEditNotice,

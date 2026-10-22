@@ -1345,6 +1345,7 @@
           "not_attendee",
           "guests_cannot_invite",
           "guest_list_hidden",
+          "guests_cannot_modify",
           "already_on_calendar",
           "invalid_input",
           "reauth_required",

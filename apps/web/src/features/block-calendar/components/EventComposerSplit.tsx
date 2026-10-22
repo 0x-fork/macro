@@ -94,6 +94,7 @@ function EventComposerContent(
         disabledFields={editor.disabledFields()}
         addOnlyGuests={editor.addOnlyGuests()}
         guestsReadOnlyReason={editor.guestsReadOnlyReason()}
+        detailsReadOnlyReason={editor.detailsReadOnlyReason()}
         showRecurringEditNotice={editor.showRecurringEditNotice()}
         pending={editor.pending()}
         onCalendarChange={props.onCalendarChange}

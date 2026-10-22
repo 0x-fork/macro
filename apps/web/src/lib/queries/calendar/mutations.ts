@@ -388,15 +388,29 @@ function withInvitedGuests(
   };
 }
 
+function hasCalendarMutationCode(
+  error: unknown,
+  code: CalendarMutationErrorCode
+): boolean {
+  return (
+    thrownResultErrorHasCode(error, code) ||
+    (error instanceof CalendarMutationError && error.code === code)
+  );
+}
+
 /** Whether a write failed because the organizer does not let the viewer invite guests. */
 export function isGuestInviteRefused(error: unknown): boolean {
-  return (
-    thrownResultErrorHasCode(
-      error,
-      CalendarMutationErrorCode.guests_cannot_invite
-    ) ||
-    (error instanceof CalendarMutationError &&
-      error.code === CalendarMutationErrorCode.guests_cannot_invite)
+  return hasCalendarMutationCode(
+    error,
+    CalendarMutationErrorCode.guests_cannot_invite
+  );
+}
+
+/** Whether a write failed because the organizer does not let the viewer change the event. */
+export function isGuestEditRefused(error: unknown): boolean {
+  return hasCalendarMutationCode(
+    error,
+    CalendarMutationErrorCode.guests_cannot_modify
   );
 }
 

@@ -132,7 +132,8 @@ type EventEditorField =
   | 'location'
   | 'description'
   | 'conference'
-  | 'reminders';
+  | 'reminders'
+  | 'outOfOffice';
 
 /** Field-level disabled state supplied by a create/edit owner. */
 export type EventEditorDisabledFields = Partial<

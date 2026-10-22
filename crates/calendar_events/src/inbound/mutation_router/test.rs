@@ -48,6 +48,13 @@ fn domain_errors_map_to_distinct_transport_semantics() {
         )
     );
     assert_eq!(
+        transport_of(CalendarMutationError::GuestsCannotModify),
+        (
+            StatusCode::FORBIDDEN,
+            CalendarMutationErrorCode::GuestsCannotModify
+        )
+    );
+    assert_eq!(
         transport_of(CalendarMutationError::InvalidInput("bad".to_string())),
         (
             StatusCode::BAD_REQUEST,

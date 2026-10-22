@@ -2,6 +2,7 @@ import type { EventApi } from '@fullcalendar/core';
 import type { EventTime } from '@service-calendar/generated/schemas/eventTime';
 import type { CalendarEvent } from '../types';
 import { formatLocalDate, isTimedPointEvent } from './calendar-date';
+import { guestEditsRestricted } from './event-guest-editing';
 
 interface FullCalendarEventRange {
   allDay: boolean;
@@ -37,6 +38,7 @@ export function canEditCalendarEventTime(event: CalendarEvent) {
     !event.teamProjection &&
     !event.isReadOnly &&
     !event.isCancelled &&
+    !guestEditsRestricted(event) &&
     !isTimedPointEvent(event) &&
     event.recurrenceLines.length === 0 &&
     event.recurrenceId === undefined

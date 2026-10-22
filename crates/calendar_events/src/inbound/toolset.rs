@@ -487,6 +487,12 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
              Suggest asking the organizer to add them."
                 .to_string()
         }
+        CalendarMutationError::GuestsCannotModify => {
+            "The organizer doesn't let guests change this event, so the user can only change \
+             their own reminders, add guests where the organizer allows it, and answer the \
+             invitation. Suggest asking the organizer to make the change."
+                .to_string()
+        }
         CalendarMutationError::AlreadyOnCalendar => {
             "This event is already on one of the user's calendars.".to_string()
         }
