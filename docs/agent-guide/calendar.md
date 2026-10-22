@@ -435,7 +435,8 @@ As in Google Calendar, the guests row of the details popover (a bottom sheet on 
 carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every guest's
 address on the clipboard, comma-separated. Emailing opens a new email addressed to every
 guest but you — in a split beside the calendar on desktop, as the full-screen composer on
-touch devices — and is hidden when you are the only guest.
+touch devices, in its own composer even when another one is open — and is hidden when you
+are the only guest.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
@@ -467,7 +468,7 @@ is absent from teammates' out-of-office chips. Its endpoint, document storage's
 belongs to.
 Beside it, `Forward by email` (shown under the same rule) passes the event on the way Gmail
 forwards an invitation: it closes the details, fetches the same file, and opens a new email
-where `Email guests` does (its own composer, even when another one is open), with no recipients, the title as subject, a plain-text summary in
+where `Email guests` does, with no recipients, the title as subject, a plain-text summary in
 the body (title, when in the viewer's zone, the repeat rule in words, location, organizer and
 description, never guests or a join link) and the `.ics` attached as a picked file would be.
 Nothing is saved as a draft until you edit something. The file is `METHOD:PUBLISH`, so
