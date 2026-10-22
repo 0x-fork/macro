@@ -87,6 +87,10 @@ persisted prompter, never from an old wire actor or a newer user turn.
 - The row's fenced log writer and the Cursor projection both lock the
   session row `FOR UPDATE`; never add a second `NOWAIT` locker without
   checking both paths (see git history on `src/domain/control.rs`).
+- `modified_at` is Agents/Home list recency. Bump it for user-visible work
+  (`moves_session_list`: starting/running/stopping/blocked) and metadata
+  the viewer asked to change. Do not bump it for claim, release, recovery,
+  ACP session id, or system events (`acp_ready`, `disconnected`).
 
 ## Related
 

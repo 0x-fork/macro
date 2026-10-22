@@ -1,4 +1,5 @@
 use super::*;
+mod list_activity;
 mod queue;
 mod recovery;
 mod search;

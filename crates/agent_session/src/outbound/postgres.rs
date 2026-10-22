@@ -32,6 +32,7 @@ use crate::domain::ports::{
     SessionOwnership,
 };
 use crate::domain::sharing::{SessionBotOwnership, originating_channel_access};
+use crate::domain::turn_state::moves_session_list;
 use crate::outbound::connection_gateway_realtime::SessionAudience;
 use agent_client_protocol::schema::v1::SessionId;
 use agent_runtime_protocol::domain::schema::v0::{SystemEvent, ToRuntimeMessage, ToServerMessage};
@@ -800,8 +801,7 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
         let result = sqlx::query!(
             r#"
             UPDATE agent_session
-            SET acp_session_id = $2,
-                modified_at = NOW()
+            SET acp_session_id = $2
             WHERE id = $1
             "#,
             id.as_uuid(),
@@ -1586,8 +1586,7 @@ impl<B: BotFacts + 'static> AgentSessionLogRepo for PgAgentSessionRepo<B> {
                 r#"
                 UPDATE agent_session
                 SET status = $2,
-                    status_event_name = $3,
-                    modified_at = now()
+                    status_event_name = $3
                 WHERE id = $1
                 "#,
                 log.agent_session_id.as_uuid(),
@@ -1603,11 +1602,13 @@ impl<B: BotFacts + 'static> AgentSessionLogRepo for PgAgentSessionRepo<B> {
             sqlx::query!(
                 r#"
                 UPDATE agent_session
-                SET turn_state = $2
+                SET turn_state = $2,
+                    modified_at = CASE WHEN $3 THEN now() ELSE modified_at END
                 WHERE id = $1 AND turn_state IS DISTINCT FROM $2
                 "#,
                 log.agent_session_id.as_uuid(),
                 turn_state.as_ref(),
+                moves_session_list(turn_state),
             )
             .execute(&mut *transaction)
             .await
@@ -1744,8 +1745,7 @@ impl<B: BotFacts + 'static> SessionOwnership for PgAgentSessionRepo<B> {
             )
             UPDATE agent_session
             SET manager_replica_id = $2,
-                manager_fence = manager_fence + 1,
-                modified_at = now()
+                manager_fence = manager_fence + 1
             FROM replica
             WHERE agent_session.id = $1 AND replica.id = $2
               AND (
@@ -1801,8 +1801,7 @@ impl<B: BotFacts + 'static> SessionOwnership for PgAgentSessionRepo<B> {
         sqlx::query!(
             r#"
             UPDATE agent_session
-            SET manager_replica_id = NULL,
-                modified_at = now()
+            SET manager_replica_id = NULL
             WHERE id = $1 AND manager_replica_id = $2 AND manager_fence = $3
             "#,
             claim.session.as_uuid(),

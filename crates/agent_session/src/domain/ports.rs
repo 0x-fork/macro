@@ -487,7 +487,8 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
     /// stop rendering because its agent was removed.
     fn session_bot(&self, id: BotId) -> impl Future<Output = Result<SessionBot>> + Send;
 
-    /// Persist the agent-assigned ACP session id without replacing other session fields.
+    /// Persist the agent-assigned ACP session id without replacing other
+    /// session fields or reordering the session list.
     fn set_acp_session_id(
         &self,
         id: AgentSessionId,
@@ -642,9 +643,11 @@ pub const REPLICA_STALE_AFTER: std::time::Duration = std::time::Duration::from_s
 /// Claiming is a single conditional update (compare-and-swap): it succeeds
 /// when the session is unmanaged, already ours, or held by a replica whose
 /// heartbeat has gone stale, and every success increments the session's
-/// fence. There are deliberately no explicit locks anywhere in the contract -
-/// see [`ManagerFence`](super::model::ManagerFence) for why a fence, not a
-/// lock, is what neutralizes a stale holder.
+/// fence. Lease changes must not bump list recency: a reclaim, release, or
+/// stale takeover is not the conversation being used. There are deliberately
+/// no explicit locks anywhere in the contract - see
+/// [`ManagerFence`](super::model::ManagerFence) for why a fence, not a lock,
+/// is what neutralizes a stale holder.
 pub trait SessionOwnership: Send + Sync + 'static {
     /// Claim live management of a session for `replica`, registering the
     /// replica's heartbeat as a side effect so a claim can never dangle on a
