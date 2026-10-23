@@ -973,6 +973,11 @@ restart rules still apply.
   Single-letter shortcuts only work when no editor has focus; press `Escape` first.
 - `/` — search everything (in Email it focuses email search). `j`/`k` — move in
   lists. `e` — mark done.
+  After opening a list item in the same split, `j`/`k` continue through the
+  originating list; native detail paging can still load its next page. Check
+  repeated list/detail transitions as well as group-header skipping. Returning
+  to the list restores scrolling to the focused row; the unmounted list's
+  virtualizer must not run while viewing details.
 - `#` — move email to Trash, with an Undo toast. Works on the selected or focused
   rows in a mail list and on the thread open in an email detail or block. Email
   only; other entity types keep Delete/Backspace and do not answer `#`.
