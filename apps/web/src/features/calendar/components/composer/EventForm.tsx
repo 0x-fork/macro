@@ -127,6 +127,7 @@ export function EventForm(props: EventFormProps) {
     props.disabledFields?.[field] === true;
   const fieldIsDisabled = (field: keyof EventEditorDisabledFields) =>
     formIsDisabled() || fieldIsReadOnly(field);
+  const detailsLocked = () => props.detailsReadOnlyReason !== undefined;
 
   const capabilities = () => controller.selectedCalendarOption()?.capabilities;
   const conferenceLocked = () =>
@@ -292,21 +293,27 @@ export function EventForm(props: EventFormProps) {
           </div>
 
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <EventComposerKindPill
-              eventType={state().eventType}
-              onChange={controller.setEventKind}
-              disabled={formIsDisabled()}
-              readOnly={isEdit()}
-            />
-            <EventComposerCalendarPill
-              options={controller.calendarOptions()}
-              value={controller.selectedCalendarOption()}
-              onChange={(calendarId) =>
-                controller.setField('calendarId', calendarId)
-              }
-              disabled={formIsDisabled()}
-              readOnly={fieldIsReadOnly('calendar')}
-            />
+            {/* Read-only on every edit, they open their one value as a list;
+                locked, they are as unavailable as the other details. */}
+            <LockedField reason={props.detailsReadOnlyReason}>
+              <EventComposerKindPill
+                eventType={state().eventType}
+                onChange={controller.setEventKind}
+                disabled={formIsDisabled() || detailsLocked()}
+                readOnly={isEdit()}
+              />
+            </LockedField>
+            <LockedField reason={props.detailsReadOnlyReason}>
+              <EventComposerCalendarPill
+                options={controller.calendarOptions()}
+                value={controller.selectedCalendarOption()}
+                onChange={(calendarId) =>
+                  controller.setField('calendarId', calendarId)
+                }
+                disabled={formIsDisabled() || detailsLocked()}
+                readOnly={fieldIsReadOnly('calendar')}
+              />
+            </LockedField>
             <LockedField reason={props.detailsReadOnlyReason}>
               <EventComposerRecurrencePill
                 options={controller.recurrenceOptions()}

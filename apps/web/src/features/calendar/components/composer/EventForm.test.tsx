@@ -154,6 +154,14 @@ it('keeps a guest the organizer does not let modify to their own reminders', asy
   expect(
     screen.getByRole('button', { name: /Video conferencing/ })
   ).toHaveProperty('disabled', true);
+  // Read-only on every edit, the kind and calendar no longer open their one
+  // value as a list once the details are locked.
+  for (const name of ['Event kind', 'Calendar']) {
+    const pill = screen.getByLabelText(name);
+    expect(pill).toHaveProperty('disabled', true);
+    await user.click(pill);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  }
   expect(
     screen.getByText('Only the organizer can change this event.')
   ).toBeTruthy();

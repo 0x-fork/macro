@@ -45,8 +45,10 @@ import {
   eventKindOf,
 } from './out-of-office';
 
+// A disabled pill dims, as the date and time pills do, and takes no pointer,
+// so it shows no hover; a tooltip around it still explains why.
 const PROPERTY_TRIGGER_CLASS =
-  'group flex h-7 items-center justify-between gap-1.5 rounded-full border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink';
+  'group flex h-7 items-center justify-between gap-1.5 rounded-full border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink disabled:pointer-events-none disabled:opacity-50';
 const PROPERTY_VALUE_CLASS =
   'group-hover:text-ink group-focus-visible:text-ink group-data-expanded:text-ink';
 

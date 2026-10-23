@@ -488,7 +488,9 @@ A guest the organizer does not let modify the event (`viewerCan.editDetails` fal
 `viewerCan.rsvp` is true) opens an editor whose date/time, all-day, title, description,
 repeat, conferencing and location controls are disabled, each with the tooltip `Only the
 organizer can change this event.`; the same line shows under the pills, which is all a
-touch device shows. Notifications stay editable and Save sends only `reminders` (plus any
+touch device shows. The event kind and calendar pills, which on any other edit open their one
+value as a list, are disabled too. Disabled pills, the date and time pills included, are
+dimmed and show no hover. Notifications stay editable and Save sends only `reminders` (plus any
 invitation). An editor already open when the organizer turns modifying off follows the
 guest's copy once it syncs: the same fields lock, return to the event's own (keeping
 notification and guest changes) and a toast shows the line. That guest cannot drag or resize
