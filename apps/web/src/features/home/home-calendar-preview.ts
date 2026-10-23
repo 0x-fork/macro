@@ -1,8 +1,10 @@
+import { openCalendarView } from '@app/features/calendar-view/calendar-navigation';
 import {
   calendarSearch,
   calendarSearchTarget,
   calendarTargetSearch,
 } from '@app/features/calendar-view/calendar-url';
+import { CALENDAR_VIEW_ID } from '@app/features/calendar-view/types';
 import type { CalendarPreviewSelection } from '@app/features/next-soup/utils';
 import {
   createSearchParams,
@@ -11,6 +13,7 @@ import {
   useRouteParams,
 } from '@app/lib/split-router';
 import { homeCalendarRoute } from '@app/routes/routes';
+import { globalSplitManager } from '@app/signal/splitLayout';
 import { previewCalendarTarget } from '@components/app/previewTarget';
 import {
   enableCalendarUi,
@@ -33,11 +36,25 @@ export function useHomeCalendarPreview(withTab: WithTab) {
   const [calendarRefocus, setCalendarRefocus] = createSignal(0);
   const calendarOpen = () => typeof calendarParams.period === 'string';
 
-  const openCalendarEvent = (entity: CalendarPreviewSelection) => {
+  const openCalendarEvent = (
+    entity: CalendarPreviewSelection,
+    options: { activate?: boolean } = {}
+  ) => {
     if (!isFeatureEnabled(enableCalendarUi)) return false;
     const calendarTarget = previewCalendarTarget(entity);
     const navigation = homeCalendarNavigation(calendarTarget);
     if (!navigation) return false;
+    // A Calendar already open in another split takes the event, as it does
+    // from the notifications panel, instead of a second calendar in Home.
+    if (
+      globalSplitManager()?.getSplitByContent('component', CALENDAR_VIEW_ID)
+    ) {
+      openCalendarView(calendarTarget, {
+        activate: options.activate ?? false,
+        referredFrom: 'home',
+      });
+      return true;
+    }
     const alreadyOpen =
       calendarOpen() &&
       calendarParams.period === navigation.params.period &&

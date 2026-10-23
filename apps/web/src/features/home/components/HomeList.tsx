@@ -91,7 +91,10 @@ type HomeListActivationMetadata = {
 
 type HomeListProps = {
   hasPreview: boolean;
-  onPreviewEntityChange: (entity: PreviewSelection | undefined) => void;
+  onPreviewEntityChange: (
+    entity: PreviewSelection | undefined,
+    options?: { activate?: boolean }
+  ) => void;
   onPreviewActivate?: () => void;
 };
 
@@ -168,7 +171,7 @@ export function HomeList(props: HomeListProps) {
 
     if (!isTouchDevice() && !newSplit) {
       markEntitySeen(sourceRow.entity);
-      showPreview(sourceRow.entity);
+      showPreview(sourceRow.entity, { activate: true });
       props.onPreviewActivate?.();
       return;
     }
@@ -189,9 +192,13 @@ export function HomeList(props: HomeListProps) {
     }
   }
 
-  function showPreview(entity: WithNotification<EntityData>) {
+  function showPreview(
+    entity: WithNotification<EntityData>,
+    options?: { activate?: boolean }
+  ) {
     props.onPreviewEntityChange(
-      entity?.type === 'initiative' ? undefined : entity
+      entity?.type === 'initiative' ? undefined : entity,
+      options
     );
   }
 

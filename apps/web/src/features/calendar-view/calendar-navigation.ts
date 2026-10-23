@@ -69,6 +69,8 @@ export function openCalendarView(
     mergeHistory?: boolean;
     referredFrom?: ReferredFrom;
     onApplied?: VoidFunction;
+    /** False retargets an open Calendar split without taking focus from the caller. */
+    activate?: boolean;
   } = {}
 ): void {
   const manager = options.manager ?? globalSplitManager();
@@ -95,13 +97,13 @@ export function openCalendarView(
       mergeHistory: options.mergeHistory ?? true,
       referredFrom: options.referredFrom,
     });
-    existing.activate();
+    if (options.activate !== false) existing.activate();
     reportApplied();
     return;
   }
 
   const result = manager.openWithSplit(content, {
-    activate: true,
+    activate: options.activate !== false,
     referredFrom: options.referredFrom ?? null,
     preferNewSplit: options.openInNewSplit,
     handle: options.handle,

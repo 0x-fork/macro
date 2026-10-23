@@ -67,6 +67,20 @@ describe('Calendar view navigation', () => {
     expect(manager.openWithSplit).not.toHaveBeenCalled();
   });
 
+  it('retargets an existing Calendar without taking focus when asked not to', () => {
+    const replace = vi.fn();
+    const activate = vi.fn();
+    const manager = {
+      getSplitByContent: vi.fn(() => ({ replace, activate })),
+      openWithSplit: vi.fn(),
+    } as unknown as SplitManager;
+
+    openCalendarView({ eventId: 'event-4' }, { manager, activate: false });
+
+    expect(replace).toHaveBeenCalledOnce();
+    expect(activate).not.toHaveBeenCalled();
+  });
+
   it('opens the Calendar route when no instance exists', () => {
     const manager = {
       getSplitByContent: vi.fn(),

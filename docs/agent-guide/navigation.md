@@ -177,6 +177,10 @@ reminder routes and the former Home reminder detail route are removed.
 When an event opens inline from Home, changing the Calendar period stays under
 `/app/home/calendar/`, updates the period segment, and re-focuses that event.
 Back/Forward restores the period and its event locator from `sN.calendar.*`.
+When Calendar is already open in another split, a Home calendar row (a reminder,
+a join request, or any event) retargets that split instead: a click or Enter
+also focuses it, and arrow-key browsing moves it without taking focus from the
+list. Shift-click keeps reusing that split, as the notifications panel does.
 
 Home uses the shared channel and file details for channel conversations and
 supported documents, with a **Home** breadcrumb that returns to the list. A
