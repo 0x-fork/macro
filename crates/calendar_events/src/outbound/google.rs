@@ -2340,7 +2340,7 @@ fn map_upsert(
             .collect(),
         reminders: map_reminders(master.reminders.as_ref()),
         guest_policy: guest_policy(&master),
-        is_snapshot: import::is_snapshot(&master),
+        is_snapshot: import::is_snapshot(&master, &target.provider_calendar_id),
         viewer_can: ViewerCapabilities::NONE,
         created_at,
         updated_at,

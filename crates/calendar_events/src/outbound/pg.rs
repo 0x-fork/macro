@@ -801,7 +801,7 @@ impl CalendarRepository for PgCalendarRepository {
         let mut tx = self.pool.begin().await.map_err(report)?;
         let user_mutation = matches!(write, CalendarEventWrite::UserMutation(_));
         let provider_sync = matches!(write, CalendarEventWrite::GoogleBackfill { .. });
-        let upsert = match write {
+        let mut upsert = match write {
             #[cfg(feature = "outlook")]
             CalendarEventWrite::OutlookSync { lease, upsert } => {
                 outlook::fence(&mut tx, &lease).await?;
@@ -906,7 +906,18 @@ impl CalendarRepository for PgCalendarRepository {
                         })
                     })
             });
+        let mut became_seat = false;
         if let Some(row) = &existing {
+            // A snapshot an invitation has reached is its owner's seat at the
+            // meeting. Answering can leave Google's copy looking like the
+            // import again, as when the meeting lists only them, so a copy
+            // stored as a seat stays one.
+            let stored_snapshot = row
+                .normalized_payload
+                .pointer("/event/isSnapshot")
+                .is_some_and(|value| value == true);
+            became_seat = stored_snapshot && !upsert.event.is_snapshot;
+            upsert.event.is_snapshot &= stored_snapshot;
             let incoming =
                 serde_json::to_value(StoredSourceProjection::from(&upsert)).map_err(report)?;
             if canonical_projection(&row.normalized_payload) == canonical_projection(&incoming) {
@@ -1075,6 +1086,12 @@ impl CalendarRepository for PgCalendarRepository {
         let mut log = ChangeLogBatch::default();
         log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
         log.commit(tx).await?;
+        if became_seat {
+            tracing::info!(
+                %event_id,
+                "an invitation reached a snapshot, which is now its owner's seat"
+            );
+        }
         Ok(CalendarEventWriteOutcome {
             event_id,
             owner_id: upsert.event.owner_id.clone(),

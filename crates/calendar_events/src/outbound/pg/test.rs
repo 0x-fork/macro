@@ -1653,6 +1653,55 @@ async fn a_snapshot_stays_marked_on_reads_and_mutation_targets(pool: PgPool) {
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_snapshot_an_invitation_reached_stays_its_owners_seat(pool: PgPool) {
+    let owner_id = "macro|calendar-seat@example.com";
+    let link_id = insert_link(&pool, owner_id).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link_id).await;
+    let copy = |sequence, is_snapshot| {
+        let mut upsert = timed_upsert(
+            owner_id,
+            link_id,
+            provider,
+            "shared@example.com",
+            "Shared meeting",
+            sequence,
+        );
+        upsert.event.is_snapshot = is_snapshot;
+        upsert
+    };
+    let is_snapshot = |event_id| {
+        let repo = &repo;
+        async move {
+            repo.get_event_mutation_target(owner_id, event_id, None)
+                .await
+                .unwrap()
+                .expect("the owner may address their copy")
+                .is_snapshot
+        }
+    };
+
+    let event_id = repo.upsert_event_fixture(copy(1, true)).await.unwrap();
+    repo.upsert_event_fixture(copy(2, true)).await.unwrap();
+    assert!(is_snapshot(event_id).await, "a later sync keeps a snapshot");
+
+    // The organizer's invitation lands on the snapshot's Google event.
+    repo.upsert_event_fixture(copy(3, false)).await.unwrap();
+    assert!(!is_snapshot(event_id).await);
+    // Answering can leave Google's copy looking like the import again.
+    repo.upsert_event_fixture(copy(4, true)).await.unwrap();
+    assert!(!is_snapshot(event_id).await, "the seat stays a seat");
+    let entity_is_snapshot = sqlx::query_scalar!(
+        "SELECT is_snapshot FROM calendar_events WHERE id = $1",
+        event_id,
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(!entity_is_snapshot);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn a_snapshot_beside_the_real_meeting_stays_a_snapshot_when_addressed(pool: PgPool) {
     let owner_id = "macro|calendar-snapshot-beside@example.com";
     let link_id = insert_link(&pool, owner_id).await;
