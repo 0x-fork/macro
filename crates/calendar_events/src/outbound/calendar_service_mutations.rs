@@ -157,6 +157,7 @@ fn error_from_response(status: StatusCode, body: Option<String>) -> CalendarMuta
         "read_only" => CalendarMutationError::ReadOnly,
         "no_writable_calendar" => CalendarMutationError::NoWritableCalendar,
         "not_attendee" => CalendarMutationError::NotAttendee,
+        "not_organizer" => CalendarMutationError::NotOrganizer,
         "guests_cannot_invite" => CalendarMutationError::GuestsCannotInvite,
         "guest_list_hidden" => CalendarMutationError::GuestListHidden,
         "guests_cannot_modify" => CalendarMutationError::GuestsCannotModify,
@@ -226,6 +227,7 @@ fn create_body(
         "reminders": draft.reminders,
         "conference": draft.conference,
         "outOfOffice": draft.out_of_office,
+        "guestPolicy": draft.guest_policy,
         "idempotencyKey": draft.idempotency_key,
         "macroCall": macro_call,
     })
@@ -259,6 +261,7 @@ fn update_body(
         "reminders": patch.reminders,
         "conference": patch.conference,
         "outOfOffice": patch.out_of_office,
+        "guestPolicy": patch.guest_policy,
         "scope": scope_name,
         "recurrenceId": recurrence_id,
     })

@@ -342,6 +342,7 @@ async fn retrying_an_acknowledged_creation_adopts_the_assigned_id_without_reinvi
         reminders: None,
         conference: None,
         out_of_office: None,
+        guest_policy: None,
     };
     let first = api.create_event("token", &target, &draft).await.unwrap();
     let replay = api.create_event("token", &target, &draft).await.unwrap();

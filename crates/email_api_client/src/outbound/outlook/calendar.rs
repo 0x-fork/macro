@@ -639,6 +639,8 @@ impl CalendarMutationProvider for OutlookApiClientRepository {
             })),
             conference: draft.conference,
             out_of_office: draft.out_of_office.clone(),
+            // Outlook has no guest policy; the domain refuses one first.
+            guest_policy: None,
         };
         let mut body = patch_body(&patch, None)?;
         let key = creation_provider_id(

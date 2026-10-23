@@ -46,18 +46,12 @@ function emailListsEqual(first: readonly string[], second: readonly string[]) {
 export type EventGuestEditing = 'replace' | 'add' | 'none';
 
 /**
- * Whether the viewer may replace the event's guest list. Only the organizer,
- * the one viewer who may also set the guest policy, does: the editor's list
- * omits a guest's own entry, so a guest's replacement would drop them, and
- * guests add but never remove.
+ * Whether the viewer may replace the event's guest list. Only the organizer
+ * does: the editor's list omits a guest's own entry, so a guest's
+ * replacement would drop them, and guests add but never remove.
  */
 export function viewerReplacesGuests(event: CalendarEvent): boolean {
-  return (
-    !event.isReadOnly &&
-    !event.teamProjection &&
-    event.viewerCan.removeGuests &&
-    event.viewerCan.setGuestPolicy
-  );
+  return !event.isReadOnly && !event.teamProjection && event.viewerCan.organize;
 }
 
 /**

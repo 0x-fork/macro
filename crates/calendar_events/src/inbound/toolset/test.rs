@@ -594,6 +594,7 @@ async fn create_converts_input_into_a_domain_draft() {
         add_conference: true,
         event_type: CalendarEventTypeInput::Default,
         out_of_office: None,
+        guest_policy: None,
     };
     let response = tool.call(context, request_context()).await.unwrap();
     assert_eq!(response.event_id, Uuid::from_u128(7));
@@ -647,6 +648,7 @@ async fn create_maps_out_of_office_input_into_the_draft() {
             auto_decline_mode: Some(AutoDeclineModeInput::DeclineAll),
             decline_message: Some("Away".to_string()),
         }),
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -684,6 +686,7 @@ async fn create_rejects_out_of_office_settings_on_a_default_event() {
         add_conference: false,
         event_type: CalendarEventTypeInput::Default,
         out_of_office: Some(OutOfOfficeInput::default()),
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap_err();
     assert!(mutations.created.lock().unwrap().is_empty());
@@ -714,6 +717,7 @@ async fn create_surfaces_missing_calendar_as_an_actionable_error() {
         add_conference: false,
         event_type: CalendarEventTypeInput::Default,
         out_of_office: None,
+        guest_policy: None,
     };
     let error = tool.call(context, request_context()).await.unwrap_err();
     assert!(
@@ -744,6 +748,7 @@ fn macro_call_tool() -> CreateCalendarEvent {
         add_conference: false,
         event_type: CalendarEventTypeInput::Default,
         out_of_office: None,
+        guest_policy: None,
     }
 }
 
@@ -914,6 +919,7 @@ async fn update_converts_input_into_a_domain_patch() {
         reminders: None,
         rsvp: None,
         out_of_office: None,
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -955,6 +961,7 @@ async fn update_maps_out_of_office_settings_into_the_patch() {
             auto_decline_mode: Some(AutoDeclineModeInput::DeclineNewOnly),
             decline_message: None,
         }),
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -994,6 +1001,7 @@ async fn update_passes_the_selected_occurrence_scope() {
         reminders: None,
         rsvp: None,
         out_of_office: None,
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -1026,6 +1034,7 @@ async fn scoped_update_requires_a_recurrence_id() {
         reminders: None,
         rsvp: None,
         out_of_office: None,
+        guest_policy: None,
     };
     let error = tool.call(context, request_context()).await.unwrap_err();
     assert!(error.description.contains("recurrenceId"));
@@ -1054,6 +1063,7 @@ async fn series_update_rejects_a_stray_recurrence_id() {
         reminders: None,
         rsvp: None,
         out_of_office: None,
+        guest_policy: None,
     };
     let error = tool.call(context, request_context()).await.unwrap_err();
     assert!(error.description.contains("this_event"));
@@ -1085,6 +1095,7 @@ async fn update_carries_reminders_into_the_patch() {
         }),
         rsvp: None,
         out_of_office: None,
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -1124,6 +1135,7 @@ async fn rsvp_alone_answers_without_patching() {
         reminders: None,
         rsvp: Some(RsvpResponseInput::Declined),
         out_of_office: None,
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -1158,6 +1170,7 @@ async fn rsvp_follows_the_occurrence_scope_of_the_call() {
         reminders: None,
         rsvp: Some(RsvpResponseInput::Tentative),
         out_of_office: None,
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -1196,6 +1209,7 @@ async fn update_answers_after_applying_the_patch() {
         reminders: None,
         rsvp: Some(RsvpResponseInput::Accepted),
         out_of_office: None,
+        guest_policy: None,
     };
     tool.call(context, request_context()).await.unwrap();
 
@@ -1222,6 +1236,7 @@ async fn update_without_a_change_or_an_rsvp_is_rejected() {
         reminders: None,
         rsvp: None,
         out_of_office: None,
+        guest_policy: None,
     };
     let error = tool.call(context, request_context()).await.unwrap_err();
     assert!(error.description.contains("changes nothing"));

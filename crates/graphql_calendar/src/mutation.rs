@@ -223,6 +223,10 @@ pub(crate) fn mutation_error(error: CalendarMutationError) -> async_graphql::Err
             "not_attendee",
             "the connected account is not an attendee of this event".into(),
         ),
+        CalendarMutationError::NotOrganizer => (
+            "not_organizer",
+            "Only the organizer can change guest permissions.".into(),
+        ),
         CalendarMutationError::GuestsCannotInvite => (
             "guests_cannot_invite",
             "Only the organizer can invite guests to this event.".into(),

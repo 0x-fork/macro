@@ -25,6 +25,7 @@ const ORGANIZER = {
   removeGuests: true,
   setGuestPolicy: true,
   rsvp: true,
+  organize: true,
 };
 const MODIFYING_GUEST = {
   editDetails: true,
@@ -32,6 +33,7 @@ const MODIFYING_GUEST = {
   removeGuests: true,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 const INVITING_GUEST = {
   editDetails: false,
@@ -39,6 +41,7 @@ const INVITING_GUEST = {
   removeGuests: false,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 const GUEST = {
   editDetails: false,
@@ -46,6 +49,7 @@ const GUEST = {
   removeGuests: false,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 
 function event(overrides: Partial<CalendarEvent>): CalendarEvent {
@@ -91,6 +95,15 @@ describe('eventGuestEditing', () => {
     expect(eventGuestEditing(event({ viewerCan: ORGANIZER }), true)).toBe(
       'replace'
     );
+  });
+
+  it('lets an Outlook organizer replace the guest list without a guest policy to set', () => {
+    expect(
+      eventGuestEditing(
+        event({ viewerCan: { ...ORGANIZER, setGuestPolicy: false } }),
+        true
+      )
+    ).toBe('replace');
   });
 
   it('lets a guest who may invite add guests only while invites are enabled', () => {

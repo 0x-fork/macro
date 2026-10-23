@@ -292,6 +292,7 @@ impl<O: CalendarOccurrenceService, M: CalendarCreationRecoveryService, L: Meetin
             conference: (!event.macro_call && event.google_meet)
                 .then_some(ConferenceChange::ProviderDefault),
             out_of_office: None,
+            guest_policy: None,
         };
         if event.macro_call {
             if event.google_meet {

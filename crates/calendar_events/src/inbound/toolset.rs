@@ -476,6 +476,11 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
         CalendarMutationError::NotAttendee => {
             "The user's connected account is not an attendee of this event.".to_string()
         }
+        CalendarMutationError::NotOrganizer => {
+            "Only the event's organizer can change its guest permissions \
+             (`viewerCan.setGuestPolicy` from ListCalendarEvents), so leave `guestPolicy` out."
+                .to_string()
+        }
         CalendarMutationError::GuestsCannotInvite => {
             "Only the organizer can invite guests to this event: the organizer doesn't let \
              guests invite others, or it is an Outlook meeting, where guests cannot add anyone. \

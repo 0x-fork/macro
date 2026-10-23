@@ -787,6 +787,7 @@ async fn every_failure_carries_its_rest_code_and_hides_provider_details() {
             false,
         ),
         (CalendarMutationError::NotAttendee, "not_attendee", false),
+        (CalendarMutationError::NotOrganizer, "not_organizer", false),
         (
             CalendarMutationError::GuestsCannotInvite,
             "guests_cannot_invite",

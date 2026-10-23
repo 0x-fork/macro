@@ -165,6 +165,7 @@ describe('mapCalendarOccurrence', () => {
       removeGuests: false,
       setGuestPolicy: false,
       rsvp: true,
+      organize: false,
     };
 
     const primary = mapCalendarOccurrence(occurrence, {
@@ -320,6 +321,7 @@ describe('mapCalendarEventToFullCalendar', () => {
       removeGuests: false,
       setGuestPolicy: false,
       rsvp: true,
+      organize: false,
     };
     const source = item([copy('primary')]);
     source.event.viewerCan = guest;

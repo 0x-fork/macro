@@ -2228,6 +2228,16 @@ export const CreateCalendarEvent = z.object({
       z.null(),
     ])
     .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
+      }),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export const UserToolResponseForToolCalendarEvent = z
@@ -2448,6 +2458,16 @@ export const CreateConfirmedCalendarEvent = z.object({
           ])
           .optional(),
         declineMessage: z.union([z.string(), z.null()]).optional(),
+      }),
+      z.null(),
+    ])
+    .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
       }),
       z.null(),
     ])
@@ -9491,6 +9511,7 @@ export const ListCalendarEventsResponse = z.object({
         removeGuests: z.boolean(),
         setGuestPolicy: z.boolean(),
         rsvp: z.boolean(),
+        organize: z.boolean(),
       }),
       calendarId: z.union([z.string().uuid(), z.null()]).optional(),
       copies: z
@@ -9566,6 +9587,7 @@ export const ListCalendarsToolResponse = z.object({
         emailReminders: z.boolean(),
         customRecurrence: z.boolean(),
         resetRsvp: z.boolean(),
+        guestPolicy: z.boolean(),
       }),
       calendarId: z.string().uuid(),
       name: z.string(),
@@ -15751,6 +15773,16 @@ export const UpdateCalendarEvent = z.object({
           ])
           .optional(),
         declineMessage: z.union([z.string(), z.null()]).optional(),
+      }),
+      z.null(),
+    ])
+    .optional(),
+  guestPolicy: z
+    .union([
+      z.object({
+        canModify: z.boolean(),
+        canInviteOthers: z.boolean(),
+        canSeeOtherGuests: z.boolean(),
       }),
       z.null(),
     ])

@@ -8,6 +8,7 @@ import type { UpdateCalendarEventRequestAttendees } from './updateCalendarEventR
 import type { UpdateCalendarEventRequestCalendarId } from './updateCalendarEventRequestCalendarId';
 import type { UpdateCalendarEventRequestConference } from './updateCalendarEventRequestConference';
 import type { UpdateCalendarEventRequestDescription } from './updateCalendarEventRequestDescription';
+import type { UpdateCalendarEventRequestGuestPolicy } from './updateCalendarEventRequestGuestPolicy';
 import type { UpdateCalendarEventRequestLocation } from './updateCalendarEventRequestLocation';
 import type { UpdateCalendarEventRequestOutOfOffice } from './updateCalendarEventRequestOutOfOffice';
 import type { UpdateCalendarEventRequestRecurrenceId } from './updateCalendarEventRequestRecurrenceId';
@@ -31,6 +32,7 @@ more than one calendar. Omit to patch the canonical copy. */
   conference?: UpdateCalendarEventRequestConference;
   /** Replacement description; an empty string clears it. */
   description?: UpdateCalendarEventRequestDescription;
+  guestPolicy?: UpdateCalendarEventRequestGuestPolicy;
   /** Replacement location; an empty string clears it. */
   location?: UpdateCalendarEventRequestLocation;
   outOfOffice?: UpdateCalendarEventRequestOutOfOffice;

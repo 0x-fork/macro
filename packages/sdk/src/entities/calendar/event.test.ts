@@ -42,6 +42,7 @@ const record: CalendarEventRecord = {
     removeGuests: true,
     setGuestPolicy: true,
     rsvp: false,
+    organize: true,
   },
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',

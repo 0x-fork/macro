@@ -87,6 +87,7 @@ const calendar: VisibleCalendar = {
     emailReminders: true,
     removeConference: true,
     resetRsvp: true,
+    guestPolicy: true,
   },
   id: 'primary',
   name: 'My calendar',

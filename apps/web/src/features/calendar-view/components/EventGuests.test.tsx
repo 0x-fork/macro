@@ -7,6 +7,7 @@ import type { CalendarEvent } from '@app/features/calendar/types';
 import type { CalendarAttendee } from '@service-storage/generated/schemas/calendarAttendee';
 import { cleanup, render, screen, waitFor } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventGuests } from './EventGuests';
 
@@ -120,6 +121,7 @@ const MAY_INVITE = {
   removeGuests: false,
   setGuestPolicy: false,
   rsvp: true,
+  organize: false,
 };
 
 function event(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
@@ -299,6 +301,39 @@ describe('adding guests from event details', () => {
 
   it('explains instead of offering the action when the organizer does not let guests invite', () => {
     renderGuests(event({ viewerCan: { ...MAY_INVITE, inviteGuests: false } }));
+
+    expect(screen.queryByRole('button', { name: 'Add guests' })).toBeNull();
+    expect(
+      screen.getByText('Only the organizer can invite guests.')
+    ).toBeTruthy();
+  });
+
+  it('switches to the explanation once the organizer turns inviting off', () => {
+    const [current, setCurrent] = createSignal(event());
+    render(() => {
+      const invites = createGuestInviteController(current, () => true);
+      return (
+        <EventGuests
+          event={current()}
+          invites={invites}
+          closeDetails={vi.fn()}
+        />
+      );
+    });
+    expect(screen.getByRole('button', { name: 'Add guests' })).toBeTruthy();
+
+    // The refetched event after the organizer's save echoes the new policy,
+    // and the server resolves the guest's capabilities from it.
+    setCurrent(
+      event({
+        guestPolicy: {
+          canModify: false,
+          canInviteOthers: false,
+          canSeeOtherGuests: true,
+        },
+        viewerCan: { ...MAY_INVITE, inviteGuests: false },
+      })
+    );
 
     expect(screen.queryByRole('button', { name: 'Add guests' })).toBeNull();
     expect(

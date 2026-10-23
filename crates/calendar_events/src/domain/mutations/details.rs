@@ -57,7 +57,7 @@ fn is_guest_without_modify(capabilities: ViewerCapabilities) -> bool {
 }
 
 /// Whether the patch changes a detail. Reminders and availability are each
-/// guest's own, and the guest list follows its own rules.
+/// guest's own, and the guest list and guest policy follow their own rules.
 fn changes_details(patch: &CalendarEventPatch) -> bool {
     let CalendarEventPatch {
         title,
@@ -71,6 +71,7 @@ fn changes_details(patch: &CalendarEventPatch) -> bool {
         reminders: _,
         conference,
         out_of_office,
+        guest_policy: _,
     } = patch;
     title.is_some()
         || description.is_some()

@@ -327,10 +327,13 @@ pub struct GraphqlCalendarViewerCapabilities {
     invite_guests: bool,
     /// Remove guests.
     remove_guests: bool,
-    /// Change the event's guest policy.
+    /// Change the event's guest policy, which only Google calendars have.
     set_guest_policy: bool,
     /// Answer the invitation.
     rsvp: bool,
+    /// Act as the event's organizer: replace its whole guest list and manage
+    /// its conferencing.
+    organize: bool,
 }
 
 impl From<ViewerCapabilities> for GraphqlCalendarViewerCapabilities {
@@ -341,6 +344,7 @@ impl From<ViewerCapabilities> for GraphqlCalendarViewerCapabilities {
             remove_guests: capabilities.remove_guests,
             set_guest_policy: capabilities.set_guest_policy,
             rsvp: capabilities.rsvp,
+            organize: capabilities.organize,
         }
     }
 }
@@ -619,6 +623,8 @@ pub struct GraphqlCalendarCapabilities {
     remove_conference: bool,
     /// Whether an attendee can reset their RSVP to unanswered.
     reset_rsvp: bool,
+    /// Whether the organizer can set what guests may do.
+    guest_policy: bool,
 }
 
 impl From<CalendarCapabilities> for GraphqlCalendarCapabilities {
@@ -630,6 +636,7 @@ impl From<CalendarCapabilities> for GraphqlCalendarCapabilities {
             email_reminders: capabilities.email_reminders,
             remove_conference: capabilities.remove_conference,
             reset_rsvp: capabilities.reset_rsvp,
+            guest_policy: capabilities.guest_policy,
         }
     }
 }

@@ -29,7 +29,7 @@ use crate::domain::{
     models::{
         AttendeeResponseStatus, CalendarAttendeeInput, CalendarEvent, CalendarEventDraft,
         CalendarEventPatch, ConferenceChange, EventReminders, EventTime, EventTransparency,
-        EventVisibility, OutOfOfficeProperties, VisibleCalendar,
+        EventVisibility, GuestPolicy, OutOfOfficeProperties, VisibleCalendar,
     },
     ports::{
         CalendarDeletionScope, CalendarMutationError, CalendarMutationService, CalendarRsvpScope,
@@ -175,6 +175,10 @@ pub struct CreateCalendarEventRequest {
     /// out-of-office status event (primary calendar only, timed, no
     /// attendees), omitted for a regular event.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// What guests may do; omit for Google's defaults (guests may invite
+    /// others and see the guest list, not modify the event). Google
+    /// calendars only.
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 /// Request body patching an event; omitted fields are left untouched.
@@ -213,6 +217,9 @@ pub struct UpdateCalendarEventRequest {
     /// already out-of-office — the provider event type is immutable. Omit to
     /// leave them untouched.
     pub out_of_office: Option<OutOfOfficeProperties>,
+    /// Replacement guest policy; only the organizer of a Google event may
+    /// change it, for the whole event or series. Omit to leave it untouched.
+    pub guest_policy: Option<GuestPolicy>,
     /// How much of a recurring series the update covers. Omit to let
     /// `recurrenceId` decide: the identified occurrence alone when one is
     /// supplied, otherwise the whole event or series. An explicit
@@ -359,6 +366,8 @@ pub enum CalendarMutationErrorCode {
     NoWritableCalendar,
     /// The connected account is not an attendee of the event.
     NotAttendee,
+    /// Only the organizer may change the event's guest policy.
+    NotOrganizer,
     /// Only the organizer may invite guests: the organizer does not let
     /// guests invite others, or the event is an Outlook meeting.
     GuestsCannotInvite,
@@ -441,6 +450,11 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::CONFLICT,
                 CalendarMutationErrorCode::NotAttendee,
                 "the connected account is not an attendee of this event".to_string(),
+            ),
+            CalendarMutationError::NotOrganizer => (
+                StatusCode::FORBIDDEN,
+                CalendarMutationErrorCode::NotOrganizer,
+                "Only the organizer can change guest permissions.".to_string(),
             ),
             CalendarMutationError::GuestsCannotInvite => (
                 StatusCode::FORBIDDEN,
@@ -576,6 +590,7 @@ where
         reminders: request.reminders,
         conference: request.conference,
         out_of_office: request.out_of_office,
+        guest_policy: request.guest_policy,
     };
     let requester_id: &str = user.authorization.user.macro_user_id.as_ref();
     let event = if request.macro_call {
@@ -708,6 +723,7 @@ where
         reminders: request.reminders,
         conference: request.conference,
         out_of_office: request.out_of_office,
+        guest_policy: request.guest_policy,
     };
     let event = state
         .service

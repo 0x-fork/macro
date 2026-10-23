@@ -978,6 +978,9 @@ pub enum CalendarMutationError {
     /// The connected account is not an attendee of the event.
     #[error("the connected account is not an attendee of this event")]
     NotAttendee,
+    /// Only the organizer may change the event's guest policy.
+    #[error("only the organizer can change guest permissions")]
+    NotOrganizer,
     /// Only the organizer may invite guests: the organizer does not let
     /// guests invite others, or the event is an Outlook meeting, which
     /// gives its attendees no way to change it.

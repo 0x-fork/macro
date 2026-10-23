@@ -117,6 +117,10 @@ export type CalendarCapabilities = {
      */
     emailReminders: boolean;
     /**
+     * Whether the organizer can set what guests may do.
+     */
+    guestPolicy: boolean;
+    /**
      * Whether an existing conference can be detached.
      */
     removeConference: boolean;
@@ -366,7 +370,7 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'guests_cannot_invite' | 'guest_list_hidden' | 'guests_cannot_modify' | 'already_on_calendar' | 'copy_refused' | 'snapshot' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'not_organizer' | 'guests_cannot_invite' | 'guest_list_hidden' | 'guests_cannot_modify' | 'already_on_calendar' | 'copy_refused' | 'snapshot' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
 
 /**
  * Provider selected from the persisted calendar account and email binding.
@@ -494,6 +498,7 @@ export type CreateCalendarEventRequest = {
      * to the requester's primary inbox.
      */
     emailLinkId?: string | null;
+    guestPolicy?: null | GuestPolicy;
     /**
      * Stable retry identity, scoped to the authenticated organizer.
      */
@@ -787,6 +792,7 @@ export type UpdateCalendarEventRequest = {
      * Replacement description; an empty string clears it.
      */
     description?: string | null;
+    guestPolicy?: null | GuestPolicy;
     /**
      * Replacement location; an empty string clears it.
      */
@@ -824,6 +830,11 @@ export type ViewerCapabilities = {
      */
     inviteGuests: boolean;
     /**
+     * Act as the event's organizer: replace its whole guest list and manage
+     * its conferencing.
+     */
+    organize: boolean;
+    /**
      * Remove guests.
      */
     removeGuests: boolean;
@@ -832,7 +843,7 @@ export type ViewerCapabilities = {
      */
     rsvp: boolean;
     /**
-     * Change the event's guest policy.
+     * Change the event's guest policy, which only Google calendars have.
      */
     setGuestPolicy: boolean;
 };

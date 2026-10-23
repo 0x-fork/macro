@@ -11,6 +11,7 @@ import type {
   EventTime,
   EventTransparency,
   EventVisibility,
+  GuestPolicy,
   OutOfOfficeProperties,
   UpdateCalendarEventRequest,
 } from '../../../generated/calendar/types.gen';
@@ -46,6 +47,11 @@ export interface UpdateEventOptions {
   /** Replacement out-of-office properties, applied only to an event that is
    * already out-of-office. */
   outOfOffice?: OutOfOfficeProperties;
+  /** Replacement guest policy; only the organizer of a Google event may change
+   * it (`viewerCan.setGuestPolicy`). It applies to the whole series, so an
+   * update scoped to one occurrence (`scope: 'this_event'`, or a `recurrenceId`)
+   * that changes it is rejected; use scope `'all'`. */
+  guestPolicy?: GuestPolicy;
   /** How much of a recurring series the update covers. Omit to let
    * `recurrenceId` decide. */
   scope?: CalendarUpdateScopeParam;
@@ -311,6 +317,7 @@ function toUpdateBody(options: UpdateEventOptions): UpdateCalendarEventRequest {
     reminders: options.reminders,
     conference: options.conference,
     outOfOffice: options.outOfOffice,
+    guestPolicy: options.guestPolicy,
     scope: options.scope,
     recurrenceId: options.recurrenceId,
     calendarId: options.calendar?.id,

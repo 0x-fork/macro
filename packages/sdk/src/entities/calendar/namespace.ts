@@ -6,6 +6,7 @@ import type {
   EventTime,
   EventTransparency,
   EventVisibility,
+  GuestPolicy,
   OutOfOfficeProperties,
   TeamCalendarSharing,
 } from '../../../generated/calendar/types.gen';
@@ -49,6 +50,8 @@ export interface CreateEventOptions {
   macroCall?: boolean;
   /** Out-of-office properties; present to create an out-of-office event. */
   outOfOffice?: OutOfOfficeProperties;
+  /** What guests may do; omit for Google's defaults. Google calendars only. */
+  guestPolicy?: GuestPolicy;
   /** Exact calendar to create the event on; takes precedence over the inbox
    * default. */
   calendar?: Calendar;
@@ -192,6 +195,7 @@ function toCreateBody(options: CreateEventOptions): CreateCalendarEventRequest {
     conference: options.conference,
     macroCall: options.macroCall,
     outOfOffice: options.outOfOffice,
+    guestPolicy: options.guestPolicy,
     calendarId: options.calendar?.id,
     emailLinkId: options.emailLink?.id,
   };

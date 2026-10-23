@@ -12,6 +12,7 @@ import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/
 import type { EventReminderOverride } from '@service-storage/generated/schemas/eventReminderOverride';
 import type { EventReminders } from '@service-storage/generated/schemas/eventReminders';
 import type { EventType } from '@service-storage/generated/schemas/eventType';
+import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy';
 import {
   addDays,
   addHours,
@@ -104,6 +105,8 @@ export interface EventEditorInitialValues {
   outOfOffice?: EventEditorOutOfOffice;
   /** Event type of the copy `reminders` belong to. Absent for new events. */
   reminderEventType?: EventType;
+  /** What guests may do; absent means Google's defaults. */
+  guestPolicy?: GuestPolicy;
 }
 
 /** Calendar option displayed by the event editor. */
@@ -161,6 +164,8 @@ export interface EventEditorSubmitValues {
    * event that already is.
    */
   outOfOffice?: OutOfOfficeProperties;
+  /** Present only when the user changed what guests may do. */
+  guestPolicy?: GuestPolicy;
 }
 
 export function defaultEditorInitialValues(
@@ -265,6 +270,7 @@ export function calendarEventToEditorInitialValues(
       reminders: event.reminders,
       eventType: event.eventType,
       reminderEventType: event.reminderEventType,
+      guestPolicy: event.guestPolicy,
     };
   }
 
@@ -290,6 +296,7 @@ export function calendarEventToEditorInitialValues(
     reminders: event.reminders,
     eventType: event.eventType,
     reminderEventType: event.reminderEventType,
+    guestPolicy: event.guestPolicy,
   };
 }
 

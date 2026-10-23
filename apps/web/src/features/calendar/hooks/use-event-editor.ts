@@ -104,7 +104,11 @@ interface UseEventEditorProps {
   event: Accessor<CalendarEvent | undefined>;
   onSaved: () => void;
   macroCallsEnabled: Accessor<boolean>;
-  /** Whether a guest the organizer lets invite may add guests; off when omitted. */
+  /**
+   * Whether the guest-invites rollout is on: a guest the organizer lets
+   * invite may add guests, and the organizer may set guest permissions. Off
+   * when omitted.
+   */
   guestInvitesEnabled?: Accessor<boolean>;
 }
 
@@ -312,6 +316,7 @@ export function useEventEditor(props: UseEventEditorProps) {
           ...(needsCall() ? { macroCall: true } : {}),
           ...(values.reminders ? { reminders: values.reminders } : {}),
           ...(values.outOfOffice ? { outOfOffice: values.outOfOffice } : {}),
+          ...(values.guestPolicy ? { guestPolicy: values.guestPolicy } : {}),
         });
         props.onSaved();
         return;
@@ -388,6 +393,11 @@ export function useEventEditor(props: UseEventEditorProps) {
               }
             : {}),
           ...(values.reminders ? { reminders: values.reminders } : {}),
+          ...(values.guestPolicy &&
+          event.viewerCan.setGuestPolicy &&
+          !targetsOneOccurrence
+            ? { guestPolicy: values.guestPolicy }
+            : {}),
         },
       };
       if (Object.keys(updateArgs.patch).length > 0) {
@@ -470,6 +480,10 @@ export function useEventEditor(props: UseEventEditorProps) {
     disabledFields,
     addOnlyGuests: () => guestEditing() === 'add',
     guestsReadOnlyReason,
+    /** The organizer sets what guests may do; a new event is the viewer's own. */
+    guestPolicyEditable: () =>
+      (props.guestInvitesEnabled?.() ?? false) &&
+      (props.event()?.viewerCan.setGuestPolicy ?? true),
     detailsReadOnlyReason: () =>
       detailsLocked() ? GUEST_EDITS_RESTRICTED : undefined,
     calendarOptions,

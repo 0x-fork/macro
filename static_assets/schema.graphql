@@ -91,6 +91,24 @@ input CalendarGuestInput {
 }
 
 """
+What guests may do with an event; Google calendars only.
+"""
+input CalendarGuestPolicyInput {
+	"""
+	Whether guests may change the event; implies inviting others.
+	"""
+	canModify: Boolean!
+	"""
+	Whether guests may invite others.
+	"""
+	canInviteOthers: Boolean!
+	"""
+	Whether guests may see the guest list.
+	"""
+	canSeeOtherGuests: Boolean!
+}
+
+"""
 How far the client has applied one connected inbox's change log.
 """
 input CalendarLinkWatermarkInput {
@@ -492,6 +510,10 @@ input CreateCalendarEventInput {
 	only, timed, no attendees).
 	"""
 	outOfOffice: CalendarOutOfOfficeInput
+	"""
+	What guests may do; omit for Google's defaults.
+	"""
+	guestPolicy: CalendarGuestPolicyInput
 }
 
 """
@@ -1670,6 +1692,10 @@ type GraphqlCalendarCapabilities {
 	Whether an attendee can reset their RSVP to unanswered.
 	"""
 	resetRsvp: Boolean!
+	"""
+	Whether the organizer can set what guests may do.
+	"""
+	guestPolicy: Boolean!
 }
 
 """
@@ -2411,13 +2437,18 @@ type GraphqlCalendarViewerCapabilities {
 	"""
 	removeGuests: Boolean!
 	"""
-	Change the event's guest policy.
+	Change the event's guest policy, which only Google calendars have.
 	"""
 	setGuestPolicy: Boolean!
 	"""
 	Answer the invitation.
 	"""
 	rsvp: Boolean!
+	"""
+	Act as the event's organizer: replace its whole guest list and manage
+	its conferencing.
+	"""
+	organize: Boolean!
 }
 
 """
@@ -10246,6 +10277,11 @@ input UpdateCalendarEventInput {
 	already out-of-office.
 	"""
 	outOfOffice: CalendarOutOfOfficeInput
+	"""
+	Replacement guest policy; only the organizer of a Google event may
+	change it, for the whole event or series.
+	"""
+	guestPolicy: CalendarGuestPolicyInput
 	"""
 	How much of a recurring series the update covers. Omit to let
 	`recurrenceId` decide: the identified occurrence alone when one is

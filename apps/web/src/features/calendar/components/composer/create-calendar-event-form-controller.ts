@@ -1,5 +1,7 @@
 import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/outOfOfficeProperties';
+import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy';
 import { type Accessor, batch, createMemo, createSignal } from 'solid-js';
+import { DEFAULT_GUEST_POLICY } from '../../types';
 import {
   buildReminderOverrides,
   popupMinutes,
@@ -47,6 +49,19 @@ interface EventComposerFormSnapshot {
   eventKind: EventEditorEventKind;
   autoDeclineMode?: EventEditorOutOfOffice['autoDeclineMode'];
   declineMessage: string;
+  guestPolicy: GuestPolicy;
+}
+
+function guestPolicyOf(values: EventEditorInitialValues): GuestPolicy {
+  return values.guestPolicy ?? DEFAULT_GUEST_POLICY;
+}
+
+function guestPoliciesEqual(first: GuestPolicy, second: GuestPolicy) {
+  return (
+    first.canModify === second.canModify &&
+    first.canInviteOthers === second.canInviteOthers &&
+    first.canSeeOtherGuests === second.canSeeOtherGuests
+  );
 }
 
 function normalizedGuestEmails(emails: readonly string[]) {
@@ -91,6 +106,7 @@ function isEventComposerFormDirty(
     initial.eventKind !== current.eventKind ||
     initial.autoDeclineMode !== current.autoDeclineMode ||
     initial.declineMessage !== current.declineMessage ||
+    !guestPoliciesEqual(initial.guestPolicy, current.guestPolicy) ||
     !arraysEqual(
       normalizedGuestEmails(initial.guestEmails),
       normalizedGuestEmails(current.guestEmails)
@@ -125,6 +141,7 @@ function cloneValue(value: EventEditorInitialValues): EventEditorInitialValues {
         }
       : undefined,
     outOfOffice: value.outOfOffice ? { ...value.outOfOffice } : undefined,
+    guestPolicy: value.guestPolicy ? { ...value.guestPolicy } : undefined,
   };
 }
 
@@ -305,6 +322,7 @@ export function createCalendarEventFormController(
       : state().conference,
     reminderMinutes: normalizedReminderMinutes(reminderMinutes()),
     ...outOfOfficeSnapshotFields(state()),
+    guestPolicy: guestPolicyOf(state()),
   });
 
   const initialSnapshot = (): EventComposerFormSnapshot => {
@@ -324,6 +342,7 @@ export function createCalendarEventFormController(
       conference: blanks ? 'none' : initialValue().conference,
       reminderMinutes: normalizedReminderMinutes(initialReminderMinutes()),
       ...outOfOfficeSnapshotFields(initialValue()),
+      guestPolicy: guestPolicyOf(initialValue()),
     };
   };
 
@@ -520,6 +539,13 @@ export function createCalendarEventFormController(
     const current = state();
     const reminders = reminderUpdate();
     const outOfOffice = submittedOutOfOffice();
+    const guestPolicy = guestPolicyOf(current);
+    // Outlook calendars have no guest permissions, so a policy picked before
+    // switching to one is not sent.
+    const guestPolicyChanged =
+      !isOutOfOffice() &&
+      selectedCalendarOption()?.capabilities?.guestPolicy !== false &&
+      !guestPoliciesEqual(guestPolicy, guestPolicyOf(initialValue()));
     const providerConference =
       current.conference === 'macro' ? 'none' : current.conference;
     const initialProviderConference =
@@ -550,6 +576,7 @@ export function createCalendarEventFormController(
       ...(conference ? { conference } : {}),
       ...(reminders ? { reminders } : {}),
       ...(outOfOffice ? { outOfOffice } : {}),
+      ...(guestPolicyChanged ? { guestPolicy } : {}),
     };
   };
 
@@ -587,6 +614,10 @@ export function createCalendarEventFormController(
     isOutOfOffice,
     setEventKind,
     setOutOfOffice,
+    guestPolicy: () => guestPolicyOf(state()),
+    setGuestPolicy: (guestPolicy: GuestPolicy) =>
+      setField('guestPolicy', guestPolicy),
+    resetGuestPolicy: () => setField('guestPolicy', initialValue().guestPolicy),
     setSelectedGuests,
     startForRecurrence: recurrence.startForRecurrence,
     recurrenceChoice: recurrence.recurrenceChoice,

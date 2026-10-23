@@ -7230,7 +7230,8 @@
           "inviteGuests",
           "removeGuests",
           "setGuestPolicy",
-          "rsvp"
+          "rsvp",
+          "organize"
         ],
         "properties": {
           "editDetails": {
@@ -7240,6 +7241,10 @@
           "inviteGuests": {
             "type": "boolean",
             "description": "Add guests."
+          },
+          "organize": {
+            "type": "boolean",
+            "description": "Act as the event's organizer: replace its whole guest list and manage\nits conferencing."
           },
           "removeGuests": {
             "type": "boolean",
@@ -7251,7 +7256,7 @@
           },
           "setGuestPolicy": {
             "type": "boolean",
-            "description": "Change the event's guest policy."
+            "description": "Change the event's guest policy, which only Google calendars have."
           }
         }
       }

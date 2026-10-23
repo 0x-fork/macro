@@ -84,6 +84,7 @@ const savedEvent: CalendarEvent = {
     removeGuests: true,
     setGuestPolicy: true,
     rsvp: false,
+    organize: true,
   },
   attendees: [],
   recurrenceLines: [],
@@ -815,6 +816,7 @@ describe('scheduling a Macro call', () => {
         removeGuests: false,
         setGuestPolicy: false,
         rsvp: true,
+        organize: false,
       },
       attendees: [
         {
@@ -1044,6 +1046,7 @@ describe('guests of an event the viewer was invited to', () => {
     removeGuests: false,
     setGuestPolicy: false,
     rsvp: true,
+    organize: false,
   };
   const mayNotInvite = { ...mayInvite, inviteGuests: false };
   const mayModify = { ...mayInvite, editDetails: true, removeGuests: true };
@@ -1266,6 +1269,117 @@ describe('guests of an event the viewer was invited to', () => {
       expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
         reminders: thirtyMinutes,
       });
+    } finally {
+      dispose();
+    }
+  });
+});
+
+describe('guest permissions', () => {
+  const noInvites = {
+    canModify: false,
+    canInviteOthers: false,
+    canSeeOtherGuests: true,
+  };
+
+  function editorFor(event: CalendarEvent | undefined, invitesEnabled = true) {
+    return createRoot((dispose) => ({
+      editor: useEventEditor({
+        event: () => event,
+        onSaved: vi.fn(),
+        macroCallsEnabled: () => false,
+        guestInvitesEnabled: () => invitesEnabled,
+      }),
+      dispose,
+    }));
+  }
+
+  it('offers guest permissions only with the guest-invites rollout', () => {
+    const { editor, dispose } = editorFor(undefined, false);
+    try {
+      expect(editor.guestPolicyEditable()).toBe(false);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('creates an event with the guest permissions the organizer chose', async () => {
+    const { editor, dispose } = editorFor(undefined);
+    try {
+      expect(editor.guestPolicyEditable()).toBe(true);
+      await editor.save({
+        ...values,
+        conferenceChoice: 'none',
+        guestPolicy: noInvites,
+      });
+      expect(mocks.createEvent.mock.lastCall?.[0].guestPolicy).toEqual(
+        noInvites
+      );
+    } finally {
+      dispose();
+    }
+  });
+
+  it('sends the organizer’s changed guest permissions with the update', async () => {
+    const { editor, dispose } = editorFor({ ...savedEvent, location: '' });
+    try {
+      expect(editor.guestPolicyEditable()).toBe(true);
+      await editor.save({
+        ...values,
+        location: '',
+        description: '',
+        conferenceChoice: 'none',
+        guestEmails: [],
+        guestPolicy: noInvites,
+      });
+      expect(mocks.updateEvent.mock.lastCall?.[0].patch).toEqual({
+        guestPolicy: noInvites,
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it('keeps guest permissions out of a change to one occurrence', async () => {
+    const { editor, dispose } = editorFor({
+      ...savedEvent,
+      location: '',
+      recurrenceLines: ['RRULE:FREQ=WEEKLY'],
+      recurrenceId: '2026-09-22T14:00:00Z',
+    });
+    try {
+      await editor.save(
+        {
+          ...values,
+          location: '',
+          description: '',
+          conferenceChoice: 'none',
+          guestEmails: [],
+          recurrenceLines: ['RRULE:FREQ=WEEKLY'],
+          guestPolicy: noInvites,
+        },
+        'this_event'
+      );
+      expect(mocks.updateEvent).not.toHaveBeenCalled();
+    } finally {
+      dispose();
+    }
+  });
+
+  it('leaves guest permissions to the organizer', () => {
+    const { editor, dispose } = editorFor({
+      ...savedEvent,
+      viewerCan: {
+        editDetails: true,
+        inviteGuests: true,
+        removeGuests: true,
+        setGuestPolicy: false,
+        rsvp: true,
+        organize: false,
+      },
+    });
+    try {
+      expect(editor.guestPolicyEditable()).toBe(false);
     } finally {
       dispose();
     }

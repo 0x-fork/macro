@@ -69,10 +69,13 @@ pub struct ViewerCapabilities {
     pub invite_guests: bool,
     /// Remove guests.
     pub remove_guests: bool,
-    /// Change the event's guest policy.
+    /// Change the event's guest policy, which only Google calendars have.
     pub set_guest_policy: bool,
     /// Answer the invitation.
     pub rsvp: bool,
+    /// Act as the event's organizer: replace its whole guest list and manage
+    /// its conferencing.
+    pub organize: bool,
 }
 
 impl ViewerCapabilities {
@@ -83,6 +86,7 @@ impl ViewerCapabilities {
         remove_guests: false,
         set_guest_policy: false,
         rsvp: false,
+        organize: false,
     };
 
     /// Whether the viewer may do nothing with the event.
@@ -98,7 +102,8 @@ impl ViewerCapabilities {
     /// so the provider accepts the copy, but an answer or a guest added to
     /// it would never reach the meeting. The organizer may do
     /// everything, and so may anyone on a writable event without attendees,
-    /// which is treated as the actor's own. A guest of a Google copy follows
+    /// which is treated as the actor's own, except that only a Google copy
+    /// has a guest policy to set. A guest of a Google copy follows
     /// the event's [`GuestPolicy`]: modify allows everything except changing
     /// the policy, invite allows adding guests, and every guest may answer.
     /// A guest may change the guest list only while it is visible: Google
@@ -157,8 +162,10 @@ impl ViewerCapabilities {
                 edit_details: true,
                 invite_guests: true,
                 remove_guests: true,
-                set_guest_policy: true,
+                set_guest_policy: inbox
+                    .is_some_and(|inbox| inbox.provider == CalendarProvider::Google),
                 rsvp: is_guest,
+                organize: true,
             };
         }
         match inbox {
@@ -176,6 +183,7 @@ impl ViewerCapabilities {
                 remove_guests: policy.can_see_other_guests && policy.can_modify,
                 set_guest_policy: false,
                 rsvp: true,
+                organize: false,
             },
             CalendarProvider::Outlook => Self {
                 rsvp: true,

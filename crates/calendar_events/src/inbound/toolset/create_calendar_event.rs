@@ -16,7 +16,7 @@ use super::{
 };
 use crate::domain::{
     meeting_links::create_event_with_macro_call,
-    models::{CalendarEventDraft, ConferenceChange},
+    models::{CalendarEventDraft, ConferenceChange, GuestPolicy},
     ports::{CalendarMutationService, CalendarOccurrenceService, MeetingLinkProvider},
 };
 
@@ -142,6 +142,16 @@ pub struct CreateCalendarEvent {
     )]
     #[serde(default)]
     pub out_of_office: Option<OutOfOfficeInput>,
+
+    /// What guests may do with the event.
+    #[schemars(
+        description = "What guests may do: `canModify` (change the event; implies \
+                       `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`. Omit for \
+                       the defaults: guests may invite others and see the guest list but not \
+                       modify the event. Google calendars only; an Outlook calendar refuses it."
+    )]
+    #[serde(default)]
+    pub guest_policy: Option<GuestPolicy>,
 }
 
 impl ToolAnnotated for CreateCalendarEvent {
@@ -219,6 +229,7 @@ where
                 .add_conference
                 .then_some(ConferenceChange::ProviderDefault),
             out_of_office,
+            guest_policy: self.guest_policy,
         };
 
         if self.add_macro_call {

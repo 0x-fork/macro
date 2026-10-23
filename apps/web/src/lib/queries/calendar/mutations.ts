@@ -706,6 +706,9 @@ function applyEventPatch(
   const event = patchesCanonical
     ? applyCopyPatch(item.event, patch)
     : { ...item.event };
+  if (patch.guestPolicy && patchesCanonical) {
+    event.guestPolicy = patch.guestPolicy;
+  }
   if (sources.length > 0) {
     event.sources = sources.map((copy) =>
       copy.calendarId === targetCalendarId ? applyCopyPatch(copy, patch) : copy

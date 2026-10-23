@@ -159,6 +159,7 @@ fn draft() -> CalendarEventDraft {
         reminders: None,
         conference: None,
         out_of_office: None,
+        guest_policy: None,
     }
 }
 
@@ -2933,5 +2934,6 @@ async fn outlook_write_pause_rejects_provider_operations_before_fetching_tokens(
 
 mod copy;
 mod details;
+mod guest_policy;
 mod invite;
 mod replacement;

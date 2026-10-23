@@ -6849,6 +6849,10 @@ export interface CreateCalendarEvent {
    * Out-of-office decline behavior, used only when eventType is "out_of_office". Omit to just block the time; set `autoDeclineMode` to "decline_all" or "decline_new_only" to have the calendar integration decline conflicting meetings, optionally with a `declineMessage`.
    */
   outOfOffice?: OutOfOfficeInput | null;
+  /**
+   * What guests may do: `canModify` (change the event; implies `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`. Omit for the defaults: guests may invite others and see the guest list but not modify the event. Google calendars only; an Outlook calendar refuses it.
+   */
+  guestPolicy?: GuestPolicy | null;
 }
 /**
  * An attendee supplied to a calendar tool.
@@ -6902,6 +6906,24 @@ export interface OutOfOfficeInput {
    * Message returned to organizers whose invitations are auto-declined.
    */
   declineMessage?: string | null;
+}
+/**
+ * The switches an organizer sets on an event to bound what its guests may
+ * do. Google omits a switch from the payload while it holds its default.
+ */
+export interface GuestPolicy {
+  /**
+   * Whether guests may change the event, including its guest list.
+   */
+  canModify: boolean;
+  /**
+   * Whether guests may invite others.
+   */
+  canInviteOthers: boolean;
+  /**
+   * Whether guests may see the guest list.
+   */
+  canSeeOtherGuests: boolean;
 }
 /**
  * A calendar event as returned by the create and update tools.
@@ -7117,6 +7139,10 @@ export interface CreateConfirmedCalendarEvent {
    * Out-of-office decline behavior, used only when eventType is "out_of_office". Omit to just block the time; set `autoDeclineMode` to "decline_all" or "decline_new_only" to have the calendar integration decline conflicting meetings, optionally with a `declineMessage`.
    */
   outOfOffice?: OutOfOfficeInput | null;
+  /**
+   * What guests may do: `canModify` (change the event; implies `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`. Omit for the defaults: guests may invite others and see the guest list but not modify the event. Google calendars only; an Outlook calendar refuses it.
+   */
+  guestPolicy?: GuestPolicy | null;
   /**
    * The user's own message approving this specific event, quoted verbatim - for example their "yes, go ahead" in reply to the event you wrote out for them. It is a reply to your draft, never the earlier request that asked you to schedule something: if the user has not yet seen this event, there is nothing to quote here and the tool must not be called. Required: do not paraphrase it, and never supply it yourself.
    */
@@ -10890,13 +10916,18 @@ export interface ViewerCapabilities {
    */
   removeGuests: boolean;
   /**
-   * Change the event's guest policy.
+   * Change the event's guest policy, which only Google calendars have.
    */
   setGuestPolicy: boolean;
   /**
    * Answer the invitation.
    */
   rsvp: boolean;
+  /**
+   * Act as the event's organizer: replace its whole guest list and manage
+   * its conferencing.
+   */
+  organize: boolean;
 }
 /**
  * One calendar's copy of an event synced from several calendars.
@@ -10992,6 +11023,10 @@ export interface CalendarCapabilities {
    * Whether an attendee can reset their RSVP to unanswered.
    */
   resetRsvp: boolean;
+  /**
+   * Whether the organizer can set what guests may do.
+   */
+  guestPolicy: boolean;
 }
 /**
  * Find the coding agents available to the current user. Call this before delegating coding work. Choose an agent using its name, description, instructions, runtime, and model, preferring the user's requested agent or the persona best suited to the repository and task. Returns only available coding agents. If none are available, explain that the user needs to connect or configure a coding agent.
@@ -14877,6 +14912,10 @@ export interface UpdateCalendarEvent {
    * Adjust out-of-office decline behavior; only valid on an event that is already out of office (its event type cannot be changed). Replaces the whole block: set `autoDeclineMode` ("decline_none", "decline_all", or "decline_new_only") and optionally `declineMessage`. Omit to leave it untouched.
    */
   outOfOffice?: OutOfOfficeInput | null;
+  /**
+   * Replace what guests may do: `canModify` (change the event; implies `canInviteOthers`), `canInviteOthers` and `canSeeOtherGuests`, all three required. Only the organizer of a Google event may set it (`viewerCan.setGuestPolicy`), and only with scope "all": it belongs to the whole series. Outlook events have none. Omit to leave it untouched.
+   */
+  guestPolicy?: GuestPolicy | null;
 }
 /**
  * Rename a recorded call or change whether it is shared with the team, as the call's header menu does. Requires edit access to the call; only the call's creator can change team sharing on a finished call. Find calls with ListEntities or NameSearch.

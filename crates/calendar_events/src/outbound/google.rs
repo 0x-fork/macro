@@ -2010,7 +2010,17 @@ fn draft_body(draft: &CalendarEventDraft) -> serde_json::Value {
             serde_json::Value::String(EventTransparency::Opaque.as_str().to_string());
         body["outOfOfficeProperties"] = google_out_of_office_body(out_of_office);
     }
+    if let Some(policy) = draft.guest_policy {
+        google_guest_policy_body(&mut body, policy);
+    }
     body
+}
+
+/// Write the three guest switches, so the stored copy reflects all of them.
+fn google_guest_policy_body(body: &mut serde_json::Value, policy: GuestPolicy) {
+    body["guestsCanModify"] = serde_json::Value::Bool(policy.can_modify);
+    body["guestsCanInviteOthers"] = serde_json::Value::Bool(policy.can_invite_others);
+    body["guestsCanSeeOtherGuests"] = serde_json::Value::Bool(policy.can_see_other_guests);
 }
 
 /// Serialize the `outOfOfficeProperties` block Google requires on an
@@ -2099,6 +2109,9 @@ fn patch_body(patch: &CalendarEventPatch) -> serde_json::Value {
     // already out-of-office event can change.
     if let Some(out_of_office) = &patch.out_of_office {
         body["outOfOfficeProperties"] = google_out_of_office_body(out_of_office);
+    }
+    if let Some(policy) = patch.guest_policy {
+        google_guest_policy_body(&mut body, policy);
     }
     body
 }

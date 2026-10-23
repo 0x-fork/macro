@@ -468,6 +468,81 @@ describe('out of office', () => {
   });
 });
 
+it('submits guest permissions only when they change', () => {
+  const controller = controllerFor(
+    {
+      ...timedRange(3),
+      title: 'Planning',
+      guestPolicy: {
+        canModify: false,
+        canInviteOthers: false,
+        canSeeOtherGuests: true,
+      },
+    },
+    { isEdit: true }
+  );
+  expect(controller.isDirty()).toBe(false);
+  expect(controller.submitValues()?.guestPolicy).toBeUndefined();
+
+  controller.setGuestPolicy({
+    canModify: false,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  });
+  expect(controller.isDirty()).toBe(true);
+  expect(controller.submitValues()?.guestPolicy).toEqual({
+    canModify: false,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  });
+
+  controller.setGuestPolicy({
+    canModify: false,
+    canInviteOthers: false,
+    canSeeOtherGuests: true,
+  });
+  expect(controller.isDirty()).toBe(false);
+  expect(controller.submitValues()?.guestPolicy).toBeUndefined();
+});
+
+it('drops guest permissions picked before switching to a calendar without them', () => {
+  const google = {
+    id: 'work',
+    label: 'Work',
+    color: '#123456',
+    provider: 'google' as const,
+    isPrimary: true,
+    capabilities: {
+      autoDecline: true,
+      emailReminders: true,
+      customRecurrence: true,
+      removeConference: true,
+      resetRsvp: true,
+      guestPolicy: true,
+    },
+  };
+  const outlook = {
+    ...google,
+    id: 'personal',
+    label: 'Personal Outlook',
+    provider: 'outlook' as const,
+    capabilities: { ...google.capabilities, guestPolicy: false },
+  };
+  const controller = controllerFor(
+    { ...timedRange(3), title: 'Planning', calendarId: 'work' },
+    { calendarOptions: () => [google, outlook] }
+  );
+  controller.setGuestPolicy({
+    canModify: true,
+    canInviteOthers: true,
+    canSeeOtherGuests: true,
+  });
+  expect(controller.submitValues()?.guestPolicy).toBeDefined();
+
+  controller.setField('calendarId', 'personal');
+  expect(controller.submitValues()?.guestPolicy).toBeUndefined();
+});
+
 it('preserves a requested conference on an unsupported calendar until the user resolves it', () => {
   const controller = controllerFor(
     { ...timedRange(3), title: 'Meeting', conference: 'google_meet' },
@@ -485,6 +560,7 @@ it('preserves a requested conference on an unsupported calendar until the user r
             customRecurrence: false,
             removeConference: false,
             resetRsvp: false,
+            guestPolicy: false,
           },
         },
       ],
@@ -523,6 +599,7 @@ it('allows unrelated edits to an existing Teams meeting on a calendar without co
             customRecurrence: false,
             removeConference: false,
             resetRsvp: false,
+            guestPolicy: false,
           },
         },
       ],

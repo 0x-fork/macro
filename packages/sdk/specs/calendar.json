@@ -1035,7 +1035,8 @@
           "autoDecline",
           "emailReminders",
           "customRecurrence",
-          "resetRsvp"
+          "resetRsvp",
+          "guestPolicy"
         ],
         "properties": {
           "autoDecline": {
@@ -1060,6 +1061,10 @@
           "emailReminders": {
             "type": "boolean",
             "description": "Whether email reminders are delivered by the provider or Macro."
+          },
+          "guestPolicy": {
+            "type": "boolean",
+            "description": "Whether the organizer can set what guests may do."
           },
           "removeConference": {
             "type": "boolean",
@@ -1348,6 +1353,7 @@
           "read_only",
           "no_writable_calendar",
           "not_attendee",
+          "not_organizer",
           "guests_cannot_invite",
           "guest_list_hidden",
           "guests_cannot_modify",
@@ -1510,6 +1516,17 @@
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Connected inbox whose primary calendar receives the event; defaults\nto the requester's primary inbox."
+          },
+          "guestPolicy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GuestPolicy",
+                "description": "What guests may do; omit for Google's defaults (guests may invite\nothers and see the guest list, not modify the event). Google\ncalendars only."
+              }
+            ]
           },
           "idempotencyKey": {
             "type": ["string", "null"],
@@ -1935,6 +1952,17 @@
             "type": ["string", "null"],
             "description": "Replacement description; an empty string clears it."
           },
+          "guestPolicy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GuestPolicy",
+                "description": "Replacement guest policy; only the organizer of a Google event may\nchange it, for the whole event or series. Omit to leave it untouched."
+              }
+            ]
+          },
           "location": {
             "type": ["string", "null"],
             "description": "Replacement location; an empty string clears it."
@@ -2030,7 +2058,8 @@
           "inviteGuests",
           "removeGuests",
           "setGuestPolicy",
-          "rsvp"
+          "rsvp",
+          "organize"
         ],
         "properties": {
           "editDetails": {
@@ -2040,6 +2069,10 @@
           "inviteGuests": {
             "type": "boolean",
             "description": "Add guests."
+          },
+          "organize": {
+            "type": "boolean",
+            "description": "Act as the event's organizer: replace its whole guest list and manage\nits conferencing."
           },
           "removeGuests": {
             "type": "boolean",
@@ -2051,7 +2084,7 @@
           },
           "setGuestPolicy": {
             "type": "boolean",
-            "description": "Change the event's guest policy."
+            "description": "Change the event's guest policy, which only Google calendars have."
           }
         }
       },

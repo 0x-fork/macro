@@ -95,6 +95,7 @@ export function graphqlEvent(
       removeGuests: false,
       setGuestPolicy: false,
       rsvp: true,
+      organize: false,
     },
     createdAt: '2026-09-01T12:00:00+00:00',
     updatedAt: '2026-09-02T12:00:00.250+00:00',
