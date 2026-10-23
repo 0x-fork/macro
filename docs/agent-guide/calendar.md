@@ -80,8 +80,12 @@ Calendar reads come from the local GraphQL cache when both `enable-graphql-soup`
 and `enable-graphql-calendar` are on (PostHog in production, on by default in dev
 for the calendar flag; set `VITE_ENABLE_GRAPHQL_CALENDAR=false` to test the REST
 path). A range the cache has covered renders with no occurrence request, and a far
-jump fetches only the uncovered weeks. A `refresh_calendar` poke, reconnecting,
-coming online, or returning to the tab runs one `CalendarChanges` delta that
+jump fetches only the uncovered weeks. Cached records survive deploys, so an
+occurrence cached by an older build can lack a field the current one selects;
+a covered range with such occurrences refetches once instead of rendering
+without them (span `calendar.refetch_unreadable_occurrences`). A
+`refresh_calendar` poke, reconnecting, coming online, or returning to the tab
+runs one `CalendarChanges` delta that
 applies edits made elsewhere. RSVPs, edits, deletions, and creates show at once
 through the durable mutation queue: a rejected write rolls back with the usual
 error, and a write made offline stays visible and replays on reconnect. Native
