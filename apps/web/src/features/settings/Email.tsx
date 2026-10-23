@@ -3,7 +3,6 @@ import {
   type TurnOffCalendarTarget,
 } from '@app/features/calendar/components/TurnOffCalendarDialog';
 import { useCalendarUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
-import { openAddInboxDialog } from '@app/features/inbox/AddInboxDialog';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { toast } from '@core/component/Toast/Toast';
 import {
@@ -108,7 +107,9 @@ export function EmailCard(
   const [resyncingIds, setResyncingIds] = createSignal<ReadonlySet<string>>(
     new Set()
   );
-  const [isEmailActionPending, setIsEmailActionPending] = createSignal(false);
+  // Not a disabled state: disabling the opener drops focus to <body>, which
+  // is where closing the provider chooser would then return it.
+  let addingInbox = false;
 
   // The primary inbox is the user's own is_primary link; it sorts to the top
   // and is labelled. Everything else (other own inboxes + delegated/shared) follows.
@@ -122,14 +123,17 @@ export function EmailCard(
     return { primary, others };
   });
 
-  const onConnectEmail = async () => {
-    if (isEmailActionPending()) return;
-    setIsEmailActionPending(true);
+  const connectEmail = async () => {
     try {
-      openAddInboxDialog();
+      await startAddInbox();
     } finally {
-      setIsEmailActionPending(false);
+      addingInbox = false;
     }
+  };
+  const onConnectEmail = () => {
+    if (addingInbox) return;
+    addingInbox = true;
+    fireAndForget(connectEmail(), 'add-inbox');
   };
 
   const handleResyncInbox = async (linkId: string) => {
@@ -171,11 +175,7 @@ export function EmailCard(
           }
         >
           <Show when={!emailActive()}>
-            <ConnectAction
-              label="Connect"
-              onClick={onConnectEmail}
-              disabled={isEmailActionPending()}
-            />
+            <ConnectAction label="Connect" onClick={onConnectEmail} />
           </Show>
           <Show when={props.onOpenSettings}>
             <UiButton
@@ -302,7 +302,7 @@ export function EmailCard(
                   size="md"
                   depth={3}
                   aria-label="Add inbox"
-                  onClick={openAddInboxDialog}
+                  onClick={onConnectEmail}
                 >
                   <PlusIcon class="size-3.5" />
                   Add account

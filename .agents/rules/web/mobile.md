@@ -53,7 +53,10 @@ read their code, and follow that pattern rather than inventing a new one.
   place with a back row.
 - A sheet opened from another sheet stacks on it under its own scrim, which
   shares the sheets' layer (as Dialog's does), so the sheet beneath dims with
-  the page and only the top sheet's handle stands out.
+  the page and only the top sheet's handle stands out. Open it under the
+  sheet's owner (in its component tree, or `openDialog` with `owner`, as
+  `useAddInboxFlow` does): a dialog mounted elsewhere starts its own dismiss
+  stack, so its Cancel, Escape or Back also closes the sheet beneath.
 - Overlays are Kobalte or corvu layers or handle Escape: Android Back sends
   Escape to the top layer. Own back stacks use `useAndroidBackNavigation`.
 - Persistent prompts (`toast.custom` with `persistent`) go to the prompt
