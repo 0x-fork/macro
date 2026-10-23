@@ -10,13 +10,14 @@ import CaretRight from '@phosphor/caret-right.svg';
 import { Key } from '@solid-primitives/keyed';
 import type { JSX } from 'solid-js';
 import { createMemo, createSignal, For, Show } from 'solid-js';
+import { CalendarFilePreview } from '../components/calendar-file-preview';
 import { CalendarInviteCard } from '../components/calendar-invite-card';
 import type { EmailMessageAction } from '../components/message-actions';
 import {
   type CalendarInvitation,
   groupCalendarInvitations,
 } from '../core/calendar-invitation';
-import type { EmailAttachment } from '../core/email-message';
+import { type EmailAttachment, isCalendarFile } from '../core/email-message';
 import { inlineContentIds, normalizeContentId } from '../core/inline-images';
 export interface EmailMessageViewProps {
   message: EmailMessage;
@@ -41,6 +42,7 @@ export interface EmailMessageViewProps {
   onFocus?: (element: HTMLElement) => void;
   onReply?: (action: EmailMessageAction) => void;
   onOpenAttachment?: (attachment: EmailAttachment) => void;
+  onDownloadAttachment?: (attachment: EmailAttachment) => void;
   children?: JSX.Element;
 }
 
@@ -55,6 +57,19 @@ export function EmailMessageView(props: EmailMessageViewProps) {
   const invitationGroups = createMemo(() =>
     groupCalendarInvitations(props.message.calendar_invitations ?? [])
   );
+  // A calendar file whose event the message already shows opens as that
+  // event; any other file goes to the host.
+  const [calendarFile, setCalendarFile] = createSignal<EmailAttachment>();
+  const openAttachment = (attachment: EmailAttachment) => {
+    if (
+      invitationGroups().length > 0 &&
+      isCalendarFile(attachment.filename, attachment.mime_type)
+    ) {
+      setCalendarFile(attachment);
+      return;
+    }
+    props.onOpenAttachment?.(attachment);
+  };
   const renderInvitation = (invitation: CalendarInvitation) =>
     props.renderInvitation ? (
       props.renderInvitation(props.message, invitation)
@@ -225,7 +240,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
                     }}
                     onClick={
                       props.onOpenAttachment
-                        ? () => props.onOpenAttachment?.(attachment)
+                        ? () => openAttachment(attachment)
                         : undefined
                     }
                   />
@@ -266,6 +281,24 @@ export function EmailMessageView(props: EmailMessageViewProps) {
           </Show>
         </div>
         {props.children}
+      </Show>
+      <Show when={calendarFile()}>
+        {(file) => (
+          <CalendarFilePreview
+            fileName={file().filename ?? ''}
+            open
+            onClose={() => setCalendarFile(undefined)}
+            onDownload={
+              props.onDownloadAttachment
+                ? () => props.onDownloadAttachment?.(file())
+                : undefined
+            }
+          >
+            <For each={invitationGroups()}>
+              {(group) => renderInvitation(group.primary)}
+            </For>
+          </CalendarFilePreview>
+        )}
       </Show>
     </MessageCard>
   );

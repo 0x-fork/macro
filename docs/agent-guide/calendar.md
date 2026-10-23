@@ -1117,9 +1117,10 @@ is an accessible disclosure that starts closed and stays open across unchanged
 permission refreshes and window refocus on desktop and mobile; attachments remain below it.
 ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
-parameterized `text/calendar` MIME type. Opening the attachment still shows the
-generic file viewer with download and share actions; the invitation card above
-is the event preview.
+parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
+card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
+works there, and `Download .ics`, which saves the file without adding it to Drive. A calendar
+file with no card (nothing Macro could read) downloads directly.
 Related recurring components are grouped behind their own disclosure. Only mail synced
 after the feature shipped gets a card; older invitations render as plain email.
 A newly arrived scheduling update shows RSVP and Join only once its calendar state has

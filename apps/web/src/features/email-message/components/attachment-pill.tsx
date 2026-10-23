@@ -3,6 +3,7 @@ import X from '@phosphor/x.svg';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import { Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { isCalendarFile } from '../core/email-message';
 
 const mimeToFileExtTypeMap = new Map<string, string>(
   Object.values(FileTypeMap).map((value) => [value.mime, value.extension])
@@ -19,16 +20,13 @@ export function EmailAttachmentPill(props: EmailAttachmentPillProps) {
   let parentDiv!: HTMLDivElement;
 
   const fileType = () => {
+    if (isCalendarFile(props.attachment.fileName, props.attachment.mimeType)) {
+      return 'ics';
+    }
     const mimeType = props.attachment.mimeType
       ?.split(';')[0]
       .trim()
       .toLowerCase();
-    if (
-      props.attachment.fileName.toLowerCase().endsWith('.ics') ||
-      mimeType === 'application/ics'
-    ) {
-      return 'ics';
-    }
     return mimeType ? mimeToFileExtTypeMap.get(mimeType) : undefined;
   };
 

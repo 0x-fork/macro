@@ -32,6 +32,7 @@ export interface EmailThreadViewContext {
     renderOperation?: (message: EmailMessage) => JSX.Element;
     renderAvatar?: (message: EmailMessage) => JSX.Element;
     openAttachment?: (attachment: EmailAttachment) => void;
+    downloadAttachment?: (attachment: EmailAttachment) => void;
   };
 }
 
