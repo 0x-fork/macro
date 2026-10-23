@@ -46,6 +46,8 @@ export interface EventFormProps {
   addOnlyGuests?: boolean;
   /** Why a read-only guest list cannot change. */
   guestsReadOnlyReason?: string;
+  /** The organizer hides the guest list, so the seeded guests are not all of them. */
+  guestListHidden?: boolean;
   /** Whether the viewer may set what guests may do, as the organizer. */
   guestPolicyEditable?: boolean;
   /**
@@ -324,6 +326,7 @@ export function EventForm(props: EventFormProps) {
                 disabled={formIsDisabled()}
                 readOnly={fieldIsReadOnly('guests')}
                 readOnlyReason={props.guestsReadOnlyReason}
+                guestListHidden={props.guestListHidden}
                 currentGuests={
                   props.addOnlyGuests ? controller.initialGuests() : undefined
                 }

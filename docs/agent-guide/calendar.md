@@ -471,8 +471,13 @@ while a guest who may invite gets an add-only guests pill whose additions are se
 invitation on save (other edits are saved first); a guest who may not invite keeps a
 read-only pill that explains why. A guest on an event whose organizer hides the guest list
 may not invite either (`viewerCan.inviteGuests` is false; the route answers 403
-`guest_list_hidden`). To check the refusal state without a Google account, answer
-`POST /events/{id}/guests` with HTTP 403 and code `guests_cannot_invite`.
+`guest_list_hidden`), since that guest's copy lists only themselves and perhaps the organizer:
+the guests row reads `Guest list hidden` instead of a count (so does the editor's read-only
+guests pill), and when the organizer does let guests invite, the explanation reads `Guests
+cannot be added while the organizer hides the guest list.` instead. To check the refusal
+states without a Google account, answer `POST /events/{id}/guests` with HTTP 403 and code
+`guests_cannot_invite` or `guest_list_hidden`; each switches the guest list to its own
+explanation and toast.
 An event that reached several connected inboxes shows one chip per inbox (overlapping;
 tell them apart by calendar color), and each copy answers only for its own inbox: a
 guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when

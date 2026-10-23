@@ -97,6 +97,7 @@ function EventComposerContent(
         disabledFields={editor.disabledFields()}
         addOnlyGuests={editor.addOnlyGuests()}
         guestsReadOnlyReason={editor.guestsReadOnlyReason()}
+        guestListHidden={editor.guestListHidden()}
         guestPolicyEditable={editor.guestPolicyEditable()}
         detailsReadOnlyReason={editor.detailsReadOnlyReason()}
         showRecurringEditNotice={editor.showRecurringEditNotice()}

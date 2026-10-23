@@ -4,6 +4,13 @@ import type { CalendarEvent } from '../types';
 /** Shown where a guest would add guests when the organizer does not allow it. */
 export const GUEST_INVITES_RESTRICTED = 'Only the organizer can invite guests.';
 
+/**
+ * Shown where a guest would add guests when the organizer allows inviting
+ * but hides the guest list; the server refuses with the same words.
+ */
+export const GUEST_LIST_HIDDEN =
+  'Guests cannot be added while the organizer hides the guest list.';
+
 /** Shown where a guest would change the event when the organizer does not allow it. */
 export const GUEST_EDITS_RESTRICTED =
   'Only the organizer can change this event.';
@@ -92,6 +99,35 @@ export function guestInvitesRestricted(event: CalendarEvent): boolean {
     !event.viewerCan.inviteGuests &&
     event.attendees.some((attendee) => attendee.isSelf)
   );
+}
+
+/**
+ * Whether the organizer hides the guest list from the viewer, a guest on
+ * their own copy. Google then gives that copy only the viewer and perhaps the
+ * organizer, so its attendees are not the real guest list.
+ */
+export function guestListHidden(event: CalendarEvent): boolean {
+  return (
+    !event.isSnapshot &&
+    !event.viewerCan.organize &&
+    !event.guestPolicy.canSeeOtherGuests &&
+    event.attendees.some((attendee) => attendee.isSelf)
+  );
+}
+
+/**
+ * Why the viewer's guest list cannot grow, when it is worth saying. Google
+ * would let a guest the organizer lets invite add guests to a hidden list,
+ * but Macro cannot, since a guest's copy of that list is incomplete.
+ */
+export function guestInvitesRestrictedReason(
+  event: CalendarEvent
+): string | undefined {
+  if (!guestInvitesRestricted(event)) return undefined;
+  const policy = event.guestPolicy;
+  return guestListHidden(event) && (policy.canInviteOthers || policy.canModify)
+    ? GUEST_LIST_HIDDEN
+    : GUEST_INVITES_RESTRICTED;
 }
 
 /**

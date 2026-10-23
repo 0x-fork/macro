@@ -3,6 +3,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type InviteCalendarEventGuestsArgs,
   isGuestInviteRefused,
+  isGuestListHiddenRefusal,
   useInviteCalendarEventGuestsMutation,
 } from '@queries/calendar/mutations';
 import type { CalendarInviteScope } from '@service-email/client';
@@ -11,7 +12,8 @@ import { type Accessor, createSignal } from 'solid-js';
 import type { CalendarEvent } from '../types';
 import {
   GUEST_INVITES_RESTRICTED,
-  guestInvitesRestricted,
+  GUEST_LIST_HIDDEN,
+  guestInvitesRestrictedReason,
 } from '../utils/event-guest-editing';
 
 /** Guests an editor sends an invitation to, with the names its toast uses. */
@@ -30,15 +32,15 @@ export function invitationSentMessage(guests: readonly { name: string }[]) {
  * Inviting guests from event details. The editor closes as soon as the
  * invitation goes out, while the mutation shows the new guests as unanswered.
  * The outcome is announced once the provider answers, since that takes
- * seconds. A refusal means the organizer does not let guests invite, which
- * switches the details to their explanation.
+ * seconds. A refusal means the organizer does not let guests invite, or
+ * hides the guest list, which switches the details to that explanation.
  */
 export function createGuestInviteController(
   event: Accessor<CalendarEvent>,
   enabled: Accessor<boolean>
 ) {
   const [editorOpen, setEditorOpen] = createSignal(false);
-  const [refused, setRefused] = createSignal(false);
+  const [refusal, setRefusal] = createSignal<string>();
   const mutation = useInviteCalendarEventGuestsMutation();
 
   const deliver = async (
@@ -57,9 +59,14 @@ export function createGuestInviteController(
       toast.success(sentMessage);
       return;
     }
-    if (isGuestInviteRefused(result.error)) {
-      setRefused(true);
-      toast.failure(GUEST_INVITES_RESTRICTED);
+    const refusedWith = isGuestInviteRefused(result.error)
+      ? GUEST_INVITES_RESTRICTED
+      : isGuestListHiddenRefusal(result.error)
+        ? GUEST_LIST_HIDDEN
+        : undefined;
+    if (refusedWith) {
+      setRefusal(refusedWith);
+      toast.failure(refusedWith);
       return;
     }
     toast.failure('Could not send invitations', {
@@ -74,14 +81,15 @@ export function createGuestInviteController(
       const current = event();
       return (
         enabled() &&
-        !refused() &&
+        !refusal() &&
         !current.isReadOnly &&
         !current.isCancelled &&
         !current.teamProjection &&
         current.viewerCan.inviteGuests
       );
     },
-    restricted: () => refused() || guestInvitesRestricted(event()),
+    /** Why the viewer cannot add guests, shown above the guest list. */
+    restrictedReason: () => refusal() ?? guestInvitesRestrictedReason(event()),
     send: (invitation: GuestInvitation) => {
       if (invitation.guests.length === 0) return;
       if (!navigator.onLine) {

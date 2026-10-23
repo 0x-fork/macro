@@ -43,10 +43,10 @@ import {
   type EventGuestEditing,
   eventGuestEditing,
   GUEST_EDITS_RESTRICTED,
-  GUEST_INVITES_RESTRICTED,
   guestEditsRestricted,
-  guestInvitesRestricted,
+  guestInvitesRestrictedReason,
   guestListChanged,
+  guestListHidden,
   viewerReplacesGuests,
 } from '../utils/event-guest-editing';
 import {
@@ -202,9 +202,7 @@ export function useEventEditor(props: UseEventEditorProps) {
   });
   const guestsReadOnlyReason = () => {
     const event = props.event();
-    return event && guestInvitesRestricted(event)
-      ? GUEST_INVITES_RESTRICTED
-      : undefined;
+    return event && guestInvitesRestrictedReason(event);
   };
   // A refusal means the stored guest policy was newer than the event shown,
   // so the details lock without waiting for the refetch.
@@ -512,6 +510,10 @@ export function useEventEditor(props: UseEventEditorProps) {
     disabledFields,
     addOnlyGuests: () => guestEditing() === 'add',
     guestsReadOnlyReason,
+    guestListHidden: () => {
+      const event = props.event();
+      return event !== undefined && guestListHidden(event);
+    },
     /** The organizer sets what guests may do; a new event is the viewer's own. */
     guestPolicyEditable: () =>
       (props.guestInvitesEnabled?.() ?? false) &&

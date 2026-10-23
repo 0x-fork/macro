@@ -406,6 +406,14 @@ export function isGuestInviteRefused(error: unknown): boolean {
   );
 }
 
+/** Whether an invitation failed because the organizer hides the guest list from the viewer. */
+export function isGuestListHiddenRefusal(error: unknown): boolean {
+  return hasCalendarMutationCode(
+    error,
+    CalendarMutationErrorCode.guest_list_hidden
+  );
+}
+
 /** Whether a write failed because the organizer does not let the viewer change the event. */
 export function isGuestEditRefused(error: unknown): boolean {
   return hasCalendarMutationCode(
@@ -458,7 +466,8 @@ async function inviteCalendarEventGuests(
       span.setAttr('calendar.invite.outcome', 'sent');
       return 'sent';
     } catch (error) {
-      const refused = isGuestInviteRefused(error);
+      const refused =
+        isGuestInviteRefused(error) || isGuestListHiddenRefusal(error);
       span.setAttr('calendar.invite.outcome', refused ? 'refused' : 'failed');
       // Provider messages can quote addresses; record only the category.
       span.error(

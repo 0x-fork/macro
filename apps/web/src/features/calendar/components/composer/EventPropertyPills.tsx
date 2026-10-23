@@ -86,6 +86,11 @@ export interface EventComposerGuestsPillProps {
   /** Why a read-only guest list cannot change, shown as a tooltip. */
   readOnlyReason?: string;
   /**
+   * The organizer hides the guest list, so `selected` holds only the guests
+   * the viewer may see and the pill names the list hidden instead.
+   */
+  guestListHidden?: boolean;
+  /**
    * The event's current guests when the viewer may add guests but not remove
    * them; they stay in `selected` and the editor only adds to them.
    */
@@ -117,7 +122,7 @@ function ReadOnlyEventComposerGuestsPill(props: EventComposerGuestsPillProps) {
       >
         <Popover.Trigger
           disabled={props.disabled}
-          aria-label="Guests"
+          aria-label={props.guestListHidden ? 'Guest list hidden' : 'Guests'}
           aria-readonly="true"
           aria-description={props.readOnlyReason}
           class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48 overflow-hidden')}
@@ -134,7 +139,9 @@ function ReadOnlyEventComposerGuestsPill(props: EventComposerGuestsPillProps) {
                 : 'text-ink-extra-muted'
             )}
           >
-            {guestPropertyLabel(props.selected)}
+            {props.guestListHidden
+              ? 'Guest list hidden'
+              : guestPropertyLabel(props.selected)}
           </span>
           <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted" />
         </Popover.Trigger>
@@ -151,9 +158,11 @@ function ReadOnlyEventComposerGuestsPill(props: EventComposerGuestsPillProps) {
             <Show
               when={props.selected.length > 0}
               fallback={
-                <p class="px-2 py-4 text-center text-sm text-ink-muted">
-                  No guests
-                </p>
+                <Show when={!props.guestListHidden}>
+                  <p class="px-2 py-4 text-center text-sm text-ink-muted">
+                    No guests
+                  </p>
+                </Show>
               }
             >
               <div class="flex max-h-64 flex-col overflow-y-auto">

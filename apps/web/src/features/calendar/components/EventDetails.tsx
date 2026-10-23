@@ -636,11 +636,14 @@ export function EventDetails(props: {
  * email-guests pair Google Calendar puts there — rendered beside the
  * disclosure trigger rather than inside it, since a button cannot nest one.
  * `notice` is a muted line above the list, such as why it cannot grow.
+ * `guestListHidden` replaces the count, which would only count the guests
+ * the organizer lets the viewer see.
  */
 export function EventAttendeesSection(props: {
   attendees: CalendarAttendee[];
   actions?: JSX.Element;
   notice?: string;
+  guestListHidden?: boolean;
 }) {
   return (
     <Show when={props.attendees.length > 0}>
@@ -652,8 +655,9 @@ export function EventAttendeesSection(props: {
           <Collapsible.Trigger class="group flex min-w-0 flex-1 items-center gap-4 py-4 pl-4 pr-2 text-left hover:bg-hover hover:text-ink sm:gap-3">
             <UsersIcon class="size-5 shrink-0 text-ink-extra-muted sm:size-4" />
             <span>
-              {props.attendees.length}{' '}
-              {plural('attendee', props.attendees.length)}
+              {props.guestListHidden
+                ? 'Guest list hidden'
+                : `${props.attendees.length} ${plural('attendee', props.attendees.length)}`}
             </span>
             <CaretDownIcon
               aria-hidden="true"
