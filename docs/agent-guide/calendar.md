@@ -124,7 +124,10 @@ new session from the same meeting link must start a separate chat thread.
 
 
 Calendar event creation and editing open in a bottom sheet on touch devices,
-with scrollable content above the keyboard. Desktop retains the centered dialog.
+with scrollable content above the keyboard. When the form outgrows the sheet, as
+it does with the custom repeat builder open, the sheet scrolls down to the
+footer: Cancel and `Create event` or `Save`, plus `This event`/`All events` when
+editing a recurring event. Desktop retains the centered dialog.
 Dismissing a changed event still asks before discarding the draft.
 
 On phones, event details use inset round action buttons and a transparent RSVP
