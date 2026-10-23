@@ -454,8 +454,6 @@ export const createAppViteConfig = (): UserConfigFn => {
         ...localDevServer(process.env),
         cors: true,
         watch: {
-          usePolling: true,
-          interval: 100,
           ignored: /(^|[\\/])target([\\/]|$)/,
         },
         fs: {
