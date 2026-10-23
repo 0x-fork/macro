@@ -3,7 +3,7 @@ use crate::domain::event_runs::{
     AuthorizedEventRun, ClaimToken, ConfigurationRevision, PendingEventRun,
 };
 use crate::domain::event_trigger::EventReference;
-use crate::domain::models::{ActionKind, ExecutionResourceType};
+use crate::domain::models::{ActionKind, ExecutionResourceType, RunVisibility};
 use entity_access::domain::models::{EntityAccessReceipt, ViewAccessLevel};
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::{Uuid, generate_uuid_v7};
@@ -330,6 +330,7 @@ fn action() -> ScheduledAction {
         event_activated_at: None,
         created_at: Utc::now(),
         updated_at: Utc::now(),
+        run_visibility: RunVisibility::Unlisted,
     }
 }
 fn executor(repo: Repo, runner: Runner) -> InProcessExecutor<Repo, Live, Runner> {

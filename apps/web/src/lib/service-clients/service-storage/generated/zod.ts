@@ -27952,6 +27952,12 @@ export const getItemsSoupResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -27977,6 +27983,12 @@ export const getItemsSoupResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -32595,6 +32607,12 @@ export const postItemsSoupResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -32620,6 +32638,12 @@ export const postItemsSoupResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -36714,6 +36738,12 @@ export const postItemsSoupAstResponse = zod
                       .describe(
                         'The repository the session works with, when one was selected.'
                       ),
+                    source: zod
+                      .enum(['user', 'agent', 'routine'])
+                      .optional()
+                      .describe(
+                        "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                      ),
                     status: zod
                       .string()
                       .describe(
@@ -36739,6 +36769,12 @@ export const postItemsSoupAstResponse = zod
                       .nullish()
                       .describe(
                         'The time the session was last viewed by the requesting user'
+                      ),
+                    visibility: zod
+                      .enum(['listed', 'unlisted', 'hidden'])
+                      .optional()
+                      .describe(
+                        "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                       ),
                     workingBranch: zod
                       .string()
@@ -41250,6 +41286,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .describe(
                               'The repository the session works with, when one was selected.'
                             ),
+                          source: zod
+                            .enum(['user', 'agent', 'routine'])
+                            .optional()
+                            .describe(
+                              "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                            ),
                           status: zod
                             .string()
                             .describe(
@@ -41275,6 +41317,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .nullish()
                             .describe(
                               'The time the session was last viewed by the requesting user'
+                            ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted', 'hidden'])
+                            .optional()
+                            .describe(
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()
@@ -45348,6 +45396,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .describe(
                               'The repository the session works with, when one was selected.'
                             ),
+                          source: zod
+                            .enum(['user', 'agent', 'routine'])
+                            .optional()
+                            .describe(
+                              "Who started an agent session. The string form is the\n`agent_session.source` column's."
+                            ),
                           status: zod
                             .string()
                             .describe(
@@ -45373,6 +45427,12 @@ export const postItemsSoupAstGroupedResponse = zod
                             .nullish()
                             .describe(
                               'The time the session was last viewed by the requesting user'
+                            ),
+                          visibility: zod
+                            .enum(['listed', 'unlisted', 'hidden'])
+                            .optional()
+                            .describe(
+                              "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's."
                             ),
                           workingBranch: zod
                             .string()

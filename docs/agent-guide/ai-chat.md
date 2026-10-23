@@ -359,6 +359,11 @@ the shimmer.
   Right-click (or long-press on mobile) opens the same entity menu as Home:
   Rename, Favorite, Copy link, Share, Archive, Delete, and the other session
   actions. Archived sessions are grouped at the bottom under **Archived**.
+  Runs of routines set to **Hide runs** (the default) are left out until the
+  clock button beside the search control (**Show hidden routine runs**) is
+  pressed; runs of routines set to **Show runs** are always listed. Every
+  routine run carries the same clock icon after its age. The list starts
+  without hidden runs each time the Agents view opens.
 - The agent composer's **+ (Add)** menu offers **Add photos & files**,
   **Add from library** (`@` references), and **Use a skill** (`/`; sessions show
   **Skills & commands**). Desktop uses a scrollable menu; phones use a bottom

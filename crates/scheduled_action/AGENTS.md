@@ -61,6 +61,13 @@ that listener is ready. Cancellation can stop the gate before startup finishes.
 
 - `TODO.md` tracks open follow-ups (unified history list, delete schedules,
   sharing/permissions) — check it before assuming a listed gap is unintentional.
+- A new configuration field needs `#[serde(default)]` in `ActionConfiguration`
+  and an `Option` in `ActionConfigurationUpdate` that keeps the stored value
+  (both reject unknown fields, and older clients omit it), plus every query in
+  `pg_scheduled_action_repo.rs` and the event-run claim in `pg_event_run_repo.rs`,
+  which builds its own `ScheduledAction`.
+- `run_visibility` is copied onto each run's agent session when the run is
+  prepared, so changing it affects later runs only.
 
 ## Related
 

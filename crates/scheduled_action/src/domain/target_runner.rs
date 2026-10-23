@@ -4,7 +4,7 @@ use std::{sync::Arc, time::Duration};
 
 use agent_runtime_protocol::domain::action::AgentActionId;
 use agent_session::domain::{
-    model::AgentSessionId,
+    model::{AgentSessionId, SessionSource},
     routines::{
         PrepareRoutineSession, PromptRoutineSession, RoutineActionStatus, RoutineSessionAction,
         RoutineSessionError, RoutineSessions, ValidateRoutineSession,
@@ -63,6 +63,8 @@ impl<Sessions: RoutineSessions, Events: RoutineEventReader> ScheduledAgentRunner
                     model: model.map(|model| model.as_str().to_owned()),
                 },
                 session_id: identity.session_id,
+                source: SessionSource::Routine,
+                visibility: action.run_visibility.into(),
             })
             .await;
         match prepared {

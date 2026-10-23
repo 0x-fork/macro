@@ -747,12 +747,20 @@ columns. The search field sits below the top bar, as in Projects; search by name
 creator, or model/agent, or press **Cmd/Ctrl+F** to focus it. **Create Routine** sits
 to the right of search. Click a row to open its settings in the same pane. Toggle
 the **Enabled** checkbox property directly in the list to pause or resume it.
-Open the routine and use its **Run History** tab to see past runs.
+Open the routine and use its **Run History** tab to see past runs. Each run is its
+own agent session. The routine's **Runs hidden** / **Runs shown** chip decides
+where its runs appear. **Hide runs** (the default) keeps them off Home and out of
+the Agents sidebar until **Show hidden routine runs** is pressed. **Show runs**
+lists them on Home and in Agents like the owner's own sessions. The setting
+applies to runs that start after it changes. A run that finishes normally sends
+no notification; a failed or cut-short run, a question the agent asks, a held tool
+approval, and people the routine's prompt mentions still notify.
 
 **Create → Routine** (U) and **Create Routine** open the same popover host as task
 and project creation. Enter a name and instructions, then choose a model or agent
 with the first property chip below the prompt. **Add trigger** follows it; each
 saved trigger becomes a chip, with another **Add trigger** always at the end.
+The last chip, **Runs hidden**, opens **Hide runs** / **Show runs**.
 **Start enabled** controls whether the saved routine starts listening immediately. **Create routine** opens
 its details inside the Agents pane, retaining the sidebar. Creation has no history
 tab or templates. Unsaved drafts are retained for three minutes.
@@ -801,7 +809,8 @@ to remove it. The routine's top bar uses the task breadcrumb layout:
 **Routines → routine name**, followed by the three-dot menu for duplication and
 deletion. Tabs immediately beside that menu switch between **Overview** and
 **Run History**. Overview follows the project home layout: an editable title,
-a model property chip, and a plain prompt editor. A trigger card sits below the
+a model property chip and the **Runs hidden** / **Runs shown** chip, and a plain
+prompt editor. A trigger card sits below the
 model: trigger chips at the top left, **Run now** at the top right, and the
 **Enabled** / **Disabled** status with **Next run** along the bottom.
 The **Run options** dropdown contains

@@ -43,6 +43,7 @@ function toRoutine(schedule: ScheduledAction): RoutineSnapshot {
       schedule.kind,
       schedule.trigger,
       schedule.task,
+      schedule.run_visibility,
     ]),
     draft: draftFromSchedule(schedule),
   };

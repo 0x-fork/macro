@@ -5,7 +5,8 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import ClockIcon from '@phosphor/clock.svg';
 import { cn, EntityComposer, Layer, TabSelector } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
-import type { ScheduleDraft } from '../core/draft';
+import { DEFAULT_RUN_VISIBILITY, type ScheduleDraft } from '../core/draft';
+import { RoutineRunVisibility } from './routine-run-visibility';
 
 /** A project-style overview and full-width run list, inside the current pane. */
 export function RoutineEditor(props: {
@@ -135,6 +136,12 @@ export function RoutineEditor(props: {
             >
               <EntityComposer.Properties aria-label="Routine properties">
                 {props.executionPicker}
+                <RoutineRunVisibility
+                  value={props.draft.runVisibility ?? DEFAULT_RUN_VISIBILITY}
+                  onChange={(runVisibility) =>
+                    props.onChange((draft) => ({ ...draft, runVisibility }))
+                  }
+                />
               </EntityComposer.Properties>
             </fieldset>
             <Layer depth={1}>

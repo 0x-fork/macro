@@ -758,6 +758,16 @@ function makeGraphqlFilters(body: AstBody): GraphqlEntityFilterAstInput {
         if (field === 'inc' && value === true) return { include: true };
         if (field === 'id' && typeof value === 'string') return { id: value };
         if (field === 'o' && typeof value === 'string') return { owner: value };
+        if (field === 'src' && value === 'user') return { source: 'USER' };
+        if (field === 'src' && value === 'agent') return { source: 'AGENT' };
+        if (field === 'src' && value === 'routine')
+          return { source: 'ROUTINE' };
+        if (field === 'vis' && value === 'listed')
+          return { visibility: 'LISTED' };
+        if (field === 'vis' && value === 'unlisted')
+          return { visibility: 'UNLISTED' };
+        if (field === 'vis' && value === 'hidden')
+          return { visibility: 'HIDDEN' };
         return unsupported(`agent session literal ${field}`);
       }
     );

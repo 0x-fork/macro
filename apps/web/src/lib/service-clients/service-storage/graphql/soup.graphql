@@ -119,6 +119,8 @@ fragment SoupItemPreviewFields on GraphqlSoupEntity {
 			avatarUrl
 		}
 		threadId
+		source
+		visibility
 		status
 		createdAt
 		updatedAt

@@ -6,7 +6,7 @@ use super::*;
 use crate::domain::event_runs::ClaimToken;
 use crate::domain::models::{
     ActionConfigurationUpdate, ActionKind, ExecutionResource, ExecutionResourceType,
-    MAX_ACTION_TIME,
+    MAX_ACTION_TIME, RunVisibility,
 };
 use crate::domain::{
     execution::ExecutionHandle,
@@ -299,6 +299,7 @@ pub(crate) fn configuration(events: bool) -> ActionConfiguration {
         kind: ActionKind::Agent,
         task: json!({"model": "model", "prompt": "summarize", "user_prompt": "task"}),
         enabled: true,
+        run_visibility: RunVisibility::Unlisted,
     }
 }
 
@@ -310,6 +311,7 @@ fn update(config: ActionConfiguration) -> UpdateScheduledAction {
         kind: config.kind,
         task: config.task,
         enabled: Some(config.enabled),
+        run_visibility: Some(config.run_visibility),
     })
 }
 
@@ -931,6 +933,7 @@ fn claim_expiry_instant_still_blocks_replacement() {
         claimed: Some(claimed),
         next_run_at: None,
         enabled: true,
+        run_visibility: RunVisibility::Unlisted,
     };
     let expires_at = action
         .claim_expires_at()
@@ -999,6 +1002,7 @@ fn seeded(
         claimed: None,
         next_run_at: None,
         enabled: true,
+        run_visibility: RunVisibility::Unlisted,
     }
 }
 

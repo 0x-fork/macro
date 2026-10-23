@@ -1361,6 +1361,16 @@ input GraphqlAgentSessionLiteral @oneOf {
 	(`bot|<uuid>`), or a team (a bare hyphenated uuid).
 	"""
 	owner: String
+	"""
+	Who started the session. Narrows the sessions a query asks for; it
+	does not opt the query in.
+	"""
+	source: GraphqlAgentSessionSource
+	"""
+	Whether the session is listed. Narrows the sessions a query asks for;
+	it does not opt the query in.
+	"""
+	visibility: GraphqlAgentSessionVisibility
 }
 
 """
@@ -1503,6 +1513,44 @@ type GraphqlAgentSessionSettledMetadata {
 	The agent's last prose in the turn.
 	"""
 	excerpt: String
+}
+
+"""
+Who started an agent session: filter input, and the field Soup returns.
+"""
+enum GraphqlAgentSessionSource {
+	"""
+	A person, directly or through something they did.
+	"""
+	USER
+	"""
+	Another agent, which dispatched the session on its owner's behalf.
+	"""
+	AGENT
+	"""
+	A routine's unattended run.
+	"""
+	ROUTINE
+}
+
+"""
+Where an agent session is shown: filter input, and the field Soup returns.
+"""
+enum GraphqlAgentSessionVisibility {
+	"""
+	Shown wherever the owner's sessions are.
+	"""
+	LISTED
+	"""
+	Left out of Home and the default Agents list, but a filter can still
+	ask for it; a routine's setting decides it for each of its runs.
+	"""
+	UNLISTED
+	"""
+	Out of every list and search; only a query naming the session's id
+	returns it.
+	"""
+	HIDDEN
 }
 
 """
@@ -6933,6 +6981,14 @@ type GraphqlSoupAgentSession implements GraphqlSoupEntity {
 	The channel thread the session was opened from, when any.
 	"""
 	threadId: ID
+	"""
+	Who started the session.
+	"""
+	source: GraphqlAgentSessionSource!
+	"""
+	Where the session is shown.
+	"""
+	visibility: GraphqlAgentSessionVisibility!
 	"""
 	The session's last known status: `no_messages`, `disconnected`, or the
 	wire name of the most recent system event (for example `session/end`).

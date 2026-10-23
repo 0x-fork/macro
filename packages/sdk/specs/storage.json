@@ -19389,6 +19389,16 @@
         ],
         "description": "Events publishable to [`MacroAgentSessionLifecycleTopic`].\n\nThe serde tag and [`AgentSessionLifecycleEventName`] spell the same wire\nnames: subscribers filter on them, so they are API. The\n`event_names_match_the_wire` test holds the two in step. Exhaustive on\npurpose: a consumer's match should break when a variant is added."
       },
+      "AgentSessionSource": {
+        "type": "string",
+        "description": "Who started an agent session. The string form is the\n`agent_session.source` column's.",
+        "enum": ["user", "agent", "routine"]
+      },
+      "AgentSessionVisibility": {
+        "type": "string",
+        "description": "Where an agent session is shown. The string form is the\n`agent_session.visibility` column's.",
+        "enum": ["listed", "unlisted", "hidden"]
+      },
       "AgentTyping": {
         "type": "object",
         "description": "An agent session typing through its bot.",
@@ -36951,6 +36961,10 @@
           "session_name": {
             "type": "string",
             "description": "User-facing session name at the time of the event."
+          },
+          "source": {
+            "$ref": "#/components/schemas/SessionSource",
+            "description": "Who started the session. Events from before it was recorded say\nnothing and read as a person."
           }
         }
       },
@@ -37043,6 +37057,11 @@
             ]
           }
         }
+      },
+      "SessionSource": {
+        "type": "string",
+        "description": "Who started a session. Stored on the session and carried by its lifecycle\nevents, so lists and notifications can treat unattended runs differently.",
+        "enum": ["user", "agent", "routine"]
       },
       "SessionStoppedMetadata": {
         "type": "object",
@@ -37655,6 +37674,10 @@
                 "type": ["string", "null"],
                 "description": "The repository the session works with, when one was selected."
               },
+              "source": {
+                "$ref": "#/components/schemas/AgentSessionSource",
+                "description": "Who started the session"
+              },
               "status": {
                 "type": "string",
                 "description": "The session's last known status.\n\n`no_messages` until the first system event arrives, `disconnected` if\nthe connection dropped without a clean close, otherwise the wire name\nof the most recent system event (for example `session/end`)."
@@ -37677,6 +37700,10 @@
                 "type": ["string", "null"],
                 "format": "date-time",
                 "description": "The time the session was last viewed by the requesting user"
+              },
+              "visibility": {
+                "$ref": "#/components/schemas/AgentSessionVisibility",
+                "description": "Where the session is shown"
               },
               "workingBranch": {
                 "type": ["string", "null"],

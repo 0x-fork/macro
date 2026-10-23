@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, owner, name, schedule, kind, timezone, task, claimed, created_at,\n                   updated_at, next_run_at, enabled, trigger_type, event_filters,\n                   configuration_revision, event_activated_at, trigger_config\n            FROM scheduled_action\n            WHERE enabled AND trigger_type IN ('cron', 'multiple') AND next_run_at IS NOT NULL\n              AND (claimed IS NULL OR claimed < $1)\n            ORDER BY next_run_at ASC, id ASC\n            LIMIT $2\n            ",
+  "query": "\n            SELECT id, owner, name, schedule, kind, timezone, task, claimed, created_at,\n                   updated_at, next_run_at, enabled, trigger_type, event_filters,\n                   configuration_revision, event_activated_at, trigger_config, run_visibility\n            FROM scheduled_action\n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -87,12 +87,16 @@
         "ordinal": 16,
         "name": "trigger_config",
         "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 17,
+        "name": "run_visibility",
+        "type_info": "Text"
       }
     ],
     "parameters": {
       "Left": [
-        "Timestamptz",
-        "Int8"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -112,8 +116,9 @@
       true,
       false,
       true,
-      true
+      true,
+      false
     ]
   },
-  "hash": "3b8229ca848b33e5086675daf04646b155cd5078be1ad2d7ba4db470e41dc27c"
+  "hash": "25e8d0c6107cbed40084681e520b4efbe35b59a902abe83e021856bf53edc8f2"
 }

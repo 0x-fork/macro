@@ -151,7 +151,8 @@ impl<Rpo: ScheduledActionRepo, Exe, Grants, Targets>
         let configuration_changed = trigger_changed
             || action.name != input.name
             || action.kind != input.kind
-            || action.task != input.task;
+            || action.task != input.task
+            || action.run_visibility != input.run_visibility;
         let disable_only = !input.enabled && !configuration_changed;
         // A rollout gate must not prevent an owner from stopping an existing
         // event action. Deletion, history and explicit manual runs also remain available.
@@ -187,6 +188,7 @@ impl<Rpo: ScheduledActionRepo, Exe, Grants, Targets>
         action.kind = input.kind;
         action.task = input.task;
         action.enabled = input.enabled;
+        action.run_visibility = input.run_visibility;
         action.updated_at = now;
 
         let updated = self.repo.update_action(action).await?;
@@ -318,6 +320,7 @@ where
                 kind: input.kind,
                 task: input.task,
                 enabled: input.enabled,
+                run_visibility: input.run_visibility,
                 created_at: now,
                 updated_at: now,
                 configuration_revision: ConfigurationRevision::INITIAL,
@@ -355,7 +358,7 @@ where
         input: UpdateScheduledAction,
     ) -> Result<ScheduledAction> {
         let action = self.load_granted(&receipt).await?;
-        let input = input.into_configuration(action.enabled);
+        let input = input.into_configuration(&action);
         self.replace_configuration(action, input).await
     }
 
@@ -374,6 +377,7 @@ where
             kind: action.kind.clone(),
             task: action.task.clone(),
             enabled,
+            run_visibility: action.run_visibility,
         };
         self.replace_configuration(action, input).await
     }

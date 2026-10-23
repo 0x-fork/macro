@@ -169,7 +169,10 @@ fn command(operation: &str) -> Value {
     });
     match operation {
         "validate" => selection,
-        "prepare" => json!({ "selection": selection, "session_id": Uuid::now_v7() }),
+        "prepare" => json!({
+            "selection": selection, "session_id": Uuid::now_v7(),
+            "source": "routine", "visibility": "unlisted",
+        }),
         "prompt" => json!({ "action": action, "prompt": "private routine instructions" }),
         _ => action,
     }
