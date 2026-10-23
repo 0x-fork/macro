@@ -4,13 +4,34 @@ Page request for the authenticated user's activity feed.
 input ActivityFeedInput {
 	"""
 	Opaque cursor from the previous page's `nextCursor`; absent for the
-	first page.
+	first page. Pass it back with the same `scope`.
 	"""
 	cursor: String
 	"""
 	Page size; defaults to 25, capped at 100.
 	"""
 	limit: Int
+	"""
+	Whose activity to read; defaults to the user's own.
+	"""
+	scope: ActivityFeedScope! = MINE
+}
+
+"""
+Whose activity an activity feed page reads.
+"""
+enum ActivityFeedScope {
+	"""
+	The authenticated user's own activity, delegated actions included.
+	"""
+	MINE
+	"""
+	Activity by the authenticated user's teammates, on entities shared
+	with the user (link sharing alone does not count; forms never). A
+	page may hold fewer items than its limit, or none, while
+	`nextCursor` is set: keep paging until it is absent.
+	"""
+	TEAM
 }
 
 """
@@ -1151,7 +1172,7 @@ type GraphqlActivityOverview {
 }
 
 """
-One page of the authenticated user's activity, newest first.
+One page of activity, newest first.
 """
 type GraphqlActivityPage {
 	"""
@@ -9202,8 +9223,9 @@ type GraphqlUser {
 	"""
 	folders: [GraphqlSoupProject!]!
 	"""
-	A page of the authenticated user's own activity, newest first.
-	Delegated actions performed on the user's behalf are included.
+	A page of activity, newest first: by default the authenticated
+	user's own, delegated actions included; in the `TEAM` scope, their
+	teammates' activity on entities shared with the user.
 	"""
 	activity(input: ActivityFeedInput!): GraphqlActivityPage!
 	"""

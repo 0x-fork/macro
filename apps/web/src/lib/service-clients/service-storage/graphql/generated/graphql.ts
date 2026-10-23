@@ -7,12 +7,26 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
 export type ActivityFeedInput = {
   /**
    * Opaque cursor from the previous page's `nextCursor`; absent for the
-   * first page.
+   * first page. Pass it back with the same `scope`.
    */
   cursor?: string | null | undefined;
   /** Page size; defaults to 25, capped at 100. */
   limit?: number | null | undefined;
+  /** Whose activity to read; defaults to the user's own. */
+  scope?: ActivityFeedScope;
 };
+
+/** Whose activity an activity feed page reads. */
+export type ActivityFeedScope =
+  /** The authenticated user's own activity, delegated actions included. */
+  | 'MINE'
+  /**
+   * Activity by the authenticated user's teammates, on entities shared
+   * with the user (link sharing alone does not count; forms never). A
+   * page may hold fewer items than its limit, or none, while
+   * `nextCursor` is set: keep paging until it is absent.
+   */
+  | 'TEAM';
 
 /** Request for the authenticated user's trailing-year activity overview. */
 export type ActivityOverviewInput = {

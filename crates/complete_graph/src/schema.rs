@@ -776,8 +776,9 @@ where
         resolve_folders(ctx, &self.user_id).await
     }
 
-    /// A page of the authenticated user's own activity, newest first.
-    /// Delegated actions performed on the user's behalf are included.
+    /// A page of activity, newest first: by default the authenticated
+    /// user's own, delegated actions included; in the `TEAM` scope, their
+    /// teammates' activity on entities shared with the user.
     async fn activity(
         &self,
         ctx: &Context<'_>,

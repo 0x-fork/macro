@@ -563,6 +563,10 @@ pub trait EntityAccessService: Clone + Send + Sync + 'static {
     /// access or inherited access through the project hierarchy via `entity_access`.
     /// For Channel: returns active channel participants.
     /// Returns `AccessError::BadRequest` for unsupported types (Team, User).
+    ///
+    /// The activity team feed applies this audience in SQL
+    /// (`crates/activity/src/outbound/pg_activity_repo/team_feed.sql`); keep
+    /// the two in step.
     fn get_users_by_entity(
         &self,
         entity_id: &str,
