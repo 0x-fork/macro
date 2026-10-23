@@ -3,6 +3,7 @@
 use super::*;
 use crate::domain::{
     ics::{CalendarEventExport, CalendarEventExportAccess},
+    join_requests::CalendarJoinRequestStatus,
     models::{CalendarProvider, EventType},
 };
 
@@ -30,6 +31,18 @@ where
         // requester already has instead of adding anything.
         if source.access == CalendarEventExportAccess::OwnCopy {
             return Err(CalendarMutationError::AlreadyOnCalendar);
+        }
+        // The sharer's answer to a join request is an invitation to the
+        // meeting under its own UID, which a snapshot added meanwhile would
+        // take in, so a copy waits until the request is declined.
+        let join_request = self
+            .repository
+            .find_join_request(event_id, requester_id)
+            .await
+            .map_err(internal)?;
+        if join_request.is_some_and(|request| request.status != CalendarJoinRequestStatus::Declined)
+        {
+            return Err(CalendarMutationError::JoinRequestOpen);
         }
         // Google imports only regular events; status events such as
         // out-of-office belong to their owner's calendar alone.
@@ -108,6 +121,7 @@ pub(super) fn copy_outcome(result: &Result<CalendarEvent, CalendarMutationError>
     match result {
         Ok(_) => "copied",
         Err(CalendarMutationError::AlreadyOnCalendar) => "already_on_calendar",
+        Err(CalendarMutationError::JoinRequestOpen) => "join_request_open",
         Err(CalendarMutationError::NotFound) => "not_found",
         Err(CalendarMutationError::NoWritableCalendar) => "no_writable_calendar",
         Err(CalendarMutationError::ReadOnly) => "read_only",

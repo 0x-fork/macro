@@ -589,6 +589,14 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
         CalendarMutationError::AlreadyOnCalendar => {
             "This event is already on one of the user's calendars.".to_string()
         }
+        CalendarMutationError::JoinRequestOpen => {
+            "The user has asked the person who shared this event to add them as a guest, and \
+             that request is pending or already accepted. Either way the event reaches their \
+             calendar as the organizer's invitation, and a copy added meanwhile would take that \
+             invitation in, so nothing was added. Tell the user they asked to join this event; a \
+             copy can be added only if the request is declined."
+                .to_string()
+        }
         CalendarMutationError::CopyRefused(_) => {
             "Google Calendar refused to add a copy of this event to that calendar. Suggest \
              downloading the event's .ics file instead."

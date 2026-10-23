@@ -37,6 +37,8 @@ vi.mock('@queries/calendar/copy', () => ({
     (error as { code?: string }).code === 'already_on_calendar',
   isCopyRefused: (error: unknown) =>
     (error as { code?: string }).code === 'copy_refused',
+  isJoinRequestOpen: (error: unknown) =>
+    (error as { code?: string }).code === 'join_request_open',
   useCopySharedCalendarEventMutation: (callbacks?: {
     onSuccess?: () => void;
     onError?: (error: unknown) => void;

@@ -243,6 +243,12 @@ pub(crate) fn mutation_error(error: CalendarMutationError) -> async_graphql::Err
             "already_on_calendar",
             "this event is already on one of your calendars".into(),
         ),
+        CalendarMutationError::JoinRequestOpen => (
+            "join_request_open",
+            "You've asked to join this event, so it reaches your calendar as an invitation once \
+             you're added as a guest."
+                .into(),
+        ),
         CalendarMutationError::CopyRefused(_) => (
             "copy_refused",
             "Google Calendar won't add a copy of this event to that calendar.".into(),

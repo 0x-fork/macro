@@ -382,6 +382,9 @@ pub enum CalendarMutationErrorCode {
     GuestsCannotModify,
     /// The meeting is already on one of the requester's calendars.
     AlreadyOnCalendar,
+    /// The requester asked to join the event and the request is pending or
+    /// accepted, so the meeting reaches their calendar as an invitation.
+    JoinRequestOpen,
     /// The provider refused to add a copy of the event to the calendar.
     CopyRefused,
     /// The event is a snapshot of a shared meeting, so an answer or a new
@@ -480,6 +483,13 @@ impl From<CalendarMutationError> for CalendarMutationApiError {
                 StatusCode::CONFLICT,
                 CalendarMutationErrorCode::AlreadyOnCalendar,
                 "this event is already on one of your calendars".to_string(),
+            ),
+            CalendarMutationError::JoinRequestOpen => (
+                StatusCode::CONFLICT,
+                CalendarMutationErrorCode::JoinRequestOpen,
+                "You've asked to join this event, so it reaches your calendar as an invitation \
+                 once you're added as a guest."
+                    .to_string(),
             ),
             CalendarMutationError::CopyRefused(_) => (
                 StatusCode::CONFLICT,
@@ -924,6 +934,9 @@ pub struct CopyCalendarEventRequest {
 /// one of their Google calendars and return the synced snapshot. The
 /// snapshot keeps the meeting's iCalendar UID and organizer, lists only the
 /// requester as a guest, and carries no join link; nobody is notified.
+/// While the requester's request to join the event is pending or accepted,
+/// the copy is refused with `join_request_open`: the meeting reaches their
+/// calendar as the invitation, which a copy would otherwise take in.
 #[tracing::instrument(skip_all, fields(event_id = %event_id), err)]
 #[utoipa::path(
     post,
@@ -937,7 +950,7 @@ pub struct CopyCalendarEventRequest {
         (status = 401, description = "Authentication required"),
         (status = 403, description = "Calendar is read-only or needs reauthorization", body = CalendarMutationApiError),
         (status = 404, description = "Event not found or not shared with the requester", body = CalendarMutationApiError),
-        (status = 409, description = "Already on the requester's calendar, no writable calendar, or the provider refused the copy", body = CalendarMutationApiError),
+        (status = 409, description = "Already on the requester's calendar, a request to join it is pending or accepted, no writable calendar, or the provider refused the copy", body = CalendarMutationApiError),
         (status = 503, description = "Transient provider failure", body = CalendarMutationApiError),
     )
 )]

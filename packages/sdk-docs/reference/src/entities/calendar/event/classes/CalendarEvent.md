@@ -44,7 +44,9 @@ synced snapshot. The snapshot keeps the meeting's iCalendar UID and
 organizer, lists only the requester as a guest, and carries no join link;
 nobody is notified, and answers or guests on it never reach the meeting.
 Refused with `already_on_calendar` when the meeting is already on one of
-their calendars, and with `copy_refused` when Google will not import it.
+their calendars, with `join_request_open` while their request to join it
+is pending or accepted (the meeting then arrives as an invitation), and
+with `copy_refused` when Google will not import it.
 
 #### Parameters
 

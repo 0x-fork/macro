@@ -13,6 +13,7 @@ import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import {
   isAlreadyOnCalendar,
   isCopyRefused,
+  isJoinRequestOpen,
   useCopySharedCalendarEventMutation,
 } from '@queries/calendar/copy';
 import {
@@ -68,6 +69,10 @@ export function SharedEventActions(props: {
     onError: (error) => {
       if (isAlreadyOnCalendar(error)) {
         toast.failure('This event is already on your calendar');
+      } else if (isJoinRequestOpen(error)) {
+        toast.failure("You've asked to join this event", {
+          subtext: "It reaches your calendar once you're added as a guest.",
+        });
       } else if (isCopyRefused(error)) {
         toast.failure("Google Calendar won't add this event to that calendar", {
           subtext: 'Download the .ics file to add it another way.',

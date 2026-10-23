@@ -125,6 +125,9 @@ export class Sdk extends HeyApiClient {
      * one of their Google calendars and return the synced snapshot. The
      * snapshot keeps the meeting's iCalendar UID and organizer, lists only the
      * requester as a guest, and carries no join link; nobody is notified.
+     * While the requester's request to join the event is pending or accepted,
+     * the copy is refused with `join_request_open`: the meeting reaches their
+     * calendar as the invitation, which a copy would otherwise take in.
      */
     public copyCalendarEvent<ThrowOnError extends boolean = false>(options: Options<CopyCalendarEventData, ThrowOnError>): RequestResult<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError> {
         return (options.client ?? this.client).post<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError>({

@@ -686,7 +686,9 @@ copy whose organizer lets guests invite others and shows the guest list), and ot
 reads `The person who shared this event can't add guests to it.` The card then shows
 `Requested`, and `Invited` once accepted, and stops offering `Add to calendar` until the request
 is declined: the sharer's answer is an invitation to the meeting, and a snapshot added meanwhile
-would take that invitation in and stay a snapshot. The sharer gets a `calendar_event_join_request`
+would take that invitation in and stay a snapshot. The server refuses the copy in the same cases
+(`join_request_open`, from the API, the SDK and the agent alike); a card that had not caught up
+says `You've asked to join this event` and refreshes to `Requested` or `Invited`. The sharer gets a `calendar_event_join_request`
 notification (Settings → Notifications → Calendar → Requests to join), which Home lists as
 `<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
 whose details list each request with `Add as guest` and `Decline` on desktop and in the phone

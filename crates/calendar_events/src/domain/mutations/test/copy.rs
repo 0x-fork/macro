@@ -159,6 +159,78 @@ async fn copy_refuses_before_the_provider_when_the_event_cannot_be_copied() {
 }
 
 #[tokio::test]
+async fn copy_waits_for_the_requesters_join_request_unless_it_was_declined() {
+    use crate::domain::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
+    let event_id = Uuid::now_v7();
+    let cases = [
+        (CalendarJoinRequestStatus::Pending, "join_request_open"),
+        (CalendarJoinRequestStatus::Accepted, "join_request_open"),
+        (CalendarJoinRequestStatus::Declined, "copied"),
+    ];
+    for (status, expected) in cases {
+        let repo = shared_repo();
+        repo.join_requests
+            .lock()
+            .unwrap()
+            .push(CalendarJoinRequest {
+                id: Uuid::now_v7(),
+                event_id,
+                requester_id: "macro|user".to_string(),
+                requester_email: "user@example.com".to_string(),
+                status,
+                created_at: Utc::now(),
+            });
+        let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+        let imported = provider.imported.clone();
+
+        let result = service(repo, provider, FakeTokens::ok())
+            .copy_shared_event("macro|user", event_id, None)
+            .await;
+
+        assert_eq!(super::super::copy::copy_outcome(&result), expected);
+        assert_eq!(
+            imported.lock().unwrap().len(),
+            usize::from(expected == "copied"),
+            "{status:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn copy_ignores_join_requests_for_other_events_and_people() {
+    use crate::domain::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
+    let repo = shared_repo();
+    let event_id = Uuid::now_v7();
+    repo.join_requests.lock().unwrap().extend([
+        CalendarJoinRequest {
+            id: Uuid::now_v7(),
+            event_id,
+            requester_id: "macro|someone-else".to_string(),
+            requester_email: "someone@example.com".to_string(),
+            status: CalendarJoinRequestStatus::Pending,
+            created_at: Utc::now(),
+        },
+        CalendarJoinRequest {
+            id: Uuid::now_v7(),
+            event_id: Uuid::now_v7(),
+            requester_id: "macro|user".to_string(),
+            requester_email: "user@example.com".to_string(),
+            status: CalendarJoinRequestStatus::Pending,
+            created_at: Utc::now(),
+        },
+    ]);
+
+    service(
+        repo,
+        FakeProvider::new(FakeProviderBehavior::Echo),
+        FakeTokens::ok(),
+    )
+    .copy_shared_event("macro|user", event_id, None)
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
 async fn copy_leaves_an_event_the_calendar_already_holds_and_syncs_it_in() {
     let target = creation_target(false);
     let email_link_id = target.email_link_id;

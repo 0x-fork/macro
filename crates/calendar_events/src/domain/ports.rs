@@ -1106,6 +1106,11 @@ pub enum CalendarMutationError {
     /// The meeting is already on one of the requester's calendars.
     #[error("the event is already on one of the requester's calendars")]
     AlreadyOnCalendar,
+    /// The requester asked to join the shared event and the request is
+    /// pending or accepted, so the meeting reaches their calendar as an
+    /// invitation; a snapshot added meanwhile would take that invitation in.
+    #[error("the requester has asked to join this event")]
+    JoinRequestOpen,
     /// The provider refused to add a copy of the event to the calendar.
     #[error("the calendar provider refused to add a copy of the event: {0}")]
     CopyRefused(String),
