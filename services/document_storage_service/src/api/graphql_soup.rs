@@ -167,11 +167,7 @@ fn insert_graphql_context_data(
     data.insert(state.graphql_initiative_entity_loader.clone());
     data.insert(state.graphql_agent_session_entity_loader.clone());
     data.insert(state.graphql_primary_soup_item_loader.clone());
-    data.insert(graphql_initiative::initiative_detail_loader(
-        state.graphql_initiative_context.clone(),
-        macro_user_id.clone(),
-    ));
-    data.insert(graphql_initiative::initiative_summary_loader(
+    data.insert(graphql_initiative::initiative_loader(
         state.graphql_initiative_context.clone(),
         macro_user_id.clone(),
     ));
