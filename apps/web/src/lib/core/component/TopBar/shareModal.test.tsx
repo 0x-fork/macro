@@ -51,6 +51,7 @@ vi.mock('@core/context/team', () => ({
 }));
 vi.mock('@core/context/user', () => ({
   useUserId: () => () => 'test-user',
+  useUserInfo: () => () => ({ userId: 'test-user' }),
   useIsAuthenticated: () => () => true,
 }));
 vi.mock('@core/orchestrator', () => ({

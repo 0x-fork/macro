@@ -5,19 +5,25 @@ import { MaybeSoupEntityActionDrawerManager } from '@app/features/soup';
 import { withEntityNotifications } from '@app/features/soup/entity-notifications';
 import { ViewTour } from '@app/features/tours/ViewTour';
 import { SplitRouter } from '@app/lib/split-router';
+import { ChannelLoading } from '@channel/Channel/ChannelLoading';
 import { useChannelByIdQuery } from '@channel/Channel/channel-entity';
 import { DebugSuspense } from '@channel/DebugSuspense';
+import { prefetchChannelTarget } from '@channel/queries/prefetch-channel-target';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
+import { useIsAuthenticated } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ListEntityMetadataQueryProvider } from '@entity';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import { useFavoritesData } from '@queries/favorites/favorites';
 import {
   createContext,
+  createEffect,
   createMemo,
   createSignal,
+  on,
   onMount,
   Show,
   useContext,
@@ -263,6 +269,17 @@ function ChannelDetailRouteContent() {
   const { selectedChannel } = useChannelsView();
   const notificationSource = useGlobalNotificationSource();
   const channelId = createMemo(() => selectedChannel()?.id);
+  const authenticated = useIsAuthenticated();
+  const target = createMemo(() => selectedChannel()?.target);
+  createEffect(
+    on([channelId, target, authenticated], ([id, destination, signedIn]) => {
+      if (!id || !destination || signedIn !== true) return;
+      fireAndForget(
+        prefetchChannelTarget(id, destination),
+        'channel-target-prefetch'
+      );
+    })
+  );
   const sources = useContext(ChannelSourcesContext);
   const loaded = createMemo(() =>
     resolveSelectedChannel(
@@ -311,7 +328,10 @@ function ChannelDetailRouteContent() {
   };
 
   return (
-    <DebugSuspense name="ChannelsView.detail-content">
+    <DebugSuspense
+      name="ChannelsView.detail-content"
+      fallback={<ChannelLoading />}
+    >
       <Show
         when={visibleChannel()}
         fallback={
@@ -321,21 +341,17 @@ function ChannelDetailRouteContent() {
                 {loaded()?.name ?? 'Conversation'}
               </span>
             </ViewShell.TopBar>
-            <div
-              class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-ink-muted"
-              role="status"
-            >
-              <h2>
-                {unavailable()
-                  ? 'Conversation unavailable'
-                  : 'Loading conversation'}
-              </h2>
-              <Show when={unavailable()}>
+            <Show when={unavailable()} fallback={<ChannelLoading />}>
+              <div
+                class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-ink-muted"
+                role="status"
+              >
+                <h2>Conversation unavailable</h2>
                 <button type="button" onClick={retry}>
                   Retry
                 </button>
-              </Show>
-            </div>
+              </div>
+            </Show>
           </>
         }
       >
@@ -351,7 +367,10 @@ function ChannelDetailRouteContent() {
 
 export function ChannelDetailRouteView() {
   return (
-    <DebugSuspense name="ChannelsView.detail-route">
+    <DebugSuspense
+      name="ChannelsView.detail-route"
+      fallback={<ChannelLoading />}
+    >
       <ChannelDetailRouteContent />
     </DebugSuspense>
   );

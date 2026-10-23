@@ -274,6 +274,29 @@ Follow [`docs/ios-releases.md`](docs/ios-releases.md) for App Store signing and
 provisioning, including both extensions. The release script temporarily selects
 manual export when a distribution certificate path is supplied.
 
+## Native notification navigation
+
+Read iOS's durable pending tap before mounting the router, then choose its
+destination only after the authenticated account matches `recipientId`. Keep
+the native receipt pending until the destination route is applied; release the
+resume cover for auth/retry UI without consuming the receipt. Use the existing
+pending-notification intent for bootstrap and live taps so newer taps supersede
+older work. Older native builds and pushes retain authenticated notification
+lookup. The local bridge and native release requirement are documented in
+[`docs/ios-releases.md`](docs/ios-releases.md).
+
+Bound the pre-router bridge handoff to 1.5 seconds and release the native cover
+on failure or timeout without consuming the pending tap. Late responses must
+use normal account-checked navigation, never reset the mounted router's hash.
+`notification.launch` records whether startup continued ready, failed, or timed out.
+
+Generate APNs validators with `scripts/generate-api-schema.ts`; its compact
+`generated/push.ts` entry avoids importing every notification-service schema
+on the startup path. Carry known channel root IDs in push navigation (a null
+`threadId` means the message itself is the root), prefetch the target window
+alongside channel metadata, and keep the channel loading shell stable until
+that target can be positioned.
+
 ## macOS notification activation
 
 Carry the notification ID through native delivery and the buffered `navigate`

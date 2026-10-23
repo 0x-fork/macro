@@ -47,6 +47,15 @@ supported while the app process is running, not after quitting it. The isolated
 Linux WebKit/D-Bus regression is `bun run native:e2e:notifications`; compositor
 focus behavior still needs a real Wayland/X11 desktop check.
 
+On iOS builds with durable push navigation, a tapped channel push chooses the
+first route after verifying its recipient account. A failed or stalled native
+bridge must release startup within 1.5 seconds; the app can show its auth or
+retry UI while retaining the tap. If the bridge recovers later, the tap uses
+normal navigation without resetting the current page to the app root. Check
+both listener attachment and pending-intent reads, including a tap delivered
+before the pending read stalls. Receiving a push without tapping it must not
+navigate.
+
 On native Android, enable notifications in Settings while signed in. Android 13+
 also asks for system permission; the system's **Activity** notification channel
 must be enabled. Remote push owns system notification display after registration,
