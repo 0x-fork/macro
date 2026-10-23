@@ -109,6 +109,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   and distinguish unresolved identity from confirmed sign-out in UI prompts.
 - Probe identity on deploy-preview origins even without a local login hint;
   shared HttpOnly dev cookies are not visible to JavaScript or localStorage.
+- Leave the login hint (`syncLoginStorage(true)`) before a full-page hosted
+  SSO redirect; the callback sets only HttpOnly cookies, and a load without the
+  hint never checks identity, so the returning user sees sign-in again.
 - Disable GraphQL cache sessions and clear login hints on confirmed auth 401s,
   even with retained user data; preserve session state on transient failures.
 - Treat a repeated worker-ready frame as a coordinator restart: retire the old
