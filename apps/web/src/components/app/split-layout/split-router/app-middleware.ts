@@ -27,6 +27,7 @@ import {
   type SplitRouterMiddlewareContext,
   type SplitRouterMiddlewareResult,
 } from '@app/lib/split-router';
+import { recordNavigationBreadcrumb } from '@app/observability/navigation-breadcrumb';
 import { paneRootMatch } from '@app/routes/app-route';
 import { URL_PARAMS as CALL_URL_PARAMS } from '@block-call/constants';
 import { URL_PARAMS as CHANNEL_URL_PARAMS } from '@block-channel/constants';
@@ -281,5 +282,7 @@ export function createAppSplitRouterMiddleware(
     (context) => redirectLegacyRoutes(context, state),
     redirectLegacyCrmPipeline,
     migrateLegacySearch,
+    // Last, so it records the entry that remains after every redirect.
+    recordNavigationBreadcrumb,
   ];
 }

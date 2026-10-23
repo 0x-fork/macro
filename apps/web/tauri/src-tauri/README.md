@@ -84,10 +84,31 @@ not proof of the cause of a termination.
 New binaries retain 128 diagnostic events and a separate latest frontend
 heartbeat in native memory. Events
 cover native foreground/background, WebContent termination, iOS memory warnings,
-frontend visibility/connectivity, and explicit reload requests. Keep reload
-diagnostics at document/native lifecycle boundaries; UI mount state and streamed
-text changes do not establish a reload cause and should not generate native IPC.
+frontend visibility/connectivity, explicit reload requests, and pane
+navigations. Keep reload diagnostics at document/native lifecycle boundaries and
+pane navigation; UI mount state and streamed text changes do not establish a
+reload cause and should not generate native IPC.
 The schema accepts no message text, URLs, or content identifiers.
+
+The last split-router middleware records `navigated` when a pane starts
+navigating, before its destination loads: the navigation cause, the destination
+and previous route ids, and the claimed entity type (`channel`, `md`, `agent`, …)
+when the route claims an entity by UUID. Native rejects anything but code-defined
+names, and the frontend drops a value it would reject, since a rejected command
+disables diagnostics for the document. The entity's id is deliberately absent;
+the restored URL on `native_webview_started` usually carries it. Each navigation
+in the native app also flushes queued OTel spans, so the work leading up to an
+open is exported before a termination while it loads.
+
+From this buffer, `native_webview_started` names the replaced document's last
+navigation: `previous_document_last_route`, `previous_document_last_from_route`,
+`previous_document_last_entity_type`, `previous_document_last_navigation_cause`,
+and `previous_document_last_navigation_at_ms`, plus
+`previous_document_last_memory_warning_at_ms` for its last iOS memory warning.
+Compare those timestamps with `native_last_termination_ms`. They need the same
+recovery lease as replay below. The other `previous_document_*` fields come from
+the session-storage [frontend checkpoint](../../docs/native-reload-diagnostics.md),
+which also covers older binaries but records counts, not routes.
 Heartbeats record visibility and connectivity every five seconds while visible
 and at visibility transitions; background throttling is expected. They provide
 a last-known responsive timestamp, not proof of a hang or its cause.
