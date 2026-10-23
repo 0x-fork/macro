@@ -571,7 +571,8 @@ reads `The person who shared this event can't add guests to it.` The card then s
 `Requested`, and `Invited` once accepted, and stops offering `Add to calendar` until the request
 is declined: the sharer's answer is an invitation to the meeting, and a snapshot added meanwhile
 would take that invitation in and stay a snapshot. The sharer gets a `calendar_event_join_request`
-notification (Settings → Notifications → Calendar → Requests to join) that opens the event,
+notification (Settings → Notifications → Calendar → Requests to join), which Home lists as
+`<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
 whose details list each request with `Add as guest` and `Decline` on desktop and in the phone
 drawer. Adding writes the guest through the same invite path as `Add guests`, so Google or
 Outlook sends the invitation and the mention then opens the viewer's own copy; declining tells
