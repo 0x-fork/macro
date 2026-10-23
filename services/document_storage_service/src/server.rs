@@ -1883,20 +1883,24 @@ pub async fn run() -> anyhow::Result<()> {
     let user_api_key_service = Arc::new(UserApiKeyServiceImpl::new(PgUserApiKeysRepo::new(
         db.clone(),
     )));
+    // The GraphQL own-calendar feed reads the primary, like the REST calendar
+    // routes: a `refresh_calendar` poke goes out as the write commits, and the
+    // delta it triggers would find nothing on a lagging replica, leaving the
+    // change unseen until some later poke. Range reads share the pool so a
+    // page cannot overwrite what a delta already applied with older rows.
     let calendar_read_service = Arc::new(calendar_events::domain::service::CalendarService::new(
-        calendar_events::outbound::pg::PgCalendarRepository::new(readonly_db.clone()),
+        calendar_events::outbound::pg::PgCalendarRepository::new(db.clone()),
     ));
     let graphql_calendar_context = graphql_calendar::CalendarGraphqlContext::new(
         calendar_read_service.clone(),
         Arc::new(
             calendar_events::domain::changes::CalendarChangeService::new(
-                calendar_events::outbound::pg::PgCalendarRepository::new(readonly_db.clone()),
+                calendar_events::outbound::pg::PgCalendarRepository::new(db.clone()),
             ),
         ),
     );
     // Team policy reads use the primary so a sharing downgrade cannot be
-    // served from a lagging replica. The GraphQL own-calendar feed retains
-    // its existing readonly-pool routing.
+    // served from a lagging replica.
     let calendar_state = CalendarRouterState::new(
         Arc::new(
             calendar_events::domain::service::CalendarService::new(

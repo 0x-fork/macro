@@ -64,6 +64,9 @@ threads, pins, recents, notifications, folders, activity.
 - Soup GraphQL reads a replica with multi-second lag; a read immediately after
   a write through the same request needs the primary-reading loader, not the
   default one — see `crates/graphql_soup`.
+- The GraphQL calendar feed (occurrence ranges and `calendarChanges`) reads the
+  primary, like the REST calendar routes: a `refresh_calendar` poke goes out as
+  a write commits, so a replica-backed delta misses the change it announces.
 
 ## Related
 
