@@ -224,6 +224,11 @@ fn api_router(state: ApiContext) -> Router {
         .merge(calendar_events::inbound::axum_router::calendar_router(
             state.calendar_state.clone(),
         ))
+        .merge(
+            calendar_events::inbound::join_request_router::calendar_join_request_router(
+                state.calendar_join_request_state.clone(),
+            ),
+        )
         .merge(calendar_events::inbound::team_router::team_calendar_router(
             calendar_events::inbound::team_router::CalendarTeamRouterState::new(
                 std::sync::Arc::new(calendar_events::domain::team::CalendarTeamServiceImpl::new(

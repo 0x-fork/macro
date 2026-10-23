@@ -164,6 +164,15 @@ impl CalendarMutationService for FakeMutations {
         unreachable!("creating with a Macro call copies nothing")
     }
 
+    async fn respond_to_join_request(
+        &self,
+        _requester_id: &str,
+        _request_id: Uuid,
+        _accept: bool,
+    ) -> Result<crate::domain::join_requests::CalendarJoinRequest, CalendarMutationError> {
+        unreachable!("creating with a Macro call answers no join request")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,

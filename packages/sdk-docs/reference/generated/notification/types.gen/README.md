@@ -31,6 +31,7 @@
 - [BulkMarkNotificationsUndoneError](type-aliases/BulkMarkNotificationsUndoneError.md)
 - [BulkMarkNotificationsUndoneErrors](type-aliases/BulkMarkNotificationsUndoneErrors.md)
 - [BulkMarkNotificationsUndoneResponses](type-aliases/BulkMarkNotificationsUndoneResponses.md)
+- [CalendarEventJoinRequestMetadata](type-aliases/CalendarEventJoinRequestMetadata.md)
 - [CalendarEventReminderMetadata](type-aliases/CalendarEventReminderMetadata.md)
 - [CallStartedMetadata](type-aliases/CallStartedMetadata.md)
 - [ChannelInviteMetadata](type-aliases/ChannelInviteMetadata.md)

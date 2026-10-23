@@ -72,6 +72,7 @@ async fn event_export_resolves_own_copies_before_channel_shares(pool: PgPool) {
         .unwrap()
         .expect("a channel member sees the shared event");
     assert_eq!(shared.access, CalendarEventExportAccess::ChannelShared);
+    assert_eq!(shared.owner_id, author_id);
     assert_eq!(shared.event_type, EventType::Default);
     assert_eq!(shared.ical_uid, "export@example.com");
     assert_eq!(shared.title, "Offsite");
@@ -89,6 +90,7 @@ async fn event_export_resolves_own_copies_before_channel_shares(pool: PgPool) {
         .unwrap()
         .expect("an attendee sees their own copy");
     assert_eq!(own.access, CalendarEventExportAccess::OwnCopy);
+    assert_eq!(own.owner_id, attendee_id);
     assert_eq!(own.title, "Offsite, my copy");
     let authored = repo
         .event_export(author_id, shared_event_id)

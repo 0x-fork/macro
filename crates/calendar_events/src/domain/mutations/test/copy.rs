@@ -4,6 +4,7 @@ use crate::domain::ics::{CalendarEventExport, CalendarEventExportAccess};
 fn export(access: CalendarEventExportAccess) -> CalendarEventExport {
     CalendarEventExport {
         access,
+        owner_id: "macro|organizer@example.com".to_string(),
         event_type: EventType::Default,
         ical_uid: "meeting@example.com".to_string(),
         sequence: 3,

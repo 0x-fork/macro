@@ -1384,6 +1384,12 @@ export const mentionPreviewsResponse = zod
                     .number()
                     .min(mentionPreviewsResponseItemsItemEventAttendeeCountMin)
                     .describe('Number of attendees on the previewed copy.'),
+                  canRequestToJoin: zod
+                    .boolean()
+                    .optional()
+                    .describe(
+                      "For a channel-shared preview, whether the person who shared it can\nadd the requester as a guest. Always false for the requester's own\ncopy."
+                    ),
                   description: zod
                     .string()
                     .nullish()
@@ -1393,6 +1399,16 @@ export const mentionPreviewsResponse = zod
                   isRecurring: zod
                     .boolean()
                     .describe('Whether the event repeats.'),
+                  joinRequestStatus: zod
+                    .union([
+                      zod.null(),
+                      zod
+                        .enum(['pending', 'accepted', 'declined'])
+                        .describe(
+                          'Lifecycle of a request to be added as a guest of a shared event.'
+                        ),
+                    ])
+                    .optional(),
                   location: zod
                     .string()
                     .nullish()
@@ -1766,6 +1782,78 @@ channel they belong to — as an iCalendar file named after its title.
 export const eventIcsParams = zod.object({
   event_id: zod.uuid().describe('Calendar event entity id'),
 });
+
+/**
+ * @summary List pending requests to join an event the requester can change.
+ */
+export const listJoinRequestsParams = zod.object({
+  event_id: zod.uuid().describe('Calendar event entity id'),
+});
+
+export const listJoinRequestsResponse = zod
+  .object({
+    requests: zod
+      .array(
+        zod
+          .object({
+            createdAt: zod.iso
+              .datetime({})
+              .describe('When the request was made, or last reopened.'),
+            eventId: zod
+              .uuid()
+              .describe(
+                "The sharer's event entity that was shared with the channel."
+              ),
+            id: zod.uuid().describe('Request identifier.'),
+            requesterEmail: zod
+              .string()
+              .describe('Address the sharer invites when accepting.'),
+            requesterId: zod.string().describe('Macro user asking to join.'),
+            status: zod
+              .enum(['pending', 'accepted', 'declined'])
+              .describe(
+                'Lifecycle of a request to be added as a guest of a shared event.'
+              ),
+          })
+          .describe(
+            "A channel member's request to be added as a guest of an event they see\nonly through a channel share."
+          )
+      )
+      .describe('Oldest first.'),
+  })
+  .describe('Pending requests to join one event.');
+
+/**
+ * @summary Ask the person who shared an event with one of the requester's channels
+to add them as a guest. Asking again while the request is pending changes
+nothing; asking after a decline reopens it.
+ */
+export const requestToJoinParams = zod.object({
+  event_id: zod.uuid().describe('Shared calendar event entity id'),
+});
+
+export const requestToJoinResponse = zod
+  .object({
+    createdAt: zod.iso
+      .datetime({})
+      .describe('When the request was made, or last reopened.'),
+    eventId: zod
+      .uuid()
+      .describe("The sharer's event entity that was shared with the channel."),
+    id: zod.uuid().describe('Request identifier.'),
+    requesterEmail: zod
+      .string()
+      .describe('Address the sharer invites when accepting.'),
+    requesterId: zod.string().describe('Macro user asking to join.'),
+    status: zod
+      .enum(['pending', 'accepted', 'declined'])
+      .describe(
+        'Lifecycle of a request to be added as a guest of a shared event.'
+      ),
+  })
+  .describe(
+    "A channel member's request to be added as a guest of an event they see\nonly through a channel share."
+  );
 
 /**
  * Lists all active calls in channels the caller is an active member of,

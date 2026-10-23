@@ -518,6 +518,33 @@ impl CalendarMutationService for CalendarServiceMutations {
         .await
     }
 
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn respond_to_join_request(
+        &self,
+        requester_id: &str,
+        request_id: Uuid,
+        accept: bool,
+    ) -> Result<crate::domain::join_requests::CalendarJoinRequest, CalendarMutationError> {
+        self.send(
+            self.request(
+                reqwest::Method::PUT,
+                &format!("/join-requests/{request_id}"),
+                requester_id,
+            )
+            .json(&serde_json::json!({
+                "decision": if accept { "accept" } else { "decline" },
+            })),
+        )
+        .await?
+        .json()
+        .await
+        .map_err(|error| {
+            CalendarMutationError::PersistFailed(format!(
+                "the join request was answered but its response could not be parsed: {error}"
+            ))
+        })
+    }
+
     /// Not reachable over this transport. Disconnecting a calendar is part of
     /// an inbox's link lifecycle, served by the email service at
     /// `DELETE /email/links/{link_id}/calendar` (see

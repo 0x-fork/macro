@@ -10,6 +10,7 @@ import {
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
 import { EventGuests } from '@app/features/calendar-view/components/EventGuests';
+import { EventJoinRequests } from '@app/features/calendar-view/components/EventJoinRequests';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
 import { useForwardEventEmail } from '@app/features/calendar-view/components/use-forward-event-email';
 import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
@@ -287,6 +288,10 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
               canModify={canModify()}
               onDelete={deleteDialog.open}
               onReschedule={openEditor}
+            />
+            <EventJoinRequests
+              eventId={props.event.eventId}
+              canModify={canModify()}
             />
             <div class="px-3">
               <Show
@@ -584,6 +589,10 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
                   canModify={canModify()}
                   onDelete={deleteDialog.open}
                   onReschedule={openEditor}
+                />
+                <EventJoinRequests
+                  eventId={props.event.eventId}
+                  canModify={canModify()}
                 />
                 <div class="px-3 pb-3">
                   <Show

@@ -37,6 +37,9 @@ pub enum CalendarEventExportAccess {
 pub struct CalendarEventExport {
     /// How the requester sees the event.
     pub access: CalendarEventExportAccess,
+    /// Owner of the resolved projection: the requester for their own copy,
+    /// the person who shared it for a channel share.
+    pub owner_id: String,
     /// Provider event type; only regular events can be copied.
     pub event_type: EventType,
     /// RFC 5545 UID shared by every projection of the meeting.

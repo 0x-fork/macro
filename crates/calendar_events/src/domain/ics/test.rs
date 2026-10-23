@@ -11,6 +11,7 @@ const CALL_URL: &str = "https://macro.com/app/meet/join/0123456789abcdef01234567
 fn export(time: EventTime) -> CalendarEventExport {
     CalendarEventExport {
         access: CalendarEventExportAccess::ChannelShared,
+        owner_id: "macro|organizer@example.com".to_string(),
         event_type: EventType::Default,
         ical_uid: "abc123@google.com".to_string(),
         sequence: 2,

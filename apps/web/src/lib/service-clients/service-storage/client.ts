@@ -44,6 +44,9 @@ import type { Bot } from './generated/schemas/bot';
 import type { BotChannel } from './generated/schemas/botChannel';
 import type { BotOwnerProfile } from './generated/schemas/botOwnerProfile';
 import type { BotToken } from './generated/schemas/botToken';
+import type { CalendarJoinRequest } from './generated/schemas/calendarJoinRequest';
+import { CalendarJoinRequestErrorCode } from './generated/schemas/calendarJoinRequestErrorCode';
+import type { CalendarJoinRequestsResponse } from './generated/schemas/calendarJoinRequestsResponse';
 import type { CalendarMentionPreviewRequest } from './generated/schemas/calendarMentionPreviewRequest';
 import type { CalendarMentionPreviewResponse } from './generated/schemas/calendarMentionPreviewResponse';
 import type { CalendarOccurrenceResponse } from './generated/schemas/calendarOccurrenceResponse';
@@ -236,6 +239,28 @@ export function dssFetch<T extends Record<string, any> = never>(
   | Promise<Result<T, ResultError<FetchWithTokenErrorCode>[]>>
   | Promise<Result<void, ResultError<FetchWithTokenErrorCode>[]>> {
   return fetchWithToken<T>(`${dssHost}${url}`, init);
+}
+
+/**
+ * Join-request failures carry a machine-readable `{ code, message }` body;
+ * surface it so callers can explain a refusal.
+ */
+async function calendarJoinRequestErrorHandler(response: Response) {
+  const body = (await response.json().catch(() => null)) as {
+    code?: string;
+    message?: string;
+  } | null;
+  const code =
+    body?.code && body.code in CalendarJoinRequestErrorCode
+      ? (body.code as CalendarJoinRequestErrorCode)
+      : undefined;
+  if (code) {
+    return { code, message: body?.message ?? '' };
+  }
+  return {
+    code: 'HTTP_ERROR' as const,
+    message: `HTTP error! status: ${response.status}`,
+  };
 }
 
 export async function getDocumentPermissionToken(
@@ -592,6 +617,23 @@ export const storageServiceClient = {
         { method: 'GET', signal }
       )
     ).map((result) => result);
+  },
+
+  async requestToJoinCalendarEvent(eventId: string) {
+    return await fetchWithToken<
+      CalendarJoinRequest,
+      CalendarJoinRequestErrorCode
+    >(`${dssHost}/calendar-events/${eventId}/join-requests`, {
+      method: 'POST',
+      errorResponseHandler: calendarJoinRequestErrorHandler,
+    });
+  },
+
+  async listCalendarEventJoinRequests(eventId: string) {
+    return await dssFetch<CalendarJoinRequestsResponse>(
+      `/calendar-events/${eventId}/join-requests`,
+      { method: 'GET' }
+    );
   },
 
   async getCalendarEventIcs(eventId: string) {

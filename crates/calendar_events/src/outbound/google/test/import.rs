@@ -4,6 +4,7 @@ use crate::domain::ics::{CalendarEventExport, CalendarEventExportAccess};
 fn export(time: EventTime, recurrence_lines: Vec<String>) -> CalendarEventExport {
     CalendarEventExport {
         access: CalendarEventExportAccess::ChannelShared,
+        owner_id: "macro|organizer@example.com".to_string(),
         event_type: EventType::Default,
         ical_uid: "meeting@example.com".to_string(),
         sequence: 4,

@@ -270,6 +270,9 @@ const tagBubbleIcon = (tag: NotificationTag) =>
     .with('calendar_event_reminder', () => () => (
       <CalendarBlankIcon class={AVATAR_GLYPH_CLASS} />
     ))
+    .with('calendar_event_join_request', () => () => (
+      <UserPlusIcon class={AVATAR_GLYPH_CLASS} />
+    ))
     .with(
       'github_pr_status_changed',
       'github_pr_check_run',
@@ -1480,11 +1483,21 @@ export function CallCardLayout(props: InboxCardLayoutProps) {
 }
 
 /**
- * A calendar event row exists because its alarm fired: the event title leads,
- * the occurrence's date sits on the second line, and its local time on the
- * third — three lines tall, matching the other inbox layouts.
+ * A calendar event row exists because its alarm fired or someone asked to
+ * join it: the event title leads, then who asked when they did, then the
+ * occurrence's date, and its local time on an alarm — three lines tall,
+ * matching the other inbox layouts.
  */
 export function CalendarEventCardLayout(props: InboxCardLayoutProps) {
+  const senderName = createSenderDisplayName(
+    () => props.item.notification?.sender_id ?? undefined
+  );
+  const joinRequest = () =>
+    props.item.notification?.notification_metadata.tag ===
+    'calendar_event_join_request'
+      ? buildActionLabel({ sender: senderName(), action: 'asked to join' })
+      : undefined;
+
   const occurrence = () => {
     const meta = props.item.notification?.notification_metadata;
     if (meta?.tag === 'calendar_event_reminder') {
@@ -1519,13 +1532,19 @@ export function CalendarEventCardLayout(props: InboxCardLayoutProps) {
       icon={<CalendarBlankIcon class={AVATAR_GLYPH_CLASS} />}
       title={props.item.entity.name || '(No title)'}
     >
+      <Show when={joinRequest()}>
+        {(value) => (
+          <InboxCard.Content class="truncate">{value()}</InboxCard.Content>
+        )}
+      </Show>
+
       <Show when={datePreview()}>
         {(value) => (
           <InboxCard.Content class="truncate">{value()}</InboxCard.Content>
         )}
       </Show>
 
-      <Show when={timePreview()}>
+      <Show when={!joinRequest() && timePreview()}>
         {(value) => (
           <InboxCard.Content class="truncate">{value()}</InboxCard.Content>
         )}

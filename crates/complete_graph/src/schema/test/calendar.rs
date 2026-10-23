@@ -314,6 +314,18 @@ impl calendar_events::domain::ports::CalendarMutationService for RecordingCalend
         unreachable!("only deletion is exercised")
     }
 
+    async fn respond_to_join_request(
+        &self,
+        _requester_id: &str,
+        _request_id: Uuid,
+        _accept: bool,
+    ) -> Result<
+        calendar_events::domain::join_requests::CalendarJoinRequest,
+        calendar_events::domain::ports::CalendarMutationError,
+    > {
+        unreachable!("only deletion is exercised")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,

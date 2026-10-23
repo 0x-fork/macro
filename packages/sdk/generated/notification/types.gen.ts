@@ -176,6 +176,26 @@ export type BulkGetByEventItemIdsRequest = {
 };
 
 /**
+ * A channel member who sees a calendar event only through a channel share
+ * asked the person who shared it to add them as a guest. Sent to the sharer,
+ * with the requester as sender.
+ */
+export type CalendarEventJoinRequestMetadata = {
+    /**
+     * The shared calendar event entity the request is for.
+     */
+    eventId: string;
+    /**
+     * Stable request identity, answered from the event's details.
+     */
+    requestId: string;
+    /**
+     * Event title when the request was made.
+     */
+    title: string;
+};
+
+/**
  * A calendar event alarm came due. Like [`ReminderMetadata`], these are
  * self-notifications: `sender_id` must stay `None` or the only recipient is
  * filtered out. Everything the alert renders rides in here so the
@@ -1220,6 +1240,13 @@ export type NotifEvent = {
      */
     content: ChannelMessageReactionMetadata;
     tag: 'channel_message_reaction';
+} | {
+    /**
+     * A channel member asked to be added as a guest of an event the
+     * user shared with the channel.
+     */
+    content: CalendarEventJoinRequestMetadata;
+    tag: 'calendar_event_join_request';
 };
 
 /**

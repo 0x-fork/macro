@@ -752,6 +752,90 @@
         }
       }
     },
+    "/join-requests/{request_id}": {
+      "put": {
+        "tags": ["calendar_events"],
+        "summary": "Answer a request to join an event the requester can change and return\nwhere it now stands. Accepting adds the guest through the invite path; an\nalready answered request is returned unchanged.",
+        "operationId": "respond_to_join_request",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "description": "Join request id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondToJoinRequestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The answered join request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarJoinRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Calendar is read-only, the organizer doesn't let guests invite others, or the calendar needs reauthorization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found or its event cannot be changed by the requester",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The provider rejected the new guest",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transient provider failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarMutationApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/replacements/{operation_id}": {
       "get": {
         "tags": ["calendar_events"],
@@ -1329,6 +1413,57 @@
           }
         }
       },
+      "CalendarJoinRequest": {
+        "type": "object",
+        "description": "A channel member's request to be added as a guest of an event they see\nonly through a channel share.",
+        "required": [
+          "id",
+          "eventId",
+          "requesterId",
+          "requesterEmail",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the request was made, or last reopened."
+          },
+          "eventId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The sharer's event entity that was shared with the channel."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Request identifier."
+          },
+          "requesterEmail": {
+            "type": "string",
+            "description": "Address the sharer invites when accepting."
+          },
+          "requesterId": {
+            "type": "string",
+            "description": "Macro user asking to join."
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalendarJoinRequestStatus",
+            "description": "Where the request stands."
+          }
+        }
+      },
+      "CalendarJoinRequestDecision": {
+        "type": "string",
+        "description": "How a sharer answers a request to join their event.",
+        "enum": ["accept", "decline"]
+      },
+      "CalendarJoinRequestStatus": {
+        "type": "string",
+        "description": "Lifecycle of a request to be added as a guest of a shared event.",
+        "enum": ["pending", "accepted", "declined"]
+      },
       "CalendarMutationApiError": {
         "type": "object",
         "description": "HTTP error body returned by calendar mutation endpoints.",
@@ -1869,6 +2004,17 @@
         "type": "string",
         "description": "User-visible workflow state.",
         "enum": ["needs_confirmation", "in_progress", "complete"]
+      },
+      "RespondToJoinRequestRequest": {
+        "type": "object",
+        "description": "Request body answering a join request.",
+        "required": ["decision"],
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/CalendarJoinRequestDecision",
+            "description": "The sharer's answer."
+          }
+        }
       },
       "RsvpCalendarEventRequest": {
         "type": "object",

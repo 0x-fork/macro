@@ -1026,6 +1026,14 @@ pub struct CalendarMentionEvent {
     pub attendee_count: usize,
     /// Entity update time of the previewed copy.
     pub updated_at: DateTime<Utc>,
+    /// For a channel-shared preview, whether the person who shared it can
+    /// add the requester as a guest. Always false for the requester's own
+    /// copy.
+    #[serde(default)]
+    pub can_request_to_join: bool,
+    /// For a channel-shared preview, the requester's request to join, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub join_request_status: Option<super::join_requests::CalendarJoinRequestStatus>,
 }
 
 /// Inclusive/exclusive viewport range for occurrence queries.

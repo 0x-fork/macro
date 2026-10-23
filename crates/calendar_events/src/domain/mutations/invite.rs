@@ -197,7 +197,7 @@ fn invite_refusal(
 
 /// What the actor may do with the addressed copy through its inbox, judged
 /// against its stored guest list.
-pub(super) fn copy_capabilities(
+pub(crate) fn copy_capabilities(
     target: &CalendarEventMutationTarget,
     stored: &[CalendarAttendee],
 ) -> ViewerCapabilities {

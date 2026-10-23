@@ -535,6 +535,27 @@ function getSupportedHandler(
           );
         };
       })
+      .with('calendar_event_join_request', () => {
+        const meta = notification.notification_metadata;
+        if (meta.tag !== 'calendar_event_join_request') return null;
+
+        // The request is answered from the shared event's details.
+        return async (lm: SplitManager, newSplit: boolean = false) => {
+          if (!isFeatureEnabled(enableCalendarUi)) {
+            onApplied?.();
+            return;
+          }
+          openCalendarView(
+            { eventId: meta.content.eventId },
+            {
+              manager: lm,
+              handle: sourceHandle,
+              openInNewSplit: newSplit,
+              ...(onApplied ? { onApplied } : {}),
+            }
+          );
+        };
+      })
       .with('crm_discussion', () => {
         const meta = notification.notification_metadata;
         if (meta.tag !== 'crm_discussion') return null;

@@ -5,26 +5,38 @@ import { toast } from '@core/component/Toast/Toast';
 import { fireAndForget } from '@core/util/fireAndForget';
 import CalendarPlusIcon from '@phosphor/calendar-plus.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
+import CheckIcon from '@phosphor/check.svg';
 import DownloadSimpleIcon from '@phosphor/download-simple.svg';
+import UserPlusIcon from '@phosphor/user-plus.svg';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import {
   isAlreadyOnCalendar,
   isCopyRefused,
   useCopySharedCalendarEventMutation,
 } from '@queries/calendar/copy';
+import {
+  isSharerCannotInvite,
+  useRequestToJoinCalendarEventMutation,
+} from '@queries/calendar/join-requests';
 import { queryReadyGate } from '@queries/gate';
+import type { CalendarJoinRequestStatus } from '@service-storage/generated/schemas/calendarJoinRequestStatus';
 import { Button, Dropdown } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, For, Match, Show, Switch } from 'solid-js';
 
 /**
  * Actions for a meeting the viewer sees only because it was shared with one
- * of their channels: add a snapshot of it to one of their Google calendars,
- * or download it for a calendar Macro does not write to.
+ * of their channels: ask the person who shared it to add them as a guest,
+ * add a snapshot of it to one of their Google calendars, or download it for a
+ * calendar Macro does not write to.
  */
 export function SharedEventActions(props: {
   /** The channel-shared event the mention names. */
   eventId: string;
   title: string;
+  /** Whether the person who shared the event can add the viewer as a guest. */
+  canRequestToJoin: boolean;
+  /** The viewer's request to join, if they made one. */
+  joinRequestStatus?: CalendarJoinRequestStatus;
   /** Called once the copy is on the viewer's calendar. */
   onAdded?: () => void;
 }) {
@@ -66,11 +78,59 @@ export function SharedEventActions(props: {
   const addToCalendar = (calendarId: string | undefined) =>
     copy.mutate({ eventId: props.eventId, calendarId });
 
+  // Shown as sent from the moment the ask succeeds, ahead of the preview
+  // refetch that carries the stored status: it holds only while the status is
+  // still the one the ask was sent from, so a later answer replaces it.
+  const [askedFrom, setAskedFrom] = createSignal<{
+    status: CalendarJoinRequestStatus | undefined;
+  }>();
+  const asked = () => {
+    const sent = askedFrom();
+    return sent !== undefined && sent.status === props.joinRequestStatus;
+  };
+  const requestToJoin = useRequestToJoinCalendarEventMutation({
+    onSuccess: () => {
+      setAskedFrom({ status: props.joinRequestStatus });
+      toast.success('Asked to be added as a guest');
+    },
+    onError: (error) =>
+      toast.failure(
+        isSharerCannotInvite(error)
+          ? "The person who shared this event can't add guests to it"
+          : 'Failed to ask to join the event'
+      ),
+  });
+
   return (
     <div
       class="mt-1 flex flex-wrap items-center gap-1"
       onClick={(event) => event.stopPropagation()}
     >
+      <Switch>
+        <Match when={props.joinRequestStatus === 'pending' || asked()}>
+          <span class="flex h-5 items-center gap-1 px-1 text-xs text-ink-muted">
+            <CheckIcon class="size-3" />
+            Requested
+          </span>
+        </Match>
+        <Match when={props.joinRequestStatus === 'accepted'}>
+          <span class="flex h-5 items-center gap-1 px-1 text-xs text-ink-muted">
+            <CheckIcon class="size-3" />
+            Invited
+          </span>
+        </Match>
+        <Match when={props.canRequestToJoin}>
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={requestToJoin.isPending}
+            onClick={() => requestToJoin.mutate(props.eventId)}
+          >
+            <UserPlusIcon />
+            Ask to join
+          </Button>
+        </Match>
+      </Switch>
       <Show when={addSharedEvent()}>
         <Show
           when={targetCalendars().length > 1}
@@ -133,6 +193,18 @@ export function SharedEventActions(props: {
         <DownloadSimpleIcon />
         Download .ics
       </Button>
+      <Show
+        when={
+          !props.canRequestToJoin &&
+          props.joinRequestStatus !== 'pending' &&
+          props.joinRequestStatus !== 'accepted' &&
+          !asked()
+        }
+      >
+        <p class="w-full text-xs text-ink-muted">
+          The person who shared this event can't add guests to it.
+        </p>
+      </Show>
     </div>
   );
 }

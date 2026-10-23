@@ -242,6 +242,15 @@ impl CalendarMutationService for MockMutations {
         unreachable!("no calendar tool copies shared events")
     }
 
+    async fn respond_to_join_request(
+        &self,
+        _requester_id: &str,
+        _request_id: Uuid,
+        _accept: bool,
+    ) -> Result<crate::domain::join_requests::CalendarJoinRequest, CalendarMutationError> {
+        unreachable!("no calendar tool answers join requests")
+    }
+
     async fn disconnect_calendar(
         &self,
         _requester_id: &str,

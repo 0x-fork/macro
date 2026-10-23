@@ -4,6 +4,7 @@ mod changes;
 mod details;
 mod export;
 mod invitations;
+mod join_requests;
 #[cfg(feature = "outlook")]
 mod outlook;
 mod replacement;
@@ -1434,6 +1435,50 @@ impl CalendarRepository for PgCalendarRepository {
         event_id: Uuid,
     ) -> Result<Option<CalendarEventExport>, Report> {
         export::event_export(&self.pool, requester_id, event_id).await
+    }
+
+    #[tracing::instrument(skip(self, requester_id, requester_email), err)]
+    async fn open_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+        requester_email: &str,
+    ) -> Result<(crate::domain::join_requests::CalendarJoinRequest, bool), Report> {
+        join_requests::open_join_request(&self.pool, event_id, requester_id, requester_email).await
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn find_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::find_join_request(&self.pool, event_id, requester_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn list_pending_join_requests(
+        &self,
+        event_id: Uuid,
+    ) -> Result<Vec<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::list_pending_join_requests(&self.pool, event_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_join_request(
+        &self,
+        request_id: Uuid,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::get_join_request(&self.pool, request_id).await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn resolve_join_request(
+        &self,
+        request_id: Uuid,
+        status: crate::domain::join_requests::CalendarJoinRequestStatus,
+    ) -> Result<Option<crate::domain::join_requests::CalendarJoinRequest>, Report> {
+        join_requests::resolve_join_request(&self.pool, request_id, status).await
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]
@@ -4496,6 +4541,9 @@ fn mention_preview_from_row(row: MentionPreviewRow) -> Result<CalendarMentionPre
             attendee_count: usize::try_from(row.attendee_count.unwrap_or_default())
                 .unwrap_or_default(),
             updated_at: row.updated_at.unwrap_or(DateTime::<Utc>::MIN_UTC),
+            // The domain service fills the ask-to-join state in.
+            can_request_to_join: false,
+            join_request_status: None,
         },
     )))
 }

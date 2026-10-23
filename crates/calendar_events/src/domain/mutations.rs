@@ -10,7 +10,8 @@ use std::collections::HashMap;
 mod copy;
 mod details;
 mod guest_policy;
-mod invite;
+pub(crate) mod invite;
+mod join;
 mod replacement;
 
 use chrono::Utc;
@@ -648,6 +649,25 @@ where
             span.record("copied_event_id", tracing::field::display(copied.id));
         }
         span.record("outcome", copy::copy_outcome(&result));
+        result
+    }
+
+    #[tracing::instrument(
+        name = "calendar.respond_to_join_request",
+        skip(self, requester_id),
+        fields(request_id = %request_id, outcome = tracing::field::Empty),
+        err
+    )]
+    async fn respond_to_join_request(
+        &self,
+        requester_id: &str,
+        request_id: Uuid,
+        accept: bool,
+    ) -> Result<crate::domain::join_requests::CalendarJoinRequest, CalendarMutationError> {
+        let result = self
+            .answer_join_request(requester_id, request_id, accept)
+            .await;
+        tracing::Span::current().record("outcome", join::answer_outcome(accept, &result));
         result
     }
 

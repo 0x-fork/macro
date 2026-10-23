@@ -7,6 +7,7 @@ use rootcause::Report;
 use uuid::Uuid;
 
 use super::ics::{CalendarEventExport, CalendarEventIcs};
+use super::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
 use super::meeting_links::{
     CreateEventWithMacroCallError, MeetingLink, MeetingLinkError, MeetingLinkRequest,
 };
@@ -580,6 +581,46 @@ pub trait CalendarRepository: Send + Sync + 'static {
         event_id: Uuid,
     ) -> impl Future<Output = Result<Option<CalendarEventExport>, Report>> + Send;
 
+    /// Record a pending request from the requester to join `event_id`,
+    /// reopening a declined one. Returns the request and whether it became
+    /// pending just now, so a repeated ask does not notify the sharer twice.
+    fn open_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+        requester_email: &str,
+    ) -> impl Future<Output = Result<(CalendarJoinRequest, bool), Report>> + Send;
+
+    /// The requester's request to join `event_id`, whatever its status.
+    fn find_join_request(
+        &self,
+        event_id: Uuid,
+        requester_id: &str,
+    ) -> impl Future<Output = Result<Option<CalendarJoinRequest>, Report>> + Send;
+
+    /// Pending requests to join an event, oldest first.
+    fn list_pending_join_requests(
+        &self,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<CalendarJoinRequest>, Report>> + Send;
+
+    /// One join request by id.
+    fn get_join_request(
+        &self,
+        request_id: Uuid,
+    ) -> impl Future<Output = Result<Option<CalendarJoinRequest>, Report>> + Send;
+
+    /// Move a pending request to `status`. `None` when the request is gone
+    /// or already answered, so two answers at once resolve it once. An
+    /// acceptance is recorded only after its invitation was written, so it
+    /// also overrides a decline that landed meanwhile: the stored status
+    /// then matches the guest list.
+    fn resolve_join_request(
+        &self,
+        request_id: Uuid,
+        status: CalendarJoinRequestStatus,
+    ) -> impl Future<Output = Result<Option<CalendarJoinRequest>, Report>> + Send;
+
     /// Out-of-office occurrences owned by the requester's teammates — the
     /// other members of the requester's team — overlapping the viewport,
     /// soonest first, sourced from a primary calendar on an account that is
@@ -776,6 +817,58 @@ pub trait CalendarRepository: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Vec<RetiredCalendarEvent>, Report>> + Send;
 }
 
+/// Tells the person who shared an event that a channel member asked to join
+/// it. Best effort: implementations log and drop delivery failures, since
+/// the request is already recorded and shows on the event.
+pub trait CalendarJoinRequestNotifier: Send + Sync + 'static {
+    /// Notify `sharer_id` about a request that just became pending.
+    fn notify_join_request(
+        &self,
+        sharer_id: &str,
+        request: &CalendarJoinRequest,
+        event_title: &str,
+    ) -> impl Future<Output = ()> + Send;
+}
+
+/// Failures asking to join a shared event or listing its requests.
+#[derive(Debug, thiserror::Error)]
+pub enum CalendarJoinRequestError {
+    /// The event does not exist or is not visible to the requester.
+    #[error("calendar event was not found")]
+    NotFound,
+    /// The meeting is already on one of the requester's calendars.
+    #[error("the event is already on one of the requester's calendars")]
+    AlreadyOnCalendar,
+    /// The sharer's copy does not let them add guests, so they could not
+    /// accept.
+    #[error("the person who shared this event cannot add guests to it")]
+    SharerCannotInvite,
+    /// Persistence failed.
+    #[error("calendar join request failed: {0}")]
+    Internal(Report),
+}
+
+/// Inbound service port for asking to join an event shared with a channel
+/// and for sharers reading the requests on their events.
+pub trait CalendarJoinRequestService: Send + Sync + 'static {
+    /// Ask the person who shared an event with one of the requester's
+    /// channels to add them as a guest, notifying them when the request
+    /// becomes pending. Asking again while pending changes nothing; asking
+    /// after a decline reopens the request.
+    fn request_to_join(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<CalendarJoinRequest, CalendarJoinRequestError>> + Send;
+
+    /// Pending requests on an event the requester can change.
+    fn list_join_requests(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<CalendarJoinRequest>, CalendarJoinRequestError>> + Send;
+}
+
 /// Outbound port that nudges a connected inbox's calendar viewers — the link
 /// owner plus its delegates — to refetch their calendar projections after a
 /// Macro-originated mutation changed them. Best effort: implementations log
@@ -882,6 +975,18 @@ pub trait CalendarMutationService: Send + Sync + 'static {
         event_id: Uuid,
         calendar_id: Option<Uuid>,
     ) -> impl Future<Output = Result<CalendarEvent, CalendarMutationError>> + Send;
+
+    /// Answer a request to join an event the requester can change.
+    /// Accepting adds the asker as a guest through
+    /// [`invite_guests`](Self::invite_guests), so the provider invites them;
+    /// declining only records the answer. A request that is no longer pending
+    /// is returned unchanged.
+    fn respond_to_join_request(
+        &self,
+        requester_id: &str,
+        request_id: Uuid,
+        accept: bool,
+    ) -> impl Future<Output = Result<CalendarJoinRequest, CalendarMutationError>> + Send;
 
     /// Turn calendar off for one of the requester's own connected inboxes:
     /// its calendar data is removed, the calendar scopes leave the recorded

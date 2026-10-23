@@ -12,6 +12,8 @@ pub mod changes;
 pub mod events;
 /// iCalendar export of calendar events.
 pub mod ics;
+/// Asking to join a calendar event shared with a channel.
+pub mod join_requests;
 /// Macro meeting links carried by calendar events.
 pub mod meeting_links;
 /// Domain models.

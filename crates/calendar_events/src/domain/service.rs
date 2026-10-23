@@ -187,9 +187,18 @@ where
         if items.is_empty() {
             return Ok(Vec::new());
         }
-        self.repository
-            .mention_previews(requester_id, items, Utc::now())
-            .await
+        let mut previews = self
+            .repository
+            .mention_previews(requester_id, items.clone(), Utc::now())
+            .await?;
+        super::join_requests::annotate_join_state(
+            &self.repository,
+            requester_id,
+            &items,
+            &mut previews,
+        )
+        .await?;
+        Ok(previews)
     }
 
     /// The IANA time zone of the requester's primary calendar.

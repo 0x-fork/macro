@@ -4,6 +4,7 @@
 
 import type { VisibleCalendar } from '@service-calendar/generated/schemas/visibleCalendar';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SharedEventActions } from './SharedEventActions';
 
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   addSharedEvent: true,
   calendars: [] as VisibleCalendar[],
   copy: vi.fn(),
+  ask: vi.fn(),
   download: vi.fn(),
   success: vi.fn(),
   failure: vi.fn(),
@@ -51,6 +53,25 @@ vi.mock('@queries/calendar/copy', () => ({
   }),
 }));
 
+vi.mock('@queries/calendar/join-requests', () => ({
+  isSharerCannotInvite: (error: unknown) =>
+    (error as { code?: string }).code === 'sharer_cannot_invite',
+  useRequestToJoinCalendarEventMutation: (callbacks?: {
+    onSuccess?: () => void;
+    onError?: (error: unknown) => void;
+  }) => ({
+    isPending: false,
+    mutate: (eventId: string) => {
+      try {
+        mocks.ask(eventId);
+        callbacks?.onSuccess?.();
+      } catch (error) {
+        callbacks?.onError?.(error);
+      }
+    },
+  }),
+}));
+
 function calendar(overrides: Partial<VisibleCalendar>): VisibleCalendar {
   return {
     id: 'calendar-primary',
@@ -76,11 +97,19 @@ function calendar(overrides: Partial<VisibleCalendar>): VisibleCalendar {
   };
 }
 
-function renderActions(onAdded = vi.fn()) {
+function renderActions(
+  onAdded = vi.fn(),
+  join: Partial<{
+    canRequestToJoin: boolean;
+    joinRequestStatus: 'pending' | 'accepted' | 'declined';
+  }> = {}
+) {
   render(() => (
     <SharedEventActions
       eventId="shared-event"
       title="Design review"
+      canRequestToJoin={join.canRequestToJoin ?? false}
+      joinRequestStatus={join.joinRequestStatus}
       onAdded={onAdded}
     />
   ));
@@ -206,5 +235,77 @@ describe('shared event actions', () => {
     ).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Download .ics' }));
     expect(mocks.download).toHaveBeenCalledOnce();
+  });
+
+  it('asks the sharer to add the viewer and shows the request as sent', () => {
+    renderActions(vi.fn(), { canRequestToJoin: true });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
+
+    expect(mocks.ask).toHaveBeenCalledWith('shared-event');
+    expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
+    expect(screen.getByText('Requested')).toBeTruthy();
+  });
+
+  it('lets the stored answer replace the sent state', () => {
+    const [status, setStatus] = createSignal<
+      'pending' | 'accepted' | 'declined' | undefined
+    >();
+    render(() => (
+      <SharedEventActions
+        eventId="shared-event"
+        title="Design review"
+        canRequestToJoin
+        joinRequestStatus={status()}
+        onAdded={vi.fn()}
+      />
+    ));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
+    expect(screen.getByText('Requested')).toBeTruthy();
+
+    setStatus('declined');
+    expect(screen.getByRole('button', { name: 'Ask to join' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
+    expect(screen.getByText('Requested')).toBeTruthy();
+
+    setStatus('accepted');
+    expect(screen.getByText('Invited')).toBeTruthy();
+    expect(screen.queryByText('Requested')).toBeNull();
+  });
+
+  it('lets a declined viewer ask again but not a pending or invited one', () => {
+    renderActions(vi.fn(), {
+      canRequestToJoin: true,
+      joinRequestStatus: 'declined',
+    });
+    expect(screen.getByRole('button', { name: 'Ask to join' })).toBeTruthy();
+    cleanup();
+
+    renderActions(vi.fn(), {
+      canRequestToJoin: true,
+      joinRequestStatus: 'pending',
+    });
+    expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
+    cleanup();
+
+    renderActions(vi.fn(), {
+      canRequestToJoin: true,
+      joinRequestStatus: 'accepted',
+    });
+    expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
+    expect(screen.getByText('Invited')).toBeTruthy();
+  });
+
+  it('explains instead of offering to ask when the sharer cannot add guests', () => {
+    renderActions(vi.fn(), { canRequestToJoin: false });
+
+    expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
+    expect(
+      screen.getByText(
+        "The person who shared this event can't add guests to it."
+      )
+    ).toBeTruthy();
   });
 });

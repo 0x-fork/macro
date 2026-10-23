@@ -1906,6 +1906,19 @@ pub async fn run() -> anyhow::Result<()> {
         ),
         authorization_state.clone(),
     );
+    // Join requests write, so they use the primary like the team policy reads.
+    let calendar_join_request_state =
+        calendar_events::inbound::join_request_router::CalendarJoinRequestRouterState::new(
+            Arc::new(
+                calendar_events::domain::join_requests::CalendarJoinRequestServiceImpl::new(
+                    calendar_events::outbound::pg::PgCalendarRepository::new(db.clone()),
+                    calendar_events::outbound::notification_notifier::NotificationCalendarJoinRequestNotifier::new(
+                        (*notification_ingress_service).clone(),
+                    ),
+                ),
+            ),
+            authorization_state.clone(),
+        );
     // Calendar writes belong to calendar_service; each GraphQL mutation then
     // answers from the primary so it reads the state its write committed.
     let graphql_calendar_mutation_context = graphql_calendar::CalendarGraphqlMutationContext::new(
@@ -2240,6 +2253,7 @@ pub async fn run() -> anyhow::Result<()> {
         channel_list_state,
         entity_access_service: entity_access_service.clone(),
         calendar_state,
+        calendar_join_request_state,
         projects_state: ProjectRouterState {
             service: project_service,
             access_service: entity_access_service.clone(),
