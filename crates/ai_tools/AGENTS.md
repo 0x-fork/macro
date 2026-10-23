@@ -49,6 +49,8 @@ execution, display) that don't belong to a single domain.
 
 ## Tool contracts
 
+- Session user-tool finishers authorize the final edited arguments after review; preserve the selected account through confirmation and never approve an earlier draft then execute a changed one.
+
 - Executable toolsets exclude legacy chats in every host and code mode. Keep historical parsing compatibility only in `frontend_compat.rs`; never merge it into provider schemas.
 
 ## Checks

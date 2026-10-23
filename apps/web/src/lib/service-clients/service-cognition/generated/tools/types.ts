@@ -4788,6 +4788,10 @@ export type SelectionStatus =
  */
 export type ExecutionId = string;
 /**
+ * Which authenticated participant's access a tool call requests.
+ */
+export type ToolActor = 'requester' | 'owner';
+/**
  * The recorded outcome of a program.
  */
 export type ExecutionStatus =
@@ -15401,7 +15405,7 @@ export interface CodeGuide {
   markdown: string;
 }
 /**
- * Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. The host supplies real public Macro SDK handles authenticated as the session owner. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
+ * Copy turn_id from the current prompt’s hidden invocation context; never substitute another turn’s ID for a stale call. Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. The host supplies real public Macro SDK handles authenticated as the explicitly selected acting_as account. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
  *
  * Prefer ExecuteCode for supported Macro work, including a single precise call. SDK API reference sections expanded in context are already your documentation. Execute directly when they cover the task; do not call DescribeCodeTools merely to confirm them. The compact entity index alone is not a method reference. Use DescribeCodeTools only for missing methods, options, enum values or workflow guides, requesting the missing entities together rather than guessing. Request up to five entity names together (e.g. workspace, documents, email, ai, core).
  *
@@ -15416,6 +15420,12 @@ export interface CodeGuide {
  */
 export interface ExecuteCode {
   execution_id: ExecutionId;
+  acting_as: ToolActor;
+  /**
+   * Copy the current server-issued turn_id from the prompt's execution context.
+   * Never reuse an ID from another turn or discover a replacement for a stale call.
+   */
+  turn_id: string;
   /**
    * JavaScript module, at most 64 KiB. Import { Macro } from '@macro-inc/sdk' and Handlebars from 'handlebars'. Export async function main({token, hosts}) { const macro = new Macro({token, hosts}); return {data: ...}; }. The optional reviews array defaults to empty. Dependencies are preinstalled; no TypeScript syntax or package downloads. The token and hosts are supplied by the runner; never return or log the token.
    */

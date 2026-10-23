@@ -288,6 +288,7 @@
 - [SteerQueuedActionErrors](type-aliases/SteerQueuedActionErrors.md)
 - [SteerQueuedActionResponse](type-aliases/SteerQueuedActionResponse.md)
 - [SteerQueuedActionResponses](type-aliases/SteerQueuedActionResponses.md)
+- [ToolActor](type-aliases/ToolActor.md)
 - [ToolApprovalAnswerDto](type-aliases/ToolApprovalAnswerDto.md)
 - [ToolApprovalStatusDto](type-aliases/ToolApprovalStatusDto.md)
 - [UnlinkAgentSessionPullRequestData](type-aliases/UnlinkAgentSessionPullRequestData.md)

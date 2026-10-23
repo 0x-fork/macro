@@ -1,3 +1,4 @@
+import { useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { createEffect, on, Show, Suspense } from 'solid-js';
 import { useReview, useReviewActions } from '../queries/reviews';
@@ -8,10 +9,12 @@ export function PersistedReview(props: {
   sessionId: string;
   reviewId: string;
   canAct: boolean;
+  ownerId?: string;
   eventId?: string;
   onDecision?: () => void;
   onDecisionFailed?: () => void;
 }) {
+  const userId = useUserId();
   const query = useReview(
     () => props.sessionId,
     () => props.reviewId
@@ -58,7 +61,10 @@ export function PersistedReview(props: {
         {(record) => (
           <ReviewStack
             review={record()}
-            canAct={props.canAct}
+            canAct={
+              props.canAct &&
+              userId() === (record().actingUser ?? props.ownerId)
+            }
             actions={decisions}
           />
         )}

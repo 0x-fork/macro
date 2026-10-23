@@ -2,6 +2,7 @@
 export type Review = {
   id: string;
   sessionId: string;
+  actingUser?: string | null;
   executionId?: string | null;
   kind: 'email' | 'calendar';
   title: string;

@@ -24,12 +24,12 @@ impl ExecutionCredentials for RunCredentials {
         source: &str,
         cancel: CancellationToken,
     ) -> Result<RunEnvironment, CodeModeError> {
-        approve_run(self.gate.as_ref(), identity, source, &cancel).await?;
+        let actor = approve_run(self.gate.as_ref(), identity, source, &cancel).await?;
         // No refresh credential. Covers the 30-second queue/run deadline plus
         // clock margin; a normal user token expires rather than revoking on exit.
         let token = self
             .signer
-            .mint_for_agent(&identity.owner, 60, Some(identity.agent_id.as_uuid()))
+            .mint_for_agent(&actor, 60, Some(identity.agent_id.as_uuid()))
             .await
             .map_err(|error| {
                 tracing::error!(?error, "could not mint execution credential");
@@ -126,15 +126,16 @@ async fn approve_run(
     identity: &ExecutionIdentity,
     source: &str,
     cancel: &CancellationToken,
-) -> Result<(), CodeModeError> {
-    let args = serde_json::json!({"source": source});
+) -> Result<macro_user_id::user_id::MacroUserIdStr<'static>, CodeModeError> {
+    let args = serde_json::json!({"source": source, "acting_as": identity.acting_as, "turn_id": identity.turn});
     let verdict = tokio::select! {
         biased;
         _ = cancel.cancelled() => return Err(CodeModeError::Forbidden),
         verdict = async { gate.check(identity.session, "ExecuteCode", &args).await } => verdict,
     };
     match verdict {
-        NativeToolVerdict::Run => Ok(()),
+        NativeToolVerdict::Run => Err(CodeModeError::Forbidden),
+        NativeToolVerdict::RunAs(actor) => Ok(actor),
         NativeToolVerdict::Refuse(message) => Err(CodeModeError::Invalid(message)),
     }
 }

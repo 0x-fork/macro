@@ -2,6 +2,8 @@
 
 Code mode runs plain JavaScript using the actual public Macro SDK. Prefer it for supported Macro work, even a single precise call. API reference sections already expanded in the prompt are ready to use: execute directly when they cover the task. Use DescribeCodeTools only for missing entity details or workflow guides, never just to confirm preloaded documentation. The full entity index is always available. Jev selects likely relevant sections once per turn, with a short deadline and an index-only fallback.
 
+Copy turn_id from the current prompt’s hidden invocation context into ExecuteCode. A stale call must not obtain a replacement ID from discovery or another turn. Choose acting_as explicitly on ExecuteCode. Prefer requester; choose owner only when the request needs the session owner’s access. One account authenticates every operation in the execution. Missing permissions or connections never switch accounts automatically.
+
 ## Program shape
 
 ```javascript
@@ -18,7 +20,7 @@ export async function main({macro, session, execution}) {
 
 Return an object with data; reviews is optional and defaults to []. Include review references when you prepare editable drafts.
 
-macro, session and execution are real SDK handles. You can instead import {Macro} from '@macro-inc/sdk' and construct it with main's token and hosts. Do not log, return, persist or transmit that credential elsewhere. It is a short-lived normal user credential, with the user's API permissions. SDK operations make real HTTP calls. Messages are attributed to the session's agent, with the owner recorded as the requesting user; do not supply sender identities yourself. No custom sdk.ToolName dispatcher, TypeScript transpilation, runtime help or package installation is involved.
+macro, session and execution are real SDK handles. You can instead import {Macro} from '@macro-inc/sdk' and construct it with main's token and hosts. Do not log, return, persist or transmit that credential elsewhere. It is a short-lived normal user credential, with the user's API permissions. SDK operations make real HTTP calls. Messages are attributed to the session's agent, with the selected acting account recorded as the requesting user; do not supply sender identities yourself. No custom sdk.ToolName dispatcher, TypeScript transpilation, runtime help or package installation is involved.
 
 ## Useful workflows
 

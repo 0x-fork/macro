@@ -24,7 +24,7 @@
 use std::sync::Arc;
 
 use agent::{AgentError, AgentLoop, StreamPart, SystemPrompt};
-use ai_tools::user_tool_review::user_tool_finisher;
+use ai_tools::user_tool_review::{ReviewError, UserToolAuthorizer, authorized_user_tool_finisher};
 use ai_tools::{AiHost, DeferredToolSet, ToolServiceContext, tools_for};
 use ai_toolset::{AsyncToolCollection, ToolSet as AiToolSet};
 use axum::extract::FromRef;
@@ -136,6 +136,7 @@ struct GatedToolSet<Context> {
     gate: Arc<dyn NativeToolGate>,
     session: agent_session::domain::model::AgentSessionId,
     awaiting: Arc<crate::domain::engine::AwaitingUser>,
+    reviewed_tools: Vec<String>,
 }
 
 impl<Context> AiToolSet<Context> for GatedToolSet<Context>
@@ -150,32 +151,60 @@ where
         json: &'a serde_json::Value,
     ) -> ai_toolset::ToolCallFuture<'a> {
         Box::pin(async move {
-            if !UNGATED_NATIVE_TOOLS.contains(&tool_name)
+            let mut request_context = request_context;
+            let native = !UNGATED_NATIVE_TOOLS.contains(&tool_name)
                 && !tool_name.starts_with(mcp_select::MANGLED_PREFIX)
-                && let NativeToolVerdict::Refuse(reason) = {
-                    // A call held for the owner is the turn waiting on a
-                    // person, not hanging: the idle timeout leaves it be.
-                    let _waiting = self.awaiting.begin();
+                && agent_egress::domain::approval::spends_owner_access("macro", tool_name);
+            let arguments = if native {
+                let _waiting = self.awaiting.begin();
+                let verdict = if self.reviewed_tools.iter().any(|name| name == tool_name) {
+                    NativeToolVerdict::Run
+                } else {
                     self.gate.check(self.session, tool_name, json).await
+                };
+                match verdict {
+                    NativeToolVerdict::RunAs(user) => request_context.user_id = user,
+                    NativeToolVerdict::Run => {}
+                    NativeToolVerdict::Refuse(reason) => {
+                        return Ok(Err(ai_toolset::ToolCallError {
+                            internal_error: anyhow::anyhow!("{tool_name} was not approved"),
+                            description: reason,
+                        }));
+                    }
                 }
-            {
-                return Ok(Err(ai_toolset::ToolCallError {
-                    internal_error: anyhow::anyhow!("{tool_name} was not approved"),
-                    description: reason,
-                }));
-            }
+                match ai_toolset::actor::ToolActor::take(json) {
+                    Ok((_, arguments)) => arguments,
+                    Err(error) => {
+                        return Ok(Err(ai_toolset::ToolCallError {
+                            description: error.to_string(),
+                            internal_error: error.into(),
+                        }));
+                    }
+                }
+            } else {
+                json.clone()
+            };
             self.tools
-                .dispatch_tool_call(context, request_context, tool_name, json)
+                .dispatch_tool_call(context, request_context, tool_name, &arguments)
                 .await
         })
     }
 
     fn request_schemas(&self) -> Option<Vec<ai_toolset::RequestSchema>> {
-        self.tools.request_schemas()
+        self.tools.request_schemas().map(|mut tools| {
+            for tool in &mut tools {
+                add_native_actor_schema(&tool.name, &mut tool.schema);
+            }
+            tools
+        })
     }
 
     fn searchable_catalog(&self) -> Vec<ai_toolset::SearchableTool> {
-        self.tools.searchable_catalog()
+        let mut tools = self.tools.searchable_catalog();
+        for tool in &mut tools {
+            add_native_actor_schema(&tool.name, &mut tool.schema);
+        }
+        tools
     }
 
     fn searchable_toolset_names(&self) -> Vec<String> {
@@ -184,6 +213,16 @@ where
 
     fn routing_description<'a>(&'a self, tool_name: &'a str) -> Option<ai_toolset::ToolInfo> {
         self.tools.routing_description(tool_name)
+    }
+}
+
+fn add_native_actor_schema(name: &str, schema: &mut schemars::Schema) {
+    if !UNGATED_NATIVE_TOOLS.contains(&name)
+        && !name.starts_with(mcp_select::MANGLED_PREFIX)
+        && agent_egress::domain::approval::spends_owner_access("macro", name)
+        && let Some(schema) = schema.as_object_mut()
+    {
+        ai_toolset::actor::add_actor_schema(schema);
     }
 }
 
@@ -546,19 +585,54 @@ async fn drive_turn(
         .with_reasoning_effort(reasoning_effort)
         .with_speed(speed)?
         .with_genai_telemetry(false);
+    let mut reviewed_tools = Vec::new();
     if let Some(reviewer) = reviewer.filter(|_| !summarizing) {
-        agent_loop = agent_loop.with_user_tool_finisher(user_tool_finisher(
-            Arc::clone(&toolset),
-            tool_context.clone(),
-            owner,
-            reviewer,
-            cancel.clone(),
-        ));
+        reviewed_tools = toolset.user_tools.keys().cloned().collect();
+        let tools = Arc::clone(&toolset);
+        let context = tool_context.clone();
+        let gate = Arc::clone(&gate);
+        let cancel = cancel.clone();
+        let awaiting = Arc::clone(&awaiting);
+        agent_loop = agent_loop.with_user_tool_finisher(Arc::new(move |mut call: agent::PendingUserTool| {
+            let tools = Arc::clone(&tools);
+            let context = context.clone();
+            let gate = Arc::clone(&gate);
+            let cancel = cancel.clone();
+            let reviewer = Arc::clone(&reviewer);
+            let awaiting = Arc::clone(&awaiting);
+            Box::pin(async move {
+                if !tools.user_tools.contains_key(&call.tool_name) { return None; }
+                let (actor, arguments) = match ai_toolset::actor::ToolActor::take(&call.args) {
+                    Ok(selection) => selection,
+                    Err(error) => return Some(agent::FinishedUserTool::Error(error.to_string())),
+                };
+                let authorize_cancel = cancel.clone();
+                let authorize: UserToolAuthorizer = Arc::new(move |name, mut args| {
+                    let gate = Arc::clone(&gate);
+                    let cancel = authorize_cancel.clone();
+                    let awaiting = Arc::clone(&awaiting);
+                    Box::pin(async move {
+                        args[ai_toolset::actor::ACTING_AS] = serde_json::to_value(actor).map_err(|error| ReviewError::Failed(error.to_string()))?;
+                        let _waiting = awaiting.begin();
+                        let verdict = tokio::select! {
+                            biased;
+                            _ = cancel.cancelled() => return Err(ReviewError::Failed("The turn was cancelled; nothing was done.".into())),
+                            verdict = gate.check(session_id, &name, &args) => verdict,
+                        };
+                        match verdict {
+                            NativeToolVerdict::RunAs(user) => Ok(user),
+                            NativeToolVerdict::Refuse(reason) => Err(ReviewError::Failed(reason)),
+                            NativeToolVerdict::Run => Err(ReviewError::Failed("Could not resolve the tool actor.".into())),
+                        }
+                    })
+                });
+                call.args = arguments;
+                authorized_user_tool_finisher(tools, context, reviewer, cancel, authorize)(call).await
+            })
+        }));
     }
-    // Macro's own tools spend the owner's access in-process, so they ask the
-    // gate a turn somebody else prompted must pass - the one the egress
-    // proxy applies to every MCP server. Remote MCP tools already pass
-    // through that proxy and are not asked twice.
+    // Native tools use the actor gate unless the installed finisher authorizes
+    // their final reviewed arguments. Remote MCP tools use the egress gate.
     // Keep remote MCP tools alongside the native and AskUser tools. The
     // finisher above reviews only Macro's native user tools.
     let toolset: Arc<dyn AiToolSet<_> + Send + Sync> = match mcp_tools.filter(|_| !summarizing) {
@@ -576,6 +650,7 @@ async fn drive_turn(
         gate,
         session: session_id,
         awaiting,
+        reviewed_tools,
     });
     let session = agent_loop
         .session(toolset, Arc::new(tool_context), system_prompt, usage_ctx)

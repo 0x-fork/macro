@@ -157,7 +157,7 @@ export function ReviewStack(props: {
       record().items.find((item) => item.id === id)?.status === 'pending',
     lockedNotice: () =>
       !props.canAct
-        ? 'Only the session owner can submit this review.'
+        ? 'Only the person whose account this review uses can submit it.'
         : undefined,
     onEdit: (draft) => {
       controller.edit(id, draft);

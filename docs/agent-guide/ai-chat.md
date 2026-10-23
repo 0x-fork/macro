@@ -921,10 +921,10 @@ Source remains in saved execution records and
 local DevTools for debugging. Pure JavaScript, template rendering, raw fetches,
 and ongoing SSE messages do not produce generated SDK operation events.
 
-For turns prompted by someone other than the session owner, the existing
-owner-approval card asks to “run potentially sensitive tools with your access.”
+When ExecuteCode explicitly selects the session owner’s account in a turn
+prompted by someone else, the existing owner-approval card asks to “run potentially sensitive tools with your access.”
 It offers Approve, Decline and, for a named requester, Always allow; the card
-does not display source code. Owner-prompted turns do not need this approval.
+does not display source code. Executions acting as the verified requester do not need this extra approval.
 
 Every code-mode turn receives a compact entity index. Jev can expand relevant
 entity declarations before generation, with a one-second deadline and index-only
@@ -945,12 +945,12 @@ is not a method reference. There is no runtime `sdk.help` or
 
 The harness spawns a fresh Deno process for each execution. Dependencies are
 bundled at build time; no TypeScript compilation or package downloads happen
-in a run. The process receives a short-lived normal user token after the session
-owner's execution approval. SDK methods make HTTP requests to configured Macro
+in a run. The process receives a short-lived normal user token after any required
+approval for the selected account. SDK methods make HTTP requests to configured Macro
 service hosts using normal API authorization. The token also signs the session's
-agent identity: SDK messages show that agent as sender and the owner in the
+agent identity: SDK messages show that agent as sender and the selected acting user in the
 `from` pill. Ordinary user tokens have no agent attribution; client headers and
-message bodies cannot choose it. Other SDK endpoints still authenticate the owner
+message bodies cannot choose it. Other SDK endpoints authenticate the selected account
 as a user. There is no runner service,
 WebSocket bridge, or per-API-call approval callback. Eight executions may run
 per harness process, with sixteen queued; public MCP runs have their own budget. Network hosts, process lifetime, output and memory are
@@ -1192,25 +1192,40 @@ marked done.
 
 ## Tool calls waiting for the session owner
 
-An agent session always runs with its owner's access. When someone else prompts it (a
-second person replying in the session's channel thread, or a bot), every tool call that
-uses that access - Macro's own tools on the owner's email, calendar, documents and so on,
-and any connected app - waits for the owner to approve it. Public lookups (`WebSearch`,
-`WebFetch`, `SelfKnowledge`) and the owner's own turns are never held. The session view
-shows a card over the composer that says what the agent wants to do, e.g. `Dave Seed asked
-the agent to read your email.` The owner sees `Approval needed` with `Decline` /
-`Always allow` / `Approve`; everyone else sees `Waiting for <owner> to approve` (`…to read
-Alice Seed's email`) and, with edit access, a `Cancel` button for when the owner is away.
-`Always allow` approves the call and stops asking about the same person's calls for the
-rest of the session: the same tool on Macro (the card says `Always allow lets Dave Seed
-read your email in this session without asking you.`), every tool of a connected app. It
-also approves that person's other waiting calls it covers, and is not offered for a bot.
-The owner also gets an `agent_session_waiting_for_input` notification. Once answered the
-transcript shows the same action (`Read your email`) with `Approved by …`, `Always allowed
-by …`, `Declined by …`, `Cancelled`, or `Not approved in time` (30 minutes for the
-in-process agent; sandboxed ones wait as long when their MCP client accepts progress, about
-four minutes otherwise). A declined or cancelled call does not run and the agent says so. The Magic Chip
-reads `Waiting for approval`. The agent's hidden context names the owner and the prompter.
+Account-using session tools require an explicit `acting_as` choice. The agent
+prefers `requester`, the authenticated person behind the current turn. `owner`
+selects the session owner's account. A call needs the existing owner-approval
+card only when its selected account differs from the requester. Choosing the
+requester's account uses their permissions and connections directly; missing
+connections produce a connect chip rather than falling back to the owner.
+Custom MCP setup/reconnect uses Agents → Connections. Public lookups
+(`WebSearch`, `WebFetch`, `SelfKnowledge`) need no account selection or approval.
+System turns and bots without an acting human have no requester account.
+
+The configured tool catalog remains the session owner's catalog in this version;
+requester-only integrations are not discovered automatically. The selector covers
+executable tools; non-tool MCP protocol methods retain their existing proxy
+behavior. Model-provider credentials, repository/git access, previews, billing,
+and memory retain their
+existing session identities. ExecuteCode chooses one account for every SDK call
+in that execution. It must echo the server-issued `turn_id` from its originating
+prompt; delayed calls cannot adopt a newer requester’s turn. Retrying an execution ID requires the same source, actor
+selection, and original turn; use a new ID for another turn or account.
+
+When another person requests owner access, the session view shows what the agent
+wants to do. The owner sees `Approval needed` with `Decline`, `Always allow`, and
+`Approve`; others see `Waiting for <owner> to approve` and editors may cancel.
+`Always allow` retains its existing scope: the named requester’s same Macro tool,
+or all tools of the connected app, for this session. It does not change which
+account a call selects. Declined, cancelled, expired, or superseded calls do not
+run. The Magic Chip reads `Waiting for approval` while a call is held.
+
+Email/calendar reviews separately retain the account selected at creation. Only
+that account, with session edit access, may edit or submit those drafts. Older
+reviews without an acting account use the session owner. Draft confirmation still
+applies even when no extra cross-account approval was needed. Changing tool
+credentials does not remove private results already in the conversation; the
+agent is instructed not to disclose another person’s earlier private results.
 
 ## Forms authoring and sharing
 
@@ -2022,7 +2037,8 @@ drafts use these saved reviews instead. Presenting a draft must not produce an
 An already-running turn from before this change can still have an old elicitation;
 changing the tool list does not resolve that existing request.
 
-Only the session owner can edit or submit a review. For an email stack, edit the
+Only the review’s saved acting account, with session edit access, can edit or
+submit it; historical reviews use the session owner. For an email stack, edit the
 visible email, use **Next** / **Previous** to inspect other drafts, and choose
 **Send** for the current draft or **Send all** for every pending draft.
 **Send all** and **Create all** first show a confirmation with the selected count;
@@ -2042,13 +2058,13 @@ Invalid drafts remain editable; navigation opens the first draft needing attenti
 A revision conflict or uncertain request shows **Reload saved review**. Reload
 reads the saved version and discards the local edit; it never retries an external
 send automatically. If the outcome is unknown, check the inbox/calendar before
-attempting another send elsewhere. Owner decisions produce durable system events
+attempting another send elsewhere. Review decisions produce durable system events
 for the same review ID. The card refreshes in place, with **Responding** below it
 until the agent starts its reply. This behaves the same on mobile. These events
 create no user bubble; events without an existing card use a quiet timeline row.
 The agent can read final drafts and confirmed outcomes through **GetReview**.
 An exact silent response produces no assistant message or unread notification.
-An owner decision in chat uses the same saved-revision claim as the card;
+A decision in chat from the review’s acting account uses the same saved-revision claim as the card;
 a system event cannot approve a review. Ordinary questions still use
 the existing ACP question tool; they are not saved reviews.
 
@@ -2056,7 +2072,7 @@ For browser verification, inspect email stacks without clicking Send, or dismiss
 a harmless draft to verify outcome context without sending. Confirm edits survive
 navigation and page reload,
 that a single draft has no stack controls, that a batch's picker finds drafts,
-that chat remains usable, and that a non-owner cannot submit. Sending an email or
+that chat remains usable, and that another account cannot submit. Sending an email or
 creating an event is a real action, including from a local app connected to dev.
 ## Agent reasoning effort
 

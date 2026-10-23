@@ -4108,6 +4108,17 @@
         "description": "Durable source and final outcome, with historical bridge calls when present.\nThe full journal is not included in the model's tool result.",
         "required": ["executionId", "source", "status", "calls"],
         "properties": {
+          "actingAs": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ToolActor",
+                "description": "Account choice bound to this saved execution; absent on historical records."
+              }
+            ]
+          },
           "activity": {
             "type": "array",
             "items": {
@@ -4144,6 +4155,11 @@
           "status": {
             "$ref": "#/components/schemas/ExecutionStatus",
             "description": "Overall execution state."
+          },
+          "turnId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Original turn, preventing another requester from replaying a saved result."
           }
         }
       },
@@ -4730,12 +4746,12 @@
       },
       "ReviewDecisionContext": {
         "type": "object",
-        "description": "Facts about the most recent owner decision.",
+        "description": "Facts about the most recent account-holder decision.",
         "required": ["by", "via", "revision", "items"],
         "properties": {
           "by": {
             "type": "string",
-            "description": "Authenticated owner."
+            "description": "Authenticated account holder."
           },
           "items": {
             "type": "array",
@@ -4771,7 +4787,7 @@
           },
           "edited": {
             "type": "boolean",
-            "description": "Whether the owner edited this draft before deciding."
+            "description": "Whether the account holder edited this draft before deciding."
           },
           "error": {
             "type": ["string", "null"],
@@ -4814,6 +4830,10 @@
           "items"
         ],
         "properties": {
+          "actingUser": {
+            "type": ["string", "null"],
+            "description": "Account whose email/calendar the drafts use; historical records use the session owner."
+          },
           "decision": {
             "oneOf": [
               {
@@ -5076,6 +5096,11 @@
             "description": "Current session id shown in the conversation metadata."
           }
         }
+      },
+      "ToolActor": {
+        "type": "string",
+        "description": "Which authenticated participant's access a tool call requests.",
+        "enum": ["requester", "owner"]
       },
       "ToolApprovalAnswerDto": {
         "type": "string",

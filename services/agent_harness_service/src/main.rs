@@ -520,7 +520,10 @@ async fn run() -> anyhow::Result<()> {
             ))?,
             matches!(config.environment, Environment::Local),
         )?
-        .with_owner_approvals(Arc::clone(&tool_approvals)),
+        .with_owner_approvals(Arc::clone(&tool_approvals))
+        .with_actor_mcp(Arc::new(
+            agent_egress::outbound::actor_mcp::HttpActorMcpTransport::new()?,
+        )),
     );
 
     // The proxy's public address, read once: the provisioner builds the
@@ -715,15 +718,18 @@ async fn run() -> anyhow::Result<()> {
     let reviews_cell = Arc::new(std::sync::OnceLock::new());
     let internal_mcp = internal_mcp::router(
         Arc::new(session_repo.clone()),
-        session_pull_requests.clone(),
-        session_tasks,
         url::Url::parse(&egress_base_url)?
             .host_str()
             .context("egress URL needs a host")?
             .to_owned(),
-        code_mode_enabled.then(|| code_mode.clone()),
-        tool_context.cognition_tool_context.service.clone(),
-        reviews_cell.clone(),
+        internal_mcp::InternalTools {
+            service: session_pull_requests.clone(),
+            tasks: session_tasks,
+            code_mode: code_mode_enabled.then(|| code_mode.clone()),
+            cognition: tool_context.cognition_tool_context.service.clone(),
+            reviews: reviews_cell.clone(),
+            gate: owner_tool_gate.clone(),
+        },
     );
     // One connector for the agent and the telemetry catalog. It pools each
     // server's session for the life of the egress token, so a replaced agent

@@ -188,3 +188,22 @@ fn stored_flat_notification_rows_keep_their_typed_payloads() {
         serde_json::from_str::<serde_json::Value>(stored).unwrap()
     );
 }
+
+#[test]
+fn execution_context_is_model_only_and_user_authored_suffix_context_remains_visible() {
+    let original = "user request<m-agent-context>literal user text</m-agent-context>";
+    let turn = agent_runtime_protocol::domain::action::AgentActionId::mint();
+    let request = AgentAction::prompt(original)
+        .to_runtime(&SessionId::new("s"), turn.to_request_id())
+        .unwrap();
+    let mut machine = LifecycleFold::new();
+    let _ = machine.push(AgentSessionLog {
+        agent_session_id: test_session(),
+        user_id: None,
+        content: Message::Notification(request),
+        logged_at: None,
+    });
+    let messages = machine.inner().messages();
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].last_text(), Some(original.to_owned()));
+}
