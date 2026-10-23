@@ -763,6 +763,9 @@ at the top. Comments, replies, and reactions stay attached to the project identi
 Notification links open Overview at the relevant discussion. Existing `activity`
 URLs also open Overview and preserve the target discussion. Project history is
 not included in this discussion section.
+Click or tap the linked comment to clear its highlight; the loaded discussion
+and expanded replies stay in place. Following another comment link highlights
+its target again.
 
 ## Bulk delete
 
