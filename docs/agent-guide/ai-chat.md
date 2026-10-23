@@ -908,13 +908,14 @@ promises are supported. Preserve the user's source filters, source IDs, errors,
 and coverage limits; stopping a paginated iterator does not prove exhaustiveness.
 
 Code execution hides program source and raw returned JSON. Observed SDK operations
-use the same compact tool rows as ordinary tools, with an icon, operation name,
-and right-aligned completed, running, failed, or unknown counts. Repeated operations
-share a row; there is no separate API-call count wrapper once activity is available.
-Activity refreshes about once per second while a run is active, survives reload,
-and is capped at the first 128 requests. These are advisory observations, not
-confirmation that a user approved an action. Results appear in the agent's answer
-or dedicated review components. Desktop email drafts keep Cc/Bcc controls beside To;
+use the same **Calling N tools** peek window as ordinary consecutive tool calls:
+each request is its own compact row (label plus status), live runs open the
+five-row scrolling window, and settled runs collapse to the count. There is no
+separate API-call count wrapper or per-label aggregation once activity is
+available. Activity refreshes about once per second while a run is active,
+survives reload, and is capped at the first 128 requests. These are advisory
+observations, not confirmation that a user approved an action. Results appear in
+the agent's answer or dedicated review components. Desktop email drafts keep Cc/Bcc controls beside To;
 the sender row appears only when it has a sender address, inbox picker, or notice.
 Inline email drafts on phones use normal card padding without reserving a page-header gap.
 Source remains in saved execution records and
@@ -1390,7 +1391,8 @@ before collapsing smoothly. These delays are shared by the group, never queued
 per call, and do not delay answer text or tool execution. Manually opening,
 closing, or interacting with a group overrides automatic collapse. Subagents
 and tools requiring user input remain outside these groups so they stay visible
-during other tool bursts. Nested agent activity has its own scrollable window.
+during other tool bursts. Nested agent activity and code-mode SDK operations each
+use the same peek window.
 
 The group caret sits immediately after its label and appears on hover or keyboard
 focus. Expand an edit row to view its diffs. Result bodies load only when their

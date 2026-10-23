@@ -1408,6 +1408,17 @@ describe('coding agent dispatch', () => {
 });
 
 describe('code execution results', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+  });
+
   const executionId = '019a0000-0000-7000-8000-000000000001';
   const codePart = (server: string): ToolUsePart => ({
     kind: 'tool_use',
@@ -1471,7 +1482,7 @@ describe('code execution results', () => {
     };
   });
 
-  it('hides source and shows observed parallel operation counts', () => {
+  it('hides source and folds observed SDK ops into the peek window', () => {
     codeQuery.record = {
       ...codeQuery.record!,
       activity: [
@@ -1490,42 +1501,61 @@ describe('code execution results', () => {
     expect(rendered.container.textContent).not.toContain(
       'return { count: 1 };'
     );
-    const rows = rendered.getAllByTestId('tool-card');
-    const classification = rows.find((row) =>
-      row.textContent?.includes('Classify content')
-    );
-    expect(classification?.textContent).toContain(
-      '1 completed · 1 outcome unknown'
-    );
-    expect(classification?.dataset.status).toBe('completed');
-    const read = rows.find((row) =>
-      row.textContent?.includes('Read documents')
-    );
-    expect(read?.textContent).toContain('1 failed');
-    expect(read?.dataset.status).toBe('failed');
+    const group = rendered.getByRole('button', { name: /Called 3 tools/ });
+    expect(group.getAttribute('aria-expanded')).toBe('false');
+    expect(
+      rendered
+        .queryAllByTestId('tool-card')
+        .filter((row) =>
+          /Classify content|Read documents/.test(row.textContent ?? '')
+        )
+    ).toHaveLength(0);
+
+    group.click();
+    expect(group.getAttribute('aria-expanded')).toBe('true');
+    const activity = rendered
+      .getAllByTestId('tool-card')
+      .filter((row) =>
+        /Classify content|Read documents/.test(row.textContent ?? '')
+      );
+    expect(activity).toHaveLength(3);
+    expect(activity[0].textContent).toContain('Classify content');
+    expect(activity[0].dataset.status).toBe('completed');
+    expect(activity[1].textContent).toContain('Outcome unknown');
+    expect(activity[2].dataset.status).toBe('failed');
     expect(rendered.container.textContent).not.toContain('API calls');
     expect(rendered.container.textContent).toContain('first 128 requests');
   });
 
-  it('shows active SDK operations as tool rows without an extra wrapper', () => {
+  it('opens the peek window for live SDK operations', () => {
+    vi.useFakeTimers();
     codeQuery.record = {
       ...codeQuery.record!,
       status: 'running',
       error: null,
       calls: [],
-      activity: [{ id: 1, label: 'Browse workspace', status: 'running' }],
+      activity: [
+        { id: 1, label: 'Browse workspace', status: 'completed' },
+        { id: 2, label: 'Search email', status: 'running' },
+      ],
     };
     const part = codePart('macro_internal');
     part.status = 'running';
     const rendered = render(() => (
       <ToolCallPart part={part} context={context(true)} />
     ));
-    const rows = rendered.getAllByTestId('tool-card');
-    expect(rows).toHaveLength(1);
-    expect(rows[0].textContent).toContain('Browse workspace');
-    expect(rows[0].textContent).toContain('1 running');
-    expect(rows[0].dataset.status).toBe('running');
+    const group = rendered.getByRole('button');
+    expect(group.textContent).toContain('Calling 2 tools');
     expect(rendered.container.textContent).not.toContain('Workspace activity');
+    vi.advanceTimersByTime(150);
+    expect(group.getAttribute('aria-expanded')).toBe('true');
+    const rows = rendered.getAllByTestId('tool-card');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('Browse workspace');
+    expect(rows[0].dataset.status).toBe('completed');
+    expect(rows[1].textContent).toContain('Search email');
+    expect(rows[1].dataset.status).toBe('running');
+    vi.useRealTimers();
   });
 
   it('loads trusted records and keeps custom components after a script failure', () => {
