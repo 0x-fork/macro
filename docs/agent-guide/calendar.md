@@ -140,7 +140,9 @@ the flag request gets no answer, for example when a browser blocks it.
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
-confirmation. Disconnect removes calendar access/data, not the Gmail connection.
+confirmation. When the only linked account lacks calendar permission, the Google
+Calendar row shows just a filled Connect button for it, with no account list or
+visibility note. Disconnect removes calendar access/data, not the Gmail connection.
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
 default for its calendars; a child color overrides it. Click a color dot to open
@@ -238,7 +240,8 @@ all of its calendars at once. These choices decide which calendars represent the
 user's personal schedule. Primary calendars count by default; other calendars
 require explicit inclusion. Meetings the user attends also contribute, except
 declined meetings. Following a coworker's calendar does not automatically make
-that coworker's events occupy the user's time.
+that coworker's events occupy the user's time. The section is hidden when the
+user has no calendars to list.
 
 Teammates' shared events do not render on the grid; `Team out of office` is the
 only teammate overlay. Replacing a login session clears team data and open
