@@ -66,18 +66,27 @@ export function ChannelsMobileView(props: {
   );
   const channelCalls = useChannelCalls();
   const pinned = () => (props.searchQuery.trim() ? [] : props.pinned);
-  // Pinned conversations leave the list below, as in iMessage.
-  const visibleChannels = createMemo(() => {
-    const pinnedIds = new Set(pinned().map((channel) => channel.id));
-    return props.source.items().filter((channel) => !pinnedIds.has(channel.id));
-  });
+  const pinnedIds = createMemo(
+    () => new Set(pinned().map((channel) => channel.id))
+  );
   const activityChannels = createMemo(() => [
     ...pinned(),
-    ...visibleChannels(),
+    ...props.source.items().filter((channel) => !pinnedIds().has(channel.id)),
   ]);
   const channelActivity = useChannelRailActivity(
     activityChannels,
     channelCalls
+  );
+  // Pinned conversations leave the list below, as in iMessage, except while
+  // a call rings: its Join and Decline actions live on the list row.
+  const visibleChannels = createMemo(() =>
+    props.source
+      .items()
+      .filter(
+        (channel) =>
+          !pinnedIds().has(channel.id) ||
+          channelActivity.incomingCallIds().has(channel.id)
+      )
   );
   const isUnread = (channel: ChannelEntity) =>
     channelActivity.unreadChannelIds().has(channel.id);
@@ -179,7 +188,7 @@ export function ChannelsMobileView(props: {
                     list={actionList}
                     selectedEntities={() => []}
                     viewContext={CHANNEL_ACTION_VIEW_CONTEXT}
-                    class="block min-w-0"
+                    class="block w-1/3 min-w-0"
                     onOpenChange={(open) => {
                       if (!open) return;
                       actionController.focus.set(channel.id, {
@@ -305,7 +314,6 @@ export function ChannelsMobileView(props: {
                         ...toInboxCardDisplayItem(channel),
                         unread: isUnread(channel),
                       }}
-                      focusable={false}
                       onClick={(event) =>
                         fireAndForget(
                           openChannel(channel, event),

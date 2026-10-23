@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   },
   handle: {},
   failure: vi.fn(),
+  incomingCallIds: new Map<string, string>(),
 }));
 vi.mock('@app/components/list', () => ({ createListController: () => ({}) }));
 vi.mock('@app/features/next-soup/actions', () => ({
@@ -100,7 +101,8 @@ vi.mock('@channel/Channel/channel-actions', () => ({
   CHANNEL_ACTION_VIEW_CONTEXT: {},
 }));
 vi.mock('./rail/ChannelRailItems', () => ({
-  IncomingCallActions: () => null,
+  IncomingCallActions: (props: { callId?: string }) =>
+    props.callId ? <button>Join {props.callId}</button> : null,
 }));
 vi.mock('./rail/hooks/useChannelCalls', () => ({
   useChannelCalls: () => ({}),
@@ -109,7 +111,7 @@ vi.mock('./rail/hooks/useChannelRailActivity', () => ({
   useChannelRailActivity: () => ({
     unreadChannelIds: () => new Set(['one']),
     callStatuses: () => new Map(),
-    incomingCallIds: () => new Map(),
+    incomingCallIds: () => mocks.incomingCallIds,
   }),
 }));
 
@@ -139,6 +141,7 @@ const source: ChannelsDataSource = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.incomingCallIds = new Map();
   HTMLElement.prototype.scrollTo = vi.fn();
 });
 afterEach(() => {
@@ -293,6 +296,24 @@ describe('mobile channel pins', () => {
         expect.objectContaining({ referredFrom: 'channels' })
       )
     );
+  });
+
+  it('keeps a pinned conversation in the list while its call rings so it can be joined', () => {
+    mocks.incomingCallIds = new Map([['two', 'call-1']]);
+    render(() => (
+      <ChannelsMobileView
+        source={both}
+        pinned={[pinnedChannel]}
+        searchQuery=""
+        onClearSearch={() => {}}
+      />
+    ));
+
+    expect(
+      screen.getByRole('group', { name: 'Pinned conversations' })
+    ).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Two' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Join call-1' })).toBeTruthy();
   });
 
   it('lists pinned conversations normally while searching', () => {
