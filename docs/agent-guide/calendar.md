@@ -532,7 +532,9 @@ an untouched rule must not be reformatted and included in a reminder-only PATCH.
 A weekly rule without `BYDAY` repeats on the start's weekday: plain `FREQ=WEEKLY` opens on the
 `Weekly on <day>` preset, and one with an end (such as `COUNT=3`) opens `Custom` with that day
 selected, since the presets never end. Either is saved as written while untouched; moving the
-start to another weekday keeps a custom rule on the day the editor shows.
+start to another weekday keeps a custom rule on the day the editor shows. Event details (desktop
+popover and phone drawer) and Forward by email's summary name the day too (`Weekly on Saturday ·
+3 occurrences`), read from the occurrence's original slot in the event's own time zone.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
