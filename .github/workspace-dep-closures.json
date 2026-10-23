@@ -13786,6 +13786,15 @@
       "crates/webhook_signature",
       "crates/workspace-hack"
     ],
+    "whatsmeow": [
+      "crates/whatsmeow",
+      "crates/whatsmeow_proto",
+      "crates/workspace-hack"
+    ],
+    "whatsmeow_proto": [
+      "crates/whatsmeow_proto",
+      "crates/workspace-hack"
+    ],
     "work_feed": [
       "crates/activity",
       "crates/agent",
