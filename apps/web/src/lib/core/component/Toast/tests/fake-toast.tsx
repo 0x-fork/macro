@@ -24,6 +24,7 @@ export function FakeToaster() {
       {(toast) => (
         <div role="status">
           <p>{toast.config.title}</p>
+          <p>{toast.config.content?.()}</p>
           <For each={toast.config.actions}>
             {(action) => (
               <button onClick={action.onClick}>{action.label}</button>
