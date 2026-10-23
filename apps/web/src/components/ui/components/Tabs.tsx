@@ -230,11 +230,11 @@ function Track<T extends string>(props: TabsProps<T>) {
   return (
     <div
       class={cn(
-        'relative flex h-9 items-center rounded-full bg-ink/3 light-mode:bg-[rgb(246_246_246)] dark-mode:bg-[rgb(24_24_24)]',
+        'relative flex h-9 items-center rounded-full bg-ink/3',
         props.fullWidth && 'w-full'
       )}
     >
-      <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-panel bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--color-ink)_2%,transparent),transparent)] transition-[transform,width,height] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark-mode:bg-[rgb(32_32_32)] light-mode:border light-mode:border-ink/7 light-mode:bg-[rgb(250_250_250)] light-mode:bg-none light-mode:shadow-[0_1px_6px_0_color-mix(in_srgb,var(--color-ink)_5%,transparent)]" />
+      <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full bg-panel bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--color-ink)_2%,transparent),transparent)] transition-[transform,width,height] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark-mode:bg-active light-mode:border light-mode:border-ink/7 light-mode:bg-none light-mode:shadow-[0_1px_6px_0_color-mix(in_srgb,var(--color-ink)_5%,transparent)]" />
       <For each={props.options}>
         {(option) => (
           <KSegmentedControl.Item

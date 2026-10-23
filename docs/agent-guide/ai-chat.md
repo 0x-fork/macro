@@ -390,7 +390,12 @@ the shimmer.
   from the 28px-radius input; Chat / Code share one track with equal 8px insets
   in the 52px footer. The dark track is lighter than the footer lip and the selected segment lighter again;
   a faint gradient gives the dark toggle depth without borders or shadows.
-  Light mode uses an off-white selected segment with a subtle border and shadow.
+  Light mode uses a panel-colored selected segment with a subtle border and shadow.
+  The footer, track, and selected segment follow the active theme's color tokens.
+  The footer mixes a little ink into the panel color so its rounded lower lip
+  remains distinct from the page, including behind the input's bottom corners.
+  Verify them with a colored dark theme (such as Moon) and a colored light theme,
+  including switching Chat / Code; none should retain fixed neutral grays.
   The selected segment glides for 250ms with
   an ease-out curve. The greeting text flips vertically into place on each mode change
   with the same duration; both animations respect reduced motion.
