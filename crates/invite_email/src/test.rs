@@ -118,6 +118,7 @@ fn team_invite_rate_limit_key_is_per_invite() {
         invited_by: MacroUserIdStr::try_from_email("alice@acme.com").unwrap(),
         role: None,
         sender_profile_picture_url: None,
+        invitee_plan: InviteePlan::Free,
     };
     let to_carol = InviteToTeamMetadata {
         team_invite_id: Uuid::from_u128(11),
@@ -302,6 +303,7 @@ fn invitation_logos_keep_the_png_aspect_ratio() {
         invited_by: MacroUserIdStr::try_from_email("sender@example.com").unwrap(),
         role: None,
         sender_profile_picture_url: None,
+        invitee_plan: InviteePlan::Free,
     };
     for email in [
         make_invite().format_email(),
@@ -406,4 +408,119 @@ fn deserialization_without_sender_email_uses_none() {
     }"#;
     let deserialized: InviteToMacro = serde_json::from_str(json).unwrap();
     assert!(deserialized.sender_email.is_none());
+}
+
+fn make_team_invite(invitee_plan: InviteePlan) -> InviteToTeamMetadata {
+    InviteToTeamMetadata {
+        team_name: "Acme".to_string(),
+        team_id: Uuid::from_u128(1),
+        team_invite_id: Uuid::from_u128(10),
+        invited_by: MacroUserIdStr::try_from_email("alice@acme.com").unwrap(),
+        role: None,
+        sender_profile_picture_url: None,
+        invitee_plan,
+    }
+}
+
+/// The rendered body with whitespace collapsed, so assertions read like the email.
+fn team_invite_text(invite: &InviteToTeamMetadata) -> String {
+    invite
+        .format_email()
+        .body
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn team_invite_names_the_inviter_and_the_team() {
+    let invite = make_team_invite(InviteePlan::Free);
+    let text = team_invite_text(&invite);
+
+    assert_eq!(
+        invite.format_email().subject,
+        "alice@acme.com invited you to join Acme on Macro"
+    );
+    assert!(text.contains("Join Acme on Macro </h1>"));
+    assert!(text.contains(
+        r#"<strong style="color: #222222">alice@acme.com</strong> invited you to the <strong style="color: #222222">Acme</strong> team."#
+    ));
+    assert!(text.contains(">Join Acme</a"));
+}
+
+#[test]
+fn team_invite_promises_pro_only_when_the_team_covers_the_seat() {
+    let pro = team_invite_text(&make_team_invite(InviteePlan::Premium));
+    assert!(pro.contains("Pro is included: Acme covers your seat."));
+    assert!(
+        pro.contains(
+            "Acme covers your seat, so you get every AI model and agent at no cost to you."
+        )
+    );
+    assert!(!pro.contains("Free to join"));
+
+    let free = team_invite_text(&make_team_invite(InviteePlan::Free));
+    assert!(free.contains("Free to join"));
+    assert!(free.contains("Accept the invite to start working with Acme in Macro."));
+    assert!(!free.contains("Pro is included"));
+    assert!(!free.contains("covers your seat"));
+}
+
+#[test]
+fn team_invite_links_the_button_and_a_pasteable_fallback() {
+    let invite = make_team_invite(InviteePlan::Free);
+    let url = invite.invite_url().to_string();
+    let body = invite.format_email().body;
+
+    assert!(url.ends_with("/app/team-invite?id=00000000-0000-0000-0000-00000000000a"));
+    // The button's href, the fallback link's href, and its visible text.
+    assert_eq!(body.matches(&url).count(), 3);
+}
+
+#[test]
+fn team_invite_escapes_the_team_name() {
+    let invite = InviteToTeamMetadata {
+        team_name: "<script>alert(1)</script>".to_string(),
+        ..make_team_invite(InviteePlan::Premium)
+    };
+    let body = invite.format_email().body;
+
+    assert!(!body.contains("<script>"));
+    assert!(body.contains("Join &#60;script&#62;alert(1)&#60;/script&#62; on Macro"));
+}
+
+#[test]
+fn team_invite_button_names_the_team_while_it_fits() {
+    assert_eq!(
+        make_team_invite(InviteePlan::Free).join_label(),
+        "Join Acme"
+    );
+    let long = InviteToTeamMetadata {
+        team_name: "Northwind Traders International".to_string(),
+        ..make_team_invite(InviteePlan::Free)
+    };
+    assert_eq!(long.join_label(), "Join team");
+}
+
+#[test]
+fn team_invite_plan_keeps_its_wire_shape() {
+    let wire = serde_json::to_value(make_team_invite(InviteePlan::Premium)).unwrap();
+    assert_eq!(wire["inviteePlan"], "premium");
+
+    let read: InviteToTeamMetadata = serde_json::from_value(wire).unwrap();
+    assert_eq!(read.invitee_plan, InviteePlan::Premium);
+}
+
+#[test]
+fn team_invite_sent_before_plans_were_recorded_reads_as_free() {
+    let wire = serde_json::json!({
+        "team_name": "Acme",
+        "team_id": "00000000-0000-0000-0000-000000000001",
+        "team_invite_id": "00000000-0000-0000-0000-00000000000a",
+        "invited_by": "macro|alice@acme.com",
+        "role": null,
+    });
+
+    let read: InviteToTeamMetadata = serde_json::from_value(wire).unwrap();
+    assert_eq!(read.invitee_plan, InviteePlan::Free);
 }

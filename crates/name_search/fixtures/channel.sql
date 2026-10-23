@@ -58,7 +58,7 @@ VALUES
     ('88888888-8888-8888-8888-888888888888', 'owner', 'macro|member@test.com', NULL),
     ('88888888-8888-8888-8888-888888888888', 'member', 'macro|nameless@test.com', NULL),
     ('99999999-9999-9999-9999-999999999999', 'owner', 'macro|member@test.com', NULL),
-    ('99999999-9999-9999-9999-999999999999', 'member', 'bot|00000000-0000-0000-0000-00000000c1a0', NULL),
+    ('99999999-9999-9999-9999-999999999999', 'member', 'bot|00000000-0000-0000-0000-00000000c0de', NULL),
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'owner', 'macro|member@test.com', NULL),
     ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'member', 'bot|b0000000-0000-0000-0000-000000000001', NULL),
     ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'owner', 'macro|member@test.com', NULL),

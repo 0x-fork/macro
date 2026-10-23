@@ -146,7 +146,10 @@ another team are told to leave it first. Team admins and owners also see
 **Reset link** (the old link stops working and a new one is copied) and
 **Turn off**, each behind a confirmation. Anyone who may invite can copy the
 link or create the first one. Below it, **Invite by email** sends invitations
-as before.
+as before. Each email says what joining gives: **Pro is included** when joining
+grants a Pro seat (an enterprise team, or one with a subscription), otherwise
+**Free to join**. Examples: [desktop](media/team-invite-email/desktop.png) and
+[mobile](media/team-invite-email/mobile.png).
 
 Under **Team → Members** (**Invite settings**), owners/admins can turn
 **Auto-join on domain** off and can restrict invitations to admins with

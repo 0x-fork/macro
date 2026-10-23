@@ -3235,6 +3235,7 @@ async fn invite_users_to_team_enterprise_bypasses_billing_and_preserves_side_eff
     assert_eq!(*invitation_persistence_calls.lock().unwrap(), 1);
     assert_eq!(notification_ingress.call_count.load(Ordering::SeqCst), 1);
     assert_eq!(*mark_sent_calls.lock().unwrap(), vec![vec![invite_id]]);
+    assert_eq!(invitee_plans_sent(&notification_ingress), ["premium"]);
 
     let events = analytics_events.lock().unwrap();
     assert_eq!(events.len(), 1);
@@ -3252,6 +3253,101 @@ async fn invite_users_to_team_enterprise_bypasses_billing_and_preserves_side_eff
         }
         event => panic!("unexpected event: {event:?}"),
     }
+}
+
+/// The plan each sent invite email promised, in send order.
+fn invitee_plans_sent(notification_ingress: &MockNotificationIngress) -> Vec<serde_json::Value> {
+    notification_ingress
+        .recorded_requests
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|request| request["req"]["notification"]["content"]["inviteePlan"].clone())
+        .collect()
+}
+
+/// Invites one member to a team in the given billing state and returns the
+/// plans the invite emails promised.
+async fn invitee_plans_for_team(
+    in_good_standing: bool,
+    team_subscription_id: Option<&str>,
+    customer_repo: MockCustomerRepository,
+) -> Vec<serde_json::Value> {
+    let team_id = uuid::Uuid::from_u128(7100);
+    let invite_id = uuid::Uuid::from_u128(7101);
+    let owner_id = MacroUserIdStr::parse_from_str("macro|owner@example.com").unwrap();
+    let mut team_repo = MockTeamRepository::new(
+        vec![make_invite("member@example.com", invite_id, team_id)],
+        "Acme",
+        Arc::new(Mutex::new(Vec::new())),
+    )
+    .with_team(Team::new(
+        team_id,
+        "Acme".to_string(),
+        "acme".to_string(),
+        owner_id.clone().into_owned(),
+        false,
+        false,
+    ));
+    team_repo.team_payment_status = in_good_standing;
+    team_repo.team_subscription_id = team_subscription_id.map(|id| id.parse().unwrap());
+    team_repo.stripe_customer_id = Some("cus_invitee_plan".parse().unwrap());
+
+    let notification_ingress = Arc::new(MockNotificationIngress::new(HashSet::new()));
+    let service = TeamServiceImpl::new(
+        team_repo,
+        customer_repo,
+        RecordingChannelService::default(),
+        MockUserRolesAndPermissionsService::default(),
+        notification_ingress.clone(),
+        NoOpCrmEnqueuer,
+        NoOpTeamCrmSettingsRepository,
+    );
+
+    let invites = vec![
+        Email::parse_from_str("member@example.com")
+            .unwrap()
+            .lowercase(),
+    ];
+    let invites = non_empty::NonEmpty::new(invites.as_slice()).unwrap();
+    service
+        .invite_users_to_team(
+            test_team_receipt::<MemberTeamRole>(team_id, &owner_id),
+            invites,
+        )
+        .await
+        .unwrap();
+
+    invitee_plans_sent(&notification_ingress)
+}
+
+#[tokio::test]
+async fn invite_email_offers_pro_from_a_team_with_a_subscription() {
+    let plans = invitee_plans_for_team(true, Some("sub_paying"), Default::default()).await;
+    assert_eq!(plans, ["premium"]);
+}
+
+#[tokio::test]
+async fn invite_email_offers_no_pro_from_a_team_without_a_subscription() {
+    // In good standing but unbilled: `join_team` grants a free membership.
+    let plans = invitee_plans_for_team(true, None, Default::default()).await;
+    assert_eq!(plans, ["free"]);
+}
+
+#[tokio::test]
+async fn invite_email_offers_pro_once_the_owners_subscription_is_linked() {
+    let plans = invitee_plans_for_team(false, None, Default::default()).await;
+    assert_eq!(plans, ["premium"]);
+}
+
+#[tokio::test]
+async fn invite_email_offers_no_pro_when_the_owner_has_no_active_subscription() {
+    let customer_repo = MockCustomerRepository {
+        no_active_subscription: true,
+        ..Default::default()
+    };
+    let plans = invitee_plans_for_team(false, None, customer_repo).await;
+    assert_eq!(plans, ["free"]);
 }
 
 #[tokio::test]

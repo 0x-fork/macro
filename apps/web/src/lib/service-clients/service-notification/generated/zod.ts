@@ -963,6 +963,10 @@ export const listTypedNotificationsResponse = zod
                           invitedBy: zod
                             .string()
                             .describe('The user who sent the invitation'),
+                          inviteePlan: zod
+                            .enum(['free', 'premium'])
+                            .optional()
+                            .describe('What a team invitee gets by joining.'),
                           role: zod
                             .string()
                             .nullish()
@@ -2929,6 +2933,10 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                           invitedBy: zod
                             .string()
                             .describe('The user who sent the invitation'),
+                          inviteePlan: zod
+                            .enum(['free', 'premium'])
+                            .optional()
+                            .describe('What a team invitee gets by joining.'),
                           role: zod
                             .string()
                             .nullish()
@@ -4889,6 +4897,10 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                           invitedBy: zod
                             .string()
                             .describe('The user who sent the invitation'),
+                          inviteePlan: zod
+                            .enum(['free', 'premium'])
+                            .optional()
+                            .describe('What a team invitee gets by joining.'),
                           role: zod
                             .string()
                             .nullish()
@@ -6788,6 +6800,10 @@ export const getTypedNotificationByIdResponse = zod
                   invitedBy: zod
                     .string()
                     .describe('The user who sent the invitation'),
+                  inviteePlan: zod
+                    .enum(['free', 'premium'])
+                    .optional()
+                    .describe('What a team invitee gets by joining.'),
                   role: zod
                     .string()
                     .nullish()

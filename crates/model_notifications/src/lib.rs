@@ -21,8 +21,8 @@ pub use metadata::{
     GithubPrEventStatus, GithubPrMention, GithubPrMentionLocation, GithubPrNotificationCommon,
     GithubPrReview, GithubPrReviewState, GithubPrStatusChanged, GithubReviewRequested,
     InboxReauthRequiredMetadata, InitiativeDiscussionMetadata, InitiativeDiscussionReason,
-    InviteToTeamMetadata, ItemSharedMetadata, MentionedInDocumentCommentMetadata, NewEmailMetadata,
-    NotificationDocumentSubType, NotificationTitle, ReminderMetadata,
+    InviteToTeamMetadata, InviteePlan, ItemSharedMetadata, MentionedInDocumentCommentMetadata,
+    NewEmailMetadata, NotificationDocumentSubType, NotificationTitle, ReminderMetadata,
     RepliedToDocumentCommentThreadMetadata, RequestedAccessLevel, TaskAssignedMetadata,
 };
 pub use unsubscribe::UserUnsubscribe;

@@ -2266,6 +2266,10 @@
             "type": "string",
             "description": "The user who sent the invitation"
           },
+          "inviteePlan": {
+            "$ref": "#/components/schemas/InviteePlan",
+            "description": "What the invitee gets by joining, as the team stood when the invite was sent."
+          },
           "role": {
             "type": ["string", "null"],
             "description": "Role/permission level in the team"
@@ -2289,6 +2293,11 @@
             "description": "The name of the team being invited to"
           }
         }
+      },
+      "InviteePlan": {
+        "type": "string",
+        "description": "What a team invitee gets by joining.",
+        "enum": ["free", "premium"]
       },
       "ItemSharedMetadata": {
         "type": "object",

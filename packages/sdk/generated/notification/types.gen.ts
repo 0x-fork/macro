@@ -919,6 +919,10 @@ export type InviteToTeamMetadata = {
      */
     invitedBy: string;
     /**
+     * What the invitee gets by joining, as the team stood when the invite was sent.
+     */
+    inviteePlan?: InviteePlan;
+    /**
      * Role/permission level in the team
      */
     role?: string | null;
@@ -939,6 +943,11 @@ export type InviteToTeamMetadata = {
      */
     teamName: string;
 };
+
+/**
+ * What a team invitee gets by joining.
+ */
+export type InviteePlan = 'free' | 'premium';
 
 /**
  * Metadata for when a item is shared with a user

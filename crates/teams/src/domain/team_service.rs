@@ -28,7 +28,7 @@ use roles_and_permissions::domain::{model::RoleId, port::UserRolesAndPermissions
 #[cfg(feature = "ports")]
 use model_entity::EntityType;
 #[cfg(feature = "ports")]
-use model_notifications::InviteToTeamMetadata;
+use model_notifications::{InviteToTeamMetadata, InviteePlan};
 #[cfg(feature = "ports")]
 use notification::domain::{models::SendNotificationRequestBuilder, service::NotificationIngress};
 
@@ -1222,16 +1222,17 @@ where
     /// Runs [`Self::backfill_legacy_team_subscription`], treating "the owner
     /// simply has no active subscription" as a benign outcome: the team is a
     /// free team rather than an error. Team size does not require an upgrade.
-    /// Every other failure still propagates.
+    /// Every other failure still propagates. Returns whether the team now
+    /// pays through the owner's subscription.
     async fn backfill_legacy_team_subscription_or_free(
         &self,
         team_id: &uuid::Uuid,
-    ) -> Result<(), GetTeamSubscriptionError> {
+    ) -> Result<bool, GetTeamSubscriptionError> {
         match self.backfill_legacy_team_subscription(team_id).await {
-            Ok(()) => Ok(()),
+            Ok(()) => Ok(true),
             Err(GetTeamSubscriptionError::Customer(
                 CustomerError::NoStripeCustomerId | CustomerError::SubscriptionNotActive,
-            )) => Ok(()),
+            )) => Ok(false),
             Err(e) => Err(e),
         }
     }
@@ -1472,7 +1473,7 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self), err)]
+    #[tracing::instrument(skip(self), fields(invitee_plan = tracing::field::Empty), err)]
     async fn invite_users_to_team(
         &self,
         entity_access_receipt: EntityAccessReceipt<MemberTeamRole>,
@@ -1486,26 +1487,41 @@ where
             .get_team_enterprise_status(&team_id)
             .await?;
 
-        if !enterprise
-            && !self
+        // The invite email promises this plan, so it follows `join_team`: a
+        // joining member gets a Pro seat from an enterprise team or one with a
+        // subscription, and keeps their own plan on a free team.
+        let invitee_plan = if enterprise {
+            InviteePlan::Premium
+        } else {
+            let in_good_standing = self
                 .team_repository
                 .get_team_payment_status(&team_id)
-                .await?
-        {
-            // If the team has a subscription id and they are set to not paying continue to error
-            if self
+                .await?;
+            let subscription_id = self
                 .team_repository
                 .get_team_subscription_id(&team_id)
-                .await?
-                .is_some()
-            {
-                return Err(InviteUsersToTeamError::TeamError(TeamError::TeamNotPaying));
+                .await?;
+            match (in_good_standing, subscription_id) {
+                (true, Some(_)) => InviteePlan::Premium,
+                (true, None) => InviteePlan::Free,
+                // If the team has a subscription id and they are set to not paying continue to error
+                (false, Some(_)) => {
+                    return Err(InviteUsersToTeamError::TeamError(TeamError::TeamNotPaying));
+                }
+                (false, None) => {
+                    let linked = self
+                        .backfill_legacy_team_subscription_or_free(&team_id)
+                        .await
+                        .map_err(GetTeamSubscriptionError::into_invite_users_to_team_error)?;
+                    if linked {
+                        InviteePlan::Premium
+                    } else {
+                        InviteePlan::Free
+                    }
+                }
             }
-
-            self.backfill_legacy_team_subscription_or_free(&team_id)
-                .await
-                .map_err(GetTeamSubscriptionError::into_invite_users_to_team_error)?;
-        }
+        };
+        tracing::Span::current().record("invitee_plan", tracing::field::debug(invitee_plan));
 
         let invited_by = entity_access_receipt
             .get_authenticated_user()
@@ -1585,6 +1601,7 @@ where
                             team_name: team_name.clone(),
                             role: None,
                             sender_profile_picture_url: None,
+                            invitee_plan,
                         },
                     )
                     .await

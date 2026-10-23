@@ -109,6 +109,7 @@
 - [InboxReauthRequiredMetadata](type-aliases/InboxReauthRequiredMetadata.md)
 - [InitiativeDiscussionMetadata](type-aliases/InitiativeDiscussionMetadata.md)
 - [InitiativeDiscussionReason](type-aliases/InitiativeDiscussionReason.md)
+- [InviteePlan](type-aliases/InviteePlan.md)
 - [InviteToTeamMetadata](type-aliases/InviteToTeamMetadata.md)
 - [ItemSharedMetadata](type-aliases/ItemSharedMetadata.md)
 - [ListTypedNotificationsData](type-aliases/ListTypedNotificationsData.md)

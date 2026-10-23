@@ -32,7 +32,8 @@ fn unnamed_private_channel_lists_people_and_bots_but_not_the_viewer() {
         MacroUserIdStr::try_from("macro|gabriel@test.com".to_string()).unwrap(),
         "Gabriel Birman".to_string(),
     );
-    let bot_names = HashMap::from([(bot_id::CLAUDE_BOT_ID, "Claude".to_string())]);
+    let bot = bot_id::BotId::new_from_uuid(Uuid::from_u128(0xc1a0));
+    let bot_names = HashMap::from([(bot, "Claude".to_string())]);
 
     let name = resolve_channel_name(
         ChannelType::Private,

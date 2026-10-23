@@ -13,7 +13,7 @@ const MACARONI: &str = "33333333-3333-3333-3333-333333333333";
 const GABRIEL_DM: &str = "66666666-6666-6666-6666-666666666666";
 const PETER_TEO_GROUP: &str = "77777777-7777-7777-7777-777777777777";
 const NAMELESS_DM: &str = "88888888-8888-8888-8888-888888888888";
-const CLAUDE_DM: &str = "99999999-9999-9999-9999-999999999999";
+const CODEX_DM: &str = "99999999-9999-9999-9999-999999999999";
 const DEAL_DESK_DM: &str = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const DESIGN_DECKS: &str = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const HOLLIS_DM: &str = "cccccccc-cccc-cccc-cccc-cccccccccccc";
@@ -395,14 +395,14 @@ async fn persona_direct_messages_are_found_by_bot_name(pool: Pool<Postgres>) -> 
         &pool,
         &user(MEMBER),
         ChannelNameSearchScope::default(),
-        "claude".to_string(),
+        "codex".to_string(),
         false,
         10,
         None,
     )
     .await?;
-    assert_eq!(ids(&system_bot), [CLAUDE_DM]);
-    assert_eq!(system_bot.items[0].name, "<macro_em>Claude</macro_em>");
+    assert_eq!(ids(&system_bot), [CODEX_DM]);
+    assert_eq!(system_bot.items[0].name, "<macro_em>Codex</macro_em>");
 
     let owned_bot = search_channel_names(
         &pool,
