@@ -56,6 +56,8 @@ vi.mock('@queries/calendar/copy', () => ({
 vi.mock('@queries/calendar/join-requests', () => ({
   isSharerCannotInvite: (error: unknown) =>
     (error as { code?: string }).code === 'sharer_cannot_invite',
+  isJoinRequestDeclined: (error: unknown) =>
+    (error as { code?: string }).code === 'request_declined',
   useRequestToJoinCalendarEventMutation: (callbacks?: {
     onSuccess?: () => void;
     onError?: (error: unknown) => void;
@@ -264,25 +266,59 @@ describe('shared event actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
     expect(screen.getByText('Requested')).toBeTruthy();
 
-    setStatus('declined');
-    expect(screen.getByRole('button', { name: 'Ask to join' })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
-    expect(screen.getByText('Requested')).toBeTruthy();
-
     setStatus('accepted');
     expect(screen.getByText('Invited')).toBeTruthy();
     expect(screen.queryByText('Requested')).toBeNull();
   });
 
-  it('lets a declined viewer ask again but not a pending or invited one', () => {
-    renderActions(vi.fn(), {
-      canRequestToJoin: true,
-      joinRequestStatus: 'declined',
-    });
-    expect(screen.getByRole('button', { name: 'Ask to join' })).toBeTruthy();
-    cleanup();
+  it('says a request was declined and offers no second ask', () => {
+    const [status, setStatus] = createSignal<'pending' | 'declined'>();
+    render(() => (
+      <SharedEventActions
+        eventId="shared-event"
+        title="Design review"
+        canRequestToJoin
+        joinRequestStatus={status()}
+        onAdded={vi.fn()}
+      />
+    ));
+    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
+    setStatus('pending');
+    expect(screen.getByText('Requested')).toBeTruthy();
 
+    // Even a preview that still says the viewer may ask stops offering it.
+    setStatus('declined');
+    expect(screen.getByText('Declined')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'The person who shared this event declined your request to join.'
+      )
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
+    expect(screen.queryByText('Requested')).toBeNull();
+    expect(
+      screen.queryByText(
+        "The person who shared this event can't add guests to it."
+      )
+    ).toBeNull();
+    expect(mocks.ask).toHaveBeenCalledOnce();
+  });
+
+  it('says so when the sharer already declined an ask the card still offered', () => {
+    mocks.ask.mockImplementationOnce(() => {
+      throw { code: 'request_declined' };
+    });
+    renderActions(vi.fn(), { canRequestToJoin: true });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
+
+    expect(mocks.failure).toHaveBeenCalledWith(
+      'The person who shared this event declined your request'
+    );
+    expect(screen.queryByText('Requested')).toBeNull();
+  });
+
+  it('lets neither a pending nor an invited viewer ask again', () => {
     renderActions(vi.fn(), {
       canRequestToJoin: true,
       joinRequestStatus: 'pending',

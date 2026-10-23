@@ -113,7 +113,9 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   write. Eligibility is the invite path's own `copy_capabilities` on the
   sharer's copy, so a request that can be made is one the sharer can accept,
   and accepting calls `invite_guests` as the sharer
-  (`src/domain/mutations/join.rs`).
+  (`src/domain/mutations/join.rs`). A declined request stands: asking again
+  is refused with `Declined` (409 `request_declined`) and never notifies the
+  sharer twice.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy

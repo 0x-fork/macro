@@ -603,8 +603,11 @@ notification (Settings → Notifications → Calendar → Requests to join), whi
 `<requester> asked to join <event>` with a person-plus glyph, like a comment row. It opens the event,
 whose details list each request with `Add as guest` and `Decline` on desktop and in the phone
 drawer. Adding writes the guest through the same invite path as `Add guests`, so Google or
-Outlook sends the invitation and the mention then opens the viewer's own copy; declining tells
-the requester nothing, and asking again reopens the request. A classic `@Macro` reply that
+Outlook sends the invitation and the mention then opens the viewer's own copy. Declining sends
+the requester nothing, but their card then reads `Declined` and `The person who shared this event
+declined your request to join.` with no `Ask to join`, and offers `Add to calendar` again. A
+declined request stands: the server refuses another ask with 409 `request_declined`, so the
+sharer is asked only once. A classic `@Macro` reply that
 mentions an event does not share
 it by posting the chip. It asks whether to share with the channel, and a yes in that thread
 writes the same channel grant. Private and confidential events are never shared this way.

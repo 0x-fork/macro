@@ -843,6 +843,9 @@ pub enum CalendarJoinRequestError {
     /// accept.
     #[error("the person who shared this event cannot add guests to it")]
     SharerCannotInvite,
+    /// The sharer declined the requester's earlier request, which stands.
+    #[error("the person who shared this event declined the request to join")]
+    Declined,
     /// Persistence failed.
     #[error("calendar join request failed: {0}")]
     Internal(Report),
@@ -854,7 +857,8 @@ pub trait CalendarJoinRequestService: Send + Sync + 'static {
     /// Ask the person who shared an event with one of the requester's
     /// channels to add them as a guest, notifying them when the request
     /// becomes pending. Asking again while pending changes nothing; asking
-    /// after a decline reopens the request.
+    /// after a decline is refused with `Declined`, so the sharer is asked
+    /// only once.
     fn request_to_join(
         &self,
         requester_id: &str,

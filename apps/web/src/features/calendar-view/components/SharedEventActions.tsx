@@ -8,6 +8,7 @@ import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import DownloadSimpleIcon from '@phosphor/download-simple.svg';
 import UserPlusIcon from '@phosphor/user-plus.svg';
+import XIcon from '@phosphor/x.svg';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import {
   isAlreadyOnCalendar,
@@ -15,6 +16,7 @@ import {
   useCopySharedCalendarEventMutation,
 } from '@queries/calendar/copy';
 import {
+  isJoinRequestDeclined,
   isSharerCannotInvite,
   useRequestToJoinCalendarEventMutation,
 } from '@queries/calendar/join-requests';
@@ -104,9 +106,14 @@ export function SharedEventActions(props: {
       toast.failure(
         isSharerCannotInvite(error)
           ? "The person who shared this event can't add guests to it"
-          : 'Failed to ask to join the event'
+          : isJoinRequestDeclined(error)
+            ? 'The person who shared this event declined your request'
+            : 'Failed to ask to join the event'
       ),
   });
+  // A declined request stands: the card says so instead of offering to ask
+  // again, and the sharer is never asked twice.
+  const declined = () => props.joinRequestStatus === 'declined';
 
   return (
     <div
@@ -124,6 +131,12 @@ export function SharedEventActions(props: {
           <span class="flex h-5 items-center gap-1 px-1 text-xs text-ink-muted">
             <CheckIcon class="size-3" />
             Invited
+          </span>
+        </Match>
+        <Match when={declined()}>
+          <span class="flex h-5 items-center gap-1 px-1 text-xs text-ink-muted">
+            <XIcon class="size-3" />
+            Declined
           </span>
         </Match>
         <Match when={props.canRequestToJoin}>
@@ -200,11 +213,18 @@ export function SharedEventActions(props: {
         <DownloadSimpleIcon />
         Download .ics
       </Button>
-      <Show when={!props.canRequestToJoin && !requestOutstanding()}>
-        <p class="w-full text-xs text-ink-muted">
-          The person who shared this event can't add guests to it.
-        </p>
-      </Show>
+      <Switch>
+        <Match when={declined()}>
+          <p class="w-full text-xs text-ink-muted">
+            The person who shared this event declined your request to join.
+          </p>
+        </Match>
+        <Match when={!props.canRequestToJoin && !requestOutstanding()}>
+          <p class="w-full text-xs text-ink-muted">
+            The person who shared this event can't add guests to it.
+          </p>
+        </Match>
+      </Switch>
     </div>
   );
 }

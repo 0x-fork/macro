@@ -311,16 +311,10 @@ impl CalendarRepository for FakeRepo {
         use crate::domain::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
         let mut requests = self.join_requests.lock().unwrap();
         if let Some(existing) = requests
-            .iter_mut()
+            .iter()
             .find(|request| request.event_id == event_id && request.requester_id == requester_id)
         {
-            if existing.status != CalendarJoinRequestStatus::Declined {
-                return Ok((existing.clone(), false));
-            }
-            existing.status = CalendarJoinRequestStatus::Pending;
-            existing.requester_email = requester_email.to_string();
-            existing.created_at = Utc::now();
-            return Ok((existing.clone(), true));
+            return Ok((existing.clone(), false));
         }
         let request = CalendarJoinRequest {
             id: Uuid::now_v7(),

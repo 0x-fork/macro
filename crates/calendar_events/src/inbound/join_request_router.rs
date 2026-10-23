@@ -86,6 +86,9 @@ pub enum CalendarJoinRequestErrorCode {
     AlreadyOnCalendar,
     /// The person who shared the event cannot add guests to it.
     SharerCannotInvite,
+    /// The person who shared the event declined the requester's earlier
+    /// request, which stands.
+    RequestDeclined,
     /// An internal failure.
     Internal,
 }
@@ -130,6 +133,11 @@ impl From<CalendarJoinRequestError> for CalendarJoinRequestApiError {
                 StatusCode::CONFLICT,
                 CalendarJoinRequestErrorCode::SharerCannotInvite,
                 "the person who shared this event cannot add guests to it",
+            ),
+            CalendarJoinRequestError::Declined => (
+                StatusCode::CONFLICT,
+                CalendarJoinRequestErrorCode::RequestDeclined,
+                "the person who shared this event declined your request to join",
             ),
             CalendarJoinRequestError::Internal(report) => {
                 tracing::error!(error=?report, "calendar join request failed");

@@ -1797,7 +1797,7 @@ export type CalendarEventSourceContent = {
  */
 export type CalendarJoinRequest = {
     /**
-     * When the request was made, or last reopened.
+     * When the request was made.
      */
     createdAt: string;
     /**
@@ -1839,7 +1839,7 @@ export type CalendarJoinRequestApiError = {
 /**
  * Machine-readable join-request failure category.
  */
-export type CalendarJoinRequestErrorCode = 'not_found' | 'already_on_calendar' | 'sharer_cannot_invite' | 'internal';
+export type CalendarJoinRequestErrorCode = 'not_found' | 'already_on_calendar' | 'sharer_cannot_invite' | 'request_declined' | 'internal';
 
 /**
  * Lifecycle of a request to be added as a guest of a shared event.

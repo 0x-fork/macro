@@ -21338,7 +21338,7 @@
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "When the request was made, or last reopened."
+            "description": "When the request was made."
           },
           "eventId": {
             "type": "string",
@@ -21386,6 +21386,7 @@
           "not_found",
           "already_on_calendar",
           "sharer_cannot_invite",
+          "request_declined",
           "internal"
         ]
       },

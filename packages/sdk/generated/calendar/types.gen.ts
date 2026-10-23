@@ -359,7 +359,7 @@ export type CalendarGuestInputBody = {
  */
 export type CalendarJoinRequest = {
     /**
-     * When the request was made, or last reopened.
+     * When the request was made.
      */
     createdAt: string;
     /**

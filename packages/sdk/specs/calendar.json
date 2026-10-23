@@ -1428,7 +1428,7 @@
           "createdAt": {
             "type": "string",
             "format": "date-time",
-            "description": "When the request was made, or last reopened."
+            "description": "When the request was made."
           },
           "eventId": {
             "type": "string",

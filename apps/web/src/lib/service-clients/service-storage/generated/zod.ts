@@ -1798,7 +1798,7 @@ export const listJoinRequestsResponse = zod
           .object({
             createdAt: zod.iso
               .datetime({})
-              .describe('When the request was made, or last reopened.'),
+              .describe('When the request was made.'),
             eventId: zod
               .uuid()
               .describe(
@@ -1834,9 +1834,7 @@ export const requestToJoinParams = zod.object({
 
 export const requestToJoinResponse = zod
   .object({
-    createdAt: zod.iso
-      .datetime({})
-      .describe('When the request was made, or last reopened.'),
+    createdAt: zod.iso.datetime({}).describe('When the request was made.'),
     eventId: zod
       .uuid()
       .describe("The sharer's event entity that was shared with the channel."),
