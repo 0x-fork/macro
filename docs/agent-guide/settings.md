@@ -82,7 +82,9 @@ After onboarding, an eligible desktop app user sees **Enable Desktop
 Notifications**. Select **Enable** to request permission through the native
 notification provider; macOS uses its system permission dialog. The web prompt
 continues to say **Enable Browser Notifications** and uses browser permissions.
-Select **Hide** to dismiss the prompt.
+Select **Hide** to dismiss the prompt. It waits in the same region as other
+prompts, one card at a time, and on a phone it steps aside while a drawer,
+sheet, or dialog is open and comes back when it closes.
 
 ### Notification snoozes
 

@@ -53,6 +53,9 @@ read their code, and follow that pattern rather than inventing a new one.
   place with a back row.
 - Overlays are Kobalte or corvu layers or handle Escape: Android Back sends
   Escape to the top layer. Own back stacks use `useAndroidBackNavigation`.
+- Persistent prompts (`toast.custom` with `persistent`) go to the prompt
+  region (`useKeyedPersistentToasts` does it), which hides while a modal layer
+  is open; a prompt in the transient region would cover a sheet's controls.
 
 ## Keyboard and focus
 

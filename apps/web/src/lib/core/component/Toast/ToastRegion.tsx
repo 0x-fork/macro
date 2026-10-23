@@ -48,7 +48,8 @@ export function ToastRegion() {
         transient toast is visible — Toast.tsx dismisses the previous one as
         soon as a new one is shown. Persistent prompts live in their own
         region above that slot, capped at one visible card with the rest
-        queued until it is answered.
+        queued until it is answered. Prompts step aside while a drawer, sheet,
+        or dialog is open, so they never cover its controls.
       */}
       <div
         class="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] px-(--mobile-chrome-gutter) pointer-events-none z-toast-region flex flex-col gap-2"
@@ -71,6 +72,7 @@ export function ToastRegion() {
           limit={1}
           pauseOnInteraction={false}
           swipeDirection="left"
+          class="in-[body:has([aria-modal=true])]:hidden"
         >
           <Toast.List class="flex flex-col gap-2" />
         </Toast.Region>
