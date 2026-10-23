@@ -1455,6 +1455,7 @@ export function createReplyComposer(
             props.drafts,
             {
               draftId,
+              draftGeneration: draftGeneration(),
               threadId: savedDraftThreadId(),
               inboxId: activeInboxId(),
             },

@@ -21,6 +21,8 @@ export function composeDraftInput(
   if (!draftId) throw new Error('Save the draft before sending');
   return {
     draftId,
+    // Admission and cancellation advance it; a stale value is rejected.
+    draftGeneration: draft.draft_generation ?? 0,
     linkId: inboxId,
     senderEmail: draft.sender_email,
     threadDbId: draft.thread_db_id ?? handles?.threadId,

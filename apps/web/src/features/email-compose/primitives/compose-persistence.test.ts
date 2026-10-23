@@ -97,6 +97,40 @@ it('discard waits for an in-flight first save and deletes its returned draft', a
     expect.objectContaining({ draftId: 'saved-id' })
   );
 });
+it('discards a standalone draft at its server generation', async () => {
+  const composeContext = createComposeContext();
+  // Each send that Undo cancels advances the server's generation twice.
+  const root = mountEmailComposer(composeContext, undefined, {
+    draft: message('restored', {
+      is_draft: true,
+      thread_db_id: 'thread',
+      draft_generation: 4,
+    }),
+  });
+  await root.state.deleteDraftAndReset();
+  root.dispose();
+  expect(composeContext.drafts.deleteDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ draftId: 'restored', draftGeneration: 4 })
+  );
+});
+
+it('discards a reply draft at its server generation', async () => {
+  const composeContext = createComposeContext();
+  const root = mountReplyComposer(composeContext, () => message('parent'), {
+    draft: message('restored', {
+      is_draft: true,
+      replying_to_id: 'parent',
+      thread_db_id: 'thread',
+      draft_generation: 4,
+    }),
+  });
+  await root.deleteDraftAndReset();
+  root.dispose();
+  expect(composeContext.drafts.deleteDraft).toHaveBeenCalledWith(
+    expect.objectContaining({ draftId: 'restored', draftGeneration: 4 })
+  );
+});
+
 it('keeps the draft editable after failed deletion and saves later edits', async () => {
   const composeContext = createComposeContext();
   const goBack = vi.fn();

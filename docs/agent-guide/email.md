@@ -637,7 +637,8 @@ The send toast's **Undo** works after navigation closes the composer. It shows
 **Cancelling send…** until the server confirms, then **Send cancelled**, and
 restores the draft only after that confirmation. The open conversation reads the
 thread again, so the cancelled message never stays visible as sent beside the
-restored draft. Cancellation that cannot be confirmed in time, an expired undo
+restored draft. The restored draft carries the server's advanced generation, so
+it can be edited, sent again, or discarded. Cancellation that cannot be confirmed in time, an expired undo
 window, and failed cancellation each display a notice. Delivered attempts
 remain complete even if the sent message is later deleted from the provider.
 After Undo, delay the accepted cache record's refresh: the newer restored draft

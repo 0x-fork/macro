@@ -62,6 +62,11 @@ describe('GraphQL compose transport', () => {
       linkId: 'delegated',
     });
   });
+  it('saves at the draft generation a cancelled send left behind', () => {
+    expect(
+      composeDraftInput({ ...input, db_id: 'restored', draft_generation: 2 })
+    ).toMatchObject({ draftId: 'restored', draftGeneration: 2 });
+  });
   it('refuses to send without a stable draft identity', () => {
     expect(() => composeDraftInput(input)).toThrow(
       'Save the draft before sending'

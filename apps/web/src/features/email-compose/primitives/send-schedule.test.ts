@@ -697,6 +697,38 @@ describe('send and schedule ordering', () => {
     }
   });
 
+  it('undoes a scheduled reply at the generation it was scheduled with', async () => {
+    const composeContext = createComposeContext();
+    // A send that Undo cancelled left the server's draft at a later generation.
+    const state = mountReplyComposer(composeContext, undefined, {
+      draft: message('draft', {
+        is_draft: true,
+        replying_to_id: 'parent',
+        thread_db_id: 'thread',
+        draft_generation: 3,
+      }),
+    });
+    try {
+      state.edit('Schedule a previously undone reply');
+      state.handleSendTimeChange(new Date('2026-12-01T12:00:00Z'));
+      await state.sendEmail();
+      expect(composeContext.delivery.schedule).toHaveBeenCalledWith(
+        expect.objectContaining({ draftGeneration: 3 }),
+        'inbox'
+      );
+      const scheduledNotice = vi
+        .mocked(composeContext.notices.feedback.success)
+        .mock.calls.find(([text]) => text === 'Email scheduled');
+      scheduledNotice?.[1]?.actions?.[0].onClick();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(composeContext.delivery.unschedule).toHaveBeenCalledWith(
+        expect.objectContaining({ draftId: 'draft', draftGeneration: 3 })
+      );
+    } finally {
+      state.dispose();
+    }
+  });
+
   it('undoes a scheduled reply with its saved body, envelope, and attachments', async () => {
     const composeContext = createComposeContext();
     const state = mountReplyComposer(

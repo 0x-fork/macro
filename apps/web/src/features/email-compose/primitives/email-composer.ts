@@ -1122,6 +1122,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
             props.drafts,
             {
               draftId,
+              draftGeneration: draftGeneration(),
               threadId: currentThreadId(),
               inboxId: activeInboxId(),
             },

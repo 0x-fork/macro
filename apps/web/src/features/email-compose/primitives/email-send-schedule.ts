@@ -233,6 +233,7 @@ export function createEmailSendSchedule(options: {
 
   const undoInitialSchedule = async (input: {
     draftId: string;
+    draftGeneration: number | undefined;
     threadId: string | undefined;
     inboxId: string | undefined;
     sendTime: Date;
@@ -240,7 +241,7 @@ export function createEmailSendSchedule(options: {
   }) => {
     try {
       await delivery.unschedule({
-        draftGeneration: options.draftGeneration?.(),
+        draftGeneration: input.draftGeneration,
         draftId: input.draftId,
         threadId: input.threadId,
         inboxId: input.inboxId,
@@ -360,10 +361,12 @@ export function createEmailSendSchedule(options: {
         return false;
       }
 
+      // Undo runs after a reply composer has reset, so it keeps this value.
+      const draftGeneration = options.draftGeneration?.();
       try {
         await delivery.schedule(
           {
-            draftGeneration: options.draftGeneration?.(),
+            draftGeneration,
             draftId,
             threadId: options.threadId() ?? undefined,
             sendTime: requested.toISOString(),
@@ -450,6 +453,7 @@ export function createEmailSendSchedule(options: {
                     fireAndForget(
                       undoInitialSchedule({
                         draftId,
+                        draftGeneration,
                         threadId: threadId ?? undefined,
                         inboxId,
                         sendTime: requested,
