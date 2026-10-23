@@ -140,6 +140,15 @@ describe('guestInvitesRestricted', () => {
       guestInvitesRestricted({ ...invited(GUEST), isReadOnly: true })
     ).toBe(false);
   });
+
+  it('stays quiet on a snapshot, whose only guest is the viewer', () => {
+    expect(
+      guestInvitesRestricted({
+        ...invited({ ...GUEST, rsvp: false }),
+        isSnapshot: true,
+      })
+    ).toBe(false);
+  });
 });
 
 describe('addedGuestEmails', () => {

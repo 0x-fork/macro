@@ -674,6 +674,12 @@ pub struct CalendarEvent {
     #[serde(default)]
     #[cfg_attr(feature = "schema", schema(required = true))]
     pub guest_policy: GuestPolicy,
+    /// Whether this is a snapshot of a meeting shared with the owner, which
+    /// Macro added to their calendar as a private copy: the meeting's changes
+    /// never reach it, and nothing done to it reaches the meeting.
+    #[serde(default)]
+    #[cfg_attr(feature = "schema", schema(required = true))]
+    pub is_snapshot: bool,
     /// What the viewing requester may do with the event. Resolved only on
     /// the read path, alongside each attendee's `is_self`; nothing when no
     /// viewer is known. Source projections never store it.
@@ -1405,6 +1411,8 @@ pub struct CalendarEventMutationTarget {
     pub organizer_email: Option<String>,
     /// What the organizer lets guests do, as stored on the entity.
     pub guest_policy: GuestPolicy,
+    /// Whether the entity is a snapshot of a shared meeting.
+    pub is_snapshot: bool,
 }
 
 impl CalendarEventMutationTarget {

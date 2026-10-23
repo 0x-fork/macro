@@ -121,10 +121,10 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * Add a private copy of an event shared with one of the requester's
-     * channels to one of their Google calendars and return the synced copy. The
-     * copy keeps the meeting's iCalendar UID and carries no guests or join link;
-     * nobody is notified.
+     * Add a snapshot of an event shared with one of the requester's channels to
+     * one of their Google calendars and return the synced snapshot. The
+     * snapshot keeps the meeting's iCalendar UID and organizer, lists only the
+     * requester as a guest, and carries no join link; nobody is notified.
      */
     public copyCalendarEvent<ThrowOnError extends boolean = false>(options: Options<CopyCalendarEventData, ThrowOnError>): RequestResult<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError> {
         return (options.client ?? this.client).post<CopyCalendarEventResponses, CopyCalendarEventErrors, ThrowOnError>({

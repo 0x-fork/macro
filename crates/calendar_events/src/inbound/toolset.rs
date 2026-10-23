@@ -496,6 +496,16 @@ fn mutation_tool_error(action: &str, error: CalendarMutationError) -> ToolCallEr
         CalendarMutationError::AlreadyOnCalendar => {
             "This event is already on one of the user's calendars.".to_string()
         }
+        CalendarMutationError::CopyRefused(_) => {
+            "Google Calendar refused to add a copy of this event to that calendar. Suggest \
+             downloading the event's .ics file instead."
+                .to_string()
+        }
+        CalendarMutationError::Snapshot => {
+            "This event is the user's own copy of a meeting shared with them, so an answer or a \
+             new guest would never reach the organizer. Suggest asking the organizer instead."
+                .to_string()
+        }
         CalendarMutationError::InvalidInput(message) => message.clone(),
         CalendarMutationError::ReauthRequired(_) => {
             "Calendar access must be re-authorized. Ask the user to reconnect their calendar in \

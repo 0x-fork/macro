@@ -119,6 +119,7 @@ function occurrenceData(): CalendarOccurrencesData {
           sequence: 0,
           isReadOnly: false,
           guestPolicy: DEFAULT_GUEST_POLICY,
+          isSnapshot: false,
           viewerCan: NO_VIEWER_CAPABILITIES,
           status: 'confirmed',
           transparency: 'opaque',

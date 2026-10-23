@@ -1872,6 +1872,11 @@ type GraphqlCalendarEvent {
 	"""
 	guestPolicy: GraphqlCalendarGuestPolicy!
 	"""
+	Whether this is a snapshot of a meeting shared with the owner: a
+	private copy the meeting's changes never reach.
+	"""
+	isSnapshot: Boolean!
+	"""
 	What the viewer may do with the event.
 	"""
 	viewerCan: GraphqlCalendarViewerCapabilities!

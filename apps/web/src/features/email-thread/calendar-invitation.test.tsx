@@ -99,6 +99,7 @@ const wire: InvitationResolution = {
     status: 'confirmed',
     isReadOnly: false,
     guestPolicy: DEFAULT_GUEST_POLICY,
+    isSnapshot: false,
     viewerCan: NO_VIEWER_CAPABILITIES,
     time,
     transparency: 'opaque',

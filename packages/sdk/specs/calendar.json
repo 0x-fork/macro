@@ -310,7 +310,7 @@
             "description": "Authentication required"
           },
           "403": {
-            "description": "Calendar is read-only or needs reauthorization",
+            "description": "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting",
             "content": {
               "application/json": {
                 "schema": {
@@ -355,7 +355,7 @@
     "/events/{event_id}/copy": {
       "post": {
         "tags": ["calendar_events"],
-        "summary": "Add a private copy of an event shared with one of the requester's\nchannels to one of their Google calendars and return the synced copy. The\ncopy keeps the meeting's iCalendar UID and carries no guests or join link;\nnobody is notified.",
+        "summary": "Add a snapshot of an event shared with one of the requester's channels to\none of their Google calendars and return the synced snapshot. The\nsnapshot keeps the meeting's iCalendar UID and organizer, lists only the\nrequester as a guest, and carries no join link; nobody is notified.",
         "operationId": "copy_calendar_event",
         "parameters": [
           {
@@ -424,7 +424,7 @@
             }
           },
           "409": {
-            "description": "Already on the requester's calendar, no writable calendar, or the provider rejected the copy",
+            "description": "Already on the requester's calendar, no writable calendar, or the provider refused the copy",
             "content": {
               "application/json": {
                 "schema": {
@@ -498,7 +498,7 @@
             "description": "Authentication required"
           },
           "403": {
-            "description": "Calendar is read-only, only the organizer can invite guests, or the calendar needs reauthorization",
+            "description": "Calendar is read-only, only the organizer can invite guests, the event is a snapshot of a shared meeting, or the calendar needs reauthorization",
             "content": {
               "application/json": {
                 "schema": {
@@ -691,7 +691,7 @@
             "description": "Authentication required"
           },
           "403": {
-            "description": "Calendar is read-only or needs reauthorization",
+            "description": "Calendar is read-only or needs reauthorization, or the event is a snapshot of a shared meeting",
             "content": {
               "application/json": {
                 "schema": {
@@ -1093,6 +1093,7 @@
           "isReadOnly",
           "attendees",
           "guestPolicy",
+          "isSnapshot",
           "viewerCan",
           "createdAt",
           "updatedAt"
@@ -1162,6 +1163,10 @@
           "isReadOnly": {
             "type": "boolean",
             "description": "Whether the canonical source's calendar prohibits editing it."
+          },
+          "isSnapshot": {
+            "type": "boolean",
+            "description": "Whether this is a snapshot of a meeting shared with the owner, which\nMacro added to their calendar as a private copy: the meeting's changes\nnever reach it, and nothing done to it reaches the meeting."
           },
           "location": {
             "type": ["string", "null"],
@@ -1347,6 +1352,8 @@
           "guest_list_hidden",
           "guests_cannot_modify",
           "already_on_calendar",
+          "copy_refused",
+          "snapshot",
           "invalid_input",
           "reauth_required",
           "provider_rejected",

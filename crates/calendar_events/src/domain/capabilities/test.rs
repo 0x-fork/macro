@@ -61,6 +61,7 @@ fn event(attendees: Vec<CalendarAttendee>, guest_policy: GuestPolicy) -> Calenda
         attendees,
         reminders: EventReminders::default(),
         guest_policy,
+        is_snapshot: false,
         viewer_can: ViewerCapabilities::NONE,
         created_at: Utc.with_ymd_and_hms(2026, 10, 1, 0, 0, 0).unwrap(),
         updated_at: Utc.with_ymd_and_hms(2026, 10, 1, 0, 0, 0).unwrap(),
@@ -134,6 +135,24 @@ fn a_writable_event_without_attendees_is_the_actors_own() {
             ..EVERYTHING
         }
     );
+}
+
+#[test]
+fn a_snapshot_allows_nothing_although_its_owner_is_its_guest() {
+    // A snapshot lists its owner, already accepted, as its only guest so
+    // Google imports it; answering or inviting from it reaches no one.
+    let mut snapshot = event(
+        vec![CalendarAttendee {
+            response_status: AttendeeResponseStatus::Accepted,
+            ..attendee(GUEST, false)
+        }],
+        GuestPolicy::default(),
+    );
+    snapshot.is_snapshot = true;
+
+    let capabilities = ViewerCapabilities::for_event(&snapshot, Some(&google(GUEST)));
+
+    assert_eq!(capabilities, ViewerCapabilities::NONE);
 }
 
 #[test]

@@ -1,5 +1,5 @@
-//! Adding a private copy of a channel-shared event to the requester's own
-//! Google calendar.
+//! Adding a snapshot of a channel-shared event to the requester's own Google
+//! calendar.
 use super::*;
 use crate::domain::{
     ics::{CalendarEventExport, CalendarEventExportAccess},
@@ -61,7 +61,7 @@ where
             ..source
         };
         let access_token = self.fetch_token(&target.token_identity).await?;
-        let Some(upsert) = self
+        let outcome = self
             .provider
             .import_event(
                 &access_token,
@@ -69,25 +69,37 @@ where
                 &source,
             )
             .await
-            .map_err(provider_error)?
-        else {
-            // Google already has the meeting on that calendar, most likely an
-            // invitation Macro has not synced yet; pull it in so the mention
-            // resolves to it.
-            self.repository
-                .schedule_google_sync_for_link(target.email_link_id)
-                .await
-                .inspect_err(|error| {
-                    tracing::warn!(
-                        error = ?error,
-                        email_link_id = %target.email_link_id,
-                        "failed to schedule a sync for an already-held event"
-                    );
-                })
-                .ok();
-            return Err(CalendarMutationError::AlreadyOnCalendar);
-        };
-        self.persist_echo(target.actor.as_ref(), upsert).await
+            .map_err(provider_error)?;
+        match outcome {
+            ProviderImportOutcome::Imported(upsert) => {
+                self.persist_echo(target.actor.as_ref(), *upsert).await
+            }
+            ProviderImportOutcome::AlreadyHeld => {
+                // Google already has the meeting on that calendar, most likely
+                // an invitation Macro has not synced yet; pull it in so the
+                // mention resolves to it.
+                self.repository
+                    .schedule_google_sync_for_link(target.email_link_id)
+                    .await
+                    .inspect_err(|error| {
+                        tracing::warn!(
+                            error = ?error,
+                            email_link_id = %target.email_link_id,
+                            "failed to schedule a sync for an already-held event"
+                        );
+                    })
+                    .ok();
+                Err(CalendarMutationError::AlreadyOnCalendar)
+            }
+            ProviderImportOutcome::Refused(error) => {
+                tracing::warn!(
+                    error = ?error,
+                    calendar_id = %target.calendar_id,
+                    "the provider refused to import a snapshot"
+                );
+                Err(CalendarMutationError::CopyRefused(error.to_string()))
+            }
+        }
     }
 }
 
@@ -100,6 +112,7 @@ pub(super) fn copy_outcome(result: &Result<CalendarEvent, CalendarMutationError>
         Err(CalendarMutationError::NoWritableCalendar) => "no_writable_calendar",
         Err(CalendarMutationError::ReadOnly) => "read_only",
         Err(CalendarMutationError::InvalidInput(_)) => "invalid_input",
+        Err(CalendarMutationError::CopyRefused(_)) => "copy_refused",
         Err(_) => "failed",
     }
 }

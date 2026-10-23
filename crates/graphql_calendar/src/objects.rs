@@ -445,6 +445,9 @@ pub struct GraphqlCalendarEvent {
     reminders: GraphqlCalendarReminders,
     /// What the organizer lets guests do.
     guest_policy: GraphqlCalendarGuestPolicy,
+    /// Whether this is a snapshot of a meeting shared with the owner: a
+    /// private copy the meeting's changes never reach.
+    is_snapshot: bool,
     /// What the viewer may do with the event.
     viewer_can: GraphqlCalendarViewerCapabilities,
     /// Entity creation time in RFC 3339 format.
@@ -483,6 +486,7 @@ impl GraphqlCalendarEvent {
             attendees: event.attendees.into_iter().map(Into::into).collect(),
             reminders: event.reminders.into(),
             guest_policy: event.guest_policy.into(),
+            is_snapshot: event.is_snapshot,
             viewer_can: event.viewer_can.into(),
             created_at: event.created_at.to_rfc3339(),
             updated_at: event.updated_at.to_rfc3339(),

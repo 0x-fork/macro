@@ -116,4 +116,9 @@ describe('event RSVP confirmation', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(mutate).toHaveBeenCalledOnce();
   });
+  it('offers no answer on a snapshot of a shared event', () => {
+    render(() => <EventRsvpSection event={{ ...event, isSnapshot: true }} />);
+    expect(screen.queryByText('Going?')).toBeNull();
+    expect(screen.queryByText('Yes')).toBeNull();
+  });
 });

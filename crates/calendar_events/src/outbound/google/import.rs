@@ -1,7 +1,11 @@
-//! Importing a private copy of another calendar's event under its iCalendar
-//! UID.
+//! Importing a snapshot of another calendar's event under its iCalendar UID.
 use super::*;
 use crate::domain::ics::CalendarEventExport;
+
+/// Private extended property marking an event as Macro's snapshot of a
+/// shared meeting. Private properties stay on the calendar copy they were
+/// written to, so no other copy of the meeting ever carries the marker.
+pub(super) const SNAPSHOT_PROPERTY: &str = "macroSnapshot";
 
 impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
     pub(super) async fn import_copy(
@@ -9,12 +13,12 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
         access_token: &str,
         target: &ProviderCalendarTarget,
         source: &CalendarEventExport,
-    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+    ) -> Result<ProviderImportOutcome, CalendarProviderError> {
         if self
             .holds_ical_uid(access_token, target, &source.ical_uid)
             .await?
         {
-            return Ok(None);
+            return Ok(ProviderImportOutcome::AlreadyHeld);
         }
         let calendar = urlencoding::encode(&target.provider_calendar_id);
         self.gate.acquire(target.email_link_id).await?;
@@ -26,8 +30,18 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
                 self.api_base
             ))
             .bearer_auth(access_token)
-            .json(&import_body(source));
-        let imported: GoogleEvent = send_google(GoogleRequestKind::Mutation, request).await?;
+            .json(&import_body(source, &target.provider_calendar_id));
+        let imported: GoogleEvent = match send_google(GoogleRequestKind::Mutation, request).await {
+            Ok(imported) => imported,
+            // A permanent failure is Google refusing this import for this
+            // calendar, such as `participantIsNeitherOrganizerNorAttendee`;
+            // rate limits and lapsed grants still classify as transient or
+            // reauth.
+            Err(error) if error.kind() == CalendarProviderErrorKind::Permanent => {
+                return Ok(ProviderImportOutcome::Refused(error));
+            }
+            Err(error) => return Err(error),
+        };
         self.mutation_readback(access_token, target, imported)
             .await?
             .ok_or_else(|| {
@@ -36,7 +50,7 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
                     "Google Calendar dropped the event immediately after import",
                 )
             })
-            .map(Some)
+            .map(|upsert| ProviderImportOutcome::Imported(Box::new(upsert)))
     }
 
     /// Whether the calendar holds a live event under `ical_uid`, counting an
@@ -66,10 +80,19 @@ impl<G: GoogleRequestGate> GoogleCalendarClient<G> {
     }
 }
 
-/// A private copy of another calendar's event: the meeting's UID and
-/// organizer with its content, without attendees or conference, so importing
-/// it invites no one and grants no join link the share did not expose.
-pub(super) fn import_body(source: &CalendarEventExport) -> serde_json::Value {
+/// A snapshot of another calendar's event: the meeting's UID, organizer and
+/// content, with the calendar as its only guest and Macro's snapshot marker.
+///
+/// Google imports an event only into the calendar of its organizer or one of
+/// its attendees, and names a calendar among an event's attendees by the
+/// calendar's ID, the account's address for a primary calendar. Listing that
+/// calendar, already accepted, lets the import through while leaving out the
+/// meeting's guests and conference, so importing it invites no one and
+/// exposes no guest list or join link the share did not.
+pub(super) fn import_body(
+    source: &CalendarEventExport,
+    provider_calendar_id: &str,
+) -> serde_json::Value {
     let (start, end) = google_time_body(&source.time);
     let mut body = serde_json::json!({
         "iCalUID": source.ical_uid,
@@ -77,6 +100,8 @@ pub(super) fn import_body(source: &CalendarEventExport) -> serde_json::Value {
         "start": start,
         "end": end,
         "sequence": source.sequence,
+        "attendees": [{ "email": provider_calendar_id, "responseStatus": "accepted" }],
+        "extendedProperties": { "private": { SNAPSHOT_PROPERTY: "true" } },
     });
     if let Some(description) = source
         .description
@@ -99,4 +124,13 @@ pub(super) fn import_body(source: &CalendarEventExport) -> serde_json::Value {
         body["organizer"] = organizer;
     }
     body
+}
+
+/// Whether the event carries Macro's snapshot marker.
+pub(super) fn is_snapshot(event: &GoogleEvent) -> bool {
+    event
+        .extended_properties
+        .as_ref()
+        .and_then(|properties| properties.private.get(SNAPSHOT_PROPERTY))
+        .is_some_and(|value| value == "true")
 }

@@ -53,6 +53,8 @@ pub struct EventAccess<'a> {
     pub attendees: &'a [CalendarAttendee],
     /// What the organizer lets guests do.
     pub guest_policy: GuestPolicy,
+    /// Whether the copy is a snapshot of a shared meeting.
+    pub is_snapshot: bool,
 }
 
 /// What the viewing requester may do with an event.
@@ -91,7 +93,10 @@ impl ViewerCapabilities {
     /// Resolve what the owner of `inbox`, the inbox this copy of `event`
     /// syncs through, may do with it.
     ///
-    /// A read-only or cancelled event allows nothing. The organizer may do
+    /// A read-only or cancelled event allows nothing, and neither does a
+    /// snapshot of a shared meeting: its owner is listed as its only guest
+    /// so the provider accepts the copy, but an answer or a guest added to
+    /// it would never reach the meeting. The organizer may do
     /// everything, and so may anyone on a writable event without attendees,
     /// which is treated as the actor's own. A guest of a Google copy follows
     /// the event's [`GuestPolicy`]: modify allows everything except changing
@@ -120,6 +125,7 @@ impl ViewerCapabilities {
                 organizer_email: event.organizer_email.as_deref(),
                 attendees: &event.attendees,
                 guest_policy: event.guest_policy,
+                is_snapshot: event.is_snapshot,
             },
             inbox,
         )
@@ -128,7 +134,7 @@ impl ViewerCapabilities {
     /// Resolve what the owner of `inbox` may do with a live copy of an
     /// event; see [`Self::for_event`].
     pub fn for_access(access: EventAccess<'_>, inbox: Option<&OwnedInbox>) -> Self {
-        if access.is_read_only {
+        if access.is_read_only || access.is_snapshot {
             return Self::NONE;
         }
         let is_guest = inbox.is_some_and(|inbox| {

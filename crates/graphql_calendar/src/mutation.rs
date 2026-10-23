@@ -239,6 +239,14 @@ pub(crate) fn mutation_error(error: CalendarMutationError) -> async_graphql::Err
             "already_on_calendar",
             "this event is already on one of your calendars".into(),
         ),
+        CalendarMutationError::CopyRefused(_) => (
+            "copy_refused",
+            "Google Calendar won't add a copy of this event to that calendar.".into(),
+        ),
+        CalendarMutationError::Snapshot => (
+            "snapshot",
+            "This is your own copy of a shared event, so answers and guests won't reach its organizer.".into(),
+        ),
         CalendarMutationError::InvalidInput(message) => ("invalid_input", message.clone()),
         CalendarMutationError::ReauthRequired(_) => (
             "reauth_required",

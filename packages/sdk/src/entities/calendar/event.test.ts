@@ -35,6 +35,7 @@ const record: CalendarEventRecord = {
     canInviteOthers: true,
     canSeeOtherGuests: true,
   },
+  isSnapshot: false,
   viewerCan: {
     editDetails: true,
     inviteGuests: true,

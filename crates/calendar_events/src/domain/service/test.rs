@@ -356,6 +356,7 @@ fn valid_upsert() -> CalendarEventUpsert {
             }],
             reminders: EventReminders::default(),
             guest_policy: GuestPolicy::default(),
+            is_snapshot: false,
             viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at,

@@ -88,6 +88,7 @@ export function graphqlEvent(
       canInviteOthers: true,
       canSeeOtherGuests: true,
     },
+    isSnapshot: false,
     viewerCan: {
       editDetails: false,
       inviteGuests: true,

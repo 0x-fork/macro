@@ -214,6 +214,7 @@ impl CalendarChangeRepository for PgCalendarRepository {
                 event.guests_can_modify,
                 event.guests_can_invite_others,
                 event.guests_can_see_other_guests,
+                event.is_snapshot,
                 event.created_at,
                 event.updated_at
             FROM calendar_event_occurrences occurrence

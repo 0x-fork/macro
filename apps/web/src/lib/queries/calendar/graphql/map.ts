@@ -119,6 +119,7 @@ export function mapCalendarEvent(
       canInviteOthers: event.guestPolicy.canInviteOthers,
       canSeeOtherGuests: event.guestPolicy.canSeeOtherGuests,
     },
+    isSnapshot: event.isSnapshot,
     viewerCan: {
       editDetails: event.viewerCan.editDetails,
       inviteGuests: event.viewerCan.inviteGuests,

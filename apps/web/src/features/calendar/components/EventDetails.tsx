@@ -534,6 +534,12 @@ export function EventDetails(props: {
             Out of office
           </div>
         </Show>
+        <Show when={props.event.isSnapshot}>
+          <div class="select-text text-sm text-ink-extra-muted sm:text-xs">
+            Your copy of a shared event. It doesn't update when the organizer
+            changes it.
+          </div>
+        </Show>
         <Show when={recurrenceDescription()}>
           {(description) => (
             <div class="select-text text-sm text-ink-extra-muted sm:text-xs">

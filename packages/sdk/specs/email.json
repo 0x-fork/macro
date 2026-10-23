@@ -4888,6 +4888,7 @@
           "isReadOnly",
           "attendees",
           "guestPolicy",
+          "isSnapshot",
           "viewerCan",
           "createdAt",
           "updatedAt"
@@ -4957,6 +4958,10 @@
           "isReadOnly": {
             "type": "boolean",
             "description": "Whether the canonical source's calendar prohibits editing it."
+          },
+          "isSnapshot": {
+            "type": "boolean",
+            "description": "Whether this is a snapshot of a meeting shared with the owner, which\nMacro added to their calendar as a private copy: the meeting's changes\nnever reach it, and nothing done to it reaches the meeting."
           },
           "location": {
             "type": ["string", "null"],

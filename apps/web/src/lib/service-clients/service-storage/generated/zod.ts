@@ -1041,6 +1041,11 @@ export const listOccurrencesResponse = zod
                 .describe(
                   "Whether the canonical source's calendar prohibits editing it."
                 ),
+              isSnapshot: zod
+                .boolean()
+                .describe(
+                  "Whether this is a snapshot of a meeting shared with the owner, which\nMacro added to their calendar as a private copy: the meeting's changes\nnever reach it, and nothing done to it reaches the meeting."
+                ),
               location: zod
                 .string()
                 .nullish()

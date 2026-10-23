@@ -696,6 +696,12 @@ export type CalendarEvent = {
      */
     isReadOnly: boolean;
     /**
+     * Whether this is a snapshot of a meeting shared with the owner, which
+     * Macro added to their calendar as a private copy: the meeting's changes
+     * never reach it, and nothing done to it reaches the meeting.
+     */
+    isSnapshot: boolean;
+    /**
      * Optional physical or virtual location label.
      */
     location?: string | null;

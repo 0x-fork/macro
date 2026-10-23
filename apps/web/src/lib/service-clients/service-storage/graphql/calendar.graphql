@@ -81,6 +81,7 @@ fragment CalendarEventFields on GraphqlCalendarEvent {
 		canInviteOthers
 		canSeeOtherGuests
 	}
+	isSnapshot
 	viewerCan {
 		editDetails
 		inviteGuests

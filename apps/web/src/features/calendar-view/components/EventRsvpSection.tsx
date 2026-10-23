@@ -37,10 +37,13 @@ export function EventRsvpSection(props: {
   const isRecurring = () =>
     props.event.recurrenceLines.length > 0 ||
     props.event.recurrenceId !== undefined;
+  // A snapshot lists the viewer only so Google would take the copy; an answer
+  // there would never reach the organizer.
   const canRespond = () =>
     selfAttendee() !== undefined &&
     !props.event.isReadOnly &&
-    !props.event.isCancelled;
+    !props.event.isCancelled &&
+    !props.event.isSnapshot;
 
   const rsvp = createCalendarRsvpController(() =>
     canRespond()

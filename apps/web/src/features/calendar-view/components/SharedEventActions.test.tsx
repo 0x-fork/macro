@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SharedEventActions } from './SharedEventActions';
 
 const mocks = vi.hoisted(() => ({
+  addSharedEvent: true,
   calendars: [] as VisibleCalendar[],
   copy: vi.fn(),
   download: vi.fn(),
@@ -21,6 +22,9 @@ vi.mock('@core/component/Toast/Toast', () => ({
 vi.mock('@app/features/calendar-view/download-event-ics', () => ({
   downloadCalendarEventIcs: mocks.download,
 }));
+vi.mock('@app/features/calendar/hooks/use-calendar-ui-flag', () => ({
+  useCalendarAddSharedEventFlag: () => () => mocks.addSharedEvent,
+}));
 vi.mock('@queries/calendar/calendars', () => ({
   useVisibleCalendarsQuery: () => ({ isPending: false, data: mocks.calendars }),
 }));
@@ -29,6 +33,8 @@ vi.mock('@queries/calendar/calendars', () => ({
 vi.mock('@queries/calendar/copy', () => ({
   isAlreadyOnCalendar: (error: unknown) =>
     (error as { code?: string }).code === 'already_on_calendar',
+  isCopyRefused: (error: unknown) =>
+    (error as { code?: string }).code === 'copy_refused',
   useCopySharedCalendarEventMutation: (callbacks?: {
     onSuccess?: () => void;
     onError?: (error: unknown) => void;
@@ -90,6 +96,7 @@ beforeEach(() => {
     }
   );
   vi.stubGlobal('scrollTo', vi.fn());
+  mocks.addSharedEvent = true;
   mocks.calendars = [];
 });
 afterEach(() => {
@@ -170,5 +177,33 @@ describe('shared event actions', () => {
       'This event is already on your calendar'
     );
     expect(onAdded).not.toHaveBeenCalled();
+  });
+
+  it('says when Google refuses the copy and points to the download', () => {
+    mocks.calendars = [calendar({})];
+    mocks.copy.mockImplementation(() => {
+      throw { code: 'copy_refused' };
+    });
+    const onAdded = renderActions();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add to calendar' }));
+
+    expect(mocks.failure).toHaveBeenCalledWith(
+      "Google Calendar won't add this event to that calendar",
+      { subtext: 'Download the .ics file to add it another way.' }
+    );
+    expect(onAdded).not.toHaveBeenCalled();
+  });
+
+  it('offers only the download while adding shared events is flagged off', () => {
+    mocks.addSharedEvent = false;
+    mocks.calendars = [calendar({})];
+    renderActions();
+
+    expect(
+      screen.queryByRole('button', { name: 'Add to calendar' })
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Download .ics' }));
+    expect(mocks.download).toHaveBeenCalledOnce();
   });
 });

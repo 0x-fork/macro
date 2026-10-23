@@ -50,6 +50,7 @@ fn mutation_target(is_read_only: bool) -> CalendarEventMutationTarget {
         actor: Some(ActorInboxes::sole("self@example.com")),
         organizer_email: Some("self@example.com".to_string()),
         guest_policy: GuestPolicy::default(),
+        is_snapshot: false,
     }
 }
 
@@ -118,6 +119,7 @@ fn echo_upsert(target_owner: &str) -> CalendarEventUpsert {
             attendees: Vec::new(),
             reminders: EventReminders::default(),
             guest_policy: GuestPolicy::default(),
+            is_snapshot: false,
             viewer_can: ViewerCapabilities::NONE,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -676,7 +678,7 @@ impl CalendarMutationProvider for FakeProvider {
         _access_token: &str,
         target: &ProviderCalendarTarget,
         source: &crate::domain::ics::CalendarEventExport,
-    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+    ) -> Result<ProviderImportOutcome, CalendarProviderError> {
         self.calls.lock().unwrap().push("import".to_string());
         self.imported
             .lock()
@@ -685,11 +687,19 @@ impl CalendarMutationProvider for FakeProvider {
         if let Some(error) = self.fail() {
             return Err(error);
         }
-        // `Gone` stands for Google already holding the meeting's UID.
-        if matches!(self.behavior, FakeProviderBehavior::Gone) {
-            return Ok(None);
-        }
-        Ok(Some(self.echo(target)))
+        // `Gone` stands for Google already holding the meeting's UID, and
+        // `Forbidden` for Google refusing the import.
+        Ok(match self.behavior {
+            FakeProviderBehavior::Gone => ProviderImportOutcome::AlreadyHeld,
+            FakeProviderBehavior::Forbidden(_) => {
+                ProviderImportOutcome::Refused(CalendarProviderError::new(
+                    CalendarProviderErrorKind::Permanent,
+                    "The owner of the calendar must either be the organizer or an attendee of \
+                     an event that is imported. (reasons: participantIsNeitherOrganizerNorAttendee)",
+                ))
+            }
+            _ => ProviderImportOutcome::Imported(Box::new(self.echo(target))),
+        })
     }
 
     async fn stop_watch_channel(

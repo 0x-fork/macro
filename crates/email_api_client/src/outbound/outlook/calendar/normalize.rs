@@ -236,6 +236,7 @@ pub(super) fn projection(
         attendees: attendees(&master),
         reminders,
         guest_policy: GuestPolicy::default(),
+        is_snapshot: false,
         viewer_can: ViewerCapabilities::NONE,
         created_at: created,
         updated_at: updated,

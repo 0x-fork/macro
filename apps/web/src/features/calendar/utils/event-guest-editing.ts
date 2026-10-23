@@ -83,12 +83,15 @@ export function eventGuestEditing(
 
 /**
  * Whether the viewer is a guest on a writable event whose organizer does not
- * let guests invite others, so the guest list explains why it cannot grow.
+ * let guests invite others, so the guest list explains why it cannot grow. A
+ * snapshot lists the viewer only so Google would take it; the details
+ * already say it is a copy.
  */
 export function guestInvitesRestricted(event: CalendarEvent): boolean {
   return (
     !event.isReadOnly &&
     !event.teamProjection &&
+    !event.isSnapshot &&
     !event.viewerCan.inviteGuests &&
     event.attendees.some((attendee) => attendee.isSelf)
   );

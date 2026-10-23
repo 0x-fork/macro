@@ -63,6 +63,11 @@ where
         if target.is_read_only {
             return Err(CalendarMutationError::ReadOnly);
         }
+        // A guest added to a snapshot would be invited to a private copy the
+        // meeting never hears about.
+        if target.is_snapshot {
+            return Err(CalendarMutationError::Snapshot);
+        }
         self.require_provider_writes(target.token_identity.provider)?;
         let Some(actor) = target
             .actor
@@ -205,6 +210,7 @@ pub(super) fn copy_capabilities(
             organizer_email: target.organizer_email.as_deref(),
             attendees: stored,
             guest_policy: target.guest_policy,
+            is_snapshot: target.is_snapshot,
         },
         target.copy_inbox(),
     )
@@ -263,6 +269,7 @@ pub(super) fn invite_outcome(
         Err(CalendarMutationError::GuestListHidden) => "guest_list_hidden",
         Err(CalendarMutationError::NotAttendee) => "not_attendee",
         Err(CalendarMutationError::ReadOnly) => "read_only",
+        Err(CalendarMutationError::Snapshot) => "snapshot",
         Err(CalendarMutationError::NotFound | CalendarMutationError::OccurrenceNotFound) => {
             "not_found"
         }

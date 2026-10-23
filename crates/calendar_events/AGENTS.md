@@ -75,12 +75,23 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   (`get_event_details`, the series or the addressed occurrence) and refuses
   any other detail change with `GuestsCannotModify` before inviting anyone.
   Someone neither organizing nor invited is left to their calendar access.
-- A channel-shared event reaches a member's calendar as a copy, not a seat:
-  `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under the
-  meeting's iCalendar UID with no guests or join link, behind the same
-  `event_export` visibility query as the .ics route. Google only: never
-  import over a UID the calendar already holds, since an import updates that
-  event in place and would strip an unsynced invitation's guests.
+- A channel-shared event reaches a member's calendar as a snapshot, not a
+  seat: `copy_shared_event` (`src/domain/mutations/copy.rs`) imports it under
+  the meeting's iCalendar UID with no join link, behind the same
+  `event_export` visibility query as the .ics route. Google imports only for
+  the organizer or an attendee (`participantIsNeitherOrganizerNorAttendee`,
+  mapped to `copy_refused`), so the body keeps the real organizer and lists
+  the target calendar, accepted, as the only guest, plus the private
+  `macroSnapshot` extended property. Sync stores it as `is_snapshot`, which
+  grants no capability and makes RSVPs and invites fail with `snapshot`,
+  since neither would reach the meeting. Its owner changes its details only
+  as a guest without modify rights would (reminders and availability), and
+  may delete it. The mutation target reads the flag from the addressed
+  copy's projection, since a snapshot can share its entity with the real
+  meeting on another calendar of the same inbox. Google
+  only: never import over a UID the calendar already holds, since an import
+  updates that event in place and would strip an unsynced invitation's
+  guests.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Each connected inbox gets its own copy

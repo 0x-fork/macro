@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "            SELECT\n                occurrence.event_id,\n                event.source_link_id,\n                occurrence.occurrence_key,\n                occurrence.recurrence_id,\n                occurrence.starts_at AS occurrence_starts_at,\n                occurrence.ends_at AS occurrence_ends_at,\n                occurrence.start_date AS occurrence_start_date,\n                occurrence.end_date AS occurrence_end_date,\n                occurrence.is_cancelled,\n                override.title AS override_title,\n                override.description AS override_description,\n                override.location AS override_location,\n                override.status AS override_status,\n                override.reminders AS override_reminders,\n                event.owner_id,\n                event.ical_uid,\n                event.title,\n                event.description,\n                event.location,\n                event.status,\n                event.visibility,\n                event.transparency,\n                event.event_type,\n                event.starts_at,\n                event.ends_at,\n                event.start_date,\n                event.end_date,\n                event.time_zone,\n                event.recurrence_lines,\n                event.organizer_email,\n                event.organizer_name,\n                event.creator_email,\n                event.creator_name,\n                event.conference_url,\n                event.conference_provider,\n                COALESCE(override.sequence, event.sequence) AS \"sequence!\",\n                event.is_read_only,\n                event.reminders_use_default,\n                event.reminder_overrides,\n                event.guests_can_modify,\n                event.guests_can_invite_others,\n                event.guests_can_see_other_guests,\n                event.created_at,\n                COALESCE(override.source_updated_at, event.updated_at) AS \"updated_at!\"\n            FROM unnest($2::uuid[], $3::text[]) requested(event_id, occurrence_key)\n            JOIN calendar_events event ON event.id = requested.event_id\n            JOIN LATERAL (\n                SELECT o.* FROM calendar_event_occurrences o\n                WHERE o.event_id = event.id\n                  AND o.occurrence_key = requested.occurrence_key\n                ORDER BY o.occurrence_key LIMIT 1\n            ) occurrence ON true\n            LEFT JOIN calendar_event_overrides override\n                ON override.event_id = occurrence.event_id\n               AND override.recurrence_id = occurrence.recurrence_id\n            WHERE event.owner_id = $1\n               OR EXISTS (SELECT 1 FROM macro_user_links delegation\n                   WHERE delegation.primary_macro_id = $1 AND delegation.link_id = event.source_link_id)\n",
+  "query": "\n            SELECT\n                occurrence.event_id,\n                event.source_link_id,\n                occurrence.occurrence_key,\n                occurrence.recurrence_id,\n                occurrence.starts_at AS occurrence_starts_at,\n                occurrence.ends_at AS occurrence_ends_at,\n                occurrence.start_date AS occurrence_start_date,\n                occurrence.end_date AS occurrence_end_date,\n                occurrence.is_cancelled,\n                override.title AS override_title,\n                override.description AS override_description,\n                override.location AS override_location,\n                override.status AS override_status,\n                override.reminders AS override_reminders,\n                event.owner_id,\n                event.ical_uid,\n                event.title,\n                event.description,\n                event.location,\n                event.status,\n                event.visibility,\n                event.transparency,\n                event.event_type,\n                event.starts_at,\n                event.ends_at,\n                event.start_date,\n                event.end_date,\n                event.time_zone,\n                event.recurrence_lines,\n                event.organizer_email,\n                event.organizer_name,\n                event.creator_email,\n                event.creator_name,\n                event.conference_url,\n                event.conference_provider,\n                event.sequence,\n                event.is_read_only,\n                event.reminders_use_default,\n                event.reminder_overrides,\n                event.guests_can_modify,\n                event.guests_can_invite_others,\n                event.guests_can_see_other_guests,\n                event.is_snapshot,\n                event.created_at,\n                event.updated_at\n            FROM calendar_event_occurrences occurrence\n            JOIN calendar_events event ON event.id = occurrence.event_id\n            LEFT JOIN calendar_event_overrides override\n                ON override.event_id = occurrence.event_id\n               AND override.recurrence_id = occurrence.recurrence_id\n            WHERE occurrence.event_id = ANY($2::uuid[])\n              AND occurrence.owner_id IN (\n                    SELECT $1::text\n                    UNION\n                    SELECT link.child_macro_id\n                    FROM macro_user_links link\n                    WHERE link.primary_macro_id = $1\n              )\n              AND event.status <> 'cancelled'\n              AND NOT occurrence.is_cancelled\n              AND (\n                    event.owner_id = $1\n                    OR EXISTS (\n                        SELECT 1\n                        FROM macro_user_links link\n                        WHERE link.link_id = event.source_link_id\n                          AND link.primary_macro_id = $1\n                    )\n              )\n            ORDER BY\n                occurrence.event_id,\n                COALESCE(occurrence.starts_at, occurrence.start_date::timestamp AT TIME ZONE 'UTC'),\n                occurrence.occurrence_key\n            ",
   "describe": {
     "columns": [
       {
@@ -180,7 +180,7 @@
       },
       {
         "ordinal": 35,
-        "name": "sequence!",
+        "name": "sequence",
         "type_info": "Int4"
       },
       {
@@ -215,20 +215,24 @@
       },
       {
         "ordinal": 42,
+        "name": "is_snapshot",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 43,
         "name": "created_at",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 43,
-        "name": "updated_at!",
+        "ordinal": 44,
+        "name": "updated_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
         "Text",
-        "UuidArray",
-        "TextArray"
+        "UuidArray"
       ]
     },
     "nullable": [
@@ -267,7 +271,6 @@
       true,
       true,
       true,
-      null,
       false,
       false,
       false,
@@ -275,8 +278,10 @@
       false,
       false,
       false,
-      null
+      false,
+      false,
+      false
     ]
   },
-  "hash": "31883e5d7024ed50c4f5ba7d75e1b038f3792fbb0b23d23b471090fe51bde490"
+  "hash": "42c1caf50626b8a2991495101488cc07f27e1fea8dbecd89281355bc65ebd5be"
 }

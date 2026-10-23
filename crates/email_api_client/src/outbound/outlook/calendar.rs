@@ -912,7 +912,7 @@ impl CalendarMutationProvider for OutlookApiClientRepository {
         _token: &str,
         _target: &ProviderCalendarTarget,
         _source: &CalendarEventExport,
-    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+    ) -> Result<ProviderImportOutcome, CalendarProviderError> {
         Err(unsupported(
             "Microsoft Graph cannot create an event under another meeting's iCalendar UID",
         ))

@@ -38,12 +38,13 @@ mutations, but reading a field on it throws.
 
 > **addToCalendar**(`options?`): `Promise`\<`CalendarEvent`\>
 
-Add a private copy of an event shared with one of the requester's
+Add a snapshot of an event shared with one of the requester's
 channels to one of their Google calendars, and return a handle to the
-synced copy. The copy keeps the meeting's iCalendar UID and carries no
-guests or join link; nobody is notified. Refused with
-`already_on_calendar` when the meeting is already on one of their
-calendars.
+synced snapshot. The snapshot keeps the meeting's iCalendar UID and
+organizer, lists only the requester as a guest, and carries no join link;
+nobody is notified, and answers or guests on it never reach the meeting.
+Refused with `already_on_calendar` when the meeting is already on one of
+their calendars, and with `copy_refused` when Google will not import it.
 
 #### Parameters
 

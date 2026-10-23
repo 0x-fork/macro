@@ -23,6 +23,20 @@ export function isAlreadyOnCalendar(error: unknown): boolean {
   );
 }
 
+/** Whether Google refused to add the copy to the picked calendar. */
+export function isCopyRefused(error: unknown): boolean {
+  return thrownResultErrorHasCode(
+    error,
+    CalendarMutationErrorCode.copy_refused
+  );
+}
+
+function copyFailureOutcome(error: unknown) {
+  if (isAlreadyOnCalendar(error)) return 'already_on_calendar';
+  if (isCopyRefused(error)) return 'copy_refused';
+  return 'failed';
+}
+
 async function copySharedCalendarEvent(
   args: CopySharedCalendarEventArgs
 ): Promise<CalendarEvent> {
@@ -42,13 +56,12 @@ async function copySharedCalendarEvent(
       span.setAttr('calendar.copy.outcome', 'copied');
       return copy;
     } catch (error) {
-      const alreadyHeld = isAlreadyOnCalendar(error);
-      span.setAttr(
-        'calendar.copy.outcome',
-        alreadyHeld ? 'already_on_calendar' : 'failed'
-      );
+      const outcome = copyFailureOutcome(error);
+      span.setAttr('calendar.copy.outcome', outcome);
       span.error(
-        alreadyHeld ? 'Event already on a calendar' : 'Adding the event failed'
+        outcome === 'already_on_calendar'
+          ? 'Event already on a calendar'
+          : 'Adding the event failed'
       );
       throw error;
     }
@@ -63,8 +76,8 @@ type CopyCallbacks = MutationCallbacks<
 >;
 
 /**
- * Adds a private copy of an event shared with one of the viewer's channels
- * to one of their Google calendars. The copy keeps the meeting's iCalendar
+ * Adds a snapshot of an event shared with one of the viewer's channels to
+ * one of their Google calendars. The snapshot keeps the meeting's iCalendar
  * UID, so once it lands the mention preview resolves to it and the chip
  * opens it.
  */

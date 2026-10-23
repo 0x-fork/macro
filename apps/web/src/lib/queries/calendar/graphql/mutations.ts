@@ -638,6 +638,7 @@ export async function executeGraphqlCreate(
       canInviteOthers: true,
       canSeeOtherGuests: true,
     },
+    isSnapshot: false,
     // The viewer organizes what they create; the server adds their own
     // attendee row, and with it the RSVP, when the event lands.
     viewerCan: {
