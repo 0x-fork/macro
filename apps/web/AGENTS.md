@@ -419,10 +419,12 @@ instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
 
 ## File downloads
 
-Channel videos and Drive video/image/code/canvas/unknown previews share
+Channel videos, linked video previews, and Drive video/image/code/canvas/unknown previews share
 `createFileDownload` and `FileDownloadButton`. Keep menu and visible controls
 bound to the same controller. Download hands off directly to browser downloads
-or the native save picker; keep Share separate and do not add a custom
+or the native save picker. Show channel Download on hover or keyboard focus,
+always on touch, without a footer. Keep system Share inside the touch Download
+menu; desktop Share belongs to Macro permissions. Do not add a custom
 confirmation sheet. Snapshot file/version before loading, cancel on disposal or
 selection change, and preserve original filenames from static-file metadata.
 Native Android and iOS use bounded byte exports. Older iOS binaries use Web
@@ -430,6 +432,7 @@ Share until the optional file-export bridge ships. If browser activation expires
 while preparing a share, retain the bytes and let the same action's next tap
 open the system sheet synchronously. Browser success means handoff, not confirmed
 disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
+Keep download confirmations title-only.
 
 The backend-free browser regression downloads real fixture bytes from channel
 cards, the expanded viewer, and the shared Drive/standalone header on desktop,

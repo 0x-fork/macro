@@ -1343,8 +1343,11 @@ When Databases is enabled, type `/query` in a channel message or thread reply an
 
 ## Downloading channel videos
 
-Video messages show **Download** below the player on desktop and touch devices. The expanded viewer has the same action. These retrieve the
-original bytes and filename from static-file metadata; they do not record or
-transcode playback. If the metadata is unavailable, the fallback extension comes
-from the response MIME type. See [Downloading files](files.md#downloading-files)
+Video messages show **Download** over the player on hover or keyboard focus;
+the control stays visible on touch devices. There is no footer below the video.
+The expanded viewer has the same action. These retrieve the original bytes and
+filename from static-file metadata; they do not record or transcode playback.
+If the metadata is unavailable, the fallback extension comes from the response
+MIME type. Linked video preview cards also offer Download, using the document's
+current version, name, and file type. See [Downloading files](files.md#downloading-files)
 for progress, cancellation, retries, and mobile save/share verification.

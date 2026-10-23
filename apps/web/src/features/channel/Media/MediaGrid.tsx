@@ -93,7 +93,7 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
 
   return (
     <div class="flex min-w-0 max-w-120 flex-col overflow-hidden rounded-2xl border border-edge bg-surface">
-      <div class="group relative flex min-h-20 max-h-120 min-w-0 overflow-hidden">
+      <div class="group/video relative flex min-h-20 max-h-120 min-w-0 overflow-hidden">
         <Show
           when={isInlinePlaying()}
           fallback={
@@ -135,7 +135,13 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
             height={videoHeight()}
           />
         </Show>
-        <div class="absolute right-2 top-2 z-10">
+        <div
+          class={cn(
+            'absolute right-2 top-2 z-10 flex items-center rounded-full bg-surface/90 opacity-0 transition-opacity group-hover/video:opacity-100 group-focus-within/video:opacity-100 touch:opacity-100',
+            download.phase() !== 'idle' && 'opacity-100'
+          )}
+        >
+          <FileDownloadButton download={download} iconOnly />
           <Button
             variant="ghost"
             size="icon-md"
@@ -147,17 +153,6 @@ function MessageVideoTile(props: { item: MediaItem; onOpen: () => void }) {
           >
             <ExpandIcon />
           </Button>
-        </div>
-      </div>
-      <div class="flex items-center justify-between gap-2 border-t border-edge px-3 py-2">
-        <span
-          class="min-w-0 truncate text-sm text-ink-muted"
-          title={download.name() || 'Video'}
-        >
-          {download.name() || 'Video'}
-        </span>
-        <div class="flex shrink-0 items-center">
-          <FileDownloadButton download={download} />
         </div>
       </div>
     </div>

@@ -4,10 +4,10 @@ import { useShareModal } from '@core/component/TopBar/shareModal';
 import { createFileDownload } from '@core/util/createFileDownload';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { catchToResult } from '@core/util/result';
+import { getFileDocumentBlob } from '@queries/storage/file-document';
 import type { JSX } from 'solid-js';
 import { FileDetailLayout, FileDetailLoadGate } from '../components/FileDetail';
 import { downloadFileOperation } from '../components/file-detail-operations';
-import { getFileDocumentBlob } from '../queries/file-document';
 import {
   loadUnknownDocument,
   type UnknownDocumentData,

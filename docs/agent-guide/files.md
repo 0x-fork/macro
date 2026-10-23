@@ -162,8 +162,9 @@ returning from an opened file.
 Open a video, image, code file, canvas, or other uploaded file in Drive. Its
 header exposes **Download** on desktop, phone, and tablet. The file menu uses
 the same action. Video routes also expose it in their header; channel videos
-expose it below the player and in the expanded viewer. Playing, downloading,
-and sharing a video are separate actions.
+expose it over the player on hover or keyboard focus (always visible on touch)
+and in the expanded viewer. Linked video cards also offer Download in their
+preview header without opening the file.
 
 - Click Download once. The control shows preparation progress when the server
   provides a length, disables repeat clicks, and offers Cancel. Browser users
@@ -172,9 +173,11 @@ and sharing a video are separate actions.
 - **Download started** means the browser accepted the file; check its downloads
   UI for the location and final completion. **File saved** is reserved for a
   completed native save. Retry download remains available after a fetch failure.
-- **Share**, where supported, opens the system share sheet. If a browser's
+- On phones and tablets that support system sharing, **Download** opens a menu
+  with **Download** and **Share**. Share opens the system share sheet; desktop
+  headers keep only Macro's existing Share control for access and links. If a browser's
   user gesture expires during loading, a ready notice asks for another tap on
-  Share; that tap uses the prepared bytes without another network request.
+  Share in the open menu; that tap uses the prepared bytes without another network request.
   No Macro download dialog appears. Cancelling a chooser keeps the file ready
   for another attempt and does not report success.
 - Installed iOS binaries without the optional file-export bridge use the system
