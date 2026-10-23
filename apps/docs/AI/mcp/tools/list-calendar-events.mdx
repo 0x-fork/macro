@@ -11,6 +11,8 @@ List the user's calendar events between two instants, across every calendar they
 
 Use this to answer questions about the user's schedule ("what's on my calendar tomorrow?"), to find an event the user wants changed or removed, and to check for conflicts before creating an event. Keep the window as narrow as the request allows — a day or a week — since wide windows truncate at 200 occurrences. The window must be at most 370 days and within one year past to two years future. If `syncStatus` is `syncing`, tell the user results may still be incomplete.
 
+Each entry names the calendar (`calendarName`) and connected inbox (`inbox`) holding that copy of the event, and `myRole` says whether the user organizes it or is a guest there. A meeting on several of the user's inboxes appears once per inbox, each with its own `eventId`, and what the user may do can differ between them. When asking which one the user means, describe each by its inbox and role, never by id; when the user names an inbox, act on the entry whose `inbox` matches.
+
 ## Parameters
 
 | Parameter | Type | Required | Description |

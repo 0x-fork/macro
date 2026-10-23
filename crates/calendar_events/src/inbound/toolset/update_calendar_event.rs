@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use super::{
-    AttendeeInput, CalendarToolContext, EventRemindersInput, EventTimeInput, OutOfOfficeInput,
-    ToolCalendarEvent, mutation_tool_error,
+    AttendeeInput, CalendarLabels, CalendarToolContext, EventRemindersInput, EventTimeInput,
+    OutOfOfficeInput, ToolCalendarEvent, mutation_tool_error,
 };
 use crate::domain::{
     models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, GuestPolicy},
@@ -384,6 +384,7 @@ where
             })?,
         };
 
-        Ok(ToolCalendarEvent::from_event(&event))
+        let labels = CalendarLabels::load(&*service_context.mutations, &requester_id).await;
+        Ok(ToolCalendarEvent::from_event(&event, &labels))
     }
 }

@@ -427,6 +427,10 @@ export type UserToolResponseForToolCalendarEvent =
       UserAction: ToolCalendarEvent;
     };
 /**
+ * What the user is on one copy of an event, through the inbox holding it.
+ */
+export type ToolEventRole = 'organizer' | 'guest';
+/**
  * Channel types an agent may create.
  */
 export type NewChannelType = 'private' | 'team';
@@ -7017,6 +7021,19 @@ export interface ToolCalendarEvent {
    * Calendar the event belongs to, when known.
    */
   calendarId?: string | null;
+  /**
+   * Display name of that calendar, when known.
+   */
+  calendarName?: string | null;
+  /**
+   * Connected inbox address the calendar belongs to, when known.
+   */
+  inbox?: string | null;
+  /**
+   * Whether the user organizes this event or is a guest on it, through
+   * that inbox; absent when they are neither.
+   */
+  myRole?: ToolEventRole | null;
 }
 /**
  * An attendee of a calendar event, as returned by calendar tools.
@@ -10784,6 +10801,8 @@ export interface ListBotsResponse {
  * List the user's calendar events between two instants, across every calendar they have connected. Returns one entry per occurrence (a recurring event appears once per instance in the window), soonest first, with the `eventId` needed by UpdateCalendarEvent and DeleteCalendarEvent.
  *
  * Use this to answer questions about the user's schedule ("what's on my calendar tomorrow?"), to find an event the user wants changed or removed, and to check for conflicts before creating an event. Keep the window as narrow as the request allows — a day or a week — since wide windows truncate at 200 occurrences. The window must be at most 370 days and within one year past to two years future. If `syncStatus` is `syncing`, tell the user results may still be incomplete.
+ *
+ * Each entry names the calendar (`calendarName`) and connected inbox (`inbox`) holding that copy of the event, and `myRole` says whether the user organizes it or is a guest there. A meeting on several of the user's inboxes appears once per inbox, each with its own `eventId`, and what the user may do can differ between them. When asking which one the user means, describe each by its inbox and role, never by id; when the user names an inbox, act on the entry whose `inbox` matches.
  */
 export interface ListCalendarEvents {
   /**
@@ -10906,6 +10925,21 @@ export interface CalendarEventListItem {
    */
   calendarId?: string | null;
   /**
+   * Display name of that calendar, when known.
+   */
+  calendarName?: string | null;
+  /**
+   * Connected inbox address holding this copy of the event. A meeting on
+   * several of the user's inboxes is listed once per inbox, each with its
+   * own `eventId`.
+   */
+  inbox?: string | null;
+  /**
+   * Whether the user organizes this event or is a guest on it, through
+   * `inbox`; absent when they are neither.
+   */
+  myRole?: ToolEventRole | null;
+  /**
    * Every calendar carrying a copy of this event when there is more than
    * one, primary first. Pass a copy's `calendarId` to UpdateCalendarEvent
    * or DeleteCalendarEvent to address that copy instead of the primary.
@@ -10950,6 +10984,14 @@ export interface CalendarEventCopyItem {
    * Calendar holding this copy.
    */
   calendarId: string;
+  /**
+   * Display name of that calendar, when known.
+   */
+  calendarName?: string | null;
+  /**
+   * Connected inbox address the calendar belongs to, when known.
+   */
+  inbox?: string | null;
   /**
    * The copy's own title.
    */

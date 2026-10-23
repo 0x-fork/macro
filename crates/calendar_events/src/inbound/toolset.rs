@@ -15,6 +15,7 @@ mod update_calendar_event;
 #[cfg(test)]
 mod test;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use ai_toolset::{AsyncToolCollection, ToolCallError};
@@ -22,12 +23,13 @@ use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::domain::{
     meeting_links::{CreateEventWithMacroCallError, EventWithMacroCall, MeetingLinkError},
     models::{
         CalendarAttendeeInput, CalendarEvent, EventReminderOverride, EventReminders, EventTime,
-        OutOfOfficeAutoDeclineMode, OutOfOfficeProperties,
+        OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, VisibleCalendar,
     },
     ports::{
         CalendarMutationError, CalendarMutationService, CalendarOccurrenceService,
@@ -369,6 +371,89 @@ pub struct ToolCalendarEvent {
     pub is_read_only: bool,
     /// Calendar the event belongs to, when known.
     pub calendar_id: Option<uuid::Uuid>,
+    /// Display name of that calendar, when known.
+    pub calendar_name: Option<String>,
+    /// Connected inbox address the calendar belongs to, when known.
+    pub inbox: Option<String>,
+    /// Whether the user organizes this event or is a guest on it, through
+    /// that inbox; absent when they are neither.
+    pub my_role: Option<ToolEventRole>,
+}
+
+/// What the user is on one copy of an event, through the inbox holding it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolEventRole {
+    /// The inbox organizes the event, or the event has no guests and is the
+    /// user's own.
+    Organizer,
+    /// The inbox is invited to the event.
+    Guest,
+}
+
+impl ToolEventRole {
+    /// The role of the copy's inbox, read the way clients read it: `organize`
+    /// marks the organizer, and only the copy's own inbox row is `is_self`.
+    fn of(event: &CalendarEvent) -> Option<Self> {
+        let own_row = event.attendees.iter().find(|attendee| attendee.is_self);
+        if event.viewer_can.organize || own_row.is_some_and(|attendee| attendee.is_organizer) {
+            Some(Self::Organizer)
+        } else {
+            own_row.map(|_| Self::Guest)
+        }
+    }
+}
+
+/// The calendars the user can see, to name the calendar and inbox each
+/// event copy belongs to.
+#[derive(Default)]
+struct CalendarLabels {
+    by_calendar: HashMap<Uuid, VisibleCalendar>,
+    inbox_by_link: HashMap<Uuid, String>,
+}
+
+impl CalendarLabels {
+    /// Load the requester's visible calendars. Labels only describe a result,
+    /// so a failure leaves them out rather than failing a call whose change
+    /// may already have reached the provider.
+    async fn load<M: CalendarMutationService>(mutations: &M, requester_id: &str) -> Self {
+        let Ok(calendars) = mutations
+            .list_visible_calendars(requester_id)
+            .await
+            .inspect_err(|error| {
+                tracing::warn!(error = ?error, "failed to load calendar names for a tool result");
+            })
+        else {
+            return Self::default();
+        };
+        let inbox_by_link = calendars
+            .iter()
+            .map(|calendar| (calendar.email_link_id, calendar.email_address.clone()))
+            .collect();
+        let by_calendar = calendars
+            .into_iter()
+            .map(|calendar| (calendar.id, calendar))
+            .collect();
+        Self {
+            by_calendar,
+            inbox_by_link,
+        }
+    }
+
+    fn calendar_name(&self, calendar_id: Option<Uuid>) -> Option<String> {
+        calendar_id
+            .and_then(|id| self.by_calendar.get(&id))
+            .map(|calendar| calendar.name.clone())
+    }
+
+    /// The inbox holding a copy: its calendar's inbox, else the inbox whose
+    /// grant backs it.
+    fn inbox(&self, calendar_id: Option<Uuid>, link_id: Option<Uuid>) -> Option<String> {
+        calendar_id
+            .and_then(|id| self.by_calendar.get(&id))
+            .map(|calendar| calendar.email_address.clone())
+            .or_else(|| link_id.and_then(|id| self.inbox_by_link.get(&id)).cloned())
+    }
 }
 
 const DESCRIPTION_PREVIEW_CHARS: usize = 280;
@@ -410,7 +495,7 @@ fn time_fields(time: &EventTime) -> (String, String, bool, Option<String>) {
 }
 
 impl ToolCalendarEvent {
-    fn from_event(event: &CalendarEvent) -> Self {
+    fn from_event(event: &CalendarEvent, labels: &CalendarLabels) -> Self {
         let (start, end, is_all_day, time_zone) = time_fields(&event.time);
         Self {
             event_id: event.id,
@@ -441,13 +526,16 @@ impl ToolCalendarEvent {
             macro_call_url: None,
             is_read_only: event.is_read_only,
             calendar_id: event.calendar_id,
+            calendar_name: labels.calendar_name(event.calendar_id),
+            inbox: labels.inbox(event.calendar_id, None),
+            my_role: ToolEventRole::of(event),
         }
     }
 
-    fn from_event_with_macro_call(created: &EventWithMacroCall) -> Self {
+    fn from_event_with_macro_call(created: &EventWithMacroCall, labels: &CalendarLabels) -> Self {
         Self {
             macro_call_url: Some(created.meeting_link.url.clone()),
-            ..Self::from_event(&created.event)
+            ..Self::from_event(&created.event, labels)
         }
     }
 }

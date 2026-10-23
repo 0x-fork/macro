@@ -1444,3 +1444,200 @@ async fn list_calendars_maps_visible_calendars() {
     assert!(!outlook.capabilities.reset_rsvp);
     assert_eq!(response.summary, "Found 2 calendars.");
 }
+
+fn visible_calendar(id: u128, email_link_id: u128, inbox: &str, name: &str) -> VisibleCalendar {
+    VisibleCalendar {
+        provider: crate::domain::models::CalendarProvider::Google,
+        capabilities: crate::domain::models::CalendarCapabilities::google(),
+        id: Uuid::from_u128(id),
+        email_link_id: Uuid::from_u128(email_link_id),
+        email_address: inbox.to_string(),
+        name: name.to_string(),
+        color: None,
+        is_primary: true,
+        is_writable: true,
+        is_subscription: false,
+        sync_error: None,
+        default_reminders: Vec::new(),
+    }
+}
+
+/// One meeting synced through two of the user's inboxes is two entities;
+/// each entry has to say which inbox holds it and what the user is there,
+/// so the agent can ask by inbox instead of by id.
+#[tokio::test]
+async fn list_events_names_the_inbox_and_role_of_each_copy() {
+    let mut organized = sample_event(Vec::new());
+    organized.viewer_can = ViewerCapabilities {
+        organize: true,
+        ..ViewerCapabilities::NONE
+    };
+    let mut invited = sample_event(Vec::new());
+    invited.id = Uuid::from_u128(8);
+    invited.calendar_id = Some(Uuid::from_u128(10));
+    invited.attendees[0].is_self = false;
+    invited.attendees.push(CalendarAttendee {
+        email: "second@example.com".to_string(),
+        display_name: None,
+        response_status: AttendeeResponseStatus::NeedsAction,
+        is_organizer: false,
+        is_optional: false,
+        is_self: true,
+        comment: None,
+    });
+    invited.viewer_can = ViewerCapabilities {
+        rsvp: true,
+        invite_guests: true,
+        ..ViewerCapabilities::NONE
+    };
+    let mutations = MockMutations {
+        calendars: Mutex::new(vec![
+            visible_calendar(9, 1, "owner@example.com", "Owner"),
+            visible_calendar(10, 2, "second@example.com", "Second"),
+        ]),
+        ..Default::default()
+    };
+    let occurrences = MockOccurrences {
+        rows: Mutex::new(vec![
+            (organized.clone(), occurrence_of(&organized, "k-1", false)),
+            (invited.clone(), occurrence_of(&invited, "k-1", false)),
+        ]),
+        status: CalendarSyncStatus::Ready,
+    };
+    let (_, context) = context(mutations, occurrences);
+
+    let tool = ListCalendarEvents {
+        start: Utc.with_ymd_and_hms(2026, 8, 20, 0, 0, 0).unwrap(),
+        end: Utc.with_ymd_and_hms(2026, 8, 21, 0, 0, 0).unwrap(),
+    };
+    let response = tool.call(context, request_context()).await.unwrap();
+
+    assert_eq!(response.events.len(), 2);
+    let first = &response.events[0];
+    assert_eq!(first.inbox.as_deref(), Some("owner@example.com"));
+    assert_eq!(first.calendar_name.as_deref(), Some("Owner"));
+    assert_eq!(first.my_role, Some(ToolEventRole::Organizer));
+    let second = &response.events[1];
+    assert_eq!(second.event_id, Uuid::from_u128(8));
+    assert_eq!(second.inbox.as_deref(), Some("second@example.com"));
+    assert_eq!(second.calendar_name.as_deref(), Some("Second"));
+    assert_eq!(second.my_role, Some(ToolEventRole::Guest));
+    assert!(
+        response
+            .summary
+            .contains("1 meeting is on more than one of the user's inboxes"),
+        "summary: {}",
+        response.summary
+    );
+}
+
+#[tokio::test]
+async fn list_events_labels_each_calendar_copy_of_one_entity() {
+    let mut event = sample_event(Vec::new());
+    let copy = |calendar_id: u128, title: &str| crate::domain::models::CalendarEventSourceContent {
+        calendar_id: Uuid::from_u128(calendar_id),
+        title: title.to_string(),
+        description: None,
+        location: None,
+        event_type: EventType::Default,
+        visibility: EventVisibility::Default,
+        transparency: EventTransparency::Opaque,
+        is_read_only: false,
+        reminders: EventReminders::default(),
+        creator_email: None,
+        creator_name: None,
+    };
+    event.sources = vec![copy(9, "Standup"), copy(12, "Team standup")];
+    let mutations = MockMutations {
+        calendars: Mutex::new(vec![
+            visible_calendar(9, 1, "owner@example.com", "Owner"),
+            visible_calendar(12, 1, "owner@example.com", "Team"),
+        ]),
+        ..Default::default()
+    };
+    let occurrences = MockOccurrences {
+        rows: Mutex::new(vec![(event.clone(), occurrence_of(&event, "k-1", false))]),
+        status: CalendarSyncStatus::Ready,
+    };
+    let (_, context) = context(mutations, occurrences);
+
+    let tool = ListCalendarEvents {
+        start: Utc.with_ymd_and_hms(2026, 8, 20, 0, 0, 0).unwrap(),
+        end: Utc.with_ymd_and_hms(2026, 8, 21, 0, 0, 0).unwrap(),
+    };
+    let response = tool.call(context, request_context()).await.unwrap();
+
+    let copies = &response.events[0].copies;
+    assert_eq!(copies.len(), 2);
+    assert_eq!(copies[1].calendar_name.as_deref(), Some("Team"));
+    assert_eq!(copies[1].inbox.as_deref(), Some("owner@example.com"));
+    assert!(
+        !response
+            .summary
+            .contains("more than one of the user's inboxes"),
+        "one entity on two calendars of one inbox is not a multi-inbox meeting"
+    );
+}
+
+#[test]
+fn role_follows_the_copy_inbox() {
+    let mut event = sample_event(Vec::new());
+    assert_eq!(
+        ToolEventRole::of(&event),
+        Some(ToolEventRole::Organizer),
+        "the inbox's own row organizes"
+    );
+
+    event.attendees[0].is_self = false;
+    assert_eq!(
+        ToolEventRole::of(&event),
+        None,
+        "neither organizer nor guest"
+    );
+
+    event.attendees[1].is_self = true;
+    assert_eq!(ToolEventRole::of(&event), Some(ToolEventRole::Guest));
+
+    event.attendees.clear();
+    event.viewer_can = ViewerCapabilities {
+        organize: true,
+        ..ViewerCapabilities::NONE
+    };
+    assert_eq!(
+        ToolEventRole::of(&event),
+        Some(ToolEventRole::Organizer),
+        "an own event without guests"
+    );
+}
+
+#[tokio::test]
+async fn update_result_names_the_copy_it_changed() {
+    let mutations = MockMutations {
+        calendars: Mutex::new(vec![visible_calendar(9, 1, "owner@example.com", "Owner")]),
+        ..Default::default()
+    };
+    let (_, context) = context(mutations, empty_occurrences());
+
+    let tool = UpdateCalendarEvent {
+        event_id: Uuid::from_u128(7),
+        calendar_id: None,
+        scope: UpdateScopeInput::All,
+        recurrence_id: None,
+        title: Some("Renamed".to_string()),
+        description: None,
+        location: None,
+        time: None,
+        attendees: None,
+        recurrence_lines: None,
+        conference: None,
+        reminders: None,
+        rsvp: None,
+        out_of_office: None,
+        guest_policy: None,
+    };
+    let result = tool.call(context, request_context()).await.unwrap();
+
+    assert_eq!(result.inbox.as_deref(), Some("owner@example.com"));
+    assert_eq!(result.calendar_name.as_deref(), Some("Owner"));
+    assert_eq!(result.my_role, Some(ToolEventRole::Organizer));
+}
