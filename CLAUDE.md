@@ -79,6 +79,10 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - Disagree when they're wrong. No flattery.
 - Answer simple questions directly.
 - For UI work, ask how it should behave on mobile unless that's obvious.
+- Ground UI proposals and prototypes in the existing Macro app screens and
+  design system, preserving its shell, typography, controls, and spacing.
+- Treat an approved UI proposal followed by a PR request as a request to
+  implement it; keep standalone prototypes outside the repository unless asked.
 - Be brief. No justification essays, no time estimates.
 
 **Environment**

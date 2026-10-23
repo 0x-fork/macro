@@ -291,6 +291,7 @@ dependencies = [
  "tauri-plugin-deep-link",
  "tauri-plugin-device-info",
  "tauri-plugin-edit-menu",
+ "tauri-plugin-file-export",
  "tauri-plugin-haptics",
  "tauri-plugin-http",
  "tauri-plugin-input-accessory",
@@ -6924,6 +6925,14 @@ name = "tauri-plugin-edit-menu"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "tauri",
+ "tauri-plugin",
+]
+
+[[package]]
+name = "tauri-plugin-file-export"
+version = "0.1.0"
+dependencies = [
  "tauri",
  "tauri-plugin",
 ]

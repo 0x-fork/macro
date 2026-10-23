@@ -5,9 +5,10 @@ import {
   hasPermissions,
   Permissions,
 } from '@core/component/SharePermissions';
+import { createFileDownload } from '@core/util/createFileDownload';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { downloadFile } from '@filesystem/download';
 import { useSearchParams } from '@solidjs/router';
+import { ok } from 'neverthrow';
 import type { Accessor, JSX } from 'solid-js';
 import { FileDetailLayout, FileDetailLoadGate } from '../components/FileDetail';
 import { downloadFileOperation } from '../components/file-detail-operations';
@@ -27,18 +28,18 @@ function CanvasDetailContent(props: {
   savedFile: Accessor<Blob | undefined>;
 }) {
   const analytics = useAnalytics();
-  const downloadName = documentDownloadName(
-    props.data.documentMetadata,
-    'Unknown Filename'
-  );
-  const operations = [
-    downloadFileOperation(() => {
-      fireAndForget(
-        downloadFile(props.savedFile() ?? props.data.file, downloadName),
-        'drive-file-download'
-      );
+  const download = createFileDownload(() => ({
+    id: `${props.data.documentMetadata.documentId}:${props.data.documentMetadata.documentVersionId}`,
+    name: documentDownloadName(props.data.documentMetadata, 'Unknown Filename'),
+    load: async () => {
       analytics.track('download', { blockType: 'canvas' });
-    }),
+      return ok({ blob: props.savedFile() ?? props.data.file });
+    },
+  }));
+  const operations = [
+    downloadFileOperation(() =>
+      fireAndForget(download.start(), 'drive-file-download')
+    ),
   ];
 
   return (
@@ -48,6 +49,7 @@ function CanvasDetailContent(props: {
         documentMetadata: props.data.documentMetadata,
         userAccessLevel: props.data.userAccessLevel,
         operations,
+        download,
       })}
       <div class="flex size-full min-h-0 min-w-0 flex-col overflow-hidden">
         {props.content}

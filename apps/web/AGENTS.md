@@ -402,3 +402,23 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
+
+## File downloads
+
+Channel videos and Drive video/image/code/canvas/unknown previews share
+`createFileDownload` and `FileDownloadButton`. Keep menu and visible controls
+bound to the same controller. Download hands off directly to browser downloads
+or the native save picker; keep Share separate and do not add a custom
+confirmation sheet. Snapshot file/version before loading, cancel on disposal or
+selection change, and preserve original filenames from static-file metadata.
+Native Android and iOS use bounded byte exports. Older iOS binaries use Web
+Share until the optional file-export bridge ships. If browser activation expires
+while preparing a share, retain the bytes and let the same action's next tap
+open the system sheet synchronously. Browser success means handoff, not confirmed
+disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
+
+The backend-free browser regression downloads real fixture bytes from channel
+cards, the expanded viewer, and the shared Drive/standalone header on desktop,
+phone, and tablet:
+`bunx playwright test --config src/lib/core/component/FileDownload/browser-test/playwright.config.ts`.
+See the [download walkthrough](../../docs/agent-guide/files.md#downloading-files).

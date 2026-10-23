@@ -254,6 +254,7 @@ pub fn run_with(builder: tauri::Builder<AppRuntime>) {
             .plugin(tauri_plugin_auth::init())
             .plugin(tauri_plugin_virtual_keyboard::init())
             .plugin(tauri_plugin_edit_menu::init())
+            .plugin(tauri_plugin_file_export::init())
             .plugin(tauri_plugin_input_accessory::init())
             .plugin(tauri_plugin_network_status::init())
             .plugin(tauri_plugin_pasteboard::init())

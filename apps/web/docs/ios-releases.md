@@ -5,6 +5,11 @@ binary update. Their IPC is optional: OTA-only clients retain frontend reload
 markers and instance IDs, with missing native coverage explicitly reported.
 See [reload diagnostics](../tauri/src-tauri/README.md#diagnosing-unexpected-webview-reloads).
 
+The optional `file_export_plugin` adds the native file save picker and share
+sheet. The web bundle probes availability and keeps Web Share on older binaries,
+so it does not raise the native floor. The picker itself still needs an App Store
+release; see [file exports](../tauri/file_export_plugin/AGENTS.md).
+
 (The Android counterpart — `android-update`, `Android Native Check`, Google
 Play as the source of truth — is described in `docs/development/android.md`.)
 

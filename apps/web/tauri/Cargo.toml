@@ -5,6 +5,7 @@ members = [
   "android_push_plugin",
   "callkit_plugin",
   "edit_menu_plugin",
+  "file_export_plugin",
   "graphql_cache_plugin",
   "input_accessory_plugin",
   "logger",

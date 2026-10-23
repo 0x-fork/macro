@@ -15,6 +15,7 @@ export type FileDocumentData = {
 };
 
 export type GetFileBlobOptions = {
+  signal?: AbortSignal;
   onProgress?: (progress: FetchProgress) => void;
 };
 
@@ -44,9 +45,12 @@ export async function getFileDocumentBlob(
   options?: GetFileBlobOptions
 ): Promise<Blob> {
   const url = await getFileDocumentUrl(data);
+  options?.signal?.throwIfAborted();
   return throwOnErr(() =>
     options?.onProgress
-      ? fetchPresignedBlobWithProgress(url, options.onProgress)
-      : fetchPresigned(url, 'blob')
+      ? fetchPresignedBlobWithProgress(url, options.onProgress, {
+          signal: options.signal,
+        })
+      : fetchPresigned(url, 'blob', { signal: options?.signal })
   );
 }

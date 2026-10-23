@@ -5,6 +5,15 @@ single Vite build that runs identically for web, desktop, iOS, and Android — t
 platform is detected at runtime via `getPlatform()` rather than baked into the
 bundle.
 
+## File saving and sharing
+
+The optional `file_export_plugin` registers iOS save/share commands. The web
+client stages original bytes in bounded chunks, then UIKit opens the system
+save picker or share sheet without an intermediate Macro dialog. Android uses
+its existing `android_mobile_plugin` export commands. Older iOS installations
+retain Web Share until the next native release; see
+[the bridge guide](../file_export_plugin/AGENTS.md).
+
 ## Desktop app icons
 
 Only desktop icons carry the ALPHA badge; iOS and Android icons are unbadged.
