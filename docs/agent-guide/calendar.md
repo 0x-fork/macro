@@ -458,7 +458,8 @@ start to another weekday keeps a custom rule on the day the editor shows.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
 carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
 only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
-comma-separated. Emailing opens a new email addressed to every guest but you, with the event
+comma-separated; it is hidden too while the organizer hides the guest list, which your copy
+does not hold. Emailing opens a new email addressed to every guest but you, with the event
 title as its subject (as `Forward by email` fills it in) — in a split
 beside the calendar on desktop, as the full-screen composer on touch devices, in its own
 composer even when another one is open. Deleting an event asks first, and says guests will be

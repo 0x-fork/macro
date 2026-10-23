@@ -227,9 +227,11 @@ function EventInviteGuestsAction(props: {
 /**
  * The guest-row actions Google Calendar users know: copy every guest's
  * address and start an email to the other guests (both hidden when the
- * viewer is the only one, as on a snapshot), or add guests when the organizer
- * allows it. Emailing closes the details first: closing hands focus back to
- * the calendar chip, and the composer's To field has to win that exchange.
+ * viewer is the only one, as on a snapshot, and copying while the organizer
+ * hides the guest list, which the copy does not hold), or add guests when the
+ * organizer allows it. Emailing closes the details first: closing hands focus
+ * back to the calendar chip, and the composer's To field has to win that
+ * exchange.
  */
 function EventGuestActions(props: {
   event: CalendarEvent;
@@ -241,16 +243,18 @@ function EventGuestActions(props: {
   return (
     <Show when={!props.event.teamProjection}>
       <Show when={eventEmailRecipients(props.event).length > 0}>
-        <Button
-          label="Copy guest emails"
-          variant="ghost"
-          size="icon-sm"
-          depth={3}
-          class="text-ink-muted [&_svg]:size-4"
-          onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
-        >
-          <CopyIcon />
-        </Button>
+        <Show when={!guestListHidden(props.event)}>
+          <Button
+            label="Copy guest emails"
+            variant="ghost"
+            size="icon-sm"
+            depth={3}
+            class="text-ink-muted [&_svg]:size-4"
+            onClick={() => copyGuestEmails(guestEmails(props.event.attendees))}
+          >
+            <CopyIcon />
+          </Button>
+        </Show>
         <Button
           label="Email guests"
           variant="ghost"

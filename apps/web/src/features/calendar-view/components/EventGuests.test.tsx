@@ -392,6 +392,25 @@ describe('adding guests from event details', () => {
     ).toBeNull();
   });
 
+  it('offers no guest addresses to copy while the organizer hides the guest list', () => {
+    renderGuests(
+      event({
+        guestPolicy: {
+          canModify: false,
+          canInviteOthers: true,
+          canSeeOtherGuests: false,
+        },
+        viewerCan: { ...MAY_INVITE, inviteGuests: false },
+      })
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Copy guest emails' })
+    ).toBeNull();
+    // The organizer the copy lists can still be written to.
+    expect(screen.getByRole('button', { name: 'Email guests' })).toBeTruthy();
+  });
+
   it('switches to the hidden-list explanation when the server finds the list hidden', async () => {
     mocks.invite.mockRejectedValue({ code: 'guest_list_hidden' });
     const user = userEvent.setup();
