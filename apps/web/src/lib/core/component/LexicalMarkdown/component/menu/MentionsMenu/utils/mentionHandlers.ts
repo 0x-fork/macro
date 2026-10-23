@@ -13,6 +13,7 @@ import {
 } from '../../../../plugins/mentions';
 import type {
   BookingLinkMentionItem,
+  CalendarEventMentionItem,
   HandlerDependencies,
   MentionItem,
 } from '../../../../utils/mentionsUtils';
@@ -197,6 +198,24 @@ async function handleBookingLinkMention(
 }
 
 /**
+ * Insert a calendar event chip, the same node Copy event pastes: a series
+ * mention for a single event, an instance mention for a repeating one.
+ * Posting it in a channel shares the event with the channel's members.
+ */
+async function handleCalendarEventMention(
+  item: CalendarEventMentionItem,
+  dependencies: HandlerDependencies
+): Promise<void> {
+  const { eventId, title, occurrenceKey } = item.data;
+  dependencies.editor.dispatchCommand(INSERT_DOCUMENT_MENTION_COMMAND, {
+    documentId: eventId,
+    documentName: title,
+    blockName: 'calendar',
+    blockParams: occurrenceKey ? { occurrenceKey } : undefined,
+  });
+}
+
+/**
  * Creates a handler for MentionItem selection.
  */
 export function createItemHandler(dependencies: HandlerDependencies) {
@@ -220,6 +239,8 @@ export function createItemHandler(dependencies: HandlerDependencies) {
         );
       case 'bookingLink':
         return await handleBookingLinkMention(item, dependencies);
+      case 'calendarEvent':
+        return await handleCalendarEventMention(item, dependencies);
       case 'entity':
         return await handleEntityMention(item, dependencies);
     }

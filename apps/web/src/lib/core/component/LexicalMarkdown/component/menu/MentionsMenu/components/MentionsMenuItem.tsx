@@ -54,6 +54,10 @@ export function MentionsMenuItem(props: {
         name: data.title,
         detail: `${data.durationMinutes} min · ${data.owner}`,
       }))
+      .with({ kind: 'calendarEvent' }, ({ data }) => ({
+        name: data.title,
+        detail: data.when,
+      }))
       .otherwise(() => ({ name: name(), detail: undefined }));
 
   const icon = () => {
@@ -78,6 +82,9 @@ export function MentionsMenuItem(props: {
 
       case 'bookingLink':
         return <CalendarBlankIcon class="size-4 text-accent" />;
+
+      case 'calendarEvent':
+        return <EntityIcon targetType="calendar" size="xs" />;
 
       case 'entity':
         if (props.item.bucket === 'email') {

@@ -53,6 +53,7 @@ import { ItemBin } from './components/ItemBin';
 import { MentionsMenuItem } from './components/MentionsMenuItem';
 import { createMentionPageLoader } from './hooks/createMentionPageLoader';
 import { useBookingLinkMention } from './hooks/useBookingLinkMention';
+import { useCalendarEventMention } from './hooks/useCalendarEventMention';
 import { useEmailSearchMention } from './hooks/useEmailSearchMention';
 import {
   useEntityMention,
@@ -271,6 +272,13 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     enabled: bookingLinksEnabled,
     searchTerm,
   });
+  const { events: calendarEvents } = useCalendarEventMention({
+    enabled: () =>
+      props.menu.isOpen() &&
+      !hasCustomEntities() &&
+      (!props.sources || props.sources.includes('calendarEvents')),
+    searchTerm,
+  });
 
   const openTabs = createLazyMemo(() => {
     const splitManager = globalSplitManager();
@@ -335,6 +343,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       ...(sourceEnabled('agentSessions') ? agentSessions() : []),
       ...(sourceEnabled('companies') ? (companies() ?? []) : []),
       ...(sourceEnabled('emails') ? (emails() ?? []) : []),
+      ...(sourceEnabled('calendarEvents') ? calendarEvents() : []),
       ...(sourceEnabled('dates') ? (dates() ?? []) : []),
     ];
     return sortMobileMentions(combined, searchTerm(), users);
@@ -361,6 +370,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
               ? (companyMention?.totalCount() ?? 0)
               : 0) +
             (sourceEnabled('emails') ? totalEmailCount() : 0) +
+            (sourceEnabled('calendarEvents') ? calendarEvents().length : 0) +
             (sourceEnabled('dates') ? (dates()?.length ?? 0) : 0),
           hasMore: () =>
             (sourceEnabled('users') &&
@@ -459,6 +469,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         hasMore: hasMoreEmails,
         isLoadingMore: isLoadingMoreEmails,
         loadMore: loadMoreEmails,
+      },
+      {
+        id: 'calendarEvents',
+        label: 'Calendar events',
+        getData: calendarEvents,
+        getFullCount: () => calendarEvents().length,
       },
       {
         id: 'dates',

@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   contacts: [] as import('@core/context/quickAccess').EntityItem[],
   hasMoreContacts: false,
   loadMoreContacts: vi.fn(async () => {}),
+  calendarEvents:
+    [] as import('../../../utils/mentionsUtils').CalendarEventMentionItem[],
 }));
 
 vi.mock('@app/features/crm/record-adapter', () => ({
@@ -96,6 +98,9 @@ vi.mock('./hooks/useBookingLinkMention', () => ({
     isLoading: () => false,
   }),
 }));
+vi.mock('./hooks/useCalendarEventMention', () => ({
+  useCalendarEventMention: () => ({ events: () => mocks.calendarEvents }),
+}));
 vi.mock('@core/component/EntityIcon', () => ({ EntityIcon: () => null }));
 vi.mock('@core/component/UserIcon', () => ({ UserIcon: () => null }));
 vi.mock('@ui', () => ({
@@ -113,6 +118,7 @@ afterEach(() => {
   mocks.contacts = [];
   mocks.hasMoreContacts = false;
   mocks.loadMoreContacts.mockClear();
+  mocks.calendarEvents = [];
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -286,6 +292,38 @@ it('offers CRM companies and contacts', () => {
   ));
   expect(mocks.requestedBuckets).toContain('crm_company');
   expect(mocks.requestedBuckets).toContain('crm_contact');
+});
+
+it('offers calendar events and picks one', () => {
+  Element.prototype.scrollIntoView = vi.fn();
+  vi.mocked(useEmailSearchMention).mockReturnValue({
+    emails: () => [],
+    totalCount: () => 0,
+    hasMore: () => false,
+    isLoadingMore: () => false,
+    loadMore: async () => {},
+  } as unknown as ReturnType<typeof useEmailSearchMention>);
+  mocks.calendarEvents = [
+    {
+      kind: 'calendarEvent',
+      id: 'event-1',
+      data: { eventId: 'event-1', title: 'Planning', when: 'Mon, Oct 26' },
+    },
+  ];
+  const onPick = vi.fn();
+  const menu = createMenuOperations();
+  menu.openMenu();
+  render(() => (
+    <MentionsMenu
+      menu={menu}
+      users={() => []}
+      anchor={document.createElement('div')}
+      onPick={onPick}
+    />
+  ));
+  expect(screen.getByText('Calendar events')).toBeTruthy();
+  fireEvent.click(screen.getByText('Planning'));
+  expect(onPick).toHaveBeenCalledWith(mocks.calendarEvents[0]);
 });
 
 it('opens cell pickers without replaying the menu entrance animation', () => {

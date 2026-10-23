@@ -4,7 +4,8 @@ import type { MentionItem } from '../../../../utils/mentionsUtils';
 function getMentionName(item: MentionItem): string {
   if (item.kind === 'date') return item.data.displayText;
   if (item.kind === 'group') return item.data.groupAlias;
-  if (item.kind === 'bookingLink') return item.data.title;
+  if (item.kind === 'bookingLink' || item.kind === 'calendarEvent')
+    return item.data.title;
   return item.searchText;
 }
 
@@ -12,7 +13,8 @@ function getMentionTimestamps(item: MentionItem) {
   if (
     item.kind === 'date' ||
     item.kind === 'group' ||
-    item.kind === 'bookingLink'
+    item.kind === 'bookingLink' ||
+    item.kind === 'calendarEvent'
   )
     return {};
   return item.timestamps;
