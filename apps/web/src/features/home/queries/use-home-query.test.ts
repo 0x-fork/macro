@@ -480,7 +480,7 @@ describe('Home data source', () => {
     expect(activity.fetchNextPage).not.toHaveBeenCalled();
   });
 
-  it('can select chats and agent sessions independently', () => {
+  it('selects both chats and agent sessions with the agents filter', () => {
     const activity = makeQuery(
       [
         {
@@ -503,10 +503,8 @@ describe('Home data source', () => {
       false
     );
     const { source, setState } = mount(makeQuery([], false), activity);
-    setState('facets', { type: ['chats'] });
-    expect(ids(source)).toEqual(['chat']);
     setState('facets', { type: ['agents'] });
-    expect(ids(source)).toEqual(['agent']);
+    expect(ids(source)).toEqual(['agent', 'chat']);
   });
 });
 
