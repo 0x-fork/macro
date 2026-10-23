@@ -364,6 +364,21 @@ describe('adding guests from event details', () => {
     expect(mocks.success).not.toHaveBeenCalled();
   });
 
+  it('offers no guest addresses to copy or email when the viewer is the only guest', () => {
+    renderGuests(
+      event({
+        isSnapshot: true,
+        viewerCan: { ...MAY_INVITE, inviteGuests: false, rsvp: false },
+        attendees: [attendee({ email: 'me@example.com', isSelf: true })],
+      })
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Copy guest emails' })
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Email guests' })).toBeNull();
+  });
+
   it('keeps today’s guest actions while guest invites are off', () => {
     renderGuests(event(), false);
 

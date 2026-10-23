@@ -182,6 +182,19 @@ describe.each([
     });
   });
 
+  it('promises no notifications when deleting an event nobody else is on', async () => {
+    const user = userEvent.setup();
+    showDetails(event({ viewerCan: { ...NO_CAPABILITIES, organize: true } }));
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Delete event' })
+    );
+    expect(
+      await screen.findByText('Delete “Projects discussion”?')
+    ).toBeTruthy();
+    expect(screen.queryByText(/Guests will be notified/)).toBeNull();
+  });
+
   it('keeps Edit for a guest the organizer does not let modify', async () => {
     showDetails(event({ viewerCan: { ...NO_CAPABILITIES, rsvp: true } }));
 

@@ -445,11 +445,12 @@ Test reminder removal as well as changing its time, including a series whose sto
 rule contains `INTERVAL=1`, `WKST`, differently ordered weekdays, or a precise `UNTIL`:
 an untouched rule must not be reformatted and included in a reminder-only PATCH.
 As in Google Calendar, the guests row of the details popover (a bottom sheet on phones)
-carries `Copy guest emails` and `Email guests` icon buttons. Copying puts every guest's
-address on the clipboard, comma-separated. Emailing opens a new email addressed to every
-guest but you — in a split beside the calendar on desktop, as the full-screen composer on
-touch devices, in its own composer even when another one is open — and is hidden when you
-are the only guest.
+carries `Copy guest emails` and `Email guests` icon buttons, both hidden when you are the
+only guest (always so on a snapshot). Copying puts every guest's address on the clipboard,
+comma-separated. Emailing opens a new email addressed to every guest but you — in a split
+beside the calendar on desktop, as the full-screen composer on touch devices, in its own
+composer even when another one is open. Deleting an event asks first, and says guests will be
+notified only when someone besides you is on it.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
 organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
