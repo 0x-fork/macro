@@ -466,8 +466,8 @@ composer even when another one is open. Deleting an event asks first, and says g
 notified only when someone besides you is on it.
 With the `enable-calendar-guest-invites` flag on, a third icon button, `Add guests`, shows
 whenever the event's `viewerCan.inviteGuests` allows it, including for a guest whose
-organizer lets guests invite. It opens an editor anchored to the button (a bottom sheet on
-phones): the current guests are listed under `Invited` without a remove control, the picker
+organizer lets guests invite. It opens an editor anchored to the button (on phones, a bottom
+sheet stacked over the dimmed event details, showing one bright handle): the current guests are listed under `Invited` without a remove control, the picker
 adds people, each new guest has an `Optional` checkbox, a recurring event offers `This
 event` / `All events` (`All events` by default, like the editor's recurring edits), and
 `Send invitations` (or Cmd/Ctrl+Enter) sends them; Escape closes. The new guests appear at

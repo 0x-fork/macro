@@ -104,8 +104,11 @@ function MobileDrawerContent(
 function MobileDrawerOverlay(props: ComponentProps<typeof Drawer.Overlay>) {
   const [local, rest] = splitProps(props, ['class']);
   return (
+    // On the sheets' own layer, as Dialog's scrim is: a sheet opened from
+    // another sheet comes later in the document, so its scrim dims the sheet
+    // beneath like the rest of the page.
     <Drawer.Overlay
-      class={cn('fixed inset-0 z-modal-overlay scrim-glass', local.class)}
+      class={cn('fixed inset-0 z-modal scrim-glass', local.class)}
       {...rest}
     />
   );

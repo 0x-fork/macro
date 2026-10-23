@@ -51,6 +51,9 @@ read their code, and follow that pattern rather than inventing a new one.
 - Phone drawers have a handle and no X; drag, backdrop, or Escape dismiss,
   and focus returns to the opener. No submenus at phone width: drill in
   place with a back row.
+- A sheet opened from another sheet stacks on it under its own scrim, which
+  shares the sheets' layer (as Dialog's does), so the sheet beneath dims with
+  the page and only the top sheet's handle stands out.
 - Overlays are Kobalte or corvu layers or handle Escape: Android Back sends
   Escape to the top layer. Own back stacks use `useAndroidBackNavigation`.
 - Persistent prompts (`toast.custom` with `persistent`) go to the prompt
