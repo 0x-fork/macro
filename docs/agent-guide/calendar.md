@@ -484,7 +484,10 @@ A guest the organizer does not let modify the event (`viewerCan.editDetails` fal
 repeat, conferencing and location controls are disabled, each with the tooltip `Only the
 organizer can change this event.`; the same line shows under the pills, which is all a
 touch device shows. Notifications stay editable and Save sends only `reminders` (plus any
-invitation). That guest cannot drag or resize the event on the grid either. Someone
+invitation). An editor already open when the organizer turns modifying off follows the
+guest's copy once it syncs: the same fields lock, return to the event's own (keeping
+notification and guest changes) and a toast shows the line. That guest cannot drag or resize
+the event on the grid either. Someone
 neither organizing nor invited, such as a delegate on a shared calendar, keeps what their
 calendar access allows. The update refuses a detail change from such a guest with 403
 `guests_cannot_modify` (fields resent at their stored value are ignored, so the agent can

@@ -6,6 +6,7 @@ import {
 } from '@app/features/calendar/components/composer/event-form-model';
 import { useCalendarGuestInvitesFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { useEventEditor } from '@app/features/calendar/hooks/use-event-editor';
+import { useSyncedCalendarEvent } from '@app/features/calendar/hooks/use-synced-calendar-event';
 import type { CalendarEvent } from '@app/features/calendar/types';
 import { viewerReplacesGuests } from '@app/features/calendar/utils/event-guest-editing';
 import { EventReplacementAction } from '@app/features/calendar/views/event-replacement';
@@ -59,7 +60,8 @@ function EventComposerContent(
     event: () => props.event,
     macroCallsEnabled,
     guestInvitesEnabled: useCalendarGuestInvitesFlag(),
-    onDetailEditsRefused: () => controller.resetDetails(),
+    syncedEvent: useSyncedCalendarEvent(() => props.event),
+    onDetailsLocked: () => controller.resetDetails(),
     onSaved: () => {
       props.onSaveSuccess?.();
       close();
