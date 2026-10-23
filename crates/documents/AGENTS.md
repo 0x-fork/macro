@@ -54,6 +54,10 @@ word docs, Illustrator/Photoshop files).
 - Add a document route: `src/domain/service.rs` (new domain method) →
   `src/inbound/axum_router.rs` → `src/domain/ports.rs` if it needs a new
   outbound capability.
+- Create a document from a Notion page: `DocumentCreator::create_notion_markdown`
+  (`src/domain/create.rs`) with a `NotionMarkdown` (`src/domain/notion_markdown.rs`);
+  lexical-service converts it through `MarkdownInitializationPort::initialize_existing_notion`
+  and returns the Macro markdown that mention tracking reads.
 - Change content storage/markdown lifecycle: `src/domain/content.rs` →
   `src/outbound/s3_markdown_source.rs` / `src/outbound/markdown_init.rs` →
   `src/bin/backfill_markdown_content_location.rs` if existing documents need

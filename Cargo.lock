@@ -11267,6 +11267,7 @@ version = "0.1.0"
 dependencies = [
  "agent_fold",
  "anyhow",
+ "base64 0.22.1",
  "macro_tower_layers",
  "messages",
  "reqwest 0.13.4",

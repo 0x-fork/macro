@@ -22,10 +22,11 @@ use crate::domain::content::{DocumentContent, DocumentContentLocation};
 use crate::domain::models::{
     CreateTaskRequest, DocumentError, EMPTY_SHA256, InitialLinkShare, NewDocument, PropertyInput,
 };
+use crate::domain::notion_markdown::NotionMarkdown;
 use crate::domain::ports::create::{
     DocumentBytesUpload, DocumentBytesUploadPort, DocumentCreationService,
 };
-use crate::domain::ports::markdown::MarkdownInitializationPort;
+use crate::domain::ports::markdown::{MarkdownInitializationPort, MarkdownSnapshot};
 use crate::domain::ports::mentions::DocumentMentionTrackingPort;
 use crate::domain::response::CreateDocumentResponseData;
 
@@ -219,6 +220,25 @@ impl NewMarkdownTextDocument {
             subtype: MarkdownSubtype::Note,
         }
     }
+}
+
+/// A backend-created markdown document whose content comes from a Notion
+/// page: lexical-service converts the page, resolving its references
+/// through the links it carries.
+#[derive(Debug, Clone)]
+pub struct NewNotionDocument {
+    /// Common document metadata.
+    pub metadata: NewDocumentMetadata,
+    /// The Notion page body and its links.
+    pub notion: NotionMarkdown,
+    /// Markdown subtype.
+    pub subtype: MarkdownSubtype,
+}
+
+/// Where a new markdown document's content comes from.
+enum MarkdownContent {
+    Markdown(String),
+    Notion(NotionMarkdown),
 }
 
 /// A backend-created plaintext document whose file type determines the
@@ -583,6 +603,44 @@ where
             markdown,
             subtype,
         } = document;
+        self.create_markdown(
+            principal,
+            metadata,
+            subtype,
+            MarkdownContent::Markdown(markdown),
+        )
+        .await
+    }
+
+    /// Create a markdown document from a Notion page and initialize
+    /// sync-service.
+    #[tracing::instrument(skip(self, document), err)]
+    pub async fn create_notion_markdown(
+        &self,
+        principal: &CreationPrincipal,
+        document: NewNotionDocument,
+    ) -> Result<CreatedDocument, DocumentError> {
+        let NewNotionDocument {
+            metadata,
+            notion,
+            subtype,
+        } = document;
+        self.create_markdown(
+            principal,
+            metadata,
+            subtype,
+            MarkdownContent::Notion(notion),
+        )
+        .await
+    }
+
+    async fn create_markdown(
+        &self,
+        principal: &CreationPrincipal,
+        metadata: NewDocumentMetadata,
+        subtype: MarkdownSubtype,
+        content: MarkdownContent,
+    ) -> Result<CreatedDocument, DocumentError> {
         let task = match &subtype {
             MarkdownSubtype::Note
             | MarkdownSubtype::Snippet
@@ -632,10 +690,20 @@ where
             .clone();
 
         let finalize_result = async {
-            let initial_snapshot = self
-                .markdown_initializer
-                .initialize_existing_markdown(&document_id, &markdown)
-                .await?;
+            let initialized = match &content {
+                MarkdownContent::Markdown(markdown) => MarkdownSnapshot {
+                    snapshot: self
+                        .markdown_initializer
+                        .initialize_existing_markdown(&document_id, markdown)
+                        .await?,
+                    markdown: markdown.clone(),
+                },
+                MarkdownContent::Notion(notion) => {
+                    self.markdown_initializer
+                        .initialize_existing_notion(&document_id, notion)
+                        .await?
+                }
+            };
 
             self.document_service
                 .set_document_content(
@@ -663,12 +731,15 @@ where
                     .await?;
             }
 
-            Ok(initial_snapshot)
+            Ok(initialized)
         }
         .await;
 
-        let initial_snapshot = match finalize_result {
-            Ok(initial_snapshot) => initial_snapshot,
+        let MarkdownSnapshot {
+            snapshot: initial_snapshot,
+            markdown,
+        } = match finalize_result {
+            Ok(initialized) => initialized,
             Err(error) => {
                 self.cleanup_created_document(&document_id).await;
                 return Err(error);

@@ -7,14 +7,15 @@ use model_owner::CreationPrincipal;
 
 use super::{
     DocumentCreator, MarkdownSubtype, NewDocumentMetadata, NewMarkdownTextDocument,
-    NewPlainTextDocument, RepoDocumentKind, RepoDocumentSubtype, file_shas,
+    NewNotionDocument, NewPlainTextDocument, RepoDocumentKind, RepoDocumentSubtype, file_shas,
 };
 use crate::domain::content::DocumentContent;
 use crate::domain::models::{CreateTaskRequest, DocumentError, InitialLinkShare, NewDocument};
+use crate::domain::notion_markdown::NotionMarkdown;
 use crate::domain::ports::create::{
     DocumentBytesUpload, DocumentBytesUploadPort, DocumentCreationService,
 };
-use crate::domain::ports::markdown::MarkdownInitializationPort;
+use crate::domain::ports::markdown::{MarkdownInitializationPort, MarkdownSnapshot};
 use crate::domain::ports::mentions::DocumentMentionTrackingPort;
 use crate::domain::response::{
     CreateDocumentResponseData, DocumentResponse, DocumentResponseMetadataWithContent,
@@ -128,6 +129,17 @@ impl MarkdownInitializationPort for FakeMarkdownInitializer {
     ) -> Result<Vec<u8>, DocumentError> {
         Ok(vec![1, 2, 3])
     }
+
+    async fn initialize_existing_notion(
+        &self,
+        _document_id: &str,
+        notion: &NotionMarkdown,
+    ) -> Result<MarkdownSnapshot, DocumentError> {
+        Ok(MarkdownSnapshot {
+            snapshot: vec![4, 5, 6],
+            markdown: format!("converted: {}", notion.markdown),
+        })
+    }
 }
 
 struct RecordingMarkdownInitializer {
@@ -148,6 +160,14 @@ impl MarkdownInitializationPort for RecordingMarkdownInitializer {
             )));
         }
         Ok(vec![1, 2, 3])
+    }
+
+    async fn initialize_existing_notion(
+        &self,
+        _document_id: &str,
+        _notion: &NotionMarkdown,
+    ) -> Result<MarkdownSnapshot, DocumentError> {
+        panic!("unexpected initialize_existing_notion call")
     }
 }
 
@@ -320,6 +340,38 @@ async fn markdown_creation_tracks_the_seeded_mentions_once() {
             DOCUMENT_ID.to_string(),
             Some("macro|owner@example.com".to_string()),
             EMAIL_SEED.to_string(),
+        )]
+    );
+}
+
+#[tokio::test]
+async fn notion_creation_tracks_the_mentions_of_the_converted_markdown() {
+    let tracker = RecordingMentionTracker::default();
+
+    let created = creator(&tracker)
+        .create_notion_markdown(
+            &CreationPrincipal::User(owner()),
+            NewNotionDocument {
+                metadata: NewDocumentMetadata::new("Roadmap"),
+                notion: NotionMarkdown {
+                    markdown: "<mention-page url=\"https://www.notion.so/p\">Plan</mention-page>"
+                        .to_string(),
+                    ..NotionMarkdown::default()
+                },
+                subtype: MarkdownSubtype::Note,
+            },
+        )
+        .await
+        .expect("creation should succeed");
+
+    assert_eq!(created.initial_snapshot(), Some([4, 5, 6].as_slice()));
+    assert_eq!(
+        tracker.calls(),
+        vec![(
+            DOCUMENT_ID.to_string(),
+            Some("macro|owner@example.com".to_string()),
+            "converted: <mention-page url=\"https://www.notion.so/p\">Plan</mention-page>"
+                .to_string(),
         )]
     );
 }

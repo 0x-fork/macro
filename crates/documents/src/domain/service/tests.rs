@@ -2327,6 +2327,14 @@ impl crate::domain::ports::markdown::MarkdownInitializationPort for RejectUnexpe
     ) -> Result<Vec<u8>, DocumentError> {
         panic!("failed repository creation must not initialize markdown");
     }
+
+    async fn initialize_existing_notion(
+        &self,
+        _: &str,
+        _: &crate::domain::notion_markdown::NotionMarkdown,
+    ) -> Result<crate::domain::ports::markdown::MarkdownSnapshot, DocumentError> {
+        panic!("failed repository creation must not initialize markdown");
+    }
 }
 
 impl crate::domain::ports::create::DocumentBytesUploadPort for RejectUnexpectedFinalization {

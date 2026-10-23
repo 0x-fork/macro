@@ -31,6 +31,8 @@ pub mod upload_finalize;
 pub mod legacy_office_upgrade;
 
 pub mod models;
+/// Notion page bodies a document can be created from.
+pub mod notion_markdown;
 #[cfg(feature = "axum")]
 pub mod permission_token;
 pub mod response;
