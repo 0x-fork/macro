@@ -446,7 +446,7 @@ Share until the optional file-export bridge ships. If browser activation expires
 while preparing a share, retain the bytes and let the same action's next tap
 open the system sheet synchronously. Browser success means handoff, not confirmed
 disk completion. See the native bridge's `tauri/file_export_plugin/AGENTS.md`.
-Keep download confirmations title-only.
+Keep download confirmations title-only and lightbox Download controls icon-only.
 
 The backend-free browser regression downloads real fixture bytes from channel
 cards, the expanded viewer, and the shared Drive/standalone header on desktop,

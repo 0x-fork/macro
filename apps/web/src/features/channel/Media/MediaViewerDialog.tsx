@@ -92,7 +92,7 @@ function VideoViewerContent(props: {
         }}
       >
         <LightboxToolbar isVisible={true}>
-          <FileDownloadButton download={props.download} />
+          <FileDownloadButton download={props.download} iconOnly />
           <Dialog.CloseButton
             as={Button}
             variant="ghost"
