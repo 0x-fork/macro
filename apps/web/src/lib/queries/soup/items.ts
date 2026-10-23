@@ -459,8 +459,10 @@ export function useSoupAstItemsQuery(
         activeGraphqlQuery().isEnabled() &&
         !options?.().networkPaused,
       refresh: async () => {
-        activeGraphqlQuery().resetToInitialPage();
-        options?.().onBeforeGraphqlRefresh?.();
+        if (args().groupBy === undefined) {
+          activeGraphqlQuery().resetToInitialPage();
+          options?.().onBeforeGraphqlRefresh?.();
+        }
         await activeGraphqlQuery().refresh();
       },
       body: () => args().body,

@@ -449,7 +449,7 @@ export function useTasksDataSource(
       await search.refetch();
       return;
     }
-    groupedQueries.resetToInitialPage();
+    if (query.transport !== 'graphql') groupedQueries.resetToInitialPage();
     await query.refresh();
   };
 

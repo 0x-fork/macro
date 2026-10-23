@@ -199,7 +199,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   continuation pages plus their local predicate projection. Group readers only
   delegate paging; pass the parent's live `groupedPaging` accessor from every
   caller, including Tasks and project-task lists. Do not introduce independent
-  continuation owners. Keep server
+  continuation owners. Rebuild refreshed continuation chains before replacing
+  loaded rows; retain them on refresh failure and discard them on scope changes.
+  Keep server
   membership snapshots separate from normalized field/link updates; restored
   properties do not prove prior membership. Supply complete prior multi-value
   memberships when adjusting counts: a row loaded in one bin may already be an

@@ -56,7 +56,11 @@ group, and reverse on rollback without a grouped-query network round trip. Check
 multi-value membership and group counts, then load another page: the request must
 use the server continuation cursor. Switch filters or reset the cache during a
 pending local read; its late result must not restore old rows. A server refresh
-restarts continuation coverage. The local phase emits
+rebuilds loaded continuation pages while retaining their rows until replacement
+pages are ready. Delay or fail a continuation response and confirm the list does
+not collapse to its first page; retry and verify fresh rows replace the old ones.
+An in-flight load-more must remain covered by the replacement chain. Refreshes
+emit `graphql_cache.soup_grouped_refresh`; the local phase emits
 `graphql_cache.soup_grouped_local_evaluation`.
 
 For Documents (including Tasks), Projects, Chats, and participating Channels,

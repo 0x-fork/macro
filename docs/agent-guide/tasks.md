@@ -55,6 +55,11 @@ With GraphQL Soup enabled, verify a group with more than one page in both the
 regular Tasks list (`Load More`) and a project task list (automatic pagination).
 Both must use the parent Soup query's continuation owner; reaching the last page
 removes the group's paging control without hiding already loaded tasks.
+Refresh a group containing at least 11 tasks while delaying its continuation
+response: every already loaded continuation row should stay mounted, with no
+brief collapse to the first 10 rows. Verify both background and explicit refresh,
+including a changed cursor and a failed later page. Retrying should replace the
+old pages; changing projects or filters must discard the old scope immediately.
 The sidebar has no Tags section: filter by tag from the `Tags` group of the `Filter` menu,
 and switching tabs clears it like any other filter. On mobile, the tabs
 are pills and the leading sliders button opens one drawer containing Sort, Group, and

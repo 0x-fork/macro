@@ -322,7 +322,7 @@ describe('Soup refetch transport selection', () => {
     vi.clearAllMocks();
     await refreshActiveGraphqlSoupQueries();
 
-    expect(groupedQuery.resetToInitialPage).toHaveBeenCalledOnce();
+    expect(groupedQuery.resetToInitialPage).not.toHaveBeenCalled();
     expect(groupedQuery.refresh).toHaveBeenCalledOnce();
     expect(restRefetch).not.toHaveBeenCalled();
   });

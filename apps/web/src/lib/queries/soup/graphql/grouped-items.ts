@@ -239,10 +239,7 @@ export function createGraphqlGroupedSoupAstItemsQuery(
     resetToInitialPage: grouped.paging.resetToInitialPage,
     refresh: async () => {
       if (input() === undefined) return;
-      await query.refetch({
-        requestPolicy: 'network-only',
-        throwOnError: true,
-      });
+      await grouped.refresh();
     },
   };
 }

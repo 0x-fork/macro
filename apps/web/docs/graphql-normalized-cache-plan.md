@@ -776,7 +776,13 @@ separate date-grouping policy.
 Server membership evidence is captured separately from normalized field/link
 updates, and local evaluation waits for network persistence. Filter/account/cache
 generation changes discard old local evidence and continuation owners. Initial
-network refreshes restart continuation coverage. Group readers delegate paging
+network refreshes rebuild each loaded continuation chain from its new cursor,
+retaining the previous owner until all previously loaded pages are ready (or the
+server ends the chain). Failed replacements leave the old rows available and
+report the paging error; explicit refresh waits for these replacements. A group
+whose fresh initial page has no cursor drops obsolete continuations immediately.
+The `graphql_cache.soup_grouped_refresh` span records the loaded page count and
+replacement outcome. Group readers delegate paging
 to this owner, so moving a continuation row cannot leave a second copy behind.
 The initial cursor remains baseline metadata; paging follows the last loaded
 server continuation, never a locally fabricated cursor.
