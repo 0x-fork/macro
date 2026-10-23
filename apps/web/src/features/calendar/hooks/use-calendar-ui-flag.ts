@@ -2,6 +2,7 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import {
   enableCalendarAddSharedEvent,
   enableCalendarGuestInvites,
+  enableCalendarMeetingNotes,
   enableCalendarPromptMobile,
   enableCalendarPromptWeb,
   enableCalendarSearchUi,
@@ -14,6 +15,11 @@ import type { Accessor } from 'solid-js';
 
 export function useCalendarUiFlag(): Accessor<boolean> {
   const flag = useFeatureFlag(enableCalendarUi);
+  return () => flag().enabled;
+}
+
+export function useCalendarMeetingNotesFlag(): Accessor<boolean> {
+  const flag = useFeatureFlag(enableCalendarMeetingNotes);
   return () => flag().enabled;
 }
 

@@ -7220,6 +7220,8 @@ mod details;
 mod export;
 mod invitations;
 mod join_requests;
+#[cfg(feature = "notes")]
+mod notes;
 mod source_access;
 
 mod replacement;
