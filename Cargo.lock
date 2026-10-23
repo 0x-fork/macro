@@ -8827,6 +8827,7 @@ dependencies = [
  "call",
  "chrono",
  "hmac 0.12.1",
+ "http 1.4.0",
  "macro_db_migrator",
  "macro_user_id",
  "macro_uuid",
@@ -14844,6 +14845,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "futures",
+ "http 1.4.0",
  "macro_authorization",
  "macro_user_id",
  "mcp_toolset",
@@ -14860,6 +14862,7 @@ dependencies = [
  "tracing",
  "url",
  "utoipa",
+ "wiremock",
  "workspace-hack",
 ]
 

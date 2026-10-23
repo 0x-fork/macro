@@ -2,10 +2,12 @@ use crate::domain::models::{
     CatalogEntry, CatalogPage, ConnectToken, McpServer, PipedreamAccount, PipedreamConnection,
     client_info,
 };
-use crate::domain::ports::{ApiProxy, ProxyMethod, ProxyResponse};
-use crate::domain::ports::{ConnectorDirectory, McpConnection, PipedreamConnect};
+use crate::domain::ports::{
+    ConnectedAppProxy, ConnectorDirectory, McpConnection, PipedreamConnect, ProxyResponse,
+};
 use anyhow::Context;
 use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use reqwest::header::{HeaderMap, HeaderValue};
 use rmcp::service::ServiceExt;
 use rmcp::transport::StreamableHttpClientTransport;
@@ -16,50 +18,6 @@ use std::time::{Duration, Instant};
 use url::Url;
 
 mod capabilities;
-
-impl ApiProxy for PipedreamClient {
-    #[tracing::instrument(skip_all, err)]
-    async fn proxy(
-        &self,
-        connection: &PipedreamConnection,
-        method: ProxyMethod,
-        url: &str,
-        body: Option<serde_json::Value>,
-    ) -> anyhow::Result<ProxyResponse> {
-        let target = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(url);
-        let method = match method {
-            ProxyMethod::Get => reqwest::Method::GET,
-            ProxyMethod::Post => reqwest::Method::POST,
-            ProxyMethod::Delete => reqwest::Method::DELETE,
-        };
-        let mut request = self
-            .authed(
-                self.http
-                    .request(method, self.connect_api(&format!("/proxy/{target}"))),
-            )
-            .await?
-            .query(&[
-                ("external_user_id", connection.user_id.as_ref()),
-                ("account_id", connection.account_id.as_str()),
-            ]);
-        if let Some(body) = body {
-            request = request.json(&body);
-        }
-        let response = request
-            .send()
-            .await
-            .context("Pipedream proxy request failed")?;
-        let status = response.status().as_u16();
-        // Preserve status for provider-specific retries and missing resources.
-        let bytes = response.bytes().await?;
-        let body = if bytes.is_empty() {
-            serde_json::Value::Null
-        } else {
-            serde_json::from_slice(&bytes).context("invalid proxy JSON response")?
-        };
-        Ok(ProxyResponse { status, body })
-    }
-}
 
 /// Default base URL of the Pipedream REST API.
 pub const DEFAULT_API_URL: &str = "https://api.pipedream.com";
@@ -471,6 +429,55 @@ impl McpConnection for PipedreamClient {
         let config = StreamableHttpClientTransportConfig::with_uri(upstream.url.as_str());
         let transport = StreamableHttpClientTransport::with_client(client, config);
         Ok(client_info().serve(transport).await?)
+    }
+}
+
+/// The prefix Pipedream's Connect proxy strips to find upstream headers.
+const PROXY_HEADER_PREFIX: &str = "x-pd-proxy-";
+
+impl ConnectedAppProxy for PipedreamClient {
+    #[tracing::instrument(skip_all, err, fields(app = %connection.app_slug, user_id = %connection.user_id, method = ?method))]
+    async fn proxy(
+        &self,
+        connection: &PipedreamConnection,
+        method: http::Method,
+        url: &str,
+        headers: &http::HeaderMap,
+        body: Option<&serde_json::Value>,
+    ) -> anyhow::Result<ProxyResponse> {
+        if headers.contains_key(http::header::AUTHORIZATION) {
+            anyhow::bail!("the Connect proxy injects Authorization; callers may not set it");
+        }
+        let endpoint = self.connect_api(&format!("/proxy/{}", URL_SAFE_NO_PAD.encode(url)));
+        let mut request = self
+            .authed(self.http.request(method, endpoint))
+            .await?
+            .query(&[
+                ("external_user_id", connection.user_id.as_ref()),
+                ("account_id", connection.account_id.as_str()),
+            ]);
+        for (name, value) in headers {
+            request = request.header(format!("{PROXY_HEADER_PREFIX}{name}"), value);
+        }
+        if let Some(body) = body {
+            request = request.json(body);
+        }
+
+        let response = request
+            .send()
+            .await
+            .context("calling the Pipedream Connect proxy")?;
+        let status = response.status();
+        let headers = response.headers().clone();
+        let body = response
+            .text()
+            .await
+            .context("reading the Pipedream Connect proxy response")?;
+        Ok(ProxyResponse {
+            status,
+            headers,
+            body,
+        })
     }
 }
 
