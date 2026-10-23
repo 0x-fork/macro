@@ -52,7 +52,7 @@ export function RoutineDetail(props: {
     props.onOpen
       ? props.onOpen(id)
       : openAgentsPage(layout, 'routines', { routineId: id });
-  const source = createRoutineDetailSource(() => props.scheduleId, {
+  const source = createRoutineDetailSource(() => props.scheduleId, userId, {
     onError: (title, error) =>
       toast.alert(title, { subtext: getErrorMessage(error) }),
     onDuplicated: (id) => {

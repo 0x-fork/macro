@@ -40,6 +40,8 @@ AI system prompts: one module per prompt section, each exporting a
 
 The agent-session prompt distinguishes typed `<m-notifications>` system facts
 from user requests and defines the notification-only `<noop/>` contract.
+In-app replies use `m-document-mention` with `blockName: "routine"` for routines;
+external MCP replies use `/app/routines/<id>` URLs.
 
 ## Checks
 

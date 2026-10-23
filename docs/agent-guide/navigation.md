@@ -836,9 +836,12 @@ loads those settings before further edits. While running, configuration is locke
 but cannot resume until the run ends. Completed one-offs remain visible with
 their history and do not repeat.
 
-Routines are private to their owner. Other users cannot list or open the routine
-or its history, even if they belong to the same team. Run conversations keep
-their own permissions.
+An `m-document-mention` with `blockName: "routine"`, the returned routine ID,
+and the saved name renders as a clickable mention in an agent reply. Routines
+do not appear in the mention menu. Anyone signed in with the link can view its
+settings, instructions, and triggers. Only the owner can edit, enable, run,
+duplicate, delete, or view run history; other users do not see those controls.
+Run conversations keep their own permissions.
 
 **Run History** shows outcome, duration, and firing time. History loads fifty
 rows at a time; **Load more runs** reveals older records. Accessible run rows

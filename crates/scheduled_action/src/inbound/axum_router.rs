@@ -302,17 +302,15 @@ where
 )]
 pub async fn get_action<S, Svc, Auth>(
     State(state): State<ScheduledActionRouterState<S, Svc, Auth>>,
-    ScheduledActionAccessExtractor {
-        entity_access_receipt,
-        ..
-    }: ScheduledActionAccessExtractor<ViewAccessLevel, Svc, Auth>,
+    _user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    Path(id): Path<Uuid>,
 ) -> Result<Json<ScheduledActionResponse>, ScheduledActionApiError>
 where
     S: ScheduledActionService,
     Svc: EntityAccessService,
     Auth: MacroAuthorizationService,
 {
-    let action = state.service.get_action(entity_access_receipt).await?;
+    let action = state.service.get_action(id).await?;
     Ok(Json(action.into()))
 }
 

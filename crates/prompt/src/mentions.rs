@@ -39,6 +39,7 @@ Use `<m-document-mention>` with the right `blockName` (and `blockParams` when ne
 - Skill mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"skill","blockParams":{}}</m-document-mention>`
 - Call mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"call","blockParams":{}}</m-document-mention>`
 - Automation mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"automation","blockParams":{}}</m-document-mention>`
+- Routine mention: `<m-document-mention>{"documentId":"{id}","documentName":"{name}","blockName":"routine"}</m-document-mention>`
 - Snippet mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"snippet","blockParams":{}}</m-document-mention>`
 - CRM company mention: `<m-document-mention>{"documentId":"{id}","documentName":"","blockName":"company","blockParams":{}}</m-document-mention>`
 - CRM pipeline mention: `<m-document-mention>{"documentId":"{pipeline_id}","documentName":"","blockName":"pipeline","blockParams":{}}</m-document-mention>`

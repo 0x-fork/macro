@@ -428,6 +428,8 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using the Nix Chrome binary.
 ### Agent backend hosting
 
 Cognition, routines, preview control, and MCP share `agent_harness_service`.
+Agent replies can use the existing `m-document-mention` format with
+`blockName: "routine"`; routines do not appear in the mention menu.
 Direct local hosts use port 8101 with the existing feature prefixes; the
 instance proxy retains `/cognition`, `/scheduled-action`, and `/preview`.
 

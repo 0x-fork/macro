@@ -143,12 +143,14 @@ vi.mock('@components/app/split-layout/components/SplitFileMenu', () => ({
 vi.mock('./routine-prompt-editor', () => ({
   RoutinePromptEditor: (props: {
     initialValue: string;
+    disabled?: boolean;
     onChange: (value: string) => void;
   }) => {
     mocks.changePrompt = props.onChange;
     return (
       <textarea
         aria-label="Instructions"
+        disabled={props.disabled}
         value={props.initialValue}
         onInput={(event) => props.onChange(event.currentTarget.value)}
       />
@@ -364,6 +366,22 @@ function deferredSave(): {
 }
 
 describe('routine execution target autosave', () => {
+  it('shows another owner’s routine without edit, run, or history controls', () => {
+    setSchedules([{ ...cron, owner: 'macro|someone-else@example.com' }]);
+    render(() => <Routine />);
+    expect(screen.getByLabelText('Instructions')).toHaveProperty(
+      'disabled',
+      true
+    );
+    expect(screen.queryByRole('button', { name: 'Run now' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Routine actions' })
+    ).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Run History' })).toBeNull();
+    mocks.changePrompt('Changed');
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   it('copies the current prompt, including unsaved edits, from the run menu', async () => {
     render(() => <Routine />);
     mocks.changePrompt('Use my latest instructions');
