@@ -357,6 +357,8 @@ const mocks = vi.hoisted(() => {
     platformFetch,
     toastFailure,
     telemetryError: vi.fn(),
+    telemetryWarn: vi.fn(),
+    traceparent: '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01',
     normalizedCacheExchange: vi.fn(
       (host: unknown, _options?: NormalizedCacheExchangeOptions) => ({
         kind: 'cache',
@@ -440,10 +442,14 @@ vi.mock('@graphql-cache/exchange/normalized-cache-exchange', () => ({
 vi.mock('@macro-inc/observability', () => ({
   Telemetry: {
     error: mocks.telemetryError,
+    warn: mocks.telemetryWarn,
     span: (_name: string, work: (span: unknown) => Promise<unknown>) =>
       work({
         event: vi.fn(),
         setAttr: vi.fn(),
+        injectTraceHeaders: (headers: Record<string, string>) => {
+          headers.traceparent = mocks.traceparent;
+        },
       }),
   },
 }));
@@ -808,6 +814,72 @@ describe('GraphQL Soup browser cache session gate', () => {
     expect(payload.query).toContain('cacheProjection');
     expect(payload.query).toContain('@include');
     expect(payload.variables).toEqual({ includeId: true });
+    expect(new Headers(transport.headers).get('traceparent')).toBe(
+      mocks.traceparent
+    );
+  });
+
+  it('reports the queued mutations a sign-out deletes', async () => {
+    const now = Date.now();
+    mocks.host.inspectMutations.mockResolvedValueOnce([
+      {
+        operationName: 'SaveEmailDraft',
+        variables: { body: 'secret' },
+        enqueuedAtMs: now - 5_000,
+      },
+      { operationName: 'SaveEmailDraft', variables: { body: 'secret' } },
+      {
+        operationName: 'SetEntityProperty',
+        variables: {},
+        enqueuedAtMs: now - 90_000,
+      },
+    ] as never);
+    const soup = await import('./graphql-soup');
+    soup.getGraphqlSoupClient();
+
+    await soup.recordGraphqlMutationQueueCleared('session-expired');
+
+    expect(mocks.telemetryWarn).toHaveBeenCalledWith(
+      'graphql.mutation_queue.cleared',
+      {
+        'mutation_queue.clear_cause': 'session-expired',
+        'mutation_queue.depth': 3,
+        'mutation_queue.operation_names': 'SaveEmailDraft,SetEntityProperty',
+        'mutation_queue.items': expect.stringMatching(
+          /^SetEntityProperty:9\d{4},SaveEmailDraft:\d+,SaveEmailDraft:unknown$/
+        ),
+        'mutation_queue.oldest_item_age_ms': expect.any(Number),
+        'mutation_queue.age_unknown_items': 1,
+      }
+    );
+    const exported = JSON.stringify(mocks.telemetryWarn.mock.calls);
+    expect(exported).not.toContain('secret');
+  });
+
+  it('never rejects or stalls sign-out when queue inspection fails', async () => {
+    const soup = await import('./graphql-soup');
+    soup.getGraphqlSoupClient();
+
+    mocks.host.inspectMutations.mockImplementationOnce(() => {
+      throw new Error('worker gone');
+    });
+    await expect(
+      soup.recordGraphqlMutationQueueCleared('logout')
+    ).resolves.toBeUndefined();
+
+    vi.useFakeTimers();
+    try {
+      mocks.host.inspectMutations.mockReturnValueOnce(new Promise(() => {}));
+      const pending = soup.recordGraphqlMutationQueueCleared('logout');
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(mocks.telemetryWarn).not.toHaveBeenCalledWith(
+      'graphql.mutation_queue.cleared',
+      expect.anything()
+    );
   });
 
   it.each([

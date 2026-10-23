@@ -547,7 +547,10 @@ server draft exists. If per-mutation recovery preparation fails or times out,
 the mutation must fail and release the queue too, including legacy drafts that
 have not been copied into recovery storage. Existing local working copies remain;
 an unmigrated legacy edit can be lost if the queue held its only durable copy.
-Verify that an unrelated queued action still completes in both cases.
+Verify that an unrelated queued action still completes in both cases. With
+browser OTel enabled, the failure appears once per draft as
+`graphql.mutation_queue.recovery_failed` (or `graphql.mutation_queue.skipped` with a
+`mutation_queue.skip_reason`), never as a line per poll.
 Repeat with two tabs, a save response arriving after a newer
 edit, an attachment upload completing during another local save, and Discard
 while an attachment snapshot is still being saved. A snapshot based on an older

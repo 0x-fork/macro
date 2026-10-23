@@ -55,6 +55,7 @@ import {
   type WriteResult,
 } from '../protocol';
 import { entityFromArgument } from './entity-resolvers';
+import { NOOP_MUTATION_QUEUE_TELEMETRY } from './mutation-queue-telemetry';
 import {
   HYDRATE_ONLY_CONTEXT_KEY,
   type NormalizedCacheExchangeOptions,
@@ -3107,7 +3108,7 @@ describe('normalizedCacheExchange', () => {
       'replays unrelated mutations when recovery initialization %s',
       async (failure) => {
         vi.useFakeTimers();
-        const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const skipped = vi.fn();
         try {
           host.seedQueued({
             uuid: 'unrelated',
@@ -3122,29 +3123,41 @@ describe('normalizedCacheExchange', () => {
                 throw new Error('IndexedDB unavailable');
               await new Promise<void>(() => {});
             },
+            mutationQueueTelemetry: {
+              ...NOOP_MUTATION_QUEUE_TELEMETRY,
+              skipped,
+            },
           });
           await vi.advanceTimersByTimeAsync(4_010);
           expect(forwarded).toHaveLength(1);
           expect(host.commits).toMatchObject([{ transactionId: '1' }]);
-          expect(warning).toHaveBeenCalled();
+          expect(skipped).toHaveBeenCalledWith(
+            failure === 'rejects' ? 'recovery-failed' : 'recovery-timeout'
+          );
         } finally {
-          warning.mockRestore();
           vi.useRealTimers();
         }
       }
     );
 
-    it('warns once per recovery failure while the queue keeps polling', async () => {
+    it('reports each recovery failure while the queue keeps polling', async () => {
       vi.useFakeTimers();
       const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const skipped = vi.fn();
       try {
         const prepareMutationQueue = vi.fn(async () => {
           throw new Error('Queue inspection is unavailable');
         });
-        harness(host, undefined, { prepareMutationQueue });
+        harness(host, undefined, {
+          prepareMutationQueue,
+          mutationQueueTelemetry: { ...NOOP_MUTATION_QUEUE_TELEMETRY, skipped },
+        });
         await vi.advanceTimersByTimeAsync(90_010);
         expect(prepareMutationQueue).toHaveBeenCalledTimes(4);
-        expect(warning).toHaveBeenCalledOnce();
+        expect(skipped.mock.calls).toEqual(
+          Array(4).fill(['recovery-inspection-unavailable'])
+        );
+        expect(warning).not.toHaveBeenCalled();
       } finally {
         warning.mockRestore();
         vi.useRealTimers();
