@@ -16016,7 +16016,7 @@ export type RequestToJoinErrors = {
      */
     404: CalendarJoinRequestApiError;
     /**
-     * Already on the requester's calendar, or the sharer cannot add guests
+     * Already on the requester's calendar, the sharer cannot add guests, or the sharer declined the requester's earlier request
      */
     409: CalendarJoinRequestApiError;
     /**

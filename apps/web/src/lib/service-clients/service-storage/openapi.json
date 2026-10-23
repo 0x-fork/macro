@@ -1054,7 +1054,7 @@
       },
       "post": {
         "tags": ["calendar_events"],
-        "summary": "Ask the person who shared an event with one of the requester's channels\nto add them as a guest. Asking again while the request is pending changes\nnothing; asking after a decline reopens it.",
+        "summary": "Ask the person who shared an event with one of the requester's channels\nto add them as a guest. Asking again while the request is pending or\naccepted changes nothing; a declined request stands, so asking after a\ndecline is refused with `request_declined`.",
         "operationId": "request_to_join",
         "parameters": [
           {
@@ -1093,7 +1093,7 @@
             }
           },
           "409": {
-            "description": "Already on the requester's calendar, or the sharer cannot add guests",
+            "description": "Already on the requester's calendar, the sharer cannot add guests, or the sharer declined the requester's earlier request",
             "content": {
               "application/json": {
                 "schema": {

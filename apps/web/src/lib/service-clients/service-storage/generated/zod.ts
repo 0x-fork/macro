@@ -1825,8 +1825,9 @@ export const listJoinRequestsResponse = zod
 
 /**
  * @summary Ask the person who shared an event with one of the requester's channels
-to add them as a guest. Asking again while the request is pending changes
-nothing; asking after a decline reopens it.
+to add them as a guest. Asking again while the request is pending or
+accepted changes nothing; a declined request stands, so asking after a
+decline is refused with `request_declined`.
  */
 export const requestToJoinParams = zod.object({
   event_id: zod.uuid().describe('Shared calendar event entity id'),

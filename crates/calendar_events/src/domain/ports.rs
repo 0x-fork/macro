@@ -582,8 +582,9 @@ pub trait CalendarRepository: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<CalendarEventExport>, Report>> + Send;
 
     /// Record a pending request from the requester to join `event_id`,
-    /// reopening a declined one. Returns the request and whether it became
-    /// pending just now, so a repeated ask does not notify the sharer twice.
+    /// leaving an existing one, whatever its status, as it is. Returns the
+    /// request and whether this call created it, so a repeated ask does not
+    /// notify the sharer twice.
     fn open_join_request(
         &self,
         event_id: Uuid,
