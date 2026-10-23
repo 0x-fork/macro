@@ -14,7 +14,11 @@ import {
   useUpdateBotMutation,
 } from '@queries/bots/bots';
 import { useSyncBotChannelsMutation } from '@queries/channel/channel-bots';
-import { useCurrentTeamQuery, useIsTeamOwner } from '@queries/team/teams';
+import {
+  useCurrentTeamQuery,
+  useIsTeamAdmin,
+  useIsTeamOwner,
+} from '@queries/team/teams';
 import { Button } from '@ui';
 import { createEffect, createMemo, createSignal, on, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
@@ -47,6 +51,7 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
   const currentUserId = useUserId();
   const currentTeamQuery = useCurrentTeamQuery();
   const isTeamOwner = useIsTeamOwner();
+  const isTeamAdmin = useIsTeamAdmin();
   const botQuery = useBotQuery(() => props.botId);
   const botChannelsQuery = useBotChannelsQuery(() => props.botId);
   const updateBotMutation = useUpdateBotMutation();
@@ -122,7 +127,8 @@ export function BotDetail(props: { botId: string; onBack: () => void }) {
         bot,
         currentUserId(),
         currentTeamQuery.data?.team.id,
-        isTeamOwner()
+        isTeamOwner(),
+        isTeamAdmin()
       )
     );
   };

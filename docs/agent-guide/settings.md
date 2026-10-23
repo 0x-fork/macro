@@ -578,6 +578,10 @@ available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 
 `Agents` → `New agent` (or edit an existing agent) opens a full-page form. The
+edit form offers `Delete agent` to the agent's creator, the team owner, and
+team admins for team agents. Confirming removes it from channels and returns
+to the agent list; Cancel keeps the edit form open. Other team members can edit
+the agent but cannot delete it. The
 `Instructions` field is a Lexical contenteditable textbox, not a textarea. It
 supports Markdown headings, lists, emphasis, code, links, and the normal `@`
 mention picker; select text to open the formatting menu. Saved instructions

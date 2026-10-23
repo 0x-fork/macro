@@ -42,7 +42,11 @@ import {
 import { useCursorApiKeyStatusQuery } from '@queries/auth/cursor-api-key';
 import { useHarnessesQuery } from '@queries/harnesses/harnesses';
 import { usePipedreamConnectedSlugs } from '@queries/pipedream-connectors';
-import { useCurrentTeamQuery, useIsTeamOwner } from '@queries/team/teams';
+import {
+  useCurrentTeamQuery,
+  useIsTeamAdmin,
+  useIsTeamOwner,
+} from '@queries/team/teams';
 import type { AgentMcpServer } from '@service-storage/generated/schemas/agentMcpServer';
 import type { AgentMcpServers } from '@service-storage/generated/schemas/agentMcpServers';
 import { useSearchParams } from '@solidjs/router';
@@ -153,6 +157,7 @@ export function Agents(props: {
   const updateAgentMutation = useUpdateAgentMutation();
   const currentTeamQuery = useCurrentTeamQuery();
   const isTeamOwner = useIsTeamOwner();
+  const isTeamAdmin = useIsTeamAdmin();
   const cursorStatus = useCursorApiKeyStatusQuery();
   const cursorConnected = () =>
     cursorStatus.isSuccess ? cursorStatus.data.registered : false;
@@ -200,7 +205,13 @@ export function Agents(props: {
   const canMakePrivate = (agent: AgentWithHarnessId) =>
     agent.bot.owner?.type !== 'team' || isAgentCreator(agent);
   const canDeleteAgent = (agent: AgentWithHarnessId) =>
-    canDeleteBot(agent.bot, currentUserId(), currentTeamId(), isTeamOwner());
+    canDeleteBot(
+      agent.bot,
+      currentUserId(),
+      currentTeamId(),
+      isTeamOwner(),
+      isTeamAdmin()
+    );
   const agents = createMemo(() =>
     (agentsQuery.isSuccess ? agentsQuery.data : [])
       .filter((agent) =>
@@ -259,6 +270,7 @@ export function Agents(props: {
         channelIds: current.channel_ids,
       });
       setDeletingAgent(undefined);
+      if (editingAgent()?.bot.id === current.bot.id) setEditingAgent(undefined);
       toast.success('Agent deleted');
     } catch {
       toast.failure('Failed to delete agent');
@@ -364,6 +376,9 @@ export function Agents(props: {
             pending={updateAgentMutation.isPending}
             onClose={() => setEditingAgent(undefined)}
             onSave={updateAgent}
+            onDelete={
+              canDeleteAgent(agent) ? () => setDeletingAgent(agent) : undefined
+            }
           />
         )}
       </Show>
@@ -582,6 +597,7 @@ function AgentEditorPage(props: {
   pending: boolean;
   onClose: () => void;
   onSave: (agent: CreateAgentParams) => Promise<boolean>;
+  onDelete?: () => void;
 }) {
   const [name, setName] = createSignal(props.agent?.bot.name ?? '');
   const [tag, setTag] = createSignal(props.agent?.bot.handle ?? '');
@@ -1343,31 +1359,47 @@ function AgentEditorPage(props: {
                 </Show>
               </AgentFormSection>
             </form>
-            <div class="mt-6 flex justify-end gap-2 border-t border-edge-muted pt-4">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={close}
-                disabled={busy()}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                form="agent-form"
-                variant="strong"
-                size="sm"
-                disabled={!canCreate()}
-              >
-                {props.pending
-                  ? props.agent
-                    ? 'Saving…'
-                    : 'Creating…'
-                  : props.agent
-                    ? 'Save changes'
-                    : 'Create agent'}
-              </Button>
+            <div class="mt-6 flex flex-wrap items-center gap-2 border-t border-edge-muted pt-4">
+              <Show when={props.onDelete}>
+                {(onDelete) => (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    class="text-negative"
+                    disabled={busy()}
+                    onClick={onDelete()}
+                  >
+                    <TrashIcon /> Delete agent
+                  </Button>
+                )}
+              </Show>
+              <div class="ml-auto flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={close}
+                  disabled={busy()}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  form="agent-form"
+                  variant="strong"
+                  size="sm"
+                  disabled={!canCreate()}
+                >
+                  {props.pending
+                    ? props.agent
+                      ? 'Saving…'
+                      : 'Creating…'
+                    : props.agent
+                      ? 'Save changes'
+                      : 'Create agent'}
+                </Button>
+              </div>
             </div>
           </section>
         </SettingsPage>

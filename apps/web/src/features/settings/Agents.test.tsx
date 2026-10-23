@@ -90,6 +90,7 @@ const agentMocks = vi.hoisted(() => ({
   currentUserId: 'macro|user@example.com',
   currentTeam: { team: { id: 'team-1' } } as { team: { id: string } } | null,
   isTeamOwner: false,
+  isTeamAdmin: false,
 }));
 
 const avatarMocks = vi.hoisted(() => ({ upload: vi.fn() }));
@@ -196,6 +197,7 @@ vi.mock('@queries/team/teams', () => ({
     isSuccess: true,
   }),
   useIsTeamOwner: () => () => agentMocks.isTeamOwner,
+  useIsTeamAdmin: () => () => agentMocks.isTeamAdmin,
 }));
 
 vi.mock('@core/context/user', () => ({
@@ -298,6 +300,7 @@ beforeEach(() => {
   agentMocks.currentUserId = 'macro|user@example.com';
   agentMocks.currentTeam = { team: { id: 'team-1' } };
   agentMocks.isTeamOwner = false;
+  agentMocks.isTeamAdmin = false;
   harnessMocks.query.data = [];
   pipedreamMocks.enabled = true;
   pipedreamMocks.connected = [];
@@ -918,9 +921,12 @@ describe('Agents', () => {
     expect(
       within(dialog).getByText('Only the agent creator can make it private.')
     ).toBeTruthy();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Delete agent' })
+    ).toBeNull();
   });
 
-  it('lets the creator privatize and the team owner delete a team agent', () => {
+  it('lets the creator privatize and admins delete a team agent from its editor', async () => {
     agentMocks.query.data = [
       {
         bot: {
@@ -954,10 +960,44 @@ describe('Agents', () => {
 
     agentMocks.currentUserId = 'macro|team-owner@example.com';
     agentMocks.isTeamOwner = true;
-    render(() => <Agents {...agentsPageProps} />);
+    const ownerView = render(() => <Agents {...agentsPageProps} />);
     expect(
       screen.getByRole('button', { name: 'Delete Bug fixer' })
     ).toBeTruthy();
+    ownerView.unmount();
+
+    agentMocks.isTeamOwner = false;
+    agentMocks.isTeamAdmin = true;
+    render(() => <Agents {...agentsPageProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Bug fixer' }));
+    const editor = screen.getByRole('region', { name: 'Edit agent' });
+    fireEvent.click(
+      within(editor).getByRole('button', { name: 'Delete agent' })
+    );
+    expect(agentMocks.delete).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Cancel',
+      })
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Edit agent' })).toBeTruthy();
+
+    fireEvent.click(
+      within(editor).getByRole('button', { name: 'Delete agent' })
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', {
+        name: 'Delete agent',
+      })
+    );
+    await waitFor(() => {
+      expect(agentMocks.delete).toHaveBeenCalledWith({
+        agentId: 'agent-1',
+        channelIds: [],
+      });
+      expect(screen.queryByRole('region', { name: 'Edit agent' })).toBeNull();
+    });
   });
 
   it('confirms before deleting a created agent', async () => {
