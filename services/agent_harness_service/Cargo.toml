@@ -69,6 +69,7 @@ chrono-tz = { workspace = true }
 code_execution = { path = "../../crates/code_execution" }
 codex_cloud_agents = { path = "../../crates/codex_cloud_agents" }
 codex_connection = { path = "../../crates/codex_connection" }
+cognition = { path = "../../crates/cognition" }
 connection_gateway = { path = "../connection_gateway" }
 connection_gateway_client = { path = "../../crates/connection_gateway_client" }
 contacts = { path = "../../crates/contacts" }

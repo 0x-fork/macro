@@ -97,6 +97,7 @@ async fn authenticated_mcp_runs_javascript_and_persists_source_and_result(pool: 
         Arc::new(FixedTasks::default()),
         "localhost".into(),
         Some(code_mode.clone()),
+        None,
         Arc::new(std::sync::OnceLock::new()),
     );
     assert_eq!(

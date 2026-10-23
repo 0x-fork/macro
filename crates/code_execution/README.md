@@ -42,8 +42,8 @@ for a user to submit those reviews.
 
 | Limit | Default |
 | --- | --- |
-| Concurrent Deno executions per harness replica | 8 |
-| Additional queued executions | 16 |
+| Concurrent Deno executions per harness replica | 8 (public MCP: 4 more) |
+| Additional queued executions | 16 (public MCP: 8 more) |
 | Total execution lifetime, including queueing and API calls | 30 seconds |
 | JavaScript source | 64 KiB |
 | Final result / child frame | 256 KiB |

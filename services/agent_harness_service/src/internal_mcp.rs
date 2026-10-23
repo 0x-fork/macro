@@ -16,6 +16,7 @@ use axum::{
     middleware::{self, Next},
     response::Response,
 };
+use cognition::domain::Cognition;
 use rmcp::{
     ServerHandler,
     model::{
@@ -47,6 +48,7 @@ pub fn router<A: AgentSessionRepo + 'static>(
     tasks: Arc<dyn SessionTasks>,
     host: String,
     code_mode: Option<Arc<dyn SessionCodeMode>>,
+    cognition: Option<Arc<dyn Cognition>>,
     reviews: Arc<OnceLock<ReviewService>>,
 ) -> Router {
     let mut config = StreamableHttpServerConfig::default().with_allowed_hosts([
@@ -64,6 +66,7 @@ pub fn router<A: AgentSessionRepo + 'static>(
                 service: service.clone(),
                 tasks: tasks.clone(),
                 code_mode: code_mode.clone(),
+                cognition: cognition.clone(),
                 reviews: reviews.clone(),
             })
         },
@@ -84,6 +87,7 @@ struct InternalTools {
     service: Arc<dyn SessionPullRequests>,
     tasks: Arc<dyn SessionTasks>,
     code_mode: Option<Arc<dyn SessionCodeMode>>,
+    cognition: Option<Arc<dyn Cognition>>,
     reviews: Arc<OnceLock<ReviewService>>,
 }
 
@@ -231,6 +235,7 @@ impl ServerHandler for InternalTools {
                         CodeModeToolContext {
                             service: code_mode.clone(),
                             session: grant.clone(),
+                            cognition: self.cognition.clone(),
                         },
                         request_context,
                         &request.name,

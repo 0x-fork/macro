@@ -1,9 +1,12 @@
 //! Composition of code execution credentials with the harness's owner approval gate.
-use agent_code_mode::domain::{CodeModeError, ExecutionCredentials, ExecutionIdentity};
+use agent_code_mode::domain::{
+    CodeModeError, ExecutionCredentials, ExecutionIdentity, UserExecutionCredentials,
+};
 use agent_egress::outbound::macro_mcp::MacroApiTokenSigner;
 use agent_inmem::domain::tool_gate::{NativeToolGate, NativeToolVerdict};
 use async_trait::async_trait;
 use code_execution::domain::RunEnvironment;
+use macro_user_id::user_id::MacroUserIdStr;
 use std::{collections::BTreeMap, sync::Arc};
 use tokio_util::sync::CancellationToken;
 
@@ -32,24 +35,54 @@ impl ExecutionCredentials for RunCredentials {
                 tracing::error!(?error, "could not mint execution credential");
                 CodeModeError::Unavailable
             })?;
-        let mut trace_headers = axum::http::HeaderMap::new();
-        macro_tower_layers::inject_trace_headers(&mut trace_headers);
         Ok(RunEnvironment {
             token,
-            trace_headers: trace_headers
-                .iter()
-                .filter_map(|(name, value)| {
-                    value
-                        .to_str()
-                        .ok()
-                        .map(|value| (name.to_string(), value.to_owned()))
-                })
-                .collect(),
+            trace_headers: trace_headers(),
             hosts: self.hosts.clone(),
             session_id: Some(identity.session.as_uuid()),
             execution_id: Some(identity.execution.as_uuid()),
         })
     }
+}
+
+/// Credentials for public MCP runs: the signed-in user, with no session or agent.
+/// The MCP client asks the user before each tool call, so there is no owner gate.
+pub struct UserRunCredentials {
+    pub signer: MacroApiTokenSigner,
+    pub hosts: BTreeMap<String, String>,
+}
+
+#[async_trait]
+impl UserExecutionCredentials for UserRunCredentials {
+    async fn issue(&self, user: &MacroUserIdStr<'static>) -> Result<RunEnvironment, CodeModeError> {
+        // Same lifetime as session runs: the 30-second deadline plus clock margin.
+        let token = self.signer.mint_for(user, 60).await.map_err(|error| {
+            tracing::error!(?error, "could not mint execution credential");
+            CodeModeError::Unavailable
+        })?;
+        Ok(RunEnvironment {
+            token,
+            trace_headers: trace_headers(),
+            hosts: self.hosts.clone(),
+            session_id: None,
+            execution_id: None,
+        })
+    }
+}
+
+/// The current trace context, for the SDK to forward on authenticated requests.
+fn trace_headers() -> BTreeMap<String, String> {
+    let mut headers = axum::http::HeaderMap::new();
+    macro_tower_layers::inject_trace_headers(&mut headers);
+    headers
+        .iter()
+        .filter_map(|(name, value)| {
+            value
+                .to_str()
+                .ok()
+                .map(|value| (name.to_string(), value.to_owned()))
+        })
+        .collect()
 }
 
 macro_env_var::env_var! { struct DocumentStorageServiceCloudfrontDistributionUrl; }

@@ -413,13 +413,15 @@ fn activity_rejects_unknown_operations_and_is_bounded() {
         activity_truncated: false,
     };
     super::super::activity::observe(
-        &mut record,
+        &mut record.activity,
+        &mut record.activity_truncated,
         json!({"id":1,"service":"secret","operation":"user supplied text","status":"started"}),
     );
     assert!(record.activity.is_empty());
     for id in 0..130 {
         super::super::activity::observe(
-            &mut record,
+            &mut record.activity,
+            &mut record.activity_truncated,
             json!({"id":id,"service":"cognition","operation":"decisions","status":"started"}),
         );
     }

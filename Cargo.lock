@@ -519,6 +519,7 @@ dependencies = [
  "code_execution",
  "codex_cloud_agents",
  "codex_connection",
+ "cognition",
  "connection_gateway",
  "connection_gateway_client",
  "contacts",

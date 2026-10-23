@@ -162,6 +162,7 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
             Arc::new(tasks.clone()),
             "localhost".into(),
             None,
+            None,
             Arc::new(OnceLock::new()),
         );
         assert_eq!(

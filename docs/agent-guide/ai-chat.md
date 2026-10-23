@@ -923,6 +923,9 @@ enum types. For workspace overviews, the agent samples relevant categories in
 parallel; it reports sampled coverage rather than treating a mixed recent page
 as the whole workspace. `DescribeCodeTools` takes entity names (such as `documents`, `email`,
 `ai`, `agentSessions`) and guide topics (`examples`, `search`, `ai`, `templates`).
+It also takes a `task`: the same Jev selection runs over that text and returns
+every relevant entity reference within a 32 KiB budget, falling back to an
+entity's namespace overview and naming entities omitted for size.
 Expanded API references are already loaded: the agent should execute directly when
 they cover the task and request only missing details. The compact index alone
 is not a method reference. There is no runtime `sdk.help` or
@@ -940,7 +943,7 @@ agent identity: SDK messages show that agent as sender and the owner in the
 message bodies cannot choose it. Other SDK endpoints still authenticate the owner
 as a user. There is no runner service,
 WebSocket bridge, or per-API-call approval callback. Eight executions may run
-per harness process. Network hosts, process lifetime, output and memory are
+per harness process, with sixteen queued; public MCP runs have their own budget. Network hosts, process lifetime, output and memory are
 bounded; filesystem writes, arbitrary imports and subprocesses are denied.
 The token expires after issuance; process exit does not revoke it early.
 
@@ -985,6 +988,31 @@ text, bounded parallel Jev classifications and a local Handlebars import. Check
 probabilities and per-item errors rather than assuming every branch succeeded.
 Use the direct `EditDocument` card in a separate editing check. Already dispatched
 provider usage and completed writes may remain after cancellation.
+
+## Code mode on the public MCP
+
+The public workspace MCP (`mcp-server[-dev].macro.com`) evaluates the same
+`ai-code-mode` flag for the OAuth user on `initialize`, `tools/list` and
+`tools/call`, cached per user for a minute. Enabled users see `ExecuteCode` and
+`DescribeCodeTools` in place of the SDK-covered native tools, and the server
+instructions tell the client to call `DescribeCodeTools` with a `task` before
+writing a program. Programs export `async function main({macro})` and return
+exactly `{data}` (an empty `reviews: []` is dropped). There is no session,
+execution journal, review stack or `execution_id`; the receipt carries status,
+observed SDK activity, result and error. Runs act as the user with no agent
+attribution and no owner approval card: the MCP client asks before each tool
+call. SDK writes, including email sends, take effect immediately. Every native
+tool stays callable; MCP clients cache tool lists, so a flag change appears after
+reconnecting. Public runs use their own Deno budget (four running, eight queued
+per replica) so external traffic cannot take agent sessions' slots.
+
+To verify locally, run Claude Code against the stack's MCP with
+`tooling/scripts/claude-local-mcp.sh --instance <name> --email <email>`. It mints
+a local token for an existing user and passes only the Macro MCP. Local Doppler
+has no PostHog keys: add `POSTHOG_API_KEY` and `POSTHOG_HOST` to the instance's
+`local.generated.env` before services start, pointing at a stand-in `/flags/`
+server on the `macro-<name>_services` network, and compare a flagged and an
+unflagged user's `tools/list`.
 
 ## Start a doc-scoped chat
 

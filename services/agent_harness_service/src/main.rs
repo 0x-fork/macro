@@ -564,6 +564,74 @@ async fn run() -> anyhow::Result<()> {
     )
     .await
     .map_err(|error| anyhow::anyhow!("{error}"))?;
+    let code_scratch = tempfile::tempdir()?;
+    let code_runner = match &config.deno_binary {
+        Some(binary) => {
+            let runner = code_execution::outbound::deno::DenoRunner::new(
+                binary.into(),
+                code_scratch.path().to_owned(),
+                128,
+            )
+            .await
+            .map_err(|error| anyhow::anyhow!("invalid Deno runtime: {error}"))?;
+            let runner: Arc<dyn code_execution::domain::CodeRunner> = Arc::new(runner);
+            // Public MCP runs get their own admission budget so external
+            // clients cannot exhaust the slots agent sessions rely on.
+            let public = code_execution::domain::ExecutionService::new(
+                Arc::clone(&runner),
+                code_execution::domain::Limits {
+                    max_running: 4,
+                    max_queued: 8,
+                    ..Default::default()
+                },
+            )?;
+            Some((
+                code_execution::domain::ExecutionService::new(
+                    runner,
+                    code_execution::domain::Limits::default(),
+                )?,
+                public,
+            ))
+        }
+        None => None,
+    };
+    // `ai-code-mode` decides, per user, whether agent sessions and the public
+    // MCP present the SDK in place of the tools it covers.
+    let code_mode_selector: Option<Arc<dyn agent_inmem::domain::tool_mode::ToolModeSelector>> =
+        match (&code_runner, config.posthog_api_key.value()) {
+            (Some(_), Some(key)) => {
+                let flags = feature_flags::outbound::posthog::PostHogFeatureFlags::new(
+                    config
+                        .posthog_host
+                        .value()
+                        .unwrap_or("https://us.i.posthog.com"),
+                    key.to_owned(),
+                    std::time::Duration::from_secs(3),
+                )
+                .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?;
+                Some(Arc::new(
+                    agent_inmem::domain::tool_mode::FlaggedToolMode::new(flags),
+                ))
+            }
+            _ => None,
+        };
+    let public_code_mode = match (&code_runner, &code_mode_selector) {
+        (Some((_, public)), Some(selector)) => Some(public_mcp::PublicCodeMode {
+            service: Arc::new(agent_code_mode::domain::UserCodeModeService::new(
+                Arc::new(public.clone()),
+                Arc::new(code_mode::UserRunCredentials {
+                    signer: MacroApiTokenSigner::new(
+                        pool.clone(),
+                        config.macro_api_token_issuer.as_ref(),
+                        config.macro_api_token_private_secret_key.as_ref(),
+                    ),
+                    hosts: code_mode::sdk_hosts()?,
+                }),
+            )),
+            selector: Arc::clone(selector),
+        }),
+        _ => None,
+    };
     let public_mcp_router = public_mcp::router(
         &config,
         &secrets,
@@ -575,6 +643,7 @@ async fn run() -> anyhow::Result<()> {
         .await?,
         event_broker_tracker.clone(),
         service_shutdown.clone(),
+        public_code_mode,
     )
     .await
     .context("failed to compose public MCP")?;
@@ -592,26 +661,9 @@ async fn run() -> anyhow::Result<()> {
             Arc::clone(&tool_approvals),
         ),
     );
-    let code_scratch = tempfile::tempdir()?;
-    let code_runner = match &config.deno_binary {
-        Some(binary) => {
-            let runner = code_execution::outbound::deno::DenoRunner::new(
-                binary.into(),
-                code_scratch.path().to_owned(),
-                128,
-            )
-            .await
-            .map_err(|error| anyhow::anyhow!("invalid Deno runtime: {error}"))?;
-            Some(code_execution::domain::ExecutionService::new(
-                Arc::new(runner),
-                code_execution::domain::Limits::default(),
-            )?)
-        }
-        None => None,
-    };
-    let code_executor = code_runner
-        .as_ref()
-        .map(|runner| Arc::new(runner.clone()) as Arc<dyn code_execution::domain::ProgramExecutor>);
+    let code_executor = code_runner.as_ref().map(|(runner, _)| {
+        Arc::new(runner.clone()) as Arc<dyn code_execution::domain::ProgramExecutor>
+    });
     let code_mode_enabled = code_executor.is_some();
     let code_mode: Arc<dyn agent_code_mode::domain::SessionCodeMode> =
         Arc::new(agent_code_mode::domain::CodeModeService::new(
@@ -670,6 +722,7 @@ async fn run() -> anyhow::Result<()> {
             .context("egress URL needs a host")?
             .to_owned(),
         code_mode_enabled.then(|| code_mode.clone()),
+        tool_context.cognition_tool_context.service.clone(),
         reviews_cell.clone(),
     );
     // One connector for the agent and the telemetry catalog. It pools each
@@ -686,19 +739,8 @@ async fn run() -> anyhow::Result<()> {
 
     let mut inmem_engine =
         RigTurnEngine::new(pool.clone(), tool_context.clone()).with_gate(owner_tool_gate);
-    if code_mode_enabled && let Some(key) = config.posthog_api_key.value() {
-        let flags = feature_flags::outbound::posthog::PostHogFeatureFlags::new(
-            config
-                .posthog_host
-                .value()
-                .unwrap_or("https://us.i.posthog.com"),
-            key.to_owned(),
-            std::time::Duration::from_secs(3),
-        )
-        .map_err(|error| anyhow::anyhow!("invalid feature flag configuration: {error}"))?;
-        inmem_engine = inmem_engine.with_tool_mode(Arc::new(
-            agent_inmem::domain::tool_mode::FlaggedToolMode::new(flags),
-        ));
+    if let Some(selector) = &code_mode_selector {
+        inmem_engine = inmem_engine.with_tool_mode(Arc::clone(selector));
     }
     let inmem_model_engine: Arc<dyn TurnEngine> = Arc::new(inmem_engine);
     // Normalize uploaded images before any provider sees them. In addition to
@@ -1868,8 +1910,8 @@ async fn run() -> anyhow::Result<()> {
     typing_heartbeat.abort();
     recovery.abort();
     runtime_commands.abort();
-    if let Some(runner) = &code_runner {
-        runner.shutdown().await;
+    if let Some((sessions, public)) = &code_runner {
+        tokio::join!(sessions.shutdown(), public.shutdown());
     }
     let stop_failures = container_shutdown.shutdown_all().await;
     if stop_failures > 0 {
