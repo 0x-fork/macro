@@ -26,6 +26,10 @@ recurrence, Guests, conferencing, Location, and Notifications open on the first
 click from the title field and accept changes without closing the composer.
 Open the start/end date picker and its nested time list; selecting a time keeps
 the date picker open. Escape dismisses the active menu before the composer.
+Moving the start date or time moves the end with it, keeping the event's length
+(all-day dates keep their day count), until the end is picked in the same edit;
+after that the end stays put, and a start past it shows the end-before-start
+error.
 
 The path selects the Month, Week, or Day period, and choosing another period updates
 that path. Calendar navigation defaults to Day on phones and Week on desktop; the most

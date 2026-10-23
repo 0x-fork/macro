@@ -16,9 +16,12 @@ import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy
 import {
   addDays,
   addHours,
+  addMinutes,
   differenceInCalendarDays,
+  differenceInMinutes,
   endOfDay,
   format,
+  isValid,
   parseISO,
   startOfHour,
 } from 'date-fns';
@@ -436,6 +439,30 @@ export function moveAllDayRange(
     ...state,
     start: nextStart,
     end: shiftDateValue(nextStart, durationDays),
+  };
+}
+
+/**
+ * Moves a timed range's end with its start, keeping the duration, as Google
+ * Calendar does. A range with no positive duration (incomplete, or already
+ * ending before it starts) keeps its end, since there is nothing to keep.
+ */
+export function moveTimedRange(
+  state: EventEditorInitialValues,
+  nextStart: string
+): EventEditorInitialValues {
+  const start = parseISO(nextStart);
+  const duration = differenceInMinutes(
+    parseISO(state.end),
+    parseISO(state.start)
+  );
+  if (!isValid(start) || !Number.isFinite(duration) || duration <= 0) {
+    return { ...state, start: nextStart };
+  }
+  return {
+    ...state,
+    start: nextStart,
+    end: format(addMinutes(start, duration), DATETIME_VALUE),
   };
 }
 

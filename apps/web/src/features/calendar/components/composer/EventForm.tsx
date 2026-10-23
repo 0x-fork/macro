@@ -215,7 +215,7 @@ export function EventForm(props: EventFormProps) {
                   end={state().end}
                   allDay={state().allDay}
                   onStartChange={controller.setStart}
-                  onEndChange={(end) => controller.setField('end', end)}
+                  onEndChange={controller.setEnd}
                   onAllDayChange={controller.setAllDay}
                   startDisabled={fieldIsDisabled('start')}
                   endDisabled={fieldIsDisabled('end')}
