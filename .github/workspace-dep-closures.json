@@ -13786,6 +13786,13 @@
       "crates/webhook_signature",
       "crates/workspace-hack"
     ],
+    "whatsapp_fake_server": [
+      "crates/whatsapp_fake_server",
+      "crates/whatsmeow",
+      "crates/whatsmeow_proto",
+      "crates/whatsmeow_signal",
+      "crates/workspace-hack"
+    ],
     "whatsmeow": [
       "crates/whatsmeow",
       "crates/whatsmeow_proto",
@@ -13793,6 +13800,12 @@
     ],
     "whatsmeow_proto": [
       "crates/whatsmeow_proto",
+      "crates/workspace-hack"
+    ],
+    "whatsmeow_signal": [
+      "crates/whatsmeow",
+      "crates/whatsmeow_proto",
+      "crates/whatsmeow_signal",
       "crates/workspace-hack"
     ],
     "work_feed": [

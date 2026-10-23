@@ -142,6 +142,9 @@ confidence-threshold = 0.8
 exceptions = [
   # JSON Schema URI parsing; the published license is MIT No Attribution.
   { allow = ["MIT-0"], crate = "borrow-or-share@0.2.4" },
+  # Signal's libsignal, used by whatsmeow_signal; AGPL like this repository.
+  { allow = ["AGPL-3.0-only"], crate = "libsignal-core" },
+  { allow = ["AGPL-3.0-only"], crate = "libsignal-debug" },
   # Each entry is the crate and version constraint, and its specific allow
   # list
   #{ allow = ["Zlib"], crate = "adler32" },

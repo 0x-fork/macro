@@ -125,8 +125,10 @@ members = [
   "crates/unfurl",
   "crates/user_api_key",
   "crates/webhook_signature",
+  "crates/whatsapp_fake_server",
   "crates/whatsmeow",
   "crates/whatsmeow_proto",
+  "crates/whatsmeow_signal",
   "crates/work_feed",
   "crates/worker-rs-otel",
   "crates/workspace-hack",
@@ -286,6 +288,8 @@ jsonwebtoken = { git = "https://github.com/whutchinson98/jsonwebtoken", features
 lambda_runtime = "0.13.0"
 lazy-regex = "3.6.1"
 lazy_static = "1.5.0"
+# Signal's curve25519 keys and XEdDSA; see crates/whatsmeow_signal/AGENTS.md.
+libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.105.2" }
 livekit-api = { version = "0.4.16", default-features = false, features = [
   "access-token",
   "rustls-tls-webpki-roots",

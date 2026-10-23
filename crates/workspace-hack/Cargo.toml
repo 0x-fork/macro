@@ -49,8 +49,9 @@ crypto-bigint = { version = "0.5", features = ["generic-array", "zeroize"] }
 crypto-common-6f8ce4dd05d13bba = { package = "crypto-common", version = "0.2", default-features = false, features = ["getrandom"] }
 crypto-common-c65f7effa3be6d31 = { package = "crypto-common", version = "0.1", default-features = false, features = ["getrandom", "std"] }
 ctutils = { version = "0.4", default-features = false, features = ["subtle"] }
-curve25519-dalek = { version = "4", default-features = false, features = ["alloc", "digest", "precomputed-tables", "zeroize"] }
-derive_more = { version = "2", features = ["add", "add_assign", "display", "from"] }
+curve25519-dalek-164d15cefe24d7eb = { package = "curve25519-dalek", version = "4", default-features = false, features = ["alloc", "digest", "precomputed-tables", "zeroize"] }
+curve25519-dalek-cdf1610d3e1514e9 = { package = "curve25519-dalek", version = "5", features = ["rand_core"] }
+derive_more = { version = "2", features = ["add", "add_assign", "display", "from", "into", "try_from"] }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["mac", "oid", "std"] }
 digest-a6292c17cd707f01 = { package = "digest", version = "0.11", features = ["alloc", "mac", "oid", "rand_core", "zeroize"] }
 doppleganger = { version = "0.5", default-features = false, features = ["chrono", "uuid"] }
@@ -208,11 +209,13 @@ crypto-bigint = { version = "0.5", features = ["generic-array", "zeroize"] }
 crypto-common-6f8ce4dd05d13bba = { package = "crypto-common", version = "0.2", default-features = false, features = ["getrandom"] }
 crypto-common-c65f7effa3be6d31 = { package = "crypto-common", version = "0.1", default-features = false, features = ["getrandom", "std"] }
 ctutils = { version = "0.4", default-features = false, features = ["subtle"] }
-curve25519-dalek = { version = "4", default-features = false, features = ["alloc", "digest", "precomputed-tables", "zeroize"] }
-derive_more = { version = "2", features = ["add", "add_assign", "display", "from"] }
-derive_more-impl = { version = "2", features = ["add", "add_assign", "display", "from"] }
+curve25519-dalek-164d15cefe24d7eb = { package = "curve25519-dalek", version = "4", default-features = false, features = ["alloc", "digest", "precomputed-tables", "zeroize"] }
+curve25519-dalek-cdf1610d3e1514e9 = { package = "curve25519-dalek", version = "5", features = ["rand_core"] }
+derive_more = { version = "2", features = ["add", "add_assign", "display", "from", "into", "try_from"] }
+derive_more-impl = { version = "2", features = ["add", "add_assign", "display", "from", "into", "try_from"] }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["mac", "oid", "std"] }
 digest-a6292c17cd707f01 = { package = "digest", version = "0.11", features = ["alloc", "mac", "oid", "rand_core", "zeroize"] }
+displaydoc = { version = "0.2" }
 doppleganger = { version = "0.5", default-features = false, features = ["chrono", "uuid"] }
 doppleganger-core = { version = "0.5", default-features = false, features = ["chrono", "uuid"] }
 either = { version = "1", features = ["serde", "use_std"] }
