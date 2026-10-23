@@ -62,7 +62,9 @@ function InviteGuestsForm(props: {
   const [optionalIds, setOptionalIds] = createSignal<ReadonlySet<string>>(
     new Set()
   );
-  const [scope, setScope] = createSignal<CalendarInviteScope>('this_event');
+  // A recurring event invites to the whole series unless the viewer narrows
+  // it, as the composer's edits do.
+  const [scope, setScope] = createSignal<CalendarInviteScope>('all');
   const recurring = () =>
     props.event.recurrenceLines.length > 0 ||
     props.event.recurrenceId !== undefined;

@@ -413,6 +413,11 @@ export function EventForm(props: EventFormProps) {
               value={controller.guestPolicy()}
               onChange={controller.setGuestPolicy}
               disabled={formIsDisabled() || editScope() === 'this_event'}
+              disabledReason={
+                editScope() === 'this_event'
+                  ? 'Guest permissions apply to all events. Choose All events to change them.'
+                  : undefined
+              }
             />
           </Show>
           <Show when={props.detailsReadOnlyReason}>
