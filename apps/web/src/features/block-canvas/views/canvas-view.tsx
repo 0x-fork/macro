@@ -11,6 +11,11 @@ import {
   styleCommand,
 } from '@macro-inc/graphics';
 import { attachConnectorControls } from '@macro-inc/graphics/browser';
+import type { GraphicsPresence } from '@macro-inc/graphics/loro';
+import {
+  attachPresencePointer,
+  GraphicsPresenceOverlay,
+} from '@macro-inc/graphics/loro/solid';
 import {
   ConnectorView,
   EllipseView,
@@ -66,6 +71,7 @@ import { TextEditingView } from './text-editing-view';
 
 export function CanvasView(props: {
   state: CanvasState;
+  presence?: GraphicsPresence;
   fitOnLoad?: boolean;
   scopeId: string;
   embedView: Component<CanvasEmbedViewProps>;
@@ -201,6 +207,8 @@ export function CanvasView(props: {
     });
     props.attachScope(root);
     props.onViewport(host);
+    if (props.presence)
+      onCleanup(attachPresencePointer(host, editor, props.presence));
     onCleanup(props.insert.attach(host));
     droppable(host);
     onCleanup(props.clipboard.attach(root));
@@ -705,6 +713,14 @@ export function CanvasView(props: {
                   )}
                 </Show>
               </GraphicsSurface>
+              <Show when={props.presence}>
+                {(presence) => (
+                  <GraphicsPresenceOverlay
+                    editor={editor}
+                    presence={presence()}
+                  />
+                )}
+              </Show>
             </div>
           </ContextMenu.Trigger>
           <CanvasContextMenu

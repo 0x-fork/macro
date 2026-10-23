@@ -6,9 +6,11 @@ No rollout flag or local override is required.
 The frontend treats unversioned JSON (and explicit version 1) as legacy Canvas.
 It converts supported records on load to `{ version: 2, document, legacy? }`.
 `document` is the graphics scene; `legacy` retains the original JSON and migration
-notes for recovery. No migration is saved merely by viewing a file. The first
-committed edit writes version 2 using the existing JSON/simple-save endpoint.
-Subsequent loads validate version 2 directly; they never replay the archived data.
+notes for recovery. No migration is saved merely by viewing a file. The first editor opening a canvas initializes one versioned Loro snapshot in
+SyncService. The server serializes initialization; competing openers import only
+the winning seed. Subsequent opens use the shared scene and never replay the
+original JSON over live edits. JSON remains the import/export format and retains
+the legacy source for recovery.
 Unknown versions and invalid scenes fail closed without writing data.
 
 Migration preserves IDs, groups, stacking order, positions, shape labels,
@@ -22,11 +24,25 @@ Markdown embeds explicitly pass `isEmbedded` to the editor and use this same
 read-only surface, with Select and Hand tools and no property inspector. Selection
 does not expose transform handles or mutate the scene; embedded views cannot save
 canvas edits even when the viewer has edit permission on the original document.
-Saves are debounced and serialized; failures keep edits dirty. Save state is not
-shown in the canvas UI.
+Shared edits use the existing collaboration runtime, IndexedDB snapshot/WAL
+recovery, and live SyncService transport. Whole-file simple-save has been removed.
+Download/export reads the current shared scene; copying a canvas copies its
+live room as well as its original JSON seed. Viewers and embeds join existing
+rooms read-only and do not initialize a room. Before initialization they can view
+the original JSON while waiting for an editor to share it. Initial connection or
+local-storage failures keep the original file read-only with a Retry action;
+a recovered local snapshot supports editing while disconnected. Undelivered edits
+remain in the WAL and trigger a browser unload warning.
+Failed local appends stay buffered in the open session; Retry saving retries
+them without replacing the scene. Sources bind to the opening account and check
+fresh access on reconnect; only edit/owner grants permit scene writes.
 
-SyncService integration and collaboration remain a follow-up. This change keeps
-the existing whole-file save behavior. See [Graphics and Canvas parity](../../../../../docs/design/graphics-parity.md)
+Other people see live cursors, selections, and drawing/transform previews. Presence
+uses the shared awareness channel, publishes at most every 40–100 ms while moving,
+heartbeats every three seconds, and expires after ten seconds without updates.
+It never changes document data or undo. Mixed-content previews use bounds for
+text, connectors, media, and document cards. Selection/camera/tools stay local.
+Incoming scene changes cancel active canvas gestures; intent rebasing is deferred. See [Graphics and Canvas parity](../../../../../docs/design/graphics-parity.md)
 for the remaining editor and collaboration work.
 
 ## Controls
@@ -202,16 +218,18 @@ outline tolerance; a thick stroke does not gain another 3px outside its paint.
 - `primitives/`: Solid state, mixed values, creation defaults and UI actions.
 - `components/`: inspector and layer list with explicit props.
 - `views/`: editor surface and controls composed around a supplied editor/state.
-- `canvas-next.tsx`: memory editor, Macro hotkey scope and clipboard wiring.
+- `canvas-next.tsx`: shared Loro editor (or read-only JSON before sharing), hotkeys and clipboard.
+- `queries/canvas-session.ts`: shared runtime, initialization, recovery, permissions and teardown.
+- `primitives/create-canvas-presence.ts`: ephemeral cursor/selection/gesture publication.
 - `clipboard.ts` / `hotkeys.ts`: host adapters. No browser/app dependency in the core.
 
-Core command and transform tests exercise both memory and Loro paths. Canvas Next
-currently uses memory plus versioned whole-file saves; it does not install awareness
-or production collaboration.
-
-The view/state already accept an editor. The current composition root constructs
-its own memory editor; a later collaboration checkpoint can inject Loro editors while
-retaining the same rich-text measurement, renderer, clipboard and input ownership.
+Core command and transform tests exercise both memory and Loro paths. Session
+integration tests use three peers and cover merging, undo, competing initializers,
+read-only access and recovery. The backend-free Playwright fixture runs the real
+canvas session, shared backend and presence overlays with rendered editor surfaces:
+`bunx playwright test --config src/features/block-canvas/browser-test/playwright.config.ts`
+from `apps/web`. This exercises the runtime against an in-memory SyncService stand-in;
+it does not establish a production participant limit or verify hosted transport.
 
 ## Pencil checkpoint
 
@@ -295,8 +313,10 @@ stores one `textContent` string register per text item or labeled shape, separat
 from pose. Concurrent edits choose one complete tree; no character-level merging
 or shared caret is intended. Label layout metadata is separate from pose too, so
 adding a label and moving its owner can merge. Local typing undo stays in Lexical;
-finished edits use the canvas backend's undo. Canvas Next does not yet have a
-production SyncService connection.
+finished edits use the canvas backend's undo. Canvas Next uses the production SyncService connection. An unchanged text draft
+does not overwrite remote text on blur; remote deletion closes its draft, and
+remote movement updates the draft position. Simultaneous text edits still choose
+one completed content string rather than merging characters.
 
 Mixed selections containing text scale uniformly to preserve letter proportions;
 use a single text shape’s side edges to change wrapping width. Shape definitions
@@ -386,16 +406,14 @@ existing embed or choose Interact to enter; Done, Escape, or a click elsewhere o
 this canvas returns input to the outer canvas. Resizing changes the editor viewport.
 The embedded block stays mounted when entering/leaving interaction mode.
 
-Document cards participate in the shared entity-mention reference system. The
-serialized save adapter registers one mention per target document and stores its
-ID in optional `referenceTracking` file metadata. Duplicate cards share a mention;
-deleting the last card removes it after the scene saves. Undo/redo reconciles the
-saved targets. Failed saves retain created IDs for retry, and pending deletions
-survive reload. Source ownership prevents copied canvases from deleting mentions
-belonging to the original. Existing untracked cards register on the next edit;
-opening a canvas does not write references. Tracking follows the shared mention
-tracking flag. File saving and mention creation are separate server operations,
-so an interrupted creation before the file save cannot be recovered transactionally.
+Document cards participate in the shared entity-mention reference system. Shared
+maps record mention IDs and durable pending removals, scoped by source canvas ID
+so copied rooms cannot remove the original canvas's mentions. Concurrently created
+mention IDs remain recorded independently. Removing a card retires its mentions
+only after the scene deletion and retirement reach SyncService; failures retain
+them for retry and reload recovery. Reference bookkeeping is excluded from scene
+undo. Tracking follows the shared mention-tracking flag. Mention creation and the
+CRDT commit are separate operations, so interruption between them is not transactional.
 
 `block-embed-adapter.tsx` mounts the existing unmanaged block loader with its own
 panel handle, toolbar, and hotkey scope. The existing editor owns permissions and

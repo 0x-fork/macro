@@ -10,6 +10,10 @@ const SPREADSHEET_GOLDEN_SNAPSHOT: &[u8] =
     include_bytes!("../../../../static_assets/spreadsheet-golden.1.bin");
 
 impl DocumentSyncPort for SyncServiceClient {
+    async fn delete_document(&self, document_id: &str) -> anyhow::Result<()> {
+        SyncServiceClient::delete(self, document_id).await
+    }
+
     async fn initialize_spreadsheet(&self, document_id: &str) -> anyhow::Result<()> {
         self.initialize_from_snapshot(document_id, SPREADSHEET_GOLDEN_SNAPSHOT)
             .await

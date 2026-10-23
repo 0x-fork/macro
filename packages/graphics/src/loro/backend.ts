@@ -6,12 +6,27 @@ import { type NodeData, readScene, writeScene } from './scene-mapping';
 
 type Schema = { scene: LoroTree<NodeData> };
 type Source = Parameters<Parameters<GraphicsBackend['subscribe']>[0]>[0];
+/** Host bookkeeping is durable but must not become a scene undo step. */
+export const GRAPHICS_METADATA_ORIGIN = 'graphics:metadata';
+
+// Loro's untyped host document cannot express the scene schema in getTree.
+// readScene validates the projection before any data is exposed to the editor.
+const sceneTree = (doc: LoroDoc) => doc.getTree('scene') as LoroTree<NodeData>;
+
+export function readLoroGraphicsDocument(doc: LoroDoc, rootId: string) {
+  const tree = sceneTree(doc);
+  try {
+    return readScene(tree, rootId).document;
+  } finally {
+    tree.free();
+  }
+}
 
 export function createLoroSeed(seed: GraphicsDocument): Uint8Array {
   const validated = freezeDocument(seed);
   const doc = new LoroDoc<Schema>();
   doc.setPeerId('0');
-  const tree = doc.getTree('scene');
+  const tree = sceneTree(doc);
   tree.enableFractionalIndex(0);
   writeScene(
     tree,
@@ -37,9 +52,31 @@ export function createLoroGraphicsBackend(
   const doc = new LoroDoc<Schema>();
   doc.import(snapshot);
   doc.setPeerId(peerId);
-  const tree = doc.getTree('scene');
+  return graphicsBackend(doc, rootId, true);
+}
+
+/** Bind a scene to a document owned by the host's durable sync runtime. */
+export function createLoroGraphicsBackendFromDoc(
+  doc: LoroDoc,
+  rootId: string,
+  canEdit: () => boolean = () => true
+) {
+  return graphicsBackend(doc, rootId, false, canEdit);
+}
+
+function graphicsBackend(
+  doc: LoroDoc,
+  rootId: string,
+  ownsDocument: boolean,
+  canEdit: () => boolean = () => true
+) {
+  const tree = sceneTree(doc);
   tree.enableFractionalIndex(0);
-  const history = new UndoManager(doc, { mergeInterval: 0, maxUndoSteps: 100 });
+  const history = new UndoManager(doc, {
+    mergeInterval: 0,
+    maxUndoSteps: 100,
+    excludeOriginPrefixes: [GRAPHICS_METADATA_ORIGIN],
+  });
   let projection = readScene(tree, rootId);
   let disposed = false;
   const listeners = new Set<(source: Source) => void>();
@@ -49,7 +86,7 @@ export function createLoroGraphicsBackend(
     for (const listener of listeners) listener(source);
   };
   const local = (source: Source, action: () => void) => {
-    if (disposed) return;
+    if (disposed || !canEdit()) return;
     const from = doc.oplogVersion();
     action();
     doc.commit();
@@ -58,9 +95,15 @@ export function createLoroGraphicsBackend(
     refresh(source);
     for (const listener of updates) listener(bytes);
   };
+  const unsubscribe = ownsDocument
+    ? () => {}
+    : tree.subscribe((batch) => {
+        if (!disposed && batch.by === 'import') refresh('remote');
+      });
   return {
     getDocument: () => projection.document,
     getClock() {
+      if (disposed) return {};
       const version = doc.version();
       const clock = Object.fromEntries(version.toJSON());
       version.free();
@@ -68,8 +111,8 @@ export function createLoroGraphicsBackend(
     },
     getFrameConflicts: () => projection.frameConflicts,
     getHistory: () => ({
-      canUndo: !disposed && history.canUndo(),
-      canRedo: !disposed && history.canRedo(),
+      canUndo: !disposed && canEdit() && history.canUndo(),
+      canRedo: !disposed && canEdit() && history.canRedo(),
     }),
     commit(next: GraphicsDocument) {
       const validated = freezeDocument(next);
@@ -107,11 +150,12 @@ export function createLoroGraphicsBackend(
     dispose() {
       if (disposed) return;
       disposed = true;
+      unsubscribe();
       listeners.clear();
       updates.clear();
       history.free();
       tree.free();
-      doc.free();
+      if (ownsDocument) doc.free();
     },
   };
 }

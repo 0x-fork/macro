@@ -22,6 +22,9 @@ import {
   type PresenceShape,
 } from '../presence-state';
 import { attachPresencePointer } from './pointer';
+
+export { attachPresencePointer } from './pointer';
+
 import { createPresenceMotion } from './presence-motion';
 
 function GhostShape(props: {

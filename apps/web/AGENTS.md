@@ -74,6 +74,16 @@ new MutationObserver(() => {
 
 Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '1,2,3'` (the same ids coming back) is a `<Suspense>` detach and re-attach. Fresh ids are a true remount. Nothing at all means the subtree never moved and the cause is elsewhere. Re-running the same interaction a second time is the cheapest way to prove a cold-cache cause: a once-per-session query settles after the first attempt, so the second attempt stays clean.
 
+## Canvas collaboration
+
+Saved canvases use the shared Loro runtime; the stored JSON is only the original
+migration seed. Keep whole-file simple-save out of scene editing. Canvas
+initialization, WAL/snapshot recovery and teardown live in
+`features/block-canvas/queries/canvas-session.ts`; presence is ephemeral and
+reference bookkeeping is excluded from scene undo. Run the feature tests and
+`bunx playwright test --config src/features/block-canvas/browser-test/playwright.config.ts`
+for multiplayer changes.
+
 ## Development Patterns
 
 Keep persistent list hotkeys free of mounted-view closures, and clear

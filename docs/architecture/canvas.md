@@ -26,9 +26,20 @@ Graphics treats rich text as opaque content and assets as stable references. It
 must not depend on Macro services, Lexical, the DOM, Solid, object URLs, or theme
 variables. Canvas adapters resolve those concerns at the edge.
 
-Saved Canvas Next documents use a versioned JSON boundary. The Loro backend and
-two-peer harness prove the collaboration mapping, but production SyncService
-integration and conflict-policy approval remain separate work.
+JSON is the import/export boundary and original migration seed. Once initialized,
+the authoritative scene is a Loro document in SyncService. The Canvas host uses
+the shared collaboration engine, local snapshot/WAL and permission-token transport;
+the graphics adapter binds to that host-owned document and owns only scene history.
+Only editors initialize rooms; viewers and nested canvases receive live changes
+without editing. The server's serialized initializer chooses a single seed.
+Copying preserves both the live room and original JSON, and downloads serialize
+the current shared scene. Whole-file saves no longer run for canvas edits.
+
+Shared presence carries cursors, selections and pending gestures on the runtime's
+awareness channel, independently of document history. Geometry conflicts choose
+one coherent pose; text/labels choose one complete content string. Remote commits
+cancel local scene previews. Character-level text collaboration and gesture-intent
+rebasing are separate work. No production participant limit has been measured.
 
 ## Principles
 

@@ -23,4 +23,8 @@ pub trait DocumentSyncPort: Send + Sync + 'static {
         target_document_id: &str,
         version_id: Option<SyncServiceVersionID>,
     ) -> impl Future<Output = anyhow::Result<()>> + Send;
+
+    /// Remove collaborative content created by a failed document copy.
+    fn delete_document(&self, document_id: &str)
+    -> impl Future<Output = anyhow::Result<()>> + Send;
 }

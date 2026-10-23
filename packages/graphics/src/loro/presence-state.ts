@@ -1,4 +1,4 @@
-import type { Matrix } from '../core/affine';
+import { type Matrix, multiply, translation } from '../core/affine';
 import { resolveAppearance } from '../core/appearance';
 import type { GraphicsEditor } from '../core/editor';
 import type { Bounds, Point, ShapeItem, ShapeKind } from '../core/model';
@@ -36,12 +36,17 @@ const wireMatrix = (matrix: Matrix): WireMatrix => [...matrix];
 
 function presenceShape(node: ShapeItem, world: Matrix): PresenceShape {
   const bounds = shapeDefinition(node.type).bounds(node);
+  const boundsOnly = !['rectangle', 'ellipse', 'pencil'].includes(node.type);
   return {
     id: node.id,
-    kind: node.type,
+    // Host-specific text, media, references and connectors use bounds-only ghosts.
+    // Their complete geometry/content is intentionally absent from presence.
+    kind: boundsOnly ? 'rectangle' : node.type,
     width: bounds.width,
     height: bounds.height,
-    world: wireMatrix(world),
+    world: wireMatrix(
+      boundsOnly ? multiply(world, translation(bounds.x, bounds.y)) : world
+    ),
     ...(node.type === 'rectangle'
       ? { cornerRadius: node.appearance.cornerRadius ?? 0 }
       : {}),

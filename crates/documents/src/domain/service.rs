@@ -642,6 +642,18 @@ impl<
         }
     }
 
+    async fn cleanup_canvas_copy(&self, document_id: &str, seed_key: Option<&str>, room: bool) {
+        if let Some(key) = seed_key
+            && let Err(error) = self.upload_url_service.delete_object(key).await
+        {
+            tracing::error!(?error, document_id, "failed to clean up copied canvas seed");
+        }
+        if room && let Err(error) = self.sync_service_client.delete_document(document_id).await {
+            tracing::error!(?error, document_id, "failed to clean up copied canvas room");
+        }
+        self.cleanup_document(document_id).await;
+    }
+
     async fn team_task_metadata_for_document(
         &self,
         document_id: &str,
@@ -1846,6 +1858,8 @@ impl<
 
         let new_document_id = new_metadata.document_id.clone();
         let new_owner = &new_metadata.owner;
+        let mut canvas_seed_key = None;
+        let mut canvas_room = false;
 
         // File-type-specific S3 operations
         let copy_result = match file_type {
@@ -1946,15 +1960,46 @@ impl<
                     &new_document_id,
                     new_metadata.document_version_id,
                 );
-                self.upload_url_service
+                if file_type == Some(FileType::Canvas) {
+                    canvas_seed_key = Some(dest_key.clone());
+                }
+                let copied = self
+                    .upload_url_service
                     .copy_object(&source_key, &dest_key)
-                    .await
+                    .await;
+                if copied.is_err() || file_type != Some(FileType::Canvas) {
+                    copied
+                } else {
+                    // Canvas keeps its original JSON as a migration seed, while
+                    // edits live in sync-service. A copy needs both representations.
+                    match self
+                        .sync_service_client
+                        .exists(&original_metadata.document_id)
+                        .await
+                    {
+                        Ok(true) => {
+                            // A failed response can follow a committed room copy.
+                            // Compensate the attempted destination in either case.
+                            canvas_room = true;
+                            self.sync_service_client
+                                .copy_document(
+                                    &original_metadata.document_id,
+                                    &new_document_id,
+                                    sync_version_id,
+                                )
+                                .await
+                        }
+                        Ok(false) => Ok(()),
+                        Err(error) => Err(error),
+                    }
+                }
             }
         };
 
         if let Err(e) = copy_result {
             tracing::error!(error=?e, "unable to copy document files");
-            self.cleanup_document(&new_document_id).await;
+            self.cleanup_canvas_copy(&new_document_id, canvas_seed_key.as_deref(), canvas_room)
+                .await;
             return Err(DocumentError::Internal(e));
         }
 
@@ -1966,7 +2011,8 @@ impl<
                 .await
         {
             tracing::error!(error=?e, document_id=?new_document_id, "failed to copy task properties");
-            self.cleanup_document(&new_document_id).await;
+            self.cleanup_canvas_copy(&new_document_id, canvas_seed_key.as_deref(), canvas_room)
+                .await;
             return Err(DocumentError::Internal(e));
         }
 
@@ -1977,7 +2023,8 @@ impl<
             .await
         {
             tracing::error!(error=?e, document_id=?new_document_id, "failed to mark copied document content ready");
-            self.cleanup_document(&new_document_id).await;
+            self.cleanup_canvas_copy(&new_document_id, canvas_seed_key.as_deref(), canvas_room)
+                .await;
             return Err(DocumentError::Internal(e.into()));
         }
 
@@ -1987,15 +2034,32 @@ impl<
             );
         }
 
-        let document_response_metadata =
-            DocumentResponseMetadata::from_document_metadata(&new_metadata).map_err(|e| {
-                tracing::error!(error=?e, "unable to convert document metadata");
-                DocumentError::Internal(anyhow!("unable to convert document metadata"))
-            })?;
-
-        let team_task_metadata = self
-            .team_task_metadata_for_document(&new_document_id)
-            .await?;
+        let response: Result<_, DocumentError> = async {
+            let metadata = DocumentResponseMetadata::from_document_metadata(&new_metadata)
+                .map_err(|e| {
+                    tracing::error!(error=?e, "unable to convert document metadata");
+                    DocumentError::Internal(anyhow!("unable to convert document metadata"))
+                })?;
+            let team = self
+                .team_task_metadata_for_document(&new_document_id)
+                .await?;
+            Ok((metadata, team))
+        }
+        .await;
+        let (document_response_metadata, team_task_metadata) = match response {
+            Ok(response) => response,
+            Err(error) => {
+                if file_type == Some(FileType::Canvas) {
+                    self.cleanup_canvas_copy(
+                        &new_document_id,
+                        canvas_seed_key.as_deref(),
+                        canvas_room,
+                    )
+                    .await;
+                }
+                return Err(error);
+            }
+        };
         let attribution = Attribution::from(principal);
 
         self.publish_document_event(&DocumentMacroEvent::copied(
