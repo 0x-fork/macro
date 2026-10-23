@@ -1,3 +1,4 @@
+import { FloatRegion } from '@components/app/mobile/float-regions/FloatRegion';
 import { SplitHeaderLeft } from '@components/app/split-layout/components/SplitHeader';
 import {
   SplitHeaderBadge,
@@ -240,6 +241,10 @@ function LoadedEmailComposeView(
 
   return (
     <ComposeProvider value={ctxValue}>
+      {/* On touch devices the composer fills the screen and keeps its send
+          actions in the header, so it holds the bottom accessory slot empty
+          and the page's New button cannot float over the message. */}
+      <FloatRegion region="accessory" />
       <Show when={!composeContext.presentation.isMobile()}>
         <SplitHeaderLeft>
           <StaticSplitLabel

@@ -673,8 +673,9 @@ button and no search field. Desktop retains search and keyboard controls. Other 
 show **+ New** for that full menu. Only Agents has the floating AI composer,
 which fills the row with no duplicate create action. Other views keep their
 right-aligned New button without an AI input. The row
-hides during search, when a page supplies its own reply or compose controls, or
-when an editable field outside Ask AI is focused on a touch device. The AI draft
+hides during search, when a page supplies its own reply or compose controls
+(including the full-screen new-email composer, whose send actions sit in its
+header), or when an editable field outside Ask AI is focused on a touch device. The AI draft
 is preserved when the row returns.
 The New button also hides while the software keyboard is open.
 After closing mobile search with the keyboard open or leaving a focused editor,
