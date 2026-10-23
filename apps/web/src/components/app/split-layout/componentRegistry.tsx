@@ -338,7 +338,11 @@ registerComponent(
   () => <DriveRouteView />,
   () => composableLayout(true)
 );
-registerComponent('reviews', () => <ReviewsRouteView />);
+registerComponent(
+  'reviews',
+  () => <ReviewsRouteView />,
+  () => composableLayout(true)
+);
 registerComponent(
   'tasks',
   () => <TasksRouteView />,

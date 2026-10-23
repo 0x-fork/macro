@@ -20,6 +20,7 @@ import { projectRouteId } from '@app/features/projects/core/route';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { HeaderActionButton } from '@components/app/HeaderActionButton';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { useIsAuthenticated } from '@core/auth';
@@ -36,7 +37,10 @@ import {
   useMaybeBlockId,
 } from '@core/block';
 import { EntityIcon } from '@core/component/EntityIcon';
-import { type TabItem, Tabs } from '@core/component/Tabs';
+import {
+  type UnderlineTabItem,
+  UnderlineTabs,
+} from '@core/component/UnderlineTabs';
 import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_MARKDOWN_COMMENTS,
@@ -111,7 +115,7 @@ import {
   Dropdown,
   type ManagedDialogProps,
   Panel,
-  SegmentedControl,
+  Tabs,
   Tooltip,
 } from '@ui';
 import type { Result } from 'neverthrow';
@@ -509,7 +513,8 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
             </div>
           </Tooltip>
         </div>
-        <SegmentedControl
+        <Tabs
+          touch="segmented"
           aria-label="Link sharing scope"
           size="sm"
           value={scope()}
@@ -589,8 +594,8 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
     }
   };
 
-  const mobileTabs = createMemo((): TabItem[] => {
-    const tabs: TabItem[] = [{ value: 'share', label: 'Share' }];
+  const mobileTabs = createMemo((): UnderlineTabItem[] => {
+    const tabs: UnderlineTabItem[] = [{ value: 'share', label: 'Share' }];
     if ((props.recipients?.length ?? 0) > 0 || props.owner)
       tabs.push({
         value: 'people',
@@ -662,7 +667,7 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
             </Show>
           </div>
           <div class="shrink-0 h-9 border-b border-edge-muted px-3 mb-2">
-            <Tabs
+            <UnderlineTabs
               list={mobileTabs()}
               value={effectiveActiveTab()}
               onChange={setActiveTab}
@@ -1564,7 +1569,11 @@ export function ShareModal(props: ShareModalProps) {
               style={{ width: '800px' }}
             >
               {/* Card 1: Share form — gradient border */}
-              <Panel depth={2} class="rounded-xl bg-dialog">
+              <Panel
+                depth={2}
+                hideBorder
+                class="elevated-surface rounded-[24px] bg-dialog"
+              >
                 <Panel.Header class="px-4">
                   <Dialog.Title class="flex items-center gap-1.5 min-w-0 overflow-hidden whitespace-nowrap w-full text-sm font-medium">
                     <span class="shrink-0">Share:</span>
@@ -1625,7 +1634,11 @@ export function ShareModal(props: ShareModalProps) {
                   (requests.state()?.pendingCount ?? 0) > 0
                 }
               >
-                <Panel depth={2} class="rounded-xl bg-dialog">
+                <Panel
+                  depth={2}
+                  hideBorder
+                  class="elevated-surface rounded-[24px] bg-dialog"
+                >
                   <Panel.Body>
                     <PermissionRequestsView source={requests} />
                   </Panel.Body>
@@ -1639,7 +1652,11 @@ export function ShareModal(props: ShareModalProps) {
                   !!(props.owner ?? requests.state()?.owner)
                 }
               >
-                <Panel depth={2} class="rounded-xl bg-dialog">
+                <Panel
+                  depth={2}
+                  hideBorder
+                  class="elevated-surface rounded-[24px] bg-dialog"
+                >
                   <Panel.Header class="px-4">
                     <span class="text-sm font-medium">
                       <Show when={!ownerOnlyRoster()} fallback="Owner">
@@ -1802,7 +1819,11 @@ export function ShareModal(props: ShareModalProps) {
                     !isLinkSharingDisabledForItem(props.itemType))
                 }
               >
-                <Panel depth={2} class="rounded-xl bg-dialog">
+                <Panel
+                  depth={2}
+                  hideBorder
+                  class="elevated-surface rounded-[24px] bg-dialog"
+                >
                   <Panel.Body>
                     <Show
                       when={props.linkSharing}
@@ -1834,7 +1855,11 @@ export function ShareModal(props: ShareModalProps) {
                 when={teamShareOnOwnCard(props.itemType, teamShareControls())}
               >
                 {(teamShare) => (
-                  <Panel depth={2} class="rounded-xl bg-dialog">
+                  <Panel
+                    depth={2}
+                    hideBorder
+                    class="elevated-surface rounded-[24px] bg-dialog"
+                  >
                     <Panel.Body>
                       <div class="p-4 text-sm text-ink">
                         <TeamAccessSection teamShare={teamShare()} />
@@ -1958,46 +1983,48 @@ export function ShareTrigger(props: {
   });
 
   return (
-    <div ref={requests.ref} class="flex items-center gap-1">
-      <Tooltip
-        label={
-          shareStatus()?.tooltip ??
-          (blockType() === 'agent'
-            ? 'Share agent session'
-            : blockType() === 'initiative'
-              ? 'Share project'
-              : inBlock
-                ? 'This item has been shared with you.'
-                : `Share ${blockType()}`)
-        }
-      >
-        <HeaderActionButton
-          label="Share"
-          icon={
-            <ShareRequestIcon count={requests.count()}>
-              <IconShared />
-            </ShareRequestIcon>
+    <HeaderActionGroup label="Sharing">
+      <div ref={requests.ref} class="flex items-center touch:gap-1">
+        <Tooltip
+          label={
+            shareStatus()?.tooltip ??
+            (blockType() === 'agent'
+              ? 'Share agent session'
+              : blockType() === 'initiative'
+                ? 'Share project'
+                : inBlock
+                  ? 'This item has been shared with you.'
+                  : `Share ${blockType()}`)
           }
-          onClick={() => {
-            if (!isAuthenticated()) {
-              openLoginModal();
-            } else {
-              analytics.track('share_menu_open', { blockType: blockType() });
-              requests.open();
+        >
+          <HeaderActionButton
+            label="Share"
+            icon={
+              <ShareRequestIcon count={requests.count()}>
+                <IconShared class="size-4" />
+              </ShareRequestIcon>
             }
-          }}
-        />
-      </Tooltip>
+            onClick={() => {
+              if (!isAuthenticated()) {
+                openLoginModal();
+              } else {
+                analytics.track('share_menu_open', { blockType: blockType() });
+                requests.open();
+              }
+            }}
+          />
+        </Tooltip>
 
-      <CopyButton
-        variant="ghost"
-        tooltip="Copy Share Link"
-        size="icon-md"
-        onClick={ShareLinkAction().action}
-      >
-        <Dynamic component={ShareLinkAction().icon} class="size-3.5!" />
-      </CopyButton>
-    </div>
+        <CopyButton
+          variant="ghost"
+          tooltip="Copy Share Link"
+          size="icon-md"
+          onClick={ShareLinkAction().action}
+        >
+          <Dynamic component={ShareLinkAction().icon} class="size-3.5!" />
+        </CopyButton>
+      </div>
+    </HeaderActionGroup>
   );
 }
 

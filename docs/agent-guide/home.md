@@ -66,9 +66,10 @@ both read states again. A badge counts hidden types plus an active status filter
 Read status and type selections persist.
 There are no desktop Signal/Noise tabs. A **Home** heading
 labels the top left of the block, matching the **Email**, **Tasks**, **Chat**, and
-**Agents** sidebar headings. The full-width **New chat** plus pill below the heading clears the preview and returns to the Home
-starting pane; it does not create a chat. Email and Tasks have matching top pills
-for **New email** and **New task**.
+**Agents** sidebar headings. The full-width **New** plus pill below the heading
+clears the preview and returns to the Home starting pane; it does not create a
+chat. It uses the shared desktop creation styling described in
+[navigation](navigation.md).
 
 The Home provider honors an explicit initial tab, search, grouping, and facet
 selection. Filters persist per user across reloads and fresh Home navigation;
@@ -150,6 +151,11 @@ arrow-key browsing keeps it open. Preview headers start with **Home >**. Clickin
 **Home** clears the preview and returns to the starting pane without changing
 sidebar visibility. Use the hamburger to reopen the feed. Mobile continues to
 show the activity list alone.
+
+Desktop previews use the same header controls as their standalone views, with
+the **Home >** return breadcrumb added. Calendar shares its date, search,
+navigation, view, and New controls; email shares its action, navigation, AI/task,
+and Share groups. Touch previews retain their existing compact headers.
 
 Document previews opened from Home expose **Share** and **Copy Share Link** before
 the details toggle, including tasks, snippets, skills, canvases, PDFs, images,

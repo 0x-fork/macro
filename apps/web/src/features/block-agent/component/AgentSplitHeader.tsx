@@ -1,5 +1,6 @@
 import { ChangesToggle } from '@app/features/changes/changes';
 import { useBlockEntityCommands } from '@app/features/next-soup/actions/use-block-entity-commands';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import {
   type BlockTool,
   ResponsiveBlockToolbar,
@@ -183,12 +184,9 @@ export function AgentSplitHeader(props: {
         />
       </SplitHeaderLeft>
 
-      {/* Tools live on the header row itself — `ResponsiveBlockToolbar`
-          would push non-Share tools onto a second toolbar row. Markup
-          mirrors its own header-tools branch; on mobile the tools collapse
-          into the title menu via `menuTools` below instead. */}
+      {/* Session context stays next to the grouped header actions. */}
       <SplitHeaderRight>
-        <div class="order-[1000] flex items-center gap-1.5">
+        <div class="order-[900] flex items-center gap-2 touch:gap-1.5">
           <Show when={props.session?.taskId}>
             {(taskId) => <AgentTaskChip taskId={taskId()} />}
           </Show>
@@ -197,13 +195,15 @@ export function AgentSplitHeader(props: {
           </Show>
           <Show when={!isTouchDevice()}>
             <ChangesToggle />
-            <For each={tools}>
-              {(tool) => (
-                <Show when={!tool.condition || tool.condition()}>
-                  <ToolButton tool={tool} />
-                </Show>
-              )}
-            </For>
+            <HeaderActionGroup label="Session actions">
+              <For each={tools}>
+                {(tool) => (
+                  <Show when={!tool.condition || tool.condition()}>
+                    <ToolButton tool={tool} />
+                  </Show>
+                )}
+              </For>
+            </HeaderActionGroup>
           </Show>
         </div>
       </SplitHeaderRight>

@@ -6,7 +6,6 @@ import { Resize } from '@core/component/Resize';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { tabTitleSignal } from '@core/signal/tabTitle';
-import { isPlatform } from '@core/util/platform';
 import {
   createEffect,
   createMemo,
@@ -68,8 +67,7 @@ export function SplitLayout() {
   const panelRefs = new Map<SplitId, HTMLDivElement>();
 
   const splits = createMemo(splitManager.splits);
-  const useBentoLayout = () =>
-    !isTouchDevice() && (isPlatform('desktop') || splits().length > 1);
+  const useBentoLayout = () => !isTouchDevice();
 
   // Drop refs for departed splits by reconciling against the live list:
   // batched mutations can remove several splits in one flush (e.g. closing

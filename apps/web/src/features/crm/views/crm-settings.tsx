@@ -1,4 +1,5 @@
 import type { ItemDragOverlayData } from '@app/components/app/ItemDragAndDrop';
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretUpIcon from '@phosphor/caret-up.svg';
@@ -611,7 +612,7 @@ function StagesSection() {
           </Match>
           <Match when={loading()}>
             <div class="px-4 py-4">
-              <div class="h-4 w-32 animate-pulse rounded bg-skeleton" />
+              <ListSkeleton.Bar class="h-4 w-32" />
             </div>
           </Match>
           <Match when={editing()}>
@@ -746,9 +747,7 @@ function CrmContent() {
 
 export function Crm() {
   return (
-    <Suspense
-      fallback={<div class="animate-pulse bg-skeleton rounded h-4 w-32 m-6" />}
-    >
+    <Suspense fallback={<ListSkeleton.Bar class="m-6 h-4 w-32" />}>
       <CrmContent />
     </Suspense>
   );

@@ -37,7 +37,8 @@ vi.mock('@queries/import', async (importOriginal) => ({
   }),
 }));
 // Test the card's controls without unrelated app theme/layout dependencies.
-vi.mock('@ui', () => ({
+vi.mock('@ui', async () => ({
+  ...(await vi.importActual('@app/components/ui/components/Input')),
   Button: (props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props} />
   ),

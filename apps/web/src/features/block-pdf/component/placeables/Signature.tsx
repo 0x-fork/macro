@@ -166,8 +166,7 @@ function SignatureEditor(props: SignatureEditorProps) {
         <Dialog.Content
           class={cn(
             'fixed z-modal w-[426px] max-w-[calc(100vw-2rem)] p-3',
-            'bg-surface shadow',
-            'rounded-lg border border-edge',
+            'elevated-surface',
             'flex-col justify-start inline-flex gap-3',
             'dialog-content-open-animation'
           )}

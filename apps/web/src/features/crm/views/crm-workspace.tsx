@@ -4,6 +4,10 @@ import {
   useViewShell,
   ViewShell,
 } from '@app/components/view-shell';
+import {
+  ListHeader,
+  ListHeaderSearch,
+} from '@app/components/view-shell/ListHeader';
 import { VIEW_SHELL_TOUR } from '@app/components/view-shell/tour';
 import { ConnectorImportSidebar } from '@app/features/connector-import/connector-import';
 import { NIL_UUID } from '@app/features/next-soup/filters/filter-store';
@@ -17,6 +21,7 @@ import { UnifiedFilterDropdown } from '@app/features/next-soup/soup-view/filters
 import { useFilterRefinements } from '@app/features/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { usePreference } from '@app/preferences/use-preference';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SplitPanel } from '@components/app/split-panel';
 import { enableCrmActivity } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
@@ -44,6 +49,7 @@ import {
   Suspense,
 } from 'solid-js';
 import { CrmListDialog } from '../components/company-list-dialog';
+import { CrmCreateMenu } from '../components/crm-create-menu';
 import { CrmMobileTabs } from '../components/crm-mobile-tabs';
 import { CrmSidebar } from '../components/crm-sidebar';
 import { PipelineDialog } from '../components/pipeline-dialog';
@@ -163,25 +169,12 @@ function CrmSearchBar() {
 }
 
 /** Contacts are not in the search index, so People searches the soup query. */
-function PeopleSearchBar() {
+function PeopleSearchBar(props: {
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
   const view = useCrmWorkspace();
   let input: HTMLInputElement | undefined;
-  const [text, setText] = createSignal(
-    view.queryFilters.state.include.crmContactSearch ?? ''
-  );
-  // Every applied search restarts the server query; wait for a typing pause.
-  const applySearch = debounce(
-    (value: string) =>
-      view.queryFilters.set({
-        include: { crmContactSearch: value.trim() || undefined },
-      }),
-    250
-  );
-  onCleanup(applySearch.clear);
-  const search = (value: string) => {
-    setText(value);
-    applySearch(value);
-  };
   useViewControlHotkeys({
     scopeId: view.host.scopeId,
     enabled: view.host.isActive,
@@ -199,11 +192,40 @@ function PeopleSearchBar() {
       ref={(element) => (input = element)}
       label="Search people"
       placeholder="Search people"
-      value={text()}
-      onValueChange={search}
+      value={props.value}
+      onValueChange={props.onValueChange}
       onEscape={view.host.focus}
       hotkey="cmd+f"
       class="max-w-md flex-1"
+    />
+  );
+}
+
+function CrmHeaderSearch(props: {
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  const view = useCrmWorkspace();
+  let focusSearch: (() => void) | undefined;
+  useViewControlHotkeys({
+    scopeId: view.host.scopeId,
+    enabled: view.host.isActive,
+    search: {
+      description: props.label,
+      run: () => {
+        focusSearch?.();
+        return true;
+      },
+    },
+  });
+  return (
+    <ListHeaderSearch
+      label={props.label}
+      value={props.value}
+      onValueChange={props.onValueChange}
+      onEscape={view.host.focus}
+      registerFocus={(focus) => (focusSearch = focus)}
     />
   );
 }
@@ -232,6 +254,22 @@ export function CrmWorkspaceView(props: {
     copyPipelineLink,
   } = useCrmContext();
   const view = useCrmWorkspace();
+  const [peopleSearch, setPeopleSearch] = createSignal(
+    view.queryFilters.state.include.crmContactSearch ?? ''
+  );
+  const applyPeopleSearch = debounce(
+    (value: string) =>
+      view.queryFilters.set({
+        include: { crmContactSearch: value.trim() || undefined },
+      }),
+    250
+  );
+  onCleanup(applyPeopleSearch.clear);
+  const searchPeople = (value: string) => {
+    setPeopleSearch(value);
+    applyPeopleSearch(value);
+  };
+
   const settings = view.host.settings;
   const { openWithSplit } = useCrmContext().createNavigation();
   const records = view.host.record.records;
@@ -385,6 +423,21 @@ export function CrmWorkspaceView(props: {
   onMount(() => {
     if (!listsEnabled() && active().startsWith('list:')) navigate('active');
   });
+  const toolbarCreateMenu = () => (
+    <CrmCreateMenu
+      presentation="toolbar"
+      onCreateCompany={openCreateCompanyModal}
+      onCreateContact={() => openCreateContactModal()}
+      pipeline={
+        pipelinesEnabled()
+          ? {
+              disabled: !canCreatePipeline(),
+              onCreate: () => setCreatingPipeline(true),
+            }
+          : undefined
+      }
+    />
+  );
   // Keep cold activity links intact until PostHog resolves; off falls back to Companies.
   createEffect(
     on(
@@ -396,6 +449,15 @@ export function CrmWorkspaceView(props: {
   );
   const sidebar = (onCollapse?: () => void) => (
     <CrmSidebar
+      searchLabel={peopleActive() ? 'Search people' : 'Search companies'}
+      search={() => (
+        <Show when={peopleActive()} fallback={<CrmSearchBar />}>
+          <PeopleSearchBar
+            value={peopleSearch()}
+            onValueChange={searchPeople}
+          />
+        </Show>
+      )}
       promotion={
         <ConnectorImportSidebar
           category="crm"
@@ -588,14 +650,21 @@ export function CrmWorkspaceView(props: {
             {(tab) => (
               <>
                 <Show when={!isTouchDevice()}>
-                  <div class="flex h-12 shrink-0 items-center gap-3 px-4">
-                    <NavigationToggle onExpand={() => setCollapsed(false)}>
-                      <Suspense>{sidebar()}</Suspense>
-                    </NavigationToggle>
-                    <h1 class="flex h-7 min-w-0 flex-1 items-center px-1 text-sm font-semibold tracking-[-0.03em]">
-                      {title()}
-                    </h1>
-                  </div>
+                  <ListHeader
+                    title={
+                      <div class="flex min-w-0 items-center gap-3">
+                        <NavigationToggle onExpand={() => setCollapsed(false)}>
+                          <Suspense>{sidebar()}</Suspense>
+                        </NavigationToggle>
+                        <h1
+                          class="min-w-0 truncate text-sm font-semibold"
+                          title={title()}
+                        >
+                          {title()}
+                        </h1>
+                      </div>
+                    }
+                  />
                 </Show>
                 <Suspense
                   fallback={
@@ -617,26 +686,16 @@ export function CrmWorkspaceView(props: {
               !activityPending()
             }
           >
-            <Show when={!isTouchDevice() || peopleActive()}>
-              <Show when={!isTouchDevice()}>
-                <div class="flex h-12 shrink-0 items-center gap-3 px-4">
-                  <NavigationToggle onExpand={() => setCollapsed(false)}>
-                    <Suspense>{sidebar()}</Suspense>
-                  </NavigationToggle>
-                  <h1
-                    class="flex h-7 min-w-0 flex-1 items-center px-1 text-sm font-semibold tracking-[-0.03em]"
-                    title={title()}
-                  >
-                    <span class="truncate">{title()}</span>
-                  </h1>
-                </div>
-              </Show>
-              <Show
-                when={!peopleActive()}
-                fallback={
+            <Show
+              when={!isTouchDevice()}
+              fallback={
+                <Show when={peopleActive()}>
                   <ViewShell.Header class="touch:pt-0">
                     <div class="flex min-w-0 items-center justify-between gap-3">
-                      <PeopleSearchBar />
+                      <PeopleSearchBar
+                        value={peopleSearch()}
+                        onValueChange={searchPeople}
+                      />
                       <Button
                         variant="outline"
                         class="ml-auto shrink-0"
@@ -647,46 +706,66 @@ export function CrmWorkspaceView(props: {
                       </Button>
                     </div>
                   </ViewShell.Header>
+                </Show>
+              }
+            >
+              <ListHeader
+                title={
+                  <div class="flex min-w-0 items-center gap-3">
+                    <NavigationToggle onExpand={() => setCollapsed(false)}>
+                      <Suspense>{sidebar()}</Suspense>
+                    </NavigationToggle>
+                    <h1
+                      class="min-w-0 truncate text-sm font-semibold"
+                      title={title()}
+                    >
+                      {title()}
+                    </h1>
+                  </div>
                 }
               >
-                <ViewShell.Header>
-                  <div class="flex min-w-0 items-center justify-between gap-3">
-                    <CrmSearchBar />
-                    <div class="ml-auto flex shrink-0 items-center gap-2 [&_button]:h-8 [&_button]:min-w-8 [&_button>svg]:size-4!">
-                      <SoupViewContextSort />
-                      <SoupViewContextGroup hideLabel variant="ghost" />
-                      <UnifiedFilterDropdown hideLabel variant="ghost" />
-                      <CompanyDisplayMenu />
-                      <Suspense>
-                        <CompanyViewsMenu hideLabel />
-                      </Suspense>
-                      <Show when={listsEnabled() && activeList()}>
-                        {(list) => (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              setEditing({
-                                id: list().id,
-                                name: list().name,
-                                companyIds: [...list().config.companyIds],
-                              })
-                            }
-                          >
-                            Edit list
-                          </Button>
-                        )}
-                      </Show>
-                      <Button
-                        variant="outline"
-                        onClick={openCreateCompanyModal}
-                      >
-                        <PlusIcon />
-                        New company
-                      </Button>
-                    </div>
-                  </div>
-                </ViewShell.Header>
+                <Show when={!peopleActive()}>
+                  <HeaderActionGroup label="Company filters">
+                    <UnifiedFilterDropdown hideLabel variant="ghost" />
+                  </HeaderActionGroup>
+                  <HeaderActionGroup label="Company view options">
+                    <SoupViewContextSort />
+                    <SoupViewContextGroup hideLabel variant="ghost" />
+                    <CompanyDisplayMenu />
+                    <Suspense>
+                      <CompanyViewsMenu hideLabel />
+                    </Suspense>
+                    <Show when={listsEnabled() && activeList()}>
+                      {(list) => (
+                        <Button
+                          variant="ghost"
+                          size="md"
+                          onClick={() =>
+                            setEditing({
+                              id: list().id,
+                              name: list().name,
+                              companyIds: [...list().config.companyIds],
+                            })
+                          }
+                        >
+                          Edit list
+                        </Button>
+                      )}
+                    </Show>
+                  </HeaderActionGroup>
+                </Show>
+                {toolbarCreateMenu()}
+                <CrmHeaderSearch
+                  label={peopleActive() ? 'Search people' : 'Search companies'}
+                  value={peopleActive() ? peopleSearch() : view.searchText()}
+                  onValueChange={(value) =>
+                    peopleActive()
+                      ? searchPeople(value)
+                      : view.setSearchText(value)
+                  }
+                />
+              </ListHeader>
+              <Show when={!peopleActive()}>
                 <Suspense>
                   <CrmFilterChips onReset={() => navigate(active())} />
                 </Suspense>

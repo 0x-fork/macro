@@ -75,6 +75,10 @@ vi.mock('@app/components/view-shell', () => ({
   ),
   useViewControlHotkeys: () => {},
 }));
+vi.mock('@app/components/view-shell/ListHeader', () => ({
+  ListHeader: (props: ParentProps) => props.children,
+  ListHeaderSearch: () => null,
+}));
 vi.mock('@app/components/view-shell/SidebarCreateButton', () => ({
   SidebarCreateButton: () => null,
 }));

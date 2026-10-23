@@ -16,7 +16,7 @@ import {
   usePatchTeamMutation,
 } from '@queries/team/teams';
 import type { Team as TeamSummary } from '@service-auth/generated/schemas/team';
-import { Button, Dialog, Panel, SegmentedControl, Tooltip } from '@ui';
+import { Button, Dialog, Panel, Tabs, Tooltip } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import {
   SettingsCard,
@@ -396,7 +396,8 @@ export function TeamGeneral(props: { team: TeamSummary }) {
                 description="The link-sharing scope newly shared items start with. None means link sharing starts off."
                 hideDescriptionOnMobile
               >
-                <SegmentedControl
+                <Tabs
+                  touch="segmented"
                   aria-label="Default link sharing scope"
                   size="sm"
                   value={defaultLinkShare()}

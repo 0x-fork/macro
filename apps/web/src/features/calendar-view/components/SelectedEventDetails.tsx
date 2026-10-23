@@ -512,7 +512,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
             }}
           >
             <Popover.Arrow class="fill-surface" />
-            <div class="flex max-h-[min(32rem,var(--kb-popper-content-available-height,32rem))] w-fit min-w-[min(20rem,var(--kb-popper-content-available-width,20rem))] max-w-[min(24rem,var(--kb-popper-content-available-width,24rem))] flex-col overflow-hidden rounded-xl glass bg-menu-glass text-ink">
+            <div class="flex max-h-[min(32rem,var(--kb-popper-content-available-height,32rem))] w-fit min-w-[min(20rem,var(--kb-popper-content-available-width,20rem))] max-w-[min(24rem,var(--kb-popper-content-available-width,24rem))] flex-col overflow-hidden menu-surface">
               <Popover.Title class="sr-only">{props.event.title}</Popover.Title>
               <div class="flex shrink-0 items-center justify-end gap-1 px-2 pt-2">
                 <Show when={!props.event.teamProjection}>

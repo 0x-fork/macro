@@ -1,7 +1,7 @@
 import { getIconConfig } from '@core/component/EntityIcon';
-import { TabsInset } from '@core/component/TabsInset';
 import SquaresFourIcon from '@phosphor/squares-four.svg';
 import UsersIcon from '@phosphor/users.svg';
+import { Tabs } from '@ui';
 import type { Component, JSX } from 'solid-js';
 import {
   CRM_RECORD_SECTION_LABELS,
@@ -30,27 +30,19 @@ export function RecordTabs<S extends CrmRecordSection>(props: {
   onChange: (section: S) => void;
   compact?: boolean;
 }) {
-  const list = () =>
-    props.sections.map((section) => {
-      const label = CRM_RECORD_SECTION_LABELS[section];
-      if (!props.compact) return { value: section, label };
-      const Icon = SECTION_ICONS[section];
-      return {
-        value: section,
-        label: (
-          <span class="flex items-center" title={label}>
-            <Icon class="size-4" />
-          </span>
-        ),
-      };
-    });
   return (
-    <TabsInset
-      list={list()}
-      value={props.value}
-      onChange={(value) => props.onChange(value as S)}
+    <Tabs
       aria-label="Record sections"
-      class="shrink-0 whitespace-nowrap"
+      touch="inset"
+      class="shrink-0"
+      options={props.sections.map((section) => ({
+        value: section,
+        label: CRM_RECORD_SECTION_LABELS[section],
+        icon: props.compact ? SECTION_ICONS[section] : undefined,
+      }))}
+      iconOnly={props.compact}
+      value={props.value}
+      onChange={props.onChange}
     />
   );
 }

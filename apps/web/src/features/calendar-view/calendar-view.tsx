@@ -20,6 +20,7 @@ import {
   type Accessor,
   createEffect,
   createMemo,
+  type JSX,
   on,
   onCleanup,
   onMount,
@@ -50,6 +51,7 @@ export type CalendarViewProps = {
   route: { id: string };
   /** A new value re-aims at the URL's event without a navigation. */
   refocus?: Accessor<unknown>;
+  headerLeading?: JSX.Element;
 };
 
 /** Route-backed Calendar view, hosted by its own route or inline under another. */
@@ -243,7 +245,7 @@ export function CalendarView(props: CalendarViewProps) {
           onPeriodViewChange={setPeriodView}
           onFocusedEventIdChange={setFocusedEventId}
         >
-          <Workspace />
+          <Workspace headerLeading={props.headerLeading} />
         </CalendarViewContextProvider>
       </CalendarFocusContextProvider>
     </Show>

@@ -1,5 +1,4 @@
 import { useMaybeBlockId } from '@core/block';
-import { TabsInset } from '@core/component/TabsInset';
 import { useUserId } from '@core/context/user';
 import type { CollectionNode } from '@kobalte/core';
 import { Select } from '@kobalte/core/select';
@@ -24,6 +23,7 @@ import {
   Dialog,
   Hotkey,
   Layer,
+  Tabs,
 } from '@ui';
 import {
   type Component,
@@ -666,27 +666,27 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
 
             <Show when={hasTeam()}>
               <EditorRow label="Owner">
-                <TabsInset
-                  depth={0}
-                  list={[
+                <Tabs
+                  aria-label="Owner"
+                  size="sm"
+                  touch="inset"
+                  options={[
                     { value: 'team', label: 'Team' },
                     { value: 'user', label: 'Personal' },
                   ]}
                   value={selectedPropertyScope()}
-                  onChange={(value) => {
-                    if (value === 'user' || value === 'team') {
-                      setPropertyScope(value);
-                    }
-                  }}
+                  onChange={setPropertyScope}
                 />
               </EditorRow>
             </Show>
 
             <Show when={shouldShowMultiSelect()}>
               <EditorRow label="Selection">
-                <TabsInset
-                  depth={0}
-                  list={[
+                <Tabs
+                  aria-label="Selection"
+                  size="sm"
+                  touch="inset"
+                  options={[
                     { value: 'single', label: 'Single' },
                     { value: 'multi', label: 'Multi' },
                   ]}

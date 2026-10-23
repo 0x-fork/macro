@@ -1,3 +1,5 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
+import { SearchBar } from '@app/components/view-shell/SearchBar';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { UserIcon } from '@core/component/UserIcon';
 import { enableAiUsageBilling } from '@core/constant/featureFlags';
@@ -13,7 +15,6 @@ import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import LinkIcon from '@phosphor/link.svg';
-import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import XIcon from '@phosphor/x.svg';
@@ -465,26 +466,14 @@ export function TeamMembers(props: { team: TeamSummary }) {
       >
         <SettingsSection>
           <Show when={showMemberSearch()}>
-            <label class="flex items-center gap-2 h-9 px-3 rounded-lg border border-edge-muted text-ink-muted focus-within:border-accent focus-within:text-ink">
-              <MagnifyingGlassIcon class="size-4 shrink-0" />
-              <input
-                type="text"
-                value={memberQuery()}
-                onInput={(e) => setMemberQuery(e.currentTarget.value)}
-                placeholder="Filter members"
-                class="flex-1 min-w-0 bg-transparent text-sm text-ink outline-none placeholder:text-ink-placeholder"
-              />
-              <Show when={memberQuery()}>
-                <button
-                  type="button"
-                  class="shrink-0 text-ink-muted hover:text-ink"
-                  aria-label="Clear filter"
-                  onClick={() => setMemberQuery('')}
-                >
-                  <XIcon class="size-4" />
-                </button>
-              </Show>
-            </label>
+            <SearchBar
+              size="sm"
+              label="Filter members"
+              placeholder="Filter members"
+              value={memberQuery()}
+              onValueChange={setMemberQuery}
+              onEscape={() => setMemberQuery('')}
+            />
           </Show>
 
           <Show
@@ -516,7 +505,7 @@ export function TeamMembers(props: { team: TeamSummary }) {
             when={!teamQuery.isLoading}
             fallback={
               <SettingsCard>
-                <div class="animate-pulse bg-skeleton rounded h-16 m-4" />
+                <ListSkeleton.Bar class="m-4 h-16 rounded-xl" />
               </SettingsCard>
             }
           >

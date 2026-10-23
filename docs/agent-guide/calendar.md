@@ -253,9 +253,12 @@ titles or private event metadata.
 
 The in-view desktop Calendar header uses one responsive top bar. The viewed
 month and year stay on the left in a heading that scales from 16px in narrow
-splits to a maximum of 24px, with a compact `New` menu when the sidebar is closed.
-An icon-only ghost `Search events` button sits on the right, before a slightly
-larger gap and the `Today`, period selector, and previous/next controls.
+splits to a maximum of 24px, with a compact `New` menu at the right end of the controls.
+An outlined `Search events` icon button sits before the other controls. All
+desktop controls are 32px tall and use the shared button surface: Today and the
+previous/next arrows share a navigation group, the period selector has its own
+view group, and Booking links and New have separate outlined buttons. Adjacent
+controls and groups have a uniform 8px gap, with matching text-button padding.
 Click Search or press Cmd/Ctrl+F to expand and focus the wider inline search field.
 The field slides out with a short width transition and focuses immediately.
 The results popup stays hidden until the field contains non-whitespace text,
@@ -288,19 +291,21 @@ occurrence details before showing Join. Selecting a result preserves the search
 text. Availability lives in the desktop sidebar's Upcoming events section and
 in the mobile header.
 
-The period controls move into a separate row below 600px of calendar-pane width,
-with `New` on the left and navigation on the right. With a docked sidebar, the
-header needs fewer controls and stays inline down to 480px. This avoids wrapping
+The period controls move into a separate row below 600px of calendar-pane width.
+The shared outlined `New` menu remains at the right end, even with the sidebar
+open; the sidebar places its full-width version below the title. With a docked
+sidebar, the header stays inline down to 580px. This avoids wrapping
 and immediately unwrapping when the sidebar hides. Expanded search does not
 force early wrapping; its results popup stays directly below the search field.
 Below 1040px, search slides over the month title without moving any controls or
 changing the header height. `New` stays outside the search overlay. Resizing the
 pane keeps the search field mounted and preserves its query and focus. Today
-and New retain their text labels until the controls row runs out of room, then
-become icon buttons.
+retains its text label until the controls row runs out of room, then becomes an
+icon button. Desktop `New` keeps its label.
 Touch devices keep the month selector and header controls without separate
 create or call buttons in the right island. Mobile header islands omit Search.
-The desktop sidebar's mini calendar remains navigable by date and month.
+The desktop sidebar's Search icon sits left of collapse and reveals event search
+above New. Its mini calendar remains navigable by date and month.
 
 Active Quick Calls you created, participated in, or were invited to appear above your
 next five events (including ones in progress), whether or not they have call links.
@@ -575,10 +580,11 @@ row has a checkmark; the list scrolls when more teams are present. Selecting
 a row switches the owner for the entire workspace; ownership badges appear only
 in the top header, not on cards or tab content. Owner changes discard link/schedule drafts and stay disabled during saves.
 Each tab's heading appears in the main topbar, with its description available
-through an info tooltip rather than a separate large header. Booking links uses the
-shared ViewShell search bar below the topbar, with **New** on the same
-row at the far right. New opens the manual editor; a separate **Create with
-agent** button sits beside it. On touch devices, the header has separate
+through an info tooltip rather than a separate large header. Desktop Booking links
+uses one header row: title and owner, a grouped **Create with agent** icon,
+outlined **New**, and expandable Search. Command-F expands and focuses the
+search field; Close or Escape clears it and returns to the icon. New opens the
+manual editor. On touch devices, the header has separate
 sparkle and plus buttons for agent and manual creation. Create with agent opens an editable,
 unsent request in an agent conversation and carries the selected Personal/team
 owner privately. The agent reads current settings and asks for approval before
@@ -676,10 +682,11 @@ updates only the selected owner, and failed saves retain edits for retry. There
 is no separate Booking settings shortcut or Settings → Booking links page.
 Public booking URLs remain unchanged. Calendar connections and integration
 shortcuts continue to open Settings → Calendar.
-Booking status filters use the same segmented control as the CRM sidebar.
+On desktop, Bookings puts its title, filter island, status tabs, and expandable Search in one top row. Booking-page Edit/Preview tabs and Save/Revert actions use the same rounded control surfaces. Touch layouts retain their existing controls.
 In Availability, the topbar reads **Availability** and shows the selected owner.
-The shared toolbar contains **Search schedules** (name or time zone) and **New**
-(**New schedule**); on touch devices, New moves into the header island.
+The same desktop header row contains **New** (**New schedule**) and an expandable
+**Search schedules** icon (name or time zone); on touch devices, New moves into
+the header island and search keeps its existing full field.
 Schedule cards show the default badge, time zone, a Monday-first
 week preview, grouped hours, and booking-link/date-exception counts. **Preview**
 uses an eye icon and opens all weekly hours and date exceptions without editing,

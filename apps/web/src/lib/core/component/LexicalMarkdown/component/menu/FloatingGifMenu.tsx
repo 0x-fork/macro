@@ -174,10 +174,7 @@ export function FloatingGifMenu(
             if (event.target !== inputRef) event.preventDefault();
           }}
         >
-          <Surface
-            depth={2}
-            class="flex flex-col gap-1.5 p-1.5 glass bg-menu-glass rounded-xl"
-          >
+          <Surface depth={2} class="menu-surface flex flex-col gap-1.5 p-1.5">
             <InputGroup size="sm">
               <InputGroup.Input
                 ref={inputRef}

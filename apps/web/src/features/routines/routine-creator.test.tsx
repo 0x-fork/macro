@@ -218,7 +218,7 @@ async function addScheduled(name = 'Daily') {
   const add = screen.getByRole('button', { name: 'Add trigger' });
   fireEvent.click(add);
   fireEvent.click(await screen.findByRole('button', { name: 'Scheduled' }));
-  fireEvent.click(await screen.findByRole('button', { name }));
+  fireEvent.click(await screen.findByRole('radio', { name }));
   fireEvent.click(
     within(screen.getByRole('dialog', { name: 'Add trigger' })).getByRole(
       'button',

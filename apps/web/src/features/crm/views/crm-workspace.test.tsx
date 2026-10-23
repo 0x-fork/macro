@@ -317,6 +317,8 @@ function setup(
     },
     source: {},
     queryFilters: { state: { include: {} }, replace: vi.fn() },
+    searchText: () => '',
+    setSearchText: vi.fn(),
   };
   render(() => (
     <CrmWorkspaceView>{() => <div>Record list</div>}</CrmWorkspaceView>

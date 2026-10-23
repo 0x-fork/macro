@@ -23,15 +23,14 @@ function RoutinesContent() {
       activate: true,
       search: {},
     });
-  let searchInput: HTMLInputElement | undefined;
+  let focusSearch: (() => void) | undefined;
   useViewControlHotkeys({
     scopeId: panel.splitHotkeyScope,
     enabled: () => panel.isPanelActive() && !selectedId(),
     search: {
       description: 'Search routines',
       run: () => {
-        searchInput?.focus();
-        searchInput?.select();
+        focusSearch?.();
         return true;
       },
     },
@@ -70,7 +69,7 @@ function RoutinesContent() {
                   ?.defaultModel)
               : target.model
           }
-          searchRef={(input) => (searchInput = input)}
+          registerSearchFocus={(focus) => (focusSearch = focus)}
           onCreate={create}
           onOpen={(id) => open(id)}
         />

@@ -92,7 +92,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               <SettingsSurface class="@container overflow-hidden">
                 <button
                   type="button"
-                  class="flex h-full w-full flex-col items-stretch text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
+                  class="flex h-full w-full flex-col items-stretch text-left outline-none not-touch:hover:overlay-hover focus-visible:overlay-hover"
                   onClick={() => view.openProvider(item.id)}
                 >
                   <IntegrationRow
@@ -118,9 +118,8 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <div class="mb-3 flex items-center justify-between gap-3">
           <h3 class="text-base font-medium text-ink">All apps</h3>
           <Button
-            variant="ghost"
+            variant="outline"
             size="md"
-            class="h-10 bg-ink/4 px-4"
             onClick={() => setAddingCustom(true)}
           >
             <PlusIcon class="size-4" /> Add Custom
@@ -129,10 +128,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <div class="mb-5 grid grid-cols-1 items-end gap-3 @[560px]/catalog:grid-cols-[minmax(0,1fr)_14rem]">
           <div class="flex min-w-0 flex-col gap-1.5">
             <span class="text-xs font-medium text-ink-muted">Search apps</span>
-            <InputGroup
-              size="lg"
-              class="h-11 rounded-xl border-edge-muted bg-input"
-            >
+            <InputGroup size="md">
               <InputGroup.Addon>
                 <MagnifyingGlassIcon class="size-4" aria-hidden="true" />
               </InputGroup.Addon>
@@ -145,7 +141,6 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                   catalog.onSearchInput(event.currentTarget.value);
                 }}
                 placeholder="Search by name or description"
-                class="text-sm touch:text-base"
               />
               <InputGroup.Addon align="inline-end">
                 <InputGroup.ClearButton />
@@ -160,7 +155,6 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               value={activeCategory()}
               onChange={setSelectedCategory}
               class="min-w-0 w-full"
-              triggerClass="h-11 w-full rounded-xl border-edge-muted bg-input px-3 text-sm text-ink not-touch:hover:bg-hover touch:text-base"
             />
           </div>
         </div>
@@ -331,7 +325,7 @@ function CatalogRow(props: {
       <Show when={!props.added} fallback={row()}>
         <button
           type="button"
-          class="h-full w-full text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
+          class="h-full w-full text-left outline-none not-touch:hover:overlay-hover focus-visible:overlay-hover"
           aria-label={busy() ? `Connecting ${name()}` : `Connect ${name()}`}
           aria-describedby={descriptionId}
           aria-busy={busy()}

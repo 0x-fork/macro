@@ -48,11 +48,10 @@ export function CrmSidebar(props: {
   onImport: () => void;
   onExport: () => void;
   onSettings: () => void;
-  /**
-   * Collapses the docked sidebar. The narrow navigation menu omits it, along
-   * with the split close, which stays in the split header beside the menu.
-   */
+  /** Omitted in the narrow menu, which already has split navigation. */
   onCollapse?: () => void;
+  search?: () => JSX.Element;
+  searchLabel?: string;
 }) {
   const activityFlag = useFeatureFlag(enableCrmActivity);
   const [recordsOpen, setRecordsOpen] = createSignal(true);
@@ -61,25 +60,30 @@ export function CrmSidebar(props: {
     <ViewSidebar.Root aria-label="CRM navigation">
       <header class="flex shrink-0 flex-col">
         <Show when={!isTouchDevice()}>
-          <ViewSidebar.Header>
+          <ViewSidebar.Header
+            search={props.search}
+            searchLabel={props.searchLabel}
+            collapseControl={
+              <Show when={props.onCollapse}>
+                <Tooltip label="Collapse CRM sidebar">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    label="Collapse CRM sidebar"
+                    onClick={props.onCollapse}
+                  >
+                    <SidebarIcon class="size-4" />
+                  </Button>
+                </Tooltip>
+              </Show>
+            }
+          >
             <div class="flex min-w-0 items-center gap-1">
               <Show when={props.onCollapse}>
                 <ViewSidebar.CloseButton class="shrink-0" />
               </Show>
               <ViewSidebar.Title>Customers</ViewSidebar.Title>
             </div>
-            <Show when={props.onCollapse}>
-              <Tooltip label="Collapse CRM sidebar">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  label="Collapse CRM sidebar"
-                  onClick={props.onCollapse}
-                >
-                  <SidebarIcon class="size-4" />
-                </Button>
-              </Tooltip>
-            </Show>
           </ViewSidebar.Header>
         </Show>
         <ViewSidebar.Primary ref={tourTarget(COMPANIES_TOUR.create)}>

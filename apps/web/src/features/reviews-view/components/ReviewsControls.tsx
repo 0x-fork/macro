@@ -1,6 +1,5 @@
 import {
   type ListControlOption,
-  ListFilterCountBadge,
   ListFilterDropdown,
   type ListFilterGroup,
   ListSortDropdown,
@@ -14,14 +13,19 @@ import {
   type PrLinkKind,
 } from '@block-pr/data/pr-links';
 import { PR_ORIGIN_LABELS, PR_ORIGIN_TOOLS } from '@block-pr/data/pr-origin';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { Accordion } from '@kobalte/core/accordion';
+import BoardIcon from '@phosphor/kanban.svg';
+import ListIcon from '@phosphor/list-bullets.svg';
+import { Button } from '@ui';
 import { createSignal, For } from 'solid-js';
 import { UNKNOWN_ORIGIN } from '../reviews-filter';
 import type {
   ReviewsFilterId,
   ReviewsFilterSelection,
+  ReviewsLayout,
   ReviewsReviewFilterId,
   ReviewsSortId,
   ReviewsStatusFilterId,
@@ -142,7 +146,12 @@ function isSelected(
 export const activeReviewsFilterCount = (selected: ReviewsFilterSelection) =>
   Object.values(selected).reduce((count, ids) => count + ids.length, 0);
 
-export function ReviewsControls(props: ReviewsControlProps) {
+export function ReviewsControls(
+  props: ReviewsControlProps & {
+    layout: ReviewsLayout;
+    onLayoutChange: (layout: ReviewsLayout) => void;
+  }
+) {
   const panel = useSplitPanelOrThrow();
   const [openMenu, setOpenMenu] = createSignal<'filters' | 'sort'>();
   let filterTrigger: HTMLButtonElement | undefined;
@@ -179,19 +188,11 @@ export function ReviewsControls(props: ReviewsControlProps) {
   const activeCount = () => activeReviewsFilterCount(props.selected);
 
   return (
-    <div class="flex min-w-0 shrink-0 items-center justify-end gap-2 @max-[720px]/view-shell:gap-1">
-      <ListSortDropdown
-        label="Sort pull requests"
-        value={props.sort}
-        options={SORT_OPTIONS}
-        open={openMenu() === 'sort'}
-        onChange={props.onSortChange}
-        onOpenChange={handleMenuOpenChange('sort')}
-        triggerRef={(element) => (sortTrigger = element)}
-      />
-      <div class="relative shrink-0">
+    <>
+      <HeaderActionGroup label="Review filters">
         <ListFilterDropdown
           label="Filter pull requests"
+          activeCount={activeCount()}
           groups={filterGroups(props)}
           open={openMenu() === 'filters'}
           onOpenChange={handleMenuOpenChange('filters')}
@@ -200,9 +201,39 @@ export function ReviewsControls(props: ReviewsControlProps) {
           onSelectionChange={props.onFilterChange}
           onClear={props.onClearFilters}
         />
-        <ListFilterCountBadge count={activeCount()} />
-      </div>
-    </div>
+      </HeaderActionGroup>
+      <HeaderActionGroup label="Review layout">
+        <Button
+          variant="ghost"
+          size="icon-md"
+          label="List"
+          aria-pressed={props.layout === 'list'}
+          onClick={() => props.onLayoutChange('list')}
+        >
+          <ListIcon class="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-md"
+          label="Board"
+          aria-pressed={props.layout === 'board'}
+          onClick={() => props.onLayoutChange('board')}
+        >
+          <BoardIcon class="size-4" />
+        </Button>
+      </HeaderActionGroup>
+      <HeaderActionGroup label="Review view options">
+        <ListSortDropdown
+          label="Sort pull requests"
+          value={props.sort}
+          options={SORT_OPTIONS}
+          open={openMenu() === 'sort'}
+          onChange={props.onSortChange}
+          onOpenChange={handleMenuOpenChange('sort')}
+          triggerRef={(element) => (sortTrigger = element)}
+        />
+      </HeaderActionGroup>
+    </>
   );
 }
 

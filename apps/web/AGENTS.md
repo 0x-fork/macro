@@ -93,8 +93,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 ### General
 - Email draft reads compare server generations before choosing cached delivery state over a restored working copy; only a definitive first-submission rejection permits local send recovery without server cancellation.
 - Compose settings pages with `features/settings/primitives.tsx` so section headings,
-  raised composer cards, row spacing, and control shapes stay consistent; keep
-  Integrations on the shared page width and side padding.
+  raised composer cards (`SettingsSurface`), row spacing, and control shapes stay
+  consistent; never hand-build a flat `bg-ink/*` card. Keep Integrations on the
+  shared page width and side padding.
 - Keep personal accounts and agent tool connections together in Settings → Integrations;
   preserve `agent-connections` as an alias for existing links.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
@@ -137,6 +138,12 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
+- Keep desktop New actions on `ViewCreateButton`: full width below the inner
+  sidebar title and compact in list controls; retain each view's creation
+  workflow and mobile controls. Use `ListHeader` for the single-row Email, Drive,
+  and Tasks headers: title, filters, view options, New, expandable Search. Put sidebar search in
+  `ViewSidebar.Header` so its icon precedes collapse and its field opens above New.
+- Keep desktop headers on the shared `ListHeader` / `HeaderActionGroup` pattern: view `Tabs` as pills after the title, 32px semantic islands with 8px gaps on the right, fully rounded elevated frames, New then expandable Search; preserve touch layouts. Pick each control by role from the [design system rule](../../.agents/rules/web/design-system.md); see [UI conventions](../../docs/agent-guide/ui-conventions.md#top-bars). Never use recessed/inset backgrounds in headers.
 - Keep desktop model and effort controls separate: the model selector opens the catalog and the speedometer opens the runtime's advertised slider stops; retain the mobile effort sheet.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.

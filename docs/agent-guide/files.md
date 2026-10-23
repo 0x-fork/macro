@@ -50,8 +50,9 @@ starts on **Recent**; explicit tab and folder links keep their destination. The
 first pill is Recent. The drawer holds Sort (hidden on Recent, where the viewer's own
 edit order applies) and, on tab locations only, the same filter groups as the
 desktop **Filter** menu; active selections show a count badge on the trigger
-and a `Clear all` action in the drawer. The in-view `Search Drive` field, the
-Sort/Filter dropdowns, and the header New menu are desktop-only — search on
+and a `Clear all` action in the drawer. The single-row desktop list header orders the title, Filter, Sort, New, and an
+expandable Search icon. `Cmd/Ctrl+F` opens the search field. These list-header
+controls are desktop-only — search on
 touch uses the global search overlay and creation uses the dock's New button.
 The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and

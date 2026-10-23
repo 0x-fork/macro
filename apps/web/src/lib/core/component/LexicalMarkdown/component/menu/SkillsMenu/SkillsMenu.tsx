@@ -352,7 +352,11 @@ function SkillsMenuInner(props: SkillsMenuProps) {
           }}
           on:touchstart={(e) => e.stopPropagation()}
         >
-          <Surface depth={2} class="pt-2 pb-1.5 glass bg-menu-glass rounded-xl">
+          <Surface
+            depth={2}
+            hideBorder
+            class="menu-surface rounded-xl pt-2 pb-1.5"
+          >
             <div
               class="overflow-y-auto scrollbar-hidden"
               style={{ 'max-height': `${contentMaxHeight()}px` }}

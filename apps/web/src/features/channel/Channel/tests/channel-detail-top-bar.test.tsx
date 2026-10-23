@@ -88,7 +88,6 @@ vi.mock('@components/app/split-layout/layoutUtils', () => ({
   useSplitDisplayName: () => {},
   useSplitPanelOrThrow: () => ({ splitHotkeyScope: 'test-scope' }),
 }));
-vi.mock('@core/component/TabsInset', () => ({ TabsInset: () => null }));
 vi.mock('@core/constant/allBlocks', () => ({
   blocks: {},
   resolveBlockAlias: (type: string) => type,

@@ -51,8 +51,7 @@ function SingleSelectDropdown<TId extends string>(
       <Dropdown.Trigger
         ref={props.triggerRef}
         variant="ghost"
-        size="md"
-        square
+        size="icon-md"
         class={props.class}
         label={props.label}
       >
@@ -207,6 +206,7 @@ export type ListFilterDropdownProps<
   customTrigger?: JSX.Element;
   triggerRef?: (element: HTMLButtonElement) => void;
   label?: string;
+  activeCount?: number;
   clearLabel?: string;
   class?: string;
   contentClass?: string;
@@ -256,12 +256,16 @@ export function ListFilterDropdown<
           <Dropdown.Trigger
             ref={props.triggerRef}
             variant="ghost"
-            size="md"
-            square
+            size={props.activeCount ? 'md' : 'icon-md'}
             class={props.class}
             label={props.label ?? 'Filter list'}
           >
             <FilterIcon />
+            <Show when={props.activeCount}>
+              <span class="flex min-w-4 h-4 items-center justify-center rounded-full bg-accent px-1 text-xxs font-medium leading-none text-surface">
+                {props.activeCount}
+              </span>
+            </Show>
           </Dropdown.Trigger>
         }
       >

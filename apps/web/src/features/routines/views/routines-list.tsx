@@ -10,7 +10,7 @@ export function RoutinesListView(props: {
   userId: Accessor<string | undefined>;
   targetLabel(target: RoutineTarget): string;
   targetModel(target: RoutineTarget): string | undefined;
-  searchRef(input: HTMLInputElement): void;
+  registerSearchFocus(focus: () => void): void;
   onCreate(): void;
   onOpen(id: string): void;
 }) {
@@ -22,7 +22,7 @@ export function RoutinesListView(props: {
   );
   return (
     <RoutinesList
-      searchRef={props.searchRef}
+      registerSearchFocus={props.registerSearchFocus}
       rows={rows()}
       loading={props.source.loading()}
       error={props.source.error()}

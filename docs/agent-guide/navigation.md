@@ -5,9 +5,8 @@ title bar's traffic-light controls. Drag this top strip to move the window, or
 double-click it to toggle zoom. The loading shell uses the same inset; browser,
 Windows, Linux, and mobile layouts do not add this space.
 
-Native desktop content keeps its rounded split frame even with only one split,
-and the app icon rail has no right divider. On macOS, Back and Forward arrows
-beside the traffic lights navigate the active split's history. Each arrow is
+On macOS, Back and Forward arrows beside the traffic lights navigate the active
+split's history. Each arrow is
 disabled when its direction has no entry. Sidebar controls remain inside each
 workspace. The top-right split icon opens another Home split, even
 when Home is already open, and is disabled when there is no room for a new split.
@@ -322,10 +321,10 @@ its existing navigation controls. Block detail panels (including Calendar) have
 **Hide side panel** in their own header and a hamburger **Show side panel** beside
 the main title when hidden, with separate preferences per block type.
 
-Multiple desktop splits appear as individually bordered, medium-rounded panels with
-6px top, right, and bottom insets and 6px resizable gaps.
-The leftmost panel sits flush against the app rail, whose divider is hidden while
-multiple splits are open. A single split stays edge to edge. Touch layouts keep their existing presentation.
+Desktop splits, including a single split in the browser or native app, appear as
+individually bordered panels with 8px corners and 6px top, right, and bottom
+insets and 6px resizable gaps. The leftmost panel sits flush against the app rail,
+which has no right divider. Touch layouts keep their existing presentation.
 
 Split focus mode (`Shift+Esc`) floats the active split in a rounded, bordered
 panel over the same glass scrim as dialogs. Click the scrim or use the shortcut
@@ -433,7 +432,8 @@ is unread, and that completing the last one clears it. Query bounds and
 pagination are unchanged.
 
 The Agents sidebar opens with a **Work** / **Code** switch (radio group
-"Agents mode") under its title; Work is the default and the choice is remembered
+"Agents mode") under New, using the shared pill tabs on desktop; touch keeps
+its existing tabs. Work is the default and the choice is remembered
 per user across reloads. Work lists chat sessions and legacy chats; Code lists
 coding sessions only, newest first. Each mode's empty state is its own ("No
 conversations yet." / "No coding conversations yet."). Opening a session of the
@@ -450,7 +450,8 @@ unsynced PR shows its number without an assumed status. Missing metadata is omit
 "Coding agent" is never substituted for a branch. There is no right-side dot in
 Agents; Home keeps its sparkle and trailing unread dot. Only the selected row has
 the selected background. Legacy chat rows keep their chat icon.
-Use **Search conversations** beside the Conversations heading to filter by title.
+Use **Search conversations** beside the sidebar collapse icon to open a search
+field above New and filter by title.
 Results stay packed at the top with compact spacing, even with only a few matches;
 clearing the search restores the list.
 Its **New conversation** button opens the composer for the current mode with one
@@ -463,11 +464,26 @@ offers both kinds. Opening an existing row restores its own kind and URL.
 Right-click a conversation for Rename, Favorite, Copy link, Share, Delete, and
 the other entity actions used on Home.
 
-Home's inner rail starts with a full-width **New chat** plus button that returns
-to Home's starting pane without creating a chat. Email and Tasks use the same
-pill styling and top placement for **New email** and **New task**, replacing
-the sidebar title bars. When multiple desktop splits are open, a **Close** (X)
-button appears beside each sidebar's New button and closes that split, including
+Desktop inner sidebars place the same full-width, outlined **New** pill directly
+below the title. List toolbars use its compact version, including when the
+sidebar is hidden. Email, Drive, Tasks, and the Projects list use one desktop
+row: title, filter controls, view options, New, and Search. Filter and view
+controls use the rounded, bordered button groups from the email thread toolbar;
+New and Search have their own rounded, bordered backgrounds. Search starts as an
+icon and expands into a compact field when clicked or opened with Cmd/Ctrl+F.
+Closing it clears the query and returns to the icon. The action stays specific to
+the view: Home returns to its starting pane, Email composes mail, Chat offers a
+channel or direct message, and Calendar offers an event or call. Tasks offers
+**Task**, **Project** (when enabled), and **Tag** in both the Tasks and Projects
+lists. Customers offers Company, Contact, and enabled Pipeline creation. Reviews
+uses the general creation menu. Agents keeps New above its Chat/Code mode tabs.
+Each desktop sidebar puts its Search icon immediately left of the collapse
+control. Click it to reveal the view's search field between the title and New,
+at the same height as the New button; click again to hide it. The field focuses when opened. Existing list-toolbar
+search remains available and shares its query where the view filters a list.
+Mobile creation controls, search controls, and placement are unchanged.
+When multiple desktop splits are open, a **Close** (X) button appears in the
+sidebar title bar and closes that split, including
 when the sidebar is an overlay in a narrow split. Verify with three splits:
 open **Show navigation**, then use the sidebar's **Close** button without first
 hiding navigation; only its owning split closes. The last logical split has no

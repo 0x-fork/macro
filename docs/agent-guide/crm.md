@@ -57,9 +57,10 @@ Record-level **New task** also prefills the current record.
 
 Companies lists every visible company, grouped by Stage by default, with Owner,
 Revenue and Last Interaction columns. A Stage column is off by default; turn it
-on, or hide Owner or Revenue, under **Display options**. Its toolbar holds
-sort, group, filter, display options, saved views, and **New company** at the
-right end.
+on, or hide Owner or Revenue, under **Display options**. Its single-row desktop
+header matches Tasks: title, filter group, view-options group (sort, group,
+display options, and saved views), then the shared **New** menu and expandable
+Search. New has the same options as the sidebar.
 
 People lists contacts across every CRM-enabled team the viewer belongs to, from
 the same Soup query with only CRM contacts opted in (`crmf`). The server collapses
@@ -67,16 +68,18 @@ duplicate full email addresses (case-insensitive) to one contact. Hidden contact
 and contacts under hidden companies are excluded. Columns are Person (name and
 email), Company and Last contacted (sortable). `Search people` matches name or
 email on the server after a short typing pause, so results include contacts not
-yet scrolled into view. **New contact** sits at the right end of the toolbar. Its
-dialog asks for a company through a **Choose a company** pill (searchable by name
+yet scrolled into view. The desktop header has the title, shared **New** menu,
+and expandable Search; choose **Contact** from New. On touch, **New contact**
+is unchanged. The contact dialog asks for a company through a **Choose a company** pill (searchable by name
 or domain, from the up to 500 most relevant companies with a domain) and fixes
 the email to that company's primary domain; **Add contact** on a company's Team
 tab skips the company pill. The company, contact and pipeline dialogs share the
 task/project composer layout: name on the first row beside **Close**, details
 below, and a **Create …** button that also submits on Command-Enter.
 
-`Search companies` and `Search people` use the shared Email/Tasks search bar.
-Command-F focuses it, `Clear search` resets it, and Escape leaves the field.
+Desktop `Search companies` and `Search people` start as outlined icon buttons
+and expand into the shared Email/Tasks search bar. Command-F expands and focuses
+the field; Close or Escape clears the query and returns to the icon.
 
 On touch devices, CRM uses the same scrollable pill tabs as Tasks in the top
 header: Companies, People, Tasks, Email, Notes, Calls, available pipelines, and
@@ -132,7 +135,7 @@ already in the trail (such as the contact's own company from `Companies >
 <company> > <contact>`) returns to it instead of adding a duplicate. Back and
 Forward restore the trail; a reloaded or shared record URL shows only `<list> >
 <record>`. The CRM sidebar stays visible throughout.
-Company and contact headers have `Copy link` beside the side-panel toggle.
+Company and contact headers group `Copy link` separately from the side-panel toggle. Desktop section tabs collapse to icons in narrow panes; each icon keeps a tooltip.
 Their information panel starts closed and opens as a floating bubble at every
 width, without shrinking the record content. Click outside the bubble or use
 the toggle to dismiss it; the open state is not restored on a later visit.
@@ -155,7 +158,7 @@ Emails, Files, Calls, and References rows open their items without selection
 checkboxes, including on touch devices.
 
 A company is laid out like a project. Its split header or embedded breadcrumb
-header shows inset `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
+header shows rounded view tabs for `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
 tabs, collapsing to icons when narrow. Overview shows the name, pills
 for each domain and `Last interacted`, the generated description, a
 **Pipelines** section and the Discussion. Pipelines stacks one full-width card
@@ -338,7 +341,7 @@ picker. Checking or unchecking saves immediately and refreshes the CRM sidebar's
 membership counts. Changes are disabled while saving; failures show an inline retry
 message and keep the last saved membership. With no lists, create one in the CRM sidebar.
 
-`New company` uses the existing creation dialog. `Import` previews a CSV with a
+Desktop `New` → `Company` uses the existing creation dialog. `Import` previews a CSV with a
 `Domain` (or `Domains`, `Website`) column and an optional `Name` or `Company`
 column, such as a Companies export (up to 10,000 rows, at most 5 MB). Each row
 takes its first valid domain; rows without one or repeating an earlier domain are

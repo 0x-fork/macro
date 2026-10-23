@@ -6,6 +6,7 @@ import {
 } from '@app/features/property/side-panel/properties';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import {
   GithubPullRequestDetailsRows,
   SidePanel,
@@ -69,14 +70,16 @@ export function MarkdownSidePanelSections() {
           <Show when={isTask() && !isMobile()}>
             <DispatchAgentButton showPrimaryLabel />
           </Show>
-          <AskMacroButton
-            entity={{
-              type: 'document',
-              id: documentId(),
-              name: displayName() ?? '',
-              fileType: 'md',
-            }}
-          />
+          <HeaderActionGroup label="Actions">
+            <AskMacroButton
+              entity={{
+                type: 'document',
+                id: documentId(),
+                name: displayName() ?? '',
+                fileType: 'md',
+              }}
+            />
+          </HeaderActionGroup>
         </div>
       </SidePanel.HeaderActions>
       <SidePanel.Footer>

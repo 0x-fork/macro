@@ -25,11 +25,7 @@ import {
   Suspense,
 } from 'solid-js';
 import { EmailFilterDrawer } from './components/EmailFilterDrawer';
-import {
-  EmailHeader,
-  EmailTopBar,
-  EmailViewBreadcrumbItem,
-} from './components/EmailHeader';
+import { EmailHeader, EmailViewBreadcrumbItem } from './components/EmailHeader';
 import { EmailList } from './components/EmailList';
 import { EmailReader } from './components/EmailReader';
 import { EmailSidebar } from './components/EmailSidebar';
@@ -83,10 +79,10 @@ function EmailPanes(props: {
   const shell = useViewShell();
   const listColumn = (beside?: 'reader') => (
     <>
-      <EmailTopBar tabOnly={beside === 'reader'} />
-      <ViewShell.Header>
-        <EmailHeader onSearchEscape={props.focusList} />
-      </ViewShell.Header>
+      <EmailHeader
+        tabOnly={beside === 'reader'}
+        onSearchEscape={props.focusList}
+      />
       <ViewTour tour={emailTour} />
       <ViewShell.Content>{props.list}</ViewShell.Content>
     </>

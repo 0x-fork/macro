@@ -10,7 +10,7 @@ import {
   useImportQuery,
   useRunImportMutation,
 } from '@queries/import';
-import { Button } from '@ui';
+import { Button, Input } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -237,9 +237,8 @@ export function SlackChannelImportCard(
           </Show>
           <label class="flex flex-col gap-1 text-sm">
             Search channels
-            <input
+            <Input
               type="search"
-              class="rounded border border-edge-muted bg-input p-2 text-ink"
               value={search()}
               onInput={(event) => setSearch(event.currentTarget.value)}
             />

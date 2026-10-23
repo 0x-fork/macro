@@ -9,6 +9,7 @@ import {
   EmailThread,
   type EmailThreadProps,
 } from '@app/features/email-thread/email-thread';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SidePanel } from '@components/app/side-panel';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -93,7 +94,7 @@ function ThreadActions(props: { title: string; onCreateTask: () => void }) {
   const context = useEmailThreadState();
   return (
     <SidePanel.HeaderActions>
-      <div class="flex shrink-0 items-center gap-1">
+      <HeaderActionGroup label="Actions">
         <Show when={context.thread()?.db_id}>
           {(id) => (
             <AskMacroButton
@@ -104,7 +105,7 @@ function ThreadActions(props: { title: string; onCreateTask: () => void }) {
         <Show when={context.thread()?.db_id}>
           <EmailTaskButton onClick={props.onCreateTask} />
         </Show>
-      </div>
+      </HeaderActionGroup>
     </SidePanel.HeaderActions>
   );
 }

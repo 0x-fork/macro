@@ -670,7 +670,7 @@ function TopBar(props: JSX.HTMLAttributes<HTMLDivElement>) {
         {...rest}
         ref={mergeRefs(local.ref, tourTarget(VIEW_SHELL_TOUR.topBar))}
         class={cn(
-          '@container/split-header flex h-12 min-w-0 shrink-0 items-center gap-1 px-2 py-3 not-touch:pl-3 touch:hidden',
+          '@container/split-header flex h-12 min-w-0 shrink-0 items-center gap-1 px-2 py-3 not-touch:gap-2 not-touch:py-2 not-touch:pl-3 touch:hidden',
           local.class
         )}
         data-view-shell-top-bar=""

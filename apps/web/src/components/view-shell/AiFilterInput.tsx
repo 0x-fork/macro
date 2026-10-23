@@ -135,7 +135,7 @@ export function AiFilterInput(props: AiFilterInputProps) {
     <div class="flex w-60 flex-col gap-1">
       <div
         class={cn(
-          'flex h-8 items-center gap-2 rounded-lg border border-edge-muted bg-input px-2',
+          'flex h-8 items-center gap-2 rounded-lg border border-edge-muted bg-input not-touch:elevated px-2',
           'focus-within:border-accent'
         )}
       >

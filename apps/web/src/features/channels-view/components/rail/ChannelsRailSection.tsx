@@ -3,6 +3,7 @@ import {
   CollapsibleSection as WorkspaceSection,
 } from '@app/components/view-shell';
 import { DebugSuspense } from '@channel/DebugSuspense';
+import { createScrollTopFade } from '@core/util/createScrollTopFade';
 import { fireAndForget } from '@core/util/fireAndForget';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretUpIcon from '@phosphor/caret-up.svg';
@@ -35,6 +36,7 @@ function SectionScrollArea(props: {
   children: JSX.Element;
 }) {
   const [scrollRoot, setScrollRoot] = createSignal<HTMLDivElement>();
+  createScrollTopFade(scrollRoot);
   const activity = useOffscreenActivity({
     scrollRoot,
     targetId: () => props.activityTargetId,

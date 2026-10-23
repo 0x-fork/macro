@@ -31,7 +31,7 @@ export function Topbar(props: {
           </Show>
         )}
       </div>
-      <div class="header-actions ml-auto flex shrink-0 items-center gap-1">
+      <div class="header-actions ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
         {props.children}
       </div>
     </ViewShell.TopBar>

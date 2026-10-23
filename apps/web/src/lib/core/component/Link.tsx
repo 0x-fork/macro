@@ -31,7 +31,7 @@ type LinkHoverCardProps = {
  */
 function VideoEmbed(props: { embedUrl: string; title: string }) {
   return (
-    <div class="w-80 max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl glass bg-menu-glass">
+    <div class="menu-surface w-80 max-w-[calc(100vw-1rem)] overflow-hidden">
       <div class="relative aspect-video w-full">
         <iframe
           src={props.embedUrl}
@@ -63,7 +63,7 @@ export function LinkHoverCard(props: LinkHoverCardProps) {
         props.unfurled.embed_url
       }
       fallback={
-        <div class="flex w-80 max-w-[calc(100vw-1rem)] items-start gap-1 rounded-xl glass bg-menu-glass p-2 text-left">
+        <div class="menu-surface flex w-80 max-w-[calc(100vw-1rem)] items-start gap-1 p-2 text-left">
           <div class="flex size-6 shrink-0 items-center justify-center">
             <Show
               when={props.unfurled.favicon_url}

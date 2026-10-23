@@ -197,9 +197,8 @@ describe('mixed Agents sidebar', () => {
     expect(screen.queryByRole('button', { name: /Plan launch/ })).toBeNull();
     expect(screen.queryByText('Archived')).toBeNull();
 
-    expect(
-      screen.queryByRole('button', { name: 'New conversation' })
-    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+    expect(openPage).toHaveBeenCalledWith('new');
   });
 
   it('keeps paging while filters leave too few conversations to scroll', () => {

@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import { useUserId } from '@core/context/user';
 import { getDisplayName, tryMacroId } from '@core/user';
 import EnvelopeIcon from '@phosphor/envelope.svg';
@@ -649,9 +650,7 @@ export function TeamPage(props: {
   return (
     // Each state renders its own SettingsPage (scrolling, centered column) so
     // Team matches the Account/Appearance layout.
-    <Suspense
-      fallback={<div class="animate-pulse bg-skeleton rounded h-4 w-32 m-6" />}
-    >
+    <Suspense fallback={<ListSkeleton.Bar class="m-6 h-4 w-32" />}>
       <TeamContent>{props.children}</TeamContent>
     </Suspense>
   );

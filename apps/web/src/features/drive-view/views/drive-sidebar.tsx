@@ -227,9 +227,20 @@ function DriveImportPromotion() {
 }
 
 export function DriveSidebar() {
+  const { state } = useDriveView();
   return (
     <ViewSidebar.Root aria-label="Drive navigation">
-      <ViewSidebar.Header>
+      <ViewSidebar.Header
+        searchLabel="Search files"
+        search={() => (
+          <SearchBar
+            label="Search files"
+            placeholder="Search files"
+            value={state.value().search}
+            onValueChange={state.setSearch}
+          />
+        )}
+      >
         <div class="flex min-w-0 items-center gap-1">
           <ViewSidebar.CloseButton />
           <ViewSidebar.Title>Drive</ViewSidebar.Title>

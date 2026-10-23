@@ -15,6 +15,7 @@ import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { DebugSuspense } from '@channel/DebugSuspense';
 import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import {
   createPriorityCollapseController,
   PriorityCollapseOverflowSensor,
@@ -25,7 +26,6 @@ import {
   useSplitPanelOrThrow,
 } from '@components/app/split-layout/layoutUtils';
 import type { PriorityCollapser } from '@components/app/split-layout/utils/createPriorityCollapser';
-import { TabsInset } from '@core/component/TabsInset';
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import {
   useChannel,
@@ -36,6 +36,7 @@ import {
 import { createMethodRegistration } from '@core/orchestrator';
 import { lazyNamed } from '@core/util/lazyNamed';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
+import { Tabs } from '@ui';
 import {
   type Accessor,
   children,
@@ -55,7 +56,7 @@ import {
 } from './ChannelSurface';
 import { ChannelTabProvider, useChannelTab } from './ChannelTabContext';
 import { ChannelLiveIndicators } from './ChannelTopBarLiveIndicators';
-import { toIconTabItems } from './channel-tab-icons';
+import { withChannelTabIcons } from './channel-tab-icons';
 import { type ChannelTabId, DEFAULT_CHANNEL_TAB } from './channel-tabs';
 import {
   isJoinCallRequested,
@@ -145,11 +146,14 @@ export function ChannelDetailTabs(props: {
     : () => false;
 
   return (
-    <TabsInset
+    <Tabs
+      aria-label="Channel sections"
+      touch="inset"
       class="shrink-0"
-      list={isCollapsed() ? toIconTabItems(tabs()) : tabs()}
+      options={isCollapsed() ? withChannelTabIcons(tabs()) : tabs()}
+      iconOnly={isCollapsed()}
       value={activeTab()}
-      onChange={(value) => setActiveTab(value as ChannelTabId)}
+      onChange={setActiveTab}
     />
   );
 }
@@ -173,10 +177,26 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
   };
 
   return (
-    <div class="header-actions ml-auto flex shrink-0 items-center gap-1">
+    <div class="header-actions ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
       <DebugSuspense name="ChannelDetail.live-indicators">
         <ChannelLiveIndicators channelId={props.channelId} />
       </DebugSuspense>
+      <HeaderActionGroup label="Conversation actions">
+        <Show
+          when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
+        >
+          <DebugSuspense name="ChannelDetail.call-button">
+            <ChannelCallButton channelId={props.channelId} />
+          </DebugSuspense>
+        </Show>
+        <Show when={askMacroEntity()}>
+          {(entity) => (
+            <DebugSuspense name="ChannelDetail.ask-macro">
+              <ChatWithAgentButton entity={entity()} label="Ask Macro" />
+            </DebugSuspense>
+          )}
+        </Show>
+      </HeaderActionGroup>
       <DebugSuspense name="ChannelDetail.invite">
         <ChannelInviteButton
           channelId={props.channelId}
@@ -184,20 +204,6 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
           channelType={channelType()}
         />
       </DebugSuspense>
-      <Show
-        when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
-      >
-        <DebugSuspense name="ChannelDetail.call-button">
-          <ChannelCallButton channelId={props.channelId} />
-        </DebugSuspense>
-      </Show>
-      <Show when={askMacroEntity()}>
-        {(entity) => (
-          <DebugSuspense name="ChannelDetail.ask-macro">
-            <ChatWithAgentButton entity={entity()} label="Ask Macro" />
-          </DebugSuspense>
-        )}
-      </Show>
     </div>
   );
 }

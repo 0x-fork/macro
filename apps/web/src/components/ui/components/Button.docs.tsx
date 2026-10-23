@@ -195,7 +195,7 @@ export default defineDoc({
       id: 'variants',
       title: 'Variants',
       description:
-        '`ghost` for low-emphasis actions in dense chrome, `outline` for standard actions, `strong` for the same frame with bolder text, `accent` for the primary action in a group, `cta` for the single most important action on a screen. `danger` is reserved for destructive work. Framed variants use glass only on touch by default. `glass={true}` opts in on desktop; `glass={false}` removes it everywhere. Success and danger use colored ink with an unfilled outline frame; icon sizes preserve the same emphasis as text buttons.',
+        '`ghost` for low-emphasis actions in dense chrome, `outline` for standard actions, `strong` for the same frame with bolder text, `accent` for the primary action in a group, `cta` for the single most important action on a screen. `danger` is reserved for destructive work. Framed variants use the shared elevated surface on desktop and glass on touch. `glass={false}` keeps a flat frame. Success and danger use colored ink with an unfilled outline frame; icon sizes preserve the same emphasis as text buttons.',
       render: VariantsDemo,
       fill: true,
     },

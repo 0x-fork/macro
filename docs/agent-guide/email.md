@@ -28,8 +28,17 @@ and switch the mailbox to All. Parent selection does not include descendant tags
 Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
-Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
-`Archived` / `All`, plus `Reminders` when reminders are enabled. Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
+Full email client. Desktop groups `Signal` and `Noise` under one `Inbox` sidebar
+item, with pill tabs beside the Inbox title in the content header, matching the
+Chat sidebar tabs. Selecting Inbox
+from another mailbox opens Signal; selecting it while in Noise keeps Noise.
+The desktop sidebar continues with `Favorites`, `Drafts`, `Sent`, `Scheduled`,
+and `Reminders` (when reminders are enabled), followed by a **Library** section containing `All mail`,
+`Archived`, and `Shared`, then **Tags**. Sidebar number and sequential shortcuts
+follow that order. Calendar mail remains available through the calendar filter
+and existing Calendar route. Mobile keeps its original tabs and order, including
+separate Signal, Noise, and Calendar tabs.
+Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
 shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connections
 use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` or `/` within the surface.
 
@@ -91,8 +100,8 @@ query: load more threads from the same address, then check that existing row
 names and their hover cards do not change. Repeat with a text query to exercise
 the search-service results.
 
-`Favorites`, directly below Noise, lists starred Macro emails across Signal,
-Noise, and archived mail. It respects the selected inboxes and filters; search
+`Favorites`, directly below Inbox on desktop, lists starred Macro emails across
+Signal, Noise, and archived mail. It respects the selected inboxes and filters; search
 within the tab is also restricted to favorites. Removing a star removes the row
 from this view. The tab persists across reloads. With `enable-graphql-soup` on,
 the paginated GraphQL Soup query uses `favoritesOnly: true`. With the flag off,
@@ -100,7 +109,8 @@ REST Soup uses `favorites_only: true`. Starring changes membership without
 changing the list query. Text search still resolves favorite IDs for the search
 service. An empty favorites list shows `No favorite emails`.
 
-`Archived`, directly before All, lists your own archived (Mail Done) threads: the
+`Archived`, between All mail and Shared in the desktop Library section, lists
+your own archived (Mail Done) threads: the
 All mailbox with Done applied, excluding threads teammates shared with you. It
 respects the selected inboxes and filters. The search service cannot filter
 archive state, so search within the tab keeps only archived hits on the client.
@@ -355,14 +365,17 @@ not replace it), and that after j/k the grid still has focus: the next Enter
 moves into the reader without opening a reply.
 
 In the new Email view, ordinary row activation opens the thread inside
-`/app/component/mail`; the view breadcrumb (for example Signal) has a hover
+`/app/component/mail`; the view breadcrumb (for example Inbox) has a hover
 background and returns to the filtered list. Pressing `Escape` in the open thread
 with focus outside any input does the same once there is nothing left to unwind
 (an open reply, an expanded body, or a focused message each take one `Escape`
 first); the list keeps the row you came from focused. The inline header uses the existing
 email title menu: open the menu button beside the subject for **Ask AI**, **Create a
 Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
-and **Previous item** / **Next item** sit at the right of that header. The arrows
+and reminders share one outlined group at the right of that header. Separate
+groups contain **Previous item** / **Next item**, icon-only **Ask Macro** / **Create
+task**, and the **Share** icon and label / copy-link icon. Mobile keeps its existing
+controls. The arrows
 follow the current filtered list and disable at its ends. When the open thread
 leaves the list while it stays open (a reply in Signal marks it done, or another
 device archives it), they step from its former neighbours. Mark done advances in
@@ -937,10 +950,19 @@ and swiping left to mark emails done in Signal and Noise. The filter button open
 glass bottom sheet for status, done, attachment, calendar and tag filters, plus an `Inbox`
 section when the user can pick one: `All inboxes` or a single address, never several.
 `Clear all` resets those filters and the inbox selection. Desktop keeps its sidebar,
-search field, filter menu and preview control. The sidebar lists the inboxes above the
-`New email` button and tabs as plain rows; clicking one shows only that inbox.
-`Connect another account` starts the add-inbox flow from its own row below the
-scrolling list. `New email` prefills From with the selected inbox, or the primary
+single-row header: title (with Signal/Noise tabs beside Inbox), inbox/filter
+controls, reading-pane option, New, and an expandable Search icon. At 640px or
+narrower, the list header shows Signal/Noise, the reading-pane toggle, and Search;
+outside Inbox, the mailbox title replaces those tabs. Its outlined
+`New` button also sits directly
+below the sidebar title, above a flat, outlined **Accounts** group with the same
+control background. Its selector shows
+the current account or `All inboxes` and opens a single-select dropdown of linked
+accounts and aliases. `Connect another account` starts the add-inbox flow from
+the group's separated footer. On desktop, `All inboxes` uses the shared avatar
+group to overlap the first two account portraits with a separator ring; aliases
+do not repeat a portrait. A single selected inbox shows its own portrait.
+`New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.
 The From menu groups each connected inbox with its verified Gmail send-as aliases.
 Replies default to an address on the thread's own inbox: preserve an outgoing
@@ -982,12 +1004,12 @@ to choose the sender. Selecting an available inbox clears the error and allows
 sending; the picker never displays another inbox as selected before that choice.
 With no explicit selection, an unavailable primary still falls back to
 the first linked inbox.
-Sidebar rows, including `All inboxes`, replace their icon with an accent-colored checkmark when
-selected. With exactly one connected inbox and no aliases, only its address appears as the selected
-row, followed by `Connect another account`; there is no `All inboxes` row, title
-inbox dropdown, or inbox section in the mobile filter drawer. The inbox section shows up to four rows (including `All inboxes`), then
-scrolls independently without overscroll so the email tabs stay in place. With many
-accounts, scroll to the last inbox and check that selecting it updates the header filter.
+The desktop account dropdown marks the selected inbox with a checkmark. With
+exactly one connected inbox and no aliases, the selector displays its address
+and omits `All inboxes`; the mobile filter drawer has no inbox section. The
+touch sidebar keeps its existing account rows and shows up to four before
+scrolling independently. With many accounts, scroll to the last inbox in the
+dropdown and check that selecting it updates the selector and header filter.
 Selecting one inbox also shows `from [email address]` beside the list title.
 The address is a borderless ghost dropdown with the title's font weight and a
 consistent 14px font size at all widths; `from` is 12px. Both align to the title's baseline, without

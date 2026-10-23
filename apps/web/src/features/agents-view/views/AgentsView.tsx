@@ -308,7 +308,11 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       onGroupingChange={listView.setGrouping}
       activePage={selected() ? undefined : page()}
       onOpenPage={(next) =>
-        next === 'agents' ? openRoster('agent') : openPage(next)
+        next === 'new'
+          ? showComposer()
+          : next === 'agents'
+            ? openRoster('agent')
+            : openPage(next)
       }
       modeForConversation={modeForConversation}
       activeConversationId={selected()?.activeConversationId}

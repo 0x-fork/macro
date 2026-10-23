@@ -4,8 +4,6 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { navigateToSidebarView } from '@components/app/app-sidebar/sidebar';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { hotkeyScopeNeutralAttribute } from '@core/dom-selectors';
-import { isPlatform } from '@core/util/platform';
-import { cn } from '@ui';
 import { For, Match, Suspense, Switch } from 'solid-js';
 import { useNavigationUnread } from '../use-navigation-unread';
 import { SidebarRailCreateButton } from './create-button';
@@ -67,12 +65,7 @@ const SidebarRailContent = () => {
     <div
       {...hotkeyScopeNeutralAttribute}
       data-ui="sidebar-rail"
-      class={cn(
-        'relative flex h-full w-14 shrink-0 flex-col items-center gap-1 overflow-hidden border-edge-frame bg-panel px-2 pb-3 pt-2',
-        !isPlatform('desktop') &&
-          (globalSplitManager()?.splits().length ?? 1) <= 1 &&
-          'border-r'
-      )}
+      class="relative flex h-full w-14 shrink-0 flex-col items-center gap-1 overflow-hidden bg-page px-2 pb-3 pt-2"
     >
       <SidebarRailCreateButton />
       <SearchRailButton />

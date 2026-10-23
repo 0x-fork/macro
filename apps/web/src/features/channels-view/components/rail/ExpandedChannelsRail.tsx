@@ -6,15 +6,13 @@ import { openNewChannelModal } from '@channel/CreateChannelModal';
 import { ChannelMutedIndicator } from '@channel/components/ChannelMutedIndicator';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { createScrollTopFade } from '@core/util/createScrollTopFade';
 import EmptyStateNoSearchMatchGraphic from '@design/empty-state-no-search-match.svg';
 import { type ChannelEntity, Entity } from '@entity';
 import CaretDownIcon from '@phosphor/caret-down.svg';
-import ChatCircleIcon from '@phosphor/chat-circle.svg';
 import ChatsCircleIcon from '@phosphor/chats-circle.svg';
 import CheckIcon from '@phosphor/check.svg';
-import HashIcon from '@phosphor/hash.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
-import PlusIcon from '@phosphor/plus.svg';
 import SortIcon from '@phosphor/sort-ascending.svg';
 import XIcon from '@phosphor/x.svg';
 import {
@@ -22,7 +20,15 @@ import {
   createDroppable,
   useDragDropContext,
 } from '@thisbeyond/solid-dnd';
-import { cn, Dropdown, EmptyStatePanel, Hotkey, Tabs, Tooltip } from '@ui';
+import {
+  cn,
+  Dropdown,
+  EmptyStatePanel,
+  Hotkey,
+  type TabOption,
+  Tabs,
+  Tooltip,
+} from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import {
   type Accessor,
@@ -41,9 +47,11 @@ import type {
   ChannelListSort,
   ChannelsGroup,
   ChannelsSortGroup,
+  ChannelsTab,
 } from '../../types';
 import { channelMentionsUser, formatDetailedTimestamp } from '../../utils';
 import { ChannelsEmptyState } from '../ChannelsEmptyState';
+import { ConversationsCreateMenu } from '../ConversationsCreateMenu';
 import { ChannelFavoritesSection } from './ChannelFavoriteRows';
 import {
   ChannelLabelMenuItems,
@@ -83,11 +91,11 @@ import {
   useChannelRailVirtualizer,
 } from './hooks/useChannelRailState';
 
-const CHANNEL_TABS = [
+const CHANNEL_TABS: TabOption<ChannelsTab>[] = [
   { value: 'browse', label: 'All' },
   { value: 'recents', label: 'Recent' },
 ];
-const CHANNEL_TABS_WITH_THREADS = [
+const CHANNEL_TABS_WITH_THREADS: TabOption<ChannelsTab>[] = [
   ...CHANNEL_TABS,
   { value: 'threads', label: 'Threads' },
 ];
@@ -377,49 +385,70 @@ function ChannelOption(props: {
 
 function ExpandedHeader(props: { search: ChannelRailSearch }) {
   const rail = useChannelsRail();
-  const selectTab = (value: string) => {
-    if (
-      value === 'browse' ||
-      value === 'recents' ||
-      (value === 'threads' && rail.threadsEnabled())
-    ) {
-      rail.selectTab(value);
-    }
+  const selectTab = (value: ChannelsTab) => {
+    if (value !== 'threads' || rail.threadsEnabled()) rail.selectTab(value);
   };
 
   return (
     <div class="flex shrink-0 flex-col">
-      <ViewSidebar.Header>
+      <ViewSidebar.Header
+        searchLabel="Search conversations"
+        searchOpen={props.search.isOpen()}
+        onSearchOpenChange={(open) =>
+          open ? props.search.open() : props.search.close()
+        }
+        search={() => (
+          <SearchBar
+            ref={props.search.registerInput}
+            label="Search channels and direct messages"
+            placeholder="Search conversations"
+            value={props.search.query()}
+            hotkey="cmd+f"
+            onValueChange={props.search.setQuery}
+            onEscape={() => {
+              if (!props.search.query()) props.search.close();
+            }}
+          />
+        )}
+      >
         <div class="flex min-w-0 items-center gap-1">
           <ViewSidebar.CloseButton />
           <ViewSidebar.Title>Chat</ViewSidebar.Title>
         </div>
       </ViewSidebar.Header>
-      <ViewSidebar.Primary>
-        <ViewSidebar.Toolbar>
+      <ViewSidebar.Primary class="flex flex-col gap-3">
+        <Show when={!isTouchDevice()}>
+          <ConversationsCreateMenu presentation="sidebar" />
+        </Show>
+        <ViewSidebar.Toolbar class={!isTouchDevice() ? 'px-0' : undefined}>
           <Tabs
             aria-label="Chat sidebar views"
-            list={
+            fullWidth={!isTouchDevice()}
+            options={
               rail.threadsEnabled() ? CHANNEL_TABS_WITH_THREADS : CHANNEL_TABS
             }
             value={rail.tab()}
             onChange={selectTab}
           />
-          <ViewSidebar.Control
-            label={
-              props.search.isOpen() ? 'Close search' : 'Search conversations'
-            }
-            aria-pressed={props.search.isOpen()}
-            class={cn(props.search.isOpen() && 'bg-active text-ink')}
-            onClick={() =>
-              props.search.isOpen() ? props.search.close() : props.search.open()
-            }
-          >
-            <MagnifyingGlassIcon class="size-3.5" />
-          </ViewSidebar.Control>
+          <Show when={isTouchDevice()}>
+            <ViewSidebar.Control
+              label={
+                props.search.isOpen() ? 'Close search' : 'Search conversations'
+              }
+              aria-pressed={props.search.isOpen()}
+              class={cn(props.search.isOpen() && 'bg-active text-ink')}
+              onClick={() =>
+                props.search.isOpen()
+                  ? props.search.close()
+                  : props.search.open()
+              }
+            >
+              <MagnifyingGlassIcon class="size-3.5" />
+            </ViewSidebar.Control>
+          </Show>
         </ViewSidebar.Toolbar>
       </ViewSidebar.Primary>
-      <Show when={props.search.isOpen()}>
+      <Show when={isTouchDevice() && props.search.isOpen()}>
         <div class="px-(--sidebar-content-inset) pt-(--sidebar-gutter)">
           <SearchBar
             ref={props.search.registerInput}
@@ -442,6 +471,7 @@ function ExpandedHeader(props: { search: ChannelRailSearch }) {
 function ExpandedSearchResults(props: { search: ChannelRailSearch }) {
   const rail = useChannelsRail();
   const [scrollRoot, setScrollRoot] = createSignal<HTMLDivElement>();
+  createScrollTopFade(scrollRoot);
   const pagination = useChannelRailVirtualizer(() => 'search');
   const query = () => props.search.query().trim();
   const focusedIndex = () => {
@@ -904,6 +934,7 @@ function RecentConversationCard(props: { channel: ChannelEntity }) {
 
 function ExpandedRecents() {
   const [scrollRoot, setScrollRoot] = createSignal<HTMLDivElement>();
+  createScrollTopFade(scrollRoot);
   const scope = useChannelRailScopeState(() => 'recents');
   const pagination = useChannelRailVirtualizer(() => 'recents');
   const forceEmptyState = useDebugSetting(
@@ -964,36 +995,6 @@ function ExpandedRecents() {
   );
 }
 
-/** The Threads section's create action: a channel or a direct message. */
-function ConversationsCreateMenu() {
-  return (
-    <Dropdown placement="bottom-end">
-      <Dropdown.Trigger
-        as={ViewSidebar.Control}
-        variant="ghost"
-        size="icon-sm"
-        label="Create channel or direct message"
-      >
-        <PlusIcon class="size-3.5" />
-      </Dropdown.Trigger>
-      <Dropdown.Content class="min-w-44">
-        <Dropdown.Group>
-          <Dropdown.Item onSelect={openNewChannelModal}>
-            <HashIcon class="size-3.5 shrink-0 text-ink-muted" />
-            <span class="flex-1 truncate text-ink-muted">New channel</span>
-          </Dropdown.Item>
-          <Dropdown.Item onSelect={() => runCreateAction('channel')}>
-            <ChatCircleIcon class="size-3.5 shrink-0 text-ink-muted" />
-            <span class="flex-1 truncate text-ink-muted">
-              New direct message
-            </span>
-          </Dropdown.Item>
-        </Dropdown.Group>
-      </Dropdown.Content>
-    </Dropdown>
-  );
-}
-
 function ExpandedThreads() {
   const rail = useChannelsRail();
   const [scrollRoot, setScrollRoot] = createSignal<HTMLDivElement>();
@@ -1038,7 +1039,9 @@ function ExpandedThreads() {
           </span>
           <div data-section-action="" class="flex items-center gap-0.5">
             <ChannelSortDropdown group="threads" label="Conversations" />
-            <ConversationsCreateMenu />
+            <Show when={isTouchDevice()}>
+              <ConversationsCreateMenu />
+            </Show>
           </div>
         </CollapsibleSection.Header>
         <CollapsibleSection.Content

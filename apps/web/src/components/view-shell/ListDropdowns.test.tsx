@@ -61,6 +61,7 @@ function setup(single = false, searchable = false) {
   render(() => (
     <ListFilterDropdown
       label="Filter tasks"
+      activeCount={selected().length}
       open={open()}
       onOpenChange={setOpen}
       groups={[
@@ -121,12 +122,14 @@ async function openSubmenu() {
 
 it('keeps multi-select menus open with Shift while adding and removing filters', async () => {
   const { selected, open } = setup();
+  const trigger = screen.getByLabelText('Filter tasks');
   await openSubmenu();
   selectOption(
     await screen.findByRole('menuitemcheckbox', { name: 'Alice' }),
     true
   );
   expect(selected()).toEqual(['alice']);
+  expect(trigger.textContent).toBe('1');
   expect(open()).toBe(true);
   expect(
     screen
@@ -135,8 +138,10 @@ it('keeps multi-select menus open with Shift while adding and removing filters',
   ).toBe('true');
   selectOption(screen.getByRole('menuitemcheckbox', { name: 'Bob' }), true);
   expect(selected()).toEqual(['alice', 'bob']);
+  expect(trigger.textContent).toBe('2');
   selectOption(screen.getByRole('menuitemcheckbox', { name: 'Alice' }), true);
   expect(selected()).toEqual(['bob']);
+  expect(trigger.textContent).toBe('1');
   expect(open()).toBe(true);
 });
 

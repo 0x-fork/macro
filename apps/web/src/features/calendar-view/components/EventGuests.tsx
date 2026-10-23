@@ -29,7 +29,7 @@ import CopyIcon from '@phosphor/copy.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import UserPlusIcon from '@phosphor/user-plus.svg';
 import type { CalendarInviteScope } from '@service-email/client';
-import { Button, Checkbox, Dialog, Layer, SegmentedControl } from '@ui';
+import { Button, Checkbox, Dialog, Layer, Tabs } from '@ui';
 import { createMemo, createSignal, Show } from 'solid-js';
 
 /** Same wording as the RSVP and delete scope choices. */
@@ -125,7 +125,8 @@ function InviteGuestsForm(props: {
       />
       <div class="flex shrink-0 flex-wrap items-center gap-2 border-t border-edge-muted p-2">
         <Show when={recurring()}>
-          <SegmentedControl
+          <Tabs
+            touch="segmented"
             aria-label="Invite to"
             size="sm"
             value={scope()}
@@ -189,7 +190,7 @@ function EventInviteGuestsAction(props: {
           </Popover.Trigger>
           <EventComposerPopoverPortal>
             <Layer depth={3}>
-              <Popover.Content class="z-action-menu flex max-h-[min(30rem,var(--kb-popper-content-available-height,30rem))] w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-edge bg-menu-glass text-sm glass menu-open-animation">
+              <Popover.Content class="menu-surface z-action-menu flex max-h-[min(30rem,var(--kb-popper-content-available-height,30rem))] w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden text-sm menu-open-animation">
                 <Popover.Title class="sr-only">Add guests</Popover.Title>
                 {form()}
               </Popover.Content>

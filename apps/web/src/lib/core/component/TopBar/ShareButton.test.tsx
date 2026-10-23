@@ -198,8 +198,8 @@ vi.mock('@channel/use-channel-participants', () => ({
 }));
 vi.mock('@core/component/EntityIcon', () => ({ EntityIcon: () => null }));
 vi.mock('@core/component/UserIcon', () => ({ UserIcon: () => null }));
-vi.mock('@core/component/Tabs', () => ({
-  Tabs: (props: {
+vi.mock('@core/component/UnderlineTabs', () => ({
+  UnderlineTabs: (props: {
     list: { value: string; label: string }[];
     value?: string;
     onChange?: (value: string) => void;
@@ -365,7 +365,7 @@ vi.mock('@ui', async () => {
       Group: Container,
     }),
     ButtonGroup: Object.assign(Container, { Divider: () => null }),
-    SegmentedControl: (props: {
+    Tabs: (props: {
       'aria-label'?: string;
       onChange?: (value: string) => void;
     }) => (

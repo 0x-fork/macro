@@ -191,11 +191,13 @@ settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
-Settings pages use raised composer cards with glass in dark mode, soft shadows
-in light mode, and subtle row separators. Integrations uses the same content
-width and side padding as the other settings pages. Section
-headings sit above the cards, with more space between major sections and compact
-spacing within each group. Controls share rounded shapes. Nested rows share one surface instead of adding another box or shadow.
+Settings cards use the email composer's raised surface (`SettingsSurface`) with
+subtle row separators: a fine beveled edge and small ambient shadow on desktop,
+the composer card on touch. Integrations uses the same content width and side
+padding as the other settings pages. Section headings sit above the cards, with
+more space between major sections and compact spacing within each group.
+Controls share rounded shapes. Nested rows share one surface instead of adding
+another box or shadow; never hand-build a flat card.
 The compact sidebar uses the shared workspace width.
 
 When a newer version is ready, an **Update available** button (a download icon
@@ -267,6 +269,15 @@ The previews use the saved themes; System follows the device and exposes both
 per-mode theme selectors. Light or Dark shows its own theme selector. Each selector
 retains theme search, editing, copying, custom theme creation, and importing
 themes from the clipboard.
+
+The default Macro Dark theme uses a neutral `#0E0E0E` outer background and
+`#121212` inset content panels. The app rail follows the outer background;
+text and accent colors retain their existing palette.
+
+Macro Light uses `#F5F5F5` outside `#FCFCFC` content panels, white controls,
+`#E4E4E4` frame borders, and `#EDEDED` button borders. Its controls use
+`#2E2E2E` ink. Macro Light and Macro Dark share the same muted blue accent
+(`oklch(0.7 0.12 250deg)`); light mode does not switch the accent to orange.
 
 ### Theme mentions
 

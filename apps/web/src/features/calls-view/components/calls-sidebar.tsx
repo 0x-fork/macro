@@ -2,6 +2,7 @@ import { CollapsibleSection, ViewSidebar } from '@app/components/view-shell';
 import { VIEW_TAB_PRESETS } from '@app/features/next-soup/sidebar/soup-filter-presets';
 import { useSoup } from '@app/features/next-soup/soup-context';
 import { SoupSearchbar } from '@app/features/next-soup/soup-view/filters-bar/soup-view-search-bar';
+import { NewCallButton } from '@app/features/next-soup/soup-view/NewCallButton';
 import { useSoupView } from '@app/features/next-soup/soup-view/soup-view-context';
 import { useApplyPreset } from '@app/features/next-soup/soup-view/soup-view-tabs';
 import { VIEW_TAB_LISTS } from '@app/features/next-soup/soup-view/tab-lists';
@@ -33,7 +34,6 @@ import {
   CALL_AUDIENCES,
   type CallAudienceId,
   type CallChannelOption,
-  callViewLabel,
   collectCallChannels,
   selectCallAudience,
 } from '../core/call-filters';
@@ -156,18 +156,23 @@ export function CallsSidebar(props: { onNavigate: () => void }) {
 
   return (
     <ViewSidebar.Root aria-label="Calls navigation">
-      <ViewSidebar.Header>
+      <ViewSidebar.Header
+        searchLabel="Search calls"
+        search={() => (
+          <div onFocusIn={props.onNavigate}>
+            <Layer depth={2}>
+              <SoupSearchbar variant="secondary" placeholder="Search calls" />
+            </Layer>
+          </div>
+        )}
+      >
         <div class="flex min-w-0 items-center gap-1">
           <ViewSidebar.CloseButton class="shrink-0" />
           <ViewSidebar.Title>Calls</ViewSidebar.Title>
         </div>
       </ViewSidebar.Header>
       <ViewSidebar.Primary>
-        <div onFocusIn={props.onNavigate}>
-          <Layer depth={2}>
-            <SoupSearchbar variant="secondary" placeholder="Search calls" />
-          </Layer>
-        </div>
+        <NewCallButton presentation="sidebar" />
       </ViewSidebar.Primary>
 
       <ViewSidebar.Content>
@@ -177,7 +182,7 @@ export function CallsSidebar(props: { onNavigate: () => void }) {
               <Row
                 active={activeTab() === tab.value}
                 icon={TAB_ICONS[tab.value] ?? PhoneIcon}
-                label={callViewLabel(tab)}
+                label={tab.label}
                 onClick={() => {
                   props.onNavigate();
                   applyTabPreset('calls', tab.value);

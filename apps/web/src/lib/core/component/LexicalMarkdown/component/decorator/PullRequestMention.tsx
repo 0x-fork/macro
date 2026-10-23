@@ -394,7 +394,7 @@ export function PullRequestPreviewCard(props: {
 }) {
   return (
     <div class="select-none w-80 text-ink">
-      <Surface depth={3} class="glass bg-menu-glass rounded-xl">
+      <Surface depth={3} hideBorder class="menu-surface rounded-xl">
         <Suspense
           fallback={
             <div class="p-3 flex items-center justify-center text-sm text-ink-muted">
@@ -449,7 +449,7 @@ function UnsyncedPullRequestPreviewCard(props: {
 }) {
   return (
     <div class="select-none w-80 text-ink">
-      <Surface depth={3} class="glass bg-menu-glass rounded-xl">
+      <Surface depth={3} hideBorder class="menu-surface rounded-xl">
         <div class="flex items-center justify-between gap-2 p-2">
           <div class="flex items-center gap-2 min-w-0">
             <span class="relative size-4 shrink-0 inline-flex">

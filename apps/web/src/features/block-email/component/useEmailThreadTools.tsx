@@ -312,6 +312,7 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
   ];
 
   return {
+    openShare,
     isInvite,
     emailEntity,
     permissions: () => getPermissions(emailCtx.thread()?.access_level),

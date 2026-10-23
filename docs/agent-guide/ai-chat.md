@@ -332,8 +332,8 @@ the shimmer.
   first; `slack_v2` remains a separate row in Connections where it can be disabled
   or disconnected.
 
-  Start a conversation with **Create → Agent**. The sidebar has no New conversation
-  button, and the empty composer has no New conversation heading.
+  Start a conversation with the desktop sidebar's **New** button or **Create → Agent**.
+  The empty composer has no New conversation heading.
   **Conversations** is a mixed list
   of chats and coding sessions, with one search across both. **Group conversations**
   switches between Status (the default), Type, and None, preserving newest-first

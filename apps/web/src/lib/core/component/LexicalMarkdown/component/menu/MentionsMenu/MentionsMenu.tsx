@@ -734,7 +734,11 @@ function MentionsMenuInner(props: MentionsMenuProps) {
             clickOutside(el, () => clickOutsideHandler);
           }}
         >
-          <Surface depth={2} class="pt-2 pb-1.5 glass bg-menu-glass rounded-xl">
+          <Surface
+            depth={2}
+            hideBorder
+            class="menu-surface rounded-xl pt-2 pb-1.5"
+          >
             <Show
               when={controller.viewAllMode()}
               fallback={

@@ -195,7 +195,7 @@ function ColorButton(props: {
         <span class="text-ink-muted">▾</span>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content class="z-action-menu rounded-xl border border-edge bg-menu p-2 shadow-xl outline-none">
+        <Popover.Content class="menu-surface z-action-menu p-2 outline-none">
           <ColorPicker
             themeGrid={props.colors.themeGrid}
             standard={props.colors.standard}
@@ -234,7 +234,7 @@ function PresetsButton(props: {
         <span class="text-ink-muted">▾</span>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content class="z-action-menu rounded-xl border border-edge bg-menu p-2 text-ink text-xs shadow-xl outline-none">
+        <Popover.Content class="menu-surface z-action-menu p-2 text-xs outline-none">
           {props.children(() => setOpen(false))}
         </Popover.Content>
       </Popover.Portal>

@@ -8,6 +8,7 @@ import { useSoup } from '@app/features/next-soup/soup-context';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { type BlockName, NonDocumentBlockTypes } from '@core/block';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -339,28 +340,30 @@ export function ListNavigationButtons(props: {
   class?: string;
 }) {
   return (
-    <div class={cn('flex items-center gap-0.5', props.class)}>
-      <Button
-        size="icon-md"
-        label="Previous item"
-        hotkey={TOKENS.entity.step.start}
-        disabled={!props.navigation.canPrevious()}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={props.navigation.previous}
-      >
-        <CaretUp class="size-4" />
-      </Button>
-      <Button
-        size="icon-md"
-        label="Next item"
-        hotkey={TOKENS.entity.step.end}
-        disabled={!props.navigation.canNext()}
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={props.navigation.next}
-      >
-        <CaretDown class="size-4" />
-      </Button>
-    </div>
+    <HeaderActionGroup label="Item navigation">
+      <div class={cn('flex items-center touch:gap-0.5', props.class)}>
+        <Button
+          size="icon-md"
+          label="Previous item"
+          hotkey={TOKENS.entity.step.start}
+          disabled={!props.navigation.canPrevious()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.navigation.previous}
+        >
+          <CaretUp class="size-4" />
+        </Button>
+        <Button
+          size="icon-md"
+          label="Next item"
+          hotkey={TOKENS.entity.step.end}
+          disabled={!props.navigation.canNext()}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={props.navigation.next}
+        >
+          <CaretDown class="size-4" />
+        </Button>
+      </div>
+    </HeaderActionGroup>
   );
 }
 
@@ -506,7 +509,7 @@ export function SplitHeader(props: {
             }}
           />
 
-          <div class="header-actions h-full grow shrink flex items-center justify-end gap-1 px-2 touch:px-0 touch:gap-2">
+          <div class="header-actions h-full grow shrink flex items-center justify-end gap-2 px-2 touch:px-0">
             <div
               class="contents"
               ref={(ref) => {

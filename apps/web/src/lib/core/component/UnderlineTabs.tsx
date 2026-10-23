@@ -17,14 +17,15 @@ import {
   splitProps,
 } from 'solid-js';
 
-export type TabItem = {
+export type UnderlineTabItem = {
   value: string;
   label: string | JSX.Element;
 };
 
-export const Tabs = (
+/** The mobile share sheet's tab bar; everything else uses `Tabs` from `@ui`. */
+export const UnderlineTabs = (
   props: {
-    list: TabItem[];
+    list: UnderlineTabItem[];
     value?: string;
     defaultValue?: string;
     indicatorPosition?: 'top' | 'bottom';
