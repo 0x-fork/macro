@@ -158,6 +158,30 @@ export function EventForm(props: EventFormProps) {
   });
   createEffect(() => props.onDirtyChange?.(controller.isDirty()));
 
+  const descriptionEditor = () => (
+    <MarkdownTextarea
+      resolveAppLink={resolveAppLink}
+      type="calendar"
+      initialHtml={calendarDescriptionToEditorHtml(initialDescription)}
+      editable={() => !fieldIsDisabled('description')}
+      onInitialized={(editor) => {
+        loadedDescription = exportCalendarDescription(editor);
+      }}
+      onChange={(_markdown, editor) => {
+        if (!editor) return;
+        const next = exportCalendarDescription(editor);
+        controller.setField(
+          'description',
+          next === loadedDescription ? initialDescription : next
+        );
+      }}
+      placeholder="Add description..."
+      portalScope="local"
+      domRef={(element) => element.setAttribute('aria-label', 'Description')}
+      class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
+    />
+  );
+
   const submit = () => {
     const values = controller.submitValues();
     if (!values || formIsDisabled()) return;
@@ -251,31 +275,15 @@ export function EventForm(props: EventFormProps) {
                 class="block w-full"
               >
                 <div class="h-12 overflow-y-auto">
-                  <MarkdownTextarea
-                    resolveAppLink={resolveAppLink}
-                    type="calendar"
-                    initialHtml={calendarDescriptionToEditorHtml(
-                      initialDescription
-                    )}
-                    editable={() => !fieldIsDisabled('description')}
-                    onInitialized={(editor) => {
-                      loadedDescription = exportCalendarDescription(editor);
-                    }}
-                    onChange={(_markdown, editor) => {
-                      if (!editor) return;
-                      const next = exportCalendarDescription(editor);
-                      controller.setField(
-                        'description',
-                        next === loadedDescription ? initialDescription : next
-                      );
-                    }}
-                    placeholder="Add description..."
-                    portalScope="local"
-                    domRef={(element) =>
-                      element.setAttribute('aria-label', 'Description')
-                    }
-                    class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
-                  />
+                  {/* The editor reads the description only when it mounts.
+                      Details that lock after a refused save return to the
+                      event's own, so the editor mounts again to show them. */}
+                  <Show
+                    when={fieldIsReadOnly('description')}
+                    fallback={descriptionEditor()}
+                  >
+                    {descriptionEditor()}
+                  </Show>
                 </div>
               </LockedField>
             </Show>
@@ -302,12 +310,10 @@ export function EventForm(props: EventFormProps) {
                 options={controller.recurrenceOptions()}
                 value={controller.selectedRecurrenceOption()}
                 onChange={controller.changeRecurrenceChoice}
-                disabled={formIsDisabled()}
+                disabled={fieldIsDisabled('recurrence')}
                 // A single occurrence has no recurrence rule of its own, so the
                 // recurrence cannot be edited while the scope is one event.
-                readOnly={
-                  fieldIsReadOnly('recurrence') || editScope() === 'this_event'
-                }
+                readOnly={editScope() === 'this_event'}
               />
             </LockedField>
             <Show when={!isOutOfOffice()}>

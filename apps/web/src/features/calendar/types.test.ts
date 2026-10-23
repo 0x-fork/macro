@@ -339,6 +339,25 @@ describe('mapCalendarEventToFullCalendar', () => {
     expect(modifiable.durationEditable).toBe(true);
   });
 
+  it('fixes a snapshot of a shared meeting in place', () => {
+    const source = item([copy('primary')]);
+    source.event.isSnapshot = true;
+    source.event.viewerCan = {
+      editDetails: false,
+      inviteGuests: false,
+      removeGuests: false,
+      setGuestPolicy: false,
+      rsvp: false,
+      organize: false,
+    };
+    const snapshot = mapCalendarEventToFullCalendar(
+      mapCalendarOccurrence(source, { sourceById })
+    );
+
+    expect(snapshot.startEditable).toBe(false);
+    expect(snapshot.durationEditable).toBe(false);
+  });
+
   it('keeps the occurrence identity and displayed title on the rendered event', () => {
     const rendered = mapCalendarEventToFullCalendar(
       mapCalendarOccurrence(item([copy('primary'), sharedCopy]), {

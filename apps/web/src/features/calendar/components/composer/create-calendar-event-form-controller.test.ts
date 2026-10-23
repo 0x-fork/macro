@@ -505,6 +505,46 @@ it('submits guest permissions only when they change', () => {
   expect(controller.submitValues()?.guestPolicy).toBeUndefined();
 });
 
+it('returns locked details to the event’s own and keeps the viewer’s reminders', () => {
+  const controller = controllerFor(
+    {
+      start: '2030-01-01T12:00',
+      end: '2030-01-01T13:00',
+      title: 'Planning',
+      location: 'Room 1',
+      description: 'Agenda',
+      recurrenceLines: ['RRULE:FREQ=DAILY'],
+      reminders: { useDefault: false, overrides: [] },
+    },
+    { isEdit: true }
+  );
+  controller.setField('title', 'Planning review');
+  controller.setField('location', 'Room 4');
+  controller.setField('description', 'Agenda and notes');
+  controller.setStart('2030-01-01T15:00');
+  controller.changeRecurrenceChoice('none');
+  controller.setReminderMinutes([30]);
+
+  controller.resetDetails();
+
+  expect(controller.submitValues()).toMatchObject({
+    title: 'Planning',
+    location: 'Room 1',
+    description: 'Agenda',
+    time: { kind: 'timed' },
+    reminders: {
+      useDefault: false,
+      overrides: [{ method: 'popup', minutes: 30 }],
+    },
+  });
+  expect(controller.state().start).toBe('2030-01-01T12:00');
+  expect(controller.recurrenceLines()).toEqual(['RRULE:FREQ=DAILY']);
+  expect(controller.isDirty()).toBe(true);
+
+  controller.setReminderMinutes([]);
+  expect(controller.isDirty()).toBe(false);
+});
+
 it('drops guest permissions picked before switching to a calendar without them', () => {
   const google = {
     id: 'work',

@@ -150,6 +150,7 @@ it('keeps a guest the organizer does not let modify to their own reminders', asy
     'disabled',
     true
   );
+  expect(screen.getByLabelText('Repeats')).toHaveProperty('disabled', true);
   expect(
     screen.getByRole('button', { name: /Video conferencing/ })
   ).toHaveProperty('disabled', true);

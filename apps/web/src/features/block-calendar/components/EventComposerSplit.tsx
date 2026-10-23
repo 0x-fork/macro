@@ -59,6 +59,7 @@ function EventComposerContent(
     event: () => props.event,
     macroCallsEnabled,
     guestInvitesEnabled: useCalendarGuestInvitesFlag(),
+    onDetailEditsRefused: () => controller.resetDetails(),
     onSaved: () => {
       props.onSaveSuccess?.();
       close();

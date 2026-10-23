@@ -10,13 +10,16 @@ export const GUEST_EDITS_RESTRICTED =
 
 /**
  * Whether the viewer is a guest the organizer does not let modify the event,
- * so its title, time, description, location, recurrence and conferencing stay
- * as the organizer set them. Reminders stay the guest's own. Someone neither
- * organizing nor invited keeps what their calendar access allows, as on the
- * server.
+ * or holds a snapshot of a shared meeting, so its title, time, description,
+ * location, recurrence and conferencing stay as the organizer set them.
+ * Reminders stay the viewer's own. Someone neither organizing nor invited
+ * keeps what their calendar access allows, as on the server.
  */
 export function guestEditsRestricted(event: CalendarEvent): boolean {
-  return event.viewerCan.rsvp && !event.viewerCan.editDetails;
+  return (
+    event.isSnapshot === true ||
+    (event.viewerCan.rsvp && !event.viewerCan.editDetails)
+  );
 }
 
 function normalizeGuestEmail(email: string) {

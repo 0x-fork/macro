@@ -580,6 +580,33 @@ export function createCalendarEventFormController(
     };
   };
 
+  /**
+   * Returns the event's details (what a guest without modify rights cannot
+   * change) to their loaded values, keeping the viewer's reminders, guests
+   * and guest permissions, so a form whose details just locked holds nothing
+   * it cannot save.
+   */
+  const resetDetails = () => {
+    const initial = initialValue();
+    batch(() => {
+      setState({
+        ...state(),
+        title: initial.title,
+        allDay: initial.allDay,
+        start: initial.start,
+        end: initial.end,
+        recurrenceLines: [...initial.recurrenceLines],
+        location: initial.location,
+        description: initial.description,
+        outOfOffice: initial.outOfOffice
+          ? { ...initial.outOfOffice }
+          : undefined,
+      });
+      recurrence.replaceInitialValues(initial);
+    });
+    notifyChange();
+  };
+
   const replaceFromExternal = (next: EventEditorInitialValues) => {
     const cloned = cloneValue(next);
     const guests = initialGuestOptions(next.guests, options.guestOptions());
@@ -635,6 +662,7 @@ export function createCalendarEventFormController(
     snapshot,
     isDirty,
     submitValues,
+    resetDetails,
     replaceFromExternal,
   };
 }

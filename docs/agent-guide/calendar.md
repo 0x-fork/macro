@@ -477,8 +477,10 @@ invitation). That guest cannot drag or resize the event on the grid either. Some
 neither organizing nor invited, such as a delegate on a shared calendar, keeps what their
 calendar access allows. The update refuses a detail change from such a guest with 403
 `guests_cannot_modify` (fields resent at their stored value are ignored, so the agent can
-pass them); the editor then shows the line in a toast and locks its details, and a refused
-drag snaps back with the same toast. The refusal covers a stale `viewerCan`, an event the
+pass them); the editor then shows the line in a toast, locks its details and returns them to
+the event's own (title, time, repeat, location and description, keeping notification and guest
+changes), so it never holds a change it cannot save, and a refused drag snaps back with the same
+toast. A locked description refuses typing, like the other locked fields. The refusal covers a stale `viewerCan`, an event the
 viewer still sees as editable after the organizer turned modifying off, so check it without a
 Google account on an event whose `viewerCan.editDetails` is still true, the only case where
 the editor sends a detail change at all: answer `PATCH /events/{id}` with HTTP 403 and code
@@ -551,8 +553,11 @@ meeting's other guests and join link stay out and nobody is notified. If Google 
 the card says Google won't add the event to that calendar and points to `Download .ics`. The
 mention then opens the snapshot, whose details say `Your copy of a shared event. It doesn't
 update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer can
-invite guests.` line, since none of it would reach the meeting; it can still be deleted and its
-reminders changed. If Google already holds the meeting on that calendar (an invitation Macro has
+invite guests.` line, since none of it would reach the meeting. It offers no `Edit event` on
+desktop or in the phone drawer, and the grid does not move or resize it: its details are the
+organizer's, and a composer that could change only its notifications would read as editing the
+meeting. Its delete button is `Delete your copy`, whose dialog says the shared event stays as it
+is. If Google already holds the meeting on that calendar (an invitation Macro has
 not synced yet), nothing is imported, a sync is scheduled and the card reports that it is
 already on their calendar. `Download .ics` saves the event as an iCalendar file and is not
 flagged. `Ask to join` asks the person who shared the event to add the viewer as a guest; it

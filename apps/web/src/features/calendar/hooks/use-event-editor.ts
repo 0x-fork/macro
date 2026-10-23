@@ -110,6 +110,12 @@ interface UseEventEditorProps {
    * when omitted.
    */
   guestInvitesEnabled?: Accessor<boolean>;
+  /**
+   * Called when the server refuses a detail change and the details lock, so
+   * the form can return them to the event's own instead of holding changes
+   * it can no longer save.
+   */
+  onDetailEditsRefused?: () => void;
 }
 
 /** Shared create/edit query and mutation orchestration for any editor shell. */
@@ -444,6 +450,7 @@ export function useEventEditor(props: UseEventEditorProps) {
         }
       } else if (event && isGuestEditRefused(error)) {
         setDetailEditsRefused(true);
+        props.onDetailEditsRefused?.();
         toast.failure(GUEST_EDITS_RESTRICTED);
       } else {
         toast.failure(
