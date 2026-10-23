@@ -344,6 +344,9 @@ services:
       - lexical_service
       - fusionauth
     networks:
+      # `auth` too: public MCP boot resolves the Google identity provider in
+      # FusionAuth, which lives on that network only.
+      auth:
       databases:
       # `auth` too: the public MCP resolves the Google identity provider in
       # FusionAuth at boot, and FusionAuth answers only on this network.
