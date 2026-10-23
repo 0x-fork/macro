@@ -1448,6 +1448,11 @@ export function ShareModal(props: ShareModalProps) {
           id: props.id,
           sharePermission,
         });
+      } else if (props.itemType === 'database') {
+        result = await updateDatabaseSharePermissions({
+          id: props.id,
+          ...sharePermission,
+        });
       } else {
         result = await storageServiceClient.editDocument({
           sharePermission,

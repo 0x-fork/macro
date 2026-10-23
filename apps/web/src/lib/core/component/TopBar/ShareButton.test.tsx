@@ -435,6 +435,7 @@ beforeEach(() => {
   mocks.updateChatPermissions.mockResolvedValue({ isErr: () => false });
   mocks.updateCallTeamShare.mockResolvedValue({ isErr: () => false });
   mocks.editProject.mockResolvedValue({ isErr: () => false });
+  mocks.updateDatabasePermissions.mockResolvedValue({ isErr: () => false });
   mocks.editDocument.mockResolvedValue({ isErr: () => false });
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
@@ -1659,6 +1660,61 @@ it('database sharing reads its block permissions and disables public links', () 
   expect(mocks.blockPermissionsRead).toHaveBeenCalled();
   expect(mocks.getDatabasePermissions).not.toHaveBeenCalled();
   expect(screen.queryByText('Anyone with the link')).toBeNull();
+});
+
+describe('database team sharing', () => {
+  function mountDatabaseShare() {
+    mocks.blockPermissionsRead.mockReturnValue({
+      isErr: () => false,
+      value: {
+        id: 'database-id',
+        owner: ME,
+        teamShareAccessLevel: null,
+        channelSharePermissions: [],
+      },
+    });
+    render(() => (
+      <ShareModal
+        id="database-id"
+        itemType="database"
+        blockAlias="database"
+        owner={ME}
+        name="Ideas"
+        userPermissions={Permissions.OWNER}
+        open
+        onOpenChange={vi.fn()}
+      />
+    ));
+  }
+
+  it('lets the owner share the database with their team through its permissions endpoint', async () => {
+    mocks.hasTeam = true;
+    mountDatabaseShare();
+
+    expect(
+      screen.getByText("Share this database directly with the owner's team.")
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Set Team access level edit' })
+    );
+
+    await vi.waitFor(() =>
+      expect(mocks.updateDatabasePermissions).toHaveBeenCalledWith({
+        id: 'database-id',
+        teamShareAccessLevel: 'edit',
+      })
+    );
+    expect(mocks.editDocument).not.toHaveBeenCalled();
+  });
+
+  it('hides database team access when the owner has no team', () => {
+    mocks.hasTeam = false;
+    mountDatabaseShare();
+
+    expect(
+      screen.queryByRole('group', { name: 'Team access level' })
+    ).toBeNull();
+  });
 });
 
 describe('form share roles', () => {

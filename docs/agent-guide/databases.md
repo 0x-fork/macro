@@ -616,8 +616,9 @@ details**, and the server's summary on query tool rows.
 ## Sharing and files
 
 **Share** opens Macro's standard sharing dialog. The owner can share with people
-or channels and change or remove their access. Databases do not offer a public
-link. **Share** and viewer avatars (other people currently looking at the
+or channels and change or remove their access, and an owner on a team sets
+**Team access** (view, comment, or edit for the owner's team; rows follow the
+database). Databases do not offer a public link. **Share** and viewer avatars (other people currently looking at the
 database) sit at the right of the split header, like other entities.
 
 The toolbar's **Database actions** (`…`) menu, beside **AI**, contains **Rename**,

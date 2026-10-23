@@ -16,6 +16,7 @@ const TEAM_SHAREABLE_ITEM_TYPES: ReadonlySet<ShareItemType> =
     'agent_session',
     'initiative',
     'crm_pipeline',
+    'database',
   ]);
 
 export function isTeamShareSupportedForItem(itemType: ShareItemType): boolean {

@@ -7869,7 +7869,7 @@
     "/databases/{id}/permissions": {
       "get": {
         "tags": ["databases"],
-        "summary": "Read recipients for a database owned by the caller. Link and team\nsharing are always `null`: databases do not support them yet.",
+        "summary": "Read recipients and the team share for a database owned by the caller.\nLink sharing is always `null`: databases do not support it.",
         "operationId": "get_database_permissions",
         "parameters": [
           {
@@ -7937,7 +7937,7 @@
       },
       "patch": {
         "tags": ["databases"],
-        "summary": "Update channel recipients after proving database ownership. Turning on\nlink or team sharing is refused; ownership cannot be changed here.",
+        "summary": "Update channel recipients and the team share after proving database\nownership. Turning on link sharing is refused; ownership cannot be\nchanged here. Only the actual owner may change the team share, and a 409\nmeans sharing changed since the request was authorized.",
         "operationId": "update_database_permissions",
         "parameters": [
           {
@@ -8002,6 +8002,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {

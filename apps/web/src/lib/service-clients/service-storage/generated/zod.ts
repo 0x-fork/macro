@@ -14262,8 +14262,8 @@ export const applyDatabaseOpsResponse = zod
   .describe('What each op of a batch did.');
 
 /**
- * @summary Read recipients for a database owned by the caller. Link and team
-sharing are always `null`: databases do not support them yet.
+ * @summary Read recipients and the team share for a database owned by the caller.
+Link sharing is always `null`: databases do not support it.
  */
 export const getDatabasePermissionsParams = zod.object({
   id: zod.uuid(),
@@ -14312,8 +14312,10 @@ export const getDatabasePermissionsResponse = zod.object({
 });
 
 /**
- * @summary Update channel recipients after proving database ownership. Turning on
-link or team sharing is refused; ownership cannot be changed here.
+ * @summary Update channel recipients and the team share after proving database
+ownership. Turning on link sharing is refused; ownership cannot be
+changed here. Only the actual owner may change the team share, and a 409
+means sharing changed since the request was authorized.
  */
 export const updateDatabasePermissionsParams = zod.object({
   id: zod.uuid(),
