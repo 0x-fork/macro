@@ -13,6 +13,7 @@ import { SplitPanel } from '@components/app/split-panel';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { ListEntityMetadataQueryProvider } from '@entity';
 import SpinnerIcon from '@phosphor/spinner.svg';
+import { useFavoritesData } from '@queries/favorites/favorites';
 import {
   createContext,
   createMemo,
@@ -23,6 +24,7 @@ import {
 } from 'solid-js';
 import { ChannelsViewProvider, useChannelsView } from './channels-view-context';
 import { ChannelDetailView } from './components/ChannelDetailView';
+import { MAX_PINNED_CHANNELS } from './components/ChannelPins';
 import { ChannelsMobileView } from './components/ChannelsMobileView';
 import { ChannelThreadsView } from './components/ChannelThreadsView';
 import { ChannelsRail } from './components/rail/ChannelsRail';
@@ -58,9 +60,24 @@ function MobileChannelsList(props: { sources: ChannelsSources }) {
     scope: () => 'recents',
     source: () => props.sources.recents,
   });
+  const favoritesData = useFavoritesData({ entityType: ['channel'] });
+  // Recents carry the latest message and unread state; the channel list
+  // covers favorites that have not surfaced in Recents yet.
+  const pinned = createMemo(() => {
+    const channelsById = new Map(
+      deduplicateChannels([props.sources.recents.items(), listChannels()]).map(
+        (channel) => [channel.id, channel]
+      )
+    );
+    return (favoritesData()?.favorites ?? [])
+      .filter((favorite) => favorite.entityType === 'channel')
+      .flatMap((favorite) => channelsById.get(favorite.entityId) ?? [])
+      .slice(0, MAX_PINNED_CHANNELS);
+  });
   return (
     <ChannelsMobileView
       source={mobileSearchSource}
+      pinned={pinned()}
       searchQuery={mobileSearchText()}
       onClearSearch={() => SearchState.setQuery('')}
     />

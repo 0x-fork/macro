@@ -64,18 +64,35 @@ vi.mock('@core/component/Toast/Toast', () => ({
   toast: { failure: mocks.failure },
 }));
 vi.mock('@core/context/user', () => ({ useUserId: () => () => 'viewer' }));
-vi.mock('@entity/utils/notification', () => ({ isMutedItem: () => false }));
+vi.mock('@entity', () => ({ Entity: { Icon: () => null } }));
+vi.mock('@entity/composed/list-entity/shared', () => ({
+  InboxDivider: () => <hr />,
+}));
+vi.mock(
+  '@app/features/next-soup/soup-view/views/inbox/inbox-card-layouts',
+  () => ({
+    toInboxCardDisplayItem: (entity: ChannelEntity) => ({ entity }),
+    ChannelCardLayout: (props: {
+      item: { entity: ChannelEntity };
+      onClick: (event: MouseEvent) => void;
+    }) => <button onClick={props.onClick}>{props.item.entity.name}</button>,
+  })
+);
 vi.mock('@queries/channel/notification-selection', () => ({
   hydrateChannelNotificationSelection: mocks.hydrate,
 }));
 vi.mock('@solid-primitives/resize-observer', () => ({
   createElementSize: () => ({ height: 0 }),
 }));
-vi.mock('@ui', () => ({ Button: () => null, EmptyStatePanel: () => null }));
+vi.mock('@ui', () => ({
+  Button: () => null,
+  EmptyStatePanel: () => null,
+  cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
+}));
 vi.mock('virtua/solid', () => ({
   Virtualizer: (props: {
     data: ChannelEntity[];
-    children: (channel: ChannelEntity) => JSX.Element;
+    children: (channel: ChannelEntity, index: () => number) => JSX.Element;
   }) => <For each={props.data}>{props.children}</For>,
 }));
 vi.mock('./ChannelsEmptyState', () => ({ ChannelsEmptyState: () => null }));
@@ -83,11 +100,7 @@ vi.mock('@channel/Channel/channel-actions', () => ({
   CHANNEL_ACTION_VIEW_CONTEXT: {},
 }));
 vi.mock('./rail/ChannelRailItems', () => ({
-  CONVERSATION_CARD_HEIGHT: 80,
-  ConversationCard: (props: {
-    channel: ChannelEntity;
-    onActivate: (event: MouseEvent) => void;
-  }) => <button onClick={props.onActivate}>{props.channel.name}</button>,
+  IncomingCallActions: () => null,
 }));
 vi.mock('./rail/hooks/useChannelCalls', () => ({
   useChannelCalls: () => ({}),
@@ -138,6 +151,7 @@ describe('mobile channel activation', () => {
     render(() => (
       <ChannelsMobileView
         source={source}
+        pinned={[]}
         searchQuery=""
         onClearSearch={() => {}}
       />
@@ -171,6 +185,7 @@ describe('mobile channel activation', () => {
       render(() => (
         <ChannelsMobileView
           source={source}
+          pinned={[]}
           searchQuery=""
           onClearSearch={() => {}}
         />
@@ -198,6 +213,7 @@ describe('mobile channel press feedback', () => {
     render(() => (
       <ChannelsMobileView
         source={source}
+        pinned={[]}
         searchQuery=""
         onClearSearch={() => {}}
       />
@@ -226,6 +242,7 @@ describe('mobile channel press feedback', () => {
     render(() => (
       <ChannelsMobileView
         source={source}
+        pinned={[]}
         searchQuery=""
         onClearSearch={() => {}}
       />
@@ -240,5 +257,57 @@ describe('mobile channel press feedback', () => {
     await opened.promise;
     await vi.runAllTimersAsync();
     expect(row.classList.contains('touch-highlight')).toBe(false);
+  });
+});
+
+describe('mobile channel pins', () => {
+  const pinnedChannel: ChannelEntity = {
+    ...channel,
+    id: 'two',
+    name: 'Two',
+  };
+  const both: ChannelsDataSource = {
+    ...source,
+    items: () => [channel, pinnedChannel],
+  };
+
+  it('shows pinned conversations above the list instead of in it, and opens them', async () => {
+    render(() => (
+      <ChannelsMobileView
+        source={both}
+        pinned={[pinnedChannel]}
+        searchQuery=""
+        onClearSearch={() => {}}
+      />
+    ));
+
+    const pins = screen.getByRole('group', { name: 'Pinned conversations' });
+    expect(pins.textContent).toContain('Two');
+    expect(screen.getAllByRole('button', { name: 'Two' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'One' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Two' }));
+    await waitFor(() =>
+      expect(mocks.openSplit).toHaveBeenCalledExactlyOnceWith(
+        pinnedChannel,
+        expect.objectContaining({ referredFrom: 'channels' })
+      )
+    );
+  });
+
+  it('lists pinned conversations normally while searching', () => {
+    render(() => (
+      <ChannelsMobileView
+        source={both}
+        pinned={[pinnedChannel]}
+        searchQuery="t"
+        onClearSearch={() => {}}
+      />
+    ));
+
+    expect(
+      screen.queryByRole('group', { name: 'Pinned conversations' })
+    ).toBeNull();
+    expect(screen.getByRole('button', { name: 'Two' })).toBeTruthy();
   });
 });

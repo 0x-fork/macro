@@ -968,7 +968,11 @@ to the next section. `[` and `]` jump between the visible Favorites,
 Channels, and DMs section headers.
 
 On touch layouts, Channels shows only the Recent conversation feed, with channel
-and DM message previews. There are no view tabs or reserved tab-header space;
+and DM message previews. Rows use Home's touch row: the unread dot in the left
+rail, a 44px avatar, and a divider inset to the text column. The first six
+favorited channels (favorite order) are pinned in a three-across grid above the
+feed, iMessage style, and leave the feed below; tapping a pin opens it and a
+hold opens its action menu, where Unfavorite unpins it. There are no view tabs or reserved tab-header space;
 older saved tab selections and mobile-tab links cannot change the list. It loads
 more as the list approaches the end and supports pull to refresh.
 Rows use the same touch highlight as Home and Email: taps retain feedback while

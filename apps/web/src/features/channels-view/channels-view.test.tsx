@@ -29,10 +29,19 @@ const mocks = vi.hoisted(() => ({
   markRead: vi.fn(),
   resolveTarget: vi.fn(() => ({ kind: 'message', messageId: 'unread' })),
   refresh: vi.fn(async () => {}),
+  favoriteIds: (): string[] => [],
 }));
 
 vi.mock('./queries/channel-list-search-pool', () => ({
   useChannelListSearchPool: () => () => [],
+}));
+vi.mock('@queries/favorites/favorites', () => ({
+  useFavoritesData: () => () => ({
+    favorites: mocks.favoriteIds().map((entityId) => ({
+      entityId,
+      entityType: 'channel',
+    })),
+  }),
 }));
 vi.mock('@app/features/command/mobile/mobileSearchState', () => ({
   SearchState: {
@@ -123,9 +132,14 @@ vi.mock('./components/ChannelThreadsView', () => ({
 vi.mock('./components/ChannelsMobileView', () => ({
   ChannelsMobileView: (props: {
     source: ChannelsDataSource;
+    pinned: readonly ChannelEntity[];
     searchQuery: string;
   }) => (
-    <div data-testid="mobile-channels" data-query={props.searchQuery}>
+    <div
+      data-testid="mobile-channels"
+      data-query={props.searchQuery}
+      data-pinned={props.pinned.map((channel) => channel.id).join(',')}
+    >
       <For each={props.source.items()}>
         {(channel) => <div>{channel.name}</div>}
       </For>
@@ -228,6 +242,7 @@ let setRows: ReturnType<typeof createSignal<ChannelEntity[]>>[1];
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.mobileLayout = () => false;
+  mocks.favoriteIds = () => [];
   mocks.active = () => true;
   mocks.searchOpen = () => false;
   mocks.searchText = () => '';
@@ -297,6 +312,16 @@ describe('mobile dock search wiring', () => {
     setOpen(false);
     expect(screen.getByText('hutch')).toBeTruthy();
     expect(screen.getByTestId('mobile-channels').dataset.query).toBe('');
+  });
+
+  it('pins the first six loaded channel favorites in favorite order', () => {
+    mocks.mobileLayout = () => true;
+    setRows(['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id) => row(id)));
+    mocks.favoriteIds = () => ['g', 'missing', 'f', 'e', 'd', 'c', 'b', 'a'];
+    render(() => <ChannelsView />);
+    expect(screen.getByTestId('mobile-channels').dataset.pinned).toBe(
+      'g,f,e,d,c,b'
+    );
   });
 });
 
