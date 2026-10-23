@@ -184,9 +184,6 @@ vi.mock('@queries/soup/recently-viewed', () => ({
   useRecentlyViewedSoupQuery: () =>
     mocks.queries['recently-viewed']?.() ?? { data: [], isSuccess: true },
 }));
-vi.mock('@queries/storage/instructions-md', () => ({
-  useInstructionsMdIdQuery: () => ({ data: undefined }),
-}));
 vi.mock('@queries/storage/databases', () => ({
   useDatabasesQuery: () => ({ data: mocks.databases, isSuccess: true }),
 }));

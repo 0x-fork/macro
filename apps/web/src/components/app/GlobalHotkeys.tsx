@@ -16,7 +16,6 @@ import { useSubscribeToKeypress } from '@app/signal/hotkeyRoot';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useHandleFileUpload } from '@app/util/handleFileUpload';
 import { useLogout } from '@core/auth/logout';
-import { useOpenInstructionsMd } from '@core/component/AI/util/instructions';
 import { toast } from '@core/component/Toast/Toast';
 import { enableSnippets, LOCAL_ONLY } from '@core/constant/featureFlags';
 import {
@@ -40,7 +39,6 @@ import Plus from '@phosphor/plus.svg';
 import LogoutIcon from '@phosphor/sign-out.svg';
 import Upload from '@phosphor/upload.svg';
 import UserIcon from '@phosphor/user.svg';
-import { AiInstructionsIcon } from '@queries/storage/instructions-md';
 import { useMutationUndoContext } from '@queries/undo';
 import { debounce } from '@solid-primitives/scheduled';
 import { ThemeChips } from '@theme/components/ThemeChips';
@@ -376,19 +374,6 @@ export default function GlobalShortcuts() {
       });
       return true;
     },
-    runWithInputFocused: true,
-  });
-
-  const openInstructions = useOpenInstructionsMd();
-  registerHotkey({
-    hotkeyToken: TOKENS.global.instructions,
-    scopeId: 'global',
-    description: 'Open AI instructions',
-    keyDownHandler: () => {
-      openInstructions();
-      return true;
-    },
-    icon: AiInstructionsIcon,
     runWithInputFocused: true,
   });
 
