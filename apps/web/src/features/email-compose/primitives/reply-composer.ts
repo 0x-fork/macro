@@ -565,11 +565,15 @@ export function createReplyComposer(
   let sendOperationVersion = 0;
   const [pendingDeletion, setPendingDeletion] = createSignal(false);
 
+  // A reloaded draft keeps its quoted thread as plain blocks (the server
+  // strips the editor's markers), so only the saved body knows it is there.
+  const appendsQuotedThread = () => !!replyTarget && !form.replyAppended();
+
   function collectDraft(forDelivery = false) {
     if (!forDelivery) $removeAllWatermarkNodes(editor());
     const prepared = prepareEmailBody(
       editor(),
-      forDelivery && replyTarget
+      forDelivery && replyTarget && appendsQuotedThread()
         ? {
             replyType: form.replyType(),
             replyingTo: replyTarget,
@@ -1130,12 +1134,8 @@ export function createReplyComposer(
       if (result === 'scheduled') {
         const scheduledDraftId = savedDraftId();
         rememberCurrentReply();
-        try {
-          resetState();
-          clearDraftState();
-        } catch (error) {
-          props.notices.reportError(error);
-        }
+        // The scheduled draft stays in the thread with its "Scheduled for"
+        // bar, as a reload shows it; clearing it hid it until a refresh.
         void Promise.resolve(
           props.sideEffectOnSend?.(scheduledDraftId ?? null)
         ).catch(props.notices.reportError);
@@ -1222,7 +1222,7 @@ export function createReplyComposer(
 
       const prepared = prepareEmailBody(
         currentEditor,
-        replyingTo
+        replyingTo && appendsQuotedThread()
           ? {
               replyType: form.replyType(),
               replyingTo,
