@@ -83,8 +83,9 @@ Notifications**. Select **Enable** to request permission through the native
 notification provider; macOS uses its system permission dialog. The web prompt
 continues to say **Enable Browser Notifications** and uses browser permissions.
 Select **Hide** to dismiss the prompt. It waits in the same region as other
-prompts, one card at a time, and on a phone it steps aside while a drawer,
-sheet, or dialog is open and comes back when it closes.
+prompts, one card at a time. It steps aside while a popover, dialog, drawer, or
+sheet is open (the calendar event details, for example) and, on touch devices,
+while the full-screen email composer is open, and it comes back when they close.
 
 ### Notification snoozes
 
