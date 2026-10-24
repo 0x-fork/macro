@@ -129,6 +129,28 @@ describe('native invitation card', () => {
     ).toBeNull();
     expect(screen.getAllByText('Cancelled').length).toBeGreaterThan(0);
   });
+  it('points at the invitation attachment only from outside it', () => {
+    const noMatch: InvitationResolution = { kind: 'no_match' };
+    render(() => (
+      <>
+        <CalendarInviteCard
+          invitation={invitationFixture}
+          actions={{ resolution: noMatch }}
+        />
+        <CalendarInviteCard
+          invitation={invitationFixture}
+          actions={{ resolution: noMatch }}
+          inCalendarFile
+        />
+      </>
+    ));
+    const [inline, inFile] = screen.getAllByText(/^Saved invitation\./);
+    expect(inline.textContent).toBe(
+      'Saved invitation. Open the original email or invitation attachment for more options.'
+    );
+    expect(inFile.textContent).toBe('Saved invitation.');
+  });
+
   it('expands guest identities and descriptions explicitly', () => {
     render(() => <CalendarInviteCard invitation={invitationFixture} />);
     fireEvent.click(screen.getByRole('button', { name: '+3 more' }));

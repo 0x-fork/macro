@@ -114,6 +114,29 @@ it('opens a calendar file as the event it holds and other files through the host
   expect(onOpenAttachment).toHaveBeenCalledWith(pdfFile);
 });
 
+it('tells the card when it is shown inside its calendar file', () => {
+  render(() => (
+    <EmailMessageView
+      message={message([invitationFixture])}
+      renderInvitation={(_message, invitation, options) => (
+        <div data-testid="card">
+          {options?.inCalendarFile ? 'in file' : 'inline'} {invitation.id}
+        </div>
+      )}
+      onOpenAttachment={vi.fn()}
+      onDownloadAttachment={vi.fn()}
+      isTouch={false}
+      isPersonal={false}
+      isSelected={false}
+      allowHover={false}
+      isExpanded
+    />
+  ));
+  expect(screen.getByTestId('card').textContent).toContain('inline');
+  fireEvent.click(screen.getByRole('button', { name: 'Planning.ics' }));
+  expect(screen.getByRole('dialog').textContent).toContain('in file');
+});
+
 it('hands a calendar file without a readable event to the host', () => {
   const onOpenAttachment = vi.fn();
   render(() => (

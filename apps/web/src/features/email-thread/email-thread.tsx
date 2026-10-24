@@ -132,6 +132,7 @@ export function EmailThread(props: EmailThreadProps) {
           hour12={calendarPreferences.timeFormat !== '24-hour'}
           openCalendar={props.openCalendar}
           onNavigate={options?.onNavigate}
+          inCalendarFile={options?.inCalendarFile}
         />
       ),
       openAttachment: createEmailAttachmentOpener(),

@@ -1253,7 +1253,10 @@ ICS attachments show a calendar icon in the attachment pill and file headers on
 desktop and mobile, including when the email uses `application/ics` or a
 parameterized `text/calendar` MIME type. Opening the attachment of a message that shows a
 card opens a dialog (a drawer on phones) with the same card, so its RSVP or `Add to calendar`
-works there, and `Download .ics`, which saves the file without adding it to Drive. The card
+works there, and `Download .ics`, which saves the file without adding it to Drive. When the
+card falls back to the saved invitation (the event matches nothing on your calendars, as with
+a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
+email adds that the original email or invitation attachment has more options. The card
 stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
 calendar opens, including when Calendar is already open in another split. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`

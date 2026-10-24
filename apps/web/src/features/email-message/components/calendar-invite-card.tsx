@@ -58,6 +58,8 @@ export function CalendarInviteCard(props: {
   actions?: CalendarInvitationActions;
   hour12?: boolean;
   timeZone?: string;
+  /** Shown inside the calendar file it came from, so it must not point back at that file. */
+  inCalendarFile?: boolean;
 }) {
   const [descriptionExpanded, setDescriptionExpanded] = createSignal(false);
   const [attendeesExpanded, setAttendeesExpanded] = createSignal(false);
@@ -152,9 +154,10 @@ export function CalendarInviteCard(props: {
           ? 'Waiting for your calendar to catch up. Responses are paused until it does.'
           : 'Your connected calendar does not allow a response to this event.'
       )
-      .otherwise(
-        () =>
-          'Saved invitation. Open the original email or invitation attachment for more options.'
+      .otherwise(() =>
+        props.inCalendarFile
+          ? 'Saved invitation.'
+          : 'Saved invitation. Open the original email or invitation attachment for more options.'
       );
   const lastResponse = () => {
     const response = resolved()?.response;

@@ -22,6 +22,8 @@ import { inlineContentIds, normalizeContentId } from '../core/inline-images';
 export interface InvitationRenderOptions {
   /** Called before a card action opens something else in the app. */
   onNavigate?: () => void;
+  /** The card is shown inside the calendar file it came from. */
+  inCalendarFile?: boolean;
 }
 
 export interface EmailMessageViewProps {
@@ -93,7 +95,10 @@ export function EmailMessageView(props: EmailMessageViewProps) {
     props.renderInvitation ? (
       props.renderInvitation(props.message, invitation, options)
     ) : (
-      <CalendarInviteCard invitation={invitation} />
+      <CalendarInviteCard
+        invitation={invitation}
+        inCalendarFile={options?.inCalendarFile}
+      />
     );
   const body = () => (
     <div class="ph-no-capture text-base text-ink pr-4 mobile:pr-0">
@@ -318,6 +323,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
               {(group) =>
                 renderInvitation(group().primary, {
                   onNavigate: closeForNavigation,
+                  inCalendarFile: true,
                 })
               }
             </Key>
