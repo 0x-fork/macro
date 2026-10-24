@@ -44,7 +44,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { isMobile } from '@core/mobile/isMobile';
 import {
-  createCanvasFileFromJsonString,
+  createCanvasFile,
   createChat,
   createCodeFileFromText,
   createMarkdownFile,
@@ -362,8 +362,7 @@ export function runCreateAction(
         blockName: 'canvas',
         loading: true,
         createFn: async () => {
-          const result = await createCanvasFileFromJsonString({
-            json: JSON.stringify({ nodes: [], edges: [] }),
+          const result = await createCanvasFile({
             title: 'New Canvas',
             projectId: options.projectId,
             source,

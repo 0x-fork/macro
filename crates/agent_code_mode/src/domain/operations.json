@@ -461,6 +461,7 @@
   "storage.transcribeDictation": "Transcribe Dictation",
   "storage.getUserDocumentsHandler": "List documents",
   "storage.createDocument": "Create Document",
+  "storage.createCanvasHandler": "Create Canvas",
   "storage.createMarkdownHandler": "Create Markdown",
   "storage.createSkillHandler": "Create Skill",
   "storage.createSnippetHandler": "Create Snippet",

@@ -9134,6 +9134,91 @@
         }
       }
     },
+    "/documents/create_canvas": {
+      "post": {
+        "tags": ["document"],
+        "summary": "Creates and initializes a Canvas in one backend-owned lifecycle.",
+        "operationId": "create_canvas_handler",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCanvasDocumentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Response for creating a native Canvas.",
+                  "required": ["documentId", "documentMetadata", "token"],
+                  "properties": {
+                    "documentId": {
+                      "type": "string",
+                      "description": "The document ID of the created native Canvas"
+                    },
+                    "documentMetadata": {
+                      "$ref": "#/components/schemas/DocumentResponseMetadata",
+                      "description": "Metadata for the created document"
+                    },
+                    "token": {
+                      "type": "string",
+                      "description": "A pre-generated permission token that you can use for SS"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/documents/create_markdown": {
       "post": {
         "tags": ["document"],
@@ -24587,6 +24672,41 @@
           "success": {
             "type": "boolean",
             "description": "Indicates if the document was created successfully"
+          }
+        }
+      },
+      "CreateCanvasDocumentRequest": {
+        "type": "object",
+        "description": "Request for a backend-initialized native Canvas.",
+        "required": ["documentName"],
+        "properties": {
+          "documentName": {
+            "type": "string",
+            "description": "Canvas name."
+          },
+          "projectId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Optional parent project."
+          }
+        }
+      },
+      "CreateCanvasDocumentResponse": {
+        "type": "object",
+        "description": "Response for creating a native Canvas.",
+        "required": ["documentId", "documentMetadata", "token"],
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "The document ID of the created native Canvas"
+          },
+          "documentMetadata": {
+            "$ref": "#/components/schemas/DocumentResponseMetadata",
+            "description": "Metadata for the created document"
+          },
+          "token": {
+            "type": "string",
+            "description": "A pre-generated permission token that you can use for SS"
           }
         }
       },

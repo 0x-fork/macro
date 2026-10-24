@@ -50,6 +50,70 @@ export const AddToPipelineResponse = z.object({
   summary: z.string(),
 });
 
+export const ApplyCanvasEdits = z.object({
+  document_id: z.string(),
+  expected_revision: z.string(),
+  code: z.string(),
+  snippets: z.union([z.record(z.string()), z.null()]).optional(),
+});
+
+export const CanvasResponse = z.object({
+  render: z
+    .union([
+      z.object({
+        revision: z.string(),
+        clock: z.record(z.number().int().gte(0)),
+        crop: z.object({
+          x: z.number(),
+          y: z.number(),
+          width: z.number(),
+          height: z.number(),
+        }),
+        width: z.number().int().gte(0),
+        height: z.number().int().gte(0),
+        objects: z.array(
+          z.object({
+            id: z.string(),
+            bounds: z.object({
+              x: z.number(),
+              y: z.number(),
+              width: z.number(),
+              height: z.number(),
+            }),
+          })
+        ),
+        unavailable: z.array(z.object({ id: z.string(), reason: z.string() })),
+        textLayout: z
+          .array(
+            z.object({
+              id: z.string(),
+              bounds: z.object({
+                x: z.number(),
+                y: z.number(),
+                width: z.number(),
+                height: z.number(),
+              }),
+              overflow: z.boolean(),
+            })
+          )
+          .optional(),
+        modelMedia: z.array(
+          z.object({
+            type: z.string(),
+            mediaType: z.string(),
+            data: z.string(),
+          })
+        ),
+      }),
+      z.null(),
+    ])
+    .optional(),
+  canvas: z.union([z.string(), z.null()]).optional(),
+  operationsApplied: z.number().int().gte(0),
+  summary: z.string(),
+  clarification: z.union([z.string(), z.null()]).optional(),
+});
+
 export const BashCodeExecution = z.object({ input: z.string() });
 
 export const BashCodeExecutionResponse = z.object({
@@ -4795,6 +4859,11 @@ export const EditBookingLink = z
     userConfirmation: z.string(),
   })
   .strict();
+
+export const EditCanvas = z.object({
+  document_id: z.string(),
+  instructions: z.string(),
+});
 
 export const EditChannelMessage = z.object({
   channelId: z.string().uuid(),
@@ -11751,6 +11820,34 @@ export const ReadCallRecordResponse = z.object({
   ),
 });
 
+export const ReadCanvas = z.object({
+  document_id: z.string(),
+  item_ids: z.union([z.array(z.string()), z.null()]).optional(),
+  format: z
+    .union([
+      z.any().superRefine((x, ctx) => {
+        const schemas = [z.literal('scene'), z.literal('overview')];
+        const errors = schemas.reduce<z.ZodError[]>(
+          (errors, schema) =>
+            ((result) => (result.error ? [...errors, result.error] : errors))(
+              schema.safeParse(x)
+            ),
+          []
+        );
+        if (schemas.length - errors.length !== 1) {
+          ctx.addIssue({
+            path: ctx.path,
+            code: 'invalid_union',
+            unionErrors: errors,
+            message: 'Invalid input: Should pass single schema',
+          });
+        }
+      }),
+      z.null(),
+    ])
+    .optional(),
+});
+
 export const ReadChannelMessageContext = z.object({
   channelId: z.string().uuid(),
   messageId: z.string().uuid(),
@@ -14324,6 +14421,64 @@ export const RenameItemResponse = z.object({
   }),
   entityId: z.string().uuid(),
   name: z.string(),
+});
+
+export const RenderCanvas = z.object({
+  document_id: z.string(),
+  item_ids: z.union([z.array(z.string()), z.null()]).optional(),
+  crop: z
+    .union([
+      z.object({
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number(),
+      }),
+      z.null(),
+    ])
+    .optional(),
+});
+
+export const CanvasRender = z.object({
+  revision: z.string(),
+  clock: z.record(z.number().int().gte(0)),
+  crop: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+  }),
+  width: z.number().int().gte(0),
+  height: z.number().int().gte(0),
+  objects: z.array(
+    z.object({
+      id: z.string(),
+      bounds: z.object({
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number(),
+      }),
+    })
+  ),
+  unavailable: z.array(z.object({ id: z.string(), reason: z.string() })),
+  textLayout: z
+    .array(
+      z.object({
+        id: z.string(),
+        bounds: z.object({
+          x: z.number(),
+          y: z.number(),
+          width: z.number(),
+          height: z.number(),
+        }),
+        overflow: z.boolean(),
+      })
+    )
+    .optional(),
+  modelMedia: z.array(
+    z.object({ type: z.string(), mediaType: z.string(), data: z.string() })
+  ),
 });
 
 export const ResolveComment = z.object({

@@ -95,6 +95,11 @@ reference bookkeeping is excluded from scene undo. Run the feature tests and
 `bunx playwright test --config src/features/block-canvas/browser-test/playwright.config.ts`
 for multiplayer changes.
 
+Canvas **Ask Macro**, including the Drive detail header, attaches the current canvas to the existing agent composer
+on desktop and mobile. Tool results render through
+`lib/core/component/AI/component/tool/Canvas.tsx`; edits arrive through live sync.
+The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
+
 ## Development Patterns
 
 Keep persistent list hotkeys free of mounted-view closures, and clear

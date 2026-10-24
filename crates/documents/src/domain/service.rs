@@ -877,6 +877,34 @@ impl<
         <Self as DocumentService>::create_document(self, principal, document, job_id).await
     }
 
+    #[tracing::instrument(skip(self), err)]
+    async fn initialize_canvas(&self, document_id: &str) -> Result<(), DocumentError> {
+        let result = async {
+            self.sync_service_client
+                .initialize_canvas(document_id)
+                .await
+                .map_err(DocumentError::Internal)?;
+            self.repo
+                .set_document_content(
+                    document_id,
+                    DocumentContent::ready(DocumentContentLocation::SyncService),
+                )
+                .await
+                .map_err(|error| DocumentError::Internal(error.into()))
+        }
+        .await;
+        if result.is_err()
+            && let Err(error) = self.sync_service_client.delete_document(document_id).await
+        {
+            tracing::error!(
+                ?error,
+                document_id,
+                "failed to clean up Canvas initialization"
+            );
+        }
+        result
+    }
+
     async fn handle_task_properties(
         &self,
         principal: &CreationPrincipal,
@@ -1033,6 +1061,15 @@ impl<
 
         let document_id = entity_access_receipt.entity().entity_id.clone();
         let content = self.content_for_document(&document_id, file_type).await?;
+
+        if file_type == Some(FileType::Canvas)
+            && content.location == Some(DocumentContentLocation::SyncService)
+        {
+            return Ok(LocationResponseV3::SyncServiceContent {
+                metadata: document_context.clone(),
+                content,
+            });
+        }
 
         if matches!(file_type, Some(FileType::Md | FileType::Spreadsheet))
             && let Some(response) = self
@@ -1819,6 +1856,18 @@ impl<
             .as_deref()
             .and_then(|f| FileType::from_str(f).ok());
 
+        let native_canvas = if file_type == Some(FileType::Canvas) {
+            self.repo
+                .get_persisted_document_content(&original_metadata.document_id)
+                .await
+                .map_err(|error| DocumentError::Internal(error.into()))?
+                .is_some_and(|content| {
+                    content.location == Some(DocumentContentLocation::SyncService)
+                })
+        } else {
+            false
+        };
+
         // Validate DOCX has BOM
         if file_type == Some(FileType::Docx) && original_metadata.document_bom.is_none() {
             return Err(DocumentError::Internal(anyhow!("document bom is missing")));
@@ -1873,6 +1922,16 @@ impl<
                     build_docx_to_pdf_converted_document_key(new_owner, &new_document_id);
                 self.upload_url_service
                     .copy_object(&source_key, &dest_key)
+                    .await
+            }
+            Some(FileType::Canvas) if native_canvas => {
+                canvas_room = true;
+                self.sync_service_client
+                    .copy_document(
+                        &original_metadata.document_id,
+                        &new_document_id,
+                        sync_version_id,
+                    )
                     .await
             }
             Some(FileType::Md | FileType::Spreadsheet) => {
@@ -2016,7 +2075,11 @@ impl<
             return Err(DocumentError::Internal(e));
         }
 
-        let content = ready_content_for_file_type(file_type);
+        let content = if native_canvas {
+            DocumentContent::ready(DocumentContentLocation::SyncService)
+        } else {
+            ready_content_for_file_type(file_type)
+        };
         if let Err(e) = self
             .repo
             .set_document_content(&new_document_id, content.clone())

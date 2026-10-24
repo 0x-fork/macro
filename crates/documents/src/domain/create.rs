@@ -253,6 +253,7 @@ pub struct NewPlainTextDocument {
 #[derive(Debug, Clone)]
 enum PlainTextDocumentKind {
     Markdown(MarkdownSubtype),
+    Canvas,
     Text(NonMarkdownFileType),
 }
 
@@ -374,7 +375,11 @@ impl NewPlainTextDocumentBuilder<FileType, String> {
                 }
                 MarkdownSubtype::Note => {}
             }
-            PlainTextDocumentKind::Text(NonMarkdownFileType::new(self.file_type)?)
+            if self.file_type == FileType::Canvas && self.text.trim().is_empty() {
+                PlainTextDocumentKind::Canvas
+            } else {
+                PlainTextDocumentKind::Text(NonMarkdownFileType::new(self.file_type)?)
+            }
         };
 
         Ok(NewPlainTextDocument {
@@ -577,6 +582,7 @@ where
                 )
                 .await
             }
+            PlainTextDocumentKind::Canvas => self.create_canvas(principal, metadata).await,
             PlainTextDocumentKind::Text(file_type) => {
                 self.create_text_file(
                     principal,
@@ -589,6 +595,40 @@ where
                 .await
             }
         }
+    }
+
+    /// Create an empty native Canvas whose shared content is ready before returning.
+    #[tracing::instrument(skip(self, metadata), err)]
+    pub async fn create_canvas(
+        &self,
+        principal: &CreationPrincipal,
+        metadata: NewDocumentMetadata,
+    ) -> Result<CreatedDocument, DocumentError> {
+        let document = metadata.into_new_document(RepoDocumentKind {
+            file_type: Some(FileType::Canvas),
+            sha: EMPTY_SHA256.to_string(),
+            subtype: RepoDocumentSubtype::Regular,
+            team_id: None,
+            share_with_team: false,
+        });
+        let mut response = self
+            .document_service
+            .create_document(principal, document, None)
+            .await?;
+        let id = response
+            .document_response
+            .document_metadata
+            .metadata
+            .document_id
+            .clone();
+        if let Err(error) = self.document_service.initialize_canvas(&id).await {
+            self.cleanup_created_document(&id).await;
+            return Err(error);
+        }
+        response.document_response.document_metadata.content =
+            DocumentContent::ready(DocumentContentLocation::SyncService);
+        response.document_response.presigned_url = None;
+        Ok(CreatedDocument::new(response))
     }
 
     /// Create a markdown text document and initialize sync-service.

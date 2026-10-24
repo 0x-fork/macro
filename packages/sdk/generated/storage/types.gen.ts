@@ -3912,6 +3912,38 @@ export type CreateBulkDocumentResponseData = {
 };
 
 /**
+ * Request for a backend-initialized native Canvas.
+ */
+export type CreateCanvasDocumentRequest = {
+    /**
+     * Canvas name.
+     */
+    documentName: string;
+    /**
+     * Optional parent project.
+     */
+    projectId?: string | null;
+};
+
+/**
+ * Response for creating a native Canvas.
+ */
+export type CreateCanvasDocumentResponse = {
+    /**
+     * The document ID of the created native Canvas
+     */
+    documentId: string;
+    /**
+     * Metadata for the created document
+     */
+    documentMetadata: DocumentResponseMetadata;
+    /**
+     * A pre-generated permission token that you can use for SS
+     */
+    token: string;
+};
+
+/**
  * Request body for creating a label.
  */
 export type CreateChannelLabelRequest = {
@@ -19297,6 +19329,44 @@ export type CreateDocumentResponses = {
 };
 
 export type CreateDocumentResponse = CreateDocumentResponses[keyof CreateDocumentResponses];
+
+export type CreateCanvasHandlerData = {
+    body: CreateCanvasDocumentRequest;
+    path?: never;
+    query?: never;
+    url: '/documents/create_canvas';
+};
+
+export type CreateCanvasHandlerErrors = {
+    400: ErrorResponse;
+    401: ErrorResponse;
+    409: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type CreateCanvasHandlerError = CreateCanvasHandlerErrors[keyof CreateCanvasHandlerErrors];
+
+export type CreateCanvasHandlerResponses = {
+    /**
+     * Response for creating a native Canvas.
+     */
+    200: {
+        /**
+         * The document ID of the created native Canvas
+         */
+        documentId: string;
+        /**
+         * Metadata for the created document
+         */
+        documentMetadata: DocumentResponseMetadata;
+        /**
+         * A pre-generated permission token that you can use for SS
+         */
+        token: string;
+    };
+};
+
+export type CreateCanvasHandlerResponse = CreateCanvasHandlerResponses[keyof CreateCanvasHandlerResponses];
 
 export type CreateMarkdownHandlerData = {
     body: CreateMarkdownDocumentRequest;

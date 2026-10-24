@@ -9,9 +9,14 @@ enforced by the ordinary backend APIs.
 ## Start here
 
 - `src/macro.ts`: public exports and namespace registration.
+- `documents.createCanvas()` creates shared content before returning a Document handle;
+  it requires no browser open or upload.
 - `src/entities/entity.ts`: lazy detail reads, mutation invalidation and safe JSON.
 - `src/entities/workspace/namespace.ts`: filtered activity pages and iteration.
 - `src/entities/routines/`, `agents/`, `harnesses/`: automation and agent hosts.
+- `users.search(nameOrEmail)` searches existing Macro contacts with batched auth
+  names and returns seeded User handles; it is not a global directory. Empty
+  contact sets are 404, but authorization/service errors must propagate.
 - `src/entities/sharing/`, `messages/`: scoped access requests and message threads.
 - `src/entities/databases/query.ts`: SQL statements, typed table/row references and version guards.
 - `src/entities/crm/pipeline.ts`: pipeline-authorized table/row handles.

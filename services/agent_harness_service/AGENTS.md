@@ -69,6 +69,10 @@ session's serialized worker. Internal producers use
 `POST /agent-sessions/internal/notifications`; only internal credentials may
 produce events, independently of public session control.
 
+## Canvas media
+
+- `RenderCanvas` promotes only its explicit top-level `modelMedia` contract to at most two bounded native PNG blocks; pixels are removed from text and structured JSON, nested scene media is never promoted, and this adapter never fetches image URLs.
+
 ## Checks
 
 - `cargo test -p agent_harness_service` (`SQLX_OFFLINE` unset).

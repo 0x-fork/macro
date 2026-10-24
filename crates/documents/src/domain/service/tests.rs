@@ -3025,8 +3025,18 @@ fn spreadsheet_test_service(
 
 #[tokio::test]
 async fn canvas_copy_preserves_live_content_and_legacy_canvases_still_copy() {
-    for shared in [false, true] {
+    for (shared, native) in [(false, false), (true, false), (true, true)] {
         let mut repo = make_mock_repo();
+        repo.expect_get_persisted_document_content()
+            .returning(move |_| {
+                Box::pin(std::future::ready(Ok(Some(DocumentContent::ready(
+                    if native {
+                        DocumentContentLocation::SyncService
+                    } else {
+                        DocumentContentLocation::ObjectStorage
+                    },
+                )))))
+            });
         let mut original = make_test_metadata();
         original.project_id = None;
         original.file_type = Some("canvas".to_string());
@@ -3041,6 +3051,7 @@ async fn canvas_copy_preserves_live_content_and_legacy_canvases_still_copy() {
         repo.expect_get_owner_team()
             .returning(|_| Box::pin(std::future::ready(Ok(None))));
         repo.expect_get_latest_document_version_id()
+            .times(usize::from(!native))
             .returning(|_| Box::pin(std::future::ready(Ok((1, true)))));
         repo.expect_set_document_content()
             .returning(|_, _| Box::pin(std::future::ready(Ok(()))));
@@ -3049,7 +3060,7 @@ async fn canvas_copy_preserves_live_content_and_legacy_canvases_still_copy() {
         let mut sync = crate::domain::ports::sync::MockDocumentSyncPort::new();
         sync.expect_exists()
             .withf(|id| id == "doc-1")
-            .times(1)
+            .times(usize::from(!native))
             .returning(move |_| Box::pin(std::future::ready(Ok(shared))));
         sync.expect_copy_document()
             .withf(|from, to, _| from == "doc-1" && to == "doc-2")
@@ -3077,6 +3088,11 @@ async fn canvas_copy_preserves_live_content_and_legacy_canvases_still_copy() {
 async fn canvas_copy_failure_compensates_only_its_destinations_and_still_removes_rows() {
     for phase in ["lookup", "copy", "ready", "legacy-ready", "metadata"] {
         let mut repo = make_mock_repo();
+        repo.expect_get_persisted_document_content().returning(|_| {
+            Box::pin(std::future::ready(Ok(Some(DocumentContent::ready(
+                DocumentContentLocation::ObjectStorage,
+            )))))
+        });
         let mut original = make_test_metadata();
         original.project_id = None;
         original.file_type = Some("canvas".to_string());
@@ -3675,4 +3691,34 @@ async fn task_identity_treats_a_deleted_task_as_missing() {
         .await;
 
     assert!(matches!(result, Err(DocumentError::NotFound(_))));
+}
+
+#[tokio::test]
+async fn native_canvas_location_uses_sync_without_an_object_url() {
+    let mut repo = make_mock_repo();
+    repo.expect_get_persisted_document_content().returning(|_| {
+        Box::pin(std::future::ready(Ok(Some(DocumentContent::ready(
+            DocumentContentLocation::SyncService,
+        )))))
+    });
+    let sync = crate::domain::ports::sync::MockDocumentSyncPort::new();
+    let service = spreadsheet_test_service(repo, sync);
+    let mut context = task_document_context("doc-1");
+    context.file_type = Some("canvas".to_string());
+    context.sub_type = None;
+    let result = service
+        .get_document_location(
+            &context,
+            authenticated_receipt("doc-1"),
+            LocationQueryParams {
+                document_version_id: None,
+                get_converted_docx_url: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        result,
+        LocationResponseV3::SyncServiceContent { .. }
+    ));
 }

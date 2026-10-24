@@ -1,5 +1,6 @@
 //! Toolset inbound adapter for Documents.
 
+mod canvas;
 mod comment_on_text;
 mod create_document;
 mod create_skill;
@@ -32,6 +33,7 @@ use crate::{
     domain::ports::mentions::NoOpDocumentMentionTracker,
     domain::presentation::{NoPresentationFiles, PresentationFiles, PresentationService},
     inbound::toolset::{
+        canvas::{ApplyCanvasEdits, EditCanvas, ReadCanvas, RenderCanvas},
         comment_on_text::CommentOnText,
         create_document::CreateDocument,
         create_skill::CreateSkill,
@@ -365,6 +367,10 @@ where
         .add_tool::<UploadFile, DocumentToolContext<DSvc, ESvc, EDSvc>>()
         .add_tool::<RenameDocument, DocumentToolContext<DSvc, ESvc, EDSvc>>()
         .add_tool::<EditDocument, DocumentToolContext<DSvc, ESvc, EDSvc>>()
+        .add_tool::<ReadCanvas, DocumentToolContext<DSvc, ESvc, EDSvc>>()
+        .add_tool::<RenderCanvas, DocumentToolContext<DSvc, ESvc, EDSvc>>()
+        .add_tool::<ApplyCanvasEdits, DocumentToolContext<DSvc, ESvc, EDSvc>>()
+        .add_tool::<EditCanvas, DocumentToolContext<DSvc, ESvc, EDSvc>>()
         .add_tool::<CommentOnText, DocumentToolContext<DSvc, ESvc, EDSvc>>()
         .add_tool::<ReadSpreadsheet, DocumentToolContext<DSvc, ESvc, EDSvc>>()
         .add_tool::<CalculateSpreadsheet, DocumentToolContext<DSvc, ESvc, EDSvc>>()

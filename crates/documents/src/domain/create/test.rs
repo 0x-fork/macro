@@ -85,6 +85,16 @@ impl DocumentCreationService for FakeCreationService {
         })
     }
 
+    async fn initialize_canvas(&self, _document_id: &str) -> Result<(), DocumentError> {
+        self.lifecycle.lock().unwrap().push("canvas_ready");
+        if self.fail_content_update {
+            return Err(DocumentError::Internal(anyhow::anyhow!(
+                "Canvas initialization failed"
+            )));
+        }
+        Ok(())
+    }
+
     async fn handle_task_properties(
         &self,
         principal: &CreationPrincipal,
@@ -573,5 +583,66 @@ fn test_file_shas() {
     assert_eq!(
         hashes.base64,
         "LPJNul+wow4m6DsqxbninhsWHlwfp0JecwQzYpOLmCQ="
+    );
+}
+
+#[tokio::test]
+async fn native_canvas_creation_finishes_shared_content_without_uploading() {
+    let tracker = RecordingMentionTracker::default();
+    let creator = creator(&tracker);
+    let created = creator
+        .create_plain_text(
+            &CreationPrincipal::User(owner()),
+            NewPlainTextDocument::new(
+                NewDocumentMetadata::new("Canvas"),
+                FileType::Canvas,
+                String::new(),
+                MarkdownSubtype::Note,
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        *creator.document_service.lifecycle.lock().unwrap(),
+        vec!["create", "canvas_ready"]
+    );
+    assert!(created.response().document_response.presigned_url.is_none());
+    assert_eq!(
+        created
+            .response()
+            .document_response
+            .document_metadata
+            .content,
+        crate::domain::content::DocumentContent::ready(
+            crate::domain::content::DocumentContentLocation::SyncService
+        )
+    );
+}
+
+#[tokio::test]
+async fn failed_native_canvas_creation_removes_its_metadata() {
+    let tracker = RecordingMentionTracker::default();
+    let lifecycle = Arc::new(Mutex::new(Vec::new()));
+    let creator = DocumentCreator::new(
+        FakeCreationService {
+            fail_content_update: true,
+            lifecycle: lifecycle.clone(),
+            ..Default::default()
+        },
+        FakeMarkdownInitializer,
+        FakeBytesUploader,
+        &tracker,
+    );
+    let result = creator
+        .create_canvas(
+            &CreationPrincipal::User(owner()),
+            NewDocumentMetadata::new("Canvas"),
+        )
+        .await;
+    assert!(result.is_err());
+    assert_eq!(
+        *lifecycle.lock().unwrap(),
+        vec!["create", "canvas_ready", "cleanup"]
     );
 }
