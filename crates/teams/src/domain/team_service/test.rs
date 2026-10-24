@@ -1267,6 +1267,14 @@ impl ChannelService for RecordingChannelService {
         async move { unimplemented!("not needed for team service tests") }
     }
 
+    async fn get_user_display_names(
+        &self,
+        _user_ids: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<std::collections::HashMap<MacroUserIdStr<'static>, String>, ChannelMessagesErr>
+    {
+        Ok(std::collections::HashMap::new())
+    }
+
     fn create_channel(
         &self,
         actor: Sender,

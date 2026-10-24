@@ -338,6 +338,14 @@ impl ChannelService for MockService {
             ),
         ])
     }
+
+    async fn get_user_display_names(
+        &self,
+        _user_ids: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<std::collections::HashMap<MacroUserIdStr<'static>, String>, ChannelMessagesErr>
+    {
+        Ok(std::collections::HashMap::new())
+    }
 }
 
 struct ErrorService;
@@ -375,6 +383,14 @@ impl ChannelService for ErrorService {
         _user_id: String,
     ) -> Result<Vec<crate::domain::models::AttachmentEntityReference>, ChannelMessagesErr> {
         Err(ChannelMessagesErr::Repo(anyhow::anyhow!("database error")))
+    }
+
+    async fn get_user_display_names(
+        &self,
+        _user_ids: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<std::collections::HashMap<MacroUserIdStr<'static>, String>, ChannelMessagesErr>
+    {
+        Ok(std::collections::HashMap::new())
     }
 }
 
@@ -423,6 +439,14 @@ impl ChannelService for ParticipantsService {
                 left_at: None,
             },
         ])
+    }
+
+    async fn get_user_display_names(
+        &self,
+        _user_ids: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<std::collections::HashMap<MacroUserIdStr<'static>, String>, ChannelMessagesErr>
+    {
+        Ok(std::collections::HashMap::new())
     }
 
     async fn get_attachment_references(
@@ -489,6 +513,14 @@ impl ChannelService for JoinLinkService {
         _user_id: String,
     ) -> Result<Vec<crate::domain::models::AttachmentEntityReference>, ChannelMessagesErr> {
         unimplemented!()
+    }
+
+    async fn get_user_display_names(
+        &self,
+        _user_ids: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<std::collections::HashMap<MacroUserIdStr<'static>, String>, ChannelMessagesErr>
+    {
+        Ok(std::collections::HashMap::new())
     }
 
     async fn get_channel_join_code(
@@ -575,6 +607,14 @@ impl ChannelService for RecordingMutationService {
         Ok(CreateChannelResponse {
             id: Uuid::new_v4().to_string(),
         })
+    }
+
+    async fn get_user_display_names(
+        &self,
+        _user_ids: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<std::collections::HashMap<MacroUserIdStr<'static>, String>, ChannelMessagesErr>
+    {
+        Ok(std::collections::HashMap::new())
     }
 
     async fn get_or_create_dm(
@@ -1410,6 +1450,14 @@ impl ChannelService for ActivityService {
         _user_id: String,
     ) -> Result<Vec<crate::domain::models::AttachmentEntityReference>, ChannelMessagesErr> {
         Ok(vec![])
+    }
+
+    async fn get_user_display_names(
+        &self,
+        _user_ids: Vec<MacroUserIdStr<'static>>,
+    ) -> Result<std::collections::HashMap<MacroUserIdStr<'static>, String>, ChannelMessagesErr>
+    {
+        Ok(std::collections::HashMap::new())
     }
 
     async fn get_activities(&self, user_id: String) -> Result<Vec<Activity>, ChannelMessagesErr> {
