@@ -110,10 +110,14 @@ export function useCalendarEventMention(
         },
       })
     );
-  const own = useSearchSoupQuery(searchArgs(), () => ({ enabled: enabled() }));
-  const shared = useSearchSoupQuery(searchArgs('shared_with_you'), () => ({
-    enabled: enabled(),
-  }));
+  // Nothing tells a viewer they lost access to an event, so each search asks
+  // again when shown, keeping the earlier answer on screen until it lands.
+  const searchOptions = () => ({ enabled: enabled(), staleTime: 0 });
+  const own = useSearchSoupQuery(searchArgs(), searchOptions);
+  const shared = useSearchSoupQuery(
+    searchArgs('shared_with_you'),
+    searchOptions
+  );
 
   const events = createLazyMemo((): CalendarEventMentionItem[] => {
     if (!enabled() || !queryReadyGate(own)) return [];
