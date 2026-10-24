@@ -7257,6 +7257,7 @@ async fn retiring_an_unrelated_copy_keeps_a_fresher_schedule_written_through_ano
 }
 
 mod changes;
+mod channel_grants;
 mod details;
 mod export;
 mod invitations;

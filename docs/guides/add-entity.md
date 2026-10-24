@@ -88,8 +88,8 @@ migrations, the SQLx cache, and tests.
 - **Grant cleanup trigger:** `entity_access`, `entity_properties`, `favorite`, and
   collab surfaces have no foreign key to your table. Add an `AFTER DELETE` trigger
   that deletes the kind's `entity_access` rows, as `database_entities`,
-  `crm_pipeline_entities`, and `forms` do. Initiatives lack one, so deleting an
-  owner's account can orphan their grants.
+  `crm_pipeline_entities`, `calendar_events`, and `forms` do. Initiatives lack
+  one, so deleting an owner's account can orphan their grants.
 - **Enum values get their own migration.** `ALTER TYPE ... ADD VALUE` cannot be
   used in the transaction that adds it, and SQLx runs each file in one
   transaction. Add the value in one migration and backfill in the next (see
