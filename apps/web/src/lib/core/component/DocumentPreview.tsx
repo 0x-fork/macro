@@ -31,7 +31,11 @@ import {
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import { toast } from '@core/component/Toast/Toast';
-import { itemToBlockName, resolveBlockAlias } from '@core/constant/allBlocks';
+import {
+  isBlockAlias,
+  itemToBlockName,
+  resolveBlockAlias,
+} from '@core/constant/allBlocks';
 import { getDisplayName, tryMacroId } from '@core/user';
 import { copyBranchNameToClipboard } from '@core/util/branchName';
 import { fireAndForget } from '@core/util/fireAndForget';
@@ -516,6 +520,17 @@ export type DocumentPreviewContentProps = {
 };
 
 /**
+ * Tasks, skills and snippets are documents underneath; their cards name the
+ * kind of item the reference points at rather than its storage.
+ */
+function aliasNoun(alias: BlockAlias): string | undefined {
+  return match(alias)
+    .with('task', 'skill', 'snippet', (named) => named)
+    .with('csv', () => undefined)
+    .exhaustive();
+}
+
+/**
  * The inner preview body shared by every document/task preview: the header
  * (icon + filename + action buttons), the task body
  * ({@link TaskPropertiesPreview}), the inset image preview, the author/update
@@ -562,7 +577,13 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
 
   // A gone or hidden item's card names what it was. The preview reports a
   // cancelled meeting as missing too.
-  const itemNoun = () => getShareItemNoun(itemPreviewEntity().type);
+  const itemNoun = () => {
+    const type = props.documentInfo.type;
+    return (
+      (isBlockAlias(type) ? aliasNoun(type) : undefined) ??
+      getShareItemNoun(itemPreviewEntity().type)
+    );
+  };
   const deletedMessage = () =>
     itemPreviewEntity().type === 'calendar_event'
       ? 'This event was deleted or cancelled.'

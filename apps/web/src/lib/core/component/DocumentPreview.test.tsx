@@ -336,6 +336,16 @@ describe('a mention card for an item that is gone or hidden', () => {
   it.each([
     ['md', 'document', "This document was deleted or doesn't exist."],
     ['channel', 'channel', "This channel was deleted or doesn't exist."],
+    ['skill', 'document', "This skill was deleted or doesn't exist."],
+    ['task', 'document', "This task was deleted or doesn't exist."],
+    ['database', 'database', "This database was deleted or doesn't exist."],
+    ['form', 'form', "This form was deleted or doesn't exist."],
+    ['routine', 'routine', "This routine was deleted or doesn't exist."],
+    [
+      'agent',
+      'agent_session',
+      "This agent session was deleted or doesn't exist.",
+    ],
   ] as const)('names a deleted %s', (blockName, type, message) => {
     mocks.item = {
       id: 'mentioned-item',
@@ -360,6 +370,11 @@ describe('a mention card for an item that is gone or hidden', () => {
   it.each([
     ['md', 'document', 'document'],
     ['channel', 'channel', 'channel'],
+    ['skill', 'document', 'skill'],
+    ['database', 'database', 'database'],
+    ['form', 'form', 'form'],
+    ['routine', 'routine', 'routine'],
+    ['agent', 'agent_session', 'agent session'],
   ] as const)('names a %s the viewer can’t open', (blockName, type, noun) => {
     mocks.item = {
       id: 'mentioned-item',

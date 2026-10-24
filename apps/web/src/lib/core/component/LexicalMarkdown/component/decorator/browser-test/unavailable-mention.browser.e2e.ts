@@ -12,13 +12,34 @@ const cases = [
   ],
   ['Deleted channel', 'Deleted', "This channel was deleted or doesn't exist."],
   ['Hidden event', 'No Access', "You don't have access to this event"],
+  [
+    'Deleted database',
+    'Deleted',
+    "This database was deleted or doesn't exist.",
+  ],
+  ['Hidden database', 'No Access', "You don't have access to this database"],
+  ['Deleted form', 'Deleted', "This form was deleted or doesn't exist."],
+  ['Hidden form', 'No Access', "You don't have access to this form"],
+  ['Deleted skill', 'Deleted', "This skill was deleted or doesn't exist."],
+  ['Deleted routine', 'Deleted', "This routine was deleted or doesn't exist."],
+  ['Hidden routine', 'No Access', "You don't have access to this routine"],
+  [
+    'Deleted agent session',
+    'Deleted agent session',
+    "This agent session was deleted or doesn't exist.",
+  ],
+  [
+    'Hidden agent session',
+    'Private agent session',
+    "You don't have access to this agent session",
+  ],
 ] as const;
 
 function chip(page: Page, label: string, name: string) {
   return page
     .getByRole('paragraph')
     .filter({ hasText: `${label}:` })
-    .getByRole('link', { name });
+    .getByText(name, { exact: true });
 }
 
 for (const [label, name, card] of cases) {
@@ -37,18 +58,35 @@ for (const [label, name, card] of cases) {
   });
 }
 
-test('Enter on a selected deleted chip keeps its card open', async ({
+test('a database chip whose refetch failed keeps its loaded chip', async ({
   page,
 }) => {
   await page.goto(fixture);
-  const card = "This document was deleted or doesn't exist.";
-  await expect(chip(page, 'Selected in an editor', 'Deleted')).toBeVisible();
+  const loaded = page
+    .getByRole('paragraph')
+    .filter({ hasText: 'Loaded database:' });
+  await expect(loaded.getByText('Roadmap', { exact: true })).toBeVisible();
+  await expect(loaded.getByText('No Access', { exact: true })).toBeHidden();
+});
 
-  expect(
-    await page.evaluate(() => window.pressEnterOnSelectedMention?.())
-  ).toBe(true);
-  await expect(page.getByText(card, { exact: true })).toBeVisible();
-  await expect(page.getByText(/file/)).toBeHidden();
+test('Enter on a deleted chip selected in a composer keeps its card open', async ({
+  page,
+}) => {
+  await page.goto(fixture);
+  const composer = page.getByRole('textbox', { name: 'Composer' });
+  await expect(composer.getByText('Deleted', { exact: true })).toBeVisible();
+
+  await composer.focus();
+  await page.evaluate(() => window.selectComposerMention?.());
+  await page.keyboard.press('Enter');
+
+  await expect(
+    page.getByText("This document was deleted or doesn't exist.", {
+      exact: true,
+    })
+  ).toBeVisible();
+  // The chip took the Enter; the editor did not break the line.
+  await expect(composer.locator('p')).toHaveCount(1);
 });
 
 test.describe('on a phone', () => {

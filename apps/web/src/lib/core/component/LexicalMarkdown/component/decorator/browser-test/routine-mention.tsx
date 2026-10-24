@@ -6,6 +6,10 @@ import type {
   SplitContent,
   SplitManager,
 } from '@components/app/split-layout/layoutManager';
+import { queryClient } from '@queries/client';
+import { previewKeys } from '@queries/preview/keys';
+import type { PreviewItem } from '@queries/preview/types';
+import { QueryClientProvider } from '@tanstack/solid-query';
 import { render } from 'solid-js/web';
 import { channelTheme } from '../../../theme';
 import {
@@ -21,6 +25,16 @@ const mention = `<m-document-mention>${JSON.stringify({
   blockName: 'routine',
 })}</m-document-mention>`;
 
+// The viewer can read the routine, so its chip opens it.
+queryClient.setQueryData(previewKeys.item(id).queryKey, {
+  id,
+  type: 'routine',
+  access: 'access',
+  loading: false,
+  rawName: 'Daily review',
+  name: 'Daily review',
+} satisfies PreviewItem);
+
 // Only navigation is used by this isolated decorator fixture.
 setGlobalSplitManager({
   openWithSplit(content: SplitContent) {
@@ -33,25 +47,27 @@ render(
   () => (
     <AnalyticsContextProvider>
       <PosthogProvider>
-        <StaticMarkdownContext theme={channelTheme}>
-          <main class="p-4 text-ink bg-page">
-            <StaticMarkdown
-              markdown={`Created ${mention}.`}
-              target="internal"
-            />
-            <p>
-              <DocumentMention
-                key="collapsed-routine"
-                theme={channelTheme}
-                documentId={id}
-                documentName="Collapsed review"
-                blockName="routine"
-                collapsed
+        <QueryClientProvider client={queryClient}>
+          <StaticMarkdownContext theme={channelTheme}>
+            <main class="p-4 text-ink bg-page">
+              <StaticMarkdown
+                markdown={`Created ${mention}.`}
+                target="internal"
               />
-            </p>
-            <output id="opened" aria-label="Opened split" />
-          </main>
-        </StaticMarkdownContext>
+              <p>
+                <DocumentMention
+                  key="collapsed-routine"
+                  theme={channelTheme}
+                  documentId={id}
+                  documentName="Collapsed review"
+                  blockName="routine"
+                  collapsed
+                />
+              </p>
+              <output id="opened" aria-label="Opened split" />
+            </main>
+          </StaticMarkdownContext>
+        </QueryClientProvider>
       </PosthogProvider>
     </AnalyticsContextProvider>
   ),

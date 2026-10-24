@@ -35,6 +35,7 @@ import { formatDate } from '@core/util/date';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
+import { ThrownResultError } from '@core/util/result';
 import { useNativeSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
 import {
   $convertMentionToCard,
@@ -46,6 +47,7 @@ import ArrowsOut from '@phosphor/arrows-out-simple.svg';
 import EyeSlashDuo from '@phosphor/eye-slash.svg';
 import TrashSimple from '@phosphor/trash-simple.svg';
 import {
+  failedReadAccess,
   type ItemEntity,
   isAccessiblePreviewItem,
   isCalendarEventPreviewItem,
@@ -419,8 +421,151 @@ export function DocumentMention(props: DocumentMentionDecoratorProps) {
   );
 }
 
-/** Routine references use their saved label; routines have no shared item preview. */
+/** Whether a mention was made in the last minute; it stops being recent while mounted. */
+function createRecentMention(createdAt: number | undefined) {
+  const recentForMs = createdAt
+    ? createdAt + RECENT_MENTION_THRESHOLD_MS - Date.now()
+    : 0;
+  const [isRecent, setIsRecent] = createSignal(recentForMs > 0);
+  if (recentForMs > 0) {
+    const timer = setTimeout(() => setIsRecent(false), recentForMs);
+    onCleanup(() => clearTimeout(timer));
+  }
+  return isRecent;
+}
+
+/**
+ * A database, form or routine reference whose item is gone or hidden from the
+ * viewer. It reads `Deleted` or `No Access` like any other unavailable
+ * reference, and clicking it keeps the item's card open (a tap opens the card
+ * as a sheet) instead of opening anything.
+ */
+function UnavailableMention(props: {
+  access: PreviewItemNoAccess['access'];
+  documentInfo: DocumentPreviewContentProps['documentInfo'];
+  collapsed?: boolean;
+}) {
+  const [previewCardOpen, setPreviewCardOpen] = createSignal(false);
+  const [previewSheetOpen, setPreviewSheetOpen] = createSignal(false);
+  const open = (event: MouseEvent | KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isTouchDevice()) setPreviewSheetOpen(true);
+    else setPreviewCardOpen(true);
+  };
+  return (
+    <>
+      <Show when={isTouchDevice()}>
+        <DocumentPreviewSheet
+          open={previewSheetOpen()}
+          onOpenChange={setPreviewSheetOpen}
+          documentInfo={props.documentInfo}
+        />
+      </Show>
+      <HoverCard
+        open={previewCardOpen()}
+        onOpenChange={setPreviewCardOpen}
+        keepOpenOnTriggerPress
+        trigger={
+          <span
+            class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+            role="link"
+            tabIndex={0}
+            on:mousedown={(event) => event.preventDefault()}
+            on:click={open}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') open(event);
+            }}
+          >
+            <Show
+              when={props.access === 'no_access'}
+              fallback={
+                <MentionContainer
+                  icon={<TrashSimple />}
+                  text="Deleted"
+                  collapsed={props.collapsed}
+                />
+              }
+            >
+              <MentionContainer
+                icon={<EyeSlashDuo />}
+                text="No Access"
+                collapsed={props.collapsed}
+              />
+            </Show>
+          </span>
+        }
+        content={
+          <PopupPreview
+            mouseEnter={() => {}}
+            mouseLeave={() => {}}
+            documentInfo={props.documentInfo}
+          />
+        }
+      />
+    </>
+  );
+}
+
+/**
+ * How a database or form reference reads once its detail read fails, or
+ * nothing while it keeps the chip it loaded: a refetch that fails for any
+ * reason but the item being gone leaves the loaded chip on screen.
+ */
+function detailUnavailable(detail: {
+  isError: boolean;
+  error: unknown;
+  dataUpdatedAt: number;
+}): PreviewItemNoAccess['access'] | undefined {
+  if (!detail.isError) return undefined;
+  const access =
+    detail.error instanceof ThrownResultError
+      ? failedReadAccess(detail.error.errors)
+      : 'no_access';
+  if (detail.dataUpdatedAt > 0 && access !== 'does_not_exist') return undefined;
+  return access;
+}
+
 function RoutineMention(props: DocumentMentionDecoratorProps) {
+  const lexicalWrapper = useContext(LexicalWrapperContext);
+  if (lexicalWrapper?.skipPreviewFetch) return <RoutineLink {...props} />;
+  return <PreviewedRoutineMention {...props} />;
+}
+
+function PreviewedRoutineMention(props: DocumentMentionDecoratorProps) {
+  const { item } = useItemPreviewData(() => ({
+    id: props.documentId,
+    type: 'routine',
+  }));
+  const isRecentMention = createRecentMention(props.createdAt);
+  // A routine made in the last minute can briefly preview as missing; it
+  // still opens rather than reading as deleted.
+  const unavailable = () => {
+    const i = item();
+    if (i.loading || i.access === 'access') return undefined;
+    if (i.access === 'does_not_exist' && isRecentMention()) return undefined;
+    return i.access;
+  };
+  return (
+    <Show when={unavailable()} fallback={<RoutineLink {...props} />}>
+      {(access) => (
+        <UnavailableMention
+          access={access()}
+          collapsed={props.collapsed}
+          documentInfo={{
+            id: props.documentId,
+            type: 'routine',
+            params: {},
+            isOpenable: true,
+          }}
+        />
+      )}
+    </Show>
+  );
+}
+
+/** Routine references use their saved label; routines have no hover preview. */
+function RoutineLink(props: DocumentMentionDecoratorProps) {
   const name = () =>
     props.documentName?.replaceAll('\n', ' ').trim() || 'Routine';
   const open = (event: MouseEvent | KeyboardEvent) => {
@@ -471,7 +616,6 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
   const name = () =>
     detail.isSuccess ? detail.data.database.name : props.documentName;
   const open = (event: MouseEvent | KeyboardEvent) => {
-    if (detail.isError) return;
     event.preventDefault();
     event.stopPropagation();
     openDocument(
@@ -491,51 +635,64 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
     });
   };
   return (
-    <span class="inline-flex items-baseline gap-1">
-      <span
-        class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-        role="link"
-        tabIndex={0}
-        on:mousedown={(event) => event.preventDefault()}
-        on:click={open}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') open(event);
-        }}
-      >
-        <MentionContainer
-          icon={<EntityIcon targetType="database" size="fill" />}
-          collapsed={props.collapsed}
-          text={
-            <span
-              data-document-mention="true"
-              data-document-id={props.documentId}
-              data-block-name="database"
-              data-document-name={name()}
+    <Show
+      when={detailUnavailable(detail)}
+      fallback={
+        <span class="inline-flex items-baseline gap-1">
+          <span
+            class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+            role="link"
+            tabIndex={0}
+            on:mousedown={(event) => event.preventDefault()}
+            on:click={open}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') open(event);
+            }}
+          >
+            <MentionContainer
+              icon={<EntityIcon targetType="database" size="fill" />}
+              collapsed={props.collapsed}
+              text={
+                <span
+                  data-document-mention="true"
+                  data-document-id={props.documentId}
+                  data-block-name="database"
+                  data-document-name={name()}
+                >
+                  {name() || 'Database'}
+                </span>
+              }
+            />
+          </span>
+          <Show
+            when={enabled().enabled && editable() && wrapper?.isInteractable()}
+          >
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              label="Expand database"
+              on:mousedown={(event) => event.preventDefault()}
+              on:click={expand}
             >
-              {detail.isError ? 'Database unavailable' : name() || 'Database'}
-            </span>
-          }
+              <ArrowsOut class="size-3.5" />
+            </Button>
+          </Show>
+        </span>
+      }
+    >
+      {(access) => (
+        <UnavailableMention
+          access={access()}
+          collapsed={props.collapsed}
+          documentInfo={{
+            id: props.documentId,
+            type: 'database',
+            params: props.blockParams ?? {},
+            isOpenable: true,
+          }}
         />
-      </span>
-      <Show
-        when={
-          enabled().enabled &&
-          editable() &&
-          wrapper?.isInteractable() &&
-          !detail.isError
-        }
-      >
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          label="Expand database"
-          on:mousedown={(event) => event.preventDefault()}
-          on:click={expand}
-        >
-          <ArrowsOut class="size-3.5" />
-        </Button>
-      </Show>
-    </span>
+      )}
+    </Show>
   );
 }
 
@@ -548,7 +705,6 @@ function FormMention(props: DocumentMentionDecoratorProps) {
   const name = () =>
     detail.isSuccess ? detail.data.form.name : props.documentName;
   const open = (event: MouseEvent | KeyboardEvent) => {
-    if (detail.isError) return;
     event.preventDefault();
     event.stopPropagation();
     openDocument(
@@ -559,31 +715,49 @@ function FormMention(props: DocumentMentionDecoratorProps) {
     );
   };
   return (
-    <span
-      class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-      role="link"
-      tabIndex={0}
-      on:mousedown={(event) => event.preventDefault()}
-      on:click={open}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') open(event);
-      }}
+    <Show
+      when={detailUnavailable(detail)}
+      fallback={
+        <span
+          class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+          role="link"
+          tabIndex={0}
+          on:mousedown={(event) => event.preventDefault()}
+          on:click={open}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') open(event);
+          }}
+        >
+          <MentionContainer
+            icon={<EntityIcon targetType="form" size="fill" />}
+            collapsed={props.collapsed}
+            text={
+              <span
+                data-document-mention="true"
+                data-document-id={props.documentId}
+                data-block-name="form"
+                data-document-name={name()}
+              >
+                {name() || 'Form'}
+              </span>
+            }
+          />
+        </span>
+      }
     >
-      <MentionContainer
-        icon={<EntityIcon targetType="form" size="fill" />}
-        collapsed={props.collapsed}
-        text={
-          <span
-            data-document-mention="true"
-            data-document-id={props.documentId}
-            data-block-name="form"
-            data-document-name={name()}
-          >
-            {detail.isError ? 'Form unavailable' : name() || 'Form'}
-          </span>
-        }
-      />
-    </span>
+      {(access) => (
+        <UnavailableMention
+          access={access()}
+          collapsed={props.collapsed}
+          documentInfo={{
+            id: props.documentId,
+            type: 'form',
+            params: props.blockParams ?? {},
+            isOpenable: true,
+          }}
+        />
+      )}
+    </Show>
   );
 }
 
@@ -678,14 +852,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
   // Check if this is a recently created mention that we should show fallback for.
   // It stops being recent while mounted, so a chip for an event deleted in the
   // meantime then reads and opens as deleted without a remount.
-  const recentForMs = props.createdAt
-    ? props.createdAt + RECENT_MENTION_THRESHOLD_MS - Date.now()
-    : 0;
-  const [isRecentMention, setIsRecentMention] = createSignal(recentForMs > 0);
-  if (recentForMs > 0) {
-    const timer = setTimeout(() => setIsRecentMention(false), recentForMs);
-    onCleanup(() => clearTimeout(timer));
-  }
+  const isRecentMention = createRecentMention(props.createdAt);
 
   const showEmbedOption = createMemo(() => {
     if (!lexicalWrapper?.isInteractable()) return false;
