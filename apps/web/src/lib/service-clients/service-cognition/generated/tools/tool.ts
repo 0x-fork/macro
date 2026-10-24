@@ -367,6 +367,10 @@ type ToolParserMap = {
     call: types.ReadBookingSettings;
     response: types.BookingSettingsResult;
   };
+  ReadCalendarEvent: {
+    call: types.ReadCalendarEvent;
+    response: types.ReadCalendarEventResponse;
+  };
   ReadCallRecord: {
     call: types.ReadCallRecord;
     response: types.ReadCallRecordResponse;
@@ -932,6 +936,10 @@ const toolParserMap = {
     call: schemas.ReadBookingSettings,
     response: schemas.BookingSettingsResult,
   },
+  ReadCalendarEvent: {
+    call: schemas.ReadCalendarEvent,
+    response: schemas.ReadCalendarEventResponse,
+  },
   ReadCallRecord: {
     call: schemas.ReadCallRecord,
     response: schemas.ReadCallRecordResponse,
@@ -1492,6 +1500,10 @@ type ToolDataMap = {
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
     response: types.BookingSettingsResult;
+  };
+  ReadCalendarEvent: {
+    call: types.ReadCalendarEvent;
+    response: types.ReadCalendarEventResponse;
   };
   ReadCallRecord: {
     call: types.ReadCallRecord;

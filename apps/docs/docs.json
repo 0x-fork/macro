@@ -211,6 +211,7 @@
               "AI/mcp/tools/read-agent-session",
               "AI/mcp/tools/read-agent-session-sharing",
               "AI/mcp/tools/read-booking-settings",
+              "AI/mcp/tools/read-calendar-event",
               "AI/mcp/tools/read-call-record",
               "AI/mcp/tools/read-canvas",
               "AI/mcp/tools/read-channel-message-context",

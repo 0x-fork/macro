@@ -25,6 +25,7 @@ use super::{
 /// Lifecycle of a request to be added as a guest of a shared event.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "ai_tools", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum CalendarJoinRequestStatus {
     /// Waiting on the person who shared the event.

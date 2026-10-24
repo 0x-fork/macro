@@ -126,6 +126,7 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   ReactToChannelMessage: (whose) => `react to messages from ${whose} account`,
   ReadActivity: (whose) => `read ${whose} recent activity`,
   ReadBookingSettings: (whose) => `read ${whose} booking settings`,
+  ReadCalendarEvent: (whose) => `read ${whose} calendar`,
   ReadCallRecord: (whose) => `read ${whose} call recordings`,
   ReadChannelMessageContext: (whose) => `read ${whose} channel messages`,
   ReadChannelMessages: (whose) => `read ${whose} channel messages`,

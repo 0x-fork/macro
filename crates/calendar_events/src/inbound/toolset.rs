@@ -11,6 +11,7 @@ mod create_confirmed_calendar_event;
 mod delete_calendar_event;
 mod list_calendar_events;
 mod list_calendars;
+mod read_calendar_event;
 mod update_calendar_event;
 
 #[cfg(test)]
@@ -48,6 +49,7 @@ pub use list_calendar_events::{
     CalendarEventListItem, ListCalendarEvents, ListCalendarEventsResponse,
 };
 pub use list_calendars::{ListCalendars, ListCalendarsToolResponse, ToolCalendar};
+pub use read_calendar_event::{CalendarEventAccess, ReadCalendarEvent, ReadCalendarEventResponse};
 pub use update_calendar_event::{
     ConferenceChangeInput, RsvpResponseInput, UpdateCalendarEvent, UpdateScopeInput,
 };
@@ -122,6 +124,7 @@ where
     AsyncToolCollection::new()
         .add_tool::<ListCalendarEvents, CalendarToolContext<M, O, L>>()
         .add_tool::<ListCalendars, CalendarToolContext<M, O, L>>()
+        .add_tool::<ReadCalendarEvent, CalendarToolContext<M, O, L>>()
         .add_tool::<UpdateCalendarEvent, CalendarToolContext<M, O, L>>()
         .add_tool::<DeleteCalendarEvent, CalendarToolContext<M, O, L>>()
         .add_tool::<AddSharedCalendarEvent, CalendarToolContext<M, O, L>>()

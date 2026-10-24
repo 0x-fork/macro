@@ -731,7 +731,9 @@ adds the event or is invited, and switches to that line and `Open` in place. Ope
 sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
 pane behind the opened one mounted. When Calendar opens on an event its loaded week doesn't
 have yet, such as a copy added a moment ago while Calendar was closed, it syncs once and then
-shows the event's details.
+shows the event's details. The agent reads a mentioned event, including one only shared with
+the viewer, with `ReadCalendarEvent`: the same fields, plus how the viewer holds it (their own,
+invited, a snapshot, or only shared with them) and their join request.
 
 ## Scheduling — `/app/scheduling`
 

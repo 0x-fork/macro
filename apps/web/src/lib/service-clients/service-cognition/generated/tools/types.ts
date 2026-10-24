@@ -4257,6 +4257,18 @@ export type SessionLinkScope = 'off' | 'public' | 'team';
  */
 export type AccessLevel = 'view' | 'comment' | 'edit' | 'owner';
 /**
+ * How the user holds the event, as its mention card says.
+ */
+export type CalendarEventAccess =
+  | 'on_your_calendar'
+  | 'invited'
+  | 'snapshot'
+  | 'shared_with_you';
+/**
+ * Lifecycle of a request to be added as a guest of a shared event.
+ */
+export type CalendarJoinRequestStatus = 'pending' | 'accepted' | 'declined';
+/**
  * Scene representation requested by a reader.
  */
 export type CanvasReadFormat = 'scene' | 'overview';
@@ -13143,6 +13155,98 @@ export interface EventType {
    * Additional form fields.
    */
   questions: Question[];
+}
+/**
+ * Read one calendar event by id: the `documentId` of a calendar event mention (`blockName` `calendar`) in a message, document, or email, or an `eventId` a calendar tool returned. Returns what the mention's preview card shows: title, time, location, description (truncated), organizer, guest count, and whether it repeats. ReadContent and ReadMetadata read documents only; use this tool for calendar events.
+ *
+ * `access` says how the user holds the meeting, as the card does. `on_your_calendar`: their own event (they organize it, or a delegated inbox holds it). `invited`: they are a guest. `snapshot`: a private copy they added of a shared meeting, which doesn't follow the organizer's changes and where an answer or a new guest would never reach the meeting. In these three, `eventId` is the user's copy for UpdateCalendarEvent and DeleteCalendarEvent. `shared_with_you`: someone shared their copy with a channel the user belongs to and the meeting is on none of the user's calendars. The event is then read-only for the user; AddSharedCalendarEvent adds a snapshot of it, and `canRequestToJoin` and `joinRequestStatus` say whether they can ask the person who shared it to add them as a guest, which they do from the event's card. To read one instance of a recurring event, pass the mention's `occurrenceKey` block param.
+ */
+export interface ReadCalendarEvent {
+  /**
+   * Calendar event id: a calendar mention's documentId, or an eventId from a calendar tool.
+   */
+  eventId: string;
+  /**
+   * Occurrence to read for a recurring event: the mention's occurrenceKey block param, or a recurrenceId from ListCalendarEvents. Omit to read the next upcoming instance, else the latest past one, else the series start.
+   */
+  occurrenceKey?: string | null;
+}
+/**
+ * One calendar event, with the fields its mention preview card shows.
+ */
+export interface ReadCalendarEventResponse {
+  access: CalendarEventAccess;
+  /**
+   * The user's own copy of the meeting, for UpdateCalendarEvent and
+   * DeleteCalendarEvent. It can differ from the id that was read, and is
+   * absent for an event that is only shared with the user.
+   */
+  eventId?: string | null;
+  /**
+   * Display title.
+   */
+  title: string;
+  /**
+   * Start of the instance read: RFC 3339 UTC instant, or YYYY-MM-DD for
+   * all-day events.
+   */
+  start: string;
+  /**
+   * Exclusive end: RFC 3339 UTC instant, or YYYY-MM-DD for all-day events.
+   */
+  end: string;
+  /**
+   * Whether the event covers whole days.
+   */
+  isAllDay: boolean;
+  /**
+   * IANA time zone the event was scheduled in, when known.
+   */
+  timeZone?: string | null;
+  /**
+   * Whether the event repeats.
+   */
+  isRecurring: boolean;
+  /**
+   * Key of the instance read: the requested occurrence when it exists,
+   * otherwise the next upcoming one, else the latest past one, else the
+   * series start.
+   */
+  recurrenceId?: string | null;
+  /**
+   * Location label, when set.
+   */
+  location?: string | null;
+  /**
+   * Event body, truncated for brevity.
+   */
+  description?: string | null;
+  /**
+   * Organizer email address, when known.
+   */
+  organizerEmail?: string | null;
+  /**
+   * Organizer display name, when known.
+   */
+  organizerName?: string | null;
+  /**
+   * Number of guests on the event.
+   */
+  attendeeCount: number;
+  /**
+   * For an event shared with the user, whether the person who shared it
+   * can add them as a guest. Always false for an event on their calendar.
+   */
+  canRequestToJoin: boolean;
+  /**
+   * For an event shared with the user, their request to join it, if they
+   * made one.
+   */
+  joinRequestStatus?: CalendarJoinRequestStatus | null;
+  /**
+   * A human-readable summary of the event.
+   */
+  summary: string;
 }
 /**
  * Retrieve the transcript for a specific call record. Use ListEntities with includeTypes: ["call"] first to find the callId. Only the transcript is returned — other metadata (participants, duration, etc.) is already available from ListEntities. In transcript segments, speakerId is the associated user/track, not guaranteed speaker identity; use diarizedSpeakerId to distinguish actual voices, and treat different diarizedSpeakerIds as potentially different speakers even if speakerId is the caller/"you".

@@ -220,6 +220,7 @@ function MacroToolIcon(props: { name: string }): JSX.Element {
       'ReadPhotoshopDocument',
       'ReadIllustratorDocument',
       'ReadWordDocument',
+      'ReadCalendarEvent',
       () => <ReadIcon class="size-4" />
     )
     .with('WebFetch', () => <GlobeIcon class="size-4" />)
