@@ -25,6 +25,11 @@ It exercises the real resize solver, scroll container, and Lexical layout primit
 Discussion link scrolling has a backend-free browser regression:
 `bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
 
+Phone sheets stacked on each other (Connect email over Settings, Add guests,
+RSVP scope and the delete confirmation over event details) have a backend-free
+browser regression for backdrop taps that must not press what the scrim covers:
+`bunx playwright test --config src/components/app/mobile/browser-test/playwright.config.ts`.
+
 Persistent prompts stepping aside for popovers, dialogs, drawers and
 `data-holds-prompts` surfaces have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Toast/browser-test/playwright.config.ts`.

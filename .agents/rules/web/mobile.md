@@ -51,6 +51,10 @@ read their code, and follow that pattern rather than inventing a new one.
 - Phone drawers have a handle and no X; drag, backdrop, or Escape dismiss,
   and focus returns to the opener. No submenus at phone width: drill in
   place with a back row.
+- A backdrop tap only dismisses: `MobileDrawer` swallows the rest of that tap,
+  so it never presses what the scrim covered, even when the sheet unmounts as
+  it closes (a `<Show>` around it, or `openDialog`). Don't add per-sheet
+  delays or click guards for it.
 - A sheet opened from another sheet stacks on it under its own scrim, which
   shares the sheets' layer (as Dialog's does), so the sheet beneath dims with
   the page and only the top sheet's handle stands out. Open it under the
