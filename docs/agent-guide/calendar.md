@@ -729,7 +729,9 @@ in a delegated inbox), with an `Open` button that opens the viewer's copy. A men
 viewer's own copy shows neither. A shared-event sheet open on a phone stays up when the viewer
 adds the event or is invited, and switches to that line and `Open` in place. Opening from the
 sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
-pane behind the opened one mounted.
+pane behind the opened one mounted. When Calendar opens on an event its loaded week doesn't
+have yet, such as a copy added a moment ago while Calendar was closed, it syncs once and then
+shows the event's details.
 
 ## Scheduling — `/app/scheduling`
 
