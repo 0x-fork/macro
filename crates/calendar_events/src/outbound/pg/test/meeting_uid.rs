@@ -3,7 +3,7 @@ use crate::domain::ics::CalendarEventExportAccess;
 
 /// The UID Exchange gives a meeting it imports from an invitation carrying
 /// `uid`: a GlobalObjectId whose data wraps `uid` after "vCal-Uid".
-fn exchange_uid(uid: &str) -> String {
+pub(super) fn exchange_uid(uid: &str) -> String {
     let mut data = b"vCal-Uid".to_vec();
     data.extend_from_slice(&[1, 0, 0, 0]);
     data.extend_from_slice(uid.as_bytes());
