@@ -553,6 +553,9 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     setMenuOpen(false);
   };
 
+  // Phones only show the full list, so there is no grouped view to go back to.
+  const canExitViewAll = () => controller.isViewAllMode() && !isMobile();
+
   useMenuKeyboardNavigation({
     isActive: menuOpen,
     onUp: () => {
@@ -562,7 +565,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       controller.selectNext();
     },
     onLeft: () => {
-      if (controller.isViewAllMode()) {
+      if (canExitViewAll()) {
         controller.exitViewAll();
       }
     },
@@ -596,7 +599,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       setMenuOpen(false);
     },
     onClose: () => {
-      if (controller.isViewAllMode()) {
+      if (canExitViewAll()) {
         controller.exitViewAll();
       } else {
         closeMenu();

@@ -110,6 +110,19 @@ vi.mock('@ui', () => ({
 }));
 
 const originalScrollIntoView = Element.prototype.scrollIntoView;
+const mockNoEmails = () =>
+  vi.mocked(useEmailSearchMention).mockReturnValue({
+    emails: () => [],
+    totalCount: () => 0,
+    hasMore: () => false,
+    isLoadingMore: () => false,
+    loadMore: async () => {},
+  });
+const manyUsers: IUser[] = Array.from({ length: 20 }, (_, i) => ({
+  id: `macro|person${i}@macro.com`,
+  name: `Person ${i}`,
+  email: `person${i}@macro.com`,
+}));
 
 afterEach(() => {
   mocks.crmEnabled = false;
@@ -232,6 +245,51 @@ it.each([false, true])(
     expect(menu.isOpen()).toBe(false);
   }
 );
+
+it('closes the mobile menu on the first Escape', () => {
+  mocks.mobile = true;
+  Element.prototype.scrollIntoView = vi.fn();
+  mockNoEmails();
+  const menu = createMenuOperations();
+  render(() => (
+    <MentionsMenu
+      menu={menu}
+      editor={createEditor()}
+      users={() => manyUsers}
+      sources={['users']}
+    />
+  ));
+
+  menu.openMenu();
+  expect(menu.isOpen()).toBe(true);
+  expect(screen.queryByText(/View all/)).toBeNull();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(menu.isOpen()).toBe(false);
+  expect(screen.queryByText(/View all/)).toBeNull();
+});
+
+it('leaves a category list on the first desktop Escape and closes on the second', () => {
+  Element.prototype.scrollIntoView = vi.fn();
+  mockNoEmails();
+  const menu = createMenuOperations();
+  render(() => (
+    <MentionsMenu
+      menu={menu}
+      editor={createEditor()}
+      users={() => manyUsers}
+      sources={['users']}
+    />
+  ));
+
+  menu.openMenu();
+  fireEvent.keyDown(document, { key: 'ArrowRight' });
+  expect(screen.getByText('Back to everything')).toBeTruthy();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(menu.isOpen()).toBe(true);
+  expect(screen.queryByText('Back to everything')).toBeNull();
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(menu.isOpen()).toBe(false);
+});
 
 it('only paginates an open mobile menu and resumes on reopen', async () => {
   mocks.mobile = true;
