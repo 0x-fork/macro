@@ -967,7 +967,11 @@ Unfinished requests are shown as interrupted, never as confirmed successes. Code
 that creates a saved review immediately emits a separate completed **PresentReview**
 ACP call.
 Its card can appear before the program finishes and stays editable afterwards.
-Presentation means “Presented to the user,” not approved or sent. SDK operation
+Presentation means “Presented to the user,” not approved or sent. After
+presenting, the agent asks “Should I kick it off?”; when the person whose
+account the review uses answers yes, it submits the review with
+**DecideReview**, and the card then reads “Started by the agent at your
+request”. SDK operation
 activity reports request outcomes, without storing request arguments or response
 bodies. The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.

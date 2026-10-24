@@ -223,6 +223,15 @@ pub trait ReviewActions: Send + Sync + 'static {
     async fn session(&self, session: AgentSessionId) -> Result<ReviewSession, CodeModeError>;
     /// Validate draft structure without performing the action.
     fn validate(&self, kind: ReviewKind, draft: &Value) -> Result<(), CodeModeError>;
+    /// Whether `record`'s action can start now. A kind whose action depends on
+    /// work still in progress refuses until it is ready.
+    async fn approvable(
+        &self,
+        _account_holder: &MacroUserIdStr<'static>,
+        _record: &ReviewRecord,
+    ) -> Result<bool, CodeModeError> {
+        Ok(true)
+    }
     /// Execute the reviewed draft as its saved, authenticated account holder.
     async fn execute(
         &self,
@@ -537,6 +546,18 @@ impl ReviewService {
             })
         {
             return Err(CodeModeError::Forbidden);
+        }
+        if let ReviewDecision::Submit { .. } = decision {
+            let record = self.store.get(session, id).await?;
+            if self.record_actor(&record).await? != *actor {
+                return Err(CodeModeError::Forbidden);
+            }
+            if !self.actions.approvable(actor, &record).await? {
+                return Err(CodeModeError::Invalid(
+                    "This review is not ready to approve yet. Check it again before approving."
+                        .into(),
+                ));
+            }
         }
         self.decide_owned(session, actor, id, decision, DecisionVia::Chat)
             .await

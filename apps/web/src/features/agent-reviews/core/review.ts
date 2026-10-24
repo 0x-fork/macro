@@ -9,6 +9,8 @@ export type Review = {
   revision: number;
   updatedAt: number;
   presentedAt?: number | null;
+  /** The most recent decision; `chat` when the agent acted on the account holder's word. */
+  decision?: { via: 'card' | 'chat' | 'inbox' } | null;
   items: ReviewItem[];
 };
 export type ReviewItem = {

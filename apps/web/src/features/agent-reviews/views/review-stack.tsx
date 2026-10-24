@@ -255,6 +255,11 @@ export function ReviewStack(props: {
           {statusLabel(current()?.status, record().kind)}
         </p>
       </Show>
+      <Show when={startedByAgent(record(), current())}>
+        <p class="mb-2 px-1 text-xs text-ink-muted">
+          Started by the agent at your request
+        </p>
+      </Show>
       <ReviewDeck
         count={record().items.length}
         email={record().kind === 'email'}
@@ -358,6 +363,12 @@ export function ReviewStack(props: {
         />
       </Show>
     </section>
+  );
+}
+function startedByAgent(review: Review, item: ReviewItem | undefined) {
+  return (
+    review.decision?.via === 'chat' &&
+    (item?.status === 'submitting' || item?.status === 'completed')
   );
 }
 function neverDraft(): never {
