@@ -50,6 +50,13 @@ per-entity-type search plus a unified search across them — mounted into
 - `cargo test -p search_service` (`SQLX_OFFLINE` unset).
 - `SQLX_OFFLINE=true cargo check` (`just check` recipe in `justfile`).
 
+## Gotchas
+
+- Every whitespace-split term is ANDed, so a term the standard tokenizer
+  analyzes to nothing (`-`, `@`) matches no document and empties the search.
+  `terms::drop_wordless_terms` removes such terms for exact and partial
+  queries; run new term handling through it.
+
 ## Related
 
 - Rules: `.agents/rules/rust/architecture.md`
