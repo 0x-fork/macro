@@ -88,7 +88,9 @@ sheet is open (the calendar event details, for example). It also waits while an
 email thread or the email composer is open, and on touch devices while search
 results are open, since their last controls sit where the prompt would. On
 desktop it waits while a channel, DM or agent conversation shows its composer at
-the bottom of a pane. It comes back when they close.
+the bottom of a pane, and while a call is on screen (its controls, Open chat and
+the chat composer sit in that corner). It comes back once none of them is on
+screen, for example after you leave the call view or end the call.
 
 ### Notification snoozes
 

@@ -1,6 +1,7 @@
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { UserIcon } from '@core/component/UserIcon';
 import { useAuthor, useUserId } from '@core/context/user';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { getDisplayName, tryMacroId } from '@core/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import ChatIcon from '@phosphor/chat-circle.svg';
@@ -422,9 +423,12 @@ export function CallOverlay(props: {
           </Show>
         </Show>
       </div>
-      {/* Settings expand over the tiles; sharing stays clear of the controls. */}
+      {/* Settings expand over the tiles; sharing stays clear of the controls.
+          On desktop the bar (and the chat composer beside it) is the call's
+          last row, where the corner prompt sits, so the prompt waits. */}
       <div
         class="relative flex shrink-0 flex-col items-center gap-2 py-3"
+        data-holds-prompts={isTouchDevice() ? undefined : ''}
         classList={{
           '@min-[800px]/call:mr-90': canChat() && chatOpen(),
         }}

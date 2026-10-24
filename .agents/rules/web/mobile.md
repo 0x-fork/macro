@@ -70,7 +70,8 @@ read their code, and follow that pattern rather than inventing a new one.
   controls sit right above the dock, as the email composer, email thread and
   search results do; on desktop, where the prompt sits in the bottom-right
   corner, mark a composer docked at the bottom of its pane (channel and agent
-  composers, desktop only) or the view around it (email thread and composer).
+  composers, a call's control bar, desktop only) or the view around it (email
+  thread and composer).
   A prompt in the transient region would cover a sheet's controls.
 
 ## Keyboard and focus
