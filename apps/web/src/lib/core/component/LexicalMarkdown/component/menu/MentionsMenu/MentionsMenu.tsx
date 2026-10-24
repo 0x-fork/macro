@@ -735,6 +735,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     <Show when={menuOpen()}>
       <ScopedPortal scope={props.portalScope} mount={props.portalMount}>
         <div
+          data-holds-prompts
           class="w-96 max-w-[calc(100cqw-1rem-2px)] cursor-default select-none z-modal-content"
           classList={{ 'menu-open-animation': props.animate !== false }}
           on:touchstart={(e) => e.stopPropagation()}

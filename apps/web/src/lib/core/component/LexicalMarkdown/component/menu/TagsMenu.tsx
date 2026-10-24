@@ -396,6 +396,7 @@ export function TagsMenu(props: {
       <Show when={props.menu.isOpen()}>
         <ScopedPortal scope={props.portalScope}>
           <div
+            data-holds-prompts
             class="w-64 max-w-[calc(100cqw-1rem-2px)] cursor-default select-none z-modal-content menu-open-animation"
             ref={(el) => {
               floatWithSelection(el, () => ({

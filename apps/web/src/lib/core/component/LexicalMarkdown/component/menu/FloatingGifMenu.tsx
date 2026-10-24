@@ -162,6 +162,7 @@ export function FloatingGifMenu(
     <Show when={menuOpen()}>
       <ScopedPortal scope={props.portalScope}>
         <div
+          data-holds-prompts
           class="w-80 cursor-default select-none z-modal-content menu-open-animation"
           use:floatWithSelection={{
             selection: untrack(() => window.getSelection()),

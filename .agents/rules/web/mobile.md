@@ -71,7 +71,9 @@ read their code, and follow that pattern rather than inventing a new one.
   search results do; on desktop, where the prompt sits in the bottom-right
   corner, mark a composer docked at the bottom of its pane (channel and agent
   composers, a call's control bar, desktop only) or the view around it (email
-  thread and composer).
+  thread and composer). A composer's typeahead and picker menus (`@`, `:`,
+  `/`, skills, snippets, tags, GIFs) open above it and hold prompts while
+  open, on every device; give a new one the same attribute on its root.
   A prompt in the transient region would cover a sheet's controls.
 
 ## Keyboard and focus
