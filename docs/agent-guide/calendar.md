@@ -1264,8 +1264,10 @@ works there, and `Download .ics`, which saves the file without adding it to Driv
 card falls back to the saved invitation (the event matches nothing on your calendars, as with
 a forwarded event), its status line reads `Saved invitation.` in the dialog; the card in the
 email adds that the original email or invitation attachment has more options. The card
-stays put while the thread refreshes, and `Open in calendar` closes the dialog before the
-calendar opens, including when Calendar is already open in another split. A calendar file with
+stays put while the thread refreshes. Close, Escape, or dismissing the phone drawer returns
+focus to the attachment chip; `Open in calendar` closes the dialog before the calendar opens,
+including when Calendar is already open in another split, without pulling focus back to the
+email. A calendar file with
 no card (nothing Macro could read) downloads directly, and an Outlook cloud-reference `.ics`
 opens its Outlook page like any other reference attachment.
 Related recurring components are grouped behind their own disclosure. Only mail synced

@@ -12,8 +12,12 @@ export function CalendarFilePreview(props: {
   fileName: string;
   open: boolean;
   onClose: () => void;
-  /** Whether closing returns focus to the attachment; false when leaving it. */
-  restoreFocus?: () => boolean;
+  /**
+   * The attachment chip closing returns focus to; none when a card action
+   * leaves the email. The dialog opens without a trigger, so nothing else
+   * would.
+   */
+  returnFocus?: () => HTMLElement | undefined;
   onDownload?: () => void;
   children: JSX.Element;
 }) {
@@ -24,7 +28,9 @@ export function CalendarFilePreview(props: {
         if (!open) props.onClose();
       }}
       onCloseAutoFocus={(event) => {
-        if (props.restoreFocus?.() === false) event.preventDefault();
+        event.preventDefault();
+        const chip = props.returnFocus?.();
+        if (chip?.isConnected) chip.focus({ preventScroll: true });
       }}
       position="center"
       class="w-140"

@@ -69,14 +69,15 @@ export function EmailMessageView(props: EmailMessageViewProps) {
   // event; any other file, and a cloud reference with no bytes to download,
   // goes to the host.
   const [calendarFile, setCalendarFile] = createSignal<EmailAttachment>();
-  let navigatingAway = false;
-  const openAttachment = (attachment: EmailAttachment) => {
+  // Closing the dialog returns focus to the chip that opened it.
+  let calendarFileChip: HTMLElement | undefined;
+  const openAttachment = (attachment: EmailAttachment, chip: HTMLElement) => {
     if (
       invitationGroups().length > 0 &&
       !attachment.reference_url &&
       isCalendarFile(attachment.filename, attachment.mime_type)
     ) {
-      navigatingAway = false;
+      calendarFileChip = chip;
       setCalendarFile(attachment);
       return;
     }
@@ -85,7 +86,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
   // A card action that opens the calendar closes the dialog first, so it
   // neither covers the destination nor pulls focus back to the email.
   const closeForNavigation = () => {
-    navigatingAway = true;
+    calendarFileChip = undefined;
     setCalendarFile(undefined);
   };
   const renderInvitation = (
@@ -255,21 +256,26 @@ export function EmailMessageView(props: EmailMessageViewProps) {
           {/* Other attachments (non-media or without sfs_id) */}
           <Show when={otherAttachments().length > 0}>
             <div class="flex flex-row overflow-x-scroll mt-2 gap-2">
-              <For each={otherAttachments()}>
+              {/* Keyed so a thread refresh keeps each chip, and with it the
+                  calendar file dialog's focus target. */}
+              <Key
+                each={otherAttachments()}
+                by={(attachment) => attachment.db_id}
+              >
                 {(attachment) => (
                   <EmailAttachmentPill
                     attachment={{
-                      fileName: attachment.filename ?? '',
-                      mimeType: attachment.mime_type ?? undefined,
+                      fileName: attachment().filename ?? '',
+                      mimeType: attachment().mime_type ?? undefined,
                     }}
                     onClick={
                       props.onOpenAttachment
-                        ? () => openAttachment(attachment)
+                        ? (chip) => openAttachment(attachment(), chip)
                         : undefined
                     }
                   />
                 )}
-              </For>
+              </Key>
             </div>
           </Show>
 
@@ -312,7 +318,7 @@ export function EmailMessageView(props: EmailMessageViewProps) {
             fileName={file().filename ?? ''}
             open
             onClose={() => setCalendarFile(undefined)}
-            restoreFocus={() => !navigatingAway}
+            returnFocus={() => calendarFileChip}
             onDownload={
               props.onDownloadAttachment
                 ? () => props.onDownloadAttachment?.(file())
