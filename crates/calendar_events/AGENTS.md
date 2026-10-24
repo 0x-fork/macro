@@ -142,6 +142,11 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   Since one meeting on two inboxes is two entities, the agent tools label every
   event they return with its calendar's name, its `inbox` and the user's
   `myRole` there (`ToolEventRole::of`), so the agent can ask or pick by inbox.
+  Their descriptions set the rule: reminders and an answer may go to one copy
+  if the reply names its inbox (an answer asks first when the user is a guest
+  through several inboxes); a change whose effect differs by copy (details,
+  guests, permissions, deleting) goes to the only copy allowed to make it, with
+  the reason, or the agent asks.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 - The team out-of-office overlay (`src/outbound/pg_team/ooo.rs`) starts from

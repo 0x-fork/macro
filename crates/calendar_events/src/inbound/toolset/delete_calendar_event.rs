@@ -49,7 +49,13 @@ the `eventId` from ListCalendarEvents.\n\
 For recurring events, `scope` controls how much is removed: \"all\" (default) removes the \
 whole series, \"this_event\" removes one occurrence, and \"this_and_following\" ends the \
 series from an occurrence onward. The scoped variants require `recurrenceId` from the \
-targeted occurrence's ListCalendarEvents entry."
+targeted occurrence's ListCalendarEvents entry.\n\
+\n\
+When the meeting is on several of the user's inboxes (one ListCalendarEvents entry per \
+inbox), ask which inbox's copy to delete unless the user named one or only one copy is \
+writable (`isReadOnly` false), in which case delete that one and say why. Deleting the copy \
+the user organizes cancels the meeting for every guest, while deleting a copy where they are \
+a guest only takes it off that inbox's calendar."
 )]
 pub struct DeleteCalendarEvent {
     /// Event to delete.

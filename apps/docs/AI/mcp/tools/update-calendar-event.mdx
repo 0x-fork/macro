@@ -16,6 +16,8 @@ A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rs
 
 `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call and answers as the connected inbox the event's copy belongs to, so it only works when that inbox is an attendee.
 
+When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Any other change goes to the only copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
+
 ## Parameters
 
 | Parameter | Type | Required | Description |
