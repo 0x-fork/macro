@@ -72,8 +72,9 @@ Timeout, cancellation, a dropped caller, and harness shutdown kill and reap the
 child before deleting scratch. API writes already accepted by a service may
 complete afterward and must not be blindly retried. SDK operation events carry only an operation name, request identity and status.
 They are bounded diagnostics, not proof of a committed action. Console output
-and progress are program-authored and may be incomplete. W3C trace context is
-forwarded to configured service origins on authenticated requests only.
+and progress are program-authored and may be incomplete. W3C trace context and
+`x-macro-code-execution: 1` are sent to configured service origins on
+authenticated requests only.
 
 Deno shares the harness container. The heap setting does not hard-limit native
 memory, ArrayBuffers, or CPU; a container OOM can affect the harness and other

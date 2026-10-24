@@ -12,7 +12,7 @@ use std::sync::Arc;
 use axum::{
     Json, Router,
     extract::{FromRef, Path, Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, patch, post, put},
 };
@@ -459,9 +459,20 @@ impl From<CopyRefusal> for CalendarMutationApiError {
     }
 }
 
+/// Set by the code-mode runtime (`code_execution`'s `bootstrap.mjs`) on every
+/// authenticated SDK request a program makes, in agent sessions and for
+/// public MCP clients alike.
+const CODE_EXECUTION_HEADER: &str = "x-macro-code-execution";
+
+/// Whether a request comes from an agent's program rather than a person in
+/// the app: a code-mode run, or a token carrying an agent's attribution.
+fn is_agent_run(agent_attributed: bool, headers: &HeaderMap) -> bool {
+    agent_attributed || headers.contains_key(CODE_EXECUTION_HEADER)
+}
+
 /// Make an agent run name the copy it changes when the meeting is on several
 /// of the requester's inboxes. The web picks a copy by opening it, so a
-/// request without an agent identity and without `inbox` is not checked; a
+/// request that is not an agent run and names no `inbox` is not checked; a
 /// request naming `inbox` is checked whoever sends it.
 async fn confirm_copy<S: CalendarCopyConfirmation>(
     service: &S,
@@ -769,6 +780,7 @@ fn update_scope(
 pub async fn update_calendar_event<S, L, Auth>(
     State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    headers: HeaderMap,
     Path(event_id): Path<Uuid>,
     Json(request): Json<UpdateCalendarEventRequest>,
 ) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
@@ -801,7 +813,7 @@ where
         confirm_copy(
             &*state.service,
             requester_id,
-            user.authorization.user.agent_id.is_some(),
+            is_agent_run(user.authorization.user.agent_id.is_some(), &headers),
             event_id,
             request.inbox.as_deref(),
             CopyChange::Update {
@@ -839,6 +851,7 @@ where
 pub async fn delete_calendar_event<S, L, Auth>(
     State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    headers: HeaderMap,
     Path(event_id): Path<Uuid>,
     Query(query): Query<DeleteCalendarEventQuery>,
 ) -> Result<StatusCode, CalendarMutationApiError>
@@ -867,7 +880,7 @@ where
     confirm_copy(
         &*state.service,
         requester_id,
-        user.authorization.user.agent_id.is_some(),
+        is_agent_run(user.authorization.user.agent_id.is_some(), &headers),
         event_id,
         query.inbox.as_deref(),
         CopyChange::Delete,
@@ -957,6 +970,7 @@ where
 pub async fn invite_calendar_event_guests<S, L, Auth>(
     State(state): State<CalendarMutationRouterState<S, L, Auth>>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
+    headers: HeaderMap,
     Path(event_id): Path<Uuid>,
     Json(request): Json<InviteCalendarEventGuestsRequest>,
 ) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
@@ -981,7 +995,7 @@ where
     confirm_copy(
         &*state.service,
         requester_id,
-        user.authorization.user.agent_id.is_some(),
+        is_agent_run(user.authorization.user.agent_id.is_some(), &headers),
         event_id,
         request.inbox.as_deref(),
         CopyChange::Update { adds_guests: true },
