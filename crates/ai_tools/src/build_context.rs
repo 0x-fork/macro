@@ -455,6 +455,9 @@ pub async fn build_tool_service_context_from_env(
         env.internal_api_key.to_string(),
         call_tool_context.service.clone(),
         AppServiceUrl::new()?,
+        macro_env_var::maybe_read_env("ENABLE_CALENDAR_ADD_SHARED_EVENT")
+            .and_then(|value| value.parse::<bool>().ok())
+            .unwrap_or(false),
     );
 
     let notification_reader_service = NotificationReaderService {

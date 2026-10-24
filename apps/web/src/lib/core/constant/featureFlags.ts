@@ -700,7 +700,8 @@ export const enableCalendarGuestInvites = defineFlag({
 // action on a shared event's mention card. On in dev only until a real Google
 // import has passed on dev; there is no PostHog flag yet, so it stays off in
 // production. "Download .ics" beside it is not gated. Override with
-// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT.
+// VITE_ENABLE_CALENDAR_ADD_SHARED_EVENT. The agent's AddSharedCalendarEvent
+// tool reads the server switch ENABLE_CALENDAR_ADD_SHARED_EVENT instead.
 export const enableCalendarAddSharedEvent = defineFlag({
   key: 'enable-calendar-add-shared-event',
   env: 'ENABLE_CALENDAR_ADD_SHARED_EVENT',

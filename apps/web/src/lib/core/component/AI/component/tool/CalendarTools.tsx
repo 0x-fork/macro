@@ -275,6 +275,18 @@ export const updateCalendarEventHandler = createToolRenderer({
   },
 });
 
+export const addSharedCalendarEventHandler = createToolRenderer({
+  name: 'AddSharedCalendarEvent',
+  render: (ctx) => (
+    <CalendarMutationCard
+      event={ctx.response?.data}
+      icon={CalendarPlus}
+      label="Add to calendar"
+      renderContext={ctx.renderContext}
+    />
+  ),
+});
+
 export const deleteCalendarEventHandler = createToolRenderer({
   name: 'DeleteCalendarEvent',
   render: (ctx) => (

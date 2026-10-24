@@ -9,6 +9,10 @@
  */
 
 /**
+ * What the user is on one copy of an event, through the inbox holding it.
+ */
+export type ToolEventRole = 'organizer' | 'guest';
+/**
  * Content of a bash code execution response - either a result or an error
  */
 export type BashCodeExecutionContent =
@@ -426,10 +430,6 @@ export type UserToolResponseForToolCalendarEvent =
   | {
       UserAction: ToolCalendarEvent;
     };
-/**
- * What the user is on one copy of an event, through the inbox holding it.
- */
-export type ToolEventRole = 'organizer' | 'guest';
 /**
  * Channel types an agent may create.
  */
@@ -4835,6 +4835,137 @@ export type ReadThreadReadContent =
     };
 
 /**
+ * Add a copy of a calendar event someone shared with one of the user's channels to one of the user's Google calendars, as `Add to calendar` on the event's card does. Use it for a calendar event mention (`blockName` `calendar`) whose meeting is not on the user's calendar; pass the mention's `documentId` as `eventId`.
+ *
+ * The copy is a snapshot, not an invitation: it keeps the real organizer and lists the user, accepted, as its only guest, while the meeting's other guests and its join link stay out. Nobody is notified, and the copy does not change when the organizer changes the meeting. The user can change only its reminders and availability, or delete it. To be added to the meeting itself, the user asks the person who shared it from the event's card.
+ *
+ * Only Google calendars take a copy. When the user has one writable Google calendar the copy goes there; when they have several, ask which one and pass its `calendarId` from ListCalendars. The result is the user's copy, whose `eventId` UpdateCalendarEvent and DeleteCalendarEvent accept.
+ */
+export interface AddSharedCalendarEvent {
+  /**
+   * The shared event's id: the `documentId` of its calendar event mention.
+   */
+  eventId: string;
+  /**
+   * The `calendarId` of a writable Google calendar from ListCalendars. Omit when the user has only one; required when they have several.
+   */
+  calendarId?: string | null;
+}
+/**
+ * A calendar event as returned by the create and update tools.
+ */
+export interface ToolCalendarEvent {
+  /**
+   * Macro calendar event id, used by UpdateCalendarEvent and
+   * DeleteCalendarEvent.
+   */
+  eventId: string;
+  /**
+   * Display title.
+   */
+  title: string;
+  /**
+   * Event start: RFC 3339 UTC instant, or YYYY-MM-DD for all-day events.
+   */
+  start: string;
+  /**
+   * Exclusive event end: RFC 3339 UTC instant, or YYYY-MM-DD for all-day
+   * events.
+   */
+  end: string;
+  /**
+   * Whether the event covers whole days.
+   */
+  isAllDay: boolean;
+  /**
+   * IANA time zone the event was scheduled in, when known.
+   */
+  timeZone?: string | null;
+  /**
+   * Location label, when set.
+   */
+  location?: string | null;
+  /**
+   * Event body, truncated for brevity.
+   */
+  description?: string | null;
+  /**
+   * Event status: confirmed, tentative, or cancelled.
+   */
+  status: string;
+  /**
+   * Whether the event recurs.
+   */
+  isRecurring: boolean;
+  /**
+   * Raw RFC 5545 recurrence properties, when the event recurs.
+   */
+  recurrenceLines: string[];
+  /**
+   * Attendees, capped at 20; `attendee_count` has the full number.
+   */
+  attendees: ToolEventAttendee[];
+  /**
+   * Total number of attendees.
+   */
+  attendeeCount: number;
+  /**
+   * Organizer email address, when known.
+   */
+  organizerEmail?: string | null;
+  /**
+   * Conference join URL, when a conference is attached.
+   */
+  conferenceUrl?: string | null;
+  /**
+   * Join URL of the Macro call created with the event, when
+   * CreateCalendarEvent was asked for one.
+   */
+  macroCallUrl?: string | null;
+  /**
+   * Whether the user's calendar prohibits modifying this event.
+   */
+  isReadOnly: boolean;
+  /**
+   * Calendar the event belongs to, when known.
+   */
+  calendarId?: string | null;
+  /**
+   * Display name of that calendar, when known.
+   */
+  calendarName?: string | null;
+  /**
+   * Connected inbox address the calendar belongs to, when known.
+   */
+  inbox?: string | null;
+  /**
+   * Whether the user organizes this event or is a guest on it, through
+   * that inbox; absent when they are neither.
+   */
+  myRole?: ToolEventRole | null;
+}
+/**
+ * An attendee of a calendar event, as returned by calendar tools.
+ */
+export interface ToolEventAttendee {
+  /**
+   * Attendee email address.
+   */
+  email: string;
+  /**
+   * RSVP state: needs_action, accepted, declined, or tentative.
+   */
+  responseStatus: string;
+  /**
+   * Whether this attendee organized the event.
+   */
+  isOrganizer: boolean;
+  /**
+   * Whether attendance is optional.
+   */
+  isOptional: boolean;
+}
+/**
  * Add companies or contacts to a CRM pipeline as new deals (entries), optionally setting their stage, owner, revenue or other fields. A company pipeline takes companies and a contact pipeline takes contacts (see ListPipelines' `tracks`). A record already in the pipeline is not added again unless allowDuplicates is true (for a second, separate deal); its existing entry is returned in alreadyPresent instead. Returns the new entries with their entryIds and fields as saved.
  */
 export interface AddToPipeline {
@@ -7108,120 +7239,6 @@ export interface GuestPolicy {
    * Whether guests may see the guest list.
    */
   canSeeOtherGuests: boolean;
-}
-/**
- * A calendar event as returned by the create and update tools.
- */
-export interface ToolCalendarEvent {
-  /**
-   * Macro calendar event id, used by UpdateCalendarEvent and
-   * DeleteCalendarEvent.
-   */
-  eventId: string;
-  /**
-   * Display title.
-   */
-  title: string;
-  /**
-   * Event start: RFC 3339 UTC instant, or YYYY-MM-DD for all-day events.
-   */
-  start: string;
-  /**
-   * Exclusive event end: RFC 3339 UTC instant, or YYYY-MM-DD for all-day
-   * events.
-   */
-  end: string;
-  /**
-   * Whether the event covers whole days.
-   */
-  isAllDay: boolean;
-  /**
-   * IANA time zone the event was scheduled in, when known.
-   */
-  timeZone?: string | null;
-  /**
-   * Location label, when set.
-   */
-  location?: string | null;
-  /**
-   * Event body, truncated for brevity.
-   */
-  description?: string | null;
-  /**
-   * Event status: confirmed, tentative, or cancelled.
-   */
-  status: string;
-  /**
-   * Whether the event recurs.
-   */
-  isRecurring: boolean;
-  /**
-   * Raw RFC 5545 recurrence properties, when the event recurs.
-   */
-  recurrenceLines: string[];
-  /**
-   * Attendees, capped at 20; `attendee_count` has the full number.
-   */
-  attendees: ToolEventAttendee[];
-  /**
-   * Total number of attendees.
-   */
-  attendeeCount: number;
-  /**
-   * Organizer email address, when known.
-   */
-  organizerEmail?: string | null;
-  /**
-   * Conference join URL, when a conference is attached.
-   */
-  conferenceUrl?: string | null;
-  /**
-   * Join URL of the Macro call created with the event, when
-   * CreateCalendarEvent was asked for one.
-   */
-  macroCallUrl?: string | null;
-  /**
-   * Whether the user's calendar prohibits modifying this event.
-   */
-  isReadOnly: boolean;
-  /**
-   * Calendar the event belongs to, when known.
-   */
-  calendarId?: string | null;
-  /**
-   * Display name of that calendar, when known.
-   */
-  calendarName?: string | null;
-  /**
-   * Connected inbox address the calendar belongs to, when known.
-   */
-  inbox?: string | null;
-  /**
-   * Whether the user organizes this event or is a guest on it, through
-   * that inbox; absent when they are neither.
-   */
-  myRole?: ToolEventRole | null;
-}
-/**
- * An attendee of a calendar event, as returned by calendar tools.
- */
-export interface ToolEventAttendee {
-  /**
-   * Attendee email address.
-   */
-  email: string;
-  /**
-   * RSVP state: needs_action, accepted, declined, or tentative.
-   */
-  responseStatus: string;
-  /**
-   * Whether this attendee organized the event.
-   */
-  isOrganizer: boolean;
-  /**
-   * Whether attendance is optional.
-   */
-  isOptional: boolean;
 }
 /**
  * Create a private or team channel and add its first members. Use `private` for an invite-only channel and `team` for a channel owned by the current user's team. Do not use this for a direct message — those are created separately. Team id is resolved from the current user; do not invent one. Participants accept `macro|<email>` ids from ListTeamMembers or bare emails. Creating a team channel when the user has no team fails; create a private channel instead. Creating a team channel with no participants adds the current user so the channel is valid. Use only when the user asks to create a channel.

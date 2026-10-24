@@ -1,3 +1,5 @@
+mod add_shared_calendar_event;
+
 use std::sync::Mutex;
 
 use ai_toolset::schema::generate_validated_input_schema;
@@ -46,6 +48,10 @@ fn tool_input_schemas_satisfy_strict_mode() {
         (
             "DeleteCalendarEvent",
             generate_validated_input_schema::<DeleteCalendarEvent>().map(|schema| schema.name),
+        ),
+        (
+            "AddSharedCalendarEvent",
+            generate_validated_input_schema::<AddSharedCalendarEvent>().map(|schema| schema.name),
         ),
     ] {
         match result {
@@ -156,6 +162,8 @@ struct MockMutations {
     deleted: Mutex<Vec<(Uuid, CalendarDeletionScope)>>,
     answered: Mutex<Vec<(Uuid, AttendeeResponseStatus, CalendarRsvpScope)>>,
     calendars: Mutex<Vec<VisibleCalendar>>,
+    copied: Mutex<Vec<(Uuid, Option<Uuid>)>>,
+    copy_error: Mutex<Option<CalendarMutationError>>,
 }
 
 impl CalendarMutationService for MockMutations {
@@ -236,10 +244,14 @@ impl CalendarMutationService for MockMutations {
     async fn copy_shared_event(
         &self,
         _requester_id: &str,
-        _event_id: Uuid,
-        _calendar_id: Option<Uuid>,
+        event_id: Uuid,
+        calendar_id: Option<Uuid>,
     ) -> Result<CalendarEvent, CalendarMutationError> {
-        unreachable!("no calendar tool copies shared events")
+        if let Some(error) = self.copy_error.lock().unwrap().take() {
+            return Err(error);
+        }
+        self.copied.lock().unwrap().push((event_id, calendar_id));
+        Ok(sample_event(Vec::new()))
     }
 
     async fn respond_to_join_request(

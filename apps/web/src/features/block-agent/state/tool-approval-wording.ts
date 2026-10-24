@@ -13,6 +13,7 @@ type Wording = (whose: string) => string;
  * `null` for the tools that use nobody's access and so are never held.
  */
 const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
+  AddSharedCalendarEvent: (whose) => `add a shared event to ${whose} calendar`,
   AddToPipeline: (whose) => `add deals to ${whose} pipelines`,
   BashCodeExecution: (whose) => `run code with ${whose} access`,
   BulkSetEntityPropertyOptions: (whose) =>

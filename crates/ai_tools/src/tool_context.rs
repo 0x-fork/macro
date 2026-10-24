@@ -496,12 +496,14 @@ pub fn build_team_calendar_tool_context(
 /// `calendar_service_url` with the shared internal API key; Macro calls
 /// attached to new events are minted through `call_service` and linked on
 /// `app_url`, the browser origin users open meetings on.
+/// `shared_event_copies` lets the agent add copies of channel-shared events.
 pub fn build_calendar_tool_context(
     pool: sqlx::PgPool,
     calendar_service_url: macro_service_urls::CalendarServiceUrl,
     internal_api_key: String,
     call_service: Arc<ToolCallService>,
     app_url: macro_service_urls::AppServiceUrl,
+    shared_event_copies: bool,
 ) -> ToolCalendarToolContext {
     CalendarToolContext::new(
         Arc::new(
@@ -520,6 +522,7 @@ pub fn build_calendar_tool_context(
             ),
         ),
     )
+    .with_shared_event_copies(shared_event_copies)
 }
 
 /// Settings-only scheduling service; no provider/calendar writes are exposed here.

@@ -1,5 +1,6 @@
 [
   "AI/mcp/tools/index",
+  "AI/mcp/tools/add-shared-calendar-event",
   "AI/mcp/tools/add-to-pipeline",
   "AI/mcp/tools/apply-canvas-edits",
   "AI/mcp/tools/bash-code-execution",

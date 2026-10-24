@@ -45,6 +45,7 @@ import {
   manageBotChannelAccessHandler,
 } from './Bots';
 import {
+  addSharedCalendarEventHandler,
   createCalendarEventHandler,
   createConfirmedCalendarEventHandler,
   deleteCalendarEventHandler,
@@ -246,6 +247,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   CreateConfirmedCalendarEvent: createConfirmedCalendarEventHandler,
   UpdateCalendarEvent: updateCalendarEventHandler,
   DeleteCalendarEvent: deleteCalendarEventHandler,
+  AddSharedCalendarEvent: addSharedCalendarEventHandler,
   ListCalendarEvents: listCalendarEventsHandler,
   ListCalendars: listCalendarsHandler,
   GetTeamAvailability: getTeamAvailabilityHandler,

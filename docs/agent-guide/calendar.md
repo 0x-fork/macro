@@ -680,7 +680,10 @@ when they have several; Outlook calendars are not offered, since Microsoft canno
 meeting's iCalendar UID. Google imports an event only for its organizer or an attendee, so the
 snapshot keeps the real organizer and lists the viewer, already accepted, as its only guest: the
 meeting's other guests and join link stay out and nobody is notified. If Google refuses anyway,
-the card says Google won't add the event to that calendar and points to `Download .ics`. The
+the card says Google won't add the event to that calendar and points to `Download .ics`. The agent
+adds the same snapshot with `AddSharedCalendarEvent` while the server switch
+`ENABLE_CALENDAR_ADD_SHARED_EVENT` is on (off unless set): it uses the one calendar the card would
+offer, asks which one when there are several, and meets the same refusals. The
 mention then opens the snapshot, whose details say `Your copy of a shared event. It doesn't
 update when the organizer changes it.` and offer no RSVP, `Add guests` or `Only the organizer can
 invite guests.` line, since none of it would reach the meeting. It offers no `Edit event` on

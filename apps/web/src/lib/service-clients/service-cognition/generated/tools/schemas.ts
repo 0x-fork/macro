@@ -3,6 +3,64 @@
  */
 import { z } from 'zod/v3';
 
+export const AddSharedCalendarEvent = z.object({
+  eventId: z.string().uuid(),
+  calendarId: z.union([z.string().uuid(), z.null()]).optional(),
+});
+
+export const ToolCalendarEvent = z.object({
+  eventId: z.string().uuid(),
+  title: z.string(),
+  start: z.string(),
+  end: z.string(),
+  isAllDay: z.boolean(),
+  timeZone: z.union([z.string(), z.null()]).optional(),
+  location: z.union([z.string(), z.null()]).optional(),
+  description: z.union([z.string(), z.null()]).optional(),
+  status: z.string(),
+  isRecurring: z.boolean(),
+  recurrenceLines: z.array(z.string()),
+  attendees: z.array(
+    z.object({
+      email: z.string(),
+      responseStatus: z.string(),
+      isOrganizer: z.boolean(),
+      isOptional: z.boolean(),
+    })
+  ),
+  attendeeCount: z.number().int().gte(0),
+  organizerEmail: z.union([z.string(), z.null()]).optional(),
+  conferenceUrl: z.union([z.string(), z.null()]).optional(),
+  macroCallUrl: z.union([z.string(), z.null()]).optional(),
+  isReadOnly: z.boolean(),
+  calendarId: z.union([z.string().uuid(), z.null()]).optional(),
+  calendarName: z.union([z.string(), z.null()]).optional(),
+  inbox: z.union([z.string(), z.null()]).optional(),
+  myRole: z
+    .union([
+      z.any().superRefine((x, ctx) => {
+        const schemas = [z.literal('organizer'), z.literal('guest')];
+        const errors = schemas.reduce<z.ZodError[]>(
+          (errors, schema) =>
+            ((result) => (result.error ? [...errors, result.error] : errors))(
+              schema.safeParse(x)
+            ),
+          []
+        );
+        if (schemas.length - errors.length !== 1) {
+          ctx.addIssue({
+            path: ctx.path,
+            code: 'invalid_union',
+            unionErrors: errors,
+            message: 'Invalid input: Should pass single schema',
+          });
+        }
+      }),
+      z.null(),
+    ])
+    .optional(),
+});
+
 export const AddToPipeline = z.object({
   pipelineId: z.string().uuid(),
   entries: z.array(
@@ -2563,59 +2621,6 @@ export const CreateConfirmedCalendarEvent = z.object({
     ])
     .optional(),
   userConfirmation: z.string(),
-});
-
-export const ToolCalendarEvent = z.object({
-  eventId: z.string().uuid(),
-  title: z.string(),
-  start: z.string(),
-  end: z.string(),
-  isAllDay: z.boolean(),
-  timeZone: z.union([z.string(), z.null()]).optional(),
-  location: z.union([z.string(), z.null()]).optional(),
-  description: z.union([z.string(), z.null()]).optional(),
-  status: z.string(),
-  isRecurring: z.boolean(),
-  recurrenceLines: z.array(z.string()),
-  attendees: z.array(
-    z.object({
-      email: z.string(),
-      responseStatus: z.string(),
-      isOrganizer: z.boolean(),
-      isOptional: z.boolean(),
-    })
-  ),
-  attendeeCount: z.number().int().gte(0),
-  organizerEmail: z.union([z.string(), z.null()]).optional(),
-  conferenceUrl: z.union([z.string(), z.null()]).optional(),
-  macroCallUrl: z.union([z.string(), z.null()]).optional(),
-  isReadOnly: z.boolean(),
-  calendarId: z.union([z.string().uuid(), z.null()]).optional(),
-  calendarName: z.union([z.string(), z.null()]).optional(),
-  inbox: z.union([z.string(), z.null()]).optional(),
-  myRole: z
-    .union([
-      z.any().superRefine((x, ctx) => {
-        const schemas = [z.literal('organizer'), z.literal('guest')];
-        const errors = schemas.reduce<z.ZodError[]>(
-          (errors, schema) =>
-            ((result) => (result.error ? [...errors, result.error] : errors))(
-              schema.safeParse(x)
-            ),
-          []
-        );
-        if (schemas.length - errors.length !== 1) {
-          ctx.addIssue({
-            path: ctx.path,
-            code: 'invalid_union',
-            unionErrors: errors,
-            message: 'Invalid input: Should pass single schema',
-          });
-        }
-      }),
-      z.null(),
-    ])
-    .optional(),
 });
 
 export const CreateContact = z.object({
