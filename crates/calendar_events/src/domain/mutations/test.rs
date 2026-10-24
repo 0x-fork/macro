@@ -294,6 +294,14 @@ impl CalendarRepository for FakeRepo {
         unreachable!()
     }
 
+    async fn meeting_copies(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Vec<crate::domain::models::MeetingCopy>, rootcause::Report> {
+        unreachable!()
+    }
+
     async fn event_export(
         &self,
         _requester_id: &str,

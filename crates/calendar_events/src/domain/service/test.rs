@@ -105,6 +105,14 @@ impl CalendarRepository for FakeRepo {
             .collect())
     }
 
+    async fn meeting_copies(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Vec<crate::domain::models::MeetingCopy>, Report> {
+        Ok(Vec::new())
+    }
+
     async fn event_export(
         &self,
         _requester_id: &str,

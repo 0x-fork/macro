@@ -4441,6 +4441,7 @@ export const DeleteBotResponse = z.object({
 export const DeleteCalendarEvent = z.object({
   eventId: z.string().uuid(),
   calendarId: z.union([z.string().uuid(), z.null()]).optional(),
+  inbox: z.union([z.string(), z.null()]).optional(),
   scope: z
     .any()
     .superRefine((x, ctx) => {
@@ -16116,6 +16117,7 @@ export const UpdateBookingSettings = z
 export const UpdateCalendarEvent = z.object({
   eventId: z.string().uuid(),
   calendarId: z.union([z.string().uuid(), z.null()]).optional(),
+  inbox: z.union([z.string(), z.null()]).optional(),
   scope: z.any().superRefine((x, ctx) => {
     const schemas = [z.literal('all'), z.literal('this_event')];
     const errors = schemas.reduce<z.ZodError[]>(

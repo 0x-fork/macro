@@ -37,7 +37,7 @@ use crate::domain::{
         CalendarWatchRelease, ConferenceProvider, DisconnectedCalendar, DueCalendarReminder,
         EventDetails, EventReminderOverride, EventReminders, EventStart, EventStatus, EventTime,
         EventTransparency, EventType, EventVisibility, GOOGLE_CALENDAR_SCOPES,
-        GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel, GuestPolicy,
+        GoogleCalendarSyncSnapshot, GoogleScopeSet, GoogleWatchChannel, GuestPolicy, MeetingCopy,
         OccurrenceException, OccurrenceListing, OccurrenceRange, OwnedInbox, ProviderCalendar,
         StoredGoogleCalendar, TeamOutOfOffice, ViewerCapabilities, VisibleCalendar,
         is_system_calendar,
@@ -1477,6 +1477,64 @@ impl CalendarRepository for PgCalendarRepository {
         .map_err(report)?;
 
         rows.into_iter().map(mention_preview_from_row).collect()
+    }
+
+    #[tracing::instrument(skip(self, requester_id), err)]
+    async fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> Result<Vec<MeetingCopy>, Report> {
+        // The copy's own inbox decides how the requester holds it, as it
+        // decides their capabilities and the mention preview's `isOwned`.
+        let rows = sqlx::query!(
+            r#"
+            SELECT
+                candidate.id AS "event_id!",
+                copy_inbox.email_address AS "inbox!",
+                COALESCE(
+                    lower(copy_inbox.email_address) = lower(candidate.organizer_email)
+                    OR EXISTS (
+                        SELECT 1
+                        FROM calendar_event_attendees organizer
+                        WHERE organizer.event_id = candidate.id
+                          AND organizer.is_organizer
+                          AND lower(organizer.email) = lower(copy_inbox.email_address)
+                    ),
+                    false
+                ) AS "organizes!",
+                EXISTS (
+                    SELECT 1
+                    FROM calendar_event_attendees guest
+                    WHERE guest.event_id = candidate.id
+                      AND lower(guest.email) = lower(copy_inbox.email_address)
+                ) AS "attends!"
+            FROM calendar_events addressed
+            JOIN calendar_events candidate
+              ON candidate.ical_uid = addressed.ical_uid
+            JOIN email_links copy_inbox
+              ON copy_inbox.id = candidate.source_link_id
+             AND copy_inbox.macro_id = $1
+            WHERE addressed.id = $2
+              AND candidate.owner_id = $1
+              AND candidate.status <> 'cancelled'
+            ORDER BY lower(copy_inbox.email_address), candidate.id
+            "#,
+            requester_id,
+            event_id,
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(report)?;
+        Ok(rows
+            .into_iter()
+            .map(|row| MeetingCopy {
+                event_id: row.event_id,
+                inbox: row.inbox,
+                organizes: row.organizes,
+                attends: row.attends,
+            })
+            .collect())
     }
 
     #[tracing::instrument(skip(self, requester_id), err)]

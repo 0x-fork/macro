@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use super::{
-    AttendeeInput, CalendarLabels, CalendarToolContext, EventRemindersInput, EventTimeInput,
-    OutOfOfficeInput, ToolCalendarEvent, mutation_tool_error,
+    AttendeeInput, CalendarLabels, CalendarToolContext, CopyChange, EventRemindersInput,
+    EventTimeInput, OutOfOfficeInput, ToolCalendarEvent, confirm_copy, mutation_tool_error,
 };
 use crate::domain::{
     models::{AttendeeResponseStatus, CalendarEventPatch, ConferenceChange, GuestPolicy},
@@ -120,10 +120,12 @@ it only works when that inbox is an attendee.\n\
 \n\
 When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per \
 inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy \
-where the user is a guest, naming the inbox in your reply. Any other change goes to the only \
-copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more \
-than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on \
-another take two calls."
+where the user is a guest, naming the inbox in your reply. Any other change needs `inbox`, \
+the inbox of the copy it changes; without it the tool refuses and lists each copy. Use the \
+only copy whose `viewerCan` allows the change, with the reason, or the copy the user chooses \
+when more than one could make it, and add guests from the copy the user organizes when there \
+is one. One call changes one copy, so an edit on one copy and an `rsvp` on another take two \
+calls."
 )]
 pub struct UpdateCalendarEvent {
     /// Event to update.
@@ -138,6 +140,17 @@ pub struct UpdateCalendarEvent {
     )]
     #[serde(default)]
     pub calendar_id: Option<uuid::Uuid>,
+
+    /// Inbox holding the copy this call changes.
+    #[schemars(
+        description = "The `inbox` of the copy this call changes, from its ListCalendarEvents \
+                       entry. Required when the meeting is on more than one of the user's \
+                       inboxes and the call changes anything but `reminders` or `rsvp`: the \
+                       tool refuses without it and lists each copy. It must be the inbox \
+                       holding the copy `eventId` names."
+    )]
+    #[serde(default)]
+    pub inbox: Option<String>,
 
     /// Update scope.
     #[schemars(
@@ -280,6 +293,7 @@ where
             scope=?self.scope,
             attendee_count=?self.attendees.as_ref().map(Vec::len),
             rsvp=?self.rsvp,
+            inbox_confirmed=self.inbox.is_some(),
             "Update calendar event"
         );
 
@@ -331,6 +345,22 @@ where
             out_of_office: self.out_of_office.clone().map(Into::into),
             guest_policy: self.guest_policy,
         };
+
+        // Reminders and the user's own answer belong to one copy; anything
+        // else reaches the meeting, so the agent must have chosen the copy
+        // when the meeting is on several of the user's inboxes.
+        if patch.reaches_meeting() || self.inbox.is_some() {
+            confirm_copy(
+                &*service_context.occurrences,
+                &requester_id,
+                self.event_id,
+                self.inbox.as_deref(),
+                CopyChange::Update {
+                    adds_guests: patch.attendees.is_some(),
+                },
+            )
+            .await?;
+        }
 
         // An RSVP is its own provider call, so a call carrying only one runs
         // only that half. Answering after the patch keeps a replaced attendee

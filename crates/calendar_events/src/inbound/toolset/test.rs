@@ -1,4 +1,5 @@
 mod add_shared_calendar_event;
+mod copies;
 mod read_calendar_event;
 
 use std::sync::Mutex;
@@ -15,7 +16,7 @@ use crate::domain::models::{
     AttendeeResponseStatus, CalendarAttendee, CalendarEventDraft, CalendarEventPatch,
     CalendarOccurrence, CalendarSyncStatus, ConferenceChange, EventReminderOverride,
     EventReminders, EventStatus, EventTransparency, EventType, EventVisibility, GuestPolicy,
-    OccurrenceRange, ViewerCapabilities, VisibleCalendar,
+    MeetingCopy, OccurrenceRange, ViewerCapabilities, VisibleCalendar,
 };
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarMutationError, CalendarMutationService,
@@ -280,6 +281,7 @@ impl CalendarMutationService for MockMutations {
 struct MockOccurrences {
     rows: Mutex<Vec<(crate::domain::models::CalendarEvent, CalendarOccurrence)>>,
     status: CalendarSyncStatus,
+    copies: Mutex<Vec<MeetingCopy>>,
 }
 
 impl CalendarOccurrenceService for MockOccurrences {
@@ -350,6 +352,14 @@ impl CalendarOccurrenceService for MockOccurrences {
         _requester_id: &str,
     ) -> Result<Option<String>, rootcause::Report> {
         unreachable!("no calendar tool resolves the primary time zone")
+    }
+
+    async fn meeting_copies(
+        &self,
+        _requester_id: &str,
+        _event_id: Uuid,
+    ) -> Result<Vec<MeetingCopy>, rootcause::Report> {
+        Ok(self.copies.lock().unwrap().clone())
     }
 
     async fn event_ics(
@@ -434,6 +444,7 @@ fn empty_occurrences() -> MockOccurrences {
     MockOccurrences {
         rows: Mutex::new(Vec::new()),
         status: CalendarSyncStatus::Ready,
+        copies: Mutex::new(Vec::new()),
     }
 }
 
@@ -930,6 +941,7 @@ async fn update_converts_input_into_a_domain_patch() {
     let tool = UpdateCalendarEvent {
         event_id,
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: None,
         title: Some("Renamed".to_string()),
@@ -972,6 +984,7 @@ async fn update_maps_out_of_office_settings_into_the_patch() {
     let tool = UpdateCalendarEvent {
         event_id,
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: None,
         title: None,
@@ -1011,6 +1024,7 @@ async fn update_passes_the_selected_occurrence_scope() {
     let tool = UpdateCalendarEvent {
         event_id,
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::ThisEvent,
         recurrence_id: Some("2026-08-18T20:00:00+00:00".to_string()),
         title: None,
@@ -1048,6 +1062,7 @@ async fn scoped_update_requires_a_recurrence_id() {
     let tool = UpdateCalendarEvent {
         event_id: Uuid::from_u128(11),
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::ThisEvent,
         recurrence_id: None,
         title: Some("Renamed".to_string()),
@@ -1077,6 +1092,7 @@ async fn series_update_rejects_a_stray_recurrence_id() {
     let tool = UpdateCalendarEvent {
         event_id: Uuid::from_u128(11),
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: Some("2026-08-18T20:00:00+00:00".to_string()),
         title: Some("Renamed".to_string()),
@@ -1103,6 +1119,7 @@ async fn update_carries_reminders_into_the_patch() {
     let tool = UpdateCalendarEvent {
         event_id: Uuid::from_u128(11),
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: None,
         title: None,
@@ -1149,6 +1166,7 @@ async fn rsvp_alone_answers_without_patching() {
     let tool = UpdateCalendarEvent {
         event_id,
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: None,
         title: None,
@@ -1184,6 +1202,7 @@ async fn rsvp_follows_the_occurrence_scope_of_the_call() {
     let tool = UpdateCalendarEvent {
         event_id: Uuid::from_u128(11),
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::ThisEvent,
         recurrence_id: Some("2026-08-18T20:00:00+00:00".to_string()),
         title: None,
@@ -1220,6 +1239,7 @@ async fn update_answers_after_applying_the_patch() {
     let tool = UpdateCalendarEvent {
         event_id: Uuid::from_u128(11),
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: None,
         title: None,
@@ -1250,6 +1270,7 @@ async fn update_without_a_change_or_an_rsvp_is_rejected() {
     let tool = UpdateCalendarEvent {
         event_id: Uuid::from_u128(11),
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: None,
         title: None,
@@ -1277,6 +1298,7 @@ async fn scoped_deletion_requires_a_recurrence_id() {
     let tool = DeleteCalendarEvent {
         event_id: Uuid::from_u128(11),
         calendar_id: None,
+        inbox: None,
         scope: DeletionScopeInput::ThisEvent,
         recurrence_id: None,
     };
@@ -1293,6 +1315,7 @@ async fn deletion_passes_the_selected_scope() {
     let tool = DeleteCalendarEvent {
         event_id,
         calendar_id: None,
+        inbox: None,
         scope: DeletionScopeInput::ThisAndFollowing,
         recurrence_id: Some("2026-08-20T17:00:00+00:00".to_string()),
     };
@@ -1320,6 +1343,7 @@ async fn list_events_maps_occurrences_and_skips_cancelled_ones() {
             (recurring.clone(), occurrence_of(&recurring, "k-2", true)),
         ]),
         status: CalendarSyncStatus::Syncing,
+        copies: Mutex::new(Vec::new()),
     };
     let (_, context) = context(MockMutations::default(), occurrences);
 
@@ -1357,6 +1381,7 @@ async fn list_events_reports_truncation() {
     let occurrences = MockOccurrences {
         rows: Mutex::new(rows),
         status: CalendarSyncStatus::Ready,
+        copies: Mutex::new(Vec::new()),
     };
     let (_, context) = context(MockMutations::default(), occurrences);
 
@@ -1392,6 +1417,7 @@ async fn cancelled_occurrences_do_not_count_toward_truncation() {
     let occurrences = MockOccurrences {
         rows: Mutex::new(rows),
         status: CalendarSyncStatus::Ready,
+        copies: Mutex::new(Vec::new()),
     };
     let (_, context) = context(MockMutations::default(), occurrences);
 
@@ -1520,6 +1546,7 @@ async fn list_events_names_the_inbox_and_role_of_each_copy() {
             (invited.clone(), occurrence_of(&invited, "k-1", false)),
         ]),
         status: CalendarSyncStatus::Ready,
+        copies: Mutex::new(Vec::new()),
     };
     let (_, context) = context(mutations, occurrences);
 
@@ -1575,6 +1602,7 @@ async fn list_events_labels_each_calendar_copy_of_one_entity() {
     let occurrences = MockOccurrences {
         rows: Mutex::new(vec![(event.clone(), occurrence_of(&event, "k-1", false))]),
         status: CalendarSyncStatus::Ready,
+        copies: Mutex::new(Vec::new()),
     };
     let (_, context) = context(mutations, occurrences);
 
@@ -1638,6 +1666,7 @@ async fn update_result_names_the_copy_it_changed() {
     let tool = UpdateCalendarEvent {
         event_id: Uuid::from_u128(7),
         calendar_id: None,
+        inbox: None,
         scope: UpdateScopeInput::All,
         recurrence_id: None,
         title: Some("Renamed".to_string()),

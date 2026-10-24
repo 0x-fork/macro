@@ -21,9 +21,9 @@ use super::models::{
     CalendarReminderDispatchMessage, CalendarReminderFiring, CalendarReminderSweepSummary,
     CalendarSyncStatus, DisconnectedCalendar, DueCalendarReminder, EventDetails,
     GoogleCalendarSyncSnapshot, GoogleEventSyncBatch, GoogleScopeSet, GoogleSyncPlan,
-    GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, OccurrenceListing, OccurrenceRange,
-    OwnedInbox, ProviderCalendar, ProviderCalendarTarget, StoredGoogleCalendar, TeamOutOfOffice,
-    VisibleCalendar,
+    GoogleWatchChannel, GoogleWatchConfig, GuestPolicy, MeetingCopy, OccurrenceListing,
+    OccurrenceRange, OwnedInbox, ProviderCalendar, ProviderCalendarTarget, StoredGoogleCalendar,
+    TeamOutOfOffice, VisibleCalendar,
 };
 
 /// Classification supplied by provider adapters to backfill policy.
@@ -455,6 +455,15 @@ pub trait CalendarOccurrenceService: Send + Sync + 'static {
         requester_id: &str,
     ) -> impl Future<Output = Result<Option<String>, Report>> + Send;
 
+    /// Every copy of `event_id`'s meeting the requester holds through one of
+    /// their own inboxes, so a caller can tell when one meeting sits on
+    /// several of them.
+    fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<MeetingCopy>, Report>> + Send;
+
     /// Render an event the requester can see — their own, or one shared with
     /// a channel they belong to — as an iCalendar document, with its title.
     /// `None` when the event does not exist or is not visible to them.
@@ -568,6 +577,16 @@ pub trait CalendarRepository: Send + Sync + 'static {
         items: Vec<CalendarMentionRequestItem>,
         now: DateTime<Utc>,
     ) -> impl Future<Output = Result<Vec<CalendarMentionPreview>, Report>> + Send;
+
+    /// Every copy of `event_id`'s meeting (same iCalendar UID) the requester
+    /// holds through an inbox they own or have linked, ordered by inbox.
+    /// Cancelled copies are left out, and an event they hold no copy of
+    /// yields none.
+    fn meeting_copies(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+    ) -> impl Future<Output = Result<Vec<MeetingCopy>, Report>> + Send;
 
     /// Series content of an event the requester can see, for export or
     /// copying, with how they see it: the requester's own projection of the

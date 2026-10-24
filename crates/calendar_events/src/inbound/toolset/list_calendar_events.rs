@@ -165,12 +165,16 @@ Answer an invitation on the copy where the user is a guest; when they are a gues
 more than one inbox, ask which inbox answers, since each answers only for itself. Any other \
 change reaches the meeting differently from each copy: the title, time, description, \
 location, recurrence or conference, adding or removing guests, guest permissions, and \
-deleting. Never pick a copy for such a change silently. If only one copy allows it \
-(`viewerCan`, or for deleting, `isReadOnly` false), use that copy and say why (for example, \
-only the copy the user organizes can move the meeting). If more than one can, \
-ask which inbox, saying what the change would do from each, such as deleting the organizer's \
-copy cancelling the meeting for everyone while deleting a guest's copy only takes it off that \
-inbox's calendar."
+deleting. UpdateCalendarEvent and DeleteCalendarEvent refuse such a change on a meeting held \
+by several of the user's inboxes until `inbox` names the inbox of the copy being changed, and \
+the refusal lists each copy. If only one copy allows the change (`viewerCan`, or for deleting, \
+`isReadOnly` false), use that copy with its `inbox` and say why (for example, only the copy \
+the user organizes can move the meeting). If more than one can, ask which inbox, saying what \
+the change would do from each. Add guests from the copy the user organizes when there is one: \
+it invites them directly, while a guest's copy invites only as far as the organizer allows. \
+Deleting the organizer's copy cancels the meeting for everyone, while deleting a guest's copy \
+takes the meeting off that inbox's calendar and, on Google, also declines the invitation and \
+tells the organizer."
 )]
 pub struct ListCalendarEvents {
     /// Inclusive window start.

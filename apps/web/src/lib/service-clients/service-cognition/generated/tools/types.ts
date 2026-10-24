@@ -8343,7 +8343,7 @@ export interface DeleteBotResponse {
  *
  * For recurring events, `scope` controls how much is removed: "all" (default) removes the whole series, "this_event" removes one occurrence, and "this_and_following" ends the series from an occurrence onward. The scoped variants require `recurrenceId` from the targeted occurrence's ListCalendarEvents entry.
  *
- * When the meeting is on several of the user's inboxes (one ListCalendarEvents entry per inbox), ask which inbox's copy to delete unless the user named one or only one copy is writable (`isReadOnly` false), in which case delete that one and say why. Deleting the copy the user organizes cancels the meeting for every guest, while deleting a copy where they are a guest only takes it off that inbox's calendar.
+ * When the meeting is on several of the user's inboxes (one ListCalendarEvents entry per inbox), the tool refuses until `inbox` names the inbox of the copy to delete, and lists each copy. Ask which inbox's copy to delete unless the user named one or only one copy is writable (`isReadOnly` false), in which case delete that one, pass its `inbox` and say why. Deleting the copy the user organizes cancels the meeting for every guest. Deleting a copy where they are a guest takes the meeting off that inbox's calendar: on Google it also declines the invitation and tells the organizer, while on Outlook the organizer is not told and still sees the invitation unanswered.
  */
 export interface DeleteCalendarEvent {
   /**
@@ -8354,6 +8354,10 @@ export interface DeleteCalendarEvent {
    * The `calendarId` of the copy to delete, from the `copies` of its ListCalendarEvents entry, for an event synced from more than one calendar. Omit to delete the event's primary copy.
    */
   calendarId?: string | null;
+  /**
+   * The `inbox` of the copy to delete, from its ListCalendarEvents entry. Required when the meeting is on more than one of the user's inboxes: the tool refuses without it and lists each copy. It must be the inbox holding the copy `eventId` names.
+   */
+  inbox?: string | null;
   scope?: DeletionScopeInput;
   /**
    * The `recurrenceId` of the targeted occurrence, from its ListCalendarEvents entry. Required for "this_event" and "this_and_following".
@@ -11235,7 +11239,7 @@ export interface ListBotsResponse {
  *
  * Each entry names the calendar (`calendarName`) and connected inbox (`inbox`) holding that copy of the event, and `myRole` says whether the user organizes it or is a guest there. A meeting on several of the user's inboxes appears once per inbox, each with its own `eventId`, and what the user may do can differ between them. When asking which one the user means, describe each by its inbox and role, never by id; when the user names an inbox, act on the entry whose `inbox` matches.
  *
- * When the user does not name an inbox, choose the copy by what the change does. Reminders belong to one copy only, so set them on one copy without asking and say which inbox you used. Answer an invitation on the copy where the user is a guest; when they are a guest through more than one inbox, ask which inbox answers, since each answers only for itself. Any other change reaches the meeting differently from each copy: the title, time, description, location, recurrence or conference, adding or removing guests, guest permissions, and deleting. Never pick a copy for such a change silently. If only one copy allows it (`viewerCan`, or for deleting, `isReadOnly` false), use that copy and say why (for example, only the copy the user organizes can move the meeting). If more than one can, ask which inbox, saying what the change would do from each, such as deleting the organizer's copy cancelling the meeting for everyone while deleting a guest's copy only takes it off that inbox's calendar.
+ * When the user does not name an inbox, choose the copy by what the change does. Reminders belong to one copy only, so set them on one copy without asking and say which inbox you used. Answer an invitation on the copy where the user is a guest; when they are a guest through more than one inbox, ask which inbox answers, since each answers only for itself. Any other change reaches the meeting differently from each copy: the title, time, description, location, recurrence or conference, adding or removing guests, guest permissions, and deleting. UpdateCalendarEvent and DeleteCalendarEvent refuse such a change on a meeting held by several of the user's inboxes until `inbox` names the inbox of the copy being changed, and the refusal lists each copy. If only one copy allows the change (`viewerCan`, or for deleting, `isReadOnly` false), use that copy with its `inbox` and say why (for example, only the copy the user organizes can move the meeting). If more than one can, ask which inbox, saying what the change would do from each. Add guests from the copy the user organizes when there is one: it invites them directly, while a guest's copy invites only as far as the organizer allows. Deleting the organizer's copy cancels the meeting for everyone, while deleting a guest's copy takes the meeting off that inbox's calendar and, on Google, also declines the invitation and tells the organizer.
  */
 export interface ListCalendarEvents {
   /**
@@ -15473,7 +15477,7 @@ export interface UpdateBookingSettings {
  *
  * `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call and answers as the connected inbox the event's copy belongs to, so it only works when that inbox is an attendee.
  *
- * When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Any other change goes to the only copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
+ * When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Any other change needs `inbox`, the inbox of the copy it changes; without it the tool refuses and lists each copy. Use the only copy whose `viewerCan` allows the change, with the reason, or the copy the user chooses when more than one could make it, and add guests from the copy the user organizes when there is one. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
  */
 export interface UpdateCalendarEvent {
   /**
@@ -15484,6 +15488,10 @@ export interface UpdateCalendarEvent {
    * The `calendarId` of the copy to update, from the `copies` of its ListCalendarEvents entry, for an event synced from more than one calendar. Omit to update the event's primary copy.
    */
   calendarId?: string | null;
+  /**
+   * The `inbox` of the copy this call changes, from its ListCalendarEvents entry. Required when the meeting is on more than one of the user's inboxes and the call changes anything but `reminders` or `rsvp`: the tool refuses without it and lists each copy. It must be the inbox holding the copy `eventId` names.
+   */
+  inbox?: string | null;
   scope: UpdateScopeInput;
   /**
    * The `recurrenceId` of the targeted occurrence, from its ListCalendarEvents entry. Required for "this_event"; omit for "all".

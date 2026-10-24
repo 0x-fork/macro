@@ -1378,6 +1378,35 @@ impl CalendarEventPatch {
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
+
+    /// Whether the patch changes the meeting itself rather than only what
+    /// the provider keeps on each copy: reminders and availability.
+    pub fn reaches_meeting(&self) -> bool {
+        let Self {
+            title,
+            description,
+            location,
+            time,
+            attendees,
+            recurrence_lines,
+            visibility,
+            transparency: _,
+            reminders: _,
+            conference,
+            out_of_office,
+            guest_policy,
+        } = self;
+        title.is_some()
+            || description.is_some()
+            || location.is_some()
+            || time.is_some()
+            || attendees.is_some()
+            || recurrence_lines.is_some()
+            || visibility.is_some()
+            || conference.is_some()
+            || out_of_office.is_some()
+            || guest_policy.is_some()
+    }
 }
 
 /// The stored details of an event or one of its occurrences: what every
@@ -1493,6 +1522,20 @@ impl CalendarEventMutationTarget {
             range,
         }
     }
+}
+
+/// One of the requester's own copies of a meeting: the event held through
+/// one of their inboxes under the meeting's iCalendar UID.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MeetingCopy {
+    /// The copy's event id.
+    pub event_id: Uuid,
+    /// Address of the inbox holding the copy.
+    pub inbox: String,
+    /// Whether that inbox organizes the meeting.
+    pub organizes: bool,
+    /// Whether that inbox is on the meeting's guest list.
+    pub attends: bool,
 }
 
 /// A calendar visible to a requester, listed for pickers and filters.

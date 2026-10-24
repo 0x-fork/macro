@@ -62,6 +62,14 @@ impl CalendarOccurrenceService for PreviewOccurrences {
         unreachable!("reading an event resolves no time zone")
     }
 
+    async fn meeting_copies(
+        &self,
+        _requester_id: &str,
+        _event_id: uuid::Uuid,
+    ) -> Result<Vec<crate::domain::models::MeetingCopy>, rootcause::Report> {
+        unreachable!("reading an event lists no copies")
+    }
+
     async fn event_ics(
         &self,
         _requester_id: &str,

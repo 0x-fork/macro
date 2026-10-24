@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{CalendarToolContext, mutation_tool_error};
+use super::{CalendarToolContext, CopyChange, confirm_copy, mutation_tool_error};
 use crate::domain::ports::{
     CalendarDeletionScope, CalendarMutationService, CalendarOccurrenceService, MeetingLinkProvider,
 };
@@ -52,10 +52,13 @@ series from an occurrence onward. The scoped variants require `recurrenceId` fro
 targeted occurrence's ListCalendarEvents entry.\n\
 \n\
 When the meeting is on several of the user's inboxes (one ListCalendarEvents entry per \
-inbox), ask which inbox's copy to delete unless the user named one or only one copy is \
-writable (`isReadOnly` false), in which case delete that one and say why. Deleting the copy \
-the user organizes cancels the meeting for every guest, while deleting a copy where they are \
-a guest only takes it off that inbox's calendar."
+inbox), the tool refuses until `inbox` names the inbox of the copy to delete, and lists each \
+copy. Ask which inbox's copy to delete unless the user named one or only one copy is writable \
+(`isReadOnly` false), in which case delete that one, pass its `inbox` and say why. Deleting \
+the copy the user organizes cancels the meeting for every guest. Deleting a copy where they \
+are a guest takes the meeting off that inbox's calendar: on Google it also declines the \
+invitation and tells the organizer, while on Outlook the organizer is not told and still sees \
+the invitation unanswered."
 )]
 pub struct DeleteCalendarEvent {
     /// Event to delete.
@@ -70,6 +73,16 @@ pub struct DeleteCalendarEvent {
     )]
     #[serde(default)]
     pub calendar_id: Option<uuid::Uuid>,
+
+    /// Inbox holding the copy to delete.
+    #[schemars(
+        description = "The `inbox` of the copy to delete, from its ListCalendarEvents entry. \
+                       Required when the meeting is on more than one of the user's inboxes: \
+                       the tool refuses without it and lists each copy. It must be the inbox \
+                       holding the copy `eventId` names."
+    )]
+    #[serde(default)]
+    pub inbox: Option<String>,
 
     /// Deletion scope.
     #[schemars(
@@ -109,7 +122,13 @@ where
         service_context: ServiceContext<CalendarToolContext<M, O, L>>,
         request_context: RequestContext,
     ) -> ToolResult<Self::Output> {
-        tracing::info!(params=?self, "Delete calendar event");
+        tracing::info!(
+            event_id=%self.event_id,
+            calendar_id=?self.calendar_id,
+            scope=?self.scope,
+            inbox_confirmed=self.inbox.is_some(),
+            "Delete calendar event"
+        );
 
         let requester_id = request_context.user_id.to_string();
         let scoped_occurrence = |kind: &'static str| {
@@ -137,6 +156,14 @@ where
             ),
         };
 
+        confirm_copy(
+            &*service_context.occurrences,
+            &requester_id,
+            self.event_id,
+            self.inbox.as_deref(),
+            CopyChange::Delete,
+        )
+        .await?;
         service_context
             .mutations
             .delete_event(&requester_id, self.event_id, self.calendar_id, scope)

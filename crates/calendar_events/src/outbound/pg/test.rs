@@ -7261,6 +7261,7 @@ mod details;
 mod export;
 mod invitations;
 mod join_requests;
+mod meeting_copies;
 #[cfg(feature = "notes")]
 mod notes;
 mod source_access;

@@ -16,7 +16,7 @@ A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rs
 
 `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call and answers as the connected inbox the event's copy belongs to, so it only works when that inbox is an attendee.
 
-When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Any other change goes to the only copy whose `viewerCan` allows it, with the reason, or to the copy the user chooses when more than one could make it. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
+When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Any other change needs `inbox`, the inbox of the copy it changes; without it the tool refuses and lists each copy. Use the only copy whose `viewerCan` allows the change, with the reason, or the copy the user chooses when more than one could make it, and add guests from the copy the user organizes when there is one. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
 
 ## Parameters
 
@@ -24,6 +24,7 @@ When the meeting is on several of the user's inboxes, ListCalendarEvents lists o
 | --- | --- | --- | --- |
 | `eventId` | string | Yes | The event's id, from ListCalendarEvents or CreateCalendarEvent. |
 | `calendarId` | string | No | The `calendarId` of the copy to update, from the `copies` of its ListCalendarEvents entry, for an event synced from more than one calendar. Omit to update the event's primary copy. |
+| `inbox` | string | No | The `inbox` of the copy this call changes, from its ListCalendarEvents entry. Required when the meeting is on more than one of the user's inboxes and the call changes anything but `reminders` or `rsvp`: the tool refuses without it and lists each copy. It must be the inbox holding the copy `eventId` names. |
 | `scope` | `"all"` \| `"this_event"` | Yes | How much of a recurring series an update applies to. |
 | `recurrenceId` | string | No | The `recurrenceId` of the targeted occurrence, from its ListCalendarEvents entry. Required for "this_event"; omit for "all". |
 | `title` | string | No | Replacement title. Omit to keep the current title. |

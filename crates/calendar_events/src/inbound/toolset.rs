@@ -23,6 +23,7 @@ use std::sync::Arc;
 use ai_toolset::{AsyncToolCollection, ToolCallError};
 use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
+use rootcause::compat::boxed_error::IntoBoxedError;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -31,7 +32,7 @@ use crate::domain::{
     meeting_links::{CreateEventWithMacroCallError, EventWithMacroCall, MeetingLinkError},
     models::{
         CalendarAttendeeInput, CalendarEvent, EventReminderOverride, EventReminders, EventTime,
-        OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, VisibleCalendar,
+        MeetingCopy, OutOfOfficeAutoDeclineMode, OutOfOfficeProperties, VisibleCalendar,
     },
     ports::{
         CalendarMutationError, CalendarMutationService, CalendarOccurrenceService,
@@ -479,6 +480,121 @@ impl CalendarLabels {
             .map(|calendar| calendar.email_address.clone())
             .or_else(|| link_id.and_then(|id| self.inbox_by_link.get(&id)).cloned())
     }
+}
+
+/// A change that reaches a meeting differently depending on which of the
+/// user's copies makes it.
+#[derive(Clone, Copy)]
+enum CopyChange {
+    /// Details, guests or guest permissions; `adds_guests` when the call
+    /// carries a guest list.
+    Update {
+        adds_guests: bool,
+    },
+    Delete,
+}
+
+/// Make sure the agent chose which copy to change when the meeting is on
+/// several of the user's inboxes. With `inbox` set, it must be the inbox
+/// holding the addressed copy; without it, a call addressing one of several
+/// inboxes' copies is refused with each copy's inbox and role, so the agent
+/// asks the user instead of picking one.
+async fn confirm_copy<O: CalendarOccurrenceService>(
+    occurrences: &O,
+    requester_id: &str,
+    event_id: Uuid,
+    inbox: Option<&str>,
+    change: CopyChange,
+) -> Result<(), ToolCallError> {
+    let copies = occurrences
+        .meeting_copies(requester_id, event_id)
+        .await
+        .map_err(|error| ToolCallError {
+            description: "Failed to check which of the user's inboxes hold this meeting. Try \
+                          again shortly."
+                .to_string(),
+            internal_error: anyhow::Error::from_boxed(error.into_boxed_error()),
+        })?;
+    // A copy held through an inbox the user doesn't own, such as a delegated
+    // one, has no siblings to tell apart.
+    let Some(addressed) = copies.iter().find(|copy| copy.event_id == event_id) else {
+        return Ok(());
+    };
+    if let Some(inbox) = inbox.map(str::trim) {
+        if addressed.inbox.eq_ignore_ascii_case(inbox) {
+            return Ok(());
+        }
+        let other = copies
+            .iter()
+            .find(|copy| copy.inbox.eq_ignore_ascii_case(inbox))
+            .map(|copy| format!(" The copy on {inbox} is eventId {}.", copy.event_id))
+            .unwrap_or_default();
+        return Err(ToolCallError {
+            description: format!(
+                "`inbox` {inbox} does not hold this copy: eventId {event_id} is the copy on \
+                 {}.{other}",
+                addressed.inbox
+            ),
+            internal_error: anyhow::anyhow!("inbox does not match the addressed copy"),
+        });
+    }
+    let inboxes: std::collections::HashSet<String> = copies
+        .iter()
+        .map(|copy| copy.inbox.to_lowercase())
+        .collect();
+    if inboxes.len() < 2 {
+        return Ok(());
+    }
+    Err(ToolCallError {
+        description: copy_question(&copies, inboxes.len(), change),
+        internal_error: anyhow::anyhow!("copy not confirmed on a meeting held by several inboxes"),
+    })
+}
+
+/// What the agent needs to ask which copy to change: each copy's inbox,
+/// role and id, and what the change would do from each.
+fn copy_question(copies: &[MeetingCopy], inboxes: usize, change: CopyChange) -> String {
+    let listed = copies
+        .iter()
+        .map(|copy| {
+            let role = if copy.organizes {
+                "organizes it"
+            } else if copy.attends {
+                "is a guest"
+            } else {
+                "holds a copy"
+            };
+            format!("{} {role} (eventId {})", copy.inbox, copy.event_id)
+        })
+        .collect::<Vec<_>>()
+        .join("; ");
+    let effect = match change {
+        CopyChange::Delete => {
+            "Deleting the copy an inbox organizes cancels the meeting for every guest, while \
+             deleting a guest's copy takes it off that inbox's calendar and, on Google, also \
+             declines the invitation and tells the organizer."
+                .to_string()
+        }
+        CopyChange::Update { adds_guests } => {
+            let organizer = copies.iter().find(|copy| copy.organizes);
+            match organizer {
+                Some(organizer) if adds_guests => format!(
+                    "To add guests, suggest {}: it organizes the meeting, so they are invited \
+                     directly, while a guest's copy can invite only where the organizer allows \
+                     it.",
+                    organizer.inbox
+                ),
+                _ => "The change reaches the meeting differently from each copy, and a guest's \
+                      copy can only make it where the organizer allows it."
+                    .to_string(),
+            }
+        }
+    };
+    format!(
+        "This meeting is on {inboxes} of the user's inboxes: {listed}. {effect} Ask the user \
+         which inbox's copy to change, then call again with that copy's `eventId` and its inbox \
+         as `inbox`."
+    )
 }
 
 const DESCRIPTION_PREVIEW_CHARS: usize = 280;
