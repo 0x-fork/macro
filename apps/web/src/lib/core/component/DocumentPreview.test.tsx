@@ -52,7 +52,9 @@ vi.mock('./AccessErrorViews/Unauthorized', () => ({
   default: () => <p>You don't have access to this file</p>,
 }));
 vi.mock('./AccessErrorViews/NotFound', () => ({
-  default: () => <p>Not found</p>,
+  default: (props: { message?: string }) => (
+    <p>{props.message ?? 'Not found'}</p>
+  ),
 }));
 // The actions own their calendar queries; the card only decides whether and
 // for which event to show them.
@@ -171,6 +173,41 @@ describe('calendar mention preview card', () => {
 
     expect(screen.getByText("You don't have access to this file")).toBeTruthy();
     expect(view.container.textContent).not.toContain('Pilates');
+  });
+
+  // The preview reports a deleted or cancelled meeting as missing; the card
+  // a click or tap shows must say so about an event, not a file.
+  it('says a deleted meeting is gone, on the card and the phone sheet', async () => {
+    mocks.item = {
+      id: 'mentioned-event',
+      type: 'calendar_event',
+      access: 'does_not_exist',
+      loading: false,
+    } satisfies PreviewItem;
+    renderCard();
+
+    expect(
+      screen.getByText('This event was deleted or cancelled.')
+    ).toBeTruthy();
+    expect(screen.queryByText('Not found')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    cleanup();
+
+    render(() => (
+      <DocumentPreviewSheet
+        open
+        onOpenChange={vi.fn()}
+        documentInfo={{
+          id: 'mentioned-event',
+          type: 'calendar',
+          params: {},
+          isOpenable: true,
+        }}
+      />
+    ));
+    expect(
+      await screen.findByText('This event was deleted or cancelled.')
+    ).toBeTruthy();
   });
 
   it('opens description links like the event view does', () => {

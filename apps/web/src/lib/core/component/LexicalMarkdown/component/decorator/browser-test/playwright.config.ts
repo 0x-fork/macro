@@ -8,7 +8,7 @@ const port = process.env.ROUTINE_MENTION_TEST_PORT ?? '3049';
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'routine-mention.browser.e2e.ts',
+  testMatch: '*.browser.e2e.ts',
   workers: 1,
   timeout: 60_000,
   use: {

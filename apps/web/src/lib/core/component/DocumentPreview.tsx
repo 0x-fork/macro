@@ -1098,6 +1098,8 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
               <div class="text-sm p-4">
                 {noAccessItem().access === 'no_access' ? (
                   <Unauthorized />
+                ) : targetBlockType() === 'calendar' ? (
+                  <NotFound message="This event was deleted or cancelled." />
                 ) : (
                   <NotFound />
                 )}
