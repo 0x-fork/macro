@@ -199,6 +199,22 @@ it('offers no guest permissions without the organizer’s rights', () => {
   expect(screen.queryByRole('group', { name: 'Guest permissions' })).toBeNull();
 });
 
+it('describes the read-only repeat rule while an edit targets one occurrence', async () => {
+  const user = userEvent.setup();
+  showForm({ isEdit: true, showRecurringEditNotice: true });
+  const repeats = screen.getByLabelText('Repeats');
+  expect(repeats.getAttribute('aria-describedby')).toBeNull();
+
+  await user.click(screen.getByRole('radio', { name: 'This event' }));
+  expect(repeats.getAttribute('aria-readonly')).toBe('true');
+  const reasonId = repeats.getAttribute('aria-describedby');
+  expect(reasonId && document.getElementById(reasonId)).toBeTruthy();
+
+  await user.click(screen.getByRole('radio', { name: 'All events' }));
+  expect(repeats.getAttribute('aria-describedby')).toBeNull();
+  expect(reasonId && document.getElementById(reasonId)).toBeNull();
+});
+
 it('returns guest permissions to the stored ones when an edit targets one occurrence', async () => {
   const user = userEvent.setup();
   showForm({

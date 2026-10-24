@@ -585,6 +585,10 @@ export interface EventComposerRecurrencePillProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   readOnly?: boolean;
+  /** Why a read-only rule cannot change, shown as a tooltip. */
+  readOnlyReason?: string;
+  /** Id of the line that explains the pill, such as its read-only reason. */
+  describedBy?: string;
   hideIcon?: boolean;
 }
 
@@ -604,19 +608,27 @@ export function EventComposerRecurrencePill(
       optionDisabled={() => props.readOnly === true}
       disabled={props.disabled}
     >
-      <Select.Trigger
-        aria-label="Repeats"
-        aria-readonly={props.readOnly || undefined}
-        class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48')}
+      {/* Always wrapped, so the reason coming and going never moves the
+          trigger to a new parent. */}
+      <Tooltip
+        label={props.readOnlyReason ?? ''}
+        disabled={!props.readOnlyReason}
       >
-        <Show when={!props.hideIcon}>
-          <RepeatIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
-        </Show>
-        <Select.Value<EventComposerSelectOption>>
-          {(selectState) => selectState.selectedOption().label}
-        </Select.Value>
-        <Select.Icon />
-      </Select.Trigger>
+        <Select.Trigger
+          aria-label="Repeats"
+          aria-readonly={props.readOnly || undefined}
+          aria-describedby={props.describedBy}
+          class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48')}
+        >
+          <Show when={!props.hideIcon}>
+            <RepeatIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+          </Show>
+          <Select.Value<EventComposerSelectOption>>
+            {(selectState) => selectState.selectedOption().label}
+          </Select.Value>
+          <Select.Icon />
+        </Select.Trigger>
+      </Tooltip>
       <Select.Content portalScope="local">
         <Select.Listbox />
       </Select.Content>

@@ -578,7 +578,7 @@ repeat, conferencing and location controls are disabled, each with the tooltip `
 organizer can change this event.`; the same line shows under the pills, which is all a
 touch device shows. The event kind and calendar pills, which on any other edit open their one
 value as a list, are disabled too. Disabled pills, the date and time pills included, are
-dimmed and show no hover. Notifications stay editable and Save sends only `reminders` (plus any
+dimmed and show no hover; the All day switch is dimmed too. Notifications stay editable and Save sends only `reminders` (plus any
 invitation). An editor already open when the organizer turns modifying off follows the
 guest's copy once it syncs: the same fields lock, return to the event's own (keeping
 notification and guest changes) and a toast shows the line. That guest cannot drag or resize
@@ -602,7 +602,10 @@ defaults (invite others and see the guest list) preselected on a new event and t
 `guestPolicy` on an edit. As in Google, checking `Modify event` also checks `Invite others` and
 locks it. The row shows on a new event and on an edit whose `viewerCan.setGuestPolicy` is true,
 on Google calendars only (the calendar's `capabilities.guestPolicy`); Outlook calendars and
-out-of-office events have none. Like the repeat rule, it is disabled while a recurring edit
+out-of-office events have none. While a recurring edit targets `This event`, the Repeats pill
+opens its list read-only and says why, as a tooltip and under the pills (`The repeat rule
+applies to all events. Choose All events to change it.`). Like the repeat rule, the row is
+disabled while a recurring edit
 targets `This event`, since the policy belongs to the whole series, and says so after the
 switches (`Guest permissions apply to all events. Choose All events to change them.`);
 choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it
