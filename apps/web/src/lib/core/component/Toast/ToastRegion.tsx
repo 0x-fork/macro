@@ -11,8 +11,10 @@ export function ToastRegion() {
         Desktop stack, bottom-right. Persistent prompts get their own region
         capped at one visible card. Upload progress sits nearest the corner.
         Prompts step aside while a popover, dialog, drawer, or a surface
-        marked data-holds-prompts is open, so they never cover its controls;
-        a holder in an inert (background) pane does not count.
+        marked data-holds-prompts is open, so they never cover its controls
+        (here: composers docked at the bottom of a pane, email threads and
+        the email composer); a holder in an inert (background) pane does not
+        count.
       */}
       <div class="fixed bottom-2 right-2 m-0 p-2 sm:p-4 list-none outline-none pointer-events-none z-toast-region flex flex-col items-end gap-2">
         <Toast.Region

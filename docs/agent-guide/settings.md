@@ -84,10 +84,11 @@ notification provider; macOS uses its system permission dialog. The web prompt
 continues to say **Enable Browser Notifications** and uses browser permissions.
 Select **Hide** to dismiss the prompt. It waits in the same region as other
 prompts, one card at a time. It steps aside while a popover, dialog, drawer, or
-sheet is open (the calendar event details, for example). On touch devices it
-also waits while an email thread, the full-screen email composer, or search
-results are open, since their last controls sit where the prompt would. It comes
-back when they close.
+sheet is open (the calendar event details, for example). It also waits while an
+email thread or the email composer is open, and on touch devices while search
+results are open, since their last controls sit where the prompt would. On
+desktop it waits while a channel, DM or agent conversation shows its composer at
+the bottom of a pane. It comes back when they close.
 
 ### Notification snoozes
 

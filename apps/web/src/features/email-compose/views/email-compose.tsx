@@ -263,9 +263,7 @@ function LoadedEmailComposeView(
       </Show>
       <div
         class="relative flex flex-col size-full min-h-0 overflow-hidden text-sm"
-        data-holds-prompts={
-          composeContext.presentation.isTouch() ? '' : undefined
-        }
+        data-holds-prompts
       >
         <Show when={state.operationSource}>
           {(source) => (
