@@ -71,6 +71,20 @@ export type CalendarEventRole = 'organizer' | 'guest';
  * The calendar surface: the caller's visible calendars, event creation, and
  * handles to individual events and calendars. Backed by calendar_service (the
  * SDK reaches it on the gateway's `/calendar` route).
+ *
+ * A meeting on more than one of the user's inboxes is one event per inbox;
+ * {@link CalendarNamespace.occurrences} lists each copy with its `inbox` and
+ * `role`. Before changing such a meeting's details, guests or guest
+ * permissions, or deleting it, ask the user which inbox's copy to change, then
+ * pass that copy's `inbox` to {@link CalendarEvent.update},
+ * {@link CalendarEvent.inviteGuests} or {@link CalendarEvent.delete}. Never
+ * choose between the user's inboxes yourself, whatever they look like: a
+ * test, secondary or unfamiliar address is still the user's own inbox. Skip
+ * the question only when the user already named the inbox, when only one copy
+ * can make the change, or when adding guests from the copy the user
+ * organizes, and say why. Reminders may go to one copy; name its inbox. Read
+ * those three methods' documentation before changing a meeting held through
+ * several inboxes: it says what each change does from each copy.
  */
 export class CalendarNamespace {
   /** Find up to 30 owned markdown documents for meeting notes, plus available extra team audiences. */
@@ -121,8 +135,16 @@ export class CalendarNamespace {
    * (`inbox`) and whether the user organizes it or is a guest there (`role`,
    * absent when neither). A meeting on several of the user's inboxes appears
    * once per inbox, each with its own event; describe them by inbox and role,
-   * never by id, and pass the chosen copy's `inbox` to its `update`,
-   * `inviteGuests` or `delete`. */
+   * never by id.
+   *
+   * Before changing or deleting such a meeting, ask the user which inbox's
+   * copy to change, unless they named it, only one copy can make the change,
+   * or you add guests from the copy they organize. Never choose between the
+   * user's inboxes yourself, whatever they look like. Pass the chosen copy's
+   * `inbox` to its `update`, `inviteGuests` or `delete`; without it the call
+   * is refused with `copy_choice_required`, which names each copy's inbox and
+   * event and gives the question to ask. An occurrence whose calendar is no
+   * longer listed has no `inbox`; take it from that refusal. */
   occurrences(options: Omit<ListOccurrencesData['query'], 'cursor'>) {
     let inboxes: Promise<Map<string, string>> | undefined;
     return paginate(async (cursor) => {

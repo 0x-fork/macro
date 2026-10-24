@@ -164,9 +164,9 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   guests, permissions, deleting) goes to the only copy allowed to make it, with
   the reason, or the agent asks, and guests are added from the copy the user
   organizes. The agent must never choose between the user's inboxes itself,
-  whatever they look like: the SDK delete and update docs and the
-  DeleteCalendarEvent and UpdateCalendarEvent descriptions state the ask rule
-  first. `domain::copies::check_copy` enforces it: such a change on a meeting
+  whatever they look like: the SDK's CalendarNamespace overview, the delete
+  and update docs and the DeleteCalendarEvent and UpdateCalendarEvent
+  descriptions state the ask rule first. `domain::copies::check_copy` enforces it: such a change on a meeting
   the user holds through several of their own inboxes (`meeting_copies`) is
   refused, listing each copy and ending with the question to ask word for
   word, until `inbox` names the addressed copy's inbox. The route cannot tell
