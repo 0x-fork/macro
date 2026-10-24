@@ -610,7 +610,9 @@ const accounts = () => accountQuery.data?.user.emailLinks ?? [];
 identity. `refetch`, request policies, loading/error state and selection functions
 retain the existing urql-solid contract. Existing `createUrqlQuery` and
 `createUrqlInfiniteQuery` consumers use the same live projection path without
-being rewritten; every loaded infinite-query page stays subscribed.
+being rewritten; every loaded infinite-query page stays subscribed. A failed
+refetch reports its error but leaves mounted live data as it was: its partial
+nulls are neither persisted nor reconciled into the objects readers hold.
 
 Mutation predictions are keyed by mutation field and registered once per field,
 alongside domain query definitions. A representative generated document names
