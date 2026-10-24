@@ -53,7 +53,8 @@ export function ToastRegion() {
         soon as a new one is shown. Persistent prompts live in their own
         region above that slot, capped at one visible card with the rest
         queued until it is answered. Prompts step aside as on desktop: while a
-        drawer, sheet, dialog, or full-screen composer is open.
+        drawer, sheet, or dialog is open, or a full-frame view that holds them
+        (composer, email thread, search) is presented.
       */}
       <div
         class="fixed left-1/2 -translate-x-1/2 w-full max-w-[420px] px-(--mobile-chrome-gutter) pointer-events-none z-toast-region flex flex-col gap-2"

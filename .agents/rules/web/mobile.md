@@ -62,8 +62,10 @@ read their code, and follow that pattern rather than inventing a new one.
 - Persistent prompts (`toast.custom` with `persistent`) go to the prompt
   region (`useKeyedPersistentToasts` does it), which hides while a popover,
   dialog, or drawer is open, or while a presented pane carries
-  `data-holds-prompts` (the touch email composer does); a prompt in the
-  transient region would cover a sheet's controls.
+  `data-holds-prompts`. Mark a full-frame touch view with it when its last
+  controls sit right above the dock, as the email composer, email thread and
+  search results do; a prompt in the transient region would cover a sheet's
+  controls.
 
 ## Keyboard and focus
 

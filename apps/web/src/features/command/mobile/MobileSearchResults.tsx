@@ -367,7 +367,11 @@ function MobileFullTextResults(props: {
   );
 }
 
-/** The dock owns the input; only the result subtree changes search modes. */
+/**
+ * The dock owns the input; only the result subtree changes search modes.
+ * Persistent prompts wait while results are presented, so they never cover
+ * the last rows above the search bar.
+ */
 export function MobileSearchResults() {
   const session = createMobileSearchEntry();
   const accountId = useUserId();
@@ -375,6 +379,7 @@ export function MobileSearchResults() {
   return (
     <div
       class="relative size-full min-h-0 min-w-0"
+      data-holds-prompts
       style={{
         '--mobile-content-inset-top': 'calc(var(--safe-top, 0px) + 3.75rem)',
       }}
