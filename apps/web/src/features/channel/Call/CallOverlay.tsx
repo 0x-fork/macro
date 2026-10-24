@@ -468,13 +468,16 @@ export function CallOverlay(props: {
         <div
           class="grid w-full items-center gap-2 px-2"
           classList={{
-            'grid-cols-[minmax(3.5rem,1fr)_minmax(0,36rem)_minmax(3.5rem,1fr)]':
+            'grid-cols-[minmax(3.5rem,1fr)_minmax(0,36rem)_minmax(3.5rem,1fr)] @max-[500px]/call:grid-cols-[minmax(0,1fr)_auto]':
               canChat(),
             'grid-cols-[minmax(0,1fr)_minmax(0,36rem)_minmax(0,1fr)]':
               !canChat(),
           }}
         >
-          <div class="col-start-2 flex min-w-0 justify-center">
+          <div
+            class="col-start-2 flex min-w-0 justify-center"
+            classList={{ '@max-[500px]/call:col-start-1': canChat() }}
+          >
             <CallControls onLeave={props.onLeave} />
           </div>
           <Show when={canChat()}>
