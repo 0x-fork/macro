@@ -21,7 +21,41 @@ const mocks = vi.hoisted(() => ({
   held: vi.fn((_id: string) => false),
   cached: vi.fn((_id: string): unknown => undefined),
   hydrate: vi.fn(),
+  spans: [] as {
+    name: string;
+    parent: string | null;
+    attrs: Record<string, unknown>;
+  }[],
 }));
+
+/** Records each span with the span it was started from; never an ambient one. */
+vi.mock('@macro-inc/observability', () => {
+  type Recorded = (typeof mocks.spans)[number];
+  const start = (name: string, parent: Recorded | null) => {
+    const record: Recorded = { name, parent: parent?.name ?? null, attrs: {} };
+    mocks.spans.push(record);
+    const span = {
+      setAttr: (key: string, value: unknown) => {
+        record.attrs[key] = value;
+      },
+      error: () => {},
+      span: (child: string, operation: (span: unknown) => Promise<unknown>) =>
+        run(child, record, operation),
+    };
+    return span;
+  };
+  const run = (
+    name: string,
+    parent: Recorded | null,
+    operation: (span: unknown) => Promise<unknown>
+  ) => operation(start(name, parent));
+  return {
+    Telemetry: {
+      span: (name: string, operation: (span: unknown) => Promise<unknown>) =>
+        run(name, null, operation),
+    },
+  };
+});
 
 vi.mock('@queries/soup/refresh', () => ({
   refreshSoupEntities: mocks.rest,
@@ -62,6 +96,7 @@ import { invalidateAgentSessionMetadata } from './session-metadata-sync';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.spans.length = 0;
   mocks.graphqlSoup.mockReturnValue(false);
   mocks.held.mockReturnValue(false);
 });
@@ -165,6 +200,31 @@ it('lets every row read settle before retrying the batch', async () => {
   finishSecond();
   await refresh;
   expect(mocks.row).toHaveBeenCalledTimes(4);
+});
+
+it('keeps the refetch and every row read in the pass trace', async () => {
+  mocks.graphqlSoup.mockReturnValue(true);
+  mocks.row.mockResolvedValue({
+    data: { user: { agentSession: { id: 'first', turnState: 'idle' } } },
+  });
+  await Promise.all([
+    refreshAgentSessionLists('first'),
+    refreshAgentSessionLists('second'),
+  ]);
+
+  expect(mocks.spans.map(({ name, parent }) => ({ name, parent }))).toEqual([
+    { name: 'agent_session.lists_refresh', parent: null },
+    {
+      name: 'agent_session.lists_refetch',
+      parent: 'agent_session.lists_refresh',
+    },
+    { name: 'agent_session.row_read', parent: 'agent_session.lists_refresh' },
+    { name: 'agent_session.row_read', parent: 'agent_session.lists_refresh' },
+  ]);
+  expect(mocks.spans[2].attrs).toMatchObject({
+    'agent_session.id': 'first',
+    'agent_session.turn_state': 'idle',
+  });
 });
 
 it('leaves soup lists alone when the gateway socket opens', async () => {

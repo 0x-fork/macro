@@ -3,7 +3,7 @@ import {
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { Telemetry } from '@macro-inc/observability';
+import { type Span, Telemetry } from '@macro-inc/observability';
 import {
   getSoupEntityById,
   hasSoupEntity,
@@ -21,8 +21,12 @@ const changedSessions = new Set<string>();
 let pending: Promise<void> | undefined;
 
 /** Read one session's row from the primary and apply it to the lists. */
-function readSessionRow(client: Client, sessionId: string): Promise<void> {
-  return Telemetry.span('agent_session.row_read', async (span) => {
+function readSessionRow(
+  parent: Span,
+  client: Client,
+  sessionId: string
+): Promise<void> {
+  return parent.span('agent_session.row_read', async (span) => {
     span.setAttr('agent_session.id', sessionId);
     const result = await client
       .query(
@@ -59,29 +63,36 @@ function readSessionRow(client: Client, sessionId: string): Promise<void> {
  * Every read settles before a failure reaches the retry, so a late read cannot
  * land after the retry's newer one.
  */
-async function readSessionRows(sessions: string[]): Promise<void> {
+async function readSessionRows(
+  parent: Span,
+  sessions: string[]
+): Promise<void> {
   const graphqlLists = isFeatureEnabled(enableGraphqlSoup);
   const held = sessions.filter((id) => graphqlLists || hasSoupEntity(id));
   if (held.length === 0) return;
   const client = getGraphqlSoupClient();
   const reads = await Promise.allSettled(
-    held.map((sessionId) => readSessionRow(client, sessionId))
+    held.map((sessionId) => readSessionRow(parent, client, sessionId))
   );
   const failed = reads.find((read) => read.status === 'rejected');
   if (failed?.status === 'rejected') throw failed.reason;
 }
 
-/** One pass over a batch: the REST list refetch, then the primary row reads. */
+/**
+ * One pass over a batch: the REST list refetch, then the primary row reads.
+ * The phases start from the pass's span, not the ambient context, which does
+ * not survive an `await`.
+ */
 function refreshBatch(sessions: string[], attempt: number): Promise<void> {
   return Telemetry.span('agent_session.lists_refresh', async (span) => {
     span.setAttr('agent_session.ids', sessions.join(','));
     span.setAttr('agent_session.count', sessions.length);
     span.setAttr('agent_session.lists_refresh.attempt', attempt);
     try {
-      await Telemetry.span('agent_session.lists_refetch', () =>
+      await span.span('agent_session.lists_refetch', () =>
         refreshSoupEntities(sessions, { throwOnError: true })
       );
-      await readSessionRows(sessions);
+      await readSessionRows(span, sessions);
     } catch (error) {
       span.error(error);
       throw error;
