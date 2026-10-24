@@ -27,7 +27,7 @@ export function CalendarFilePreview(props: {
         if (props.restoreFocus?.() === false) event.preventDefault();
       }}
       position="center"
-      class="w-140 max-w-full"
+      class="w-140"
     >
       <Panel depth={2} class="rounded-xl">
         <Panel.Header class="flex items-center gap-2 px-6">

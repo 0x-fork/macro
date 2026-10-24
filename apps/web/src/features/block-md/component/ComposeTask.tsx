@@ -1142,7 +1142,9 @@ export function ComposeTask(props: ComposeTaskProps) {
         </div>
       </Show>
 
-      <EntityComposer.Footer class="items-center">
+      {/* The team switch, Create More and Create Task need about 400px; a
+          phone is narrower, so the actions wrap to their own row. */}
+      <EntityComposer.Footer class="flex-wrap items-center">
         <Show when={team()}>
           {(team) => (
             <Tooltip label={sharingHint()} tabIndex={0}>
