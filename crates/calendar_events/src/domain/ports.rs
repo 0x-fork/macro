@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use rootcause::Report;
 use uuid::Uuid;
 
+use super::copies::{CopyChange, CopyRefusal};
 use super::ics::{CalendarEventExport, CalendarEventIcs};
 use super::join_requests::{CalendarJoinRequest, CalendarJoinRequestStatus};
 use super::meeting_links::{
@@ -404,6 +405,22 @@ pub enum ProviderImportOutcome {
     AlreadyHeld,
     /// The provider refused to import the snapshot into this calendar.
     Refused(CalendarProviderError),
+}
+
+/// Confirms which copy of a meeting a caller changes when the meeting is on
+/// several of the requester's own inboxes, for callers that must name it.
+pub trait CalendarCopyConfirmation: Send + Sync + 'static {
+    /// `Some` refusal, listing each copy, when `event_id` is one of several
+    /// inboxes' copies of its meeting and `inbox` does not name the inbox
+    /// holding it (see [`crate::domain::copies::check_copy`]); `None` to go
+    /// ahead.
+    fn confirm_copy(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        inbox: Option<&str>,
+        change: CopyChange,
+    ) -> impl Future<Output = Result<Option<CopyRefusal>, CalendarMutationError>> + Send;
 }
 
 /// Inbound service port for querying calendar occurrence projections.

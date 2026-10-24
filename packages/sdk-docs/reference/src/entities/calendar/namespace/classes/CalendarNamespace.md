@@ -120,9 +120,15 @@ Find up to 30 owned markdown documents for meeting notes, plus available extra t
 
 ### occurrences()
 
-> **occurrences**(`options`): `AsyncGenerator`\<\{ `event`: [`CalendarEvent`](../../event/classes/CalendarEvent.md); `occurrence`: [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md); \}, `any`, `any`\>
+> **occurrences**(`options`): `AsyncGenerator`\<\{ `event`: [`CalendarEvent`](../../event/classes/CalendarEvent.md); `inbox`: `string` \| `undefined`; `occurrence`: [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md); `role`: [`CalendarEventRole`](../type-aliases/CalendarEventRole.md) \| `undefined`; \}, `any`, `any`\>
 
-Calendar occurrences in a viewport, automatically paginated.
+Calendar occurrences in a viewport, automatically paginated. Each names
+the address of the connected inbox holding that copy of the event
+(`inbox`) and whether the user organizes it or is a guest there (`role`,
+absent when neither). A meeting on several of the user's inboxes appears
+once per inbox, each with its own event; describe them by inbox and role,
+never by id, and pass the chosen copy's `inbox` to its `update`,
+`inviteGuests` or `delete`.
 
 #### Parameters
 
@@ -132,7 +138,7 @@ Calendar occurrences in a viewport, automatically paginated.
 
 #### Returns
 
-`AsyncGenerator`\<\{ `event`: [`CalendarEvent`](../../event/classes/CalendarEvent.md); `occurrence`: [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md); \}, `any`, `any`\>
+`AsyncGenerator`\<\{ `event`: [`CalendarEvent`](../../event/classes/CalendarEvent.md); `inbox`: `string` \| `undefined`; `occurrence`: [`CalendarOccurrence`](../../../../../generated/storage/types.gen/type-aliases/CalendarOccurrence.md); `role`: [`CalendarEventRole`](../type-aliases/CalendarEventRole.md) \| `undefined`; \}, `any`, `any`\>
 
 ***
 

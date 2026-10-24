@@ -156,11 +156,18 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   through several inboxes); a change whose effect differs by copy (details,
   guests, permissions, deleting) goes to the only copy allowed to make it, with
   the reason, or the agent asks, and guests are added from the copy the user
-  organizes. UpdateCalendarEvent and DeleteCalendarEvent enforce it
-  (`confirm_copy`): such a change on a meeting the user holds through several
-  of their own inboxes (`meeting_copies`, matched by iCalendar UID) is refused,
-  listing each copy, until `inbox` names the addressed copy's inbox. An Outlook
-  copy of a Google meeting carries Exchange's UID, so it is not matched.
+  organizes. `domain::copies::check_copy` enforces it: such a change on a
+  meeting the user holds through several of their own inboxes
+  (`meeting_copies`, matched by iCalendar UID) is refused, listing each copy,
+  until `inbox` names the addressed copy's inbox. UpdateCalendarEvent and
+  DeleteCalendarEvent check every call; the update, invite-guests and delete
+  routes check agent runs (a token with `agent_id`, as code mode mints) and any
+  request naming `inbox` through `CalendarCopyConfirmation`, answering 409
+  `copy_choice_required`. Code-mode agents never see the calendar tools
+  (`agent_code_mode::covered_by_code_sdk`), so the routes and the SDK docs are
+  what reach them; the web, which opens one copy, sends no `inbox` and is not
+  checked. An Outlook copy of a Google meeting carries Exchange's UID, so it is
+  not matched.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
 - The team out-of-office overlay (`src/outbound/pg_team/ooo.rs`) starts from

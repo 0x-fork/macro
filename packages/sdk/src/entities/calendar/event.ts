@@ -64,6 +64,12 @@ export interface UpdateEventOptions {
   /** Calendar whose copy of the event is patched, for a multi-calendar event.
    * Omit to patch the canonical copy. */
   calendar?: Calendar;
+  /** Address of the inbox holding the copy this call changes (an occurrence
+   * listing's `inbox`). When the meeting is on more than one of the user's
+   * inboxes, an agent must name it: the call is refused with
+   * `copy_choice_required`, listing each copy's inbox, role and event, until
+   * it does. It must be the inbox holding this copy. */
+  inbox?: string;
 }
 
 /** How a deletion is scoped across a recurring series. */
@@ -75,6 +81,12 @@ export interface DeleteEventOptions {
   /** Calendar whose copy of the event is deleted, for a multi-calendar event.
    * Omit to delete the canonical copy. */
   calendar?: Calendar;
+  /** Address of the inbox holding the copy this call deletes (an occurrence
+   * listing's `inbox`). When the meeting is on more than one of the user's
+   * inboxes, an agent must name it: the call is refused with
+   * `copy_choice_required`, listing each copy's inbox, role and event, until
+   * it does. It must be the inbox holding this copy. */
+  inbox?: string;
 }
 
 /** Guests to add and how much of a recurring series gains them. */
@@ -89,6 +101,12 @@ export interface InviteGuestsOptions {
   /** Calendar whose copy of the event is written, for a multi-calendar event.
    * Omit to write the canonical copy. */
   calendar?: Calendar;
+  /** Address of the inbox holding the copy this call changes (an occurrence
+   * listing's `inbox`). When the meeting is on more than one of the user's
+   * inboxes, an agent must name it: the call is refused with
+   * `copy_choice_required`, listing each copy's inbox, role and event, until
+   * it does. It must be the inbox holding this copy. */
+  inbox?: string;
 }
 
 /** The RSVP to record and how it is scoped across a recurring series. */
@@ -219,7 +237,17 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
     return this.detail.get();
   }
 
-  /** Update the event and return a handle to its synced record. */
+  /** Update the event and return a handle to its synced record.
+   *
+   * A meeting on several of the user's inboxes is one event per inbox, each
+   * with its own id (see the occurrence listing's `inbox` and `role`).
+   * Reminders belong to one copy, so set them on one copy and say which inbox
+   * you used; any other change reaches the meeting differently from each copy.
+   * Use the only copy whose `viewerCan` allows the change and say why, or ask
+   * the user which inbox's copy to change when more than one could make it,
+   * and add guests from the copy the user organizes when there is one. Pass
+   * the chosen copy's `inbox`; without it the call is refused with
+   * `copy_choice_required`, listing each copy. */
   async update(options: UpdateEventOptions): Promise<CalendarEvent> {
     const record = await this.mutate((client) =>
       client.calendar.updateCalendarEvent({
@@ -230,7 +258,16 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
     return CalendarEvent.fromRecord(this.client, record);
   }
 
-  /** Delete the event (or a scoped part of a recurring series) at its provider. */
+  /** Delete the event (or a scoped part of a recurring series) at its provider.
+   *
+   * Deleting the copy the user organizes cancels the meeting for every guest.
+   * Deleting a copy where they are a guest takes the meeting off that inbox's
+   * calendar: on Google it also declines the invitation and tells the
+   * organizer, while on Outlook the organizer is not told and still sees the
+   * invitation unanswered. When the meeting is on several of the user's
+   * inboxes, ask which inbox's copy to delete unless the user named one or
+   * only one copy is writable, and pass that copy's `inbox`; without it the
+   * call is refused with `copy_choice_required`, listing each copy. */
   async delete(options: DeleteEventOptions = {}): Promise<void> {
     await this.mutate((client) =>
       client.calendar.deleteCalendarEvent({
@@ -239,6 +276,7 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
           calendarId: options.calendar?.id,
           scope: options.scope,
           recurrenceId: options.recurrenceId,
+          inbox: options.inbox,
         },
       }),
     );
@@ -283,7 +321,11 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
   /** Add guests without touching anyone already invited, and return a handle
    * to the synced record. The organizer may, and so may a guest the organizer
    * lets invite others (see {@link CalendarEvent.viewerCan}); Google emails
-   * the new guests. */
+   * the new guests. When the meeting is on several of the user's inboxes,
+   * add from the copy the user organizes when there is one (it invites
+   * directly, while a guest's copy invites only as far as the organizer
+   * allows), else ask which inbox, and pass that copy's `inbox`; without it
+   * the call is refused with `copy_choice_required`, listing each copy. */
   async inviteGuests(options: InviteGuestsOptions): Promise<CalendarEvent> {
     const record = await this.mutate((client) =>
       client.calendar.inviteCalendarEventGuests({
@@ -293,6 +335,7 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
           scope: options.scope,
           recurrenceId: options.recurrenceId,
           calendarId: options.calendar?.id,
+          inbox: options.inbox,
         },
       }),
     );
@@ -364,5 +407,6 @@ function toUpdateBody(options: UpdateEventOptions): UpdateCalendarEventRequest {
     scope: options.scope,
     recurrenceId: options.recurrenceId,
     calendarId: options.calendar?.id,
+    inbox: options.inbox,
   };
 }

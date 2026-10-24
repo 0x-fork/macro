@@ -11,6 +11,7 @@ import type {
   TeamCalendarSharing,
 } from '../../../generated/calendar/types.gen';
 import type {
+  CalendarEvent as CalendarEventRecord,
   ListOccurrencesData,
   ListTeamCalendarData,
   ListTeamOutOfOfficeData,
@@ -62,6 +63,10 @@ export interface CreateEventOptions {
   emailLink?: Link;
 }
 
+/** What the user is on one copy of an event, through the inbox holding it:
+ * its organizer (or the owner of an event without guests), or a guest. */
+export type CalendarEventRole = 'organizer' | 'guest';
+
 /**
  * The calendar surface: the caller's visible calendars, event creation, and
  * handles to individual events and calendars. Backed by calendar_service (the
@@ -111,18 +116,31 @@ export class CalendarNamespace {
     ).sharing;
   }
 
-  /** Calendar occurrences in a viewport, automatically paginated. */
+  /** Calendar occurrences in a viewport, automatically paginated. Each names
+   * the address of the connected inbox holding that copy of the event
+   * (`inbox`) and whether the user organizes it or is a guest there (`role`,
+   * absent when neither). A meeting on several of the user's inboxes appears
+   * once per inbox, each with its own event; describe them by inbox and role,
+   * never by id, and pass the chosen copy's `inbox` to its `update`,
+   * `inviteGuests` or `delete`. */
   occurrences(options: Omit<ListOccurrencesData['query'], 'cursor'>) {
+    let inboxes: Promise<Map<string, string>> | undefined;
     return paginate(async (cursor) => {
       const page = unwrap(
         await this.client.storage.listOccurrences({
           query: { ...options, cursor },
         }),
       );
+      inboxes ??= calendarInboxes(this.client);
+      const inboxByCalendar = await inboxes;
       return {
         items: page.items.map((item) => ({
           event: CalendarEvent.fromRecord(this.client, item.event),
           occurrence: item.occurrence,
+          inbox: item.event.calendarId
+            ? inboxByCalendar.get(item.event.calendarId)
+            : undefined,
+          role: eventRole(item.event),
         })),
         nextCursor: page.nextCursor,
       };
@@ -218,4 +236,25 @@ function toCreateBody(options: CreateEventOptions): CreateCalendarEventRequest {
     calendarId: options.calendar?.id,
     emailLinkId: options.emailLink?.id,
   };
+}
+
+/** The inbox address of each calendar the caller can see, by calendar id. */
+async function calendarInboxes(
+  client: MacroClient,
+): Promise<Map<string, string>> {
+  const { calendars } = unwrap(await client.calendar.listCalendars());
+  return new Map(
+    calendars.map((calendar) => [calendar.id, calendar.emailAddress]),
+  );
+}
+
+/** The user's role on a copy, read the way ListCalendarEvents reads it:
+ * `organize` marks the organizer, and only the copy's own inbox row is
+ * `isSelf`. */
+function eventRole(record: CalendarEventRecord): CalendarEventRole | undefined {
+  const own = record.attendees.find((attendee) => attendee.isSelf);
+  if (record.viewerCan.organize || own?.isOrganizer) {
+    return 'organizer';
+  }
+  return own ? 'guest' : undefined;
 }

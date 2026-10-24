@@ -242,6 +242,41 @@ where
     }
 }
 
+impl<R, G, T, B, N> super::ports::CalendarCopyConfirmation
+    for CalendarMutationServiceImpl<R, G, T, B, N>
+where
+    R: CalendarRepository,
+    G: CalendarMutationProvider,
+    T: CalendarAccessTokenProvider,
+    B: MacroEventBroker,
+    N: CalendarRefreshNotifier,
+{
+    #[tracing::instrument(
+        name = "calendar.confirm_copy",
+        skip(self, requester_id, inbox),
+        fields(event_id = %event_id, change = ?change, copies, refused),
+        err
+    )]
+    async fn confirm_copy(
+        &self,
+        requester_id: &str,
+        event_id: Uuid,
+        inbox: Option<&str>,
+        change: super::copies::CopyChange,
+    ) -> Result<Option<super::copies::CopyRefusal>, CalendarMutationError> {
+        let copies = self
+            .repository
+            .meeting_copies(requester_id, event_id)
+            .await
+            .map_err(internal)?;
+        let refusal = super::copies::check_copy(&copies, event_id, inbox, change);
+        let span = tracing::Span::current();
+        span.record("copies", copies.len());
+        span.record("refused", refusal.is_some());
+        Ok(refusal)
+    }
+}
+
 impl<R, G, T, B, N> CalendarMutationService for CalendarMutationServiceImpl<R, G, T, B, N>
 where
     R: CalendarRepository,

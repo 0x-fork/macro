@@ -208,6 +208,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "inbox",
+            "in": "query",
+            "description": "Inbox address holding the copy this request deletes. An agent run\nmust name it when the meeting is on more than one of the requester's\ninboxes, and it must be the inbox holding the addressed copy; a\nmismatch is refused whoever sends it.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1693,7 +1702,8 @@
           "provider_rejected",
           "retryable",
           "persist_failed",
-          "macro_call_failed"
+          "macro_call_failed",
+          "copy_choice_required"
         ]
       },
       "CalendarProvider": {
@@ -2114,6 +2124,10 @@
             },
             "description": "Guests to add; anyone already on the event is skipped."
           },
+          "inbox": {
+            "type": ["string", "null"],
+            "description": "Inbox address holding the copy this request changes. An agent run\nmust name it when the meeting is on more than one of the requester's\ninboxes, and it must be the inbox holding the addressed copy; a\nmismatch is refused whoever sends it."
+          },
           "recurrenceId": {
             "type": ["string", "null"],
             "description": "Original-start key of the occurrence the guests are added to."
@@ -2429,6 +2443,10 @@
                 "description": "Replacement guest policy; only the organizer of a Google event may\nchange it, for the whole event or series. Omit to leave it untouched."
               }
             ]
+          },
+          "inbox": {
+            "type": ["string", "null"],
+            "description": "Inbox address holding the copy this request changes. An agent run\nmust name it when the meeting is on more than one of the requester's\ninboxes, and it must be the inbox holding the addressed copy; a\nmismatch is refused whoever sends it."
           },
           "location": {
             "type": ["string", "null"],

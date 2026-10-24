@@ -45,6 +45,10 @@ the existing gateway prefixes.
 
 ## Gotchas
 
+- Calendar occurrences carry each copy's `inbox` and `role`; one meeting on
+  several of the user's inboxes is one event per inbox. `update`,
+  `inviteGuests` and `delete` take the copy's `inbox`, and an agent run that
+  omits it on such a meeting is refused with `copy_choice_required`.
 - Calendar notes accept a document handle and the occurrence returned by calendar
   reads. `CalendarNote` owns optional team sharing and unlinking; clearing its team
   sends explicit null and never changes the document's other permissions.

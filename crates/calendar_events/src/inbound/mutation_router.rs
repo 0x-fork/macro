@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::domain::{
+    copies::{CopyChange, CopyRefusal},
     join_requests::CalendarJoinRequest,
     meeting_links::{
         CreateEventWithMacroCallError, MeetingLinkError, create_event_with_macro_call,
@@ -33,8 +34,8 @@ use crate::domain::{
         EventVisibility, GuestPolicy, OutOfOfficeProperties, VisibleCalendar,
     },
     ports::{
-        CalendarDeletionScope, CalendarMutationError, CalendarMutationService, CalendarRsvpScope,
-        CalendarUpdateScope, MeetingLinkProvider,
+        CalendarCopyConfirmation, CalendarDeletionScope, CalendarMutationError,
+        CalendarMutationService, CalendarRsvpScope, CalendarUpdateScope, MeetingLinkProvider,
     },
 };
 
@@ -85,7 +86,7 @@ pub fn calendar_mutation_router<S, L, Auth, T>(
     state: CalendarMutationRouterState<S, L, Auth>,
 ) -> Router<T>
 where
-    S: CalendarMutationService,
+    S: CalendarMutationService + CalendarCopyConfirmation,
     L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
     T: Send + Sync + 'static,
@@ -233,6 +234,11 @@ pub struct UpdateCalendarEventRequest {
     pub scope: Option<CalendarUpdateScopeParam>,
     /// Original-start key of the occurrence the update targets.
     pub recurrence_id: Option<String>,
+    /// Inbox address holding the copy this request changes. An agent run
+    /// must name it when the meeting is on more than one of the requester's
+    /// inboxes, and it must be the inbox holding the addressed copy; a
+    /// mismatch is refused whoever sends it.
+    pub inbox: Option<String>,
 }
 
 /// How much of a recurring series an update applies to.
@@ -278,6 +284,11 @@ pub struct DeleteCalendarEventQuery {
     pub scope: CalendarDeletionScopeParam,
     /// Original-start key of the occurrence a scoped deletion targets.
     pub recurrence_id: Option<String>,
+    /// Inbox address holding the copy this request deletes. An agent run
+    /// must name it when the meeting is on more than one of the requester's
+    /// inboxes, and it must be the inbox holding the addressed copy; a
+    /// mismatch is refused whoever sends it.
+    pub inbox: Option<String>,
 }
 
 /// How much of a recurring series an RSVP applies to.
@@ -354,6 +365,11 @@ pub struct InviteCalendarEventGuestsRequest {
     pub scope: Option<CalendarUpdateScopeParam>,
     /// Original-start key of the occurrence the guests are added to.
     pub recurrence_id: Option<String>,
+    /// Inbox address holding the copy this request changes. An agent run
+    /// must name it when the meeting is on more than one of the requester's
+    /// inboxes, and it must be the inbox holding the addressed copy; a
+    /// mismatch is refused whoever sends it.
+    pub inbox: Option<String>,
 }
 
 /// Machine-readable failure category for calendar mutations.
@@ -404,6 +420,10 @@ pub enum CalendarMutationErrorCode {
     /// The Macro call for a new event could not be created; nothing was
     /// written to the calendar.
     MacroCallFailed,
+    /// The meeting is on several of the requester's inboxes and the agent
+    /// run did not name the inbox of the copy it changes, or named another
+    /// copy's; the message lists each copy's inbox, role and id.
+    CopyChoiceRequired,
 }
 
 /// HTTP error body returned by calendar mutation endpoints.
@@ -426,6 +446,40 @@ impl std::fmt::Display for CalendarMutationApiError {
 impl IntoResponse for CalendarMutationApiError {
     fn into_response(self) -> Response {
         (self.status, Json(&self)).into_response()
+    }
+}
+
+impl From<CopyRefusal> for CalendarMutationApiError {
+    fn from(refusal: CopyRefusal) -> Self {
+        Self {
+            code: CalendarMutationErrorCode::CopyChoiceRequired,
+            message: refusal.message().to_string(),
+            status: StatusCode::CONFLICT,
+        }
+    }
+}
+
+/// Make an agent run name the copy it changes when the meeting is on several
+/// of the requester's inboxes. The web picks a copy by opening it, so a
+/// request without an agent identity and without `inbox` is not checked; a
+/// request naming `inbox` is checked whoever sends it.
+async fn confirm_copy<S: CalendarCopyConfirmation>(
+    service: &S,
+    requester_id: &str,
+    is_agent_run: bool,
+    event_id: Uuid,
+    inbox: Option<&str>,
+    change: CopyChange,
+) -> Result<(), CalendarMutationApiError> {
+    if !is_agent_run && inbox.is_none() {
+        return Ok(());
+    }
+    match service
+        .confirm_copy(requester_id, event_id, inbox, change)
+        .await?
+    {
+        None => Ok(()),
+        Some(refusal) => Err(refusal.into()),
     }
 }
 
@@ -719,7 +773,7 @@ pub async fn update_calendar_event<S, L, Auth>(
     Json(request): Json<UpdateCalendarEventRequest>,
 ) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
 where
-    S: CalendarMutationService,
+    S: CalendarMutationService + CalendarCopyConfirmation,
     L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
@@ -740,15 +794,25 @@ where
         out_of_office: request.out_of_office,
         guest_policy: request.guest_policy,
     };
+    let requester_id = user.authorization.user.macro_user_id.as_ref();
+    // Reminders and availability belong to one copy, so only a change that
+    // reaches the meeting needs the copy named.
+    if patch.reaches_meeting() || request.inbox.is_some() {
+        confirm_copy(
+            &*state.service,
+            requester_id,
+            user.authorization.user.agent_id.is_some(),
+            event_id,
+            request.inbox.as_deref(),
+            CopyChange::Update {
+                adds_guests: patch.attendees.is_some(),
+            },
+        )
+        .await?;
+    }
     let event = state
         .service
-        .update_event(
-            user.authorization.user.macro_user_id.as_ref(),
-            event_id,
-            request.calendar_id,
-            patch,
-            scope,
-        )
+        .update_event(requester_id, event_id, request.calendar_id, patch, scope)
         .await?;
     Ok(Json(event))
 }
@@ -779,7 +843,7 @@ pub async fn delete_calendar_event<S, L, Auth>(
     Query(query): Query<DeleteCalendarEventQuery>,
 ) -> Result<StatusCode, CalendarMutationApiError>
 where
-    S: CalendarMutationService,
+    S: CalendarMutationService + CalendarCopyConfirmation,
     L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
@@ -799,14 +863,19 @@ where
             recurrence_id: scoped_occurrence("this-and-following")?,
         },
     };
+    let requester_id = user.authorization.user.macro_user_id.as_ref();
+    confirm_copy(
+        &*state.service,
+        requester_id,
+        user.authorization.user.agent_id.is_some(),
+        event_id,
+        query.inbox.as_deref(),
+        CopyChange::Delete,
+    )
+    .await?;
     state
         .service
-        .delete_event(
-            user.authorization.user.macro_user_id.as_ref(),
-            event_id,
-            query.calendar_id,
-            scope,
-        )
+        .delete_event(requester_id, event_id, query.calendar_id, scope)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -892,7 +961,7 @@ pub async fn invite_calendar_event_guests<S, L, Auth>(
     Json(request): Json<InviteCalendarEventGuestsRequest>,
 ) -> Result<Json<CalendarEvent>, CalendarMutationApiError>
 where
-    S: CalendarMutationService,
+    S: CalendarMutationService + CalendarCopyConfirmation,
     L: MeetingLinkProvider,
     Auth: MacroAuthorizationService,
 {
@@ -908,10 +977,20 @@ where
             });
         }
     };
+    let requester_id = user.authorization.user.macro_user_id.as_ref();
+    confirm_copy(
+        &*state.service,
+        requester_id,
+        user.authorization.user.agent_id.is_some(),
+        event_id,
+        request.inbox.as_deref(),
+        CopyChange::Update { adds_guests: true },
+    )
+    .await?;
     let event = state
         .service
         .invite_guests(
-            user.authorization.user.macro_user_id.as_ref(),
+            requester_id,
             event_id,
             request.calendar_id,
             request.guests.into_iter().map(Into::into).collect(),

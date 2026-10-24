@@ -67,6 +67,15 @@ with `copy_refused` when Google will not import it.
 
 Delete the event (or a scoped part of a recurring series) at its provider.
 
+Deleting the copy the user organizes cancels the meeting for every guest.
+Deleting a copy where they are a guest takes the meeting off that inbox's
+calendar: on Google it also declines the invitation and tells the
+organizer, while on Outlook the organizer is not told and still sees the
+invitation unanswered. When the meeting is on several of the user's
+inboxes, ask which inbox's copy to delete unless the user named one or
+only one copy is writable, and pass that copy's `inbox`; without it the
+call is refused with `copy_choice_required`, listing each copy.
+
 #### Parameters
 
 | Parameter | Type |
@@ -101,7 +110,11 @@ they belong to.
 Add guests without touching anyone already invited, and return a handle
 to the synced record. The organizer may, and so may a guest the organizer
 lets invite others (see [CalendarEvent.viewerCan](#property-viewercan)); Google emails
-the new guests.
+the new guests. When the meeting is on several of the user's inboxes,
+add from the copy the user organizes when there is one (it invites
+directly, while a guest's copy invites only as far as the organizer
+allows), else ask which inbox, and pass that copy's `inbox`; without it
+the call is refused with `copy_choice_required`, listing each copy.
 
 #### Parameters
 
@@ -252,6 +265,16 @@ Record the requester's RSVP and return a handle to the synced record.
 > **update**(`options`): `Promise`\<`CalendarEvent`\>
 
 Update the event and return a handle to its synced record.
+
+A meeting on several of the user's inboxes is one event per inbox, each
+with its own id (see the occurrence listing's `inbox` and `role`).
+Reminders belong to one copy, so set them on one copy and say which inbox
+you used; any other change reaches the meeting differently from each copy.
+Use the only copy whose `viewerCan` allows the change and say why, or ask
+the user which inbox's copy to change when more than one could make it,
+and add guests from the copy the user organizes when there is one. Pass
+the chosen copy's `inbox`; without it the call is refused with
+`copy_choice_required`, listing each copy.
 
 #### Parameters
 
