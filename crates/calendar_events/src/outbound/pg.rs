@@ -1375,7 +1375,8 @@ impl CalendarRepository for PgCalendarRepository {
                     LEFT JOIN email_links copy_inbox
                         ON copy_inbox.id = candidate.source_link_id
                        AND copy_inbox.macro_id = $1
-                    WHERE candidate.ical_uid = mentioned.ical_uid
+                    WHERE calendar_meeting_uid(candidate.ical_uid)
+                        = calendar_meeting_uid(mentioned.ical_uid)
                       AND candidate.status <> 'cancelled'
                       AND (
                             candidate.owner_id = $1
@@ -1511,7 +1512,8 @@ impl CalendarRepository for PgCalendarRepository {
                 ) AS "attends!"
             FROM calendar_events addressed
             JOIN calendar_events candidate
-              ON candidate.ical_uid = addressed.ical_uid
+              ON calendar_meeting_uid(candidate.ical_uid)
+               = calendar_meeting_uid(addressed.ical_uid)
             JOIN email_links copy_inbox
               ON copy_inbox.id = candidate.source_link_id
              AND copy_inbox.macro_id = $1
