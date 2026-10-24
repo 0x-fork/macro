@@ -218,3 +218,23 @@ it('leaves before opening the calendar so a dialog around the card can close fir
   fireEvent.click(open);
   expect(order).toEqual(['leave', 'open event']);
 });
+
+it('asks for a new split when Open in calendar is shift-clicked', () => {
+  queryState.failed = () => false;
+  queryState.data = { [`message:${invitationFixture.id}`]: wire };
+  const opened: (boolean | undefined)[] = [];
+  render(() => (
+    <EmailCalendarInvitation
+      threadId="thread"
+      messageId="message"
+      invitation={invitationFixture}
+      hour12
+      openCalendar={(target) => opened.push(target.openInNewSplit)}
+    />
+  ));
+  const open = document.querySelector('button[label="Open in calendar"]');
+  if (!open) throw new Error('Open in calendar is missing');
+  fireEvent.click(open);
+  fireEvent.click(open, { shiftKey: true });
+  expect(opened).toEqual([false, true]);
+});

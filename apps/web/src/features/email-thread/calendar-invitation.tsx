@@ -23,6 +23,8 @@ export type CalendarInvitationOpenTarget = {
   eventId: string;
   occurrenceKey: string;
   time: EventTime;
+  /** Open Calendar beside the email unless a Calendar split is already open. */
+  openInNewSplit?: boolean;
 };
 
 export function EmailCalendarInvitation(props: {
@@ -147,9 +149,9 @@ function ConnectedInvitation(
             const open = props.openCalendar;
             const leave = props.onNavigate;
             return target && open
-              ? () => {
+              ? (options: { openInNewSplit: boolean }) => {
                   leave?.();
-                  open(target);
+                  open({ ...target, openInNewSplit: options.openInNewSplit });
                 }
               : undefined;
           },

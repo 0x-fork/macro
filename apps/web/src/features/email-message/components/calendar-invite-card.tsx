@@ -334,7 +334,11 @@ export function CalendarInviteCard(props: {
                     variant="outline"
                     size="icon-md"
                     label="Open in calendar"
-                    onClick={() => props.actions?.openCalendar?.()}
+                    onClick={(event) =>
+                      props.actions?.openCalendar?.({
+                        openInNewSplit: event.shiftKey,
+                      })
+                    }
                   >
                     <CalendarBlank class="size-4" />
                   </Button>
