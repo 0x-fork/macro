@@ -134,7 +134,7 @@ async fn a_copy_outside_the_users_own_inboxes_is_not_checked() {
 }
 
 #[tokio::test]
-async fn adding_guests_suggests_the_copy_the_user_organizes() {
+async fn a_guest_list_change_suggests_the_copy_the_user_organizes() {
     let (mutations, context) = context(MockMutations::default(), occurrences_with(two_inboxes()));
 
     let error = update(serde_json::json!({
@@ -149,7 +149,7 @@ async fn adding_guests_suggests_the_copy_the_user_organizes() {
     assert!(
         error
             .description
-            .contains("To add guests, suggest owner@example.com"),
+            .contains("To change the guest list, suggest owner@example.com"),
         "{}",
         error.description
     );
@@ -168,7 +168,7 @@ async fn a_detail_change_asks_which_copy() {
     assert!(
         error
             .description
-            .contains("Ask the user which inbox's copy"),
+            .contains("\"Which inbox's copy should I change: "),
         "{}",
         error.description
     );

@@ -170,7 +170,8 @@ by several of the user's inboxes until `inbox` names the inbox of the copy being
 the refusal lists each copy. If only one copy allows the change (`viewerCan`, or for deleting, \
 `isReadOnly` false), use that copy with its `inbox` and say why (for example, only the copy \
 the user organizes can move the meeting). If more than one can, ask which inbox, saying what \
-the change would do from each. Add guests from the copy the user organizes when there is one: \
+the change would do from each, and never choose between the user's inboxes yourself, whatever \
+they look like. Add guests from the copy the user organizes when there is one: \
 it invites them directly, while a guest's copy invites only as far as the organizer allows. \
 Deleting the organizer's copy cancels the meeting for everyone, while deleting a guest's copy \
 takes the meeting off that inbox's calendar and, on Google, also declines the invitation and \

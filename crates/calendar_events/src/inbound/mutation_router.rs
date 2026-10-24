@@ -817,7 +817,7 @@ where
             event_id,
             request.inbox.as_deref(),
             CopyChange::Update {
-                adds_guests: patch.attendees.is_some(),
+                changes_guests: patch.attendees.is_some(),
             },
         )
         .await?;
@@ -998,7 +998,7 @@ where
         is_agent_run(user.authorization.user.agent_id.is_some(), &headers),
         event_id,
         request.inbox.as_deref(),
-        CopyChange::Update { adds_guests: true },
+        CopyChange::InviteGuests,
     )
     .await?;
     let event = state

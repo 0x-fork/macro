@@ -13,12 +13,14 @@ use super::models::MeetingCopy;
 /// user's copies makes it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CopyChange {
-    /// Details, guests or guest permissions; `adds_guests` when the change
-    /// carries guests to add.
+    /// Details, guest permissions or the guest list; `changes_guests` when
+    /// the change carries a guest list, which may invite or remove guests.
     Update {
-        /// Whether the change adds guests.
-        adds_guests: bool,
+        /// Whether the change carries a guest list.
+        changes_guests: bool,
     },
+    /// Adding guests without touching anyone already invited.
+    InviteGuests,
     /// Deleting the copy.
     Delete,
 }
@@ -80,7 +82,8 @@ pub fn check_copy(
 }
 
 /// What the caller needs to ask which copy to change: each copy's inbox,
-/// role and id, and what the change would do from each.
+/// role and id, what the change would do from each, and the question to put
+/// to the user word for word.
 fn copy_question(copies: &[MeetingCopy], inboxes: usize, change: CopyChange) -> String {
     let listed = copies
         .iter()
@@ -96,33 +99,91 @@ fn copy_question(copies: &[MeetingCopy], inboxes: usize, change: CopyChange) -> 
         })
         .collect::<Vec<_>>()
         .join("; ");
-    let effect = match change {
-        CopyChange::Delete => {
+    let (effect, verb) = match change {
+        CopyChange::Delete => (
             "Deleting the copy an inbox organizes cancels the meeting for every guest, while \
              deleting a guest's copy takes it off that inbox's calendar and, on Google, also \
              declines the invitation and tells the organizer."
-                .to_string()
-        }
-        CopyChange::Update { adds_guests } => {
-            let organizer = copies.iter().find(|copy| copy.organizes);
-            match organizer {
-                Some(organizer) if adds_guests => format!(
+                .to_string(),
+            "delete",
+        ),
+        CopyChange::InviteGuests => match copies.iter().find(|copy| copy.organizes) {
+            Some(organizer) => (
+                format!(
                     "To add guests, suggest {}: it organizes the meeting, so they are invited \
                      directly, while a guest's copy can invite only where the organizer allows \
                      it.",
                     organizer.inbox
                 ),
-                _ => "The change reaches the meeting differently from each copy, and a guest's \
-                      copy can only make it where the organizer allows it."
+                "add the guests from",
+            ),
+            None => (
+                "A guest's copy can invite only where the organizer allows it.".to_string(),
+                "add the guests from",
+            ),
+        },
+        CopyChange::Update { changes_guests } => match copies.iter().find(|copy| copy.organizes) {
+            Some(organizer) if changes_guests => (
+                format!(
+                    "To change the guest list, suggest {}: it organizes the meeting, so it \
+                         can invite and remove guests, while a guest's copy can only invite, \
+                         and only where the organizer allows it.",
+                    organizer.inbox
+                ),
+                "change the guests on",
+            ),
+            _ => (
+                "The change reaches the meeting differently from each copy, and a guest's \
+                     copy can only make it where the organizer allows it."
                     .to_string(),
-            }
-        }
+                "change",
+            ),
+        },
     };
+    let organizer_first = matches!(
+        change,
+        CopyChange::InviteGuests
+            | CopyChange::Update {
+                changes_guests: true
+            }
+    );
+    let question = format!(
+        "Which inbox's copy should I {verb}: {}?",
+        choices(copies, organizer_first)
+    );
     format!(
-        "This meeting is on {inboxes} of the user's inboxes: {listed}. {effect} Ask the user \
-         which inbox's copy to change, then call again with that copy's `eventId` and its inbox \
-         as `inbox`."
+        "This meeting is on {inboxes} of the user's inboxes: {listed}. {effect} Never choose \
+         between the user's inboxes yourself, whatever they look like. Once the user answers, \
+         call again with the chosen copy's `eventId` and its inbox as `inbox`. Ask the user \
+         exactly this and wait for the answer: \"{question}\""
     )
+}
+
+/// Each inbox once, with its role, as "a (organizer), b (guest) or c
+/// (guest)"; the organizing inbox leads when it is the one to suggest.
+fn choices(copies: &[MeetingCopy], organizer_first: bool) -> String {
+    let mut ordered = copies.iter().collect::<Vec<_>>();
+    if organizer_first {
+        ordered.sort_by_key(|copy| !copy.organizes);
+    }
+    let mut seen = HashSet::new();
+    let options = ordered
+        .into_iter()
+        .filter(|copy| seen.insert(copy.inbox.to_lowercase()))
+        .map(|copy| {
+            if copy.organizes {
+                format!("{} (organizer)", copy.inbox)
+            } else if copy.attends {
+                format!("{} (guest)", copy.inbox)
+            } else {
+                copy.inbox.clone()
+            }
+        })
+        .collect::<Vec<_>>();
+    match options.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} or {last}", rest.join(", ")),
+        _ => options.join(""),
+    }
 }
 
 #[cfg(test)]

@@ -84,8 +84,20 @@ pub enum UpdateScopeInput {
 #[schemars(
     title = "UpdateCalendarEvent",
     description = "\
-Update an existing calendar event. Only the supplied fields change; omitted fields keep \
-their current values. The change is written to the calendar provider immediately and attendees are \
+Update an existing calendar event.\n\
+\n\
+A meeting on more than one of the user's inboxes is one ListCalendarEvents entry per inbox. \
+Before changing its details, guests or guest permissions, ask the user which inbox's copy to \
+change, then pass that copy's `inbox`. Never choose between the user's inboxes yourself, \
+whatever they look like: a test, secondary or unfamiliar address is still the user's own \
+inbox. Skip the question only when the user already named the inbox, when only one copy's \
+`viewerCan` allows the change (use it and say why), or when adding guests to a meeting the \
+user organizes from one of the inboxes (add them from that copy and say why). Reminders may \
+go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your \
+reply. Without `inbox` the tool refuses, lists each copy and gives the question to ask. One \
+call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.\n\
+\n\
+Only the supplied fields change; omitted fields keep their current values. The change is written to the calendar provider immediately and attendees are \
 notified of it, so confirm details with the user first. Get the `eventId` from \
 ListCalendarEvents.\n\
 \n\
@@ -116,16 +128,7 @@ event.\n\
 `rsvp` sets the user's own response to an invitation and is independent of the field \
 edits — it can be the only thing this call changes. It applies at the same `scope` as \
 the rest of the call and answers as the connected inbox the event's copy belongs to, so \
-it only works when that inbox is an attendee.\n\
-\n\
-When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per \
-inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy \
-where the user is a guest, naming the inbox in your reply. Any other change needs `inbox`, \
-the inbox of the copy it changes; without it the tool refuses and lists each copy. Use the \
-only copy whose `viewerCan` allows the change, with the reason, or the copy the user chooses \
-when more than one could make it, and add guests from the copy the user organizes when there \
-is one. One call changes one copy, so an edit on one copy and an `rsvp` on another take two \
-calls."
+it only works when that inbox is an attendee."
 )]
 pub struct UpdateCalendarEvent {
     /// Event to update.
@@ -356,7 +359,7 @@ where
                 self.event_id,
                 self.inbox.as_deref(),
                 CopyChange::Update {
-                    adds_guests: patch.attendees.is_some(),
+                    changes_guests: patch.attendees.is_some(),
                 },
             )
             .await?;

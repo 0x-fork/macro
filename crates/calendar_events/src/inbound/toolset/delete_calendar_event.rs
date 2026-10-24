@@ -42,23 +42,27 @@ pub struct DeleteCalendarEventResponse {
 #[schemars(
     title = "DeleteCalendarEvent",
     description = "\
-Delete an event from the user's calendar. The deletion is written to the calendar provider immediately and \
-attendees are notified, so confirm with the user before deleting — it cannot be undone. Get \
-the `eventId` from ListCalendarEvents.\n\
+Delete an event from the user's calendar.\n\
+\n\
+A meeting on more than one of the user's inboxes is one ListCalendarEvents entry per inbox. \
+Before deleting any of them, ask the user which inbox's copy to delete, then pass that \
+copy's `inbox`. Never choose between the user's inboxes yourself, whatever they look like: \
+a test, secondary or unfamiliar address is still the user's own inbox. Skip the question \
+only when the user already named the inbox, or when only one copy can be deleted \
+(`isReadOnly` false); then delete that copy and say why. Without `inbox` the tool refuses, \
+lists each copy and gives the question to ask. Deleting the copy the user organizes cancels \
+the meeting for every guest. Deleting a copy where they are a guest takes the meeting off \
+that inbox's calendar: on Google it also declines the invitation and tells the organizer, \
+while on Outlook the organizer is not told and still sees the invitation unanswered.\n\
+\n\
+The deletion is written to the calendar provider immediately and attendees are notified, so \
+confirm with the user before deleting — it cannot be undone. Get the `eventId` from \
+ListCalendarEvents.\n\
 \n\
 For recurring events, `scope` controls how much is removed: \"all\" (default) removes the \
 whole series, \"this_event\" removes one occurrence, and \"this_and_following\" ends the \
 series from an occurrence onward. The scoped variants require `recurrenceId` from the \
-targeted occurrence's ListCalendarEvents entry.\n\
-\n\
-When the meeting is on several of the user's inboxes (one ListCalendarEvents entry per \
-inbox), the tool refuses until `inbox` names the inbox of the copy to delete, and lists each \
-copy. Ask which inbox's copy to delete unless the user named one or only one copy is writable \
-(`isReadOnly` false), in which case delete that one, pass its `inbox` and say why. Deleting \
-the copy the user organizes cancels the meeting for every guest. Deleting a copy where they \
-are a guest takes the meeting off that inbox's calendar: on Google it also declines the \
-invitation and tells the organizer, while on Outlook the organizer is not told and still sees \
-the invitation unanswered."
+targeted occurrence's ListCalendarEvents entry."
 )]
 pub struct DeleteCalendarEvent {
     /// Event to delete.

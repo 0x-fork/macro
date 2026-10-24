@@ -67,14 +67,20 @@ with `copy_refused` when Google will not import it.
 
 Delete the event (or a scoped part of a recurring series) at its provider.
 
+A meeting on more than one of the user's inboxes is one event per inbox.
+Before deleting any of them, ask the user which inbox's copy to delete,
+then pass that copy's `inbox`. Never choose between the user's inboxes
+yourself, whatever they look like: a test, secondary or unfamiliar address
+is still the user's own inbox. Skip the question only when the user
+already named the inbox, or when only one copy can be deleted; then delete
+that copy and say why. Without `inbox` the call is refused with
+`copy_choice_required`, listing each copy and the question to ask.
+
 Deleting the copy the user organizes cancels the meeting for every guest.
 Deleting a copy where they are a guest takes the meeting off that inbox's
 calendar: on Google it also declines the invitation and tells the
 organizer, while on Outlook the organizer is not told and still sees the
-invitation unanswered. When the meeting is on several of the user's
-inboxes, ask which inbox's copy to delete unless the user named one or
-only one copy is writable, and pass that copy's `inbox`; without it the
-call is refused with `copy_choice_required`, listing each copy.
+invitation unanswered.
 
 #### Parameters
 
@@ -108,13 +114,19 @@ they belong to.
 > **inviteGuests**(`options`): `Promise`\<`CalendarEvent`\>
 
 Add guests without touching anyone already invited, and return a handle
-to the synced record. The organizer may, and so may a guest the organizer
-lets invite others (see [CalendarEvent.viewerCan](#property-viewercan)); Google emails
-the new guests. When the meeting is on several of the user's inboxes,
-add from the copy the user organizes when there is one (it invites
-directly, while a guest's copy invites only as far as the organizer
-allows), else ask which inbox, and pass that copy's `inbox`; without it
-the call is refused with `copy_choice_required`, listing each copy.
+to the synced record.
+
+When the meeting is on more than one of the user's inboxes, add from the
+copy the user organizes when there is one (it invites directly, while a
+guest's copy invites only as far as the organizer allows) and say why;
+otherwise ask the user which inbox's copy to add them from. Never choose
+between the user's inboxes any other way, whatever they look like. Pass
+that copy's `inbox`; without it the call is refused with
+`copy_choice_required`, listing each copy and the question to ask.
+
+The organizer may add guests, and so may a guest the organizer lets
+invite others (see [CalendarEvent.viewerCan](#property-viewercan)); Google emails the
+new guests.
 
 #### Parameters
 
@@ -266,15 +278,18 @@ Record the requester's RSVP and return a handle to the synced record.
 
 Update the event and return a handle to its synced record.
 
-A meeting on several of the user's inboxes is one event per inbox, each
-with its own id (see the occurrence listing's `inbox` and `role`).
-Reminders belong to one copy, so set them on one copy and say which inbox
-you used; any other change reaches the meeting differently from each copy.
-Use the only copy whose `viewerCan` allows the change and say why, or ask
-the user which inbox's copy to change when more than one could make it,
-and add guests from the copy the user organizes when there is one. Pass
-the chosen copy's `inbox`; without it the call is refused with
-`copy_choice_required`, listing each copy.
+A meeting on more than one of the user's inboxes is one event per inbox,
+each with its own id (see the occurrence listing's `inbox` and `role`).
+Before changing its details, guests or guest permissions, ask the user
+which inbox's copy to change, then pass that copy's `inbox`. Never choose
+between the user's inboxes yourself, whatever they look like: a test,
+secondary or unfamiliar address is still the user's own inbox. Skip the
+question only when the user already named the inbox, when only one copy's
+`viewerCan` allows the change (use it and say why), or when adding guests
+to a meeting the user organizes from one of the inboxes (add them from
+that copy and say why). Reminders belong to one copy, so set them on one
+copy and say which inbox you used. Without `inbox` the call is refused
+with `copy_choice_required`, listing each copy and the question to ask.
 
 #### Parameters
 

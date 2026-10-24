@@ -6,7 +6,11 @@ description: >-
 
 # UpdateCalendarEvent
 
-Update an existing calendar event. Only the supplied fields change; omitted fields keep their current values. The change is written to the calendar provider immediately and attendees are notified of it, so confirm details with the user first. Get the `eventId` from ListCalendarEvents.
+Update an existing calendar event.
+
+A meeting on more than one of the user's inboxes is one ListCalendarEvents entry per inbox. Before changing its details, guests or guest permissions, ask the user which inbox's copy to change, then pass that copy's `inbox`. Never choose between the user's inboxes yourself, whatever they look like: a test, secondary or unfamiliar address is still the user's own inbox. Skip the question only when the user already named the inbox, when only one copy's `viewerCan` allows the change (use it and say why), or when adding guests to a meeting the user organizes from one of the inboxes (add them from that copy and say why). Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Without `inbox` the tool refuses, lists each copy and gives the question to ask. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
+
+Only the supplied fields change; omitted fields keep their current values. The change is written to the calendar provider immediately and attendees are notified of it, so confirm details with the user first. Get the `eventId` from ListCalendarEvents.
 
 `scope` picks how much of a recurring series changes and is always required: "this_event" edits one occurrence (pass the occurrence's `recurrenceId` from ListCalendarEvents) and leaves the rest of the series alone; "all" edits the series itself — with `time` that MOVES EVERY OCCURRENCE, so never use "all" to reschedule a single occurrence. Non-recurring events use "all". There is no this-and-following update: end the series with DeleteCalendarEvent's "this_and_following" and create a new event instead.
 
@@ -15,8 +19,6 @@ Passing `attendees` replaces the full attendee list — include everyone who sho
 A guest without modify rights (`viewerCan.editDetails` false while `viewerCan.rsvp` is true) may only change their own `reminders`, add guests where `viewerCan.inviteGuests` allows it, and answer with `rsvp`; changing the title, time, description, location, recurrence or conference fails because the organizer doesn't let guests change the event.
 
 `rsvp` sets the user's own response to an invitation and is independent of the field edits — it can be the only thing this call changes. It applies at the same `scope` as the rest of the call and answers as the connected inbox the event's copy belongs to, so it only works when that inbox is an attendee.
-
-When the meeting is on several of the user's inboxes, ListCalendarEvents lists one entry per inbox; pick the copy by its rule. Reminders may go to one copy and an `rsvp` to the copy where the user is a guest, naming the inbox in your reply. Any other change needs `inbox`, the inbox of the copy it changes; without it the tool refuses and lists each copy. Use the only copy whose `viewerCan` allows the change, with the reason, or the copy the user chooses when more than one could make it, and add guests from the copy the user organizes when there is one. One call changes one copy, so an edit on one copy and an `rsvp` on another take two calls.
 
 ## Parameters
 

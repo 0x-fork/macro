@@ -163,10 +163,15 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   through several inboxes); a change whose effect differs by copy (details,
   guests, permissions, deleting) goes to the only copy allowed to make it, with
   the reason, or the agent asks, and guests are added from the copy the user
-  organizes. `domain::copies::check_copy` enforces it: such a change on a
-  meeting the user holds through several of their own inboxes
-  (`meeting_copies`) is refused, listing each copy, until `inbox` names the
-  addressed copy's inbox. UpdateCalendarEvent and DeleteCalendarEvent check
+  organizes. The agent must never choose between the user's inboxes itself,
+  whatever they look like: the SDK delete and update docs and the
+  DeleteCalendarEvent and UpdateCalendarEvent descriptions state the ask rule
+  first. `domain::copies::check_copy` enforces it: such a change on a meeting
+  the user holds through several of their own inboxes (`meeting_copies`) is
+  refused, listing each copy and ending with the question to ask word for
+  word, until `inbox` names the addressed copy's inbox. The route cannot tell
+  an inbox the user chose from one the agent picked, so the wording is the
+  only guard against a guess. UpdateCalendarEvent and DeleteCalendarEvent check
   every call; the update, invite-guests and delete routes check agent runs and
   any request naming `inbox` through `CalendarCopyConfirmation`, answering 409
   `copy_choice_required`. An agent run is a token with `agent_id` (in-app code
