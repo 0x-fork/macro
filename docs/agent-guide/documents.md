@@ -2536,6 +2536,14 @@ not open their previews. Click outside or press Escape to dismiss the menu;
 other references can then be hovered again. Images use an inset frame and task chips
 appear below the header. Long titles wrap in place without a full-name tooltip.
 
+A reference to something deleted reads `Deleted`, and one the viewer can't open
+reads `No Access`. Clicking either keeps its card open instead of doing nothing,
+and on a touch device a tap opens the same card as a bottom sheet. The card names
+the item: `This document was deleted or doesn't exist.`, `This channel was deleted
+or doesn't exist.`, `You don't have access to this event`, and so on (a calendar
+event's reads `This event was deleted or cancelled.`). A reference made in the last
+minute whose item hasn't reached the preview yet still opens it.
+
 With `ENABLE_GRAPHQL_SOUP` enabled, the popup reuses the reference's live `ItemPreviews`
 batch, including task properties and viewer permission, without another fetch.
 Explicit refreshes may revalidate that batch, but requests must settle while the

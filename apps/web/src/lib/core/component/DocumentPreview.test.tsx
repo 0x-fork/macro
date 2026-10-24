@@ -49,7 +49,9 @@ vi.mock('@service-connection/websocket', () => ({
 }));
 vi.mock('@solidjs/router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('./AccessErrorViews/Unauthorized', () => ({
-  default: () => <p>You don't have access to this file</p>,
+  default: (props: { noun?: string }) => (
+    <p>You don't have access to this {props.noun ?? 'file'}</p>
+  ),
 }));
 vi.mock('./AccessErrorViews/NotFound', () => ({
   default: (props: { message?: string }) => (
@@ -171,7 +173,9 @@ describe('calendar mention preview card', () => {
     } satisfies PreviewItem;
     const view = renderCard();
 
-    expect(screen.getByText("You don't have access to this file")).toBeTruthy();
+    expect(
+      screen.getByText("You don't have access to this event")
+    ).toBeTruthy();
     expect(view.container.textContent).not.toContain('Pilates');
   });
 
@@ -325,5 +329,57 @@ describe('calendar mention card for a meeting the viewer holds', () => {
     expect(screen.queryByText('On your calendar')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Pilates' })).toBeTruthy();
+  });
+});
+
+describe('a mention card for an item that is gone or hidden', () => {
+  it.each([
+    ['md', 'document', "This document was deleted or doesn't exist."],
+    ['channel', 'channel', "This channel was deleted or doesn't exist."],
+  ] as const)('names a deleted %s', (blockName, type, message) => {
+    mocks.item = {
+      id: 'mentioned-item',
+      type,
+      access: 'does_not_exist',
+      loading: false,
+    } satisfies PreviewItem;
+    render(() => (
+      <DocumentPreviewContent
+        documentInfo={{
+          id: 'mentioned-item',
+          type: blockName,
+          params: {},
+          isOpenable: true,
+        }}
+      />
+    ));
+
+    expect(screen.getByText(message)).toBeTruthy();
+  });
+
+  it.each([
+    ['md', 'document', 'document'],
+    ['channel', 'channel', 'channel'],
+  ] as const)('names a %s the viewer can’t open', (blockName, type, noun) => {
+    mocks.item = {
+      id: 'mentioned-item',
+      type,
+      access: 'no_access',
+      loading: false,
+    } satisfies PreviewItem;
+    render(() => (
+      <DocumentPreviewContent
+        documentInfo={{
+          id: 'mentioned-item',
+          type: blockName,
+          params: {},
+          isOpenable: true,
+        }}
+      />
+    ));
+
+    expect(
+      screen.getByText(`You don't have access to this ${noun}`)
+    ).toBeTruthy();
   });
 });

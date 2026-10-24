@@ -750,25 +750,26 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
       : undefined
   );
 
-  // A just-created mention can briefly preview as missing; it still opens
-  // the calendar rather than reading as deleted.
-  const isDeletedCalendarEvent = () => {
+  // A deleted or inaccessible item has nothing to open. A just-created
+  // mention can briefly preview as missing; it still opens rather than
+  // reading as deleted.
+  const isUnavailable = () => {
     const i = item();
+    if (i.loading) return false;
     return (
-      verifyBlockName(props.blockName) === 'calendar' &&
-      !i.loading &&
-      i.access === 'does_not_exist' &&
-      !isRecentMention()
+      i.access === 'no_access' ||
+      (i.access === 'does_not_exist' && !isRecentMention())
     );
   };
   const showsPreviewOnOpen = () =>
-    calendarOpen()?.kind === 'read_only' || isDeletedCalendarEvent();
+    calendarOpen()?.kind === 'read_only' || isUnavailable();
 
   const open = createCallback((e: MouseEvent | KeyboardEvent | null) => {
     // The calendar is a singleton block: open it aimed at the viewer's own
     // copy of the meeting. A meeting shared through the channel but absent
-    // from the viewer's calendars, or one that is gone, has nothing to open,
-    // so its preview card is shown instead, as a sheet on touch devices.
+    // from the viewer's calendars, like any item that is gone or hidden from
+    // the viewer, has nothing to open, so its preview card is shown instead,
+    // as a sheet on touch devices.
     if (showsPreviewOnOpen()) {
       if (isTouchDevice()) setPreviewSheetOpen(true);
       else setPreviewCardOpen(true);
@@ -864,7 +865,7 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
     e.stopPropagation();
     const i = item();
     if (
-      isDeletedCalendarEvent() ||
+      isUnavailable() ||
       (!i.loading &&
         (i.access === 'access' ||
           shouldUseFallbackForRecentMention(i, isRecentMention())))

@@ -95,6 +95,7 @@ import {
   TaskPropertiesPreview,
   TaskPropertiesPreviewProvider,
 } from './TaskPropertiesPreview';
+import { getShareItemNoun } from './TopBar/linkShare';
 
 /**
  * Returns the appropriate icon component based on the icon name
@@ -558,6 +559,14 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
     }
     return props.documentInfo.type;
   });
+
+  // A gone or hidden item's card names what it was. The preview reports a
+  // cancelled meeting as missing too.
+  const itemNoun = () => getShareItemNoun(itemPreviewEntity().type);
+  const deletedMessage = () =>
+    itemPreviewEntity().type === 'calendar_event'
+      ? 'This event was deleted or cancelled.'
+      : `This ${itemNoun()} was deleted or doesn't exist.`;
 
   // Derived state
   const canOpenInChat = createCallback(() => {
@@ -1097,11 +1106,9 @@ export function DocumentPreviewContent(props: DocumentPreviewContentProps) {
             fallback={
               <div class="text-sm p-4">
                 {noAccessItem().access === 'no_access' ? (
-                  <Unauthorized />
-                ) : targetBlockType() === 'calendar' ? (
-                  <NotFound message="This event was deleted or cancelled." />
+                  <Unauthorized noun={itemNoun()} />
                 ) : (
-                  <NotFound />
+                  <NotFound message={deletedMessage()} />
                 )}
               </div>
             }
