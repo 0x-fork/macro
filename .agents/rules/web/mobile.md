@@ -73,7 +73,10 @@ read their code, and follow that pattern rather than inventing a new one.
   composers, a call's control bar, desktop only) or the view around it (email
   thread and composer). A composer's typeahead and picker menus (`@`, `:`,
   `/`, skills, snippets, tags, GIFs) open above it and hold prompts while
-  open, on every device; give a new one the same attribute on its root.
+  open, on every device; give a new one the same attribute on its root, and
+  pass `floatWithSelection` its `fullHeight` (content cap plus panel padding)
+  so it picks the side with room for its whole list instead of shrinking
+  below the caret when its first render is short.
   A prompt in the transient region would cover a sheet's controls.
 
 ## Keyboard and focus

@@ -329,11 +329,14 @@ function SkillsMenuInner(props: SkillsMenuProps) {
     number | undefined
   >(undefined);
 
+  const preferredHeight = () => (props.agentCommands ? 384 : 256);
   const contentMaxHeight = () => {
     const h = menuAvailableHeight();
-    const preferredHeight = props.agentCommands ? 384 : 256;
-    if (h === undefined) return preferredHeight;
-    return Math.min(preferredHeight, Math.max(0, h - PANEL_DECORATION_HEIGHT));
+    if (h === undefined) return preferredHeight();
+    return Math.min(
+      preferredHeight(),
+      Math.max(0, h - PANEL_DECORATION_HEIGHT)
+    );
   };
 
   return (
@@ -347,6 +350,7 @@ function SkillsMenuInner(props: SkillsMenuProps) {
             reactiveOnContainer: props.editor.getRootElement(),
             useBlockBoundary: props.useBlockBoundary,
             onAvailableHeight: setMenuAvailableHeight,
+            fullHeight: preferredHeight() + PANEL_DECORATION_HEIGHT,
           }}
           use:clickOutside={() => {
             closeMenu();

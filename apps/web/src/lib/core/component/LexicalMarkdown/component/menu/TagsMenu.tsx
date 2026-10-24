@@ -37,6 +37,10 @@ import type { MenuOperations } from '../../shared/inlineMenu';
 import { InlineFollowupMenu } from './InlineFollowupMenu';
 import { useMenuKeyboardNavigation } from './useMenuKeyboardNavigation';
 
+// Surface's border + vertical padding
+const PANEL_DECORATION_HEIGHT = 18;
+const MAX_CONTENT_HEIGHT = 256;
+
 type TagMenuItem = {
   optionId: string;
   propertyDefinitionId: string;
@@ -388,7 +392,7 @@ export function TagsMenu(props: {
   const contentMaxHeight = () => {
     const h = menuAvailableHeight();
     if (h === undefined) return '16rem';
-    return `${Math.min(256, Math.max(0, h - 18))}px`;
+    return `${Math.min(MAX_CONTENT_HEIGHT, Math.max(0, h - PANEL_DECORATION_HEIGHT))}px`;
   };
 
   return (
@@ -404,6 +408,7 @@ export function TagsMenu(props: {
                 reactiveOnContainer: props.editor.getRootElement(),
                 useBlockBoundary: props.useBlockBoundary,
                 onAvailableHeight: setMenuAvailableHeight,
+                fullHeight: MAX_CONTENT_HEIGHT + PANEL_DECORATION_HEIGHT,
               }));
               clickOutside(el, () => () => closeMenu());
             }}

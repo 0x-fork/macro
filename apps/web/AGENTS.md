@@ -34,6 +34,11 @@ Persistent prompts stepping aside for popovers, dialogs, drawers and
 `data-holds-prompts` surfaces have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Toast/browser-test/playwright.config.ts`.
 
+Composer typeahead menus choosing the side with room for their full list
+(`floatWithSelection`'s `fullHeight`), above a composer at the bottom of a
+phone screen and below one near the top, have a backend-free browser regression:
+`bunx playwright test --config src/lib/core/component/LexicalMarkdown/directive/browser-test/playwright.config.ts`.
+
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.

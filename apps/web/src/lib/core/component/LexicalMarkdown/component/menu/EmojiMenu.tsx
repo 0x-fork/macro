@@ -268,6 +268,7 @@ export function EmojiMenu(props: EmojiMenuProps) {
             reactiveOnContainer: props.editor.getRootElement(),
             useBlockBoundary: props.useBlockBoundary,
             onAvailableHeight: setMenuAvailableHeight,
+            fullHeight: MAX_EMOJI_LIST_HEIGHT + MENU_DECORATION_HEIGHT,
           }}
           use:clickOutside={() => {
             closeMenu();
