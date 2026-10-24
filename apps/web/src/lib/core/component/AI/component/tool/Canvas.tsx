@@ -81,7 +81,7 @@ export const renderCanvasHandler = createToolRenderer({
   name: 'RenderCanvas',
   render: (ctx) => (
     <CanvasToolRow
-      verb="Rendered"
+      verb={ctx.response ? 'Rendered' : 'Render'}
       documentId={ctx.tool.data.document_id}
       summary={
         ctx.response

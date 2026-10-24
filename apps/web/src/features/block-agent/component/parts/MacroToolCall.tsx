@@ -3,7 +3,9 @@
  * server, or called natively by Macro's own agent.
  *
  * Successful calls reuse their registered result renderer and its disclosure.
- * Running, stopped, failed, and unsupported calls keep a summary-only row.
+ * Failed calls reuse the same renderer, so they keep the tool's own label and
+ * icon, with the tool's reason in place of a result.
+ * Running, stopped, and unsupported calls keep a summary-only row.
  * Only registered result renderers supply disclosures; raw payloads stay hidden.
  */
 
@@ -85,7 +87,7 @@ export function MacroToolCall(props: {
     return undefined;
   };
   const error = () => props.detail.error ?? responseError(response());
-  const failure = () => error() != null;
+  const failure = () => props.common.status === 'failed' || error() != null;
 
   const fallback = () => (
     <ToolCard
@@ -109,19 +111,32 @@ export function MacroToolCall(props: {
     !props.common.muted &&
     props.common.trailing == null &&
     !failure() &&
-    call() !== undefined &&
-    (response() !== undefined || legacyImage() !== undefined) &&
-    hasToolRenderer(props.common.label);
+    (response() !== undefined || legacyImage() !== undefined);
+  const canRenderFailure = () =>
+    (props.common.status === 'completed' || props.common.status === 'failed') &&
+    failure();
 
   return (
-    <Show when={canRenderResults()} fallback={fallback()}>
+    <Show
+      when={
+        (canRenderResults() || canRenderFailure()) &&
+        call() !== undefined &&
+        hasToolRenderer(props.common.label)
+      }
+      fallback={fallback()}
+    >
       <ErrorBoundary fallback={fallback()}>
         <Suspense fallback={fallback()}>
           <RenderTool
             tool_id={props.common.id}
             name={props.common.label}
             json={props.detail.input}
-            response={{ json: props.detail.output, name: props.common.label }}
+            response={
+              failure()
+                ? undefined
+                : { json: props.detail.output, name: props.common.label }
+            }
+            error={failure() ? error() : undefined}
             chat_id={props.context.sessionId}
             message_id={props.context.messageId}
             part_index={props.context.partIndex}

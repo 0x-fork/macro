@@ -1378,7 +1378,11 @@ collapsed. Existing rich result views retain their own content and controls;
 when a result view provides its own disclosure, use that control rather than
 adding a second nested disclosure. Counts come from structured responses,
 edits show additions/deletions, and other tools show their outcome. A call cut
-off when its turn ends reads **Stopped**.
+off when its turn ends reads **Stopped**. A failed Macro tool call keeps the
+same label and icon as its successful row, faded, with **Failed** on the right
+(for example **Add to calendar · Failed**, never the tool's code name); when the
+tool gave a reason, **Failed** carries a caret that opens it. Labels stay in
+the present tense (**Fetch**, **Load tools**) until a result arrives.
 
 Only tools with a supported result view can expand. Unknown tools, unsupported
 drafts, and payloads that do not fit their renderer stay as summary rows with

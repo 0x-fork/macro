@@ -36,7 +36,7 @@ const context = {
 };
 it('never opens an editable review when saving fails', () => {
   const view = render(() => (
-    <ToolErrorContext.Provider value={() => 'failed'}>
+    <ToolErrorContext.Provider value={() => ({ reason: 'failed' })}>
       <createBookingLinkHandler.render {...context} />
     </ToolErrorContext.Provider>
   ));

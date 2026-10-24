@@ -307,7 +307,7 @@ export const readCalendarEventHandler = createToolRenderer({
   render: (ctx) => (
     <BaseTool icon={CalendarDots} renderContext={ctx.renderContext} type="call">
       <div class="flex min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden">
-        <span class="min-w-0 truncate">Read calendar event</span>
+        <span class="shrink-0">Read calendar event</span>
         <Show when={ctx.response?.data}>
           {(event) => (
             <Tooltip label={event().title} as="span" class="min-w-0">

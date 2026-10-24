@@ -4,8 +4,11 @@ import type {
 } from '@service-cognition/generated/tools/tool';
 import { type Component, createContext, useContext } from 'solid-js';
 
+/** A finished call that failed, with the tool's own reason when it gave one. */
+export type ToolFailure = { reason?: string };
+
 export const ToolErrorContext = createContext<
-  (() => string | undefined) | undefined
+  (() => ToolFailure | undefined) | undefined
 >();
 export const useToolError = () => {
   const accessor = useContext(ToolErrorContext);

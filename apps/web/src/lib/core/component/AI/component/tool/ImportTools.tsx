@@ -4,7 +4,7 @@ import { createSignal, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 import { BaseTool } from './BaseTool';
 import { Tool } from './Tool';
-import { createToolRenderer } from './ToolRenderer';
+import { createToolRenderer, useToolError } from './ToolRenderer';
 
 /*
  * Renderers for the import-ledger tools the chat agent can call
@@ -105,6 +105,7 @@ export const importFromNotionHandler = createToolRenderer({
   render: (ctx) => {
     const [isExpanded, setIsExpanded] = createSignal(false);
     const hasResponse = () => ctx.response !== undefined;
+    const error = () => useToolError();
     const label = () =>
       match(ctx.tool.data.action)
         .with('plan', () => 'Plan a Notion import')
@@ -126,7 +127,9 @@ export const importFromNotionHandler = createToolRenderer({
       >
         <div class="flex min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden">
           <div class="min-w-0 flex-1 truncate">{label()}</div>
-          <Show when={ctx.tool.data.action === 'plan' && !hasResponse()}>
+          <Show
+            when={ctx.tool.data.action === 'plan' && !hasResponse() && !error()}
+          >
             <NotionScanProgress />
           </Show>
           <Tool.ResultToggle

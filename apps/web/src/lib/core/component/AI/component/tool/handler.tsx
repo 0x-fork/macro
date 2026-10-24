@@ -362,6 +362,8 @@ type ToolProps = {
     json: unknown;
     name: string;
   };
+  /** The tool's reason for a call that failed. */
+  error?: string;
   part_index: number;
   chat_id: string;
   message_id: string;
@@ -453,7 +455,13 @@ export function RenderTool(props: ToolProps) {
       }
     >
       <ToolErrorContext.Provider
-        value={() => (props.isComplete && !response() ? 'failed' : undefined)}
+        value={() =>
+          props.error !== undefined
+            ? { reason: props.error }
+            : props.isComplete && !response()
+              ? {}
+              : undefined
+        }
       >
         <Show
           when={isToolShown(tool.name, databasesEnabled().enabled)}

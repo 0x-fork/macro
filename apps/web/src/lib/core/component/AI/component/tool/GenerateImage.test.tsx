@@ -20,7 +20,10 @@ function imageTool(
   error?: string | (() => string | undefined),
   data: GenerateImageResponse = result
 ) {
-  const failure = () => (typeof error === 'function' ? error() : error);
+  const failure = () => {
+    const reason = typeof error === 'function' ? error() : error;
+    return reason === undefined ? undefined : { reason };
+  };
   return render(() => (
     <ToolErrorContext.Provider value={failure}>
       <generateImageHandler.render
