@@ -58,13 +58,24 @@ it('offers each event once, pinned to its occurrence only when it repeats', () =
   expect(items[0].data.when).toBeTruthy();
 });
 
-function mentionTitles(search: {
+type SearchState = {
   isPending: boolean;
   status: string;
   data: CalendarEventEntity[] | undefined;
-}) {
-  vi.mocked(useSearchSoupQuery).mockReturnValue(
-    search as unknown as ReturnType<typeof useSearchSoupQuery>
+};
+
+const NO_SHARES: SearchState = {
+  isPending: false,
+  status: 'success',
+  data: [],
+};
+
+function mentionTitles(own: SearchState, shared: SearchState = NO_SHARES) {
+  vi.mocked(useSearchSoupQuery).mockImplementation(
+    (args) =>
+      (args().body.calendar_event_scope === 'shared_with_you'
+        ? shared
+        : own) as unknown as ReturnType<typeof useSearchSoupQuery>
   );
   return createRoot((dispose) => {
     const { events } = useCalendarEventMention({
@@ -84,4 +95,36 @@ it('keeps the found events when a later search fails, and waits for the first on
   expect(
     mentionTitles({ isPending: true, status: 'pending', data: undefined })
   ).toEqual([]);
+});
+
+it('lists events shared with your channels after your own, in their order', () => {
+  const own: SearchState = {
+    isPending: false,
+    status: 'success',
+    data: [
+      event('b', { name: 'Standup B' }),
+      event('a', { name: 'Standup A' }),
+    ],
+  };
+  const shared: SearchState = {
+    isPending: false,
+    status: 'success',
+    data: [event('shared', { name: 'Standup shared' })],
+  };
+
+  expect(mentionTitles(own, shared)).toEqual([
+    'Standup B',
+    'Standup A',
+    'Standup shared',
+  ]);
+  // A shared answer that lands first waits for your own events.
+  expect(
+    mentionTitles(
+      { isPending: true, status: 'pending', data: undefined },
+      shared
+    )
+  ).toEqual([]);
+  expect(
+    mentionTitles(own, { isPending: true, status: 'pending', data: undefined })
+  ).toEqual(['Standup B', 'Standup A']);
 });

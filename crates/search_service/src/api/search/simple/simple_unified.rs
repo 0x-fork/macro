@@ -1,4 +1,4 @@
-use crate::api::search::simple::filter::FilterVariantToSearchArgs;
+use crate::api::search::simple::filter::{FilterVariantToSearchArgs, ScopedCalendarEventFilters};
 
 use crate::api::search::crm_company;
 use crate::api::search::simple::{simple_channel, simple_chat};
@@ -273,6 +273,7 @@ pub(in crate::api::search) async fn perform_unified_search(
     let crm_company_filters = req.filters.crm_company_filters.clone();
     let should_include_crm = crm_access.is_some() && !tags_active;
 
+    let calendar_event_scope = req.calendar_event_scope;
     let search_filters = SearchEntityFilters::from(req.filters);
     let requested_sessions = search_filters
         .agent_session_filters
@@ -299,7 +300,10 @@ pub(in crate::api::search) async fn perform_unified_search(
     let doc_filters = search_filters.document_filters;
     let project_filters = search_filters.project_filters;
     let call_filters = search_filters.call_filters;
-    let calendar_event_filters = search_filters.calendar_event_filters;
+    let calendar_event_filters = ScopedCalendarEventFilters {
+        filters: search_filters.calendar_event_filters,
+        scope: calendar_event_scope,
+    };
 
     let should_include_documents = search_filters.should_include_documents;
     // A tag filter drops channels (and CRM, below) because they aren't

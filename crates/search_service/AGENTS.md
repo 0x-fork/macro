@@ -56,6 +56,12 @@ per-entity-type search plus a unified search across them — mounted into
   analyzes to nothing (`-`, `@`) matches no document and empties the search.
   `terms::drop_wordless_terms` removes such terms for exact and partial
   queries; run new term handling through it.
+- Calendar events have two scopes (`calendar_event_scope` on the unified
+  request): `own` matches the caller's own and delegated calendars by
+  owner and inbox link; `shared_with_you` resolves the events shared with the
+  caller's channels in Postgres and searches by id, leaving out meetings the
+  caller holds a copy of. Enrichment re-checks every hit against the event's
+  access rule and withholds a share's join link.
 
 ## Related
 

@@ -666,7 +666,12 @@ three characters of its title in a composer that offers event mentions (message,
 document composers; spreadsheet and database cells and typed reference fields do not): where calendar search is on
 (`enable-calendar-search-ui`), the menu lists matches under `Calendar events` (all of them in
 one list on phones), one row per event with when it starts, and picking one inserts the same
-chip a paste does, pinned to the found instance of a repeating event.
+chip a paste does, pinned to the found instance of a repeating event. Events someone shared
+with a channel you belong to, and that are on none of your calendars, follow your own events
+in that list without a marker, as documents shared that way sit beside your own; their chip
+names the shared event, so it opens for whoever can already see it. Posting it elsewhere does
+not share it on (only someone holding the event on their own calendar can), so people without
+access see `No Access`, like any other mention they cannot open.
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's
 own copy of the meeting. When a person holds the event on their own calendar and posts the
 mention, it is shared read-only with the channel's current members: a member without a copy of
