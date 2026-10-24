@@ -5,6 +5,8 @@ use macro_user_id::user_id::MacroUserIdStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+// Only the confirmed-send agent tool reads approval snapshots.
+#[cfg(all(feature = "inbound", feature = "ai_tools"))]
 mod approval;
 
 use super::models::{

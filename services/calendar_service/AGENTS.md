@@ -50,7 +50,9 @@ gateway `/calendar` prefix.
 - Reauth-required notifications ride the shared `LinkManagerQueue`, consumed by
   `email_service`; don't add a second calendar-specific reconnect notification.
 - Forward `team_ooo_changed` to both inbox and teammate refresh notifications;
-  sharing changes and uncertain sync results require `true`.
+  sharing changes and uncertain sync results require `true`. An inbox refresh
+  already refreshes its viewers' team views, so its teammate fan-out skips
+  them; a sharing change also refreshes the sharer (`notify_sharers`).
 
 ## Related
 

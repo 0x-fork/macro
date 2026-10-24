@@ -646,7 +646,10 @@ shows or hides the overlay (the list itself always shows); clicking a row naviga
 to that date. Coverage depends on each teammate having connected their own calendar and using
 Google's out-of-office event type.
 
-Routine sync notifications that explicitly exclude OOO changes refresh this list
+The grid's pages and the list read the overlay from shared fixed 91-day windows,
+each fetched once and refreshed by one 30-second poll while the tab is focused, so
+an open calendar typically makes two out-of-office requests per poll. Routine sync
+notifications that explicitly exclude OOO changes refresh this list
 in the background without returning to its skeleton. OOO changes, sharing changes,
 and notifications without that guarantee still clear cached rows and close open
 OOO details immediately before refetching.
