@@ -1002,6 +1002,10 @@ pub struct CalendarMentionEvent {
     /// they see it only because it was shared with one of their channels:
     /// that preview is read-only and there is no event of theirs to open.
     pub viewer_event_id: Option<Uuid>,
+    /// How the requester holds the meeting through `viewer_event_id`; absent
+    /// exactly when that is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub viewer_copy: Option<CalendarMentionViewerCopy>,
     /// Display title.
     pub title: String,
     /// Provider description, plain text or HTML, truncated for the preview.
@@ -1034,6 +1038,35 @@ pub struct CalendarMentionEvent {
     /// For a channel-shared preview, the requester's request to join, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub join_request_status: Option<super::join_requests::CalendarJoinRequestStatus>,
+}
+
+/// How a requester holds a mentioned meeting on their own calendar, decided
+/// by the copy's own inbox, the way viewer capabilities decide organizer and
+/// guest.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum CalendarMentionViewerCopy {
+    /// A snapshot of a shared meeting: a private copy that does not update.
+    Snapshot,
+    /// A real invitation: the copy's inbox is a guest, not the organizer.
+    Invitation,
+    /// Any other copy, such as one the requester organizes or a delegated
+    /// inbox's.
+    Event,
+}
+
+impl CalendarMentionViewerCopy {
+    /// Classify a copy from what its row says about the copy's own inbox.
+    pub fn classify(is_snapshot: bool, inbox_organizes: bool, inbox_attends: bool) -> Self {
+        if is_snapshot {
+            Self::Snapshot
+        } else if inbox_attends && !inbox_organizes {
+            Self::Invitation
+        } else {
+            Self::Event
+        }
+    }
 }
 
 /// Inclusive/exclusive viewport range for occurrence queries.

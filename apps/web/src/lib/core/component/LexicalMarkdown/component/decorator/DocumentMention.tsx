@@ -899,7 +899,14 @@ function DocumentMentionInner(props: DocumentMentionDecoratorProps) {
 
   return (
     <>
-      <Show when={isTouchDevice() && calendarOpen()?.kind === 'read_only'}>
+      {/* The sheet stays up once open, so a share the viewer adds or is
+          invited to meanwhile shows it is on their calendar in place. */}
+      <Show
+        when={
+          isTouchDevice() &&
+          (calendarOpen()?.kind === 'read_only' || previewSheetOpen())
+        }
+      >
         <DocumentPreviewSheet
           open={previewSheetOpen()}
           onOpenChange={setPreviewSheetOpen}

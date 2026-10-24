@@ -149,6 +149,7 @@
 - [CalendarMentionPreviewRequest](type-aliases/CalendarMentionPreviewRequest.md)
 - [CalendarMentionPreviewRequestItem](type-aliases/CalendarMentionPreviewRequestItem.md)
 - [CalendarMentionPreviewResponse](type-aliases/CalendarMentionPreviewResponse.md)
+- [CalendarMentionViewerCopy](type-aliases/CalendarMentionViewerCopy.md)
 - [CalendarOccurrence](type-aliases/CalendarOccurrence.md)
 - [CalendarOccurrenceItem](type-aliases/CalendarOccurrenceItem.md)
 - [CalendarOccurrenceResponse](type-aliases/CalendarOccurrenceResponse.md)

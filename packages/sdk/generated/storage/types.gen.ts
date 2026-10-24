@@ -1925,6 +1925,7 @@ export type CalendarMentionEvent = {
      * Entity update time of the previewed copy.
      */
     updatedAt: string;
+    viewerCopy?: null | CalendarMentionViewerCopy;
     /**
      * The requester's own event entity for the mentioned meeting. Differs
      * from the mentioned id when the mention came from another attendee.
@@ -1985,6 +1986,13 @@ export type CalendarMentionPreviewRequestItem = {
 export type CalendarMentionPreviewResponse = {
     items: Array<CalendarMentionPreviewItem>;
 };
+
+/**
+ * How a requester holds a mentioned meeting on their own calendar, decided
+ * by the copy's own inbox, the way viewer capabilities decide organizer and
+ * guest.
+ */
+export type CalendarMentionViewerCopy = 'snapshot' | 'invitation' | 'event';
 
 /**
  * A materialized recurrence instance optimized for range queries.

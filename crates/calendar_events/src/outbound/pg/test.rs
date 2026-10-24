@@ -7266,3 +7266,118 @@ mod notes;
 mod source_access;
 
 mod replacement;
+
+async fn link_email(pool: &PgPool, link_id: Uuid) -> String {
+    sqlx::query_scalar("SELECT email_address FROM email_links WHERE id = $1")
+        .bind(link_id)
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
+
+fn attendee(email: &str, is_organizer: bool) -> CalendarAttendee {
+    CalendarAttendee {
+        email: email.to_string(),
+        display_name: None,
+        response_status: AttendeeResponseStatus::Accepted,
+        is_organizer,
+        is_optional: false,
+        is_self: false,
+        comment: None,
+    }
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn mention_previews_say_how_the_viewer_holds_the_meeting(pool: PgPool) {
+    let organizer_id = "macro|copy-organizer@example.com";
+    let guest_id = "macro|copy-guest@example.com";
+    let holder_id = "macro|copy-holder@example.com";
+    let member_id = "macro|copy-member@example.com";
+    let organizer_link = insert_link(&pool, organizer_id).await;
+    let guest_link = insert_link(&pool, guest_id).await;
+    let holder_link = insert_link(&pool, holder_id).await;
+    let organizer_email = link_email(&pool, organizer_link).await;
+    let guest_email = link_email(&pool, guest_link).await;
+    let holder_email = link_email(&pool, holder_link).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let uid = "held@example.com";
+
+    let copy = |owner_id: &str, link_id, provider, attendees: Vec<CalendarAttendee>| {
+        let mut upsert = timed_upsert(owner_id, link_id, provider, uid, "Planning", 1);
+        upsert.event.organizer_email = Some(organizer_email.clone());
+        upsert.event.attendees = attendees;
+        upsert
+    };
+    let organizer_copy = copy(
+        organizer_id,
+        organizer_link,
+        provider_ids(&repo, organizer_link).await,
+        vec![
+            attendee(&organizer_email, true),
+            attendee(&guest_email, false),
+        ],
+    );
+    let shared_event_id = organizer_copy.event.id;
+    repo.upsert_event_fixture(organizer_copy).await.unwrap();
+    let guest_copy = copy(
+        guest_id,
+        guest_link,
+        provider_ids(&repo, guest_link).await,
+        vec![
+            attendee(&organizer_email, true),
+            attendee(&guest_email, false),
+        ],
+    );
+    repo.upsert_event_fixture(guest_copy).await.unwrap();
+    // A snapshot lists its holder as the only guest so Google accepts it.
+    let mut snapshot = copy(
+        holder_id,
+        holder_link,
+        provider_ids(&repo, holder_link).await,
+        vec![attendee(&holder_email, false)],
+    );
+    snapshot.event.is_snapshot = true;
+    repo.upsert_event_fixture(snapshot).await.unwrap();
+    let channel_id = insert_channel(
+        &pool,
+        organizer_id,
+        &[organizer_id, guest_id, holder_id, member_id],
+    )
+    .await;
+    share_with_channel(&pool, shared_event_id, channel_id).await;
+
+    let now = Utc.with_ymd_and_hms(2026, 7, 23, 0, 0, 0).unwrap();
+    let held_as = |viewer: &'static str| {
+        let repo = &repo;
+        async move {
+            let previews = repo
+                .mention_previews(
+                    viewer,
+                    vec![CalendarMentionRequestItem {
+                        event_id: shared_event_id,
+                        occurrence_key: None,
+                    }],
+                    now,
+                )
+                .await
+                .unwrap();
+            let CalendarMentionPreview::Accessible(event) = &previews[0] else {
+                panic!("{viewer} preview should be accessible: {:?}", previews[0]);
+            };
+            event.viewer_copy
+        }
+    };
+    assert_eq!(
+        held_as(organizer_id).await,
+        Some(CalendarMentionViewerCopy::Event)
+    );
+    assert_eq!(
+        held_as(guest_id).await,
+        Some(CalendarMentionViewerCopy::Invitation)
+    );
+    assert_eq!(
+        held_as(holder_id).await,
+        Some(CalendarMentionViewerCopy::Snapshot)
+    );
+    assert_eq!(held_as(member_id).await, None);
+}

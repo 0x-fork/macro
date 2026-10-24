@@ -718,7 +718,15 @@ it by posting the chip. It asks whether to share with the channel, and a yes in 
 writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
 count, plus the first lines of the event description (its links open), and no last-updated
-byline.
+byline. When the mention names someone else's copy of a meeting the viewer also holds (a shared
+event they added or were invited to, or a meeting someone else mentioned), the card says how:
+`Your copy is on your calendar` for a snapshot, `You're invited · on your calendar` when the
+viewer's copy is a guest's, and `On your calendar` otherwise (the viewer organizes it, or it sits
+in a delegated inbox), with an `Open` button that opens the viewer's copy. A mention of the
+viewer's own copy shows neither. A shared-event sheet open on a phone stays up when the viewer
+adds the event or is invited, and switches to that line and `Open` in place. Opening from the
+sheet (`Open`, the title, or Open in New Split) closes it, since the native apps keep the
+pane behind the opened one mounted.
 
 ## Scheduling — `/app/scheduling`
 

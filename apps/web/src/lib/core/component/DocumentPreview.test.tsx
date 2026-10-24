@@ -1,12 +1,22 @@
 import type { PreviewItem } from '@queries/preview/types';
 import type { CalendarMentionEvent } from '@service-storage/generated/schemas/calendarMentionEvent';
-import { fireEvent, render, screen } from '@solidjs/testing-library';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@solidjs/testing-library';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   item: undefined as unknown,
   openDocument: vi.fn(),
   openExternalUrl: vi.fn(),
+  openCalendarEventSplit: vi.fn(),
+}));
+vi.mock('@app/features/calendar-view/open-calendar-event', () => ({
+  openCalendarEventSplit: mocks.openCalendarEventSplit,
 }));
 vi.mock(
   '@core/component/LexicalMarkdown/component/core/BlockLink',
@@ -53,6 +63,7 @@ vi.mock('@app/features/calendar-view/components/SharedEventActions', () => ({
 }));
 
 import { DocumentPreviewContent } from './DocumentPreview';
+import { DocumentPreviewSheet } from './DocumentPreviewSheet';
 
 function calendarItem(event: Partial<CalendarMentionEvent>): PreviewItem {
   return {
@@ -98,6 +109,19 @@ function renderCard() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.item = calendarItem({});
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+});
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('calendar mention preview card', () => {
@@ -166,5 +190,103 @@ describe('calendar mention preview card', () => {
 
     fireEvent.click(screen.getByText('Zoom'));
     expect(mocks.openExternalUrl).toHaveBeenCalledWith('https://zoom.us/j/1');
+  });
+});
+
+describe('calendar mention card for a meeting the viewer holds', () => {
+  it.each([
+    ['snapshot', 'Your copy is on your calendar'],
+    ['invitation', 'You’re invited · on your calendar'],
+    ['event', 'On your calendar'],
+    [undefined, 'On your calendar'],
+  ] as const)('says a %s copy is on their calendar', (viewerCopy, label) => {
+    mocks.item = calendarItem({ viewerCopy });
+    renderCard();
+
+    expect(screen.getByText(label)).toBeTruthy();
+    expect(screen.queryByText(/Shared event actions/)).toBeNull();
+  });
+
+  it('opens the viewer’s own copy from Open', () => {
+    mocks.item = calendarItem({ viewerCopy: 'invitation' });
+    renderCard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+
+    expect(mocks.openCalendarEventSplit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: 'viewer-copy',
+        occurrenceKey: '2026-09-23T23:00:00+00:00',
+        openInNewSplit: false,
+      })
+    );
+  });
+
+  // Native apps keep the pane behind a stacked pane mounted, so the sheet
+  // would otherwise stay over the event Open just showed.
+  it.each([
+    ['Open', 'Open'],
+    ['the title', 'Pilates'],
+  ])('closes the phone sheet once %s opens the copy', async (_, name) => {
+    mocks.item = calendarItem({ viewerCopy: 'snapshot' });
+    mocks.openCalendarEventSplit.mockResolvedValueOnce(true);
+    const onOpenChange = vi.fn();
+    render(() => (
+      <DocumentPreviewSheet
+        open
+        onOpenChange={onOpenChange}
+        documentInfo={{
+          id: 'mentioned-event',
+          type: 'calendar',
+          params: {},
+          isOpenable: true,
+        }}
+      />
+    ));
+
+    fireEvent.click(await screen.findByRole('button', { name }));
+
+    expect(mocks.openCalendarEventSplit).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: 'viewer-copy' })
+    );
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it('keeps the phone sheet up when nothing could open', async () => {
+    mocks.item = calendarItem({ viewerCopy: 'snapshot' });
+    mocks.openCalendarEventSplit.mockResolvedValueOnce(false);
+    const onOpenChange = vi.fn();
+    render(() => (
+      <DocumentPreviewSheet
+        open
+        onOpenChange={onOpenChange}
+        documentInfo={{
+          id: 'mentioned-event',
+          type: 'calendar',
+          params: {},
+          isOpenable: true,
+        }}
+      />
+    ));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
+
+    await waitFor(() =>
+      expect(mocks.openCalendarEventSplit).toHaveBeenCalled()
+    );
+    await Promise.resolve();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  it('adds nothing to a mention of the viewer’s own copy', () => {
+    mocks.item = calendarItem({
+      viewerEventId: 'mentioned-event',
+      viewerCopy: 'event',
+    });
+    renderCard();
+
+    expect(screen.queryByText('On your calendar')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pilates' })).toBeTruthy();
   });
 });

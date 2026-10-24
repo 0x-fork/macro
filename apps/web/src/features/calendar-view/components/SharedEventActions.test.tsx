@@ -102,7 +102,6 @@ function calendar(overrides: Partial<VisibleCalendar>): VisibleCalendar {
 }
 
 function renderActions(
-  onAdded = vi.fn(),
   join: Partial<{
     canRequestToJoin: boolean;
     joinRequestStatus: 'pending' | 'accepted' | 'declined';
@@ -114,10 +113,8 @@ function renderActions(
       title="Design review"
       canRequestToJoin={join.canRequestToJoin ?? false}
       joinRequestStatus={join.joinRequestStatus}
-      onAdded={onAdded}
     />
   ));
-  return onAdded;
 }
 
 beforeEach(() => {
@@ -146,7 +143,7 @@ describe('shared event actions', () => {
       calendar({ id: 'holidays', isWritable: false, isSubscription: true }),
       calendar({ id: 'outlook', provider: 'outlook', isPrimary: false }),
     ];
-    const onAdded = renderActions();
+    renderActions();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add to calendar' }));
 
@@ -154,7 +151,7 @@ describe('shared event actions', () => {
       eventId: 'shared-event',
       calendarId: 'calendar-primary',
     });
-    expect(onAdded).toHaveBeenCalledOnce();
+    expect(mocks.success).toHaveBeenCalledWith('Added to your calendar');
   });
 
   it('lets the viewer pick among several Google calendars', async () => {
@@ -203,14 +200,14 @@ describe('shared event actions', () => {
     mocks.copy.mockImplementation(() => {
       throw { code: 'already_on_calendar' };
     });
-    const onAdded = renderActions();
+    renderActions();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add to calendar' }));
 
     expect(mocks.failure).toHaveBeenCalledWith(
       'This event is already on your calendar'
     );
-    expect(onAdded).not.toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 
   it('says when Google refuses the copy and points to the download', () => {
@@ -218,7 +215,7 @@ describe('shared event actions', () => {
     mocks.copy.mockImplementation(() => {
       throw { code: 'copy_refused' };
     });
-    const onAdded = renderActions();
+    renderActions();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add to calendar' }));
 
@@ -226,7 +223,7 @@ describe('shared event actions', () => {
       "Google Calendar won't add this event to that calendar",
       { subtext: 'Download the .ics file to add it another way.' }
     );
-    expect(onAdded).not.toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
   });
 
   it('offers only the download while adding shared events is flagged off', () => {
@@ -242,7 +239,7 @@ describe('shared event actions', () => {
   });
 
   it('asks the sharer to add the viewer and shows the request as sent', () => {
-    renderActions(vi.fn(), { canRequestToJoin: true });
+    renderActions({ canRequestToJoin: true });
 
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
 
@@ -261,7 +258,6 @@ describe('shared event actions', () => {
         title="Design review"
         canRequestToJoin
         joinRequestStatus={status()}
-        onAdded={vi.fn()}
       />
     ));
 
@@ -281,7 +277,6 @@ describe('shared event actions', () => {
         title="Design review"
         canRequestToJoin
         joinRequestStatus={status()}
-        onAdded={vi.fn()}
       />
     ));
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
@@ -310,7 +305,7 @@ describe('shared event actions', () => {
     mocks.ask.mockImplementationOnce(() => {
       throw { code: 'request_declined' };
     });
-    renderActions(vi.fn(), { canRequestToJoin: true });
+    renderActions({ canRequestToJoin: true });
 
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
 
@@ -321,14 +316,14 @@ describe('shared event actions', () => {
   });
 
   it('lets neither a pending nor an invited viewer ask again', () => {
-    renderActions(vi.fn(), {
+    renderActions({
       canRequestToJoin: true,
       joinRequestStatus: 'pending',
     });
     expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
     cleanup();
 
-    renderActions(vi.fn(), {
+    renderActions({
       canRequestToJoin: true,
       joinRequestStatus: 'accepted',
     });
@@ -347,7 +342,6 @@ describe('shared event actions', () => {
         title="Design review"
         canRequestToJoin
         joinRequestStatus={status()}
-        onAdded={vi.fn()}
       />
     ));
     const addButton = () =>
@@ -369,7 +363,7 @@ describe('shared event actions', () => {
   });
 
   it('explains instead of offering to ask when the sharer cannot add guests', () => {
-    renderActions(vi.fn(), { canRequestToJoin: false });
+    renderActions({ canRequestToJoin: false });
 
     expect(screen.queryByRole('button', { name: 'Ask to join' })).toBeNull();
     expect(

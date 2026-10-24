@@ -21582,6 +21582,17 @@
             "format": "date-time",
             "description": "Entity update time of the previewed copy."
           },
+          "viewerCopy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarMentionViewerCopy",
+                "description": "How the requester holds the meeting through `viewer_event_id`; absent\nexactly when that is."
+              }
+            ]
+          },
           "viewerEventId": {
             "type": ["string", "null"],
             "format": "uuid",
@@ -21663,6 +21674,11 @@
             }
           }
         }
+      },
+      "CalendarMentionViewerCopy": {
+        "type": "string",
+        "description": "How a requester holds a mentioned meeting on their own calendar, decided\nby the copy's own inbox, the way viewer capabilities decide organizer and\nguest.",
+        "enum": ["snapshot", "invitation", "event"]
       },
       "CalendarOccurrence": {
         "type": "object",
