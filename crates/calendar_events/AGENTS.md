@@ -144,6 +144,12 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   `myRole` there (`ToolEventRole::of`), so the agent can ask or pick by inbox.
 - Preserve the conservative OOO refresh hint on write outcomes and sync reports;
   its contract is in [team sharing](../../docs/design/calendar-team-sharing.md).
+- The team out-of-office overlay (`src/outbound/pg_team/ooo.rs`) starts from
+  the viewer's teammates and reaches sources through
+  `calendar_event_sources_out_of_office_idx` on the source's typed
+  `event_type`. Filtering on the payload's `eventType` alone makes Postgres
+  unpack every source on every primary calendar in the tenant (about 1.8 s per
+  call in production before October 2026).
 
 ## Related
 

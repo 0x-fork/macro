@@ -5359,6 +5359,47 @@ async fn team_out_of_office_shows_busy_only_status_without_its_title(pool: PgPoo
     );
 }
 
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn team_out_of_office_reads_each_sources_own_event_type(pool: PgPool) {
+    let viewer = "macro|type-viewer@example.com";
+    let teammate = "macro|type-teammate@example.com";
+    insert_team(&pool, viewer, &[viewer, teammate]).await;
+    let link = insert_link(&pool, teammate).await;
+    let repo = PgCalendarRepository::new(pool.clone());
+    let provider = provider_ids(&repo, link).await;
+    repo.upsert_event_fixture(ooo_upsert(
+        teammate,
+        link,
+        provider,
+        "canonical-default@example.com",
+        "Parental leave",
+    ))
+    .await
+    .unwrap();
+    // The entity's stored type follows its canonical source, which can be a
+    // non-out-of-office copy of the same event; the primary calendar's own
+    // source still says out of office.
+    sqlx::query!(
+        "UPDATE calendar_events SET event_type = 'default' WHERE owner_id = $1",
+        teammate,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    enable_team_details(&repo, &[teammate]).await;
+
+    let rows = repo
+        .list_team_out_of_office(viewer, july_2026_range(), 100)
+        .await
+        .unwrap();
+
+    assert_eq!(rows.len(), 2);
+    assert!(
+        rows.iter()
+            .all(|row| row.owner_id == teammate && row.title.as_deref() == Some("Parental leave"))
+    );
+}
+
 fn shift_upsert_days(upsert: &mut CalendarEventUpsert, days: i64) {
     let delta = Duration::days(days);
     if let EventTime::Timed {
