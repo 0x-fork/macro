@@ -95,6 +95,7 @@ import {
   type GroupSoupQuery,
   GroupSoupDocument as GroupSoupQueryDocument,
   type GroupSoupQueryVariables,
+  type SoupAgentSessionFieldsFragment,
   type SoupBackfillResult,
   type SoupInitialInput,
   type SoupInput,
@@ -1721,6 +1722,51 @@ export function emailThreadSortTs(
   return key ?? thread.updatedAt;
 }
 
+/** An agent session's own row fields in the REST shape, without the
+ * notifications a list selects alongside them. */
+export function mapGraphqlAgentSessionRow(
+  entity: SoupAgentSessionFieldsFragment & { id: string }
+) {
+  return {
+    id: entity.id,
+    name: entity.sessionName,
+    isArchived: entity.isArchived,
+    ownerId: entity.ownerId,
+    botId: entity.botId,
+    harness: entity.harness,
+    repoUrl: entity.repoUrl,
+    repoBranch: entity.repoBranch,
+    pullRequestUrl: entity.pullRequestUrl,
+    workingBranch: entity.workingBranch,
+    pullRequestState: match(entity.pullRequestState)
+      .with('OPEN', () => 'open' as const)
+      .with('DRAFT', () => 'draft' as const)
+      .with('CLOSED', () => 'closed' as const)
+      .with('MERGED', () => 'merged' as const)
+      .with(null, () => null)
+      .exhaustive(() => null),
+    pullRequestId: entity.pullRequestId,
+    turnState: entity.turnState,
+    bot: entity.bot,
+    threadId: entity.threadId,
+    source: match(entity.source)
+      .with('USER', () => 'user' as const)
+      .with('AGENT', () => 'agent' as const)
+      .with('ROUTINE', () => 'routine' as const)
+      .exhaustive(() => 'user' as const),
+    visibility: match(entity.visibility)
+      .with('LISTED', () => 'listed' as const)
+      .with('UNLISTED', () => 'unlisted' as const)
+      .with('HIDDEN', () => 'hidden' as const)
+      .exhaustive(() => 'listed' as const),
+    status: entity.status,
+    createdAt: entity.createdAt,
+    updatedAt: entity.updatedAt,
+    viewedAt: entity.viewedAt,
+    properties: mapGraphqlProperties(entity.properties),
+  };
+}
+
 export function mapGraphqlSoupItem(
   item: GraphqlSoupItem,
   options?: { emailView?: GraphqlEmailView | null }
@@ -1784,36 +1830,7 @@ export function mapGraphqlSoupItem(
           frecency_score: frecency,
           is_favorited: entity.isFavorited,
           data: {
-            id: entity.id,
-            name: entity.sessionName,
-            isArchived: entity.isArchived,
-            ownerId: entity.ownerId,
-            botId: entity.botId,
-            harness: entity.harness,
-            repoUrl: entity.repoUrl,
-            repoBranch: entity.repoBranch,
-            pullRequestUrl: entity.pullRequestUrl,
-            workingBranch: entity.workingBranch,
-            pullRequestState: entity.pullRequestState?.toLowerCase() ?? null,
-            pullRequestId: entity.pullRequestId,
-            turnState: entity.turnState,
-            bot: entity.bot,
-            threadId: entity.threadId,
-            source: match(entity.source)
-              .with('USER', () => 'user' as const)
-              .with('AGENT', () => 'agent' as const)
-              .with('ROUTINE', () => 'routine' as const)
-              .exhaustive(() => 'user' as const),
-            visibility: match(entity.visibility)
-              .with('LISTED', () => 'listed' as const)
-              .with('UNLISTED', () => 'unlisted' as const)
-              .with('HIDDEN', () => 'hidden' as const)
-              .exhaustive(() => 'listed' as const),
-            status: entity.status,
-            createdAt: entity.createdAt,
-            updatedAt: entity.updatedAt,
-            viewedAt: entity.viewedAt,
-            properties: mapGraphqlProperties(entity.properties),
+            ...mapGraphqlAgentSessionRow(entity),
             notifications: mapGraphqlNotifications(entity.notifications),
           },
         }) as SoupApiItem

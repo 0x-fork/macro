@@ -347,6 +347,12 @@ the shimmer.
   whose turn is still running (the agent is working, writing code, or stopping)
   shows the same three-dot working wave as the transcript in place of the
   leading icon; the row's accessible name appends `Starting` or `Working`.
+  The row follows each turn without a reload: it turns Working when a turn
+  starts and clears when the last turn ends. Each session update re-reads the
+  row from the primary database after the list refetch, which corrects a
+  stale replica read at that point; a later replica-backed refetch from
+  another trigger can still briefly restore an older row until the next
+  session update.
   Sessions with a linked PR show
   **#<number>** beneath the title (icon colored by open / merged / closed; no
   status word). Clicking it opens the synced

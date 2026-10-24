@@ -7,6 +7,20 @@ const mocks = vi.hoisted(() => ({
   graphql: vi.fn<(options?: { throwOnError?: boolean }) => Promise<void>>(
     async () => {}
   ),
+  graphqlSoup: vi.fn(() => false),
+  row: vi.fn<
+    (
+      document: unknown,
+      variables: { sessionId: string },
+      context: { requestPolicy: string }
+    ) => Promise<{
+      error?: Error;
+      data?: { user: { agentSession: { id: string; turnState: string } } };
+    }>
+  >(async () => ({})),
+  held: vi.fn((_id: string) => false),
+  cached: vi.fn((_id: string): unknown => undefined),
+  hydrate: vi.fn(),
 }));
 
 vi.mock('@queries/soup/refresh', () => ({
@@ -15,15 +29,42 @@ vi.mock('@queries/soup/refresh', () => ({
 vi.mock('@queries/soup/graphql/active-queries', () => ({
   refreshActiveGraphqlSoupQueries: mocks.graphql,
 }));
+vi.mock('@core/constant/featureFlags', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@core/constant/featureFlags')>()),
+  isFeatureEnabled: mocks.graphqlSoup,
+}));
+vi.mock('@queries/soup/normalized-cache', () => ({
+  hasSoupEntity: mocks.held,
+  getSoupEntityById: mocks.cached,
+  hydrateSoupEntity: mocks.hydrate,
+}));
+vi.mock('@service-storage/graphql-soup', () => ({
+  mapGraphqlAgentSessionRow: (session: { id: string; turnState: string }) => ({
+    id: session.id,
+    turnState: session.turnState,
+  }),
+  getGraphqlSoupClient: () => ({
+    query: (
+      document: unknown,
+      variables: { sessionId: string },
+      context: { requestPolicy: string }
+    ) => ({ toPromise: () => mocks.row(document, variables, context) }),
+  }),
+}));
 vi.mock('@queries/client', async () => {
   const { QueryClient } = await import('@tanstack/query-core');
   return { queryClient: new QueryClient() };
 });
 
+import { AgentSessionRowDocument } from '@service-storage/graphql/generated/graphql';
 import { refreshAgentSessionLists } from './list-sync';
 import { invalidateAgentSessionMetadata } from './session-metadata-sync';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.graphqlSoup.mockReturnValue(false);
+  mocks.held.mockReturnValue(false);
+});
 afterEach(() => vi.restoreAllMocks());
 
 it('coalesces a metadata burst into one REST list refresh', async () => {
@@ -40,6 +81,90 @@ it('coalesces a metadata burst into one REST list refresh', async () => {
 it('never network-refreshes the GraphQL soup queries', async () => {
   await refreshAgentSessionLists('first');
   expect(mocks.graphql).not.toHaveBeenCalled();
+});
+
+it('reads each changed session row from the primary under GraphQL Soup', async () => {
+  mocks.graphqlSoup.mockReturnValue(true);
+  await Promise.all([
+    refreshAgentSessionLists('first'),
+    refreshAgentSessionLists('first'),
+    refreshAgentSessionLists('second'),
+  ]);
+  expect(mocks.row.mock.calls).toEqual([
+    [
+      AgentSessionRowDocument,
+      { sessionId: 'first' },
+      { requestPolicy: 'network-only' },
+    ],
+    [
+      AgentSessionRowDocument,
+      { sessionId: 'second' },
+      { requestPolicy: 'network-only' },
+    ],
+  ]);
+  expect(mocks.graphql).not.toHaveBeenCalled();
+});
+
+it('reads no row for a session no list holds', async () => {
+  await refreshAgentSessionLists('first');
+  expect(mocks.row).not.toHaveBeenCalled();
+});
+
+it('hydrates a REST row from the primary after its replica-backed lists refetch', async () => {
+  mocks.held.mockReturnValue(true);
+  mocks.cached.mockReturnValue({
+    tag: 'agentSession',
+    frecency_score: 3,
+    data: { id: 'first', turnState: 'running' },
+  });
+  mocks.row.mockResolvedValueOnce({
+    data: { user: { agentSession: { id: 'first', turnState: 'idle' } } },
+  });
+
+  await refreshAgentSessionLists('first');
+
+  expect(mocks.hydrate).toHaveBeenCalledExactlyOnceWith({
+    tag: 'agentSession',
+    frecency_score: 3,
+    data: { id: 'first', turnState: 'idle' },
+  });
+  expect(mocks.rest.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.row.mock.invocationCallOrder[0]
+  );
+});
+
+it('retries a session whose row read failed', async () => {
+  mocks.graphqlSoup.mockReturnValue(true);
+  mocks.row.mockResolvedValueOnce({ error: new Error('network') });
+  await refreshAgentSessionLists('first');
+  expect(mocks.row.mock.calls.map(([, variables]) => variables)).toEqual([
+    { sessionId: 'first' },
+    { sessionId: 'first' },
+  ]);
+});
+
+it('lets every row read settle before retrying the batch', async () => {
+  mocks.graphqlSoup.mockReturnValue(true);
+  let finishSecond!: () => void;
+  mocks.row
+    .mockResolvedValueOnce({ error: new Error('network') })
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishSecond = () => resolve({});
+        })
+    );
+  const refresh = Promise.all([
+    refreshAgentSessionLists('first'),
+    refreshAgentSessionLists('second'),
+  ]);
+  await vi.waitFor(() => expect(mocks.row).toHaveBeenCalledTimes(2));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(mocks.row).toHaveBeenCalledTimes(2);
+  finishSecond();
+  await refresh;
+  expect(mocks.row).toHaveBeenCalledTimes(4);
 });
 
 it('leaves soup lists alone when the gateway socket opens', async () => {
