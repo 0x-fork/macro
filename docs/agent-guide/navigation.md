@@ -744,7 +744,10 @@ Existing `/app/automation/<uuid>` links resolve to the canonical routine URL.
 Saved split layouts and document/channel/spreadsheet mentions using the old
 block name also open routines; newly copied links use `/app/routines/<uuid>`.
 On the legacy Agents screen, use the **Routines** button above the list. On touch devices,
-`/app/routines` opens the routines list directly. Routines use
+`/app/routines` opens the routines list directly, and the hidden Agents sidebar's
+entry moves to **Settings → Routines** (on phones **More views → Settings →
+Routines**): tapping a routine closes the settings sheet and opens it, and
+**Create Routine** opens the composer. Routines use
 full-width entity rows with **Created by**, **Status**, **Runs with**, and **Enabled**
 columns. The search field sits below the top bar, as in Projects; search by name,
 creator, or model/agent, or press **Cmd/Ctrl+F** to focus it. **Create Routine** sits

@@ -3,6 +3,7 @@ import BellIcon from '@phosphor/bell-simple.svg';
 import BugIcon from '@phosphor/bug.svg';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
+import RoutineIcon from '@phosphor/clock-clockwise.svg';
 import CpuIcon from '@phosphor/cpu.svg';
 import CreditCardIcon from '@phosphor/credit-card.svg';
 import DesktopIcon from '@phosphor/desktop.svg';
@@ -125,6 +126,12 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         label: 'Agents',
         icon: AgentIcon,
         keywords: ['ai', 'assistant', 'bot'],
+      },
+      {
+        tab: 'Routines',
+        label: 'Routines',
+        icon: RoutineIcon,
+        keywords: ['automation', 'schedule', 'scheduled', 'recurring'],
       },
       {
         tab: 'CRM',
@@ -269,6 +276,7 @@ const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
   'Desktop App': 'desktop-app',
   Agent: 'mcp-server',
   Agents: 'agents',
+  Routines: 'routines',
   Harness: 'runtimes',
   Bots: 'bots',
   Team: 'team',
@@ -363,6 +371,10 @@ export const useSettingsTabAvailable = () => {
       case 'Harness':
       case 'Agents':
         return chatV3AgentsFlag().enabled;
+      // Touch hides the Agents sidebar that lists Routines on desktop, so
+      // phones and tablets reach the list here, beside Agents.
+      case 'Routines':
+        return chatV3AgentsFlag().enabled && isTouchDevice();
       case 'Bots':
         return botManagementFlag().enabled;
       case 'Mobile':

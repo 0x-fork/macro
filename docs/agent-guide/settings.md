@@ -251,7 +251,8 @@ Left nav (feature and platform gates still apply):
   only General shows, with pending invitations or **Create Team**. Search
   finds these by `invite`, `members`, `teammates`, `slack`, and similar terms;
   results name their group, e.g. **Team · Members**.
-- **Blocks**: Email, Calendar, Agents, CRM.
+- **Blocks**: Email, Calendar, Agents, CRM. On touch devices, where the Agents
+  sidebar is hidden, **Routines** (`/app/settings/routines`) follows Agents.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
 - **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
 - **Developer**: Runtimes, MCP server, API Keys, Bots.

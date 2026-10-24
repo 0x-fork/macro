@@ -16,6 +16,8 @@ export function RoutinesList(props: {
   loading: boolean;
   error: boolean;
   pendingId?: string;
+  /** False where the host already titles the page, as Settings does. */
+  showTitle?: boolean;
   registerSearchFocus?: (focus: () => void) => void;
   onCreate: () => void;
   onOpen: (id: string, history?: boolean) => void;
@@ -36,9 +38,11 @@ export function RoutinesList(props: {
         when={!isTouchDevice()}
         fallback={
           <ViewShell.Header>
-            <h1 class="mb-3 text-xl font-semibold tracking-[-0.03em] text-ink">
-              Routines
-            </h1>
+            <Show when={props.showTitle !== false}>
+              <h1 class="mb-3 text-xl font-semibold tracking-[-0.03em] text-ink">
+                Routines
+              </h1>
+            </Show>
             <div class="flex min-w-0 items-center justify-between gap-3">
               <SearchBar
                 ref={(input) =>
