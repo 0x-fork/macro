@@ -59,6 +59,10 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - `cargo test -p soup --features outbound` (`SQLX_OFFLINE` unset; needs local
   MacroDB). Without the feature the Postgres repo and its tests don't compile.
 - After schema/query changes: `nix develop --command just prepare_db` (see `justfile`).
+- `cargo clippy -p soup --no-default-features`, and again with `--features ports`
+  (both run in `just clippy` and CI): most dependents build soup without
+  `outbound`. Gate a domain helper on the feature its callers compile under:
+  `ports` for `domain/service`, `outbound` for the Postgres repository.
 
 ## Gotchas
 
