@@ -25,6 +25,7 @@ export function toEmailThread(thread: ApiThread): EmailThread {
         db_id: attachment.db_id,
         filename: attachment.filename,
         mime_type: attachment.mime_type,
+        reference_url: attachment.reference_url,
         sfs_id: attachment.sfs_id,
         size_bytes: attachment.size_bytes,
       })),

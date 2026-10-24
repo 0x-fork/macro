@@ -197,3 +197,24 @@ it('shows the saved invitation without calendar state when the calendar UI is of
   expect(screen.getByText(/Saved invitation/)).toBeTruthy();
   expect(screen.queryByRole('group', { name: 'Your response' })).toBeNull();
 });
+
+it('leaves before opening the calendar so a dialog around the card can close first', () => {
+  queryState.failed = () => false;
+  queryState.data = { [`message:${invitationFixture.id}`]: wire };
+  const order: string[] = [];
+  render(() => (
+    <EmailCalendarInvitation
+      threadId="thread"
+      messageId="message"
+      invitation={invitationFixture}
+      hour12
+      openCalendar={(target) => order.push(`open ${target.eventId}`)}
+      onNavigate={() => order.push('leave')}
+    />
+  ));
+  // The mocked Button forwards `label` as an attribute, not an accessible name.
+  const open = document.querySelector('button[label="Open in calendar"]');
+  if (!open) throw new Error('Open in calendar is missing');
+  fireEvent.click(open);
+  expect(order).toEqual(['leave', 'open event']);
+});

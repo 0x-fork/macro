@@ -31,6 +31,8 @@ export function EmailCalendarInvitation(props: {
   invitation: CalendarInvitation;
   hour12: boolean;
   openCalendar?: (target: CalendarInvitationOpenTarget) => void;
+  /** Called before Open in calendar leaves the email. */
+  onNavigate?: () => void;
 }) {
   const calendarEnabled = useCalendarUiFlag();
   const saved = () => (
@@ -135,8 +137,13 @@ function ConnectedInvitation(
           },
           get openCalendar() {
             const target = openTarget();
-            return target && props.openCalendar
-              ? () => props.openCalendar?.(target)
+            const open = props.openCalendar;
+            const leave = props.onNavigate;
+            return target && open
+              ? () => {
+                  leave?.();
+                  open(target);
+                }
               : undefined;
           },
           get showDay() {

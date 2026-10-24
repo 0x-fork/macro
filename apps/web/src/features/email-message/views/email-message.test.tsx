@@ -131,3 +131,78 @@ it('hands a calendar file without a readable event to the host', () => {
   expect(screen.queryByRole('dialog')).toBeNull();
   expect(onOpenAttachment).toHaveBeenCalledWith(calendarFile);
 });
+
+it('keeps the opened calendar file card mounted when the thread refreshes the message', () => {
+  const [current, setCurrent] = createSignal(message([invitationFixture]));
+  render(() => (
+    <EmailMessageView
+      message={current()}
+      renderInvitation={(_message, invitation, options) => (
+        <div data-testid={options ? 'dialog-card' : 'card'}>
+          {invitation.id}
+        </div>
+      )}
+      onOpenAttachment={vi.fn()}
+      isTouch={false}
+      isPersonal={false}
+      isSelected={false}
+      allowHover={false}
+      isExpanded
+    />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: 'Planning.ics' }));
+  const card = screen.getByTestId('dialog-card');
+  setCurrent(message([structuredClone(invitationFixture)]));
+  expect(screen.getByTestId('dialog-card')).toBe(card);
+});
+
+it('closes the calendar file dialog when its card opens the calendar', () => {
+  let navigate: (() => void) | undefined;
+  render(() => (
+    <EmailMessageView
+      message={message([invitationFixture])}
+      renderInvitation={(_message, invitation, options) => {
+        if (options) navigate = options.onNavigate;
+        return <div>{invitation.id}</div>;
+      }}
+      onOpenAttachment={vi.fn()}
+      isTouch={false}
+      isPersonal={false}
+      isSelected={false}
+      allowHover={false}
+      isExpanded
+    />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: 'Planning.ics' }));
+  expect(screen.getByRole('dialog')).toBeTruthy();
+  navigate?.();
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('opens a cloud-reference calendar file through the host', () => {
+  const reference = {
+    ...calendarFile,
+    reference_url: 'https://outlook.office.com/mail/item',
+  };
+  const onOpenAttachment = vi.fn();
+  render(() => (
+    <EmailMessageView
+      message={
+        {
+          ...message([invitationFixture]),
+          attachments: [reference],
+        } as unknown as EmailMessage
+      }
+      renderInvitation={(_message, invitation) => <div>{invitation.id}</div>}
+      onOpenAttachment={onOpenAttachment}
+      isTouch={false}
+      isPersonal={false}
+      isSelected={false}
+      allowHover={false}
+      isExpanded
+    />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: 'Planning.ics' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(onOpenAttachment).toHaveBeenCalledWith(reference);
+});

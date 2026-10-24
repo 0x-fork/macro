@@ -19,11 +19,17 @@ import {
 } from '../core/calendar-invitation';
 import { type EmailAttachment, isCalendarFile } from '../core/email-message';
 import { inlineContentIds, normalizeContentId } from '../core/inline-images';
+export interface InvitationRenderOptions {
+  /** Called before a card action opens something else in the app. */
+  onNavigate?: () => void;
+}
+
 export interface EmailMessageViewProps {
   message: EmailMessage;
   renderInvitation?: (
     message: EmailMessage,
-    invitation: CalendarInvitation
+    invitation: CalendarInvitation,
+    options?: InvitationRenderOptions
   ) => JSX.Element;
   renderOperation?: (message: EmailMessage) => JSX.Element;
   renderAvatar?: (message: EmailMessage) => JSX.Element;
@@ -58,21 +64,34 @@ export function EmailMessageView(props: EmailMessageViewProps) {
     groupCalendarInvitations(props.message.calendar_invitations ?? [])
   );
   // A calendar file whose event the message already shows opens as that
-  // event; any other file goes to the host.
+  // event; any other file, and a cloud reference with no bytes to download,
+  // goes to the host.
   const [calendarFile, setCalendarFile] = createSignal<EmailAttachment>();
+  let navigatingAway = false;
   const openAttachment = (attachment: EmailAttachment) => {
     if (
       invitationGroups().length > 0 &&
+      !attachment.reference_url &&
       isCalendarFile(attachment.filename, attachment.mime_type)
     ) {
+      navigatingAway = false;
       setCalendarFile(attachment);
       return;
     }
     props.onOpenAttachment?.(attachment);
   };
-  const renderInvitation = (invitation: CalendarInvitation) =>
+  // A card action that opens the calendar closes the dialog first, so it
+  // neither covers the destination nor pulls focus back to the email.
+  const closeForNavigation = () => {
+    navigatingAway = true;
+    setCalendarFile(undefined);
+  };
+  const renderInvitation = (
+    invitation: CalendarInvitation,
+    options?: InvitationRenderOptions
+  ) =>
     props.renderInvitation ? (
-      props.renderInvitation(props.message, invitation)
+      props.renderInvitation(props.message, invitation, options)
     ) : (
       <CalendarInviteCard invitation={invitation} />
     );
@@ -288,15 +307,20 @@ export function EmailMessageView(props: EmailMessageViewProps) {
             fileName={file().filename ?? ''}
             open
             onClose={() => setCalendarFile(undefined)}
+            restoreFocus={() => !navigatingAway}
             onDownload={
               props.onDownloadAttachment
                 ? () => props.onDownloadAttachment?.(file())
                 : undefined
             }
           >
-            <For each={invitationGroups()}>
-              {(group) => renderInvitation(group.primary)}
-            </For>
+            <Key each={invitationGroups()} by={(group) => group.primary.id}>
+              {(group) =>
+                renderInvitation(group().primary, {
+                  onNavigate: closeForNavigation,
+                })
+              }
+            </Key>
           </CalendarFilePreview>
         )}
       </Show>

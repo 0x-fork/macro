@@ -12,6 +12,8 @@ export function CalendarFilePreview(props: {
   fileName: string;
   open: boolean;
   onClose: () => void;
+  /** Whether closing returns focus to the attachment; false when leaving it. */
+  restoreFocus?: () => boolean;
   onDownload?: () => void;
   children: JSX.Element;
 }) {
@@ -20,6 +22,9 @@ export function CalendarFilePreview(props: {
       open={props.open}
       onOpenChange={(open) => {
         if (!open) props.onClose();
+      }}
+      onCloseAutoFocus={(event) => {
+        if (props.restoreFocus?.() === false) event.preventDefault();
       }}
       position="center"
       class="w-140 max-w-full"
