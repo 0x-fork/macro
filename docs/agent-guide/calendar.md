@@ -232,6 +232,13 @@ toast (behind `enable-calendar-prompt-web` and `enable-calendar-prompt-mobile`)
 follows the same rule: it asks once per own inbox missing calendar permission,
 never for an inbox another Macro user delegated to the viewer (a **Shared** row
 in Settings → Email, whose per-inbox Enable calendar button stays available).
+The calendar view's setup prompt decides and acts on own inboxes alone too: a
+delegate with no inbox of their own sees **Connect your calendar**, the Calendar
+is off vs Enable calendar wording counts only own inboxes, and Grant access, Turn
+on and Reconnect only start consent for one of them. It covers the grid only in a
+week without events and with no working calendar the viewer can see; a working
+calendar shared with them keeps it to the bottom-right pill, so a delegate whose
+only working calendar is shared sees the pill in every week.
 Account checkboxes show/hide all child calendars; partial selection is shown as
 mixed. Individual calendars can also be shown/hidden. The account color is the
 default for its calendars; a child color overrides it. Click a color dot to open
