@@ -126,3 +126,60 @@ it('keeps a safe fallback for events from a newer server', () => {
   const view = render(() => <SessionEventRow event={event} />);
   expect(view.getByRole('status').textContent).toContain('System event');
 });
+
+it('announces a ready import plan with its counts and opens its review', async () => {
+  const open = vi.fn();
+  const view = render(() => (
+    <SessionEventRow
+      onOpenReview={open}
+      event={{
+        ...base,
+        kind: 'import.planned',
+        payload: { copy: 12, taskLists: 1, skipped: 3, byHand: 2 },
+      }}
+    />
+  ));
+  expect(view.getByRole('status').textContent).toContain(
+    'Import plan ready · 12 to copy · 1 task list · 2 by hand'
+  );
+  await fireEvent.click(view.getByRole('button', { name: 'View review' }));
+  expect(open).toHaveBeenCalledExactlyOnceWith('review-id');
+});
+
+it('reports a settled import from its counts, never its error text', () => {
+  const view = render(() => (
+    <SessionEventRow
+      event={{
+        ...base,
+        kind: 'review.settled',
+        payload: {
+          import: {
+            outcome: 'failed',
+            error: 'Notion said: Secret roadmap',
+            imported: 4,
+            planned: 10,
+            documents: 8,
+            databases: 1,
+            databaseRows: 20,
+            taskLists: 1,
+            taskRows: 5,
+            skipped: 2,
+            notWritten: 6,
+            sharedWithTeam: 0,
+            alreadyInMacro: 0,
+            waitingOnTeammates: 0,
+            rootFolderId: null,
+            failures: [{ title: 'Roadmap', url: null, reason: null }],
+            handItems: [],
+          },
+        },
+      }}
+    />
+  ));
+  const status = view.getByRole('status');
+  expect(status.textContent).toContain(
+    'Import failed · 4 of 10 imported · 1 failed'
+  );
+  expect(status.textContent).not.toContain('Secret roadmap');
+  expect(status.classList.contains('text-failure')).toBe(true);
+});

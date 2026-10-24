@@ -1,9 +1,12 @@
 import { formatCompactRelativeTimestamp } from '@entity/utils/timestamp';
 import CheckCircle from '@phosphor/check-circle.svg';
 import ClipboardText from '@phosphor/clipboard-text.svg';
+import DownloadSimple from '@phosphor/download-simple.svg';
 import Info from '@phosphor/info.svg';
 import Plug from '@phosphor/plug.svg';
 import type {
+  ImportPlan,
+  ImportSettlement,
   ReviewOutcome,
   SessionNotification,
 } from '@service-agent-fold/generated/types';
@@ -46,6 +49,35 @@ function reviewSummary(
   return { summary, failed: failed > 0 || uncertain > 0 };
 }
 
+function countLabel(count: number, one: string, many: string) {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+function importPlanSummary(plan: ImportPlan) {
+  let summary = `Import plan ready · ${plan.copy} to copy`;
+  if (plan.taskLists)
+    summary += ` · ${countLabel(plan.taskLists, 'task list', 'task lists')}`;
+  if (plan.byHand) summary += ` · ${plan.byHand} by hand`;
+  return { summary, failed: false };
+}
+
+/** Counts only: an import report's error text can quote source content. */
+function importSettlementSummary(report: ImportSettlement) {
+  const heading = match(report.outcome)
+    .with('completed', () => 'Import finished')
+    .with('failed', () => 'Import failed')
+    .with('cancelled', () => 'Import cancelled')
+    .exhaustive();
+  let summary = `${heading} · ${report.imported} of ${report.planned} imported`;
+  if (report.failures.length) summary += ` · ${report.failures.length} failed`;
+  if (report.handItems.length)
+    summary += ` · ${report.handItems.length} by hand`;
+  return {
+    summary,
+    failed: report.outcome === 'failed' || report.failures.length > 0,
+  };
+}
+
 /** System facts stay on one line on desktop and mobile, outside messages. */
 export function SessionEventRow(props: {
   event: SessionNotification;
@@ -68,7 +100,14 @@ export function SessionEventRow(props: {
       }))
       .with({ kind: 'review.settled' }, (event) => ({
         icon: CheckCircle,
-        ...reviewSummary(event.payload, true, props.viewerId),
+        ...('import' in event.payload
+          ? importSettlementSummary(event.payload.import)
+          : reviewSummary(event.payload, true, props.viewerId)),
+        review: true,
+      }))
+      .with({ kind: 'import.planned' }, (event) => ({
+        icon: DownloadSimple,
+        ...importPlanSummary(event.payload),
         review: true,
       }))
       .exhaustive((_unknown) => ({

@@ -6,7 +6,6 @@
  */
 import type {
   AddServerRequest,
-  AiAdmissionErrorBody,
   BrowsePipedreamMcpCatalogParams,
   CallToolRequest,
   CallToolResponse,
@@ -33,6 +32,7 @@ import type {
   McpAuthCallbackParams,
   MemoryErrorBody,
   MemoryResponse,
+  NotionImportReport,
   OnboardingRow,
   OnboardingState,
   PatchChatRequest,
@@ -1315,6 +1315,107 @@ export const healthHandler = async (
 };
 
 /**
+ * @summary Where the user's Notion workspace import stands.
+ */
+export type notionReportHandlerResponse200 = {
+  data: NotionImportReport;
+  status: 200;
+};
+
+export type notionReportHandlerResponse500 = {
+  data: void;
+  status: 500;
+};
+
+export type notionReportHandlerResponseSuccess =
+  notionReportHandlerResponse200 & {
+    headers: Headers;
+  };
+export type notionReportHandlerResponseError =
+  notionReportHandlerResponse500 & {
+    headers: Headers;
+  };
+
+export type notionReportHandlerResponse =
+  | notionReportHandlerResponseSuccess
+  | notionReportHandlerResponseError;
+
+export const getNotionReportHandlerUrl = () => {
+  return `/import/notion`;
+};
+
+export const notionReportHandler = async (
+  options?: RequestInit
+): Promise<notionReportHandlerResponse> => {
+  const res = await fetch(getNotionReportHandlerUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: notionReportHandlerResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as notionReportHandlerResponse;
+};
+
+/**
+ * @summary Stop planning or writing the user's Notion import. Objects already
+imported stay.
+ */
+export type cancelNotionHandlerResponse200 = {
+  data: NotionImportReport;
+  status: 200;
+};
+
+export type cancelNotionHandlerResponse500 = {
+  data: void;
+  status: 500;
+};
+
+export type cancelNotionHandlerResponseSuccess =
+  cancelNotionHandlerResponse200 & {
+    headers: Headers;
+  };
+export type cancelNotionHandlerResponseError =
+  cancelNotionHandlerResponse500 & {
+    headers: Headers;
+  };
+
+export type cancelNotionHandlerResponse =
+  | cancelNotionHandlerResponseSuccess
+  | cancelNotionHandlerResponseError;
+
+export const getCancelNotionHandlerUrl = () => {
+  return `/import/notion/cancel`;
+};
+
+export const cancelNotionHandler = async (
+  options?: RequestInit
+): Promise<cancelNotionHandlerResponse> => {
+  const res = await fetch(getCancelNotionHandlerUrl(), {
+    ...options,
+    method: 'POST',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: cancelNotionHandlerResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as cancelNotionHandlerResponse;
+};
+
+/**
  * @summary Accept staged imports (starts import jobs) and/or discard staged rows.
  */
 export type runImportHandlerResponse200 = {
@@ -1364,7 +1465,7 @@ export const runImportHandler = async (
 };
 
 /**
- * @summary Discover candidates for user selection without auto-importing them.
+ * @summary Discover candidates for user selection. Only Slack supports discovery.
  */
 export type discoverHandlerResponse204 = {
   data: void;
@@ -1419,132 +1520,7 @@ export const discoverHandler = async (
 };
 
 /**
- * @summary Dismiss one source's import section.
- */
-export type dismissRunHandlerResponse204 = {
-  data: void;
-  status: 204;
-};
-
-export type dismissRunHandlerResponse400 = {
-  data: void;
-  status: 400;
-};
-
-export type dismissRunHandlerResponse500 = {
-  data: void;
-  status: 500;
-};
-
-export type dismissRunHandlerResponseSuccess = dismissRunHandlerResponse204 & {
-  headers: Headers;
-};
-export type dismissRunHandlerResponseError = (
-  | dismissRunHandlerResponse400
-  | dismissRunHandlerResponse500
-) & {
-  headers: Headers;
-};
-
-export type dismissRunHandlerResponse =
-  | dismissRunHandlerResponseSuccess
-  | dismissRunHandlerResponseError;
-
-export const getDismissRunHandlerUrl = (source: string) => {
-  return `/import/runs/${source}/dismiss`;
-};
-
-export const dismissRunHandler = async (
-  source: string,
-  options?: RequestInit
-): Promise<dismissRunHandlerResponse> => {
-  const res = await fetch(getDismissRunHandlerUrl(source), {
-    ...options,
-    method: 'POST',
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: dismissRunHandlerResponse['data'] = body ? JSON.parse(body) : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as dismissRunHandlerResponse;
-};
-
-/**
- * @summary Restart a failed (or dismissed) gather run for one source.
- */
-export type retryGatherHandlerResponse204 = {
-  data: void;
-  status: 204;
-};
-
-export type retryGatherHandlerResponse400 = {
-  data: void;
-  status: 400;
-};
-
-export type retryGatherHandlerResponse402 = {
-  data: AiAdmissionErrorBody;
-  status: 402;
-};
-
-export type retryGatherHandlerResponse500 = {
-  data: void;
-  status: 500;
-};
-
-export type retryGatherHandlerResponse503 = {
-  data: AiAdmissionErrorBody;
-  status: 503;
-};
-
-export type retryGatherHandlerResponseSuccess =
-  retryGatherHandlerResponse204 & {
-    headers: Headers;
-  };
-export type retryGatherHandlerResponseError = (
-  | retryGatherHandlerResponse400
-  | retryGatherHandlerResponse402
-  | retryGatherHandlerResponse500
-  | retryGatherHandlerResponse503
-) & {
-  headers: Headers;
-};
-
-export type retryGatherHandlerResponse =
-  | retryGatherHandlerResponseSuccess
-  | retryGatherHandlerResponseError;
-
-export const getRetryGatherHandlerUrl = (source: string) => {
-  return `/import/runs/${source}/retry`;
-};
-
-export const retryGatherHandler = async (
-  source: string,
-  options?: RequestInit
-): Promise<retryGatherHandlerResponse> => {
-  const res = await fetch(getRetryGatherHandlerUrl(source), {
-    ...options,
-    method: 'POST',
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: retryGatherHandlerResponse['data'] = body ? JSON.parse(body) : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as retryGatherHandlerResponse;
-};
-
-/**
- * @summary Get the authenticated user's onboarding state. While the flow is active
-this also starts any gather runs that are due, so polling this endpoint
-is what keeps onboarding moving.
+ * @summary Get the authenticated user's onboarding state.
  */
 export type getStateHandlerResponse200 = {
   data: OnboardingState;

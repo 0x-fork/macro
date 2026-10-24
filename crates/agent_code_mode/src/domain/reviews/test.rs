@@ -158,7 +158,7 @@ impl ReviewActions for Actions {
     async fn execute(
         &self,
         owner: &MacroUserIdStr<'static>,
-        _: ReviewKind,
+        _: &ReviewRecord,
         draft: Value,
     ) -> Result<Value, CodeModeError> {
         self.actors.lock().unwrap().push(owner.to_string());
@@ -659,8 +659,109 @@ async fn a_system_turn_cannot_approve_even_with_owner_credentials() {
     assert_eq!(events.len(), 2);
     assert!(events.iter().all(|event| event.wake));
     assert!(
-        matches!(&events[1].notification.event, NotificationEvent::ReviewSettled(outcome) if outcome.by == f.actions.owner.as_ref() && outcome.via == DecisionVia::Chat)
+        matches!(&events[1].notification.event, NotificationEvent::ReviewSettled(ReviewSettlement::Actions(outcome)) if outcome.by == f.actions.owner.as_ref() && outcome.via == DecisionVia::Chat)
     );
+}
+
+#[tokio::test]
+async fn a_started_import_waits_quietly_for_its_write_to_settle() {
+    let f = Fixture::new();
+    let mut input = f.input(vec![json!({"subject":"plan"})]);
+    input.kind = ReviewKind::Import;
+    let row = f
+        .service
+        .create(&f.edit(), &f.actions.owner, input)
+        .await
+        .unwrap();
+
+    f.service
+        .decide(
+            &f.edit(),
+            &f.actions.owner,
+            row.id,
+            ReviewDecision::Submit {
+                revision: row.revision,
+                items: vec![],
+            },
+        )
+        .await
+        .unwrap();
+    let started = f.settled(row.id).await;
+
+    assert_eq!(started.items[0].status, ReviewItemStatus::Completed);
+    let events = f.store.2.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert!(matches!(
+        events[0].notification.event,
+        NotificationEvent::ReviewDecided(_)
+    ));
+    assert!(!events[0].wake);
+}
+
+#[tokio::test]
+async fn an_import_that_could_not_start_settles_and_wakes() {
+    let f = Fixture::new();
+    let mut input = f.input(vec![json!({"subject":"plan", "fail": true})]);
+    input.kind = ReviewKind::Import;
+    let row = f
+        .service
+        .create(&f.edit(), &f.actions.owner, input)
+        .await
+        .unwrap();
+
+    f.service
+        .decide(
+            &f.edit(),
+            &f.actions.owner,
+            row.id,
+            ReviewDecision::Submit {
+                revision: row.revision,
+                items: vec![],
+            },
+        )
+        .await
+        .unwrap();
+    let ended = f.settled(row.id).await;
+
+    assert_eq!(ended.items[0].status, ReviewItemStatus::Unknown);
+    let events = f.store.2.lock().unwrap();
+    assert_eq!(events.len(), 2);
+    assert!(!events[0].wake);
+    assert!(matches!(
+        events[1].notification.event,
+        NotificationEvent::ReviewSettled(ReviewSettlement::Actions(_))
+    ));
+    assert!(events[1].wake);
+}
+
+#[tokio::test]
+async fn dismissing_an_import_wakes_the_session() {
+    let f = Fixture::new();
+    let mut input = f.input(vec![json!({"subject":"plan"})]);
+    input.kind = ReviewKind::Import;
+    let row = f
+        .service
+        .create(&f.edit(), &f.actions.owner, input)
+        .await
+        .unwrap();
+
+    f.service
+        .decide(
+            &f.edit(),
+            &f.actions.owner,
+            row.id,
+            ReviewDecision::Dismiss {
+                revision: row.revision,
+                items: vec![],
+            },
+        )
+        .await
+        .unwrap();
+
+    let events = f.store.2.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert!(events[0].wake);
+    assert!(f.actions.calls.lock().unwrap().is_empty());
 }
 
 #[tokio::test]

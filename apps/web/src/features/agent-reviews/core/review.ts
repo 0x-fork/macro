@@ -4,7 +4,7 @@ export type Review = {
   sessionId: string;
   actingUser?: string | null;
   executionId?: string | null;
-  kind: 'email' | 'calendar';
+  kind: 'email' | 'calendar' | 'import';
   title: string;
   revision: number;
   updatedAt: number;
@@ -27,3 +27,15 @@ export type ReviewActions = {
   reload: () => Promise<Review>;
   decide: (decision: ReviewDecision) => Promise<Review>;
 };
+
+/**
+ * Whether the agent answers a decision as soon as it is made. Approving an
+ * import only starts its write; the agent answers when the write settles.
+ */
+export function decisionWakesAgent(
+  kind: Review['kind'],
+  decision: ReviewDecision
+): boolean {
+  if (decision.action === 'edit') return false;
+  return !(kind === 'import' && decision.action === 'submit');
+}

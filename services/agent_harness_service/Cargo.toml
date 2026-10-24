@@ -106,6 +106,7 @@ harnesses = { path = "../../crates/harnesses", default-features = false, feature
 http = { workspace = true }
 http-body-util = { workspace = true }
 import = { path = "../../crates/import" }
+import_notion = { path = "../../crates/import_notion" }
 initiative = { path = "../../crates/initiative", default-features = false, features = ["postgres"] }
 jev = { path = "../../crates/jev", features = ["decisions", "outbound"] }
 kafka_util = { path = "../../crates/kafka_util" }

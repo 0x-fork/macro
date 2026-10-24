@@ -166,10 +166,15 @@ pub fn build_cognition_tool_context() -> anyhow::Result<crate::ToolCognitionTool
 /// `event_task_tracker` tracks event publishes started by the context. Callers
 /// must retain the original tracker, pass a clone here, and close and drain the
 /// original after the host stops broker-backed work.
-#[tracing::instrument(skip(pool, event_task_tracker, recorder), err)]
+///
+/// `import_jobs` runs the context's Notion workspace imports; the host calls
+/// [`crate::ImportJobs::hand_over`] on shutdown so they move to another
+/// process instead of waiting for their leases to lapse.
+#[tracing::instrument(skip(pool, event_task_tracker, import_jobs, recorder), err)]
 pub async fn build_tool_service_context_from_env(
     pool: sqlx::PgPool,
     event_task_tracker: TaskTracker,
+    import_jobs: crate::ImportJobs,
     enforcement: ai_usage::AiUsageEnforcement,
     pricing: ai_billing::AiPricing,
     recorder: Arc<dyn ai_usage::UsageRecorder>,
@@ -567,19 +572,20 @@ pub async fn build_tool_service_context_from_env(
         let mcp_encryption_key =
             mcp_client::domain::models::AesKey::try_from(mcp_credentials_key.as_ref())
                 .context("invalid MCP credentials encryption key")?;
+        let pipedream_connections = Arc::new(
+            pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo::new(pool.clone()),
+        );
         let mcp_selector = Arc::new(mcp_select::McpToolSelector::new(
             Arc::new(mcp_client::outbound::pg_server_repo::PgServerRepo::new(
                 pool.clone(),
                 mcp_encryption_key,
             )),
-            Arc::new(
-                pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo::new(pool.clone()),
-            ),
+            pipedream_connections.clone(),
             Arc::new(pipedream_client.clone()),
         ));
         let import_service = Arc::new(
             import::domain::service::ImportServiceImpl::new(
-                import::outbound::pg_import_repo::PgImportRepo::new(pool.clone()),
+                crate::tool_context::build_import_repo(pool.clone()),
                 mcp_selector.clone(),
                 Arc::new(crate::ToolEntityCreator {
                     document_creator: document_tool_context.creator.clone(),
@@ -594,16 +600,26 @@ pub async fn build_tool_service_context_from_env(
                             properties_service.clone(),
                         ),
                     team_repository: crate::tool_context::build_team_repository(pool.clone()),
+                    project_service: project_tool_context.service.clone(),
+                    databases_service: databases_tool_context.service.clone(),
+                    document_service: document_tool_context.service.clone(),
                 }),
                 recorder.clone(),
             )
             .with_slack_source(Arc::new(
                 import::outbound::mcp_slack_source::McpSlackSource::new(mcp_selector),
             ))
+            .with_notion_connections(Arc::new(
+                import_notion::outbound::pipedream::PipedreamNotionConnections::new(
+                    pipedream_connections,
+                    pipedream_client.clone(),
+                ),
+            ))
             .with_admission(admission.clone())
             .with_notifier(import::outbound::gateway_notifier::gateway_import_notify(
                 side_effect_clients.connection_gateway.clone(),
-            )),
+            ))
+            .with_job_shutdown(import_jobs.shutdown, import_jobs.tracker),
         );
         ToolImportToolContext::wired(import_service)
     } else {

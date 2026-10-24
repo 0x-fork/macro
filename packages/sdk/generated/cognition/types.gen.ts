@@ -24,21 +24,6 @@ export type AddServerRequest = {
 };
 
 /**
- * Public admission error payload. Handlers with additional fields can reuse the
- * domain error's code and message and [`admission_status`].
- */
-export type AiAdmissionErrorBody = {
-    /**
-     * Stable denial or unavailability code.
-     */
-    code: string;
-    /**
-     * Human-readable explanation, without internal billing diagnostics.
-     */
-    error: string;
-};
-
-/**
  * Everything we use AI for. The wire / DB form of each variant is its
  * `snake_case` name.
  */
@@ -773,6 +758,10 @@ export type ImportEntity = {
      */
     initiator: Initiator;
     /**
+     * What the item is in its source system.
+     */
+    kind: ImportKind;
+    /**
      * Failure detail from the last import attempt, when one failed.
      */
     last_error?: string | null;
@@ -781,6 +770,16 @@ export type ImportEntity = {
      * [`LinearIssueMeta`], [`NotionDocMeta`], [`SlackChannelMeta`]).
      */
     metadata: unknown;
+    /**
+     * The import row this item was imported under (a subpage's parent page,
+     * a row's database), when it was imported as part of a tree.
+     */
+    parent_id?: string | null;
+    /**
+     * The agent session review that approved importing this item, when it
+     * came from one.
+     */
+    review_id?: string | null;
     /**
      * The external system the item comes from.
      */
@@ -803,23 +802,37 @@ export type ImportEntity = {
      * teammate".
      */
     user_id: string;
+    /**
+     * The teammate's row this one waits on: that teammate is writing the
+     * same object for the team, and this row links to their copy once it
+     * is imported.
+     */
+    waiting_on?: string | null;
 };
 
 /**
- * Gather-run state for one user × source.
+ * What an imported item is in its source system. Each source has its own
+ * kinds; a Notion database and a Notion page, or a Linear project and a
+ * Linear issue, are tracked and deduplicated separately.
+ */
+export type ImportKind = 'issue' | 'project' | 'document' | 'page' | 'database' | 'data_source' | 'row' | 'channel';
+
+/**
+ * Discovery-run state for one user × source.
  */
 export type ImportRun = {
     /**
-     * Whether this run should import its onboarding-staged candidates as
-     * soon as gathering finishes.
-     */
-    auto_import: boolean;
-    /**
-     * Gather or automatic-import failure detail, when the run failed.
+     * Discovery failure detail, when the run failed.
      */
     error?: string | null;
     /**
-     * The source this run gathered from.
+     * The review presenting the run's plan, once one does. A Notion plan is
+     * presented while it is still `running`; rows staged after that take it.
+     */
+    review_id?: string | null;
+    scanned?: null | ScanCounts;
+    /**
+     * The source this run discovered from.
      */
     source: ImportSource;
     /**
@@ -838,7 +851,7 @@ export type ImportRun = {
 export type ImportSource = 'linear' | 'notion' | 'slack';
 
 /**
- * The full import aggregate for a user: gather runs plus visible ledger
+ * The full import aggregate for a user: discovery runs plus visible ledger
  * rows (their own, and teammates' team-imported rows).
  */
 export type ImportState = {
@@ -847,7 +860,7 @@ export type ImportState = {
      */
     entities: Array<ImportEntity>;
     /**
-     * Gather runs, one per source that ever gathered.
+     * Discovery runs, one per source that ever ran discovery.
      */
     runs: Array<ImportRun>;
 };
@@ -981,10 +994,34 @@ export type NewMessageAttachment = {
 };
 
 /**
+ * A teammate's copy of a Notion object, shared with the user's team.
+ */
+export type NotionAlreadyImported = {
+    /**
+     * The teammate who imported it, by email.
+     */
+    by: string;
+    /**
+     * The Macro entity it became.
+     */
+    entityId: string;
+    /**
+     * That entity's type (`md`, `project`).
+     */
+    entityType: string;
+};
+
+/**
+ * What a workspace import does with one Notion object.
+ */
+export type NotionDecision = 'copy' | 'tasks' | 'skip' | 'hand';
+
+/**
  * Metadata for one staged Notion page. Deliberately has NO content field:
  * page bodies are fetched at import time, for accepted pages only.
  */
 export type NotionDocMeta = {
+    plan?: null | NotionPlanItem;
     /**
      * One-line summary of what the page contains.
      */
@@ -997,6 +1034,210 @@ export type NotionDocMeta = {
      * Deep link back to the page in Notion.
      */
     url?: string | null;
+};
+
+/**
+ * Where a Notion workspace import stands.
+ */
+export type NotionImportReport = {
+    /**
+     * Who imported the objects already in Macro, most first.
+     */
+    alreadyImportedBy?: Array<NotionImporter>;
+    /**
+     * Plan objects a teammate already imported and shared with the team;
+     * they link to that copy and are not counted as copies.
+     */
+    alreadyInMacro?: number;
+    /**
+     * Objects to copy as they are.
+     */
+    copy: number;
+    /**
+     * Data sources (database tables) in the plan.
+     */
+    dataSources: number;
+    /**
+     * Rows those databases hold, every one counted while planning.
+     */
+    databaseRows: number;
+    /**
+     * Data sources written as databases.
+     */
+    databases: number;
+    /**
+     * Plan objects the decision model has not answered for yet, while
+     * planning is still `running`.
+     */
+    deciding?: number;
+    /**
+     * Pages written as documents.
+     */
+    documents: number;
+    /**
+     * Why the run failed, when it did.
+     */
+    error?: string | null;
+    /**
+     * Objects that failed to import, with the failure.
+     */
+    failures?: Array<NotionReportItem>;
+    /**
+     * Objects that need handling by hand.
+     */
+    hand: number;
+    /**
+     * Objects that need handling by hand, with reasons.
+     */
+    handItems?: Array<NotionReportItem>;
+    /**
+     * Plan objects already imported.
+     */
+    imported: number;
+    /**
+     * Whether the user is on a team. Without one, everything the import
+     * writes stays visible only to them.
+     */
+    onTeam?: boolean;
+    /**
+     * Pages in the plan.
+     */
+    pages: number;
+    /**
+     * The review the plan is tied to, once presented.
+     */
+    reviewId?: string | null;
+    scanned?: null | ScanCounts;
+    /**
+     * Written plan objects shared with the user's team.
+     */
+    sharedWithTeam?: number;
+    /**
+     * Objects left in Notion.
+     */
+    skip: number;
+    status?: null | RunStatus;
+    /**
+     * Tasks the task lists become, one per row.
+     */
+    taskRows: number;
+    /**
+     * Data sources whose rows become tasks.
+     */
+    tasks: number;
+    /**
+     * Plan objects still waiting to be written.
+     */
+    waiting: number;
+    /**
+     * Plan objects waiting for a teammate who is writing the same object
+     * for the team; they link to the teammate's copy once it is written.
+     */
+    waitingOnTeammates?: number;
+    /**
+     * Plan objects being written now.
+     */
+    writing: number;
+};
+
+/**
+ * A teammate who already imported some of a plan's objects.
+ */
+export type NotionImporter = {
+    /**
+     * The teammate, by email.
+     */
+    by: string;
+    /**
+     * How many of the plan's objects they imported.
+     */
+    count: number;
+};
+
+/**
+ * One object's place in a workspace import plan.
+ */
+export type NotionPlanItem = {
+    alreadyImported?: null | NotionAlreadyImported;
+    decision?: null | NotionDecision;
+    /**
+     * Titles of the pages above it, outermost first.
+     */
+    path?: Array<string>;
+    /**
+     * Why, in a short sentence, when the decision model gave one.
+     */
+    reason?: string | null;
+    /**
+     * For a data source: rows counted while planning.
+     */
+    rows?: number | null;
+    /**
+     * For a data source: the titles of a few of its rows.
+     */
+    sampleTitles?: Array<string>;
+    /**
+     * Whether the user may change `shared`: false for users without a team.
+     */
+    shareable?: boolean;
+    /**
+     * Whether what it becomes is shared with the user's team.
+     */
+    shared?: boolean;
+    /**
+     * Why it is (or is not) shared, when the decision model chose or the
+     * import could not share it.
+     */
+    sharedReason?: string | null;
+    taskFields?: null | NotionTaskFields;
+};
+
+/**
+ * One object a workspace import report calls out.
+ */
+export type NotionReportItem = {
+    /**
+     * The ledger row.
+     */
+    importId: string;
+    /**
+     * What the object is.
+     */
+    kind: ImportKind;
+    /**
+     * Why it is called out: the decision model's reason, or the failure.
+     */
+    reason?: string | null;
+    /**
+     * The object's title.
+     */
+    title: string;
+    /**
+     * Its Notion URL.
+     */
+    url?: string | null;
+};
+
+/**
+ * Which Notion columns hold a task list's task fields, by property name.
+ */
+export type NotionTaskFields = {
+    /**
+     * The assignee column.
+     */
+    assignee?: string | null;
+    /**
+     * The due date column.
+     */
+    due?: string | null;
+    /**
+     * The priority column.
+     */
+    priority?: string | null;
+    /**
+     * The status column.
+     */
+    status?: string | null;
 };
 
 /**
@@ -1294,9 +1535,23 @@ export type RunImportRequest = {
 };
 
 /**
- * Lifecycle of a gather run (one per user × source).
+ * Lifecycle of a discovery run (one per user × source).
  */
 export type RunStatus = 'running' | 'ready' | 'importing' | 'completed' | 'failed' | 'dismissed';
+
+/**
+ * What a planning run has found in the source so far.
+ */
+export type ScanCounts = {
+    /**
+     * Data sources (database tables) found.
+     */
+    dataSources: number;
+    /**
+     * Pages found.
+     */
+    pages: number;
+};
 
 export type SendChatMessagePayload = JwtPayload & {
     /**
@@ -2439,6 +2694,49 @@ export type HealthHandlerResponses = {
 
 export type HealthHandlerResponse = HealthHandlerResponses[keyof HealthHandlerResponses];
 
+export type NotionReportHandlerData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/import/notion';
+};
+
+export type NotionReportHandlerErrors = {
+    /**
+     * Internal server error
+     */
+    500: unknown;
+};
+
+export type NotionReportHandlerResponses = {
+    200: NotionImportReport;
+};
+
+export type NotionReportHandlerResponse = NotionReportHandlerResponses[keyof NotionReportHandlerResponses];
+
+export type CancelNotionHandlerData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/import/notion/cancel';
+};
+
+export type CancelNotionHandlerErrors = {
+    /**
+     * Internal server error
+     */
+    500: unknown;
+};
+
+export type CancelNotionHandlerResponses = {
+    /**
+     * Where the import stands after cancelling
+     */
+    200: NotionImportReport;
+};
+
+export type CancelNotionHandlerResponse = CancelNotionHandlerResponses[keyof CancelNotionHandlerResponses];
+
 export type RunImportHandlerData = {
     body: RunImportRequest;
     path?: never;
@@ -2476,7 +2774,7 @@ export type DiscoverHandlerData = {
 
 export type DiscoverHandlerErrors = {
     /**
-     * Unknown import source
+     * Unknown import source or discovery not supported
      */
     400: unknown;
     /**
@@ -2493,80 +2791,6 @@ export type DiscoverHandlerResponses = {
 };
 
 export type DiscoverHandlerResponse = DiscoverHandlerResponses[keyof DiscoverHandlerResponses];
-
-export type DismissRunHandlerData = {
-    body?: never;
-    path: {
-        /**
-         * Import source
-         */
-        source: string;
-    };
-    query?: never;
-    url: '/import/runs/{source}/dismiss';
-};
-
-export type DismissRunHandlerErrors = {
-    /**
-     * Unknown import source
-     */
-    400: unknown;
-    /**
-     * Internal server error
-     */
-    500: unknown;
-};
-
-export type DismissRunHandlerResponses = {
-    /**
-     * Dismissed
-     */
-    204: void;
-};
-
-export type DismissRunHandlerResponse = DismissRunHandlerResponses[keyof DismissRunHandlerResponses];
-
-export type RetryGatherHandlerData = {
-    body?: never;
-    path: {
-        /**
-         * Import source
-         */
-        source: string;
-    };
-    query?: never;
-    url: '/import/runs/{source}/retry';
-};
-
-export type RetryGatherHandlerErrors = {
-    /**
-     * Unknown import source
-     */
-    400: unknown;
-    /**
-     * AI allowance exhausted
-     */
-    402: AiAdmissionErrorBody;
-    /**
-     * Internal server error
-     */
-    500: unknown;
-    /**
-     * AI usage validation unavailable; retry later
-     */
-    503: AiAdmissionErrorBody;
-};
-
-export type RetryGatherHandlerError = RetryGatherHandlerErrors[keyof RetryGatherHandlerErrors];
-
-export type RetryGatherHandlerResponses = {
-    /**
-     * Retry accepted (idempotent)
-     */
-    204: void;
-};
-
-export type RetryGatherHandlerResponse = RetryGatherHandlerResponses[keyof RetryGatherHandlerResponses];
 
 export type GetStateHandlerData = {
     body?: never;

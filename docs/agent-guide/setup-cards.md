@@ -24,7 +24,8 @@ Every other app opens Pipedream's Connect UI inside the dialog. A connected row
   the current view, with an unsent prompt such as "Import my most recent
   issues and tasks from Jira into Macro tasks.". Private instructions tell the
   agent to list candidates and ask before creating anything, and never to
-  write to the source. Notion pages import through `ImportNotionPage`; Linear
+  write to the source. Notion opens the workspace importer instead ("Import my Notion workspace
+into Macro." → `ImportFromNotion`, which plans and presents a review); Linear
   and Slack items are checked against and recorded in the import ledger
   (`ListImportEntities`, `CreateImportEntity`) so nothing imports twice.
 - Files also offers **Upload files** and **Upload a folder** (Drive's own

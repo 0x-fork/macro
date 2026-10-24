@@ -531,9 +531,13 @@ async fn run() -> anyhow::Result<()> {
     // against it, so the two must be the same string.
     let egress_base_url = AgentHarnessEgressUrl::new()?.to_string();
 
+    // Notion imports started from sessions, public MCP, and the cognition
+    // routes share these jobs and hand their runs over on shutdown.
+    let import_jobs = ai_tools::ImportJobs::new();
     let tool_context = ai_tools::build_tool_service_context_from_env(
         pool.clone(),
         event_broker_tracker.clone(),
+        import_jobs.clone(),
         config.enable_ai_usage_enforcement,
         config.ai_pricing(),
         recorder.clone(),
@@ -544,6 +548,7 @@ async fn run() -> anyhow::Result<()> {
         agent_harness_service::cognition::config::Config::from_env()?,
         pool.clone(),
         event_broker_tracker.clone(),
+        import_jobs.clone(),
     )
     .await
     .context("failed to compose cognition APIs")?;
@@ -1492,14 +1497,32 @@ async fn run() -> anyhow::Result<()> {
         entity_access.clone(),
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
     ));
+    let notification_service = Arc::new(agent_session::domain::notifications::NotificationService(
+        Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+            pool.clone(),
+        )),
+    ));
+    let app_connections = agent_harness::inbound::app_connections::app_connections_router(
+        agent_harness::inbound::app_connections::AppConnectionsRouterState::new(
+            Arc::new(
+                agent_harness::domain::app_connections::AppConnectedContinuation::new(
+                    Arc::new(session_repo.clone()),
+                    Arc::new(
+                        agent_harness::outbound::connected_apps::PipedreamConnectedApps::new(
+                            Arc::clone(&mcp_connections),
+                        ),
+                    ),
+                    Arc::clone(&notification_service),
+                ),
+            ),
+            entity_access.clone(),
+            MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
+        ),
+    );
     let notification_ingress = agent_session::inbound::notifications::notification_router(
         agent_session::inbound::notifications::NotificationRouterState {
             authorization: MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
-            service: Arc::new(agent_session::domain::notifications::NotificationService(
-                Arc::new(agent_session::outbound::notifications::PgNotificationStore(
-                    pool.clone(),
-                )),
-            )),
+            service: notification_service,
         },
     );
     let http_shutdown = service_shutdown.clone();
@@ -1521,6 +1544,7 @@ async fn run() -> anyhow::Result<()> {
             .with_capabilities(capabilities)
             .with_pull_requests(pull_requests)
             .with_tool_approvals(tool_approval_answers)
+            .with_app_connections(app_connections)
             .with_code_executions(code_executions)
             .with_notifications(notification_ingress)
             .with_cognition(cognition_router)
@@ -1929,6 +1953,9 @@ async fn run() -> anyhow::Result<()> {
             tracing::error!(error = ?error, "agent harness task failed during shutdown");
         }
     }
+
+    // Running imports stop at their next checkpoint and hand their runs over.
+    import_jobs.hand_over().await;
 
     service_shutdown.cancel();
     cognition_runtime.shutdown().await;

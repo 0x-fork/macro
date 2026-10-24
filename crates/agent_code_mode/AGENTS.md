@@ -23,6 +23,13 @@ stacks. Process isolation belongs to
 - `src/domain/user.rs`: `UserCodeMode`, runs as an authenticated user with no
   session, journal or reviews; shares outcome validation with the session path.
 - `src/domain/reviews.rs`: review validation, revisions, claims and outcomes.
+  `decide_for_session` (the `DecideReview` tool, `inbound/reviews.rs`) is the
+  agent deciding on the account holder's word in chat: a turn they prompted,
+  never a System turn (per `ReviewSession::prompter`), and a Submit only once
+  the action is `approvable`.
+  An import review only starts its write: its `review.decided` is quiet, and
+  its `review.settled` comes from the import when the write ends; only an
+  import that could not start settles here.
 - `src/domain/documentation.rs`: Jev selection of generated SDK docs, rendered
   into the per-turn prompt (top four, 48 KiB) or returned for a
   `DescribeCodeTools` `task` (every relevant entity, 32 KiB).

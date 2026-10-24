@@ -342,6 +342,7 @@ pub async fn run() -> anyhow::Result<()> {
     let consumer_cancellation_token = CancellationToken::new();
     let consumer_tracker = TaskTracker::new();
     let event_broker_tracker = TaskTracker::new();
+    let import_jobs = ai_tools::ImportJobs::new();
     let macro_event_broker = MacroEventBrokerService::new(
         KafkaEventPublisher::new(config.kafka_brokers.as_ref())
             .context("failed to create kafka event publisher")?,
@@ -1369,6 +1370,7 @@ pub async fn run() -> anyhow::Result<()> {
     let mut macro_agent_tool_context = ai_tools::build_tool_service_context_from_env(
         db.clone(),
         event_broker_tracker.clone(),
+        import_jobs.clone(),
         config.enable_ai_usage_enforcement,
         config.ai_pricing(),
         ai_usage::pg_recorder_with_enforcement(db.clone(), config.enable_ai_usage_enforcement),
@@ -2354,6 +2356,9 @@ pub async fn run() -> anyhow::Result<()> {
     consumer_tracker.close();
     consumer_tracker.wait().await;
     tracing::info!("event consumers stopped");
+
+    // Running imports stop at their next checkpoint and hand their runs over.
+    import_jobs.hand_over().await;
 
     tracing::info!("waiting for event broker publishes to drain");
     event_broker_tracker.close();

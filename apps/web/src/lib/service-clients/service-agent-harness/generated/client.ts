@@ -17,6 +17,7 @@ import type {
   AiAdmissionErrorBody,
   AnswerToolApprovalRequest,
   AnswerToolApprovalResponse,
+  AppConnectedRequest,
   CodingPreferencesBody,
   ControlRequest,
   ControlResponse,
@@ -1263,6 +1264,87 @@ export const deleteAgentSession = async (
     status: res.status,
     headers: res.headers,
   } as deleteAgentSessionResponse;
+};
+
+/**
+ * The harness produces an `app.connected` system event, which the transcript
+shows as no prompt; it starts a turn once the session is idle.
+ * @summary Continue the session now that its owner connected an app it asked for.
+ */
+export type reportAgentSessionAppConnectedResponse202 = {
+  data: void;
+  status: 202;
+};
+
+export type reportAgentSessionAppConnectedResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type reportAgentSessionAppConnectedResponse403 = {
+  data: string;
+  status: 403;
+};
+
+export type reportAgentSessionAppConnectedResponse409 = {
+  data: string;
+  status: 409;
+};
+
+export type reportAgentSessionAppConnectedResponse422 = {
+  data: string;
+  status: 422;
+};
+
+export type reportAgentSessionAppConnectedResponse500 = {
+  data: string;
+  status: 500;
+};
+
+export type reportAgentSessionAppConnectedResponseSuccess =
+  reportAgentSessionAppConnectedResponse202 & {
+    headers: Headers;
+  };
+export type reportAgentSessionAppConnectedResponseError = (
+  | reportAgentSessionAppConnectedResponse401
+  | reportAgentSessionAppConnectedResponse403
+  | reportAgentSessionAppConnectedResponse409
+  | reportAgentSessionAppConnectedResponse422
+  | reportAgentSessionAppConnectedResponse500
+) & {
+  headers: Headers;
+};
+
+export type reportAgentSessionAppConnectedResponse =
+  | reportAgentSessionAppConnectedResponseSuccess
+  | reportAgentSessionAppConnectedResponseError;
+
+export const getReportAgentSessionAppConnectedUrl = (sessionId: string) => {
+  return `/agent-sessions/${sessionId}/app-connections`;
+};
+
+export const reportAgentSessionAppConnected = async (
+  sessionId: string,
+  appConnectedRequest: AppConnectedRequest,
+  options?: RequestInit
+): Promise<reportAgentSessionAppConnectedResponse> => {
+  const res = await fetch(getReportAgentSessionAppConnectedUrl(sessionId), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(appConnectedRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: reportAgentSessionAppConnectedResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as reportAgentSessionAppConnectedResponse;
 };
 
 /**

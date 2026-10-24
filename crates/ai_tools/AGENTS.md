@@ -19,6 +19,21 @@ execution, display) that don't belong to a single domain.
 - `src/deferred.rs`: tools whose result arrives after the turn (long-running
   work).
 - `src/tool_context.rs` + `src/tool_context/`: per-tool context extraction.
+- `src/import_workspace.rs`: `ToolEntityCreator` as the import crate's
+  `WorkspaceWriter` (folders, documents, tasks, databases as Macro AI for the
+  user), sharing its document/task paths with `EntityCreator`; Notion bodies
+  go through `DocumentCreator::create_notion_markdown`. `share_with_team`
+  shares a folder through `ProjectService::edit_project` (edit level) and a
+  document through `DocumentService::set_team_share`; Notion tasks are created
+  unshared and reached through their shared folder, while single tracked tasks
+  (Linear) stay team-shared at creation.
+- `src/import_jobs.rs`: `ImportJobs`, the shutdown token and tracker every
+  host passes to `build_tool_service_context_from_env` (or its own import
+  service) and calls `hand_over` on at shutdown, so running Notion imports
+  release their runs to another process. Those hosts build the import ledger
+  with `build_import_repo`, which wires agent-session notifications so the
+  session presenting an import's review hears when its plan is ready and
+  when its write ends.
 - `src/bin/gen_tool_schemas.rs`, `src/bin/gen_ai_request_schemas.rs`:
   schema-generation binaries the frontend consumes.
 

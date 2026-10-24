@@ -29,8 +29,8 @@ AI loop calls their tools through Pipedream's remote MCP server.
 
 - Depends on: `ai_toolset`, `mcp_toolset`, `macro_authorization`,
   `macro_user_id`.
-- Used by: `ai_tools`, `agent_egress`, `agent_harness`, `granola_sync`, `mcp_select`,
-  `services/agent_harness_service`.
+- Used by: `ai_tools`, `import_notion`, `agent_egress`, `agent_harness`,
+  `granola_sync`, `mcp_select`, `services/agent_harness_service`.
 
 ## Checks
 

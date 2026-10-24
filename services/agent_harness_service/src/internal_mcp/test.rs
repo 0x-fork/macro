@@ -204,6 +204,8 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
         assert!(instructions.contains("macro_internal.set_pull_request"));
         assert!(instructions.contains("register its URL"));
         assert!(instructions.contains(prompt::pull_requests::READY_PULL_REQUEST));
+        assert!(instructions.contains("submit it with macro_internal.DecideReview"));
+        assert!(instructions.contains("Should I kick it off?"));
         let (status, listed) = rpc(
             app.clone(),
             Some("secret"),
@@ -230,6 +232,19 @@ async fn each_harness_gets_only_internal_tools_and_writes_only_its_session() {
                 "task_pull_requests"
             ]
         );
+        let description = |name: &str| {
+            listed["result"]["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|tool| tool["name"] == name)
+                .and_then(|tool| tool["description"].as_str())
+                .unwrap()
+                .to_owned()
+        };
+        assert!(description("PresentReview").contains("Should I kick it off?"));
+        assert!(description("DecideReview").contains("Should I kick it off?"));
+        assert!(description("DecideReview").contains("not ready yet"));
         let read_review = listed["result"]["tools"]
             .as_array()
             .unwrap()

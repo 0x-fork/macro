@@ -120,6 +120,7 @@ import { getThreadHandler } from './GetThread';
 import {
   createImportEntityHandler,
   deleteImportEntityHandler,
+  importFromNotionHandler,
   importNotionPageHandler,
   listImportEntitiesHandler,
 } from './ImportTools';
@@ -253,6 +254,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   GetTeamAvailability: getTeamAvailabilityHandler,
   CreateImportEntity: createImportEntityHandler,
   DeleteImportEntity: deleteImportEntityHandler,
+  ImportFromNotion: importFromNotionHandler,
   ImportNotionPage: importNotionPageHandler,
   GetCompany: getCompanyHandler,
   CreateCompany: createCompanyHandler,

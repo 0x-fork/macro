@@ -114,15 +114,14 @@ describe('connector import dialog', () => {
     );
   });
 
-  it("hands a ledger source to the agent too, with Macro's importer", async () => {
+  it("hands Notion to the agent's workspace importer", async () => {
     const { context, open } = setup('files', { connected: ['notion'] });
     fireEvent.click(screen.getByRole('button', { name: 'Import from Notion' }));
     await waitFor(() => expect(open()).toBe(false));
     expect(context.startAgentImport).toHaveBeenCalledWith(
       expect.objectContaining({
-        input:
-          'Import my most recent documents and files from Notion into my Macro Drive.',
-        instructions: expect.stringContaining('ImportNotionPage'),
+        input: 'Import my Notion workspace into Macro.',
+        instructions: expect.stringContaining('ImportFromNotion'),
       })
     );
   });
