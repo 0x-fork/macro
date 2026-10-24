@@ -354,7 +354,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
               <ViewShell.Main class="overflow-hidden">
                 <ViewTour tour={agentsTour} />
                 <main
-                  class="main touch:pt-[calc(var(--safe-top,0px)+0.5rem)]"
+                  class="main touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.5rem)] touch:[&>*]:[--mobile-content-inset-top:0px]"
                   classList={{ hidden: isTouchDevice() && mobileList() }}
                 >
                   <Show
