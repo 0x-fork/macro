@@ -36,7 +36,9 @@ function renderTool(
 ) {
   return render(() => (
     <ToolErrorContext.Provider
-      value={() => (error === undefined ? undefined : { reason: error })}
+      value={() =>
+        error === undefined ? undefined : { kind: 'failed', reason: error }
+      }
     >
       <Dynamic
         component={handler.render as Component<Record<string, unknown>>}

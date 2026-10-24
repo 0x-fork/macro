@@ -148,6 +148,7 @@ function RecordedCall(props: {
     label: props.call.name,
     status: status(),
     muted: props.call.status !== 'completed',
+    stopped: false,
     trailing: props.call.outputOmitted
       ? 'Result omitted'
       : props.call.status === 'unknown' || props.call.status === 'running'

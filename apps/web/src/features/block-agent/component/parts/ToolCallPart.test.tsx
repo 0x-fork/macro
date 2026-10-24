@@ -50,6 +50,7 @@ vi.mock('@core/component/AI/component/tool/handler', () => ({
     json: unknown;
     response?: { json: unknown };
     error?: string;
+    stopped?: boolean;
     isComplete: boolean;
     renderContext: {
       renderContext: { grouped?: boolean; isStreaming: boolean };
@@ -59,6 +60,8 @@ vi.mock('@core/component/AI/component/tool/handler', () => ({
       data-testid="macro-tool"
       data-response={JSON.stringify(props.response?.json)}
       data-error={props.error}
+      data-stopped={String(props.stopped ?? false)}
+      data-complete={String(props.isComplete)}
       data-grouped={String(props.renderContext.renderContext.grouped)}
       data-streaming={String(props.renderContext.renderContext.isStreaming)}
     >
@@ -414,25 +417,31 @@ describe('ToolCallPart Macro tools', () => {
       { name: 'ReadContent', status: 'running', ...overrides }
     );
 
-  it('keeps a running Macro tool on the compact active row', () => {
+  it('renders a running Macro tool through its renderer while it runs', () => {
     const rendered = render(() => (
       <ToolCallPart part={readContent()} context={context(true)} />
     ));
-    expect(rendered.getByTestId('title').textContent).toBe('ReadContent');
-    expect(rendered.getAllByTestId('tool-card')).toHaveLength(1);
-    expect(rendered.getByTestId('tool-card').dataset.expandable).toBe('false');
+    const richTool = rendered.getByTestId('macro-tool');
+    expect(richTool.dataset.complete).toBe('false');
+    expect(richTool.dataset.streaming).toBe('true');
+    expect(richTool.dataset.stopped).toBe('false');
+    expect(richTool.dataset.response).toBeUndefined();
+    expect(rendered.queryByTestId('tool-card')).toBeNull();
   });
 
   it('marks a Macro call cut off by the turn as stopped', () => {
     // The turn ended with this call still `running` in the log; it settles
-    // and, with no response to show, keeps the labelled card.
+    // and renders through its renderer as stopped, with no response.
     const rendered = render(() => (
       <ToolCallPart part={readContent()} context={context(false)} />
     ));
-    expect(rendered.getByTestId('tool-card').dataset.status).toBe('completed');
+    const richTool = rendered.getByTestId('macro-tool');
+    expect(richTool.dataset.stopped).toBe('true');
+    expect(richTool.dataset.complete).toBe('true');
+    expect(richTool.dataset.streaming).toBe('false');
   });
 
-  it('keeps a stopped call labelled even when it already has renderable output', () => {
+  it('withholds the output of a stopped call even when it would render', () => {
     const rendered = render(() => (
       <ToolCallPart
         part={readContent({
@@ -446,8 +455,9 @@ describe('ToolCallPart Macro tools', () => {
         context={context(false)}
       />
     ));
-    expect(rendered.getByTestId('trailing').textContent).toBe('Stopped');
-    expect(rendered.queryByTestId('macro-tool')).toBeNull();
+    const richTool = rendered.getByTestId('macro-tool');
+    expect(richTool.dataset.stopped).toBe('true');
+    expect(richTool.dataset.response).toBeUndefined();
   });
 
   it('reuses the registered result renderer without an outer tool disclosure', () => {

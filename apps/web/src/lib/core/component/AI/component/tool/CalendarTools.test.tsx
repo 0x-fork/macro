@@ -8,7 +8,7 @@ import {
   createConfirmedCalendarEventHandler,
   readCalendarEventHandler,
 } from './CalendarTools';
-import { ToolErrorContext, type ToolFailure } from './ToolRenderer';
+import { type ToolEnding, ToolErrorContext } from './ToolRenderer';
 
 const openToolCalendarEvent = vi.hoisted(() => vi.fn());
 vi.mock('./calendar/open-tool-event', () => ({
@@ -96,7 +96,7 @@ function tool(name: keyof typeof handlers, data: unknown, response?: unknown) {
 function failedTool(
   name: keyof typeof handlers,
   data: unknown,
-  failure: ToolFailure
+  failure: ToolEnding
 ) {
   return render(() => (
     <ToolErrorContext.Provider value={() => failure}>
@@ -151,7 +151,7 @@ it('keeps a failed call on its own card and reveals the reason on request', () =
   failedTool(
     'AddSharedCalendarEvent',
     { eventId: '01992d2f-8444-7000-8000-000000000001' },
-    { reason }
+    { kind: 'failed', reason }
   );
   expect(screen.getByText('Add to calendar')).toBeTruthy();
   expect(screen.queryByText(reason)).toBeNull();
@@ -167,9 +167,21 @@ it('offers nothing to open on a failed call without a reason', () => {
   failedTool(
     'ReadCalendarEvent',
     { eventId: '01992d2f-8444-7000-8000-000000000001' },
-    {}
+    { kind: 'failed' }
   );
   expect(screen.getByText('Read calendar event')).toBeTruthy();
   expect(screen.getByText('Failed')).toBeTruthy();
+  expect(screen.queryByRole('button')).toBeNull();
+});
+
+it('says a call its turn stopped was stopped, not failed', () => {
+  failedTool(
+    'ReadCalendarEvent',
+    { eventId: '01992d2f-8444-7000-8000-000000000001' },
+    { kind: 'stopped' }
+  );
+  expect(screen.getByText('Read calendar event')).toBeTruthy();
+  expect(screen.getByText('Stopped')).toBeTruthy();
+  expect(screen.queryByText('Failed')).toBeNull();
   expect(screen.queryByRole('button')).toBeNull();
 });

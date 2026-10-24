@@ -22,7 +22,9 @@ function imageTool(
 ) {
   const failure = () => {
     const reason = typeof error === 'function' ? error() : error;
-    return reason === undefined ? undefined : { reason };
+    return reason === undefined
+      ? undefined
+      : { kind: 'failed' as const, reason };
   };
   return render(() => (
     <ToolErrorContext.Provider value={failure}>

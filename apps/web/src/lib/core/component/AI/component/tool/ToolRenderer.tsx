@@ -4,11 +4,16 @@ import type {
 } from '@service-cognition/generated/tools/tool';
 import { type Component, createContext, useContext } from 'solid-js';
 
-/** A finished call that failed, with the tool's own reason when it gave one. */
-export type ToolFailure = { reason?: string };
+/**
+ * A call that ended without a result: it failed, with the tool's own reason
+ * when it gave one, or its turn stopped it first.
+ */
+export type ToolEnding =
+  | { kind: 'failed'; reason?: string }
+  | { kind: 'stopped' };
 
 export const ToolErrorContext = createContext<
-  (() => ToolFailure | undefined) | undefined
+  (() => ToolEnding | undefined) | undefined
 >();
 export const useToolError = () => {
   const accessor = useContext(ToolErrorContext);
@@ -19,6 +24,8 @@ export type RenderContext = {
   renderContext: {
     isStreaming: boolean;
     grouped?: boolean;
+    /** This call is still running, so its row reads as active. */
+    running?: boolean;
     /** Whether a later part of the same assistant turn calls this tool. */
     followedBy: (name: ToolName) => boolean;
   };
