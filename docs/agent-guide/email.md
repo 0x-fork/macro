@@ -474,6 +474,10 @@ view-only links instead. Confirming inserts one link per file at the end of the
 written message, above a reply's quoted thread, and the draft autosaves; Cancel
 adds nothing. Files that fit still attach, and the same check covers files
 dropped onto the body.
+With an Outlook From, a subject over Exchange's 255-character limit stays as
+typed, the field is marked invalid, and a hint under it gives the length. Switching
+From to Outlook flags an existing long subject; Gmail senders show no hint. The
+hint does not block saving or Send.
 To forward from another inbox, open Forward, expand the forwarding envelope on
 desktop, and select a different account in From (already visible on mobile).
 Forwarded files must remain attached after switching to an owned or delegated
