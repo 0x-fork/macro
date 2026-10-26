@@ -184,7 +184,12 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   has other guests, as Google's own client does, so a solo event is one block.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
-  marks the viewer, and never store it. Each connected inbox gets its own copy
+  marks the viewer, and never store it. Calendar caches refresh only the
+  events the change log lists, so a change to how capabilities are resolved
+  leaves cached events with the old ones until each changes; ship it with a
+  migration that logs an upsert for every event it affects, as
+  `20261026184741_log_events_organized_by_a_writable_calendar.sql` does for
+  events a writable calendar organizes. Each connected inbox gets its own copy
   (entity) of an event, written through that inbox's grant, so the viewer
   organizes or attends a copy only as its inbox: another of their inboxes on the
   same event lends it nothing, and only that inbox's row is `is_self`. Mutations
