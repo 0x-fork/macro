@@ -638,6 +638,9 @@ struct FakeProvider {
     invited_as: Arc<Mutex<Vec<Vec<String>>>>,
     /// Whether reading a copy back finds it gone.
     refresh_gone: bool,
+    /// The title a copy read back still has because Google has yet to carry
+    /// the write to it, with a provider stamp older than the write's.
+    refresh_stale: Option<&'static str>,
 }
 
 impl FakeProvider {
@@ -655,6 +658,7 @@ impl FakeProvider {
             imported: Arc::new(Mutex::new(Vec::new())),
             invited_as: Arc::new(Mutex::new(Vec::new())),
             refresh_gone: false,
+            refresh_stale: None,
         }
     }
 
@@ -756,7 +760,13 @@ impl CalendarMutationProvider for FakeProvider {
         if self.refresh_gone {
             return Ok(None);
         }
-        Ok(Some(self.echo(target)))
+        let mut copy = self.echo(target);
+        if let Some(title) = self.refresh_stale {
+            copy.event.title = title.to_string();
+            copy.event.attendees = Vec::new();
+            copy.event.updated_at -= Duration::hours(1);
+        }
+        Ok(Some(copy))
     }
 
     async fn delete_event(

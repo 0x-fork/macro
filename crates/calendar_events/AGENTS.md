@@ -177,11 +177,21 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   through the copy on the organizer's calendar
   (`CalendarEventMutationTarget::organizer_copy_calendar_id`,
   `src/domain/mutations/organizer_copy.rs`), then the addressed copy is read
-  back (`CalendarMutationProvider::refresh_event`) so the entity shows the
-  change before sync; reminders, availability and answers stay on the
-  addressed copy. A new event lists the inbox as an accepted guest on its
-  primary calendar and on Outlook, but on another Google calendar only when it
-  has other guests, as Google's own client does, so a solo event is one block.
+  back (`CalendarMutationProvider::refresh_event`); reminders, availability
+  and answers stay on the addressed copy, written before the organizer's
+  copy. Google carries the change to the invitation 15 to 30 seconds later,
+  so the read-back is usually stale: the response takes the meeting from the
+  organizer copy's echo, and the Postgres upsert lets a user edit through the
+  organizer's copy write the meeting's title, description, location and
+  visibility (stamped in `calendar_events.content_updated_at`) and its whole
+  schedule, guests included. The canonical copy retakes that content only
+  once it is at least as fresh, and until then `fetch_source_contents` serves
+  every older copy with it, since the web shows a copy's own title. Only a
+  user edit starts this; a sync of the organizer's copy leaves content to the
+  canonical copy as before. A new event lists the inbox as an accepted guest
+  on its primary calendar and on Outlook, but on another Google calendar only
+  when it has other guests, as Google's own client does, so a solo event is
+  one block.
 - `viewer_can` is viewer-relative, like an attendee's `is_self`: resolve it with
   `ActorInboxes::mark_event` and the copy's source link wherever a read path
   marks the viewer, and never store it. Calendar caches refresh only the

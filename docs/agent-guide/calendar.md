@@ -635,10 +635,13 @@ every copy. A new event on a calendar other than the primary lists its creator a
 when it has other guests, as Google's own client does, so an event of one's own shows as one
 block in Google. With guests, Google also invites the creator's primary calendar; Macro shows
 both copies as one event, sends the organizer's changes and Delete through the copy on the
-secondary calendar, and keeps reminders and answers on the invitation. To verify, create an
-event on a secondary calendar with no guests and another with a guest, open each (no `Only the
-organizer can change this event.`), change the title, add a guest, then delete it, and check
-Google: the first shows once, and both disappear from every calendar after the delete.
+secondary calendar, and keeps reminders and answers on the invitation. Google takes 15 to 30
+seconds to carry the organizer's changes to that invitation; Macro shows them at once and never
+falls back to the old title, description or guests meanwhile. To verify, create an event on a
+secondary calendar with no guests and another with a guest, open each (no `Only the organizer
+can change this event.`), change the title, add a guest, and watch the chip and details for 40
+seconds (the new values must stay), then delete it, and check Google: the first shows once, and
+both disappear from every calendar after the delete.
 The details header's `Download .ics` icon button, beside `Copy event`, saves the event as an
 iCalendar file named after its title, so it can be passed on or added to another calendar. The
 file holds the series (its repeat rule, in the event's original time zone), title, description
