@@ -15,6 +15,7 @@ export function MeetingReference(props: {
   link: DocumentReference;
   documentId: string;
   onOpenCalendar?: () => void;
+  onRetry?: () => void;
 }) {
   const occurrenceKey = () =>
     props.link.occurrenceKey === 'single'
@@ -22,6 +23,7 @@ export function MeetingReference(props: {
       : props.link.occurrenceKey;
   const resolved = () => resolveReferencePreview(props.link);
   const event = () => resolved()?.event;
+  const unresolved = () => typeof props.link.canViewMeeting !== 'boolean';
   const [detailsOpen, setDetailsOpen] = createSignal(false);
   const title = () => event()?.title || props.link.eventTitle;
   const date = () => {
@@ -54,7 +56,11 @@ export function MeetingReference(props: {
         if (!current?.viewerEventId) {
           span.setAttr(
             'calendar.notes.reference.outcome',
-            current ? 'shared_preview' : 'unavailable'
+            unresolved()
+              ? 'unresolved'
+              : current
+                ? 'shared_preview'
+                : 'unavailable'
           );
           setDetailsOpen(true);
           return;
@@ -110,7 +116,9 @@ export function MeetingReference(props: {
             when={event()}
             fallback={
               <p class="p-4 text-sm text-ink-muted">
-                This meeting is no longer available to you.
+                {unresolved()
+                  ? 'Meeting details are temporarily unavailable. Please try again.'
+                  : 'This meeting is no longer available to you.'}
               </p>
             }
           >
@@ -122,7 +130,12 @@ export function MeetingReference(props: {
               />
             )}
           </Show>
-          <div class="flex justify-end p-3">
+          <div class="flex justify-end gap-2 p-3">
+            <Show when={unresolved() && props.onRetry}>
+              <Button variant="ghost" onClick={props.onRetry}>
+                Retry
+              </Button>
+            </Show>
             <Button variant="ghost" onClick={() => setDetailsOpen(false)}>
               Close
             </Button>
