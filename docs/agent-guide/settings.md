@@ -83,16 +83,7 @@ Notifications**. Select **Enable** to request permission through the native
 notification provider; macOS uses its system permission dialog. The web prompt
 continues to say **Enable Browser Notifications** and uses browser permissions.
 Select **Hide** to dismiss the prompt. It waits in the same region as other
-prompts, one card at a time. It steps aside while a popover, dialog, drawer, or
-sheet is open (the calendar event details, for example). It also waits while an
-email thread or the email composer is open, and on touch devices while search
-results are open, since their last controls sit where the prompt would. On
-desktop it waits while a channel, DM or agent conversation shows its composer at
-the bottom of a pane, and while a call is on screen (its controls, Open chat and
-the chat composer sit in that corner). On every device it also waits while a
-composer's `@`, `:` or `/` menu (or its skills, snippets, tags or GIF picker) is
-open, since those open upward over the prompt. It comes back once none of them
-is on screen, for example after you leave the call view or end the call.
+prompts, one card at a time.
 
 ### Notification snoozes
 
