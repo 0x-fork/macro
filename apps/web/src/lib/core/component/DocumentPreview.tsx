@@ -329,7 +329,7 @@ const calendarTimeFormat = new Intl.DateTimeFormat(undefined, {
 
 /** One compact local-time schedule line for a calendar mention preview. */
 export function calendarPreviewSchedule(
-  event: PreviewCalendarEventAccess['event']
+  event: Pick<PreviewCalendarEventAccess['event'], 'time'>
 ): string | undefined {
   if (event.time.kind === 'allDay') {
     const start = parseLocalDate(event.time.startDate);
@@ -364,12 +364,14 @@ function heldOnCalendarLabel(
 }
 
 /** Meeting-level rows of the calendar mention hover card. */
-function CalendarEventPreviewDetails(props: {
-  event: PreviewCalendarEventAccess['event'];
+export function CalendarEventPreviewDetails(props: {
+  event: Omit<PreviewCalendarEventAccess['event'], 'updatedAt'>;
   /** The mentioned event, which a read-only share copies from. */
   mentionedEventId: string;
   /** Opens the viewer's own copy; absent where the card cannot open it. */
   onOpen?: (event: MouseEvent) => void;
+  /** Team-calendar projections have no channel-share mutation capabilities. */
+  sharedActions?: boolean;
 }) {
   const organizer = () =>
     props.event.organizerName ?? props.event.organizerEmail;
@@ -455,7 +457,9 @@ function CalendarEventPreviewDetails(props: {
         </MetadataInfo>
       </Show>
       <Switch>
-        <Match when={!props.event.viewerEventId}>
+        <Match
+          when={!props.event.viewerEventId && props.sharedActions !== false}
+        >
           <SharedEventActions
             eventId={props.mentionedEventId}
             title={props.event.title}
