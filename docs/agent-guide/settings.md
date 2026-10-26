@@ -154,6 +154,10 @@ grants a Pro seat (an enterprise team, or one with a subscription), otherwise
 An unanswered invite gets up to two reminder emails, with subjects starting
 **Reminder:**, 3 days after the last email and 4 days after that. Invites more
 than 14 days old, already-members, and invites whose sender left the team get none.
+**Pending invites** on **Team → Members** lists each invite with when it was
+last sent, for owners and admins, who can **Resend**, copy the invite link,
+or cancel it. Resend unlocks an hour after the last email, the email's rate
+limit; re-inviting the address from **Invite** follows the same rule.
 
 Under **Team → Members** (**Invite settings**), owners/admins can turn
 **Auto-join on domain** off and can restrict invitations to admins with
