@@ -33,7 +33,13 @@ function EmailSettingsPage() {
   const connectEmail = () => {
     const handle = openDialog(
       EmailProviderDialog,
-      { outlookAvailable: true, onSelect: () => handle.close() },
+      {
+        outlookAvailable: true,
+        onSelect: (provider) => {
+          press(`Connect ${provider}`);
+          handle.close();
+        },
+      },
       { owner }
     );
   };
@@ -118,7 +124,9 @@ function EventDetailsDrawer(props: { onClose: () => void }) {
             <Dialog.Title class="px-4 pb-2 text-base font-semibold">
               Add guests
             </Dialog.Title>
-            <div class="h-40 px-4">Guest picker</div>
+            <div class="h-40 px-4">
+              <Button onClick={() => press('Add guest')}>Add Priya</Button>
+            </div>
           </Dialog>
           <MobileDrawer
             side="bottom"
@@ -129,7 +137,11 @@ function EventDetailsDrawer(props: { onClose: () => void }) {
               <MobileDrawer.Overlay />
               <MobileDrawer.Content aria-label="RSVP to recurring event">
                 <MobileDrawer.Handle />
-                <div class="h-40 px-6">This event or all events</div>
+                <div class="h-40 px-6">
+                  <Button onClick={() => press('All events')}>
+                    All events
+                  </Button>
+                </div>
               </MobileDrawer.Content>
             </MobileDrawer.Portal>
           </MobileDrawer>

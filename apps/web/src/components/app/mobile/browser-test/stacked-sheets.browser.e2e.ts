@@ -70,6 +70,45 @@ for (const [opener, sheetName] of [
   });
 }
 
+for (const [opener, sheetName, control, result] of [
+  ['Add guests', 'Add guests', 'Add Priya', 'Add guest'],
+  ['RSVP', 'RSVP to recurring event', 'All events', 'All events'],
+  ['Delete', 'Delete event', 'Delete', 'Confirm delete'],
+]) {
+  test(`a tap on ${control} in ${sheetName} over event details presses it`, async ({
+    page,
+  }) => {
+    await page.goto('/?scenario=event');
+    const details = page.getByRole('dialog', { name: 'Weekly product sync' });
+    await settled(details);
+    await tap(page, details.getByRole('button', { name: opener }));
+    const sheet = page.getByRole('dialog', { name: sheetName });
+    await settled(sheet);
+
+    await tap(page, sheet.getByRole('button', { name: control, exact: true }));
+
+    await expect(pressed(page)).toHaveText(result);
+    await expect(details).toBeVisible();
+  });
+}
+
+test('a tap on Gmail in Connect email over Settings presses it', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=settings');
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await settled(settings);
+  await tap(page, page.getByRole('button', { name: 'Add account' }));
+  const connectEmail = page.getByRole('dialog', { name: 'Connect email' });
+  await settled(connectEmail);
+
+  await tap(page, connectEmail.getByRole('button', { name: 'Gmail' }));
+
+  await expect(pressed(page)).toHaveText('Connect GMAIL');
+  await expect(connectEmail).toHaveCount(0);
+  await expect(settings).toBeVisible();
+});
+
 test('a tap on the backdrop of event details closes it without pressing the page', async ({
   page,
 }) => {
