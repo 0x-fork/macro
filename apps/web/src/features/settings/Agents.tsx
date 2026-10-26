@@ -5,8 +5,8 @@ import {
 } from '@app/features/agents-view/core/agent-kind';
 import { AGENTS_TOUR } from '@app/features/agents-view/tour';
 import { ModelCatalogPicker } from '@core/component/AI/component/input/ModelCatalogPicker';
-import { isLargeModelCatalog } from '@core/component/AI/component/input/modelCatalog';
 import { MODEL_PRETTYNAME, Model } from '@core/component/AI/constant/model';
+import { modelLabel } from '@core/component/AI/constant/model-label';
 import { toast } from '@core/component/Toast/Toast';
 import { ENABLE_AGENT_DMS } from '@core/constant/featureFlags';
 import {
@@ -713,12 +713,15 @@ function AgentEditorPage(props: {
   const selectedCatalogOptions = () =>
     selectedModelOptions().map((model) => ({
       id: model.id,
-      label: model.name,
+      // The built-in runtime reports slugs as names; other runtimes name
+      // their own models.
+      label:
+        harnessId() === IN_MEMORY_HARNESS.id
+          ? modelLabel(model.id, model.name)
+          : model.name,
       description: model.description ?? undefined,
       group: model.group ?? undefined,
     }));
-  const selectedHarnessUsesCatalog = () =>
-    isLargeModelCatalog(selectedCatalogOptions());
   const [channelMode, setChannelMode] = createSignal<ChannelMode>(
     props.agent?.channel_scope ?? 'all'
   );
@@ -818,12 +821,14 @@ function AgentEditorPage(props: {
           <Show
             when={!query.isPending}
             fallback={
-              <SettingsSelect
-                label="Default model"
+              <ModelCatalogPicker
+                value={null}
                 options={[]}
                 placeholder="Loading models…"
-                onChange={setDefaultModelId}
-                disabled
+                onSelect={setDefaultModelId}
+                ariaLabel="Default model"
+                triggerClass="w-full justify-between"
+                pending
               />
             }
           >
@@ -865,26 +870,15 @@ function AgentEditorPage(props: {
                     </p>
                   }
                 >
-                  <Show
-                    when={selectedHarnessUsesCatalog()}
-                    fallback={
-                      <SettingsSelect
-                        label="Default model"
-                        options={selectedModelOptions()}
-                        value={selectedDefaultModelId()}
-                        onChange={setDefaultModelId}
-                      />
-                    }
-                  >
-                    <ModelCatalogPicker
-                      value={selectedDefaultModelId()}
-                      options={selectedCatalogOptions()}
-                      onSelect={setDefaultModelId}
-                      ariaLabel="Default model"
-                      triggerClass="w-full justify-between"
-                      contentClass="overflow-hidden"
-                    />
-                  </Show>
+                  <ModelCatalogPicker
+                    value={selectedDefaultModelId()}
+                    options={selectedCatalogOptions()}
+                    onSelect={setDefaultModelId}
+                    ariaLabel="Default model"
+                    triggerClass="w-full justify-between"
+                    contentClass="overflow-hidden"
+                    placement="bottom-start"
+                  />
                 </Show>
               </Show>
             </Show>

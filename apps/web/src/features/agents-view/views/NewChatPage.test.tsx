@@ -262,8 +262,6 @@ function page(
 function openAgents() {
   const trigger = screen.getByRole('button', { name: 'Agent' });
   fireEvent.keyDown(trigger, { key: 'Enter' });
-  const overview = screen.queryByRole('menuitem', { name: 'Choose model' });
-  if (overview) fireEvent.keyDown(overview, { key: 'Enter' });
   return trigger;
 }
 async function selectAgent(name: RegExp) {
@@ -339,26 +337,6 @@ describe('agent-led new conversation', () => {
     motionStyles.remove();
     vi.unstubAllGlobals();
   });
-  it.each([390, 1024])(
-    'keeps the touch picker as a single sheet at %ipx',
-    async (width) => {
-      vi.stubGlobal('innerWidth', width);
-      mocks.touch = true;
-      page();
-      fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
-      const sheet = await screen.findByRole('dialog');
-      expect(
-        within(sheet).getByRole('textbox', { name: 'Search agents and models' })
-      ).toBeTruthy();
-      expect(screen.queryByRole('menu')).toBeNull();
-      expect(screen.queryByRole('group', { name: 'Agents' })).toBeNull();
-      expect(screen.queryByRole('group', { name: 'Models' })).toBeNull();
-      fireEvent.click(
-        within(sheet).getByRole('button', { name: 'Sonnet 5.5' })
-      );
-      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    }
-  );
   it('selects a coding model from the phone sheet without hover and preserves the draft', async () => {
     mocks.touch = true;
     const send = page(true, [], false, [], 'code');
@@ -432,51 +410,17 @@ describe('agent-led new conversation', () => {
     });
     await waitFor(() => expect(document.activeElement).toBe(search));
   });
-  it('opens the full desktop catalog without search or a More step', async () => {
+  it('focuses desktop search on opening and reopening the model selector', async () => {
     page();
     for (let attempt = 0; attempt < 2; attempt++) {
       openAgents();
-      expect(
-        screen.queryByRole('textbox', { name: 'Search models' })
-      ).toBeNull();
-      expect(
-        screen.queryByRole('menuitem', { name: 'More models' })
-      ).toBeNull();
-      expect(
-        within(screen.getByRole('group', { name: 'Suggested' })).getByTitle(
-          'Sonnet 5.5'
-        )
-      ).toBeTruthy();
-      expect(screen.getByTitle('GLM 5.3 Flash')).toBeTruthy();
-      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+      const search = screen.getByRole('textbox', { name: 'Search models' });
+      await waitFor(() => expect(document.activeElement).toBe(search));
+      fireEvent.input(search, { target: { value: 'Sonnet' } });
+      expect(screen.getByTitle('Sonnet 5.5')).toBeTruthy();
+      fireEvent.keyDown(search, { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
     }
-  });
-  it('separates the desktop agent and model choices into named groups', () => {
-    page();
-    openAgents();
-    const agents = screen.getByRole('group', { name: 'Agents' });
-    const models = screen.getByRole('group', { name: 'Models' });
-    expect(screen.queryByText('Your agents')).toBeNull();
-    expect(screen.queryByText('Suggested')).toBeNull();
-    const suggested = within(models).getByRole('group', { name: 'Suggested' });
-    const anthropic = within(models).getByRole('group', { name: 'Anthropic' });
-    expect(
-      suggested.compareDocumentPosition(anthropic) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-
-    expect(
-      within(agents).getByRole('menuitem', { name: 'Create agent' })
-    ).toBeTruthy();
-    expect(
-      within(models).queryByRole('textbox', { name: 'Search models' })
-    ).toBeNull();
-    expect(
-      within(
-        within(models).getByRole('group', { name: 'Suggested' })
-      ).getByRole('menuitem', { name: 'Opus 5.5' })
-    ).toBeTruthy();
   });
   it('starts in Chat and switches to Code from the composer', async () => {
     const send = page();
@@ -575,7 +519,7 @@ describe('agent-led new conversation', () => {
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Repository' })).toBeNull();
     openAgents();
-    expect(screen.getByRole('group', { name: 'Models' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Suggested' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /Cursor/ })).toBeNull();
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
@@ -950,9 +894,7 @@ describe('agent-led new conversation', () => {
   it('clears a temporary model choice when switching to Code', async () => {
     page();
     openAgents();
-    const model = within(
-      screen.getByRole('group', { name: 'Suggested' })
-    ).getByTitle('Sonnet 5.5');
+    const model = screen.getByTitle('Sonnet 5.5');
     model.focus();
     fireEvent.keyDown(model, { key: 'Enter' });
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
@@ -973,19 +915,34 @@ describe('agent-led new conversation', () => {
       },
     ]);
     openAgents();
-    const models = within(screen.getByRole('group', { name: 'Models' }));
-    expect(screen.getByRole('group', { name: 'Your agents' })).toBeTruthy();
+    const modelsGroup = screen.getByRole('group', { name: 'Suggested' });
+    const agentsGroup = screen.getByRole('group', { name: 'Your agents' });
+    expect(
+      modelsGroup.compareDocumentPosition(agentsGroup) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.queryByRole('group', { name: 'Coding agents' })).toBeNull();
-    expect(screen.queryByRole('textbox', { name: 'Search models' })).toBeNull();
-    expect(screen.queryByRole('menuitem', { name: /More models/ })).toBeNull();
-    expect(models.getByRole('group', { name: 'Z.ai' })).toBeTruthy();
-    expect(models.getByTitle('GLM 5.3')).toBeTruthy();
-    expect(models.getByTitle('GLM 5.3 Flash')).toBeTruthy();
+    const search = screen.getByRole('textbox', { name: 'Search models' });
+    expect(screen.getByRole('menuitem', { name: /More models/ })).toBeTruthy();
+    expect(screen.queryByRole('group', { name: 'Z.ai' })).toBeNull();
+    fireEvent.input(search, { target: { value: 'GLM' } });
+    expect(screen.getByTitle('GLM 5.3')).toBeTruthy();
+    expect(screen.getByTitle('GLM 5.3 Flash')).toBeTruthy();
+    fireEvent.input(search, { target: { value: '' } });
     expect(screen.queryByRole('menuitem', { name: /Cursor/ })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /^Macro/ })).toBeNull();
-    const sonnet = within(
-      models.getByRole('group', { name: 'Suggested' })
-    ).getByTitle('Sonnet 5.5');
+    const models = within(screen.getByRole('group', { name: 'Suggested' }));
+    expect(
+      models.queryByRole('menuitem', { name: /Cursor default/ })
+    ).toBeNull();
+    expect(models.getAllByRole('menuitem').map((item) => item.title)).toEqual([
+      'Opus 5.5',
+      'Sonnet 5.5',
+      'GPT-5.6',
+      'GPT-6 Astra',
+      'Gemini 3.8 Flash',
+    ]);
+    const sonnet = models.getByTitle('Sonnet 5.5');
     expect(
       sonnet.querySelector('[data-ai-provider="anthropic"] svg')
     ).toBeTruthy();
@@ -1046,17 +1003,24 @@ describe('agent-led new conversation', () => {
       />
     ));
     openAgents();
-    const sonnet = within(
-      screen.getByRole('group', { name: 'Suggested' })
-    ).getByTitle('Sonnet 5.5');
+    const sonnet = screen.getByTitle('Sonnet 5.5');
     expect(sonnet.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(sonnet);
     fireEvent.keyDown(sonnet, { key: 'Enter' });
 
+    const search = screen.getByRole('textbox', { name: 'Search models' });
+    fireEvent.input(search, { target: { value: 'GLM' } });
     const flash = screen.getByTitle('GLM 5.3 Flash');
     expect(flash.getAttribute('aria-disabled')).toBe('true');
     fireEvent.click(flash);
-    fireEvent.keyDown(flash, { key: 'Enter' });
+    fireEvent.input(search, { target: { value: '' } });
+
+    const more = screen.getByRole('menuitem', { name: 'More models' });
+    more.focus();
+    fireEvent.keyDown(more, { key: 'ArrowRight' });
+    const extra = await screen.findByTitle('GLM 5.3 Flash');
+    expect(extra.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(extra);
     expect(onSelect).not.toHaveBeenCalled();
   });
   it('restores a preferred Macro model on a fresh composer', () => {
@@ -1077,9 +1041,7 @@ describe('agent-led new conversation', () => {
     await waitFor(() => expect(screen.getByRole('menu')).toBeTruthy());
     expect(screen.queryByTitle('Sonnet 5.5')).toBeNull();
     expect(
-      within(screen.getByRole('group', { name: 'Suggested' })).getByTitle(
-        'Gemini 3.8 Flash'
-      )
+      within(screen.getByRole('menu')).getByTitle('Gemini 3.8 Flash')
     ).toBeTruthy();
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
@@ -1134,29 +1096,6 @@ describe('agent-led new conversation', () => {
       );
     }
   );
-  it('sends the effort chosen with the separate speedometer slider', async () => {
-    const send = page(true, [], false, [], 'code');
-    const models = await hoverAgent('Cursor');
-    fireEvent.keyDown(models.getByRole('menuitem', { name: /^GPT-5/ }), {
-      key: 'Enter',
-    });
-    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
-    fireEvent.keyDown(screen.getByRole('button', { name: /^Effort:/ }), {
-      key: 'Enter',
-    });
-    const slider = screen.getByRole('slider', { name: 'Reasoning effort' });
-    fireEvent.keyDown(slider, { key: 'ArrowRight' });
-    expect(slider.getAttribute('aria-valuetext')).toBe('Ultra');
-    fireEvent.keyDown(slider, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-    expect(send).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        modelOverride: 'gpt-5',
-        effortOverride: { configId: 'cursor_effort', value: 'ultra' },
-      })
-    );
-  });
   it('passes opaque effort and clears it with the model override after sending', async () => {
     const send = page(true, [], false, [], 'code');
     const models = await hoverAgent('Cursor');
@@ -1170,9 +1109,8 @@ describe('agent-led new conversation', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
     mocks.capabilitiesPending = true;
     expect(screen.getByRole('button', { name: 'Agent' }).title).toContain(
-      'GPT-5'
+      'GPT-5 · Ultra'
     );
-    expect(screen.getByRole('button', { name: 'Effort: Ultra' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     expect(send).toHaveBeenLastCalledWith(
       expect.objectContaining({
