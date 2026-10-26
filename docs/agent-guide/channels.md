@@ -810,9 +810,14 @@ Cache misses, HTTP/GraphQL failures, and failures to load an uncached continuati
 still show errors and retry controls; background refresh retries continue.
 
 Right-clicking a favorite opens the same menu as its channel's row in the
-sections below — `Mark Read`, `Unfavorite`, `Mute notifications`, `Copy Link`,
+sections below — `Mark Read`, `Open in new split`, `Unfavorite`,
+`Mute notifications`, `Copy Link`,
 and the label actions when channel labels are enabled — and focuses the
 favorite row rather than the channel's own row.
+`Open in new split` is available for favorites, channels, and DMs on desktop.
+It follows the shared navigation behavior: a conversation already shown inline
+is focused with a `Content already open` toast. The action is hidden on phones
+and disabled when there is no room for another split.
 
 ### Threads tab
 
@@ -1243,7 +1248,8 @@ conversation renders an inline detail whose top bar holds the channel avatar
 and name, the same inset tab strip, live viewer avatars, and the `Call` and
 `Ask Macro` buttons. An ellipsis follows the name — after the breadcrumb where
 the host supplies one, as in Home — and opens the same entity actions as
-right-clicking the conversation's rail row: `Rename`, `Set channel picture`,
+right-clicking the conversation's rail row: `Open in new split` (when available),
+`Rename`, `Set channel picture`,
 `Remove channel picture` (only when the channel has one),
 `Favorite`/`Unfavorite`, `Snooze notifications…`, `Mute notifications`,
 `Remind me`, `Copy Link`, `Copy ID`. A channel can therefore be favorited or

@@ -252,6 +252,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   feature-specific query orchestration with its owning feature.
 - Refresh the channel list's bounded unread edge when opening a conversation,
   including an empty unread result after a read on another device.
+- Keep channel rail and title menus on `CHANNEL_ACTION_VIEW_CONTEXT`, including
+  the shared desktop `Open in new split` action and its mobile/capacity guards.
 - Route supported move, trash, restore, permanent-delete, duplicate, and share-policy
   writes through `queries/storage/entity-mutations` when GraphQL Soup is enabled;
   never retry failed GraphQL writes through REST. Preserve non-owner history removal
