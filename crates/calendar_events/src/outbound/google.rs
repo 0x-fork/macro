@@ -1240,6 +1240,30 @@ impl<G: GoogleRequestGate> CalendarMutationProvider for GoogleCalendarClient<G> 
         fields(provider_calendar_id = %target.provider_calendar_id),
         err
     )]
+    async fn refresh_event(
+        &self,
+        access_token: &str,
+        target: &ProviderCalendarTarget,
+        master_provider_event_id: &str,
+    ) -> Result<Option<CalendarEventUpsert>, CalendarProviderError> {
+        match self
+            .refresh_series(access_token, target, master_provider_event_id, None)
+            .await?
+        {
+            SeriesOutcome::Refreshed(upsert) => Ok(Some(*upsert)),
+            SeriesOutcome::Gone => Ok(None),
+            SeriesOutcome::Malformed => Err(CalendarProviderError::new(
+                CalendarProviderErrorKind::Permanent,
+                "Google Calendar returned a malformed series",
+            )),
+        }
+    }
+
+    #[tracing::instrument(
+        skip(self, access_token, target),
+        fields(provider_calendar_id = %target.provider_calendar_id),
+        err
+    )]
     async fn delete_event(
         &self,
         access_token: &str,

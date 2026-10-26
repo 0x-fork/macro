@@ -222,6 +222,7 @@ fn on_outlook(mut repo: FakeRepo) -> FakeRepo {
         link_id: SELF_LINK,
         email: "self@example.com".to_string(),
         provider: CalendarProvider::Outlook,
+        writable_calendar_ids: Vec::new(),
     }]);
     repo
 }
