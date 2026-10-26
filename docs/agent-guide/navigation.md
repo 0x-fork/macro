@@ -47,6 +47,23 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Browser cache ownership prefers a visible tab. When the owner hides, its engine
+cooperatively drains and closes storage; if every app tab is hidden, storage parks
+without retiring their clients or reloading pages. Background cache work waits.
+Returning to any tab opens the same database in a visible owner. A visible owner
+is not moved just because another visible window gets focus. Reads can wait for
+normal warmup; if foreground handoff/resume exceeds one second, ordinary queries
+use network fallback while cache-only reads never forward. Writes and received
+mutation confirmations wait for storage instead of being sent twice.
+
+Verify the all-hidden case without activating the former owner: no held physical
+owner lock after parking, preserved generation/queue, and successful reads/writes
+from a returning tab. Also verify a pending HTTP response settling after parking
+and multiple surviving clients. A drain that Safari has already suspended still
+waits for that worker to resume; no deadline kills it or steals its lock. Lifecycle
+telemetry uses `park-started`, `parked`, `unpark-started`, `unpark-completed`, and
+`visibility-handoff-*` owner events.
+
 Safari can also restart the SharedWorker when its creating tab closes, leaving
 another tab's port alive but its coordinator registrations gone. The surviving
 page must re-register without a reload or cache wipe. Open two tabs, close the
@@ -55,6 +72,12 @@ Repeat through another handoff and while requests are pending. Interrupted
 optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
 `ownerEvent: coordinator-restarted` distinguishes this from engine replacement
 or a BFCache restore.
+
+The same write-safety rule applies when an owner navigates away without restarting
+the coordinator: a surviving tab's enqueue may be committed even if its reply was
+lost. It must report an uncertain outcome, not retry or fall through to a second
+API write. Verify this lost-reply case only with an isolated synthetic fixture,
+not by injecting mutation failures into a dev or production account.
 
 ## Android system navigation and sharing
 
