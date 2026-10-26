@@ -1,3 +1,4 @@
+import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
 import {
   AccessRequestError,
   DirectAccessView,
@@ -14,7 +15,6 @@ import {
 import type { MeetingAccessState } from '@app/features/calendar-notes/core/types';
 import { DocumentMeetingNotes } from '@app/features/calendar-notes/document-meeting-notes';
 import {
-  fetchPipelineSharePermissions,
   updatePipelineSharePermissions,
   updatePipelineTeamShare,
 } from '@app/features/crm/sharing-adapter';
@@ -75,32 +75,29 @@ import IconEdit from '@phosphor/pencil.svg';
 import UserCircle from '@phosphor/user-circle.svg';
 import UsersIcon from '@phosphor/users.svg';
 import IconX from '@phosphor/x.svg';
-import {
-  fetchAgentSessionSharePermissions,
-  updateAgentSessionSharePermissions,
-} from '@queries/agent-session/share-permissions';
+import { updateAgentSessionSharePermissions } from '@queries/agent-session/share-permissions';
 import {
   setCallRecordTeamShareCache,
   sharePermissionFromCallRecord,
   updateCallTeamShare,
   useCallRecordQuery,
 } from '@queries/call/call';
+import { updateInitiativeSharePermissions } from '@queries/initiative/share-permissions';
 import {
-  fetchInitiativeSharePermissions,
-  updateInitiativeSharePermissions,
-} from '@queries/initiative/share-permissions';
-import {
-  getDatabaseSharePermissions,
-  updateDatabaseSharePermissions,
-} from '@queries/storage/databases';
+  fetchSharePermissions,
+  invalidateSharePermissions,
+  prefetchShareChannelNames,
+  prefetchSharePermissions,
+  shareChannelNamesQueryOptions,
+  sharedChannelIds,
+  sharePermissionsQueryOptions,
+} from '@queries/share/share-permissions';
+import { updateDatabaseSharePermissions } from '@queries/storage/databases';
 import {
   updateEntitySharePolicy,
   usesGraphqlSharePolicy,
 } from '@queries/storage/entity-mutations';
-import {
-  getFormSharePermissions,
-  updateFormSharePermissions,
-} from '@queries/storage/forms';
+import { updateFormSharePermissions } from '@queries/storage/forms';
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import { cognitionApiServiceClient } from '@service-cognition/client';
 import {
@@ -112,6 +109,7 @@ import type { LinkShare } from '@service-storage/generated/schemas/linkShare';
 import type { SharePermissionV2ChannelSharePermissions } from '@service-storage/generated/schemas/sharePermissionV2ChannelSharePermissions';
 import { createCallback } from '@solid-primitives/rootless';
 import { useNavigate } from '@solidjs/router';
+import { useQuery, useQueryClient } from '@tanstack/solid-query';
 import {
   Button,
   CopyButton,
@@ -127,12 +125,13 @@ import {
   type Component,
   type ComponentProps,
   createMemo,
-  createResource,
   createSignal,
   For,
+  type JSX,
   Match,
   onCleanup,
   onMount,
+  type ParentProps,
   Show,
   Switch,
 } from 'solid-js';
@@ -189,30 +188,6 @@ export function shareLevelsFor(
   itemType: ShareItemType
 ): readonly AccessLevel[] | undefined {
   return itemType === 'form' ? ['view', 'edit'] : undefined;
-}
-
-async function fetchSharePermissions(id: string, itemType: ShareItemType) {
-  if (itemType === 'crm_pipeline') return fetchPipelineSharePermissions(id);
-  if (itemType === 'agent_session') {
-    return fetchAgentSessionSharePermissions(id);
-  }
-  if (itemType === 'initiative') {
-    return fetchInitiativeSharePermissions(id);
-  }
-  if (itemType === 'database') return getDatabaseSharePermissions(id);
-  if (itemType === 'form') return getFormSharePermissions(id);
-  if (itemType === 'chat') {
-    return cognitionApiServiceClient.getChatPermissions({ id });
-  }
-  if (itemType === 'document') {
-    return storageServiceClient.getDocumentPermissions({ document_id: id });
-  }
-  if (itemType === 'project') {
-    if (id === 'trash') {
-      return;
-    }
-    return storageServiceClient.projects.getPermissions({ id });
-  }
 }
 
 const SHARE_LINK_SUBTEXT =
@@ -313,6 +288,7 @@ const accessLevelText = (accessLevel?: AccessLevel | null) => {
 
 const [refetchArray, setRefetchArray] = createSignal<(() => void)[]>([]);
 export const refetchDocumentShareButtonResource = () => {
+  invalidateSharePermissions();
   const refetchArray_ = refetchArray();
   if (refetchArray_.length === 0) {
     console.warn('no document share permission refetch functions initialized');
@@ -423,6 +399,8 @@ interface LinkSharingControlsProps {
   setLinkShareAccessLevel: (accessLevel: AccessLevel | null) => void;
   copyLink: () => void;
   teamShare?: TeamShareControls;
+  /** The current link setting is still loading; don't show it as off. */
+  loading?: boolean;
 }
 
 /** Owner-only explicit team sharing, present only for entity types that support it. */
@@ -529,60 +507,135 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
   };
 
   return (
-    <div class="flex flex-col gap-3 p-4 text-sm text-ink">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="font-medium">{scopeCopy().title}</span>
-          <Tooltip label={shareStatus().tooltip}>
-            <div
-              class={cn(
-                'flex items-center justify-center rounded-xl border px-2 py-0.5',
-                shareStatus().label === 'Just me'
-                  ? 'border-edge-muted bg-edge-muted text-ink-extra-muted'
-                  : 'border-accent/30 bg-accent/10 text-accent'
-              )}
-            >
-              <span class="text-xs font-medium whitespace-nowrap">
-                {shareStatus().label}
-              </span>
-            </div>
-          </Tooltip>
-        </div>
-        <Tabs
-          touch="segmented"
-          aria-label="Link sharing scope"
-          size="sm"
-          value={scope()}
-          options={LINK_SHARE_SCOPE_OPTIONS}
-          onChange={props.setLinkShareScope}
-        />
-      </div>
-      <p class="text-sm text-ink-muted">{scopeCopy().description}</p>
-      <Show when={scope() !== 'NONE'}>
+    <Show when={!props.loading} fallback={<LinkSharingSkeleton />}>
+      <div class="flex flex-col gap-3 p-4 text-sm text-ink">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2 text-ink-muted">
-            <span>Access level</span>
-            <ShareOptions
-              editPermissionEnabled={props.editPermissionEnabled}
-              permissions={props.linkShareAccessLevel ?? 'view'}
-              hideNoAccess={true}
-              setPermissions={props.setLinkShareAccessLevel}
-            />
+          <div class="flex items-center gap-2">
+            <span class="font-medium">{scopeCopy().title}</span>
+            <Tooltip label={shareStatus().tooltip}>
+              <div
+                class={cn(
+                  'flex items-center justify-center rounded-xl border px-2 py-0.5',
+                  shareStatus().label === 'Just me'
+                    ? 'border-edge-muted bg-edge-muted text-ink-extra-muted'
+                    : 'border-accent/30 bg-accent/10 text-accent'
+                )}
+              >
+                <span class="text-xs font-medium whitespace-nowrap">
+                  {shareStatus().label}
+                </span>
+              </div>
+            </Tooltip>
           </div>
-          <Button variant="outline" onClick={props.copyLink}>
-            <CopyIcon class="size-4" />
-            <span>Copy Link</span>
-          </Button>
+          <Tabs
+            touch="segmented"
+            aria-label="Link sharing scope"
+            size="sm"
+            value={scope()}
+            options={LINK_SHARE_SCOPE_OPTIONS}
+            onChange={props.setLinkShareScope}
+          />
         </div>
-      </Show>
-      <Show when={props.teamShare}>
-        {(teamShare) => (
-          <div class="border-t border-edge-muted pt-3">
-            <TeamAccessSection teamShare={teamShare()} />
+        <p class="text-sm text-ink-muted">{scopeCopy().description}</p>
+        <Show when={scope() !== 'NONE'}>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 text-ink-muted">
+              <span>Access level</span>
+              <ShareOptions
+                editPermissionEnabled={props.editPermissionEnabled}
+                permissions={props.linkShareAccessLevel ?? 'view'}
+                hideNoAccess={true}
+                setPermissions={props.setLinkShareAccessLevel}
+              />
+            </div>
+            <Button variant="outline" onClick={props.copyLink}>
+              <CopyIcon class="size-4" />
+              <span>Copy Link</span>
+            </Button>
           </div>
-        )}
-      </Show>
-    </div>
+        </Show>
+        <Show when={props.teamShare}>
+          {(teamShare) => (
+            <div class="border-t border-edge-muted pt-3">
+              <TeamAccessSection teamShare={teamShare()} />
+            </div>
+          )}
+        </Show>
+      </div>
+    </Show>
+  );
+}
+
+function LinkSharingSkeleton() {
+  return (
+    <ListSkeleton.Root label="Loading link sharing" class="p-4">
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-3">
+          <ListSkeleton.Bar class="h-3 w-32" />
+          <ListSkeleton.Bar class="h-7 w-48" />
+        </div>
+        <ListSkeleton.Bar class="h-3 w-64" />
+      </div>
+    </ListSkeleton.Root>
+  );
+}
+
+/**
+ * Mounts its children once the dialog around it has painted. The share form's
+ * editor and recipient list cost a frame or more to build, and building them
+ * inside the click kept the whole dialog from appearing until they were done.
+ */
+function AfterFirstPaint(props: ParentProps<{ fallback: JSX.Element }>) {
+  const [ready, setReady] = createSignal(false);
+  onMount(() => {
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    // The frame callback runs before that frame paints; the task after it
+    // runs once it has.
+    const frame = requestAnimationFrame(() => {
+      timeout = setTimeout(() => setReady(true));
+    });
+    onCleanup(() => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timeout);
+    });
+  });
+  return (
+    <Show when={ready()} fallback={props.fallback}>
+      {props.children}
+    </Show>
+  );
+}
+
+function ShareFormSkeleton() {
+  return (
+    <ListSkeleton.Root label="Loading share form" class="p-4">
+      <div class="flex flex-col gap-3">
+        <ListSkeleton.Bar class="h-8 w-full" />
+        <ListSkeleton.Bar class="h-3 w-40" />
+        <ListSkeleton.Bar class="h-16 w-full rounded-xl" />
+      </div>
+    </ListSkeleton.Root>
+  );
+}
+
+/** Placeholder rows for the channels an item is shared with. */
+function RecipientsSkeleton() {
+  return (
+    <ListSkeleton.Root label="Loading people with access">
+      <div class="grid gap-3">
+        <For each={[0, 1]}>
+          {() => (
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <ListSkeleton.Bar class="size-4 shrink-0" />
+                <ListSkeleton.Bar class="h-3 w-32" />
+              </div>
+              <ListSkeleton.Bar class="h-3 w-16" />
+            </div>
+          )}
+        </For>
+      </div>
+    </ListSkeleton.Root>
   );
 }
 
@@ -613,6 +666,7 @@ interface MobileShareDrawerProps {
   linkShare: LinkShare | null | undefined;
   linkShareAccessLevel: AccessLevel | null | undefined;
   teamShare?: TeamShareControls;
+  permissionsLoading: boolean;
   refetch: () => void;
   navigateToChannel: (channelId: string) => void;
   removeChannelAccess: (channelId: string) => void;
@@ -725,27 +779,31 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
               </p>
             </Show>
             <Show when={props.canForward}>
-              <ForwardToChannel
-                {...forwardTarget(
-                  props.blockAlias,
-                  props.id,
-                  props.setChannelPermissions
-                )}
-                editPermissionEnabled={props.editPermissionEnabled}
-                ref={(handle) => setForwardRef(handle)}
-                submitPermissionInfo={{
-                  setChannelPermissions: (id, accessLevel) =>
-                    props.setChannelPermissions(id, accessLevel, true),
-                  userPermissions: props.userPermissions,
-                  channelSharePermissions: props.recipients,
-                }}
-                onSubmit={() => props.setIsOpen(false)}
-                refetch={props.refetch}
-                name={props.name}
-                hideAccessLevelSelector={props.itemType === 'email'}
-                initialAccessLevel={props.itemType === 'email' ? 'view' : null}
-                allowedAccessLevels={shareLevelsFor(props.itemType)}
-              />
+              <AfterFirstPaint fallback={<ShareFormSkeleton />}>
+                <ForwardToChannel
+                  {...forwardTarget(
+                    props.blockAlias,
+                    props.id,
+                    props.setChannelPermissions
+                  )}
+                  editPermissionEnabled={props.editPermissionEnabled}
+                  ref={(handle) => setForwardRef(handle)}
+                  submitPermissionInfo={{
+                    setChannelPermissions: (id, accessLevel) =>
+                      props.setChannelPermissions(id, accessLevel, true),
+                    userPermissions: props.userPermissions,
+                    channelSharePermissions: props.recipients,
+                  }}
+                  onSubmit={() => props.setIsOpen(false)}
+                  refetch={props.refetch}
+                  name={props.name}
+                  hideAccessLevelSelector={props.itemType === 'email'}
+                  initialAccessLevel={
+                    props.itemType === 'email' ? 'view' : null
+                  }
+                  allowedAccessLevels={shareLevelsFor(props.itemType)}
+                />
+              </AfterFirstPaint>
             </Show>
             <Show when={!props.canForward}>
               <div class="px-4 py-3">
@@ -860,6 +918,7 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
               when={props.linkSharing}
               fallback={
                 <LinkSharingControls
+                  loading={props.permissionsLoading}
                   meetingAccess={props.meetingAccess}
                   editPermissionEnabled={props.editPermissionEnabled}
                   linkShare={props.linkShare}
@@ -941,25 +1000,42 @@ export function ShareModal(props: ShareModalProps) {
     props.itemType !== 'agent_session' &&
     props.itemType !== 'initiative' &&
     props.itemType !== 'crm_pipeline';
-  const [fallbackPermissionsResource, { refetch: refetchFallback }] =
-    createResource(
-      () => {
-        if (isBlockContext || !props.id) return;
-        return { id: props.id, itemType: props.itemType };
-      },
-      async (source) => {
-        if (!source) return;
-        const { id, itemType } = source;
-        return fetchSharePermissions(id, itemType);
-      },
-      { initialValue: undefined }
-    );
-  const permissionsResource = isBlockContext
-    ? permissionsBlockResource[0]
-    : fallbackPermissionsResource;
-  const refetch = isBlockContext
-    ? permissionsBlockResource[1].refetch
-    : refetchFallback;
+  // Outside a block the dialog reads a cached query, which the Share trigger
+  // warms on hover, so it opens with the roster already in hand.
+  const queryClient = useQueryClient();
+  const fallbackPermissionsQuery = useQuery(() => ({
+    ...sharePermissionsQueryOptions(props.id, props.itemType),
+    enabled: !isBlockContext && !!props.id,
+  }));
+  const sharePermission = () => {
+    if (isBlockContext) {
+      const result = permissionsBlockResource[0].latest;
+      return result && !result.isErr() ? result.value : undefined;
+    }
+    return fallbackPermissionsQuery.isPending
+      ? undefined
+      : (fallbackPermissionsQuery.data ?? undefined);
+  };
+  const permissionsLoading = () =>
+    isBlockContext
+      ? permissionsBlockResource[0].loading &&
+        !permissionsBlockResource[0].latest
+      : fallbackPermissionsQuery.isLoading;
+  const refetch = async () => {
+    if (isBlockContext) {
+      await permissionsBlockResource[1].refetch();
+      return;
+    }
+    // A change made while the first read is in flight must not settle on
+    // that read's stale result.
+    if (fallbackPermissionsQuery.isFetching) {
+      await queryClient.cancelQueries({
+        queryKey: sharePermissionsQueryOptions(props.id, props.itemType)
+          .queryKey,
+      });
+    }
+    await fallbackPermissionsQuery.refetch();
+  };
   const userId = useUserId();
   const [meetingAccessSnapshot, setMeetingAccessSnapshot] = createSignal<{
     documentId: string;
@@ -1030,34 +1106,25 @@ export function ShareModal(props: ShareModalProps) {
     );
   });
 
-  const [channelNamesResource] = createResource(
-    () => {
-      const result = permissionsResource.latest;
-      if (!result || result.isErr()) {
-        return;
-      }
-      const sharePermission = result.value;
-      if (!sharePermission?.channelSharePermissions?.length) {
-        return;
-      }
-      const channel_ids = sharePermission.channelSharePermissions.map(
-        ({ channel_id }) => channel_id
-      );
-      return { channel_ids };
-    },
-    storageServiceClient.getBatchChannelPreviews,
-    { initialValue: undefined }
+  const sharedChannels = createMemo(
+    () => sharedChannelIds(sharePermission()),
+    undefined,
+    {
+      equals: (a, b) =>
+        a.length === b.length && a.every((id, i) => id === b[i]),
+    }
+  );
+  const channelNamesQuery = useQuery(() =>
+    shareChannelNamesQueryOptions(sharedChannels())
   );
 
   // Create a map of channel IDs to channel names
   const channelNameMap = createMemo(() => {
-    const result = channelNamesResource.latest;
-    if (!result || result.isErr()) {
-      return new Map();
-    }
-
-    const data = result.value;
+    const data = channelNamesQuery.isPending
+      ? undefined
+      : channelNamesQuery.data;
     const map = new Map();
+    if (!data) return map;
 
     data.previews.forEach((preview) => {
       if (preview.type === 'access') {
@@ -1071,13 +1138,9 @@ export function ShareModal(props: ShareModalProps) {
     return map;
   });
 
-  const recipients = createMemo(() => {
-    const result = permissionsResource.latest;
-    if (!result || result.isErr()) return;
-
-    const sharePermission = result.value;
-    return sharePermission.channelSharePermissions;
-  });
+  const recipients = createMemo(
+    () => sharePermission()?.channelSharePermissions
+  );
 
   // A viewer who does not own the item cannot read its other grants, so the
   // roster is just the owner and must not be titled as the full audience.
@@ -1377,23 +1440,11 @@ export function ShareModal(props: ShareModalProps) {
     }
   );
 
-  const linkShare = createMemo(() => {
-    const currentPermissions = permissionsResource.latest;
-    if (!currentPermissions || currentPermissions.isErr()) {
-      return;
-    }
+  const linkShare = createMemo(() => sharePermission()?.linkShare);
 
-    return currentPermissions.value.linkShare;
-  });
-
-  const linkShareAccessLevel = createMemo(() => {
-    const currentPermissions = permissionsResource.latest;
-    if (!currentPermissions || currentPermissions.isErr()) {
-      return;
-    }
-
-    return currentPermissions.value.linkShareAccessLevel;
-  });
+  const linkShareAccessLevel = createMemo(
+    () => sharePermission()?.linkShareAccessLevel
+  );
 
   const teamShareAccessLevel = createMemo(() => {
     if (props.itemType === 'call') {
@@ -1402,10 +1453,7 @@ export function ShareModal(props: ShareModalProps) {
       if (!record) return;
       return sharePermissionFromCallRecord(record).teamShareAccessLevel;
     }
-    const currentPermissions = permissionsResource.latest;
-    if (!currentPermissions || currentPermissions.isErr()) return;
-
-    return currentPermissions.value.teamShareAccessLevel;
+    return sharePermission()?.teamShareAccessLevel;
   });
 
   const updateTeamSharePermissions = createCallback(
@@ -1498,8 +1546,11 @@ export function ShareModal(props: ShareModalProps) {
     (props.itemType !== 'call' ||
       (callRecordQuery.isSuccess && callRecordQuery.data.channelId != null));
 
+  // Calls read team access from their record; everything else waits for its
+  // permissions so the control never shows "None" before the real level.
   const teamShareControls = (): TeamShareControls | undefined =>
     canShareWithTeam() &&
+    (props.itemType === 'call' || !permissionsLoading()) &&
     userPermissions() === Permissions.OWNER &&
     currentTeamQuery.isSuccess &&
     currentTeamQuery.data
@@ -1643,6 +1694,7 @@ export function ShareModal(props: ShareModalProps) {
           linkShare={linkShare()}
           linkShareAccessLevel={linkShareAccessLevel()}
           teamShare={teamShareControls()}
+          permissionsLoading={permissionsLoading()}
           refetch={refetch}
           navigateToChannel={navigateToChannel}
           removeChannelAccess={removeChannelAccess}
@@ -1685,29 +1737,31 @@ export function ShareModal(props: ShareModalProps) {
                     </p>
                   </Show>
                   <Show when={canForward()}>
-                    <ForwardToChannel
-                      {...forwardTarget(
-                        props.blockAlias,
-                        props.id,
-                        setChannelPermissions
-                      )}
-                      editPermissionEnabled={editPermissionEnabled()}
-                      submitPermissionInfo={{
-                        setChannelPermissions: (id, accessLevel) =>
-                          setChannelPermissions(id, accessLevel, true),
-                        userPermissions: recipientPermissions(),
-                        channelSharePermissions: recipients(),
-                      }}
-                      onSubmit={() => props.onOpenChange(false)}
-                      onCancel={() => props.onOpenChange(false)}
-                      refetch={refetch}
-                      name={props.name}
-                      hideAccessLevelSelector={props.itemType === 'email'}
-                      initialAccessLevel={
-                        props.itemType === 'email' ? 'view' : null
-                      }
-                      allowedAccessLevels={shareLevelsFor(props.itemType)}
-                    />
+                    <AfterFirstPaint fallback={<ShareFormSkeleton />}>
+                      <ForwardToChannel
+                        {...forwardTarget(
+                          props.blockAlias,
+                          props.id,
+                          setChannelPermissions
+                        )}
+                        editPermissionEnabled={editPermissionEnabled()}
+                        submitPermissionInfo={{
+                          setChannelPermissions: (id, accessLevel) =>
+                            setChannelPermissions(id, accessLevel, true),
+                          userPermissions: recipientPermissions(),
+                          channelSharePermissions: recipients(),
+                        }}
+                        onSubmit={() => props.onOpenChange(false)}
+                        onCancel={() => props.onOpenChange(false)}
+                        refetch={refetch}
+                        name={props.name}
+                        hideAccessLevelSelector={props.itemType === 'email'}
+                        initialAccessLevel={
+                          props.itemType === 'email' ? 'view' : null
+                        }
+                        allowedAccessLevels={shareLevelsFor(props.itemType)}
+                      />
+                    </AfterFirstPaint>
                   </Show>
                   <Show when={!canForward()}>
                     <div class="flex justify-end px-4 py-3">
@@ -1742,7 +1796,8 @@ export function ShareModal(props: ShareModalProps) {
               <Show
                 when={
                   (recipients()?.length ?? 0) > 0 ||
-                  !!(props.owner ?? requests.state()?.owner)
+                  !!(props.owner ?? requests.state()?.owner) ||
+                  permissionsLoading()
                 }
               >
                 <Panel
@@ -1799,6 +1854,9 @@ export function ShareModal(props: ShareModalProps) {
                             exclude={props.directPeopleIds}
                           />
                           <Dynamic component={props.people} />
+                          <Show when={permissionsLoading()}>
+                            <RecipientsSkeleton />
+                          </Show>
                           <For each={recipients() || []}>
                             {(recipient) => (
                               <div class="flex justify-between">
@@ -1937,6 +1995,7 @@ export function ShareModal(props: ShareModalProps) {
                       when={props.linkSharing}
                       fallback={
                         <LinkSharingControls
+                          loading={permissionsLoading()}
                           meetingAccess={meetingAccessForSharing()}
                           editPermissionEnabled={editPermissionEnabled()}
                           linkShare={linkShare()}
@@ -2019,15 +2078,34 @@ export function ShareTrigger(props: {
     throw new Error('<ShareTrigger> requires an explicit block id');
   };
 
+  const itemType = (): ShareItemType =>
+    blockType() === 'initiative'
+      ? 'initiative'
+      : blockNameToItemType(blockType());
+
+  // Hovering or focusing Share loads what the dialog shows first, so a click
+  // opens it with its roster instead of waiting on the network.
+  const warmShareDialog = () => {
+    if (!isAuthenticated()) return;
+    if (inBlock) {
+      const result = permissionsBlockResource[0].latest;
+      fireAndForget(
+        prefetchShareChannelNames(
+          sharedChannelIds(result && !result.isErr() ? result.value : undefined)
+        ),
+        'share-modal'
+      );
+      return;
+    }
+    fireAndForget(
+      prefetchSharePermissions(blockId(), itemType()),
+      'share-modal'
+    );
+  };
+
   const panel = useSplitPanel();
   const requests = useShareRequestTrigger({
-    entity: () =>
-      shareEntity(
-        blockType() === 'initiative'
-          ? 'initiative'
-          : blockNameToItemType(blockType()),
-        blockId()
-      ),
+    entity: () => shareEntity(itemType(), blockId()),
     active: () => !panel?.isInlinePreview && (panel?.isPanelActive() ?? false),
     open: () => props.onClick(),
   });
@@ -2093,7 +2171,12 @@ export function ShareTrigger(props: {
 
   return (
     <HeaderActionGroup label="Sharing">
-      <div ref={requests.ref} class="flex items-center touch:gap-1">
+      <div
+        ref={requests.ref}
+        class="flex items-center touch:gap-1"
+        onPointerEnter={warmShareDialog}
+        onFocusIn={warmShareDialog}
+      >
         <Tooltip
           label={
             shareStatus()?.tooltip ??
