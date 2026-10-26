@@ -17,8 +17,8 @@ import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { whenSettled } from '@core/util/whenSettled';
+import SpinnerIcon from '@icon/system/regular/spinner-gap.svg';
 import { Telemetry } from '@macro-inc/observability';
-import SpinnerIcon from '@phosphor/spinner-gap.svg';
 import { fetchEmailConnectionProviders } from '@queries/auth/outlook-link';
 import {
   invalidateAllAfterLogin,

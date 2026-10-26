@@ -16,15 +16,15 @@ import { useUserId } from '@core/context/user';
 import { usePipedreamMcpFlag } from '@core/pipedream/flag';
 import { fireAndForget } from '@core/util/fireAndForget';
 import MacroLogo from '@icon/macro-logo.svg';
+import ArrowLeftIcon from '@icon/system/regular/arrow-left.svg';
+import ChatIcon from '@icon/system/regular/chat-circle.svg';
+import PencilIcon from '@icon/system/regular/pencil-simple.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import AgentIcon from '@icon/system/regular/sparkle.svg';
+import TerminalIcon from '@icon/system/regular/terminal-window.svg';
+import TrashIcon from '@icon/system/regular/trash.svg';
+import UploadIcon from '@icon/system/regular/upload-simple.svg';
 import CursorIcon from '@icon/wide-cursor-ide.svg';
-import ArrowLeftIcon from '@phosphor/arrow-left.svg';
-import ChatIcon from '@phosphor/chat-circle.svg';
-import PencilIcon from '@phosphor/pencil-simple.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import AgentIcon from '@phosphor/sparkle.svg';
-import TerminalIcon from '@phosphor/terminal-window.svg';
-import TrashIcon from '@phosphor/trash.svg';
-import UploadIcon from '@phosphor/upload-simple.svg';
 import {
   removeAgentApiKey,
   saveAgentApiKey,

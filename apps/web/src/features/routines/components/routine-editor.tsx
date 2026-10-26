@@ -2,7 +2,7 @@ import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { InlineTitleEditor } from '@core/component/InlineTitleEditor';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import ClockIcon from '@phosphor/clock.svg';
+import ClockIcon from '@icon/system/regular/clock.svg';
 import { cn, EntityComposer, Layer, TabSelector } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 import { DEFAULT_RUN_VISIBILITY, type ScheduleDraft } from '../core/draft';

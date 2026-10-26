@@ -1,7 +1,7 @@
 import '@fontsource-variable/inter';
 import '../../../index.css';
 import { fireAndForget } from '@core/util/fireAndForget';
-import CalendarIcon from '@phosphor/calendar-blank.svg';
+import CalendarIcon from '@icon/system/regular/calendar-blank.svg';
 import { Button, ImperativeDialogHost } from '@ui';
 import { ok } from 'neverthrow';
 import { createSignal, onCleanup, Show } from 'solid-js';

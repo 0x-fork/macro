@@ -1,8 +1,8 @@
 import { defineDoc } from '@app/features/ui-gallery/types';
-import ChatIcon from '@phosphor/chat-text.svg';
-import CodeIcon from '@phosphor/code.svg';
-import PaperclipIcon from '@phosphor/paperclip.svg';
-import UsersIcon from '@phosphor/users.svg';
+import ChatIcon from '@icon/system/regular/chat-text.svg';
+import CodeIcon from '@icon/system/regular/code.svg';
+import PaperclipIcon from '@icon/system/regular/paperclip.svg';
+import UsersIcon from '@icon/system/regular/users.svg';
 import { createSignal } from 'solid-js';
 import { Tabs } from './Tabs';
 

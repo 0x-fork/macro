@@ -1,9 +1,9 @@
 import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
-import CheckIcon from '@phosphor/check.svg';
-import FileTextIcon from '@phosphor/file-text.svg';
-import LinkIcon from '@phosphor/link.svg';
-import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
-import XIcon from '@phosphor/x.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import FileTextIcon from '@icon/system/regular/file-text.svg';
+import LinkIcon from '@icon/system/regular/link.svg';
+import MagnifyingGlassIcon from '@icon/system/regular/magnifying-glass.svg';
+import XIcon from '@icon/system/regular/x.svg';
 import { Button, Checkbox, Dialog, InputGroup } from '@ui';
 import { For, Show } from 'solid-js';
 import type { NoteDocument, NotePicker, NoteRead } from '../core/types';

@@ -1,7 +1,7 @@
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
-import CheckSquareIcon from '@phosphor/check-square.svg';
-import StackIcon from '@phosphor/stack.svg';
-import TagIcon from '@phosphor/tag.svg';
+import CheckSquareIcon from '@icon/system/regular/check-square.svg';
+import StackIcon from '@icon/system/regular/stack.svg';
+import TagIcon from '@icon/system/regular/tag.svg';
 import { Dropdown } from '@ui';
 import { Show } from 'solid-js';
 

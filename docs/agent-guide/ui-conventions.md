@@ -170,7 +170,7 @@ contents, with `edge-muted` dividers between sections. Its height is capped at
 the block height with internal scrolling. At every width it starts closed and
 acts as a split-local overlay menu on desktop. The top-right sidebar icon, rotated
 180 degrees, opens it, and clicking outside dismisses it. On touch devices the
-control uses the Phosphor info-circle icon and opens the standard bottom drawer
+control uses the Macro info-circle icon and opens the standard bottom drawer
 with a drag handle, scrollable sections, and safe-area/keyboard-aware spacing.
 Dismiss the drawer by swiping down or tapping its backdrop. Opening is never
 restored from saved preferences or triggered by the global chrome shortcut. The 320px bubble enters
@@ -180,3 +180,14 @@ This applies across Markdown/tasks,
 snippets, email, calls, agents, pull requests, projects, and all file blocks
 including PDFs, images, code, video, canvas, unknown file types, and CRM company
 and contact views (both inside the CRM workspace and in standalone blocks).
+
+## Interface icon review
+
+Interface glyphs use the original Macro SVG family. Open `/app/debug/icon-gallery`
+to review regular, filled, and bold variants at 14/16/20/24 px in light and dark
+themes. The Original icons tab is the default; Legacy animated icons remains
+available. Interactive icons provide brief press feedback and selective mouse
+hover feedback, respecting reduced motion. Control layouts and hit targets are
+independent of glyph geometry. See the [icon guide](../../apps/web/src/components/icon/system/README.md).
+
+![Original icons in the live gallery](images/icon-system.png)

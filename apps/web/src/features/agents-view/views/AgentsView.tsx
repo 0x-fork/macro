@@ -20,7 +20,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ListEntityMetadataQueryProvider } from '@entity';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { useWarmAgentSessionQuery } from '@queries/agent-session/warm';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import {
@@ -71,6 +71,7 @@ function LoadingComposer() {
   return (
     <div class="grid size-full place-items-center text-ink-muted">
       <SpinnerIcon
+        aria-hidden={false}
         aria-label="Loading agent composer"
         class="size-5 animate-spin"
       />

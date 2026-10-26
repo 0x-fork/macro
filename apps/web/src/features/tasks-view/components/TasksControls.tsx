@@ -7,9 +7,9 @@ import {
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import BoardIcon from '@icon/system/regular/kanban.svg';
+import ListIcon from '@icon/system/regular/list-bullets.svg';
 import GanttIcon from '@phosphor/chart-bar-horizontal.svg';
-import BoardIcon from '@phosphor/kanban.svg';
-import ListIcon from '@phosphor/list-bullets.svg';
 import { Button } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';

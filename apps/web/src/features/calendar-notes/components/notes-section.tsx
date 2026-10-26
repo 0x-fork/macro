@@ -1,6 +1,6 @@
 import { ListSkeleton } from '@app/components/view-shell/ListSkeleton';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import FileTextIcon from '@phosphor/file-text.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import FileTextIcon from '@icon/system/regular/file-text.svg';
 import { Button, Dropdown } from '@ui';
 import { For, onCleanup, Show } from 'solid-js';
 import type { MeetingNote, NoteRead } from '../core/types';

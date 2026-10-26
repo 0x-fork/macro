@@ -948,3 +948,18 @@ The desktop `Create` → `Task` modal uses the standard dialog panel, circular
 icon controls, and a pill-shaped `Create Task` button with 16px outer padding.
 The mobile task drawer keeps its layout apart from the wrapping footer described
 above.
+
+## Task status icons
+
+Task rows show a circular status icon: empty for Not started, partially filled
+for In progress or In review, checked for Completed, and crossed for Canceled.
+Task @mention pills use the same live status and update when a task changes.
+Lightweight previews fall back to the task completion flag until status
+properties arrive; missing or unknown status without completion stays empty.
+The navigation and creation icons remain generic task icons.
+
+The backend-free browser fixture exercises the real row icon and document
+mention, including completing and reopening without a reload:
+`bunx playwright test --config src/lib/core/component/LexicalMarkdown/component/decorator/browser-test/playwright.config.ts task-status.browser.e2e.ts`.
+
+![Task status icons in rows and mentions](images/task-status-icons.png)
