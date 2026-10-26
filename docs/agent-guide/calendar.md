@@ -580,7 +580,9 @@ tell them apart by calendar color), and each copy answers only for its own inbox
 guest copy stays a guest copy, marked `(you)` on that inbox's row alone, even when
 another connected inbox organizes the event. An Outlook guest copy never offers `Add
 guests` (Outlook lets only the organizer change a meeting) and shows the same
-explanation; an Outlook organizer adds guests like a Google one.
+explanation; an Outlook organizer adds guests like a Google one. The organizer's row on an
+Outlook event shows `Accepted` and `Going?` has `Yes` pressed, as on Google, although
+Microsoft lists the organizer as not having answered.
 A guest the organizer does not let modify the event (`viewerCan.editDetails` false while
 `viewerCan.rsvp` is true) opens an editor whose date/time, all-day, title, description,
 repeat, conferencing and location controls are disabled, each with the tooltip `Only the
