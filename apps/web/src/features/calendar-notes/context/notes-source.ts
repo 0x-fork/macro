@@ -9,6 +9,7 @@ import type {
   NotePicker,
   NoteRead,
   NoteTarget,
+  NoteTeam,
 } from '../core/types';
 
 /** Reactive reads and writes owned by the calendar-note feature. */
@@ -29,6 +30,11 @@ export type NotesSource = {
 
 export type DocumentNotesSource = {
   links: Accessor<NoteRead<DocumentNoteLink[]>>;
+  team: Accessor<NoteRead<NoteTeam | null>>;
   retry: () => Promise<unknown>;
+  setTeam: (
+    target: NoteTarget,
+    teamId?: string
+  ) => Promise<Result<void, NoteFailure>>;
   unlink: (target: NoteTarget) => Promise<Result<void, NoteFailure>>;
 };

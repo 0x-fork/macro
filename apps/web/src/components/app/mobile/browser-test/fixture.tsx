@@ -97,13 +97,18 @@ function DeleteEventDialog(props: ManagedDialogProps) {
 function EventDetailsDrawer(props: { onClose: () => void }) {
   const [guests, setGuests] = createSignal(false);
   const [rsvpScope, setRsvpScope] = createSignal(false);
+  const [share, setShare] = createSignal(false);
   const deleteDialog = useImperativeDialog(DeleteEventDialog);
   return (
     <MobileDrawer
       side="bottom"
       open
       onOpenChange={(open) => {
-        if (!open && (guests() || rsvpScope() || deleteDialog.isOpen())) return;
+        if (
+          !open &&
+          (guests() || rsvpScope() || share() || deleteDialog.isOpen())
+        )
+          return;
         props.onClose();
       }}
     >
@@ -118,6 +123,7 @@ function EventDetailsDrawer(props: { onClose: () => void }) {
             <Button onClick={() => press('Edit')}>Edit</Button>
             <Button onClick={() => setGuests(true)}>Add guests</Button>
             <Button onClick={() => setRsvpScope(true)}>RSVP</Button>
+            <Button onClick={() => setShare(true)}>Share note</Button>
             <Button onClick={() => deleteDialog.open({})}>Delete</Button>
           </MobileDrawer.ScrollBody>
           <Dialog open={guests()} onOpenChange={setGuests}>
@@ -145,6 +151,22 @@ function EventDetailsDrawer(props: { onClose: () => void }) {
               </MobileDrawer.Content>
             </MobileDrawer.Portal>
           </MobileDrawer>
+          <Show when={share()}>
+            <MobileDrawer
+              side="bottom"
+              open
+              onOpenChange={setShare}
+              closeOnOutsidePointerStrategy="pointerdown"
+            >
+              <MobileDrawer.Portal>
+                <MobileDrawer.Overlay />
+                <MobileDrawer.Content aria-label="Share note">
+                  <MobileDrawer.Handle />
+                  <div class="h-40 px-6">Share note</div>
+                </MobileDrawer.Content>
+              </MobileDrawer.Portal>
+            </MobileDrawer>
+          </Show>
         </MobileDrawer.Content>
       </MobileDrawer.Portal>
     </MobileDrawer>

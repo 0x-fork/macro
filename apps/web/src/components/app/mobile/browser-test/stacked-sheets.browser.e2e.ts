@@ -14,6 +14,34 @@ async function settled(sheet: Locator) {
 
 const pressed = (page: Page) => page.getByRole('status', { name: 'Pressed' });
 
+test('a pointerdown dismissal does not dismiss the parent on pointerup', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=event');
+  const details = page.getByRole('dialog', { name: 'Weekly product sync' });
+  await settled(details);
+  await tap(page, details.getByRole('button', { name: 'Share note' }));
+  const share = page.getByRole('dialog', { name: 'Share note' });
+  await settled(share);
+
+  await tap(
+    page,
+    page.getByRole('button', { name: 'Page control', includeHidden: true })
+  );
+
+  await expect(share).toHaveCount(0);
+  await expect(details).toBeVisible();
+  await expect(pressed(page)).toHaveText('');
+  await tap(page, details.getByRole('button', { name: 'Edit' }));
+  await expect(pressed(page)).toHaveText('Edit');
+  await tap(
+    page,
+    page.getByRole('button', { name: 'Page control', includeHidden: true })
+  );
+  await expect(details).toHaveCount(0);
+  await expect(pressed(page)).toHaveText('Edit');
+});
+
 for (const control of ['Remove', 'Back to settings']) {
   test(`a tap on the dimmed Settings sheet over ${control} closes only Connect email`, async ({
     page,

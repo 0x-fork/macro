@@ -247,8 +247,8 @@ function dismissesDrawer(event: PointerEvent) {
  * The rest of a tap that dismisses a drawer must not reach what its scrim
  * covered. Corvu dismisses on the tap's pointerdown or pointerup, and a sheet
  * its owner unmounts on close (a `<Show>` around it, or `openDialog`'s host)
- * takes the scrim with it, so the tap's mouse events and click are hit-tested
- * against the control underneath and press it. Swallow them until the tap's
+ * takes the scrim with it, so pointerup can dismiss the parent and mouse events
+ * can press the control underneath. Swallow them until the tap's
  * click, the next pointerdown or a key press, but only once the drawer has
  * really closed: an owner that keeps it open leaves the tap to its target.
  */
@@ -260,7 +260,7 @@ function swallowRestOfTap() {
     event.stopPropagation();
     if (event.type === 'click') listening.abort();
   };
-  for (const type of ['mousedown', 'mouseup', 'click'])
+  for (const type of ['pointerup', 'mousedown', 'mouseup', 'click'])
     window.addEventListener(type, swallow, {
       capture: true,
       signal: listening.signal,

@@ -45,6 +45,7 @@ import {
   UnderlineTabs,
 } from '@core/component/UnderlineTabs';
 import { UserIcon } from '@core/component/UserIcon';
+import { resolveBlockAlias } from '@core/constant/allBlocks';
 import {
   ENABLE_MARKDOWN_COMMENTS,
   ENABLE_MARKDOWN_LIVE_COLLABORATION,
@@ -185,9 +186,21 @@ function shareUrl(type: ShareBlockType, id: string): string {
 
 /** The levels a recipient can hold on an item; forms have no comments. */
 export function shareLevelsFor(
-  itemType: ShareItemType
+  itemType: ShareItemType,
+  blockAlias?: ShareBlockType
 ): readonly AccessLevel[] | undefined {
-  return itemType === 'form' ? ['view', 'edit'] : undefined;
+  if (itemType === 'form') return ['view', 'edit'];
+  if (
+    itemType === 'document' &&
+    blockAlias &&
+    resolveBlockAlias(blockAlias) === 'md'
+  ) {
+    const levels: AccessLevel[] = ['view'];
+    if (ENABLE_MARKDOWN_COMMENTS) levels.push('comment');
+    if (ENABLE_MARKDOWN_LIVE_COLLABORATION) levels.push('edit');
+    return levels;
+  }
+  return undefined;
 }
 
 const SHARE_LINK_SUBTEXT =
@@ -391,6 +404,7 @@ function GroupChannelLabel(props: { channelId: string; fallbackName: string }) {
 
 interface LinkSharingControlsProps {
   editPermissionEnabled?: boolean;
+  allowedAccessLevels?: readonly AccessLevel[];
   linkShare: LinkShare | null | undefined;
   linkShareAccessLevel: AccessLevel | null | undefined;
   hasExplicitShares: boolean;
@@ -543,6 +557,7 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
               <span>Access level</span>
               <ShareOptions
                 editPermissionEnabled={props.editPermissionEnabled}
+                allowedAccessLevels={props.allowedAccessLevels}
                 permissions={props.linkShareAccessLevel ?? 'view'}
                 hideNoAccess={true}
                 setPermissions={props.setLinkShareAccessLevel}
@@ -801,7 +816,10 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
                   initialAccessLevel={
                     props.itemType === 'email' ? 'view' : null
                   }
-                  allowedAccessLevels={shareLevelsFor(props.itemType)}
+                  allowedAccessLevels={shareLevelsFor(
+                    props.itemType,
+                    props.blockAlias
+                  )}
                 />
               </AfterFirstPaint>
             </Show>
@@ -890,7 +908,10 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
                     <div class="flex items-center">
                       <ShareOptions
                         editPermissionEnabled={props.editPermissionEnabled}
-                        allowedAccessLevels={shareLevelsFor(props.itemType)}
+                        allowedAccessLevels={shareLevelsFor(
+                          props.itemType,
+                          props.blockAlias
+                        )}
                         disabled={props.userPermissions !== Permissions.OWNER}
                         permissions={recipient.access_level}
                         setPermissions={(accessLevel) => {
@@ -918,6 +939,10 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
               when={props.linkSharing}
               fallback={
                 <LinkSharingControls
+                  allowedAccessLevels={shareLevelsFor(
+                    props.itemType,
+                    props.blockAlias
+                  )}
                   loading={props.permissionsLoading}
                   meetingAccess={props.meetingAccess}
                   editPermissionEnabled={props.editPermissionEnabled}
@@ -994,9 +1019,12 @@ export function ShareModal(props: ShareModalProps) {
   const callRecordQuery = useCallRecordQuery(() =>
     props.itemType === 'call' ? props.id : ''
   );
-  // These entities are never their enclosing block's, so read their own grants.
-  const isBlockContext =
-    isInBlock() &&
+  // A calendar can open Share for a linked note. Only reuse the enclosing
+  // block's permissions when the dialog is sharing that same entity.
+  const enclosingBlockId = useMaybeBlockId();
+  const isBlockContext = () =>
+    !!enclosingBlockId &&
+    enclosingBlockId === props.id &&
     props.itemType !== 'agent_session' &&
     props.itemType !== 'initiative' &&
     props.itemType !== 'crm_pipeline';
@@ -1005,10 +1033,10 @@ export function ShareModal(props: ShareModalProps) {
   const queryClient = useQueryClient();
   const fallbackPermissionsQuery = useQuery(() => ({
     ...sharePermissionsQueryOptions(props.id, props.itemType),
-    enabled: !isBlockContext && !!props.id,
+    enabled: !isBlockContext() && !!props.id,
   }));
   const sharePermission = () => {
-    if (isBlockContext) {
+    if (isBlockContext()) {
       const result = permissionsBlockResource[0].latest;
       return result && !result.isErr() ? result.value : undefined;
     }
@@ -1017,12 +1045,12 @@ export function ShareModal(props: ShareModalProps) {
       : (fallbackPermissionsQuery.data ?? undefined);
   };
   const permissionsLoading = () =>
-    isBlockContext
+    isBlockContext()
       ? permissionsBlockResource[0].loading &&
         !permissionsBlockResource[0].latest
       : fallbackPermissionsQuery.isLoading;
   const refetch = async () => {
-    if (isBlockContext) {
+    if (isBlockContext()) {
       await permissionsBlockResource[1].refetch();
       return;
     }
@@ -1086,8 +1114,15 @@ export function ShareModal(props: ShareModalProps) {
     props.itemType === 'crm_pipeline' && canSharePipeline()
       ? Permissions.OWNER
       : userPermissions();
-  const editPermissionEnabled = () =>
-    props.itemType === 'agent_session' ? true : undefined;
+  const editPermissionEnabled = () => {
+    if (props.itemType === 'agent_session') return true;
+    if (
+      props.itemType === 'document' &&
+      resolveBlockAlias(props.blockAlias) === 'md'
+    )
+      return ENABLE_MARKDOWN_LIVE_COLLABORATION;
+    return undefined;
+  };
 
   const [recipientScrollRef, setRecipientScrollRef] =
     createSignal<HTMLElement>();
@@ -1759,7 +1794,10 @@ export function ShareModal(props: ShareModalProps) {
                         initialAccessLevel={
                           props.itemType === 'email' ? 'view' : null
                         }
-                        allowedAccessLevels={shareLevelsFor(props.itemType)}
+                        allowedAccessLevels={shareLevelsFor(
+                          props.itemType,
+                          props.blockAlias
+                        )}
                       />
                     </AfterFirstPaint>
                   </Show>
@@ -1923,7 +1961,8 @@ export function ShareModal(props: ShareModalProps) {
                                   <ShareOptions
                                     editPermissionEnabled={editPermissionEnabled()}
                                     allowedAccessLevels={shareLevelsFor(
-                                      props.itemType
+                                      props.itemType,
+                                      props.blockAlias
                                     )}
                                     disabled={
                                       recipientPermissions() !==
@@ -1995,6 +2034,10 @@ export function ShareModal(props: ShareModalProps) {
                       when={props.linkSharing}
                       fallback={
                         <LinkSharingControls
+                          allowedAccessLevels={shareLevelsFor(
+                            props.itemType,
+                            props.blockAlias
+                          )}
                           loading={permissionsLoading()}
                           meetingAccess={meetingAccessForSharing()}
                           editPermissionEnabled={editPermissionEnabled()}

@@ -28,7 +28,8 @@ Discussion link scrolling has a backend-free browser regression:
 Phone sheets stacked on each other (Connect email over Settings, Add guests,
 RSVP scope and the delete confirmation over event details) have a backend-free
 browser regression for backdrop taps that must not press what the scrim covers,
-and for taps inside the top sheet that must still press its own controls:
+including mixed pointerdown/pointerup dismissal, and for taps inside the top
+sheet that must still press its own controls:
 `bunx playwright test --config src/components/app/mobile/browser-test/playwright.config.ts`.
 
 Composer typeahead menus choosing the side with room for their full list
@@ -41,7 +42,9 @@ phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
 The browser fixture uses the real event details popover and mobile drawer over
 sample data; keep notes aligned with those existing surfaces and preserve their
-dialog open guards. Optional note sharing uses existing team memberships.
+dialog open guards. Open the existing document Share dialog for note access,
+keep labeled Options controls visible beside truncated titles without redundant
+hover tooltips, and use existing team memberships for optional note sharing.
 Gate event notes and document Share meeting-link controls with
 `enable-calendar-meeting-notes` before mounting their query sources; it defaults
 on in dev and uses PostHog in production.

@@ -50,9 +50,9 @@ export function NotesSection(props: {
           <Show when={props.state.data}>
             <div class="flex shrink-0 items-center gap-1">
               <Button
-                variant={props.state.data?.length ? 'ghost' : 'strong'}
+                variant="ghost"
                 size="xs"
-                label={createLabel()}
+                aria-label={createLabel()}
                 disabled={props.creating}
                 onClick={props.onCreate}
               >
@@ -64,7 +64,7 @@ export function NotesSection(props: {
                 variant="ghost"
                 size="xs"
                 depth={3}
-                label="Link existing"
+                aria-label="Link existing"
                 disabled={props.creating}
                 onClick={props.onLink}
               >
@@ -94,19 +94,19 @@ export function NotesSection(props: {
             </Button>
           </div>
         </Show>
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-2">
           <For each={props.state.data}>
             {(note) => {
               onCleanup(() => props.onMenuChange(note.documentId, false));
               return (
                 <div class="min-w-0">
-                  <div class="flex min-w-0 items-center gap-1">
+                  <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
                       depth={3}
-                      class="min-w-0 flex-1"
-                      label={`Open ${note.name}`}
+                      class="min-w-0 justify-start"
+                      aria-label={`Open ${note.name}`}
                       onClick={() => props.onOpen(note)}
                     >
                       <span class="min-w-0 flex-1 truncate text-left">
@@ -122,9 +122,9 @@ export function NotesSection(props: {
                         }
                       >
                         <Dropdown.Trigger
-                          variant="ghost"
+                          variant="outline"
                           size="xs"
-                          label={`Options for ${note.name}`}
+                          aria-label={`Options for ${note.name}`}
                           disabled={props.creating}
                         >
                           Options
@@ -141,7 +141,7 @@ export function NotesSection(props: {
                             <Dropdown.Item
                               onSelect={() => props.onSharing(note)}
                             >
-                              Manage access
+                              Share
                             </Dropdown.Item>
                             <Dropdown.Item
                               onSelect={() => props.onUnlink(note)}

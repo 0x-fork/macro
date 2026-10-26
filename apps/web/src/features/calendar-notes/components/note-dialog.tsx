@@ -4,17 +4,12 @@ import FileTextIcon from '@phosphor/file-text.svg';
 import LinkIcon from '@phosphor/link.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import XIcon from '@phosphor/x.svg';
-import { Button, Checkbox, Dialog, InputGroup, Tooltip } from '@ui';
+import { Button, Checkbox, Dialog, InputGroup } from '@ui';
 import { For, Show } from 'solid-js';
-import type {
-  NoteDocument,
-  NotePicker,
-  NoteRead,
-  NoteTeam,
-} from '../core/types';
+import type { NoteDocument, NotePicker, NoteRead } from '../core/types';
 
 export function NoteDialog(props: {
-  kind: 'link' | 'sharing' | 'unlink';
+  kind: 'link' | 'unlink';
   eventTitle: string;
   recurring: boolean;
   guestListHidden?: boolean;
@@ -25,7 +20,6 @@ export function NoteDialog(props: {
   onSelect: (document: NoteDocument) => void;
   linkedIds: string[];
   teamId?: string;
-  currentTeam?: NoteTeam;
   onTeam: (id: string | undefined) => void;
   saving: boolean;
   error?: string;
@@ -33,11 +27,7 @@ export function NoteDialog(props: {
   onClose: () => void;
 }) {
   const title = () =>
-    props.kind === 'unlink'
-      ? 'Unlink meeting notes?'
-      : props.kind === 'sharing'
-        ? 'Note access'
-        : 'Link meeting notes';
+    props.kind === 'unlink' ? 'Unlink meeting notes?' : 'Link meeting notes';
   return (
     <Dialog
       open
@@ -45,11 +35,14 @@ export function NoteDialog(props: {
         if (!open) props.onClose();
       }}
       position="center"
-      class="w-[400px]"
+      class={props.kind === 'link' ? 'w-[720px]' : 'w-[400px]'}
       contentOwnsScroll
       animate
     >
-      <div class="relative flex min-h-0 max-h-[calc(100dvh-var(--virtual-keyboard-height,0px)-2rem)] flex-col p-4">
+      <div
+        class="relative flex min-h-0 max-h-[calc(100dvh-var(--virtual-keyboard-height,0px)-2rem)] flex-col p-4 sm:p-6"
+        classList={{ 'h-[680px]': props.kind === 'link' }}
+      >
         <div class="flex min-h-8 shrink-0 items-center justify-between gap-3 pr-8">
           <Dialog.Title class="text-base font-medium text-ink sm:text-sm">
             {title()}
@@ -61,13 +54,7 @@ export function NoteDialog(props: {
             fallback="The document stays in your files. Access granted by this meeting link will be removed; other sharing stays the same."
           >
             <span class="flex min-w-0 items-center gap-2">
-              <Tooltip
-                label={props.eventTitle}
-                as="span"
-                class="min-w-0 truncate"
-              >
-                {props.eventTitle}
-              </Tooltip>
+              <span class="min-w-0 truncate">{props.eventTitle}</span>
               <Show when={props.recurring}>
                 <span class="shrink-0 text-xs text-ink-extra-muted">
                   · This occurrence
@@ -93,7 +80,7 @@ export function NoteDialog(props: {
             </InputGroup>
           </div>
           <div
-            class="mt-2 flex min-h-0 max-h-48 flex-col gap-1 overflow-y-auto overscroll-contain"
+            class="mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain"
             role="region"
             aria-label="Your markdown documents"
             aria-busy={props.picker.pending}
@@ -117,7 +104,7 @@ export function NoteDialog(props: {
                     variant="ghost"
                     size="md"
                     fullWidth
-                    label={document.name}
+                    aria-label={document.name}
                     aria-pressed={
                       props.selected?.documentId === document.documentId
                     }
@@ -162,9 +149,7 @@ export function NoteDialog(props: {
           {(document) => (
             <div class="mt-3 flex shrink-0 items-center gap-2 rounded-lg bg-ink/4 p-3 text-sm text-ink">
               <FileTextIcon class="size-4 text-accent" />
-              <Tooltip label={document().name} class="min-w-0 flex-1">
-                <span class="block truncate">{document().name}</span>
-              </Tooltip>
+              <span class="min-w-0 flex-1 truncate">{document().name}</span>
             </div>
           )}
         </Show>
@@ -202,35 +187,6 @@ export function NoteDialog(props: {
                 </For>
               </div>
             </Show>
-            <Show
-              when={
-                props.currentTeam &&
-                props.teamId === props.currentTeam.id &&
-                props.picker.data &&
-                !props.picker.data.teams.some(
-                  (team) => team.id === props.teamId
-                )
-              }
-            >
-              <div class="mt-3 rounded-lg border border-edge-muted p-3 text-xs text-ink-muted">
-                <p>
-                  {props.currentTeam?.name} still has view access. You no longer
-                  belong to this team.
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="mt-2"
-                  disabled={props.saving}
-                  onClick={() => props.onTeam(undefined)}
-                >
-                  Remove team access
-                </Button>
-              </div>
-            </Show>
-            <p class="mt-2 text-xs leading-relaxed text-ink-extra-muted">
-              Other document access stays the same.
-            </p>
             <Show when={props.guestListHidden}>
               <p class="mt-2 text-xs leading-relaxed text-ink-extra-muted">
                 This meeting hides its guest list. Some guests may need a direct
@@ -267,18 +223,16 @@ export function NoteDialog(props: {
               ? 'Saving…'
               : props.kind === 'unlink'
                 ? 'Unlink note'
-                : props.kind === 'sharing'
-                  ? 'Save access'
-                  : 'Link note'}
+                : 'Link note'}
           </Button>
         </div>
         <Dialog.CloseButton
           as={Button}
           variant="ghost"
           size="icon-sm"
-          label="Close"
+          aria-label="Close"
           disabled={props.saving}
-          class="absolute right-4 top-4"
+          class="absolute right-4 top-4 sm:right-6 sm:top-6"
         >
           <XIcon />
         </Dialog.CloseButton>
