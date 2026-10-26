@@ -3,6 +3,7 @@ mod change_log;
 mod changes;
 mod details;
 mod export;
+mod guest_policy;
 mod invitations;
 mod join_requests;
 #[cfg(feature = "outlook")]
@@ -25,7 +26,7 @@ use crate::domain::{
     changes::CalendarChangeOp,
     ics::CalendarEventExport,
     models::{
-        ActorInboxes, AppliedGoogleGrant, AttendeeResponseStatus,
+        ActorInboxes, AlignedGuestCopy, AppliedGoogleGrant, AttendeeResponseStatus,
         CALENDAR_SYNC_FAILURE_BADGE_THRESHOLD, CalendarAttendee, CalendarBackfillClaim,
         CalendarBackfillFailureDisposition, CalendarBackfillFailureOutcome, CalendarBackfillJob,
         CalendarBackfillJobKey, CalendarBackfillKind, CalendarCapabilities, CalendarCreationTarget,
@@ -932,6 +933,7 @@ impl CalendarRepository for PgCalendarRepository {
                     owner_id: upsert.event.owner_id.clone(),
                     change: CalendarEventChange::Unchanged,
                     team_ooo_changed: false,
+                    aligned_copies: Vec::new(),
                 });
             }
         }
@@ -1042,6 +1044,7 @@ impl CalendarRepository for PgCalendarRepository {
                 owner_id: upsert.event.owner_id.clone(),
                 change: CalendarEventChange::Unchanged,
                 team_ooo_changed: false,
+                aligned_copies: Vec::new(),
             });
         };
         if provider_sync {
@@ -1087,9 +1090,26 @@ impl CalendarRepository for PgCalendarRepository {
             .await?;
         }
 
+        let mut aligned = guest_policy::align_with_organizer(&mut tx, event_id).await?;
+        // A guest copy that took its organizer's policy is the write itself,
+        // already logged and refreshed below.
+        aligned.retain(|copy| copy.event_id != event_id);
         let mut log = ChangeLogBatch::default();
         log.record(source_link_id, CalendarChangeOp::UpsertEvent(event_id));
+        for copy in &aligned {
+            log.record(
+                copy.email_link_id,
+                CalendarChangeOp::UpsertEvent(copy.event_id),
+            );
+        }
         log.commit(tx).await?;
+        if !aligned.is_empty() {
+            tracing::info!(
+                %event_id,
+                aligned = aligned.len(),
+                "guest copies now follow their organizer's guest policy"
+            );
+        }
         if became_seat {
             tracing::info!(
                 %event_id,
@@ -1105,6 +1125,7 @@ impl CalendarRepository for PgCalendarRepository {
                 CalendarEventChange::Updated
             },
             team_ooo_changed,
+            aligned_copies: aligned,
         })
     }
 

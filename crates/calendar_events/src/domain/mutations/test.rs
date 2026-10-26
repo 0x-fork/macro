@@ -202,6 +202,8 @@ struct FakeRepo {
     join_requests: Arc<Mutex<Vec<crate::domain::join_requests::CalendarJoinRequest>>>,
     /// The requester's copies of the addressed meeting.
     meeting_copies: Vec<crate::domain::models::MeetingCopy>,
+    /// Guest copies a write reports aligning with its organizer's policy.
+    aligned_copies: Vec<crate::domain::models::AlignedGuestCopy>,
     /// Copies on other calendars, addressed by their calendar id.
     copy_targets: Vec<CalendarEventMutationTarget>,
 }
@@ -231,6 +233,7 @@ impl Default for FakeRepo {
             scheduled_syncs: Default::default(),
             join_requests: Default::default(),
             meeting_copies: Vec::new(),
+            aligned_copies: Vec::new(),
             copy_targets: Vec::new(),
         }
     }
@@ -273,6 +276,7 @@ impl CalendarRepository for FakeRepo {
             owner_id,
             change: self.write_change,
             team_ooo_changed,
+            aligned_copies: self.aligned_copies.clone(),
         })
     }
 
@@ -1284,6 +1288,37 @@ async fn a_persisted_mutation_nudges_the_links_calendar_viewers() {
     assert!(
         !notified[0].2,
         "ordinary event edits preserve cached OOO rows"
+    );
+}
+
+#[tokio::test]
+async fn a_policy_reaching_guest_copies_nudges_their_viewers() {
+    let guest_link = Uuid::now_v7();
+    let repo = FakeRepo {
+        creation_target: Some(creation_target(false)),
+        write_change: CalendarEventChange::Updated,
+        aligned_copies: vec![crate::domain::models::AlignedGuestCopy {
+            event_id: Uuid::now_v7(),
+            owner_id: "macro|guest@example.com".into(),
+            email_link_id: guest_link,
+        }],
+        ..FakeRepo::default()
+    };
+    let refresh = RecordingRefreshNotifier::default();
+    service_with_refresh(
+        repo,
+        FakeProvider::new(FakeProviderBehavior::Echo),
+        FakeTokens::ok(),
+        refresh.clone(),
+    )
+    .create_event("macro|user", None, None, draft())
+    .await
+    .unwrap();
+
+    let notified = refresh.notified.lock().expect("notifier lock").clone();
+    assert!(
+        notified.contains(&("macro|guest@example.com".to_string(), guest_link, false)),
+        "{notified:?}"
     );
 }
 

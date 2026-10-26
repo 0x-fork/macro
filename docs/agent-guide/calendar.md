@@ -618,7 +618,8 @@ disabled while a recurring edit
 targets `This event`, since the policy belongs to the whole series, and says so after the
 switches (`Guest permissions apply to all events. Choose All events to change them.`);
 choosing `This event` returns it to the stored values. Save sends `guestPolicy` only when it
-changed, and the guests' `viewerCan` follows once their copies sync: turning `Invite others`
+changed. Guests whose copies Macro holds follow at once, since the organizer's stored copy
+hands its policy to theirs; others follow once Google syncs their copies. Turning `Invite others`
 off replaces a guest's `Add guests` with `Only the organizer can invite guests.` The update
 refuses a policy change from anyone but the organizer with 403 `not_organizer`, and on an
 Outlook event with
