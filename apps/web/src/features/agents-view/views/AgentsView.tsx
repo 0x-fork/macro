@@ -90,6 +90,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   // The composer's Chat/Code choice; an open conversation keeps its own mode.
   const workspace = createWorkspaceMode(userId());
   const listView = createConversationListView(userId());
+  const [creatingKind, setCreatingKind] = createSignal<AgentKind>();
   const [localPage, setPage] = createSignal<AgentsPage>('new');
   const isRoutinesPage = () => {
     const content = panel.handle.content();
@@ -173,6 +174,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
     )
   );
   const openPage = (next: AgentsPage) => {
+    setCreatingKind(undefined);
     setMobileList(false);
     if (next === 'routines') {
       layout.openWithSplit(routineContent(), {
@@ -300,6 +302,13 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       onClearFilters={listView.clear}
       onGroupingChange={listView.setGrouping}
       activePage={selected() ? undefined : page()}
+      onCreateRoutine={() =>
+        layout.popoverSplit({ type: 'component', id: 'routine-compose' })
+      }
+      onCreateAgent={(kind) => {
+        openPage('agents');
+        setCreatingKind(kind);
+      }}
       onOpenPage={(next) =>
         next === 'new'
           ? showComposer()
@@ -383,7 +392,12 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                 <IntegrationsPage />
                               </Match>
                               <Match when={page() === 'agents'}>
-                                <AgentSettings />
+                                <AgentSettings
+                                  createKind={creatingKind()}
+                                  onCloseCreate={() =>
+                                    setCreatingKind(undefined)
+                                  }
+                                />
                               </Match>
                             </Switch>
                             <div

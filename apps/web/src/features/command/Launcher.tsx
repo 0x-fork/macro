@@ -1166,6 +1166,7 @@ export const LauncherShell = (
     description: 'Close Launcher',
     condition: () =>
       createMenuOpen() &&
+      !searchMode() &&
       !availableBlocks().some((item) => item.hotkey === 'c'),
     registrationType: 'add',
     keyDownHandler: () => {

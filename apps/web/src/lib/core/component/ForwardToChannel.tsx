@@ -570,9 +570,6 @@ export function ForwardToChannel(props: ForwardToChannelProps) {
               }
             >
               <div class="shrink-0 pr-2 flex items-center gap-2">
-                <Show when={selectedOptions().length > 0}>
-                  <span class="text-sm text-ink-extra-muted">can</span>
-                </Show>
                 <ShareOptions
                   editPermissionEnabled={props.editPermissionEnabled}
                   allowedAccessLevels={props.allowedAccessLevels}

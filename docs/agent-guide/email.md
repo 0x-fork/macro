@@ -1086,3 +1086,5 @@ must resume only after the preserved queue is readable. Repeat while another tab
 holds the cache owner lock; recovery must never steal the lock or erase its queue.
 Storage/schema failures that cannot prove preservation show recovery/update
 instructions instead of repeatedly reopening potentially damaged storage.
+
+Date-grouped email lists start directly with today's messages; Today is not shown as a leading group heading. Older date headings remain visible and ordering still uses the server's thread activity timestamp.

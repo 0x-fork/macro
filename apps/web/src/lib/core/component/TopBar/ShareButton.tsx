@@ -1561,7 +1561,7 @@ export function ShareModal(props: ShareModalProps) {
       }
 
       toast.success('Updated team access', {
-        subtext: `The owner's team can ${getTeamShareScopeCopy(scope).toLowerCase()} this ${itemNoun}`,
+        subtext: `The owner's team can ${scope} this ${itemNoun}`,
       });
       analytics.track('share_entity', {
         entityType: props.itemType,
@@ -2291,16 +2291,25 @@ export function ShareOptions(props: {
     const optionsList: { value: string; label: string }[] = [];
 
     // Always add view option
-    optionsList.push({ value: 'view', label: accessLevelText('view') });
+    optionsList.push({
+      value: 'view',
+      label: `Can ${accessLevelText('view').toLowerCase()}`,
+    });
 
     // Add comment option if applicable
     if (blockName !== 'md' || ENABLE_MARKDOWN_COMMENTS) {
-      optionsList.push({ value: 'comment', label: accessLevelText('comment') });
+      optionsList.push({
+        value: 'comment',
+        label: `Can ${accessLevelText('comment').toLowerCase()}`,
+      });
     }
 
     // Add edit option if enabled
     if (editPermissionEnabled()) {
-      optionsList.push({ value: 'edit', label: accessLevelText('edit') });
+      optionsList.push({
+        value: 'edit',
+        label: `Can ${accessLevelText('edit').toLowerCase()}`,
+      });
     }
 
     // Add no access option if not hidden
@@ -2326,7 +2335,10 @@ export function ShareOptions(props: {
   const currentValueText = createMemo(() => {
     const value = currentValue();
     if (value === 'none') return accessLevelText(null);
-    return accessLevelText(value as AccessLevel);
+    return (
+      options().find((option) => option.value === value)?.label ??
+      accessLevelText(value as AccessLevel)
+    );
   });
 
   const CurrentIcon = createMemo(() => {

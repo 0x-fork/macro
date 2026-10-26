@@ -40,6 +40,7 @@ import {
 import { CalendarCallSidebar } from '../calendar-call-sidebar';
 import { CALENDAR_TOUR } from '../tour';
 import {
+  CalendarCreateBookingLinkItem,
   CalendarCreateCallItem,
   CalendarCreateEventItem,
 } from './CalendarCreateItems';
@@ -330,7 +331,6 @@ export function CalendarSidebar() {
           presentation={isTouchDevice() ? undefined : 'sidebar'}
           size="md"
           class="h-(--sidebar-row-height) w-full min-w-0 justify-start gap-(--sidebar-label-gap) px-(--sidebar-item-inset) text-left touch:h-11"
-          contentClass="w-[var(--kb-popper-anchor-width)] min-w-40"
           trigger={
             <>
               <ViewSidebar.Icon>
@@ -343,6 +343,7 @@ export function CalendarSidebar() {
         >
           <CalendarCreateEventItem onSelect={closeOverlay} />
           <CalendarCreateCallItem onSelect={closeOverlay} />
+          <CalendarCreateBookingLinkItem onSelect={closeOverlay} />
         </CalendarCreateMenu>
       </ViewSidebar.Primary>
       <ViewSidebar.Content class="pt-2">

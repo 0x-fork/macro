@@ -3037,3 +3037,7 @@ Task @mention pills display the same circular completion/status icon as task
 rows. The icon updates in place as preview data changes; unknown status uses
 an empty circle, and subtype-only previews use their completion flag. See
 [tasks](tasks.md#task-status-icons) for states and the browser regression.
+
+Sharing labels describe their audience: Only people with access, Anyone with the link, and Team members with the link. Permission choices say Can view, Can comment, and Can edit. Copying a restricted link still does not grant access. The existing immediately opening dialog and its deferred loading remain unchanged.
+
+Drive's existing New controls open a wide menu with icons and short descriptions for creation and uploads, while preserving the current destination and feature gates.

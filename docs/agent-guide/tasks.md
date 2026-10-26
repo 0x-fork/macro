@@ -25,7 +25,7 @@ the rows and hovering a submenu hands focus to it as usual. The mobile drawer ha
 AI box.
 The desktop sidebar's Search icon, immediately left of collapse, opens the
 search field above New. It shares the current Tasks or Projects list query.
-The desktop sidebar and toolbar `New` menus offer `Task`, `Project` (when
+The desktop sidebar and toolbar `New` menus offer `Task`, `Subtask`, `Project` (when
 Projects is enabled), and `Tag`. Task and Project open their existing composers;
 Tag opens the tag editor, with personal scope selected and team sharing available
 when the user has a team. The Projects list uses the same menu. Mobile creation
@@ -73,8 +73,8 @@ same drawer. Mobile supports List only. Opening a Board or Gantt link, or
 restoring either layout, automatically selects List and replaces that host's
 layout URL parameter without adding history or clearing search, sorting,
 grouping, or filters. Desktop supports List and Board, plus Gantt when the
-PostHog `enable-gantt` flag is enabled. This flag also gates project-task and
-Projects collection timelines. When the flag is disabled or still loading,
+PostHog `enable-gantt` flag is enabled, or when running the local hot-reload
+preview. This flag also gates project-task and Projects collection timelines. When the flag is disabled or still loading,
 saved Gantt layouts and Gantt URLs render List without clearing the selected
 layout, so enabling the flag restores Gantt. The local override is
 `VITE_ENABLE_GANTT=true` (or `false` to force it off).
@@ -963,3 +963,7 @@ mention, including completing and reopening without a reload:
 `bunx playwright test --config src/lib/core/component/LexicalMarkdown/component/decorator/browser-test/playwright.config.ts task-status.browser.e2e.ts`.
 
 ![Task status icons in rows and mentions](images/task-status-icons.png)
+
+The Task, Subtask, Project, and Tag entries use a wide menu with original icons and muted descriptions. Subtask opens a parent-task picker, then the normal task composer. Saving includes the selected Parent task property; if that link cannot be confirmed, keep the created task and show a warning instead of asking the user to create it again. Canceling either step creates nothing.
+
+![Described task creation choices](images/creation-menu-descriptions.png)

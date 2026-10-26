@@ -112,7 +112,7 @@ export default defineDoc({
   name: 'Tabs',
   category: 'Navigation',
   description:
-    'The one inline single choice: switch a view, a section, or a small set of values. Each option is its own pill; the selected one takes the pressed fill.',
+    'The one inline single choice: switch a view, a section, or a small set of values. Desktop view tabs share one rounded track with an inset selected pill.',
   status: 'stable',
   exports: ['Tabs'],
   import: "import { Tabs } from '@ui';",
@@ -122,7 +122,7 @@ export default defineDoc({
       id: 'view',
       title: 'View tabs',
       description:
-        'Header view tabs sit after the title, left of the controls. Unselected pills share the outline Button frame at the same height as their neighbours.',
+        'Header view tabs sit after the title, left of the controls. The choices share one rounded track with an inset selected pill, at the same height as neighbouring controls.',
       render: ViewDemo,
     },
     {

@@ -59,11 +59,7 @@ draw a full 1px frame edge, menus keep the glass cast shadow, and
 `ComposerSurface` (composers and settings cards) keeps the wide `composer-shadow`
 halo. Touch surfaces retain their existing shadows.
 
-Tabs are separate pills, like Linear's view tabs: unselected pills use the
-outline Button frame, and the selected pill takes the pressed fill, flat, the
-same state as a pressed (`aria-pressed`) Button. There is no track and no
-separate active tint, except the agent composer's Chat/Code switch
-(`variant="track"`). Touch keeps each surface's existing tab treatment.
+Desktop view tabs share one rounded track, with a small inset and a fully rounded selected pill. The selected pill uses the pressed fill and a subtle edge; tabs have no internal dividers. Wrapping preset choices can remain separate pills. Keep the existing touch-specific tab treatment and the agent composer's sliding track.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Every menu,
@@ -191,3 +187,7 @@ hover feedback, respecting reduced motion. Control layouts and hit targets are
 independent of glyph geometry. See the [icon guide](../../apps/web/src/components/icon/system/README.md).
 
 ![Original icons in the live gallery](images/icon-system.png)
+
+![Joined desktop view tabs](images/joined-view-tabs.png)
+
+On desktop, multiple splits have a small close button nested into each frame’s top-left corner, outside the topbar. A lone detail view keeps its Return to list action, and touch layouts keep header controls.

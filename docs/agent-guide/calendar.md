@@ -1378,3 +1378,5 @@ not create another copy while the existing operation is unresolved. Events with
 native details that cannot be safely copied are rejected before any invitations.
 For an Outlook invitation you attend, `Open in Outlook` below the RSVP controls
 opens the actual occurrence so you can clear your own response there.
+
+Calendar's New menus explain Event, Call, and Booking link with icons and muted descriptions. Call and Booking link keep their existing feature gates. Booking link opens the personal Scheduling workspace with an unsaved link editor; canceling creates nothing. The URL request is consumed once after the profile is ready.

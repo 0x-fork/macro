@@ -226,6 +226,21 @@ export function BookingWorkspaceView(props: {
     if (owner() !== current) return;
     await current.action(() => current.createEvent(opener));
   };
+  createEffect(
+    on(
+      () =>
+        [search.createBookingLink, owner(), owner()?.source.profile()] as const,
+      ([requested, current, profile]) => {
+        if (!requested || !current || !profile || !current.scope().canEdit)
+          return;
+        setSearch({ createBookingLink: false, tab: 'links' });
+        fireAndForget(
+          current.action(() => current.createEvent()),
+          'scheduling'
+        );
+      }
+    )
+  );
   const createWithAgent = async () => {
     const current = owner();
     if (
