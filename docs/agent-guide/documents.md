@@ -99,12 +99,17 @@ being assigned, except the task's default Project placeholder. Long values trunc
 or wrap within the value column without
 covering the pin or remove controls.
 Escape cancels an inline text or number draft without saving it.
-Hover or focus an inline property pill to find **Unpin** (keeps its saved
-value) and **Delete from item** where removal is allowed (removes the assignment,
-without deleting the shared property definition). Task builtins cannot be deleted
-from these pills. Pins are saved with the document, including an explicitly empty
-pin list. Tasks initially show Status, Priority, Assignees, and Project when enabled;
-changing pins keeps the other defaults unless they are explicitly unpinned.
+Hover or focus an inline property pill to find a filled, icon-only **Unpin**
+button separated by a gap (keeps its saved value). In a single-row hover card,
+it sits to the right of the value. In a column hover card, it sits to the right
+of the key, above a full-width divider; values keep the full width below.
+Long keys wrap without displacing the Unpin button.
+**Delete from item** stays below, where removal is allowed (removes the
+assignment without deleting the shared property definition). Task builtins cannot
+be deleted from these pills. Pins are saved with the document, including an
+explicitly empty pin list. Tasks initially show Status, Priority, Assignees, and
+Project when enabled; changing pins keeps the other defaults unless they are
+explicitly unpinned.
 
 Markdown code blocks have a **Copy Code** button in both editable and read-only
 views. Successful copies briefly animate the icon to a solid green check-circle;
