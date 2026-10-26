@@ -156,6 +156,13 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   raised composer cards (`SettingsSurface`), row spacing, and control shapes stay
   consistent; never hand-build a flat `bg-ink/*` card. Keep Integrations on the
   shared page width and side padding.
+- Preserve email signature HTML through import, preview, and source editing;
+  mount Quill only for explicit Rich text editing and confirm custom-layout
+  conversion. Keep the settings and composer preview on the same sanitized HTML
+  renderer. Phone settings show the preview with desktop-only editing. See the
+  [signature walkthrough](../../docs/agent-guide/settings.md#email-signatures)
+  for browser coverage. Keep signature commit callbacks on the mutation hook
+  so account-list remounts cannot leave an already-cleared draft behind.
 - Keep personal accounts and agent tool connections together in Settings → Integrations;
   preserve `agent-connections` as an alias for existing links.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
