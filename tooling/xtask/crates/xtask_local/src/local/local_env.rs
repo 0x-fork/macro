@@ -97,7 +97,10 @@ impl LocalEnv {
         } else {
             frontend::https_origin(instance)?
         };
-        let infra = InfraEnv::local(&frontend_origin);
+        // Presigned file URLs are opened by a browser that may be on another
+        // machine (a laptop on the tailnet), so they use this machine's name,
+        // which the proxy certificate covers in both flavors, not localhost.
+        let infra = InfraEnv::local(&frontend::https_origin(instance)?);
         Ok(LocalEnv {
             // Both local flavors run against local infra (`local` env defaults).
             environment: mode.environment_var(),
@@ -226,13 +229,13 @@ struct InfraEnv {
 }
 
 impl InfraEnv {
-    fn local(frontend_origin: &str) -> Self {
+    fn local(browser_origin: &str) -> Self {
         InfraEnv {
             database_url: "postgres://user:password@postgres:5432/macrodb".into(),
             redis_uri: "redis://redis:6379".into(),
             opensearch_url: "http://search:9200".into(),
             local_aws_url: "http://localstack:4566".into(),
-            local_aws_public_url: format!("{frontend_origin}/local-storage"),
+            local_aws_public_url: format!("{browser_origin}/local-storage"),
             // The broker's in-network listener (see docker/docker-compose-databases.yml);
             // host processes use localhost:9092 instead.
             kafka_brokers: "kafka:29092".into(),

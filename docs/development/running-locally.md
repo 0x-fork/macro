@@ -154,7 +154,8 @@ compiled worker; rebuild the sync image after backend protocol changes.
 Open the frontend URL in your browser.
 
 The local environment supplies both `LOCAL_AWS_URL` (the container endpoint)
-and `LOCAL_AWS_PUBLIC_URL` (the app's HTTPS origin with `/local-storage`).
+and `LOCAL_AWS_PUBLIC_URL` (this machine's hostname on the proxy port, with
+`/local-storage`, in both the hot and the static-frontend flavor).
 Document downloads and presigned uploads use this storage proxy, so remote
 browsers do not need a separate localhost storage connection. Container clients
 translate that public endpoint back to LocalStack internally. If a download or

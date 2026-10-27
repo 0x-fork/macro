@@ -667,3 +667,19 @@ fn the_preview_ssh_proxy_host_is_empty_without_a_published_tunnel() {
     // The on-machine endpoint stays first; the tunnel is a fallback, not a swap.
     assert_eq!(env["PREVIEW_SSH_HOST"], "localhost");
 }
+
+#[test]
+fn a_static_stack_presigns_files_for_this_machines_name() {
+    let instance = Instance::derive(Some("image"), None).expect("named instance derives");
+    let env = LocalEnv::for_instance(Mode::Local, &instance, true, Tunnels::default())
+        .unwrap()
+        .to_env();
+    assert_eq!(env["FRONTEND_ORIGIN"], proxy::url(&instance));
+    assert_eq!(
+        env["LOCAL_AWS_PUBLIC_URL"],
+        format!(
+            "{}/local-storage",
+            super::super::frontend::https_origin(&instance).unwrap()
+        )
+    );
+}
