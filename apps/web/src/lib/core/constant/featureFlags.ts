@@ -775,6 +775,13 @@ export const enableChatV3Agents = defineFlag({
   default: onInDev,
 });
 
+/** Enables Universal Input in Command K and mobile Search. */
+export const enableUniversalInput = defineFlag({
+  key: 'enable-universal-input',
+  env: 'ENABLE_UNIVERSAL_INPUT',
+  default: DEV_MODE_ENV || import.meta.env.DEV || undefined,
+});
+
 // Private conversations with agent personas. On in dev; there is no PostHog
 // flag. Override with VITE_ENABLE_AGENT_DMS.
 export const ENABLE_AGENT_DMS = defineFlag({

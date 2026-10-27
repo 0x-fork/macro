@@ -22,6 +22,7 @@ import { useTagsQuery } from '@queries/properties/tags';
 import type { PropertyDefinition } from '@service-properties/generated/schemas/propertyDefinition';
 import type { PropertyDefinitionDetailResponse } from '@service-properties/generated/schemas/propertyDefinitionDetailResponse';
 import type { PropertyDefinitionWithOptions } from '@service-properties/generated/schemas/propertyDefinitionWithOptions';
+import type { Accessor } from 'solid-js';
 import { createSignal } from 'solid-js';
 import { createStore, reconcile, type Store, unwrap } from 'solid-js/store';
 
@@ -255,6 +256,8 @@ function extractPropertyValue(
  */
 export function createTaskComposerProperties(args: {
   initialValues: Record<string, PropertyApiValues>;
+  values?: Accessor<Record<string, PropertyApiValues>>;
+  additionalPropertyIds?: Accessor<string[]>;
   initialVisiblePropertyIds?: string[];
   allDefinitions?: boolean;
 }) {
@@ -337,7 +340,12 @@ export function createTaskComposerProperties(args: {
 
   const visibleIds = () =>
     taskComposerVisiblePropertyIds(
-      visiblePropertyIds(),
+      [
+        ...new Set([
+          ...visiblePropertyIds(),
+          ...(args.additionalPropertyIds?.() ?? []),
+        ]),
+      ],
       availableDefinitions(),
       projects().enabled
     );
@@ -385,7 +393,11 @@ export function createTaskComposerProperties(args: {
         updatedAt: new Date(0),
         createdAt: new Date(0),
         valueType: definition.data_type,
-        value: extractPropertyValue(definition, propertyValues, options()),
+        value: extractPropertyValue(
+          definition,
+          args.values?.() ?? propertyValues,
+          options()
+        ),
         options: options().get(definition.id),
       } as Property;
     });

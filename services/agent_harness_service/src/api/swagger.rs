@@ -59,6 +59,8 @@ impl Modify for SecurityAddon {
     modifiers(&SecurityAddon),
     info(terms_of_service = "https://macro.com/terms"),
     paths(
+        universal_input::inbound::axum_router::classify,
+        universal_input::inbound::axum_router::extract,
         agent_code_mode::inbound::axum_router::get_code_execution,
         agent_code_mode::inbound::axum_router::create_review,
         agent_code_mode::inbound::axum_router::get_review,

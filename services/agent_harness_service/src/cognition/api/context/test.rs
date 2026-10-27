@@ -715,6 +715,7 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
         search_service_client,
         email_service_client_external,
         authorization_state: authorization_state.clone(),
+
         decisions: Arc::new(jev::domain::decisions::DecisionServiceImpl::<
             jev::domain::JevClassifier<jev::outbound::TypesafeJev>,
         >::new(None, admission.clone())),

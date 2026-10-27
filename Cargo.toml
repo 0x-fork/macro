@@ -41,6 +41,7 @@ members = [
   "crates/cursor_api_key",
   "crates/cursor_cloud_agents",
   "crates/jev",
+  "crates/universal_input",
   "crates/database_sql",
   "crates/database_webhooks",
   "crates/databases",

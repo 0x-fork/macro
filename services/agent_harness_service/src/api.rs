@@ -72,6 +72,7 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     public_mcp: Router,
     listening: Option<tokio::sync::watch::Sender<bool>>,
     cognition: Router,
+    universal_input: Router,
     scheduling: Router,
     preview: Router,
     sharing: Router,
@@ -110,6 +111,7 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             public_mcp: Router::new(),
             listening: None,
             cognition: Router::new(),
+            universal_input: Router::new(),
             scheduling: Router::new(),
             preview: Router::new(),
             sharing: Router::new(),
@@ -147,6 +149,12 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
     /// Mount chat, completions, and integrations at their existing public paths.
     pub fn with_cognition(mut self, router: Router) -> Self {
         self.cognition = router;
+        self
+    }
+
+    /// Attach the crate-owned Command K inference router.
+    pub fn with_universal_input(mut self, router: Router) -> Self {
+        self.universal_input = router;
         self
     }
 
@@ -348,6 +356,7 @@ where
         .merge(states.coding_agents)
         .merge(states.capabilities)
         .merge(states.conversations)
+        .nest("/universal_input", states.universal_input)
         .nest("/runtime", runtime_gateway_router(states.gateway))
 }
 

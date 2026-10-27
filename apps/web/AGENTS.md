@@ -147,6 +147,8 @@ The shared plain-text Lexical codec is `packages/lexical-core/canvas-text.ts`.
 
 Keep persistent list hotkeys free of mounted-view closures, and clear
 virtualizer accessors when their view unmounts.
+Keep editor newline handling local; result-opening handlers must yield
+Shift+Enter while an editor owns focus instead of adding shared hotkey flags.
 
 - Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
   detail panel grain; pass the surface accent and a unique SVG filter ID.
