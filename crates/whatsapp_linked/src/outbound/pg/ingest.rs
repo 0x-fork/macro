@@ -450,6 +450,15 @@ pub(super) async fn finish_in(
     if changed {
         notify(tx, signals::GROUP_EFFECTS, r.message).await?;
     }
+    if changed || r.actor.is_some() {
+        notify_change(
+            tx,
+            signals::Change::Group {
+                group_id: r.binding.id,
+            },
+        )
+        .await?;
+    }
     Ok(())
 }
 

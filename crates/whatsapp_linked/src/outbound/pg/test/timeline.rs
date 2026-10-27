@@ -34,7 +34,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
         .await
         .unwrap();
     let detail = linked.group_detail(&receipt).await.unwrap();
-    assert_eq!(detail.group.name, "Escalations");
+    assert_eq!(detail.group.name, "Customer escalations");
     assert_eq!(detail.group.unread_count, 1);
     assert_eq!(detail.group.send_reason, Some(ReplyBlock::NoAccount));
     assert!(detail.sending_identity.is_none());
@@ -290,30 +290,25 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
         .await
         .unwrap();
     use models_permissions::share_permission::{LinkShare, UpdateSharePermissionRequestV2};
-    let commenting = UpdateSharePermissionRequestV2 {
+    let public = UpdateSharePermissionRequestV2 {
         link_share: Some(Some(LinkShare::Public)),
-        link_share_access_level: Some(Some(AccessLevel::Comment)),
+        link_share_access_level: Some(Some(AccessLevel::View)),
         team_share_access_level: None,
         channel_share_permissions: None,
     };
-    // WhatsApp chats are shared read-only, and only in the owner's own session.
-    assert!(
-        linked
-            .update_permissions(&owner, &commenting, SendAuthority::Human)
+    for refused in [AccessLevel::Comment, AccessLevel::Edit] {
+        let error = linked
+            .update_permissions(
+                &owner,
+                &UpdateSharePermissionRequestV2 {
+                    link_share_access_level: Some(Some(refused)),
+                    ..public.clone()
+                },
+                SendAuthority::Human,
+            )
             .await
-            .is_err()
-    );
-    let public = UpdateSharePermissionRequestV2 {
-        link_share_access_level: Some(Some(AccessLevel::View)),
-        ..commenting
-    };
-    for authority in [SendAuthority::UserApiToken, SendAuthority::Automation] {
-        assert!(
-            linked
-                .update_permissions(&owner, &public, authority)
-                .await
-                .is_err()
-        );
+            .unwrap_err();
+        assert!(matches!(error.current_context(), LinkedError::Invalid(_)));
     }
     linked
         .update_permissions(&owner, &public, SendAuthority::Human)
@@ -437,4 +432,148 @@ async fn shared_sender_uses_own_roster_without_adopting_again(pool: PgPool) {
     let claimed = session.claim_sends(bob, 10).await.unwrap();
     assert_eq!(claimed.len(), 1);
     assert_eq!(claimed[0].id, progress.id);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_group_mentioned_in_a_channel_is_readable_by_its_current_members(pool: PgPool) {
+    let (linked, _, _, binding, _, _) = adopted(&pool).await;
+    let channel = Uuid::now_v7();
+    sqlx::query!(
+        "INSERT INTO comms_channels (id, name, channel_type, owner_id, created_at, updated_at) VALUES ($1, 'ops', 'private', $2, now(), now())",
+        channel,
+        ALICE
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query!(
+        "INSERT INTO comms_channel_participants (channel_id, user_id, role, joined_at) VALUES ($1, $2, 'member', now())",
+        channel,
+        CAROL
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert!(linked.adopted_groups(CAROL).await.unwrap().is_empty());
+    // What mentioning the group in the channel writes.
+    let mut tx = pool.begin().await.unwrap();
+    entity_access_db_utils::channel_share::insert_if_absent(
+        &mut tx,
+        &binding.id,
+        EntityType::WhatsAppGroup,
+        &channel,
+        AccessLevel::View,
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    let listed = linked.adopted_groups(CAROL).await.unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].id, binding.id);
+    assert_eq!(listed[0].send_reason, Some(ReplyBlock::NoAccount));
+    sqlx::query!(
+        "UPDATE comms_channel_participants SET left_at = now() WHERE channel_id = $1 AND user_id = $2",
+        channel,
+        CAROL
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert!(
+        linked.adopted_groups(CAROL).await.unwrap().is_empty(),
+        "leaving the channel ends access"
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn only_the_owners_own_session_changes_sharing(pool: PgPool) {
+    let (linked, _, _, binding, _, _) = adopted(&pool).await;
+    let owner = receipt::<MessageView>(ALICE, binding.id);
+    let public = models_permissions::share_permission::UpdateSharePermissionRequestV2 {
+        link_share: Some(Some(
+            models_permissions::share_permission::LinkShare::Public,
+        )),
+        link_share_access_level: Some(Some(AccessLevel::View)),
+        team_share_access_level: None,
+        channel_share_permissions: None,
+    };
+    for authority in [SendAuthority::UserApiToken, SendAuthority::Automation] {
+        let error = linked
+            .update_permissions(&owner, &public, authority)
+            .await
+            .unwrap_err();
+        assert_eq!(error.current_context(), &LinkedError::Forbidden);
+    }
+    assert_eq!(linked.permissions(&owner).await.unwrap().link_share, None);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn the_owner_sees_and_revokes_channel_grants(pool: PgPool) {
+    use models_permissions::share_permission::{
+        UpdateSharePermissionRequestV2,
+        channel_share_permission::{
+            ChannelSharePermission, UpdateChannelSharePermission, UpdateOperation,
+        },
+    };
+    let (linked, _, _, binding, _, _) = adopted(&pool).await;
+    let owner = receipt::<MessageView>(ALICE, binding.id);
+    let channel = Uuid::now_v7().to_string();
+    let grants = |operation, access_level| UpdateSharePermissionRequestV2 {
+        link_share: None,
+        link_share_access_level: None,
+        team_share_access_level: None,
+        channel_share_permissions: Some(vec![UpdateChannelSharePermission {
+            operation,
+            channel_id: channel.clone(),
+            access_level,
+        }]),
+    };
+    // A mention of the chat by its owner left this grant.
+    let mut transaction = pool.begin().await.unwrap();
+    entity_access_db_utils::channel_share::insert_if_absent(
+        &mut transaction,
+        &binding.id,
+        entity_access_db_utils::EntityType::WhatsAppGroup,
+        &Uuid::parse_str(&channel).unwrap(),
+        AccessLevel::View,
+    )
+    .await
+    .unwrap();
+    transaction.commit().await.unwrap();
+    assert_eq!(
+        linked
+            .permissions(&owner)
+            .await
+            .unwrap()
+            .channel_share_permissions,
+        Some(vec![ChannelSharePermission {
+            channel_id: channel.clone(),
+            access_level: AccessLevel::View,
+        }])
+    );
+    let error = linked
+        .update_permissions(
+            &owner,
+            &grants(UpdateOperation::Replace, Some(AccessLevel::Edit)),
+            SendAuthority::Human,
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error.current_context(), LinkedError::Invalid(_)));
+    linked
+        .update_permissions(
+            &owner,
+            &grants(UpdateOperation::Remove, None),
+            SendAuthority::Human,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        linked
+            .permissions(&owner)
+            .await
+            .unwrap()
+            .channel_share_permissions,
+        Some(vec![])
+    );
 }

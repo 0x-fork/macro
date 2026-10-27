@@ -45,7 +45,7 @@ impl BindingRepository for PgLinkedRepository {
         let AdoptionRecord {
             user,
             account,
-            request,
+            name,
             group,
         } = record;
         let identity = account
@@ -53,14 +53,19 @@ impl BindingRepository for PgLinkedRepository {
             .as_deref()
             .ok_or(LinkedError::Forbidden)?;
         let mut tx = self.pool.begin().await.map_err(failure)?;
-        sqlx::query!("SELECT pg_advisory_xact_lock(hashtextextended('whatsapp-group:' || $1 || ':' || $2, 0))",user,request.group_jid)
-            .execute(&mut *tx).await.map_err(failure)?;
+        sqlx::query!(
+            "SELECT pg_advisory_xact_lock(hashtextextended('whatsapp-group:' || $1 || ':' || $2, 0))",
+            user,
+            group.jid
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(failure)?;
         sqlx::query_scalar!("SELECT id FROM whatsapp_linked_account WHERE id = $1 AND user_id = $2 AND generation = $3 AND state = 'connected' FOR SHARE", account.id,user,account.authorization_generation)
-            .fetch_optional(&mut *tx).await.map_err(failure)?.ok_or(LinkedError::Forbidden)?;
-        let existing = sqlx::query_as!(BindingRow,"SELECT id, group_jid, user_id, state, adopted_at FROM whatsapp_group WHERE user_id = $1 AND group_jid = $2 AND state <> 'detached' FOR UPDATE",user,request.group_jid)
+            .fetch_optional(&mut *tx).await.map_err(failure)?.ok_or(LinkedError::Disconnected)?;
+        let existing = sqlx::query_as!(BindingRow,"SELECT id, group_jid, user_id, state, adopted_at FROM whatsapp_group WHERE user_id = $1 AND group_jid = $2 AND state <> 'detached' FOR UPDATE",user,group.jid)
             .fetch_optional(&mut *tx).await.map_err(failure)?;
         let adopted = match existing {
-            // The person's own entity for this group: adopting twice returns it.
             Some(row) => Adopted {
                 binding: binding(row)?,
                 created: false,
@@ -71,8 +76,7 @@ impl BindingRepository for PgLinkedRepository {
                 share_permission_db_utils::insert_private_permission(&mut *tx, &permission)
                     .await
                     .map_err(failure)?;
-                let name = request.name.as_deref().unwrap_or(&group.name).trim();
-                let row = sqlx::query_as!(BindingRow,"INSERT INTO whatsapp_group (id, group_jid, name, user_id, state, share_permission_id) VALUES ($1,$2,$3,$4,'active',$5) RETURNING id, group_jid, user_id, state, adopted_at",id,request.group_jid,name,user,permission)
+                let row = sqlx::query_as!(BindingRow,"INSERT INTO whatsapp_group (id, group_jid, name, user_id, state, share_permission_id) VALUES ($1,$2,$3,$4,'active',$5) RETURNING id, group_jid, user_id, state, adopted_at",id,group.jid,name,user,permission)
                     .fetch_one(&mut *tx).await.map_err(failure)?;
                 let owner = Owner::from_principal_str(user).map_err(failure)?;
                 entity_registry_db_utils::insert_entity(
@@ -183,6 +187,13 @@ impl BindingRepository for PgLinkedRepository {
         for account in observers {
             notify(&mut tx, signals::ACCOUNT_CHANGED, account).await?;
         }
+        notify_change(
+            &mut tx,
+            signals::Change::Group {
+                group_id: binding.id,
+            },
+        )
+        .await?;
         tx.commit().await.map_err(failure)
     }
 }

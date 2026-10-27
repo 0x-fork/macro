@@ -1,7 +1,9 @@
 //! Publication outbox over `whatsapp_group_message` revisions.
 
 use super::*;
-use crate::domain::ports::{EffectsRepository, GroupEffect, Origin};
+use crate::domain::ports::{
+    AudienceRepository, EffectsRepository, GroupEffect, MessageNotice, Origin,
+};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -59,5 +61,49 @@ impl EffectsRepository for PgLinkedRepository {
         .await
         .map_err(failure)?;
         Ok(())
+    }
+}
+
+#[async_trait]
+impl AudienceRepository for PgLinkedRepository {
+    async fn account_owner(&self, account: Uuid) -> LinkedResult<Option<String>> {
+        sqlx::query_scalar!(
+            "SELECT user_id FROM whatsapp_linked_account WHERE id = $1",
+            account
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(failure)
+    }
+
+    async fn link_viewers(&self, group: Uuid) -> LinkedResult<Vec<String>> {
+        sqlx::query_scalar!(
+            "SELECT user_id FROM whatsapp_group_read_state WHERE group_id = $1 AND whatsapp_group_can_view(group_id, user_id)",
+            group
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(failure)
+    }
+
+    async fn message_notice(
+        &self,
+        group: Uuid,
+        message: Uuid,
+    ) -> LinkedResult<Option<MessageNotice>> {
+        Ok(sqlx::query!(
+            r#"SELECT g.name, m.deleted_at IS NOT NULL OR m.content_revision > 0 AS "superseded!"
+            FROM whatsapp_group g JOIN whatsapp_group_message m ON m.binding_id = g.id
+            WHERE g.id = $1 AND m.id = $2"#,
+            group,
+            message
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(failure)?
+        .map(|row| MessageNotice {
+            group_name: row.name,
+            superseded: row.superseded,
+        }))
     }
 }

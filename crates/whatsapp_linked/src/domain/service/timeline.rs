@@ -4,6 +4,7 @@ use entity_access::domain::models::{AccessLevel, EntityPermission};
 use macro_user_id::user_id::MacroUserIdStr;
 use models_permissions::share_permission::{
     SharePermissionV2, UpdateSharePermissionRequestV2,
+    channel_share_permission::{UpdateChannelSharePermission, UpdateOperation},
     team_share::{TeamShareLevel, TeamShareRequest, authorize_team_share},
 };
 impl LinkedService {
@@ -12,7 +13,6 @@ impl LinkedService {
     pub async fn adopted_groups(&self, user: &str) -> LinkedResult<Vec<WhatsAppGroupSummary>> {
         let records = self.timeline.visible_groups(user).await?;
         let account = self.accounts.owned_account(user).await?;
-        let now = Utc::now();
         let groups = records
             .into_iter()
             .map(|record| {
@@ -25,7 +25,6 @@ impl LinkedService {
                     account.as_ref(),
                     &record.binding,
                     facts.as_ref(),
-                    now,
                 );
                 group.can_send = group.send_reason.is_none();
                 group
@@ -46,6 +45,8 @@ impl LinkedService {
             .ok_or(LinkedError::NotFound)?;
         let account = self.accounts.owned_account(user).await?;
         let mut group = self.timeline.summary(id, user).await?;
+        let observers = self.groups.group_accounts(id, user).await?;
+        self.groups.request_groups_refresh(&observers).await?;
         group.send_reason = self.reply_block(account.as_ref(), &binding).await?;
         group.can_send = group.send_reason.is_none();
         let access_level = match access.entity_permission() {
@@ -100,9 +101,9 @@ impl LinkedService {
         let (_, id) = view_scope(access)?;
         self.timeline.permissions(id).await
     }
-    /// Only the actual owner, in a session of their own, controls link and
-    /// team sharing; ordinary people grants use the generic direct-access
-    /// endpoints. Everything is shared read-only.
+    /// Only the actual owner, in a session of their own, controls link, team
+    /// and channel sharing; ordinary people grants use the generic
+    /// direct-access endpoints. Everything is shared read-only.
     #[tracing::instrument(name = "whatsapp.groups.permissions", skip_all, err, fields(group_id))]
     pub async fn update_permissions<T: RequiredPermission>(
         &self,
@@ -120,19 +121,18 @@ impl LinkedService {
             return Err(LinkedError::Forbidden.into());
         }
         if update
-            .channel_share_permissions
-            .as_ref()
-            .is_some_and(|c| !c.is_empty())
-        {
-            return Err(LinkedError::Invalid("share with people or your team").into());
-        }
-        if update
             .link_share_access_level
             .flatten()
             .is_some_and(|level| level != AccessLevel::View)
         {
             return Err(LinkedError::Invalid("WhatsApp chats are shared read-only").into());
         }
+        validate_channel_grants(
+            update
+                .channel_share_permissions
+                .as_deref()
+                .unwrap_or_default(),
+        )?;
         let command = authorize_team_share(
             Some(&actor),
             &facts,
@@ -147,4 +147,27 @@ impl LinkedService {
             .update_permissions(id, user, update, command.as_ref())
             .await
     }
+}
+
+/// Channel grants name each channel once and are read-only; a removal needs no
+/// level.
+fn validate_channel_grants(grants: &[UpdateChannelSharePermission]) -> LinkedResult<()> {
+    let mut channels = std::collections::HashSet::new();
+    for grant in grants {
+        let read_only = match grant.operation {
+            UpdateOperation::Remove => true,
+            UpdateOperation::Add | UpdateOperation::Replace => {
+                grant.access_level == Some(AccessLevel::View)
+            }
+        };
+        if !channels.insert(&grant.channel_id)
+            || Uuid::parse_str(&grant.channel_id).is_err()
+            || !read_only
+        {
+            return Err(
+                LinkedError::Invalid("WhatsApp chats are shared read-only with a channel").into(),
+            );
+        }
+    }
+    Ok(())
 }

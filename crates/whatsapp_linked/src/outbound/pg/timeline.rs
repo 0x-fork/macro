@@ -23,7 +23,8 @@ impl TimelineRepository for PgLinkedRepository {
             WHERE whatsapp_group_can_view(g.id,$1)
               AND (r.user_id IS NOT NULL OR EXISTS (SELECT 1 FROM entity_access ea
                 WHERE ea.entity_id=g.id AND ea.entity_type='whatsapp_group'
-                  AND (ea.source_id=$1 OR ea.source_id IN (SELECT team_id::text FROM team_user WHERE user_id=$1))))
+                  AND (ea.source_id=$1 OR ea.source_id IN (SELECT team_id::text FROM team_user WHERE user_id=$1)
+                    OR ea.source_id IN (SELECT channel_id::text FROM comms_channel_participants WHERE user_id=$1 AND left_at IS NULL))))
             ORDER BY g.adopted_at DESC LIMIT 2000"#,user)
             .fetch_all(&self.pool).await.map_err(failure)?;
         rows.into_iter()
@@ -152,13 +153,20 @@ impl TimelineRepository for PgLinkedRepository {
         let r=sqlx::query!(r#"SELECT sp.id,sp."linkShare" AS "link_share: LinkShare",sp."linkShareAccessLevel" AS "link_level: AccessLevel",
             sp.team_share_access_level AS "team_level: AccessLevel",g.user_id FROM whatsapp_group g JOIN "SharePermission" sp ON sp.id=g.share_permission_id WHERE g.id=$1"#,group)
             .fetch_optional(&self.pool).await.map_err(failure)?.ok_or(LinkedError::NotFound)?;
+        let channels = entity_access_db_utils::get_direct_channel_grants(
+            &self.pool,
+            &group,
+            entity_access_db_utils::EntityType::WhatsAppGroup,
+        )
+        .await
+        .map_err(failure)?;
         Ok(SharePermissionV2 {
             id: r.id,
             link_share: r.link_share,
             link_share_access_level: r.link_level,
             team_share_access_level: r.team_level,
             owner: r.user_id,
-            channel_share_permissions: None,
+            channel_share_permissions: Some(channels),
         })
     }
     async fn share_facts(
@@ -205,6 +213,20 @@ impl TimelineRepository for PgLinkedRepository {
         share_permission_db_utils::update_link_share(&mut *tx, &permission, update)
             .await
             .map_err(failure)?;
+        if let Some(channels) = update
+            .channel_share_permissions
+            .as_deref()
+            .filter(|channels| !channels.is_empty())
+        {
+            entity_access_db_utils::update_entity_access_channel_share_permissions(
+                &mut tx,
+                &group,
+                entity_access_db_utils::EntityType::WhatsAppGroup,
+                channels,
+            )
+            .await
+            .map_err(failure)?;
+        }
         tx.commit().await.map_err(failure)
     }
 }

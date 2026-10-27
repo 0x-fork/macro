@@ -76,26 +76,6 @@ impl World {
         for id in [ALICE, BOB] {
             user(&pool, id).await;
         }
-        let team = Uuid::now_v7();
-        sqlx::query!(
-            "INSERT INTO team (id, name, owner_id) VALUES ($1, 'Linked', $2)",
-            team,
-            ALICE
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-        for (id, role) in [(ALICE, "owner"), (BOB, "member")] {
-            sqlx::query!(
-                "INSERT INTO team_user (team_id, user_id, team_role) VALUES ($1, $2, $3::text::team_role)",
-                team,
-                id,
-                role
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
-        }
         let linked = LinkedService::new(
             Features {
                 pairing: true,
@@ -173,14 +153,7 @@ impl World {
         .expect("the replica lists the group");
         let binding = self
             .linked
-            .adopt(
-                user,
-                &AdoptGroup {
-                    group_jid: group,
-                    name: Some("Escalations".to_owned()),
-                },
-                SendAuthority::Human,
-            )
+            .adopt(user, &AdoptGroup { group_jid: group }, SendAuthority::Human)
             .await
             .unwrap();
         let mut tx = self.pool.begin().await.unwrap();
@@ -200,16 +173,10 @@ impl World {
         binding
     }
 
-    /// Waits until `user`'s own account observes the group shared with them,
-    /// which happens on the account's next roster read; ask for one.
+    /// A viewer opens the WhatsApp page; their account's refreshed roster
+    /// makes it an observer of a group shared with them.
     async fn observe(&self, user: &str, binding: &Binding) {
-        sqlx::query!(
-            "SELECT pg_notify('whatsapp_groups_requested', id::text) FROM whatsapp_linked_account WHERE user_id = $1",
-            user
-        )
-        .execute(&self.pool)
-        .await
-        .unwrap();
+        self.linked.groups(user).await.unwrap();
         let observing = wait_for_rows(&self.pool, TIMEOUT, || async {
             sqlx::query_scalar!(
                 r#"SELECT m.account_id FROM whatsapp_group_membership m
@@ -856,4 +823,55 @@ impl whatsapp_linked::domain::ports::SendRateLimiter for Allow {
     async fn check(&self, _: &str) -> LinkedResult<()> {
         Ok(())
     }
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn group_renames_and_removals_in_whatsapp_reach_macro_live(pool: PgPool) {
+    let world = World::new(pool).await;
+    let replica = world.replica().await;
+    let (_, binding) = world.alice_adopted().await;
+
+    world
+        .whatsapp
+        .rename_group(&world.group, "Escalations, renamed");
+    let renamed = wait_for_rows(&world.pool, TIMEOUT, || async {
+        sqlx::query_scalar!(
+            "SELECT name FROM whatsapp_group WHERE id = $1 AND name = 'Escalations, renamed'",
+            binding.id
+        )
+        .fetch_optional(&world.pool)
+        .await
+        .unwrap()
+    })
+    .await;
+    world
+        .expect(renamed, "the Macro group follows the WhatsApp rename")
+        .await;
+
+    world.whatsapp.remove_from_group(&world.group, &world.alice);
+    let left = wait_for_rows(&world.pool, TIMEOUT, || async {
+        let listed = sqlx::query_scalar!(
+            r#"SELECT count(*) AS "count!" FROM whatsapp_group_roster r
+            JOIN whatsapp_linked_account a ON a.id = r.account_id WHERE a.user_id = $1"#,
+            ALICE
+        )
+        .fetch_one(&world.pool)
+        .await
+        .unwrap();
+        (listed == 0).then_some(())
+    })
+    .await;
+    world
+        .expect(left, "removal drops the group from Alice's list")
+        .await;
+    let detail = world
+        .linked
+        .adopted_groups(ALICE)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|group| group.id == binding.id)
+        .expect("history and access stay");
+    assert!(!detail.can_send, "Alice can no longer send");
+    replica.drain(TIMEOUT).await.unwrap();
 }

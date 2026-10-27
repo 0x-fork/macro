@@ -81,7 +81,7 @@ impl IntoResponse for ApiError {
             | LinkedError::IdentityConflict
             | LinkedError::Disconnected
             | LinkedError::SendExpired => StatusCode::CONFLICT,
-            LinkedError::Refreshing | LinkedError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
+            LinkedError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
             LinkedError::Fenced => StatusCode::INTERNAL_SERVER_ERROR,
         };
         let mut response = (
@@ -559,7 +559,7 @@ pub async fn permissions<Eas: EntityAccessService, Auth: MacroAuthorizationServi
             .await?,
     ))
 }
-/// The owner, in their own session, updates link and team sharing.
+/// The owner, in their own session, updates link, team and channel sharing.
 #[utoipa::path(patch,path="/meta/linked/whatsapp-groups/{group_id}/permissions",operation_id="whatsapp_group_update_permissions",params(("group_id"=Uuid,Path)),request_body=UpdateSharePermissionRequestV2,responses((status=204)))]
 pub async fn update_permissions<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,

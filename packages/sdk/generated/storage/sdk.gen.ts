@@ -2891,7 +2891,7 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * The owner, in their own session, updates link and team sharing.
+     * The owner, in their own session, updates link, team and channel sharing.
      */
     public whatsappGroupUpdatePermissions<ThrowOnError extends boolean = false>(options: Options<WhatsappGroupUpdatePermissionsData, ThrowOnError>): RequestResult<WhatsappGroupUpdatePermissionsResponses, unknown, ThrowOnError> {
         return (options.client ?? this.client).patch<WhatsappGroupUpdatePermissionsResponses, unknown, ThrowOnError>({

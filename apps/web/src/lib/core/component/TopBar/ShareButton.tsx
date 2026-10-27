@@ -1280,12 +1280,21 @@ export function ShareModal(props: ShareModalProps) {
   });
 
   const removeChannelAccess = createCallback(async (channelId: string) => {
-    if (
-      recipientPermissions() !== Permissions.OWNER ||
-      props.itemType === 'whatsapp_group'
-    )
-      return;
-    if (usesGraphqlSharePolicy(props.itemType)) {
+    if (recipientPermissions() !== Permissions.OWNER) return;
+    // A WhatsApp chat reaches a channel only by mention; its owner revokes it.
+    if (props.itemType === 'whatsapp_group') {
+      const result = await updateWhatsappGroupPermissions(props.id, {
+        channelSharePermissions: [{ operation: 'remove', channelId }],
+      });
+      if (result.isOk()) {
+        fireAndForget(refetch(), 'share-modal');
+        toast.success('Removed channel access');
+      } else {
+        toast.alert('Failed to remove channel access', {
+          subtext: 'Please try again',
+        });
+      }
+    } else if (usesGraphqlSharePolicy(props.itemType)) {
       const result = await updateEntitySharePolicy(props.itemType, props.id, {
         channelSharePermissions: [{ operation: 'remove', channelId }],
       });

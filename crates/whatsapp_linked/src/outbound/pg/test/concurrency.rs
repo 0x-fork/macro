@@ -56,7 +56,6 @@ async fn observers_can_refresh_groups_in_opposite_orders(pool: PgPool) {
             ALICE,
             &AdoptGroup {
                 group_jid: second.jid.clone(),
-                name: Some("Second group".into()),
             },
             SendAuthority::Human,
         )
