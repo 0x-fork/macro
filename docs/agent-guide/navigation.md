@@ -649,7 +649,7 @@ The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
 without creating data. Mobile continues to use its create sheet.
 
 On mobile, the bottom dock defaults to Notifications, Calendar, Email, Channels,
-Agents, Files, Tasks, Calls, CRM, Reviews, Scheduling,
+Agents, Files, Tasks, Calls, Customers, Reviews, Scheduling,
 and External. Feature-gated views
 appear only when enabled. The navigation island measures its width and fits as
 many fixed-size app buttons as possible, reserving room for More. Search stays
