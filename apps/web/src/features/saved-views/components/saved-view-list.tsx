@@ -1,4 +1,5 @@
 import { CollapsibleSection, ViewSidebar } from '@app/components/view-shell';
+import { t } from '@app/lib/i18n';
 import {
   ContextMenuContent,
   ContextMenuTrigger,
@@ -31,11 +32,11 @@ function Header(props: { onCreate: () => void }) {
   return (
     <CollapsibleSection.Header>
       <CollapsibleSection.Trigger>
-        <span class="min-w-0 truncate">Saved views</span>
+        <span class="min-w-0 truncate">{t('viewMenus.savedViews')}</span>
         <CollapsibleSection.Indicator />
       </CollapsibleSection.Trigger>
       <CollapsibleSection.Action
-        label="New saved view"
+        label={t('viewMenus.newSavedView')}
         onClick={props.onCreate}
       >
         <PlusIcon class="size-3.5" />
@@ -52,7 +53,7 @@ function Content(props: { children: JSX.Element }) {
 
 function Items(props: { children: JSX.Element }) {
   return (
-    <ViewSidebar.Nav aria-label="Saved task views">
+    <ViewSidebar.Nav aria-label={t('viewMenus.savedTaskViews')}>
       {props.children}
     </ViewSidebar.Nav>
   );
@@ -63,14 +64,14 @@ function Draft(props: { onSelect: () => void }) {
     <ViewSidebar.Item
       active
       onClick={props.onSelect}
-      title="New view, draft"
-      aria-label="New view, draft"
+      title={t('viewMenus.newViewDraft')}
+      aria-label={t('viewMenus.newViewDraft')}
     >
       <ViewSidebar.Icon>
         <BookmarkIcon class="size-4" />
       </ViewSidebar.Icon>
-      <span class="truncate italic">New view</span>
-      <span class="ml-auto text-xs text-ink-muted">Draft</span>
+      <span class="truncate italic">{t('viewMenus.newView')}</span>
+      <span class="ml-auto text-xs text-ink-muted">{t('viewMenus.draft')}</span>
     </ViewSidebar.Item>
   );
 }
@@ -110,7 +111,7 @@ export function SavedViewListRow(props: {
   };
   const label = () =>
     props.view.sharedTeamId
-      ? `${props.view.name}, shared with team`
+      ? t('viewMenus.sharedWithTeam', { name: props.view.name })
       : props.view.name;
   return (
     <ContextMenu>
@@ -140,7 +141,7 @@ export function SavedViewListRow(props: {
           <Dropdown placement="bottom-end">
             <Dropdown.Trigger
               as={ViewSidebar.Control}
-              label={`Actions for ${props.view.name}`}
+              label={t('viewMenus.viewActions', { name: props.view.name })}
             >
               <DotsIcon class="size-4" />
             </Dropdown.Trigger>

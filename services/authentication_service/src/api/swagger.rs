@@ -66,8 +66,8 @@ use model::authentication::{
 };
 use model::response::{EmptyResponse, ErrorResponse, UserTokensResponse};
 use model::user::{
-    ProfilePictureQueryParams, ProfilePictures, PutUserNameQueryParams, UserName, UserNames,
-    UserProfilePicture,
+    Language, ProfilePictureQueryParams, ProfilePictures, PutUserNameQueryParams, UserLanguage,
+    UserName, UserNames, UserProfilePicture,
 };
 
 #[derive(OpenApi)]
@@ -199,6 +199,9 @@ use model::user::{
                 teams::inbound::axum_router::invite_link::get_team_handler::<crate::api::context::TeamsServiceType, crate::api::context::EntityAccessServiceType, crate::api::context::AuthorizationService>,
                 teams::inbound::axum_router::invite_link::join_handler::<crate::api::context::TeamsServiceType, crate::api::context::EntityAccessServiceType, crate::api::context::AuthorizationService>,
 
+                /// /user/language
+                user_language::inbound::axum_router::get_user_language_handler::<crate::api::context::UserLanguageServiceType, crate::api::context::AuthorizationService>,
+                user_language::inbound::axum_router::put_user_language_handler::<crate::api::context::UserLanguageServiceType, crate::api::context::AuthorizationService>,
                 /// /referral
                 referral::inbound::axum_router::get_referral_code_handler::<crate::api::context::ReferralServiceType, crate::api::context::RateLimiter, crate::api::context::AuthorizationService>,
                 referral::inbound::axum_router::post_referral_invite_handler::<crate::api::context::ReferralServiceType, crate::api::context::RateLimiter, crate::api::context::AuthorizationService>,
@@ -233,6 +236,8 @@ use model::user::{
                         ProfilePictureQueryParams,
                         PutUserNameQueryParams,
                         UserName,
+                        UserLanguage,
+                        Language,
                         UserNames,
                         GetNamesWithEmailRequestBody,
                         PostGetNamesRequestBody,

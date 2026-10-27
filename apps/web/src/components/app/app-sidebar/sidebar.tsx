@@ -16,6 +16,7 @@ import {
 } from '@app/features/team-invitations/invite-modal';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { t } from '@app/lib/i18n';
 import { useHotkeyInterceptor } from '@app/signal/hotkeyRoot';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useSplitLayout } from '@components/app/split-layout/layout';
@@ -74,7 +75,7 @@ const SIDEBAR_LINKS = [
   {
     id: 'home',
     get label() {
-      return isTouchDevice() ? 'Notifications' : 'Home';
+      return isTouchDevice() ? t('nav.notifications') : t('nav.home');
     },
     href: LIST_VIEW_PATHS.home,
     get icon() {
@@ -85,7 +86,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'search',
-    label: 'Search',
+    get label() {
+      return t('nav.search');
+    },
     href: LIST_VIEW_PATHS.search,
     icon: SearchIcon,
     hotkey: '/',
@@ -94,7 +97,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'agents',
-    label: 'Agents',
+    get label() {
+      return t('nav.agents');
+    },
     href: LIST_VIEW_PATHS.agents,
     icon: getIconConfig('agent').icon,
     hotkey: 'a',
@@ -102,7 +107,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'mail',
-    label: 'Email',
+    get label() {
+      return t('nav.email');
+    },
     href: LIST_VIEW_PATHS.mail,
     icon: getIconConfig('email').icon,
     hotkey: 'e',
@@ -110,7 +117,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'documents',
-    label: 'Files',
+    get label() {
+      return t('nav.files');
+    },
     href: LIST_VIEW_PATHS.documents,
     icon: getIconConfig('files').icon,
     hotkey: 'f',
@@ -118,7 +127,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'documents',
-    label: 'Documents',
+    get label() {
+      return t('nav.documents');
+    },
     href: LIST_VIEW_PATHS.documents,
     params: {
       initialFacets: { type: ['doc-markdown'] },
@@ -129,7 +140,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'tasks',
-    label: 'Tasks',
+    get label() {
+      return t('nav.tasks');
+    },
     href: LIST_VIEW_PATHS.tasks,
     icon: getIconConfig('task').icon,
     hotkey: 't',
@@ -137,7 +150,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'calendar',
-    label: 'Calendar',
+    get label() {
+      return t('nav.calendar');
+    },
     href: calendarPath('timeGridWeek'),
     icon: getIconConfig('calendar').icon,
     hotkey: 'r',
@@ -145,7 +160,9 @@ const SIDEBAR_LINKS = [
   },
   {
     id: 'channels',
-    label: 'Channels',
+    get label() {
+      return t('nav.channels');
+    },
     href: LIST_VIEW_PATHS.channels,
     icon: getIconConfig('channel').icon,
     hotkey: 'c',
@@ -224,7 +241,7 @@ export const GoToHotkeys = () => {
   const inviteHotkey = registerHotkey({
     scopeId: 'global',
     hotkeyToken: TOKENS.global.inviteTeam,
-    description: 'Send Invites',
+    description: () => t('nav.sendInvites'),
     keyDownHandler: (e) => {
       e?.preventDefault();
       setInviteModalOpen(true);
@@ -260,7 +277,7 @@ export const GoToHotkeys = () => {
     hotkey: GO_TO_LEADER_KEY,
     scopeId: 'global',
     hotkeyToken: TOKENS.sidebar.goToLeader,
-    description: 'Go to page',
+    description: () => t('nav.goToPage'),
     keyDownHandler: () => {
       // We debounce the time till the hot keys are visible to allow other commands
       // like g+g to fire
@@ -361,7 +378,7 @@ export const GoToHotkeys = () => {
         hotkey: link.hotkey,
         scopeId: link.standaloneHotkey ? 'global' : GO_TO_COMMAND_SCOPE,
         hotkeyToken: link.hotkeyToken,
-        description: `Go to ${link.label}`,
+        description: () => t('nav.goTo', { label: link.label }),
         keyDownHandler: openSidebarView,
         icon: link.icon,
         // Views can claim a letter while focused (Email's g then i). Re-running
@@ -382,7 +399,9 @@ export const GoToHotkeys = () => {
 
 const CALLS_LINK: SidebarItem = {
   id: 'calls',
-  label: 'Calls',
+  get label() {
+    return t('nav.calls');
+  },
   href: LIST_VIEW_PATHS.calls,
   icon: getIconConfig('call').icon,
   hotkey: 'l',
@@ -391,7 +410,9 @@ const CALLS_LINK: SidebarItem = {
 
 const COMPANIES_LINK: SidebarItem = {
   id: 'companies',
-  label: 'Customers',
+  get label() {
+    return t('nav.customers');
+  },
   href: LIST_VIEW_PATHS.companies,
   icon: getIconConfig('company').icon,
   hotkey: 'o',
@@ -400,7 +421,9 @@ const COMPANIES_LINK: SidebarItem = {
 
 const ACTIVITY_LINK: SidebarItem = {
   id: 'activity',
-  label: 'Activity',
+  get label() {
+    return t('nav.activity');
+  },
   href: '/activity',
   icon: ActivityIcon,
   hotkey: 'y',
@@ -409,7 +432,9 @@ const ACTIVITY_LINK: SidebarItem = {
 
 const RECENT_LINK: SidebarItem = {
   id: 'recent',
-  label: 'Recent',
+  get label() {
+    return t('nav.recent');
+  },
   href: LIST_VIEW_PATHS.recent,
   icon: ActivityIcon,
   // `r` is Calendar and `e`/`c`/`t` are taken; `n` is the only letter of
@@ -420,7 +445,9 @@ const RECENT_LINK: SidebarItem = {
 
 const REVIEWS_LINK: SidebarItem = {
   id: 'reviews',
-  label: 'Reviews',
+  get label() {
+    return t('nav.reviews');
+  },
   href: '/reviews',
   icon: getIconConfig('githubPullRequest').icon,
   hotkey: 'v',
@@ -429,7 +456,9 @@ const REVIEWS_LINK: SidebarItem = {
 
 const EXTERNAL_LINK: SidebarItem = {
   id: 'external',
-  label: 'External',
+  get label() {
+    return t('nav.external');
+  },
   href: EXTERNAL_VIEW_PATH,
   icon: PlugIcon,
   // `e` is Email; `x` is the only free letter of "external".
@@ -537,7 +566,7 @@ export const SidebarOpenInSplitMenu = (props: SidebarOpenInSplitMenuProps) => {
       referredFrom: 'sidebar',
     });
     if (result.status === 'reused' && result.owner !== result.sourceOwner) {
-      toast.alert('Content already open');
+      toast.alert(t('nav.contentAlreadyOpen'));
     }
   };
 
@@ -562,7 +591,7 @@ export const SidebarOpenInSplitMenu = (props: SidebarOpenInSplitMenuProps) => {
       referredFrom: 'sidebar',
     });
     if (result.status === 'reused' && result.owner !== result.sourceOwner) {
-      toast.alert('Content already open');
+      toast.alert(t('nav.contentAlreadyOpen'));
     }
   };
 
@@ -590,14 +619,17 @@ export const SidebarOpenInSplitMenu = (props: SidebarOpenInSplitMenuProps) => {
       <ContextMenu.Portal>
         <ContextMenuContent class="text-xs text-ink-muted">
           <MenuItem
-            text="Open in new split"
+            text={t('nav.openInNewSplit')}
             onClick={openInNewSplit}
             disabled={!canOpenInNewSplit()}
           />
           <Show when={canOpenFullscreen()}>
-            <MenuItem text="Open fullscreen" onClick={openFullscreen} />
+            <MenuItem text={t('nav.openFullscreen')} onClick={openFullscreen} />
           </Show>
-          <MenuItem text="Open in current split" onClick={openInCurrentSplit} />
+          <MenuItem
+            text={t('nav.openInCurrentSplit')}
+            onClick={openInCurrentSplit}
+          />
           {props.additionalActions}
         </ContextMenuContent>
       </ContextMenu.Portal>

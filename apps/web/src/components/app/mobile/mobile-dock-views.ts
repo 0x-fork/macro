@@ -1,5 +1,6 @@
 import { useCalendarUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { t } from '@app/lib/i18n';
 import { getIconConfig } from '@core/component/EntityIcon';
 import {
   enableCalendarScheduling,
@@ -45,68 +46,96 @@ export type MobileDockView = {
 export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   {
     id: 'home',
-    label: 'Notifications',
+    get label() {
+      return t('nav.notifications');
+    },
     icon: BellIcon,
     iconActive: BellFillIcon,
   },
   {
     id: 'calendar',
-    label: 'Calendar',
+    get label() {
+      return t('nav.calendar');
+    },
     icon: CalendarBlankIcon,
     iconActive: CalendarBlankFillIcon,
   },
   {
     id: 'mail',
-    label: 'Email',
+    get label() {
+      return t('nav.email');
+    },
     icon: getIconConfig('email').icon,
     iconActive: EmailFillIcon,
   },
   {
     id: 'channels',
-    label: 'Chat',
+    get label() {
+      return t('nav.chat');
+    },
     icon: ChatsCircleIcon,
     iconActive: ChatsCircleFillIcon,
   },
   {
     id: 'agents',
-    label: 'Agents',
+    get label() {
+      return t('nav.agents');
+    },
     icon: getIconConfig('agent').icon,
     iconActive: AgentFillIcon,
   },
   {
     id: 'documents',
-    label: 'Files',
+    get label() {
+      return t('nav.files');
+    },
     icon: FolderSimpleIcon,
     iconActive: FolderSimpleFillIcon,
   },
   {
     id: 'tasks',
-    label: 'Tasks',
+    get label() {
+      return t('nav.tasks');
+    },
     icon: getIconConfig('task').icon,
     iconActive: ListChecksFillIcon,
   },
   {
     id: 'calls',
-    label: 'Calls',
+    get label() {
+      return t('nav.calls');
+    },
     icon: getIconConfig('call').icon,
     iconActive: PhoneCallFillIcon,
   },
   {
     id: 'companies',
-    label: 'Customers',
+    get label() {
+      return t('nav.customers');
+    },
     icon: BuildingsIcon,
     iconActive: BuildingsFillIcon,
   },
   {
     id: 'reviews',
-    label: 'Reviews',
+    get label() {
+      return t('nav.reviews');
+    },
     icon: GitPullRequestIcon,
     iconActive: GitPullRequestFillIcon,
   },
-  { id: 'booking-links', label: 'Scheduling', icon: CalendarCheckIcon },
+  {
+    id: 'booking-links',
+    get label() {
+      return t('nav.scheduling');
+    },
+    icon: CalendarCheckIcon,
+  },
   {
     id: 'external',
-    label: 'External',
+    get label() {
+      return t('nav.external');
+    },
     icon: PlugIcon,
     iconActive: PlugFillIcon,
   },
