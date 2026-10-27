@@ -401,6 +401,7 @@ pub async fn build_tool_service_context_from_env(
         ),
     )
     .with_presentation_files(Arc::new(document_files.clone()))
+    .with_word_document_files(Arc::new(document_files.clone()))
     .with_design_files(Arc::new(document_files.clone()))
     .with_photoshop_files(Arc::new(document_files.clone()))
     .with_illustrator_files(Arc::new(document_files));

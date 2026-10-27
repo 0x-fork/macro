@@ -381,6 +381,7 @@ pub async fn build(
         ),
     )
     .with_presentation_files(Arc::new(document_files.clone()))
+    .with_word_document_files(Arc::new(document_files.clone()))
     .with_design_files(Arc::new(document_files.clone()))
     .with_photoshop_files(Arc::new(document_files.clone()))
     .with_illustrator_files(Arc::new(document_files));
