@@ -75,7 +75,7 @@ impl SessionRepository for PgLinkedRepository {
                 SELECT 1 FROM pg_locks l
                 WHERE l.locktype = 'advisory' AND l.objsubid = 1
                   AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
-                  AND ((l.classid::bigint << 32) | l.objid::bigint) = hashtext('whatsapp-account:' || a.id::text)::bigint)
+                  AND ((l.classid::bigint << 32) | l.objid::bigint) = hashtextextended('whatsapp-account:' || a.id::text, 0))
             ORDER BY a.updated_at, a.id LIMIT $1"#,
             limit
         )
@@ -93,7 +93,7 @@ impl SessionRepository for PgLinkedRepository {
                 SELECT 1 FROM pg_locks l
                 WHERE l.locktype = 'advisory' AND l.objsubid = 1
                   AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
-                  AND ((l.classid::bigint << 32) | l.objid::bigint) = hashtext('whatsapp-account:' || a.id::text)::bigint) AS locked
+                  AND ((l.classid::bigint << 32) | l.objid::bigint) = hashtextextended('whatsapp-account:' || a.id::text, 0)) AS locked
                 FROM whatsapp_linked_account a WHERE (a.state = 'connected' OR EXISTS (
                 SELECT 1 FROM whatsapp_pairing p WHERE p.account_id = a.id AND p.consumed_at IS NULL AND p.expires_at > now())))
             SELECT

@@ -128,7 +128,10 @@ WASA/bot parts of `msgsecret.go`, reporting tokens, `armadillomessage.go`, `push
   right before a zero `NoiseSocket` panics), and `client::test::capture_request`
   gets the Rust side; both replace the iq `id` and usync `sid`.
 - Go formats JIDs (and sometimes node XML) into error messages; ported errors
-  leave them out, since `#[tracing::instrument(err)]` logs them.
+  leave them out, since `#[tracing::instrument(err)]` logs them. `IqError`
+  names only the node's tag, and `SignalError::Internal` /
+  `StoreError::Internal` leave their report out of the message (it stays in
+  the field and `Debug`); `errors/test.rs` formats each and asserts no JID.
 - Methods that spawn work which can reconnect return `BoxFuture` (see
   `Client::auto_reconnect`): without it, `Send` inference cycles through
   `connect`.

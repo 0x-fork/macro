@@ -238,7 +238,7 @@ pub trait SessionRepository: Send + Sync {
     /// The account's lifecycle, unfenced.
     async fn account_state(&self, account: Uuid) -> LinkedResult<Option<AccountState>>;
     /// Accounts needing a replica whose advisory lock
-    /// (`hashtext('whatsapp-account:' || id)`) nobody holds.
+    /// (`hashtextextended('whatsapp-account:' || id, 0)`) nobody holds.
     async fn discoverable_accounts(&self, limit: i64) -> LinkedResult<Vec<Uuid>>;
     /// Fleet counts for health checks.
     async fn fleet_health(&self) -> LinkedResult<FleetHealth>;

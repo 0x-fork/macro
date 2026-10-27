@@ -1023,7 +1023,8 @@ impl Client {
                     }
                 };
             if !session_exists {
-                return Err(ClientError::NoSession.wrap(format!("with {address}")));
+                // Deviation from Go: the error doesn't name the address.
+                return Err(ClientError::NoSession);
             }
         }
         let ciphertext = {

@@ -251,8 +251,20 @@ fn node_bytes<'node>(node: &'node Node, tag: &str) -> Option<&'node [u8]> {
 /// Parses a `<user>` node of a prekey response into a bundle.
 pub fn node_to_pre_key_bundle(device_id: u32, node: &Node) -> Result<PreKeyBundle, ClientError> {
     if let Some(error_node) = node.get_optional_child_by_tag(&["error"]) {
+        // Deviation from Go: only the error's code and text attributes are
+        // formatted, so a JID in the node can't reach the message.
+        let summary = Node {
+            tag: error_node.tag.clone(),
+            attrs: error_node
+                .attrs
+                .iter()
+                .filter(|(key, _)| matches!(key.as_str(), "code" | "text"))
+                .map(|(key, value)| (key.clone(), value.clone()))
+                .collect(),
+            content: None,
+        };
         return Err(ClientError::Other(format!(
-            "got error getting prekeys: {error_node}"
+            "got error getting prekeys: {summary}"
         )));
     }
     let registration_id = node_bytes(node, "registration")
