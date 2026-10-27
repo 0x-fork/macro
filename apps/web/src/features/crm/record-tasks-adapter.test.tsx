@@ -2,10 +2,20 @@ import type { TasksViewProviderProps } from '@app/features/tasks-view/tasks-view
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import type { ParentProps } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
+import { CrmActivityTasks } from './activity-tasks-adapter';
 import type { CrmRecordScope } from './core/record';
 import { CrmRecordTasks } from './record-tasks-adapter';
 
-const { openWithSplit } = vi.hoisted(() => ({ openWithSplit: vi.fn() }));
+const { openWithSplit, openTaskComposer } = vi.hoisted(() => ({
+  openWithSplit: vi.fn(),
+  openTaskComposer: vi.fn(),
+}));
+vi.mock('./context/crm-context', () => ({
+  useCrmContext: () => ({ openTaskComposer }),
+}));
+vi.mock('@app/features/tasks-view/tasks-content', () => ({
+  TasksContent: () => null,
+}));
 
 vi.mock('@components/app/split-layout/layout', () => ({
   useSplitLayout: () => ({ openWithSplit }),
@@ -15,12 +25,25 @@ vi.mock('@property/tags/tag-sets-context', () => ({
 }));
 vi.mock('@app/features/tasks-view/tasks-view-context', () => ({
   TasksViewProvider: (props: TasksViewProviderProps) => (
-    <button
-      type="button"
-      onClick={(event) => props.onOpenTask?.({ id: 'task-1' }, { event })}
-    >
-      Open task
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={(event) => props.onOpenTask?.({ id: 'task-1' }, { event })}
+      >
+        Open task
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          props.onCreateTask?.({
+            dueDate: new Date('2026-10-01T12:00:00Z'),
+            composerContext: { key: 'crm-board', initialPropertyValues: {} },
+          })
+        }
+      >
+        Create scoped task
+      </button>
+    </>
   ),
 }));
 vi.mock('@app/features/tasks-view/components/TasksControls', () => ({
@@ -71,4 +94,13 @@ it('preserves the request to open a task in a new split', () => {
     { type: 'task', id: 'task-1' },
     { preferNewSplit: true }
   );
+});
+
+it('forwards board and Gantt creation defaults through the CRM composer', () => {
+  render(() => <CrmActivityTasks />);
+  fireEvent.click(screen.getByRole('button', { name: 'Create scoped task' }));
+  expect(openTaskComposer).toHaveBeenCalledWith({
+    dueDate: new Date('2026-10-01T12:00:00Z'),
+    composerContext: { key: 'crm-board', initialPropertyValues: {} },
+  });
 });

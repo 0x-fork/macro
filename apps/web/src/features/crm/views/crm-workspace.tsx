@@ -648,34 +648,30 @@ export function CrmWorkspaceView(props: {
           </Show>
           <Show when={!recordOpen() && !pipelineId() && activityTab()} keyed>
             {(tab) => (
-              <>
-                <Show when={!isTouchDevice()}>
-                  <ListHeader
-                    title={
-                      <div class="flex min-w-0 items-center gap-3">
-                        <NavigationToggle onExpand={() => setCollapsed(false)}>
-                          <Suspense>{sidebar()}</Suspense>
-                        </NavigationToggle>
-                        <h1
-                          class="min-w-0 truncate text-sm font-semibold"
-                          title={title()}
-                        >
-                          {title()}
-                        </h1>
-                      </div>
-                    }
-                  />
-                </Show>
-                <Suspense
-                  fallback={
-                    <div class="p-4 text-sm text-ink-muted">
-                      Loading CRM activity…
+              <Suspense
+                fallback={
+                  <div class="p-4 text-sm text-ink-muted">
+                    Loading CRM activity…
+                  </div>
+                }
+              >
+                <CrmActivityView
+                  tab={tab}
+                  title={
+                    <div class="flex min-w-0 items-center gap-3">
+                      <NavigationToggle onExpand={() => setCollapsed(false)}>
+                        <Suspense>{sidebar()}</Suspense>
+                      </NavigationToggle>
+                      <h1
+                        class="min-w-0 truncate text-sm font-semibold"
+                        title={title()}
+                      >
+                        {title()}
+                      </h1>
                     </div>
                   }
-                >
-                  <CrmActivityView tab={tab} />
-                </Suspense>
-              </>
+                />
+              </Suspense>
             )}
           </Show>
           <Show
