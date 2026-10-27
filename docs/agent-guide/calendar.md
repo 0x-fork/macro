@@ -167,6 +167,14 @@ Confirm mixed event shapes, stable positions, clean handoff, and an uncovered Re
 Reduced-motion mode disables pulses and transitions. The page stays busy until the
 handoff starts. Hidden pages do not animate. Resize to confirm skeleton alignment.
 
+Imported Google all-day events whose start and end dates match display as one day.
+This also applies to recurring instances and moved exceptions. Sync keeps the
+original provider dates without editing the Google event; reversed dates remain
+invalid. Verify that a calendar containing both such an all-day event and an
+ordinary timed event completes sync and shows both.
+The [calendar component fixture](media/calendar-import/one-day.png) shows a
+normalized one-day occurrence beside a timed event on the same date.
+
 Imported timed events with identical start and end are points: they show a compact
 chip with one time and `No duration` in details, and do not block availability.
 Future points also appear in Upcoming events, without becoming ongoing meetings.

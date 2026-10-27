@@ -3814,6 +3814,7 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "uuid",
+ "wiremock",
  "workspace-hack",
 ]
 

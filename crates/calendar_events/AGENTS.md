@@ -68,6 +68,9 @@ reminder dispatch, team availability, and provider/Postgres persistence.
   occurrence projections, not separate events — don't model them as new entities.
 - Imported point (non-recurring) events must survive sync and cache round-trips
   unchanged (#7762) — a regression here silently drops user events.
+- Normalize imported Google all-day events with matching start/end dates to one
+  day in the adapter, including recurring instances and overrides; preserve the
+  raw provider payload and keep reversed dates invalid.
 - Only an organizer (or a guest the organizer lets modify) may replace an
   event's attendee list. Everyone else adds guests through `invite_guests`
   (`src/domain/mutations/invite.rs`); a guest's `update_event` attendees are
