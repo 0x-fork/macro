@@ -9,6 +9,7 @@ import { queryClient } from '../client';
 import { fetchInitiativeSharePermissions } from '../initiative/share-permissions';
 import { getDatabaseSharePermissions } from '../storage/databases';
 import { getFormSharePermissions } from '../storage/forms';
+import { fetchWhatsappGroupPermissions } from '../whatsapp-groups/share-permissions';
 import { sharePermissionKeys } from './keys';
 
 // Long enough that hovering Share and then clicking it fetches once; short
@@ -20,6 +21,7 @@ export async function fetchSharePermissions(
   id: string,
   itemType: ShareItemType
 ) {
+  if (itemType === 'whatsapp_group') return fetchWhatsappGroupPermissions(id);
   if (itemType === 'crm_pipeline') return fetchPipelineSharePermissions(id);
   if (itemType === 'agent_session') {
     return fetchAgentSessionSharePermissions(id);

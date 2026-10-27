@@ -99,7 +99,9 @@ import Table from '@icon/system/regular/table.svg';
 import Users from '@icon/system/regular/users.svg';
 import UsersThree from '@icon/system/regular/users-three.svg';
 import FigmaLogo from '@phosphor/figma-logo.svg';
+import WhatsappLogo from '@phosphor/whatsapp-logo.svg';
 import FigmaLogoBold from '@phosphor-icons/core/bold/figma-logo-bold.svg';
+import WhatsappLogoBold from '@phosphor-icons/core/bold/whatsapp-logo-bold.svg';
 import type { PreviewItem } from '@queries/preview';
 import type { ChannelType } from '@service-cognition/generated/schemas/channelType';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
@@ -137,7 +139,8 @@ export type EntityWithValidIcon =
   | 'crm_company'
   | 'html'
   | 'initiative'
-  | 'reminder';
+  | 'reminder'
+  | 'whatsapp_group';
 
 const ARCHIVE_EXTENSIONS = new Set(
   Object.values(FileTypeMap)
@@ -146,6 +149,13 @@ const ARCHIVE_EXTENSIONS = new Set(
 );
 
 export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
+  whatsapp_group: {
+    icon: WhatsappLogo,
+    boldIcon: WhatsappLogoBold,
+    foreground: 'text-communication',
+    background: 'bg-communication/20',
+    prettyName: 'WhatsApp group',
+  },
   document: {
     icon: File,
     boldIcon: FileBold,

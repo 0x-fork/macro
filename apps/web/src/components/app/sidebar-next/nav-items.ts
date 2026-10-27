@@ -1,4 +1,4 @@
-import { LIST_VIEW_PATHS } from '@app/constants/list-views';
+import { EXTERNAL_VIEW_PATH, LIST_VIEW_PATHS } from '@app/constants/list-views';
 import { calendarPath } from '@app/features/calendar-view/calendar-url';
 import type { SidebarItem } from '@components/app/app-sidebar/sidebar';
 import { TOKENS } from '@core/hotkey/tokens';
@@ -22,8 +22,10 @@ import GitPullRequestIcon from '@icon/system/regular/git-pull-request.svg';
 import HouseIcon from '@icon/system/regular/house.svg';
 import ListChecksIcon from '@icon/system/regular/list-checks.svg';
 import PhoneCallIcon from '@icon/system/regular/phone-call.svg';
+import PlugIcon from '@icon/system/regular/plug.svg';
 import PulseIcon from '@icon/system/regular/pulse.svg';
 import AgentIcon from '@icon/system/regular/sparkle.svg';
+import PlugFillIcon from '@phosphor-fill/plug-fill.svg';
 import PulseFillIcon from '@phosphor-fill/pulse-fill.svg';
 import type { NavIcon } from './nav-glyph';
 import type { SidebarPrefs } from './use-sidebar-prefs';
@@ -164,6 +166,15 @@ export const SIDEBAR_NEXT_NAV_ITEMS = [
     icon: CalendarCheckIcon,
     iconActive: CalendarCheckIcon,
   },
+  {
+    id: 'external',
+    label: 'External',
+    href: EXTERNAL_VIEW_PATH,
+    icon: PlugIcon,
+    iconActive: PlugFillIcon,
+    hotkey: 'x',
+    hotkeyToken: TOKENS.sidebar.goTo.external,
+  },
 ] satisfies SidebarNextNavItem[];
 
 /** Feature flag gates for sidebar destinations. */
@@ -174,6 +185,7 @@ export type NavItemGates = {
   showCalls: boolean;
   showReviews: boolean;
   showActivity: boolean;
+  showExternal: boolean;
   /** User preferences for which items are shown and in what order. */
   prefs: SidebarPrefs;
 };
@@ -189,6 +201,7 @@ export const isNavItemAvailable = (
   if (item.id === 'calls') return gates.showCalls;
   if (item.id === 'reviews') return gates.showReviews;
   if (item.id === 'activity') return gates.showActivity;
+  if (item.id === 'external') return gates.showExternal;
   return true;
 };
 

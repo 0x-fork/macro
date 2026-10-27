@@ -1930,8 +1930,9 @@ describe('form share roles', () => {
     );
   });
 
-  it('offers View and Edit on a form, which has no comments, and every level elsewhere', () => {
+  it('offers View and Edit on a form, which has no comments, View on a WhatsApp chat, and every level elsewhere', () => {
     expect(shareLevelsFor('form')).toEqual(['view', 'edit']);
+    expect(shareLevelsFor('whatsapp_group')).toEqual(['view']);
     expect(shareLevelsFor('document')).toBeUndefined();
     render(() => (
       <ShareOptions

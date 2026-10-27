@@ -5,6 +5,7 @@ import {
   enableCalendarScheduling,
   enableCrm,
   enableTasksReviews,
+  enableWhatsappLinked,
 } from '@core/constant/featureFlags';
 import BellFillIcon from '@icon/system/fill/bell-fill.svg';
 import CalendarFillIcon from '@icon/system/fill/calendar-fill.svg';
@@ -15,6 +16,7 @@ import BellIcon from '@icon/system/regular/bell.svg';
 import CalendarCheckIcon from '@icon/system/regular/calendar-check.svg';
 import ChatsCircleIcon from '@icon/system/regular/chats-circle.svg';
 import GitPullRequestIcon from '@icon/system/regular/git-pull-request.svg';
+import PlugIcon from '@icon/system/regular/plug.svg';
 import { createMemo } from 'solid-js';
 import type { MobileDockIcon } from './MobileDockButton';
 import type { MobileNavViewId } from './mobile-nav-views';
@@ -68,6 +70,7 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   { id: 'companies', label: 'CRM', icon: getIconConfig('company').icon },
   { id: 'reviews', label: 'Reviews', icon: GitPullRequestIcon },
   { id: 'booking-links', label: 'Scheduling', icon: CalendarCheckIcon },
+  { id: 'external', label: 'External', icon: PlugIcon },
 ];
 
 export function useMobileDockViews() {
@@ -75,6 +78,7 @@ export function useMobileDockViews() {
   const crm = useFeatureFlag(enableCrm);
   const reviews = useFeatureFlag(enableTasksReviews);
   const scheduling = useFeatureFlag(enableCalendarScheduling);
+  const external = useFeatureFlag(enableWhatsappLinked);
   return createMemo(() =>
     MOBILE_DOCK_VIEWS.filter(
       (view) => view.id !== 'calendar' || calendarEnabled()
@@ -82,5 +86,6 @@ export function useMobileDockViews() {
       .filter((view) => view.id !== 'companies' || crm().enabled)
       .filter((view) => view.id !== 'reviews' || reviews().enabled)
       .filter((view) => view.id !== 'booking-links' || scheduling().enabled)
+      .filter((view) => view.id !== 'external' || external().enabled)
   );
 }
