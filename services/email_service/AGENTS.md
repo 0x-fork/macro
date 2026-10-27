@@ -81,6 +81,19 @@ the gateway `/email` prefix.
   would spend the queue's 20 deliveries.
   Inbox sync releases the upload claims of a refused attachment fetch and
   requeues the upsert, because a claimed attachment is never offered again.
+- `gmail_ops` workers decode both label write forms: single-message
+  `ModifyMessageLabels` and `ModifyMessageLabelsBatch` (up to 1,000 messages;
+  one `batchModify` from ten messages up, separate `messages.modify` calls
+  below that, at 5 units each against a flat 50; a permanent failure reverts
+  the whole batch). Producers send the batch form only with
+  `GMAIL_LABEL_WRITE_BATCHES_ENABLED` (here and in `document_storage_service`,
+  default off), because workers released before it delete batches as
+  undecodable. Rollout: deploy with the switch off; once every
+  `pubsub_workers` task runs that release, set it to `true` in the
+  `email-service` and `document-storage` Doppler projects (dev, then prd) and
+  redeploy both services. Before rolling workers back past that release, turn
+  it off and let the gmail-ops queues drain. Retire the single-message form
+  only after every producer sends batches.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.

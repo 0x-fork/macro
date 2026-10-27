@@ -168,6 +168,9 @@ impl LocalEnv {
         // Calendar search ships dark too: off in deployed envs until each has
         // its calendar index created and backfilled.
         env.insert("CALENDAR_SEARCH_ENABLED".into(), "true".into());
+        // Deployed envs turn this on only after every email worker decodes
+        // batches; a local stack runs producers and workers from one build.
+        env.insert("GMAIL_LABEL_WRITE_BATCHES_ENABLED".into(), "true".into());
         env.insert(
             "OVERRIDE_PREVIEW_GATEWAY_URL".into(),
             "http://agent-harness-service:8080/preview".into(),

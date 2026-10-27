@@ -30,6 +30,8 @@ import type {
   AddDraftAttachmentResponse,
   ApiMessageOperation,
   ApiPaginatedThreadCursor,
+  ArchiveThreadsRequest,
+  ArchiveThreadsResponse,
   CreateDraftRequest,
   CreateDraftResponse,
   GetAttachmentDocumentIDResponse,
@@ -366,6 +368,13 @@ export const emailClient = {
         headers: emailLinkHeaders(linkId),
       })
     ).map((result) => result);
+  },
+  /** One request for up to 100 threads; the server reports threads it could not change. */
+  async flagArchivedBatch(args: ArchiveThreadsRequest) {
+    return await emailFetch<ArchiveThreadsResponse>('/email/threads/archived', {
+      method: 'PATCH',
+      body: JSON.stringify(args),
+    });
   },
   async startSync() {
     return (
