@@ -66,6 +66,11 @@ impl Client {
     }
 
     /// Uploads a batch of prekeys (812 on the first upload after pairing).
+    #[tracing::instrument(
+        name = "whatsmeow.prekeys.upload",
+        skip_all,
+        fields(initial = initial_upload, count, outcome, otel.status_code)
+    )]
     pub(crate) async fn upload_pre_keys(&self, initial_upload: bool) {
         let mut last_upload = self.upload_pre_keys_lock.lock().await;
         if let Some(last) = *last_upload
@@ -74,6 +79,7 @@ impl Client {
             let server_count = self.get_server_pre_key_count().await.unwrap_or_default();
             if server_count >= usize::try_from(WANTED_PRE_KEY_COUNT).unwrap_or(usize::MAX) {
                 tracing::debug!("canceling prekey upload request due to likely race condition");
+                tracing::Span::current().record("outcome", "skipped");
                 return;
             }
         }
@@ -95,6 +101,8 @@ impl Client {
             Ok(pre_keys) => pre_keys,
             Err(error) => {
                 tracing::error!(error = %error, "failed to get prekeys to upload");
+                tracing::Span::current().record("outcome", "store_error");
+                crate::telemetry::mark_error(&tracing::Span::current());
                 return;
             }
         };
@@ -103,6 +111,7 @@ impl Client {
             return;
         };
         tracing::info!(count = pre_keys.len(), "uploading new prekeys to server");
+        tracing::Span::current().record("count", pre_keys.len());
         let result = self
             .send_iq(InfoQuery {
                 namespace: "encrypt",
@@ -124,9 +133,12 @@ impl Client {
             .await;
         if let Err(error) = result {
             tracing::error!(error = %error, "failed to send request to upload prekeys");
+            tracing::Span::current().record("outcome", "error");
+            crate::telemetry::mark_error(&tracing::Span::current());
             return;
         }
         tracing::debug!("got response to uploading prekeys");
+        tracing::Span::current().record("outcome", "ok");
         if let Err(error) = pre_key_store.mark_pre_keys_as_uploaded(last_key_id).await {
             tracing::warn!(error = %error, "failed to mark prekeys as uploaded");
             return;

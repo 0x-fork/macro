@@ -138,6 +138,36 @@ WASA/bot parts of `msgsecret.go`, reporting tokens, `armadillomessage.go`, `push
 - Log opaque values only (tags, IDs, counts); unlike Go, never log node XML,
   JIDs or phone numbers.
 
+## Telemetry (a Macro addition)
+
+whatsmeow has no tracing spans; the spans here are Macro's, added around the
+ported logic without changing it. Helpers live in `src/telemetry.rs`; its test
+captures spans from a client on the fake server.
+
+- Spans nest under the caller: `Client::connect` stores the current span
+  (`connection_parent`), the connection's loops, reconnects and history sync
+  run under it, and `Client::spawn` keeps the spawning span
+  (`in_current_span`).
+- `whatsmeow.connect` (`reason`: `initial`, `restart_515`, `network_drop`,
+  `forced_reset`, `keepalive_timeout`, `connect_failed`; `attempt`) with
+  children `.dial`, `.handshake`, `.login` (ends at `success`/`failure`, or
+  after the post-login prekey and passive requests). Disconnects that don't
+  reconnect log `disconnect_reason` (`conflict_replaced`, `logged_out`).
+- `whatsmeow.iq` per info query: `xmlns`, `iq_type`, `kind` (first child
+  tag), `outcome` (`ok`, `error` + `error_code`, `timeout`, `disconnected`).
+  Not `err`: an IQ error's message can hold the raw response node.
+- Receive: `whatsmeow.receive_message` counts `decrypted`, flags
+  `decrypt_failed`/`retry_receipt`, records `ack_ms`; each `<enc>` gets a
+  DEBUG `whatsmeow.decrypt` span (`enc_type`, `outcome`).
+- Send (`devices` fan-out, encrypt and `wait_ack` phases), media
+  (`whatsmeow.media.encrypt`, `.upload_http`, `.fetch` with `size`,
+  `retries`, `hash_check`), app state (`patches`, `events`),
+  `whatsmeow.history_sync.process`, `whatsmeow.prekeys.upload`,
+  `whatsmeow.retry_receipt.send`.
+- Failed spans set `otel.status_code = "ERROR"` (declare it `Empty`). Fields
+  are kinds, counts, outcomes and random message ids; never JIDs, phone
+  numbers, content or keys.
+
 ## Signal protocol boundary
 
 Every Signal call goes through the traits in `src/signal.rs`:
