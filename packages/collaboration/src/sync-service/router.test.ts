@@ -2,15 +2,17 @@ import { once } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { type WebSocket, WebSocketServer } from 'ws';
+import { InMemoryWALStore, WALSyncer } from '../collab/wal';
 import { WebsocketEvent } from '../websocket';
 import { intoFrames, Reassembler } from '../websocket/platform/framing';
-import { GatewaySyncTransport } from './gateway';
 import { FromPeer, FromRemote, FromRouter, ToRouter } from './generated/schema';
+import { SyncRouterTransport } from './router';
 import type { SyncSocket } from './socket';
+import { SyncServiceSource } from './source';
 
-describe('gateway document transport', () => {
+describe('router document transport', () => {
   let server: WebSocketServer;
-  let transport: GatewaySyncTransport;
+  let transport: SyncRouterTransport;
   let peer: WebSocket;
   let received: ToRouter[];
   let sockets: SyncSocket[];
@@ -27,7 +29,7 @@ describe('gateway document transport', () => {
       });
     });
     const port = (server.address() as AddressInfo).port;
-    transport = new GatewaySyncTransport(`ws://127.0.0.1:${port}`);
+    transport = new SyncRouterTransport(`ws://127.0.0.1:${port}`);
   });
 
   afterEach(async () => {
@@ -124,6 +126,81 @@ describe('gateway document transport', () => {
       expect(
         Buffer.from(decoded.value.updates[0]).equals(Buffer.alloc(900_010))
       ).toBe(true);
+    }
+  });
+
+  test('replays an unacknowledged edit after the real shared socket disconnects', async () => {
+    let dropped = false;
+    const replayed = Promise.withResolvers<void>();
+    server.on('connection', (client) => {
+      const reassembler = new Reassembler();
+      client.on('message', (bytes) => {
+        const message = ToRouter.decode(new Uint8Array(bytes as Buffer));
+        if (message.isRouterSubscribe()) {
+          const docId = message.value.docId;
+          client.send(
+            FromRouter.encode(FromRouter.fromRouterSubscribed({ docId }))
+          );
+          for (const payload of intoFrames(
+            FromRemote.encode(
+              FromRemote.fromRemoteInitialSync({
+                snapshot: new Uint8Array(),
+                awareness: new Uint8Array(),
+              })
+            )
+          )) {
+            client.send(
+              FromRouter.encode(
+                FromRouter.fromRouterDocFrame({ docId, payload })
+              )
+            );
+          }
+        } else if (message.isRouterFrame()) {
+          const complete = reassembler.push(message.value.payload);
+          if (!complete) return;
+          const update = FromPeer.decode(complete);
+          if (!update.isPeerUpdate()) return;
+          if (!dropped) {
+            dropped = true;
+            client.close(1012, 'restart before persistence');
+            return;
+          }
+          expect(update.value.updates).toEqual([new Uint8Array([1, 2, 3])]);
+          for (const payload of intoFrames(
+            FromRemote.encode(
+              FromRemote.fromRemoteUpdateAck({ id: update.value.id })
+            )
+          )) {
+            client.send(
+              FromRouter.encode(
+                FromRouter.fromRouterDocFrame({
+                  docId: message.value.docId,
+                  payload,
+                })
+              )
+            );
+          }
+          replayed.resolve();
+        }
+      });
+    });
+    const source = new SyncServiceSource(attach('doc', 'token'), 'doc');
+    const wal = new WALSyncer(new InMemoryWALStore<Uint8Array>(), (updates) =>
+      source.pushUpdate(updates)
+    );
+    source.listen((event) => {
+      if (event.type === 'reconnect') void wal.flush();
+    });
+    try {
+      expect((await source.doInitialSync()).isOk()).toBe(true);
+      await wal.append(new Uint8Array([1, 2, 3]));
+      await replayed.promise;
+      await wal.pendingFlush;
+      expect((await wal.summary()).dirty).toBe(0);
+      expect(dropped).toBe(true);
+    } finally {
+      wal.destroy();
+      source.cleanup();
     }
   });
 

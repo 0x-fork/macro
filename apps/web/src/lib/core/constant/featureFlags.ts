@@ -216,8 +216,8 @@ export const ENABLE_SCRIPTING = defineFlag({
   default: false,
 }).enabled;
 
-// Deployed dev and production defer to PostHog: the router must be provisioned
-// before enabling gateway sync. Local stacks can use the env override.
+// Historical key retained at the deployed PostHog boundary. This selects the
+// dedicated DSS sync socket; deploy DSS before enabling. Local env override supported.
 export const syncViaGateway = defineFlag({
   key: 'sync-via-gateway',
   env: 'SYNC_VIA_GATEWAY',

@@ -8,6 +8,10 @@ threads, pins, recents, notifications, folders, activity.
 
 ## Start here
 
+- `src/api/sync.rs`: dedicated authenticated `/sync/ws` endpoint; `crates/sync_router`
+  owns multiplex routing and cancellation. Sync-service still owns document state
+  and validates scoped tokens. DSS shutdown drains these upgraded sockets.
+  This binary WebSocket protocol is intentionally outside the REST OpenAPI/SDK surface.
 - `src/api.rs`: route module list — `documents`, `items`, `entity`,
   `folders_query`, `graphql_soup`, `threads`, `annotations`, `history`,
   `pins`, `recents`, `notification`, `instructions`, `internal`.

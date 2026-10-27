@@ -2126,7 +2126,10 @@ pub async fn run() -> anyhow::Result<()> {
         complete_graph::EntityAccessWorkFeedViewers(entity_access_service.clone()),
     );
 
+    let sync_sessions =
+        sync_router::session::SyncSessionFactory::new(SyncServiceUrl::new()?.as_ref().parse()?)?;
     let api_context = ApiContext {
+        sync_sessions,
         dictation_state,
         graphql_work_feed_context,
         contacts_ingress: contacts_ingress.clone(),

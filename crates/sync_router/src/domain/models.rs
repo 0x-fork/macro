@@ -1,16 +1,8 @@
 //! Core types shared across the router.
 
-pub use connection_gateway_models::fanout::{ConnId, GatewayId};
-
-/// A client connection, globally identified by the gateway instance that owns
-/// its socket plus that gateway's local connection id.
+/// A host-generated client connection id. Each socket has its own router.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ConnectionId {
-    /// Boot-unique id of the gateway instance holding the socket.
-    pub gateway: GatewayId,
-    /// Gateway-local websocket connection id.
-    pub conn: ConnId,
-}
+pub struct ConnectionId(pub String);
 
 /// A document id, as it appears in envelope frames and downstream URLs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -23,7 +15,7 @@ impl DocId {
     }
 }
 
-/// Events from the gateway edge, already filtered to what the router handles
+/// Events from the socket edge, already filtered to what the router handles
 /// (text frames never reach it).
 #[derive(Debug)]
 pub enum EdgeEvent {
@@ -39,21 +31,16 @@ pub enum EdgeEvent {
         /// The closed connection.
         conn: ConnectionId,
     },
-    /// A gateway instance stopped heartbeating: every connection it held is gone.
-    GatewayLost {
-        /// The dead gateway instance's boot-unique id.
-        gateway: GatewayId,
-    },
 }
 
 /// Everything the router loop reacts to.
 #[derive(Debug)]
 pub enum Event {
-    /// An event from the gateway edge.
+    /// An event from the socket edge.
     Edge(EdgeEvent),
     /// A downstream connection died (upstream close or dial failure). The
-    /// client was already sent `RouterDocClosed` / `RouterSubscribeFailed` by
-    /// the downstream pump; this only cleans up the route.
+    /// router checks the incarnation before notifying the client, so an old
+    /// pump cannot close a replacement virtual socket.
     DownstreamClosed {
         /// The connection whose downstream died.
         conn: ConnectionId,
@@ -63,5 +50,16 @@ pub enum Event {
         /// dial failing after the client already re-subscribed) must not tear
         /// down the replacement route.
         epoch: u64,
+        /// Whether dialing failed or an established connection ended.
+        failure: DownstreamFailure,
     },
+}
+
+/// Coarse downstream failure safe to expose to clients.
+#[derive(Debug)]
+pub enum DownstreamFailure {
+    /// Authentication, connection establishment, or its timeout failed.
+    DialFailed,
+    /// An established upstream connection ended.
+    Closed(&'static str),
 }

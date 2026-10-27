@@ -6,21 +6,25 @@
 //! id across native sync services; the router core is unaware.
 
 use crate::domain::envelope;
-use crate::domain::models::{ConnectionId, DocId, Event};
-use crate::domain::ports::{DownstreamFactory, EdgeSink};
+use crate::domain::models::{ConnectionId, DocId, DownstreamFailure, Event};
+use crate::domain::ports::{Downstream, DownstreamFactory, EdgeSink, QueuedFrame};
 use futures::{SinkExt, StreamExt};
 use opentelemetry::trace::TraceContextExt;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
-use tokio_tungstenite::connect_async;
+use tokio::sync::{Semaphore, mpsc};
 use tokio_tungstenite::tungstenite::Message;
-use tracing::{debug, warn};
+use tokio_tungstenite::{connect_async_with_config, tungstenite::protocol::WebSocketConfig};
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
+use tracing::{Instrument, debug, warn};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
+use url::Url;
 
 /// How many client frames may buffer while the dial is in flight (or the
-/// upstream is slow). Overflow drops frames; the sync protocol self-heals.
-const DOWNSTREAM_BUFFER: usize = 256;
+/// upstream is slow). Overflow closes the route so the client resynchronizes.
+const DOWNSTREAM_BUFFER: usize = 8;
+/// Shared by every document queue and in-flight upstream write in a session.
+const DOWNSTREAM_BYTE_BUDGET: usize = 8 * 1024 * 1024;
 
 /// Keep the upstream (and its Durable Object) alive, mirroring the ping the
 /// browser used to send on its direct per-document socket.
@@ -28,67 +32,82 @@ const UPSTREAM_PING_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Dials `{base_url}/document/{doc}/connect?token=…&traceparent=…`.
 pub struct DoDownstreamFactory<Sink: EdgeSink> {
-    base_url: String,
+    base_url: Url,
     sink: Arc<Sink>,
     events: mpsc::Sender<Event>,
+    cancel: CancellationToken,
+    tasks: TaskTracker,
+    budget: Arc<Semaphore>,
 }
 
 impl<Sink: EdgeSink> DoDownstreamFactory<Sink> {
     /// `base_url` is the sync-service origin, e.g. `http://localhost:8787`.
-    pub fn new(base_url: String, sink: Arc<Sink>, events: mpsc::Sender<Event>) -> Self {
+    pub fn new(
+        base_url: Url,
+        sink: Arc<Sink>,
+        events: mpsc::Sender<Event>,
+        cancel: CancellationToken,
+        tasks: TaskTracker,
+    ) -> Self {
         Self {
+            budget: Arc::new(Semaphore::new(DOWNSTREAM_BYTE_BUDGET)),
             base_url,
             sink,
             events,
+            cancel,
+            tasks,
         }
     }
 }
 
 impl<Sink: EdgeSink> DownstreamFactory for DoDownstreamFactory<Sink> {
     #[tracing::instrument(skip(self, token), fields(document.id = doc.as_str()))]
-    fn open(
-        &self,
-        conn: ConnectionId,
-        doc: DocId,
-        token: String,
-        epoch: u64,
-    ) -> mpsc::Sender<Vec<u8>> {
+    fn open(&self, conn: ConnectionId, doc: DocId, token: String, epoch: u64) -> Downstream {
         let (sender, receiver) = mpsc::channel(DOWNSTREAM_BUFFER);
 
-        let ws_base = self
-            .base_url
-            .replacen("http://", "ws://", 1)
-            .replacen("https://", "wss://", 1);
-        let mut url = format!("{ws_base}/document/{}/connect?token={token}", doc.as_str());
-        // The DO reads `traceparent` from the query string (browser websocket
-        // upgrades can't carry headers, so the DO accepts it there; we use the
-        // same mechanism).
+        let mut url = self.base_url.clone();
+        // The composition root validates the base; URL APIs encode document ids
+        // and scoped tokens so neither can change the downstream destination.
+        let scheme = if url.scheme() == "http" { "ws" } else { "wss" };
+        url.set_scheme(scheme)
+            .expect("HTTP sync origin accepts a WebSocket scheme");
+        url.path_segments_mut()
+            .expect("sync origin is a base URL")
+            .pop_if_empty()
+            .extend(["document", doc.as_str(), "connect"]);
+        url.query_pairs_mut().clear().append_pair("token", &token);
         if let Some(traceparent) = current_traceparent() {
-            url.push_str(&format!("&traceparent={traceparent}"));
+            url.query_pairs_mut()
+                .append_pair("traceparent", &traceparent);
         }
 
-        tokio::spawn(pump(
-            url,
-            conn,
-            doc,
-            epoch,
-            receiver,
-            Arc::clone(&self.sink),
-            self.events.clone(),
-        ));
-        sender
+        let cancel = self.cancel.child_token();
+        let pump_cancel = cancel.clone();
+        let sink = Arc::clone(&self.sink);
+        let events = self.events.clone();
+        self.tasks.spawn(
+            async move {
+                tokio::select! {
+                    biased;
+                    _ = pump_cancel.cancelled() => {},
+                    _ = pump(url.to_string(), conn, doc, epoch, receiver, sink, events) => {},
+                }
+            }
+            .in_current_span(),
+        );
+        Downstream::new(sender, cancel, self.budget.clone())
     }
 }
 
 /// The whole life of one downstream connection: dial, then pump frames both
 /// ways until either side hangs up.
-#[tracing::instrument(skip_all, fields(document.id = doc.as_str(), conn = %conn.conn))]
+#[tracing::instrument(skip_all, fields(document.id = doc.as_str(), conn = %conn.0))]
 async fn pump<Sink: EdgeSink>(
     url: String,
     conn: ConnectionId,
     doc: DocId,
     epoch: u64,
-    mut from_client: mpsc::Receiver<Vec<u8>>,
+    mut from_client: mpsc::Receiver<QueuedFrame>,
     sink: Arc<Sink>,
     events: mpsc::Sender<Event>,
 ) {
@@ -106,13 +125,30 @@ async fn pump<Sink: EdgeSink>(
         }
     };
 
-    let upstream = match connect_async(&url).await {
-        Ok((upstream, _response)) => upstream,
-        Err(error) => {
-            warn!(error = ?error, "downstream dial failed");
-            deliver(envelope::subscribe_failed(doc.as_str(), "dial failed")).await;
+    let upstream = match tokio::time::timeout(
+        Duration::from_secs(10),
+        connect_async_with_config(
+            &url,
+            Some(
+                WebSocketConfig::default()
+                    .max_message_size(Some(crate::session::MAX_FRAME_BYTES - 1024))
+                    .max_frame_size(Some(crate::session::MAX_FRAME_BYTES - 1024)),
+            ),
+            false,
+        ),
+    )
+    .await
+    {
+        Ok(Ok((upstream, _response))) => upstream,
+        failure => {
+            warn!(timed_out = failure.is_err(), "downstream dial failed");
             events
-                .send(Event::DownstreamClosed { conn, doc, epoch })
+                .send(Event::DownstreamClosed {
+                    conn,
+                    doc,
+                    epoch,
+                    failure: DownstreamFailure::DialFailed,
+                })
                 .await
                 .ok();
             return;
@@ -132,8 +168,8 @@ async fn pump<Sink: EdgeSink>(
     let closed_reason: Option<&str> = loop {
         tokio::select! {
             frame = from_client.recv() => match frame {
-                Some(bytes) => {
-                    if let Err(error) = write.send(Message::Binary(bytes.into())).await {
+                Some(frame) => {
+                    if let Err(error) = write.send(Message::Binary(frame.bytes.into())).await {
                         warn!(error = ?error, "upstream write failed");
                         break Some("upstream write failed");
                     }
@@ -165,9 +201,13 @@ async fn pump<Sink: EdgeSink>(
     match closed_reason {
         Some(reason) => {
             debug!(reason, "downstream closed");
-            deliver(envelope::doc_closed(doc.as_str(), reason)).await;
             events
-                .send(Event::DownstreamClosed { conn, doc, epoch })
+                .send(Event::DownstreamClosed {
+                    conn,
+                    doc,
+                    epoch,
+                    failure: DownstreamFailure::Closed(reason),
+                })
                 .await
                 .ok();
         }

@@ -23,18 +23,18 @@ import type { SyncSocket } from './socket';
 
 /**
  * Multiplexes many documents' sync traffic over ONE websocket to the
- * connection gateway, instead of one direct sync-service socket per document.
+ * DSS sync endpoint, instead of one direct sync-service socket per document.
  *
  * Wire shape: every frame is a Bebop `ToRouter`/`FromRouter` envelope naming
  * the document; the inner payloads are the same `FromPeer`/`FromRemote`
  * messages the direct socket speaks, unchanged. Server side, the
- * connection-gateway fans inbound frames out to the sync-router, which holds
+ * DSS host routes inbound frames through its embedded router, which holds
  * one upstream connection per (socket, document).
  *
  * Each document gets a {@link SyncSocket}-compatible virtual socket, so
  * `SyncServiceSource` works unmodified on top of this transport.
  */
-export class GatewaySyncTransport {
+export class SyncRouterTransport {
   private readonly getUrl: UrlResolver;
   private ws: Websocket<IToRouter, FromRouter> | undefined;
   private readonly docs = new Map<string, VirtualSyncSocket>();
@@ -47,7 +47,7 @@ export class GatewaySyncTransport {
   /**
    * Attach a document to the shared socket: subscribes immediately and
    * returns the virtual socket for it. `refreshToken` is consulted on every
-   * re-subscribe (upstream drop, gateway reconnect), mirroring how the direct
+   * re-subscribe (upstream drop, router reconnect), mirroring how the direct
    * socket refetches a permission token per reconnect.
    */
   public attach(
@@ -74,7 +74,7 @@ export class GatewaySyncTransport {
     this.docs.delete(documentId);
   }
 
-  /** The shared gateway websocket, built lazily on first use. */
+  /** The shared router websocket, built lazily on first use. */
   public socket(): Websocket<IToRouter, FromRouter> {
     if (this.ws) return this.ws;
     const ws = new WebsocketBuilder<IToRouter, FromRouter>(this.getUrl)
@@ -98,16 +98,16 @@ export class GatewaySyncTransport {
       this.route(event.data);
     });
     ws.addEventListener(WebsocketEvent.Reconnect, () => {
-      // A new gateway socket is a new fanout connection server-side: every
+      // A new router socket owns a new router session server-side: every
       // route was torn down, so every document must re-subscribe.
       for (const virtual of this.docs.values()) virtual.resubscribe();
     });
     ws.addEventListener(WebsocketEvent.Close, (_ws, event) => {
-      for (const virtual of this.docs.values()) virtual.onGatewayClose(event);
+      for (const virtual of this.docs.values()) virtual.onRouterClose(event);
     });
     ws.addEventListener(WebsocketEvent.HeartbeatMissed, (_ws, event) => {
       for (const virtual of this.docs.values()) {
-        virtual.onGatewayHeartbeatMissed(event);
+        virtual.onRouterHeartbeatMissed(event);
       }
     });
 
@@ -147,16 +147,16 @@ const RESUBSCRIBE_BASE_MS = 500;
 const RESUBSCRIBE_MAX_MS = 8_000;
 
 /**
- * A {@link SyncSocket} for one document, riding the shared gateway socket.
+ * A {@link SyncSocket} for one document, riding the shared router socket.
  *
- * Lifecycle mapping (virtual event ← gateway/envelope cause):
+ * Lifecycle mapping (virtual event ← router/envelope cause):
  * - Open       ← first `RouterSubscribed`
  * - Message    ← `RouterDocFrame` (decoded to `FromRemote`)
- * - Close      ← `RouterSubscribeFailed` / `RouterDocClosed` / gateway close
- * - Reconnect  ← any later `RouterSubscribed` (upstream or gateway recovery)
+ * - Close      ← `RouterSubscribeFailed` / `RouterDocClosed` / router close
+ * - Reconnect  ← any later `RouterSubscribed` (upstream or router recovery)
  */
 class VirtualSyncSocket implements SyncSocket {
-  private readonly transport: GatewaySyncTransport;
+  private readonly transport: SyncRouterTransport;
   private readonly documentId: string;
   private readonly refreshToken: () => Promise<string>;
   private initialToken: string | undefined;
@@ -172,7 +172,7 @@ class VirtualSyncSocket implements SyncSocket {
   private pending: IFromPeer[] = [];
 
   public constructor(
-    transport: GatewaySyncTransport,
+    transport: SyncRouterTransport,
     documentId: string,
     initialToken: string | undefined,
     refreshToken: () => Promise<string>
@@ -184,8 +184,8 @@ class VirtualSyncSocket implements SyncSocket {
   }
 
   public get connectionState(): WebsocketConnectionState {
-    const gateway = this.transport.socket().connectionState;
-    if (gateway !== WebsocketConnectionState.Open) return gateway;
+    const router = this.transport.socket().connectionState;
+    if (router !== WebsocketConnectionState.Open) return router;
     return match(this.state)
       .with('open', () => WebsocketConnectionState.Open)
       .with('subscribing', () => WebsocketConnectionState.Connecting)
@@ -303,7 +303,7 @@ class VirtualSyncSocket implements SyncSocket {
       this.dispatch(
         WebsocketEvent.Reconnect,
         new CustomEvent(WebsocketEvent.Reconnect, {
-          detail: { retries: 0, lastConnection: undefined, url: 'gateway' },
+          detail: { retries: 0, lastConnection: undefined, url: 'router' },
         })
       );
     }
@@ -332,9 +332,9 @@ class VirtualSyncSocket implements SyncSocket {
     this.scheduleResubscribe();
   }
 
-  public onGatewayClose(event: CloseEvent): void {
+  public onRouterClose(event: CloseEvent): void {
     if (this.state === 'closed') return;
-    // The gateway socket owns reconnection; we just report the drop and wait
+    // The router socket owns reconnection; we just report the drop and wait
     // for the transport's Reconnect handler to re-subscribe us.
     this.clearResubscribeTimer();
     this.state = 'dropped';
@@ -343,7 +343,7 @@ class VirtualSyncSocket implements SyncSocket {
     this.dispatch(WebsocketEvent.Close, event);
   }
 
-  public onGatewayHeartbeatMissed(
+  public onRouterHeartbeatMissed(
     event: CustomEvent<{ missedHeartbeats: number; willReconnect: boolean }>
   ): void {
     this.dispatch(
