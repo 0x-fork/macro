@@ -159,6 +159,14 @@ the **Home >** return breadcrumb added. Calendar shares its date, search,
 navigation, view, and New controls; email shares its action, navigation, AI/task,
 and Share groups. Touch previews retain their existing compact headers.
 
+Conversation breadcrumbs preserve identity: human DMs show the other participant's
+avatar, agent DMs show the persona avatar, and named channels show their picture
+or the channel glyph. Verify switching between these entries without reloading,
+including a reply-thread entry and a direct Home URL reload. Clicking an avatar
+inside a breadcrumb must select that breadcrumb, not open another DM.
+
+![Home DM breadcrumb with its participant avatar](images/home-conversation-identity.png)
+
 Document previews opened from Home expose **Share** and **Copy Share Link** before
 the details toggle, including tasks, snippets, skills, canvases, PDFs, images,
 code, and videos. Share uses the selected item's permissions and updates when
