@@ -339,7 +339,18 @@ controls. Use the shared slots described in
 Desktop app navigation panels have **Hide navigation** at the right end of their
 48px title bar. It hides only that split's navigation; **Show navigation** (the
 hamburger) appears before the main header's title/breadcrumbs, including when a
-document, email, or conversation is open. Home's filter sits beside its label.
+document, email, or conversation is open. Home's filter sits in the right group,
+before search and **Hide navigation**.
+A desktop view's name opens the view switcher: clicking it shows the rail's apps
+in rail order, then the More apps, with a check on the current one. Choosing one
+replaces the view in that split, not the active split; Shift opens it in a new
+split. The navigation panel's title shows the name with a caret, sharing one
+hover background. Main headers show the name alone, with the same hover:
+`ViewSidebar.Title caret={false}` for plain titles, and the first breadcrumb
+(Drive, Email, Tasks, Reviews) while it is the current page; deeper, that crumb
+returns to the list. Titles that name content rather than the view (Calendar's
+date, a channel, an agent session, a CRM record) do not switch views. Touch
+devices show plain names and keep the dock.
 The split's **Close** control aligns with the navigation icons when expanded and
 appears immediately before the hamburger when collapsed. Both use 16px icons in
 24px desktop buttons. Close remains hidden when the split cannot be closed.
