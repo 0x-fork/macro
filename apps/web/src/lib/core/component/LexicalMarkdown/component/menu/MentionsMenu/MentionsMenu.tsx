@@ -304,7 +304,9 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     );
   });
 
+  // Every composer mounts this menu closed; fetch only once it opens.
   const bookingLinksEnabled = () =>
+    props.menu.isOpen() &&
     !hasCustomEntities() &&
     (!props.sources || props.sources.includes('bookingLinks'));
   const { bookingLinks } = useBookingLinkMention({

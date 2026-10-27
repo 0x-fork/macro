@@ -136,6 +136,10 @@ const initializePosthog = (instance: PostHog) => {
     api_host: 'https://macro-prox.macroverse.workers.dev/i/ph',
     ui_host: 'https://us.posthog.com',
     defaults: '2026-01-30',
+    // Scroll depth listens to every scroll in the app (capture phase) and
+    // reads window geometry, forcing a layout per scroll. The app shell never
+    // scrolls the window, so the depth it reports is always zero.
+    disable_scroll_properties: true,
     prepare_external_dependency_script: (script) => {
       const url = new URL(script.src);
 
