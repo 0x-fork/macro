@@ -251,7 +251,8 @@ from the billing catalog and describes Max as 10× Pro usage, without displaying
 dollar-denominated included AI allowances. Monthly prices use the compact
 `/usr/mo` unit on one line; Free email branding reads “Sent with Macro”.
 Free completes onboarding without a
-card. Pro returns to the account-specific Pro offer; Max starts standard paid checkout.
+card. Pro returns to the account-specific Pro offer; Max starts standard paid
+checkout with no trial period. The trial copy and button stay on the Pro offer.
 The trial button requests 30 days free through Stripe Checkout, with no coupon
 required. Stripe collects the payment method for billing after the trial. Only a
 customer's first subscription qualifies, including canceled subscriptions in that
