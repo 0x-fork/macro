@@ -33,8 +33,8 @@ function CalendarListNav(props: Omit<ListNavProps, 'badge'>) {
  * Always narrow by design — there is no slim mode or hover-peek overlay.
  * `cmd+.` toggles navigation in the active workspace. The `g`-prefixed
  * nav shortcuts are registered by `GoToHotkeys`, which `Layout` mounts
- * separately. There is no room for leader-key hints on the buttons, so each
- * button's tooltip carries its shortcut instead.
+ * separately. Each button's tooltip carries its shortcut, and after `g` is
+ * pressed each button shows its destination key in a corner badge.
  */
 export const SidebarRail = () => (
   <SidebarPrefsProvider>

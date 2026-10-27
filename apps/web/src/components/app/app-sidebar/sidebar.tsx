@@ -32,11 +32,10 @@ import {
   enableCrm,
   enableTasksReviews,
   enableWhatsappLinked,
-  isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import { getRunnableHotkeys } from '@core/hotkey/getCommands';
 import { registerHotkey } from '@core/hotkey/hotkeys';
-import { clearPressedKeys } from '@core/hotkey/state';
+import { activeScope, clearPressedKeys } from '@core/hotkey/state';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
 import { activateClosestDOMScope } from '@core/hotkey/utils';
@@ -196,6 +195,14 @@ export function navigateToSidebarView(args: {
 /** Whether the "g" leader key is currently awaiting a destination key. */
 const [goToHotkeyVisible, setGoToHotkeyVisible] = createSignal(false);
 
+/**
+ * True while the "g" leader awaits a destination, so nav buttons can show
+ * their destination key. Any key in the GoTo scope leaves it, including a
+ * view's own GoTo command (Email's g s), so the hints clear with it.
+ */
+export const isGoToLeaderActive = () =>
+  goToHotkeyVisible() && activeScope() === GO_TO_COMMAND_SCOPE;
+
 const resetGoToHotkeysState = () => {
   setGoToHotkeyVisible(false);
   // To prevent the next key from triggering the hotkey handler,
@@ -230,13 +237,15 @@ export const GoToHotkeys = () => {
   const recentViewEnabled = useRecentViewFlag();
   const reviews = useFeatureFlag(enableTasksReviews);
   const external = useFeatureFlag(enableWhatsappLinked);
+  const crm = useFeatureFlag(enableCrm);
   const links = createMemo((): SidebarItem[] =>
     buildSidebarLinks(
       calendarUiEnabled(),
       activityFeedEnabled(),
       recentViewEnabled(),
       reviews().enabled,
-      external().enabled
+      external().enabled,
+      crm().enabled
     )
   );
 
@@ -431,15 +440,16 @@ const EXTERNAL_LINK: SidebarItem = {
 /**
  * Assemble the ordered sidebar link list: the static links plus the
  * flag-gated Recent, Activity, Calendar, Calls, Reviews, CRM, and External
- * entries in their correct positions.
- * Call from a reactive context — it reads `ENABLE_CALLS` / `isFeatureEnabled(enableCrm)`.
+ * entries in their correct positions. Callers subscribe to the flags and pass
+ * them in, so a flag that resolves after mount still rebuilds the list.
  */
 const buildSidebarLinks = (
   showCalendar: boolean,
   showActivity: boolean,
   showRecent: boolean,
   showReviews: boolean,
-  showExternal: boolean
+  showExternal: boolean,
+  showCustomers: boolean
 ): SidebarItem[] => {
   let links: SidebarItem[] = SIDEBAR_LINKS.filter(
     (link) => showCalendar || link.id !== 'calendar'
@@ -463,7 +473,7 @@ const buildSidebarLinks = (
     links = [...links.slice(0, idx + 1), CALLS_LINK, ...links.slice(idx + 1)];
   }
 
-  if (isFeatureEnabled(enableCrm)) {
+  if (showCustomers) {
     // Customers sits just after Channels (and Calls when present).
     const anchorId = ENABLE_CALLS ? 'calls' : 'channels';
     const idx = links.findIndex((l) => l.id === anchorId);
