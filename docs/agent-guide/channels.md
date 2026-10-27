@@ -16,6 +16,11 @@ from their parent channel rather than the message or thread ID.
 
 ## Message links
 
+A channel search namespace with `threadId` and no `messageId` targets the thread
+root. Home, Chat, and the full-screen touch conversation normalize this URL in
+the shared channel search schema; an explicit message continues to target its
+reply within that thread.
+
 Bare URLs, common bare domains, and email addresses are clickable in opened
 messages, including agent/API messages and older messages. Explicit Markdown
 links still use their label. Inline code, code blocks, and escaped URLs stay
