@@ -17,7 +17,16 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
   its event types (no whatsmeow types).
 - `src/domain/effects.rs`: notification outbox drained by DSS.
 - `src/outbound/pg/ingest.rs`: canonical identity `(binding, person, source id)`,
-  quarantine, deferral and the standalone message write.
+  quarantine, deferral and the standalone message write. Senders are resolved
+  first (`resolve_sender_in`): WhatsApp's from-me flag means the account's own
+  identity; a LID-only sender takes its phone number from the account's roster
+  pair. Only what is still LID-only is quarantined.
+- `src/outbound/pg/chats.rs`: the account's chat list (`whatsapp_chat`,
+  `GET /chats` via `LinkedService::chats`) and importing earlier messages of
+  added groups (`backfill_*` columns on `whatsapp_group`; limits
+  `BACKFILL_MESSAGE_LIMIT` / `BACKFILL_MAX_AGE_DAYS` in `models.rs`). History
+  messages skip the adoption-time boundary but only reach the account owner's
+  own groups (`observed_bindings_in`).
 - `src/outbound/pg/sends.rs`: enqueue, claim, dispatch fence, outcome. A
   repeated intent key returns the stored send before any other check.
 - `src/outbound/pg.rs` `signals`: JSON `NOTIFY` payloads with `traceparent`

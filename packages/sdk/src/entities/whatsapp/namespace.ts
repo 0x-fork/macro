@@ -1,8 +1,8 @@
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { WhatsAppAccount } from './account';
+import { WhatsAppChat } from './chat';
 import { WhatsAppGroup } from './group';
-import { WhatsAppRemoteGroup } from './remote-group';
 
 /** Operate on an account already paired through the Macro app. */
 export class WhatsAppNamespace {
@@ -22,10 +22,14 @@ export class WhatsAppNamespace {
     );
   }
 
-  /** Groups discoverable through the caller's own connected account. */
-  async remoteGroups(): Promise<WhatsAppRemoteGroup[]> {
-    return unwrap(await this.client.storage.linkedGroups()).map((record) =>
-      WhatsAppRemoteGroup.from(this.client, record),
+  /**
+   * The caller's WhatsApp chat list (groups and direct chats), newest
+   * activity first: each chat says whether it is added, shared with the caller
+   * or addable, and `chat.adopt()` adds it.
+   */
+  async chats(): Promise<WhatsAppChat[]> {
+    return unwrap(await this.client.storage.linkedChats()).chats.map((record) =>
+      WhatsAppChat.from(this.client, record),
     );
   }
 

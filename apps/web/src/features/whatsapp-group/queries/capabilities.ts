@@ -3,8 +3,8 @@ import { Telemetry } from '@macro-inc/observability';
 import { queryReadyGate } from '@queries/gate';
 import { useBinaryDocumentQuery } from '@queries/storage/binary-document';
 import {
+  invalidateWhatsappGroup,
   invalidateWhatsappGroupList,
-  invalidateWhatsappGroups,
   refreshWhatsappGroupTimeline,
   useWhatsappGroupDeliveryQuery,
   useWhatsappGroupQueries,
@@ -160,7 +160,7 @@ export function createWhatsAppGroupCapabilities(
         () => api.stopSync(groupId()),
         groupId()
       );
-      await invalidateWhatsappGroups();
+      invalidateWhatsappGroup(groupId());
     },
   };
 }

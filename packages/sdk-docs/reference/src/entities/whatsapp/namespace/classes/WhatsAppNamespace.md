@@ -52,6 +52,20 @@ Reference an adopted entity without fetching it.
 
 ***
 
+### chats()
+
+> **chats**(): `Promise`\<[`WhatsAppChat`](../../chat/classes/WhatsAppChat.md)[]\>
+
+The caller's WhatsApp chat list (groups and direct chats), newest
+activity first: each chat says whether it is added, shared with the caller
+or addable, and `chat.adopt()` adds it.
+
+#### Returns
+
+`Promise`\<[`WhatsAppChat`](../../chat/classes/WhatsAppChat.md)[]\>
+
+***
+
 ### groups()
 
 > **groups**(): `Promise`\<[`WhatsAppGroup`](../../group/classes/WhatsAppGroup.md)[]\>
@@ -61,15 +75,3 @@ Adopted groups shared with the caller, including without WhatsApp.
 #### Returns
 
 `Promise`\<[`WhatsAppGroup`](../../group/classes/WhatsAppGroup.md)[]\>
-
-***
-
-### remoteGroups()
-
-> **remoteGroups**(): `Promise`\<[`WhatsAppRemoteGroup`](../../remote-group/classes/WhatsAppRemoteGroup.md)[]\>
-
-Groups discoverable through the caller's own connected account.
-
-#### Returns
-
-`Promise`\<[`WhatsAppRemoteGroup`](../../remote-group/classes/WhatsAppRemoteGroup.md)[]\>

@@ -118,29 +118,53 @@ test('shared groups can be listed without a WhatsApp connection and handles fetc
   expect(JSON.stringify(groups[0])).not.toContain('owner-api-token');
 });
 
-test('remote discovery shows groups shared by others and adoption takes only the group', async () => {
+test('the chat list lists groups and direct chats and adds a group by its handle', async () => {
   const { macro, requests } = fixture((request) =>
     Response.json(
       request.method === 'POST'
         ? { group_id: 'group' }
-        : [
-            {
-              ...remote,
-              shared: {
-                id: 'theirs',
-                name: 'Remote support',
-                owner_id: 'macro|ana@example.com',
+        : {
+            chats: [
+              {
+                jid: '15558880001@s.whatsapp.net',
+                kind: 'direct',
+                name: 'Customer',
+                lastActivityAt: '2026-10-22T10:00:00Z',
+                archived: false,
+                pinned: true,
+                group: null,
+                shared: null,
+                canAdd: false,
+                cannotAddReason: "direct chats can't be added to Macro yet",
               },
-            },
-          ],
+              {
+                jid: remote.jid,
+                kind: 'group',
+                name: 'Remote support',
+                lastActivityAt: null,
+                archived: false,
+                pinned: false,
+                group: null,
+                shared: null,
+                canAdd: true,
+                cannotAddReason: null,
+              },
+            ],
+          },
     ),
   );
-  const [discovered] = await macro.whatsapp.remoteGroups();
-  expect(await discovered.group()).toBeUndefined();
-  expect((await discovered.shared())?.id).toBe('theirs');
-  const adopted = await discovered.adopt();
+  const [direct, group] = await macro.whatsapp.chats();
+  expect(await direct.kind()).toBe('direct');
+  expect(await direct.cannotAddReason()).toBe(
+    "direct chats can't be added to Macro yet",
+  );
+  expect(await group.canAdd()).toBe(true);
+  const adopted = await group.adopt();
   expect(adopted.id).toBe('group');
-  expect(new URL(requests[1].url).pathname).toBe('/meta/linked/groups/adopt');
+  expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
+    '/meta/linked/chats',
+    '/meta/linked/groups/adopt',
+  ]);
   expect(await requests[1].json()).toEqual({ group_jid: remote.jid });
 });
 

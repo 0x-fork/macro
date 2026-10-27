@@ -20,7 +20,7 @@ enforced by the ordinary backend APIs.
 - `src/entities/sharing/`, `messages/`: scoped access requests and message threads.
 - `src/entities/databases/query.ts`: SQL statements, typed table/row references and version guards.
 - `src/entities/crm/pipeline.ts`: pipeline-authorized table/row handles.
-- `src/entities/whatsapp/`: owner account, standalone group/message/send/upload handles, and remote discovery.
+- `src/entities/whatsapp/`: owner account, the chat list (`WhatsAppChat`), and added-chat group/message/send/upload/participant handles.
 - `services.ts`, `openapi-ts.config.ts`: generated service contract inputs.
 
 ## Boundaries
@@ -99,7 +99,3 @@ the existing gateway prefixes.
 
 - Workspace-import report/cancel endpoints remain app-only review plumbing,
   explicitly classified alongside the existing Notion routes in coverage skips.
-
-WhatsApp handles address adopted `whatsapp_group` entities and their own messages;
-remote discovery uses `WhatsAppRemoteGroup`. Pairing/passkey/configuration remain
-excluded; personal sessions and owner API tokens can send, bots cannot.

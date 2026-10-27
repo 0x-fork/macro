@@ -124,8 +124,17 @@ export function invalidateWhatsappGroupList() {
     queryKey: whatsappGroupsKeys.list._def,
   });
 }
-export function invalidateWhatsappGroups() {
-  return queryClient.invalidateQueries({ queryKey: whatsappGroupsKeys._def });
+/**
+ * One group changed for everyone who reads it (sharing, syncing): its
+ * detail, whoever's cache holds it, and every group list. Its timeline is
+ * unchanged.
+ */
+export function invalidateWhatsappGroup(groupId: string) {
+  queryClient.invalidateQueries({ queryKey: whatsappGroupsKeys.list._def });
+  queryClient.invalidateQueries({
+    queryKey: whatsappGroupsKeys.detail._def,
+    predicate: (query) => query.queryKey.at(-1) === groupId,
+  });
 }
 /** A send was recorded: its row and the group's place in lists follow. */
 export function refreshWhatsappGroupTimeline(userId: string, groupId: string) {

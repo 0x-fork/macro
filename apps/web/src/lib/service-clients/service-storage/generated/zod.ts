@@ -49230,6 +49230,90 @@ export const linkedAccountResponse = zod
   .describe('Owner-scoped account state, including not connected.');
 
 /**
+ * @summary The caller's WhatsApp chat list (groups and direct chats), newest
+activity first, with what can be added to Macro.
+ */
+export const linkedChatsResponse = zod
+  .object({
+    chats: zod
+      .array(
+        zod
+          .object({
+            archived: zod.boolean().describe('Archived in WhatsApp.'),
+            canAdd: zod.boolean().describe('\"Add to Macro\" works now.'),
+            cannotAddReason: zod
+              .string()
+              .nullish()
+              .describe(
+                "Why it can't be added, when it is neither added, shared nor addable."
+              ),
+            group: zod
+              .union([
+                zod.null(),
+                zod
+                  .object({
+                    id: zod.uuid().describe('Group entity id.'),
+                    name: zod
+                      .string()
+                      .describe('Display name, following WhatsApp.'),
+                  })
+                  .describe('A group entity bound to a remote group.'),
+              ])
+              .optional(),
+            jid: zod
+              .string()
+              .describe(
+                "WhatsApp chat JID: a group, or the other person's phone-number JID\n(LID when WhatsApp never told us the number)."
+              ),
+            kind: zod
+              .enum(['group', 'direct'])
+              .describe(
+                'Whether a WhatsApp chat is a group or a one-to-one chat.'
+              ),
+            lastActivityAt: zod.iso
+              .datetime({})
+              .nullish()
+              .describe(
+                'Newest activity WhatsApp reported (message or history sync); `null`\nwhen unknown. The list is sorted by it, newest first, unknown last.'
+              ),
+            name: zod
+              .string()
+              .describe(
+                'Group: the subject, or member names for an unnamed group. Direct: the\ncontact or WhatsApp name, else `+<phone>`. Always non-empty.'
+              ),
+            pinned: zod.boolean().describe('Pinned in WhatsApp.'),
+            shared: zod
+              .union([
+                zod.null(),
+                zod
+                  .object({
+                    id: zod.uuid().describe('Group entity id.'),
+                    name: zod
+                      .string()
+                      .describe('Display name, following WhatsApp.'),
+                    owner_id: zod
+                      .string()
+                      .describe(
+                        'Macro user who added the group and shared it.'
+                      ),
+                  })
+                  .describe(
+                    "Another person's group entity the caller can view."
+                  ),
+              ])
+              .optional(),
+          })
+          .describe(
+            "One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it."
+          )
+      )
+      .describe(
+        'Newest activity first; chats with unknown activity last, by name.'
+      ),
+  })
+  .describe("The caller's WhatsApp chat list.");
+
+/**
  * @summary Server rollout switches.
  */
 export const linkedConfigurationResponse = zod
@@ -49469,8 +49553,34 @@ export const linkedPasskeyBody = zod.object({});
 /**
  * @summary List adopted groups the caller can view, including without WhatsApp.
  */
+export const whatsappGroupsResponseBackfillImportedMin = 0;
+
 export const whatsappGroupsResponseItem = zod
   .object({
+    backfill: zod
+      .union([
+        zod.null(),
+        zod
+          .object({
+            imported: zod
+              .number()
+              .min(whatsappGroupsResponseBackfillImportedMin)
+              .describe(
+                'Messages received from the phone so far (including ones already shown).'
+              ),
+            state: zod
+              .enum([
+                'pending',
+                'running',
+                'waiting_for_phone',
+                'done',
+                'partial',
+              ])
+              .describe("Where importing a group's earlier messages stands."),
+          })
+          .describe('Earlier messages imported after adding a group.'),
+      ])
+      .optional(),
     can_send: zod
       .boolean()
       .describe('Caller may currently send from their own account.'),
@@ -49510,6 +49620,8 @@ export const whatsappGroupParams = zod.object({
   group_id: zod.uuid(),
 });
 
+export const whatsappGroupResponseBackfillImportedMin = 0;
+
 export const whatsappGroupResponseLimitsAttachmentLimitBytesMin = 0;
 
 export const whatsappGroupResponseLimitsMaxAttachmentsMin = 0;
@@ -49520,6 +49632,30 @@ export const whatsappGroupResponseLimitsTextLimitBytesMin = 0;
 
 export const whatsappGroupResponse = zod
   .object({
+    backfill: zod
+      .union([
+        zod.null(),
+        zod
+          .object({
+            imported: zod
+              .number()
+              .min(whatsappGroupResponseBackfillImportedMin)
+              .describe(
+                'Messages received from the phone so far (including ones already shown).'
+              ),
+            state: zod
+              .enum([
+                'pending',
+                'running',
+                'waiting_for_phone',
+                'done',
+                'partial',
+              ])
+              .describe("Where importing a group's earlier messages stands."),
+          })
+          .describe('Earlier messages imported after adding a group.'),
+      ])
+      .optional(),
     can_send: zod
       .boolean()
       .describe('Caller may currently send from their own account.'),
