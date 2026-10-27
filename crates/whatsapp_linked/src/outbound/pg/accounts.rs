@@ -4,6 +4,7 @@ use super::*;
 use crate::domain::ports::AccountRepository;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 
 /// Pairing transactions last this long.
 const PAIRING_SECONDS: f64 = 5.0 * 60.0;
@@ -92,18 +93,25 @@ fn pairing(row: PairingRow) -> LinkedResult<Pairing> {
     Ok(Pairing {
         id: row.id,
         account_id: row.account_id,
-        state: PairingState::parse(&row.state).ok_or(LinkedError::Unavailable)?,
+        state: PairingState::parse(&row.state)
+            .ok_or_else(|| corrupt(format_args!("state {:?}", row.state)))?,
         expires_at: row.expires_at,
     })
 }
 
 #[async_trait]
 impl AccountRepository for PgLinkedRepository {
-    async fn owned_account(&self, user: &str) -> LinkedResult<Option<Account>> {
+    async fn owned_account(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<Option<Account>> {
+        let user = user.as_ref();
         account_by_user_in(&self.pool, user).await
     }
 
-    async fn begin_pairing(&self, user: &str, replace: bool) -> LinkedResult<Pairing> {
+    async fn begin_pairing(
+        &self,
+        user: &MacroUserIdStr<'_>,
+        replace: bool,
+    ) -> LinkedResult<Pairing> {
+        let user = user.as_ref();
         let mut tx = self.pool.begin().await.map_err(failure)?;
         // Serialize per person, including before their account row exists.
         sqlx::query!(
@@ -194,7 +202,8 @@ impl AccountRepository for PgLinkedRepository {
         pairing(row)
     }
 
-    async fn pair_state(&self, user: &str, id: Uuid) -> LinkedResult<PairState> {
+    async fn pair_state(&self, user: &MacroUserIdStr<'_>, id: Uuid) -> LinkedResult<PairState> {
+        let user = user.as_ref();
         let mut tx = self.pool.begin().await.map_err(failure)?;
         expire_pairings_in(&mut tx, Some(user), Some(id), None).await?;
         let row = sqlx::query!(
@@ -209,7 +218,8 @@ impl AccountRepository for PgLinkedRepository {
         .map_err(failure)?
         .ok_or(LinkedError::NotFound)?;
         tx.commit().await.map_err(failure)?;
-        let state = PairingState::parse(&row.state).ok_or(LinkedError::Unavailable)?;
+        let state = PairingState::parse(&row.state)
+            .ok_or_else(|| corrupt(format_args!("state {:?}", row.state)))?;
         Ok(PairState {
             state,
             qr: row.qr_code,
@@ -224,10 +234,11 @@ impl AccountRepository for PgLinkedRepository {
 
     async fn submit_passkey(
         &self,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         id: Uuid,
         response: &serde_json::Value,
     ) -> LinkedResult<()> {
+        let user = user.as_ref();
         let mut tx = self.pool.begin().await.map_err(failure)?;
         expire_pairings_in(&mut tx, Some(user), Some(id), None).await?;
         sqlx::query!(
@@ -248,7 +259,8 @@ impl AccountRepository for PgLinkedRepository {
         tx.commit().await.map_err(failure)
     }
 
-    async fn cancel_pairing(&self, user: &str, id: Uuid) -> LinkedResult<()> {
+    async fn cancel_pairing(&self, user: &MacroUserIdStr<'_>, id: Uuid) -> LinkedResult<()> {
+        let user = user.as_ref();
         let mut tx = self.pool.begin().await.map_err(failure)?;
         sqlx::query!(
             "SELECT id FROM whatsapp_linked_account WHERE user_id = $1 FOR UPDATE",
@@ -294,7 +306,8 @@ impl AccountRepository for PgLinkedRepository {
         tx.commit().await.map_err(failure)
     }
 
-    async fn disconnect(&self, user: &str, generation: i64) -> LinkedResult<bool> {
+    async fn disconnect(&self, user: &MacroUserIdStr<'_>, generation: i64) -> LinkedResult<bool> {
+        let user = user.as_ref();
         let mut tx = self.pool.begin().await.map_err(failure)?;
         let account = sqlx::query!(
             "SELECT id, state, generation FROM whatsapp_linked_account WHERE user_id = $1 FOR UPDATE",

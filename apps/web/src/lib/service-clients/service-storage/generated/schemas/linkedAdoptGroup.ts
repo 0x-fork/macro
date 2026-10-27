@@ -12,5 +12,5 @@ group's name always follows WhatsApp.
 export interface LinkedAdoptGroup {
   /** A group the requester's account has joined, or a direct chat from
 their chat list (the other person's JID, as the list names it). */
-  group_jid: string;
+  groupJid: string;
 }

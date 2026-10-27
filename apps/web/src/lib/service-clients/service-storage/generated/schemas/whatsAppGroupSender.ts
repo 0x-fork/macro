@@ -13,7 +13,7 @@ export interface WhatsAppGroupSender {
   /** Display name, never authentication evidence. */
   name: string;
   /** External person identity. */
-  person_id: string;
+  personId: string;
   /** Verified Macro user association, if present. */
-  user_id?: WhatsAppGroupSenderUserId;
+  userId?: WhatsAppGroupSenderUserId;
 }

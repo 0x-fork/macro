@@ -21,11 +21,13 @@ import {
   type PasskeyCapability,
   WhatsAppLinkedProvider,
 } from '@app/features/whatsapp-linked/context/whatsapp-linked-context';
+import { createOpenSections } from '@app/features/whatsapp-linked/primitives/open-sections';
 import { createWhatsAppLinkedCapabilities } from '@app/features/whatsapp-linked/queries/production-capabilities';
 import { WhatsAppPage } from '@app/features/whatsapp-linked/views/whatsapp-page';
 import { AnalyticsContextProvider } from '@app/lib/analytics/analytics-context';
 import { PosthogProvider } from '@app/lib/analytics/posthog';
 import { FloatRegionHost } from '@components/app/mobile/float-regions/FloatRegionHost';
+import { SidePanel } from '@components/app/side-panel';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
 import { ChannelsContextProvider } from '@core/context/channels';
 import { QuickAccessContextProvider } from '@core/context/quickAccess/context';
@@ -103,19 +105,22 @@ function GroupHarness(props: { groupId: string }) {
         <FloatRegionHost />
       </Show>
       <WhatsAppGroupProvider value={source}>
-        <WhatsAppGroupView
-          userId={userId()}
-          share={
-            <ShareTrigger
-              onClick={share}
-              id={props.groupId}
-              blockType="whatsapp_group"
-            />
-          }
-          onConnect={() => {
-            location.search = '';
-          }}
-        />
+        <SidePanel.Root floating defaultOpen={false}>
+          <WhatsAppGroupView
+            userId={userId()}
+            share={
+              <ShareTrigger
+                onClick={share}
+                id={props.groupId}
+                blockType="whatsapp_group"
+              />
+            }
+            onShare={share}
+            onConnect={() => {
+              location.search = '';
+            }}
+          />
+        </SidePanel.Root>
       </WhatsAppGroupProvider>
     </div>
   );
@@ -125,6 +130,10 @@ function GroupHarness(props: { groupId: string }) {
 function InMacroHarness() {
   const userId = useUserId();
   const groups = useWhatsappGroupsQuery(whatsappGroupApi, () => userId() ?? '');
+  const sections = createOpenSections(
+    'macro:whatsapp:sidebar-sections:v2',
+    userId
+  );
   return (
     <main class="w-72 bg-panel p-2 text-ink">
       <InMacroGroups
@@ -132,6 +141,8 @@ function InMacroHarness() {
         isPending={groups.isPending}
         isError={groups.isError}
         activeGroupId={undefined}
+        isOpen={sections.isOpen}
+        onOpenChange={sections.setOpen}
         onOpenGroup={(groupId) => window.openedGroups.push(groupId)}
         onRetry={() => {}}
       />
@@ -160,6 +171,10 @@ function Page() {
     );
   const production = createWhatsAppLinkedCapabilities({
     openGroup: (groupId) => window.openedGroups.push(groupId),
+    sections: createOpenSections(
+      'macro:whatsapp:chat-sections:v2',
+      useUserId()
+    ),
   });
   const capabilities =
     new URLSearchParams(location.search).get('passkey') === 'native'

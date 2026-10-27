@@ -4,6 +4,6 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
-import type { LinkedGroupInfo } from './linkedGroupInfo';
+import type { WhatsAppRoster } from './whatsAppRoster';
 
-export type WhatsAppGroupDetailAllOfRoster = null | LinkedGroupInfo;
+export type WhatsAppGroupDetailAllOfRoster = null | WhatsAppRoster;

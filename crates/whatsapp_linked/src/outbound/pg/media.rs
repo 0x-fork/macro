@@ -116,7 +116,7 @@ impl PgLinkedRepository {
                     sha256: row
                         .sha256
                         .try_into()
-                        .map_err(|_| LinkedError::Unavailable)?,
+                        .map_err(|_| corrupt("sha256 is not 32 bytes"))?,
                     locator: row.locator,
                 })
             })
@@ -231,7 +231,7 @@ impl MediaRepository for PgLinkedRepository {
                 ORDER BY retry_at LIMIT $1 FOR UPDATE SKIP LOCKED)
               AND blob.document_id = a.document_id
             RETURNING a.binding_id, a.person_id, a.source_id, a.ordinal, a.document_id, a.attempts,
-                blob.group_id, blob.user_id, blob.filename, blob.mime, blob.sha256, blob.bytes"#,
+                blob.group_id, blob.user_id, blob.filename, blob.mime, blob.sha256"#,
             limit
         )
         .fetch_all(&self.pool)
@@ -254,12 +254,21 @@ impl MediaRepository for PgLinkedRepository {
                     sha256: row
                         .sha256
                         .try_into()
-                        .map_err(|_| LinkedError::Unavailable)?,
-                    bytes: row.bytes,
+                        .map_err(|_| corrupt("sha256 is not 32 bytes"))?,
                     attempts: row.attempts,
                 })
             })
             .collect()
+    }
+
+    async fn import_bytes(&self, import: &DocumentImport) -> LinkedResult<Option<Vec<u8>>> {
+        sqlx::query_scalar!(
+            "SELECT bytes FROM whatsapp_media_blob WHERE document_id = $1",
+            import.document_id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(failure)
     }
 
     async fn import_stored(&self, import: &DocumentImport) -> LinkedResult<()> {
@@ -333,6 +342,13 @@ impl MediaRepository for PgLinkedRepository {
         .await
         .map_err(failure)?
         .rows_affected();
-        Ok(uploads + receipts)
+        let pairings = sqlx::query!(
+            "DELETE FROM whatsapp_pairing WHERE consumed_at < now() - interval '1 day'"
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(failure)?
+        .rows_affected();
+        Ok(uploads + receipts + pairings)
     }
 }

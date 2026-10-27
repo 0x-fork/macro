@@ -12,9 +12,9 @@ import type { LinkedSendReplyReplyTo } from './linkedSendReplyReplyTo';
  */
 export interface LinkedSendReply {
   /** Stable client intent key. A changed payload with this key is a conflict. */
-  idempotency_key: string;
+  idempotencyKey: string;
   /** Content. */
   message: LinkedReplyContent;
   /** Group message being quoted, within this group. */
-  reply_to?: LinkedSendReplyReplyTo;
+  replyTo?: LinkedSendReplyReplyTo;
 }

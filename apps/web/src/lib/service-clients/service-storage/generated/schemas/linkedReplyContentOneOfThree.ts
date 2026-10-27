@@ -15,5 +15,5 @@ export type LinkedReplyContentOneOfThree = {
   caption?: LinkedReplyContentOneOfThreeCaption;
   type: LinkedReplyContentOneOfThreeType;
   /** The staged upload, which becomes the message's private document. */
-  upload_id: string;
+  uploadId: string;
 };

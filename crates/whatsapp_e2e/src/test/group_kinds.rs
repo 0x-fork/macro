@@ -125,7 +125,7 @@ async fn a_communitys_groups_are_added_and_used_but_not_the_community(pool: PgPo
 
     let garden_jid = garden.to_string();
     let chats = wait_for_rows(&world.pool, TIMEOUT, || async {
-        let chats = world.linked.chats(ALICE).await.ok()?.chats;
+        let chats = world.linked.chats(&person(ALICE)).await.ok()?.chats;
         chats
             .iter()
             .any(|chat| chat.jid == garden_jid)
@@ -157,7 +157,11 @@ async fn a_communitys_groups_are_added_and_used_but_not_the_community(pool: PgPo
             group_jid: jid.to_string(),
         };
         let linked = &world.linked;
-        async move { linked.adopt(ALICE, &request, SendAuthority::Human).await }
+        async move {
+            linked
+                .adopt(&person(ALICE), &request, SendAuthority::Human)
+                .await
+        }
     };
     assert!(matches!(
         adopt(&community).await.unwrap_err().current_context(),
@@ -171,7 +175,7 @@ async fn a_communitys_groups_are_added_and_used_but_not_the_community(pool: PgPo
         .group_detail(&receipt::<ViewAccessLevel>(ALICE, binding.id))
         .await
         .unwrap();
-    assert_eq!(detail.community, Some(neighbours(false)));
+    assert_eq!(detail.group.community, Some(neighbours(false)));
     assert!(detail.group.can_send);
     let tomatoes = world
         .customer
@@ -199,7 +203,7 @@ async fn a_communitys_groups_are_added_and_used_but_not_the_community(pool: PgPo
         .group_detail(&receipt::<ViewAccessLevel>(ALICE, notices.id))
         .await
         .unwrap();
-    assert_eq!(detail.community, Some(neighbours(true)));
+    assert_eq!(detail.group.community, Some(neighbours(true)));
     assert_eq!(
         detail.group.send_reason,
         Some(ReplyBlock::NotAllowedInGroup)

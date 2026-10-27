@@ -13,7 +13,7 @@ async fn listed_customer_chat(world: &World) -> whatsapp_linked::domain::models:
     let chat = wait_for_rows(&world.pool, TIMEOUT, || async {
         world
             .linked
-            .chats(ALICE)
+            .chats(&person(ALICE))
             .await
             .ok()?
             .chats
@@ -72,7 +72,7 @@ async fn a_direct_chat_imports_its_history_and_works_both_ways(pool: PgPool) {
     let binding = world
         .linked
         .adopt(
-            ALICE,
+            &person(ALICE),
             &AdoptGroup {
                 group_jid: chat.jid.clone(),
             },
@@ -194,7 +194,11 @@ async fn a_direct_chat_imports_its_history_and_works_both_ways(pool: PgPool) {
     );
     let read = world
         .linked
-        .messages(&receipt::<ViewAccessLevel>(BOB, binding.id), None, 100)
+        .messages(
+            &receipt::<ViewAccessLevel>(BOB, binding.id),
+            None,
+            Some(100),
+        )
         .await
         .unwrap()
         .messages;

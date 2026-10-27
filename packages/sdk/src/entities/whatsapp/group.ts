@@ -52,13 +52,13 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
   /** `group`, or `direct` for a one-to-one chat (only its owner sends). */
   readonly kind = this.field('kind');
   /** Whether the caller can send from their own connected account. */
-  readonly canSend = this.field('can_send');
+  readonly canSend = this.field('canSend');
   /** Reason sending is blocked. */
-  readonly sendReason = this.field('send_reason');
+  readonly sendReason = this.field('sendReason');
   /** Caller's own verified sending identity. */
-  readonly sendingIdentity = this.field('sending_identity');
+  readonly sendingIdentity = this.field('sendingIdentity');
   /** Per-user unread count. */
-  readonly unreadCount = this.field('unread_count');
+  readonly unreadCount = this.field('unreadCount');
   /** Importing earlier messages from the owner's phone after adding, if any. */
   readonly backfill = this.field('backfill');
   /** Supported sizes and mutation window. */
@@ -72,13 +72,13 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
     ),
   );
   /** WhatsApp's disappearing-messages timer in seconds while on; Macro keeps the messages. */
-  readonly disappearingSeconds = this.field('disappearing_seconds');
+  readonly disappearingSeconds = this.field('disappearingSeconds');
   /** The WhatsApp community this group belongs to, if any: the community's own chat, its name, and whether this is its announcement group. */
   readonly community = this.mappedField('community', (record) =>
     record ? communityOf(this.client, record) : undefined,
   );
   /** Actual owner, independent of WhatsApp membership. */
-  readonly owner = this.mappedField('user_id', (id) =>
+  readonly owner = this.mappedField('userId', (id) =>
     User.byId(this.client, id),
   );
 
@@ -97,7 +97,7 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
         items: page.messages.map((message) =>
           WhatsAppMessage.from(this.client, this, message),
         ),
-        nextCursor: page.next_cursor,
+        nextCursor: page.nextCursor,
       };
     });
   }
@@ -108,7 +108,7 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
     await this.mutate((client) =>
       client.storage.whatsappGroupRead({
         path: { group_id: this.id },
-        body: { message_id: message.id },
+        body: { messageId: message.id },
       }),
     );
   }
@@ -176,7 +176,7 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
         this.assertGroup(value.upload.group);
         return {
           type: 'media',
-          upload_id: value.upload.id,
+          uploadId: value.upload.id,
           caption: value.caption,
         };
       })
@@ -184,7 +184,7 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
         this.assertGroup(value.message.group);
         return {
           type: 'mutation',
-          message_id: value.message.id,
+          messageId: value.message.id,
           operation: value.operation,
           text: value.text,
         };
@@ -194,9 +194,9 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
       client.storage.linkedReply({
         path: { group_id: this.id },
         body: {
-          idempotency_key: options.idempotencyKey,
+          idempotencyKey: options.idempotencyKey,
           message,
-          reply_to: options.replyTo?.id,
+          replyTo: options.replyTo?.id,
         },
       }),
     );
@@ -234,15 +234,15 @@ export class WhatsAppGroup extends FavoritableEntity<WhatsAppGroupDetail> {
         body: messages.map((message) => message.id),
       }),
     ).map((record) => ({
-      message: WhatsAppMessage.byId(this.client, this, record.message_id),
-      attachments: record.linked_attachments.map((attachment) => ({
+      message: WhatsAppMessage.byId(this.client, this, record.messageId),
+      attachments: record.linkedAttachments.map((attachment) => ({
         ordinal: attachment.ordinal,
         state: attachment.state,
-        fileName: attachment.file_name,
+        fileName: attachment.fileName,
         mime: attachment.mime,
         size: attachment.size,
-        document: attachment.document_id
-          ? Document.byId(this.client, attachment.document_id)
+        document: attachment.documentId
+          ? Document.byId(this.client, attachment.documentId)
           : undefined,
       })),
     }));

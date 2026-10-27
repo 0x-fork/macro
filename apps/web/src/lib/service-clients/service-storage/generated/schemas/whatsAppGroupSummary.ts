@@ -7,6 +7,7 @@
 
 import type { LinkedChatKind } from './linkedChatKind';
 import type { WhatsAppGroupSummaryBackfill } from './whatsAppGroupSummaryBackfill';
+import type { WhatsAppGroupSummaryCommunity } from './whatsAppGroupSummaryCommunity';
 import type { WhatsAppGroupSummaryLastMessageAt } from './whatsAppGroupSummaryLastMessageAt';
 import type { WhatsAppGroupSummarySendReason } from './whatsAppGroupSummarySendReason';
 
@@ -16,18 +17,20 @@ import type { WhatsAppGroupSummarySendReason } from './whatsAppGroupSummarySendR
 export interface WhatsAppGroupSummary {
   backfill?: WhatsAppGroupSummaryBackfill;
   /** Caller may currently send from their own account. */
-  can_send: boolean;
+  canSend: boolean;
+  community?: WhatsAppGroupSummaryCommunity;
   /** Entity identifier. */
   id: string;
   /** A group, or a direct chat with one person (only its owner sends). */
   kind: LinkedChatKind;
   /** Latest message timestamp. */
-  last_message_at?: WhatsAppGroupSummaryLastMessageAt;
+  lastMessageAt?: WhatsAppGroupSummaryLastMessageAt;
   /** Display name: the group's, or a direct chat's other person. */
   name: string;
-  send_reason?: WhatsAppGroupSummarySendReason;
-  /** Unread live messages for this viewer. */
-  unread_count: number;
+  sendReason?: WhatsAppGroupSummarySendReason;
+  /** Unread live messages for this viewer, counted up to
+[`UNREAD_COUNT_CAP`]. */
+  unreadCount: number;
   /** Actual entity owner. */
-  user_id: string;
+  userId: string;
 }

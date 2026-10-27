@@ -1,6 +1,6 @@
 # Type Alias: LinkedCapabilities
 
-> **LinkedCapabilities** = \{ `attachment_limit_bytes`: `number`; `attachment_types`: `string`[]; `max_attachments`: `number`; `mutation_window_seconds`: `number`; `mutations`: [`LinkedMutation`](LinkedMutation.md)[]; `text_limit_bytes`: `number`; \}
+> **LinkedCapabilities** = \{ `attachmentLimitBytes`: `number`; `attachmentTypes`: `string`[]; `maxAttachments`: `number`; `mutations`: [`LinkedMutation`](LinkedMutation.md)[]; `mutationWindowSeconds`: `number`; `textLimitBytes`: `number`; \}
 
 Operations implemented for linked groups, independent of current permission.
 
@@ -8,9 +8,9 @@ Operations implemented for linked groups, independent of current permission.
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
-| <a id="property-attachment_limit_bytes"></a> `attachment_limit_bytes` | `number` | Largest attachment in bytes. |
-| <a id="property-attachment_types"></a> `attachment_types` | `string`[] | Supported attachment MIME types. |
-| <a id="property-max_attachments"></a> `max_attachments` | `number` | Attachments per send. |
-| <a id="property-mutation_window_seconds"></a> `mutation_window_seconds` | `number` | Edits and deletes are offered this long after sending. |
+| <a id="property-attachmentlimitbytes"></a> `attachmentLimitBytes` | `number` | Largest attachment in bytes. |
+| <a id="property-attachmenttypes"></a> `attachmentTypes` | `string`[] | Supported attachment MIME types. |
+| <a id="property-maxattachments"></a> `maxAttachments` | `number` | Attachments per send. |
 | <a id="property-mutations"></a> `mutations` | [`LinkedMutation`](LinkedMutation.md)[] | Supported message operations. |
-| <a id="property-text_limit_bytes"></a> `text_limit_bytes` | `number` | Maximum UTF-8 bytes per text send. |
+| <a id="property-mutationwindowseconds"></a> `mutationWindowSeconds` | `number` | Edits and deletes are offered this long after sending. |
+| <a id="property-textlimitbytes"></a> `textLimitBytes` | `number` | Maximum UTF-8 bytes per text send. |

@@ -25,7 +25,7 @@ export class WhatsAppUpload {
     record: LinkedUploadedAttachment,
   ): WhatsAppUpload {
     return new WhatsAppUpload(
-      record.upload_id,
+      record.uploadId,
       group,
       record.filename,
       record.kind,

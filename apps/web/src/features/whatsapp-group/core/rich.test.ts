@@ -17,7 +17,7 @@ const line = (partial: Partial<SystemLine>): SystemLine => ({
   ...partial,
 });
 const sentence = (partial: Partial<SystemLine>) =>
-  systemLineSentence(describeSystemLine(line(partial)));
+  systemLineSentence(describeSystemLine(line(partial), 'group'));
 
 describe('system lines', () => {
   it('words every group event like WhatsApp', () => {
@@ -83,6 +83,14 @@ describe('system lines', () => {
         call: { video: false, outcome: 'answered', durationSeconds: 125 },
       })
     ).toBe('Group voice call · 2:05');
+    expect(
+      systemLineSentence(
+        describeSystemLine(
+          line({ action: 'call', call: { video: false, outcome: 'missed' } }),
+          'direct'
+        )
+      )
+    ).toBe('Missed voice call');
   });
 
   it('starts with the verb when WhatsApp did not say who', () => {

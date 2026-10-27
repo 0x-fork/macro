@@ -21,7 +21,7 @@ Independently shareable added WhatsApp chat: a group or a direct chat.
 | <a id="property-name"></a> `name` | `readonly` | () => `Promise`\<`string`\> | Display name: the group's, or a direct chat's other person. | - | - |
 | <a id="property-owner"></a> `owner` | `readonly` | () => `Promise`\<[`User`](../../../users/user/classes/User.md)\> | Actual owner, independent of WhatsApp membership. | - | - |
 | <a id="property-participants"></a> `participants` | `readonly` | () => `Promise`\<[`WhatsAppParticipant`](../../participant/classes/WhatsAppParticipant.md)[]\> | Everyone in the chat, from its roster; empty when no roster is known. | - | - |
-| <a id="property-roster"></a> `roster` | `readonly` | () => `Promise`\<[`LinkedGroupInfo`](../../../../../generated/storage/types.gen/type-aliases/LinkedGroupInfo.md) \| `undefined`\> | Current remote roster (name, participants, announce), when available. | - | - |
+| <a id="property-roster"></a> `roster` | `readonly` | () => `Promise`\<[`WhatsAppRoster`](../../../../../generated/storage/types.gen/type-aliases/WhatsAppRoster.md) \| `undefined`\> | Current remote roster (name, participants, announce), when available. | - | - |
 | <a id="property-sendingidentity"></a> `sendingIdentity` | `readonly` | () => `Promise`\<`string` \| `undefined`\> | Caller's own verified sending identity. | - | - |
 | <a id="property-sendreason"></a> `sendReason` | `readonly` | () => `Promise`\<`NonNullable`\<LinkedReplyBlock \| null \| undefined\> \| `undefined`\> | Reason sending is blocked. | - | - |
 | <a id="property-unreadcount"></a> `unreadCount` | `readonly` | () => `Promise`\<`number`\> | Per-user unread count. | - | - |

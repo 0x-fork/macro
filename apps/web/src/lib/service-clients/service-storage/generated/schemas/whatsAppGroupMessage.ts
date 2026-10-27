@@ -24,9 +24,9 @@ export interface WhatsAppGroupMessage {
   body: string;
   /** Deleted for everyone. */
   deleted: boolean;
-  delivery_state?: WhatsAppGroupMessageDeliveryState;
+  deliveryState?: WhatsAppGroupMessageDeliveryState;
   /** Last edit timestamp. */
-  edited_at?: WhatsAppGroupMessageEditedAt;
+  editedAt?: WhatsAppGroupMessageEditedAt;
   /** Forwarded from another chat. */
   forwarded: boolean;
   /** Stable message id. */
@@ -38,14 +38,14 @@ export interface WhatsAppGroupMessage {
   /** Reactions grouped by emoji. */
   reactions: WhatsAppGroupReaction[];
   /** Timestamp first received by Macro. */
-  received_at: string;
+  receivedAt: string;
   /** Message quoted by this one. */
-  reply_to?: WhatsAppGroupMessageReplyTo;
+  replyTo?: WhatsAppGroupMessageReplyTo;
   rich?: WhatsAppGroupMessageRich;
   /** Sender. */
   sender: WhatsAppGroupSender;
   /** Timestamp assigned by WhatsApp. */
-  sent_at: string;
+  sentAt: string;
   /** Sent as view-once in WhatsApp; Macro shows it like any media. */
-  view_once: boolean;
+  viewOnce: boolean;
 }

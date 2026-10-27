@@ -18,12 +18,13 @@ pub(super) fn binding(row: BindingRow) -> LinkedResult<Binding> {
     Ok(Binding {
         id: row.id,
         group_jid: row.group_jid,
-        kind: ChatKind::parse(&row.kind).ok_or(LinkedError::Unavailable)?,
+        kind: ChatKind::parse(&row.kind)
+            .ok_or_else(|| corrupt(format_args!("kind {:?}", row.kind)))?,
         user_id: row.user_id,
         state: match row.state.as_str() {
             "active" => BindingState::Active,
             "detached" => BindingState::Detached,
-            _ => return Err(LinkedError::Unavailable.into()),
+            other => return Err(corrupt(format_args!("binding state {other:?}"))),
         },
         adopted_at: row.adopted_at,
     })
@@ -41,6 +42,7 @@ impl BindingRepository for PgLinkedRepository {
             account,
             adoption,
         } = record;
+        let user = user.as_ref();
         account
             .identity_jid
             .as_deref()
@@ -69,7 +71,17 @@ impl BindingRepository for PgLinkedRepository {
                 share_permission_db_utils::insert_private_permission(&mut *tx, &permission)
                     .await
                     .map_err(failure)?;
-                let row = sqlx::query_as!(BindingRow,"INSERT INTO whatsapp_group (id, group_jid, kind, name, user_id, state, share_permission_id, backfill_state) VALUES ($1,$2,$3,$4,$5,'active',$6,'pending') RETURNING id, group_jid, kind, user_id, state, adopted_at",id,adoption.jid,adoption.kind.as_str(),adoption.name,user,permission)
+                // Importing starts from a message of the chat; with none known yet
+                // it waits for the first one.
+                let row = sqlx::query_as!(BindingRow,r#"INSERT INTO whatsapp_group (id, group_jid, kind, name, user_id, state, share_permission_id, backfill_state)
+                    VALUES ($1,$2,$3,$4,$5,'active',$6,
+                        CASE WHEN EXISTS (SELECT 1 FROM whatsapp_chat WHERE account_id = $7 AND chat_jid = $2 AND anchor IS NOT NULL)
+                            OR EXISTS (SELECT 1 FROM whatsapp_group_message m JOIN whatsapp_group g ON g.id = m.binding_id
+                                WHERE g.group_jid = $2 AND m.kind = 'message' AND m.message_id IS NOT NULL
+                                  AND EXISTS (SELECT 1 FROM whatsapp_message_observation o WHERE o.binding_id = m.binding_id
+                                      AND o.person_id = m.person_id AND o.source_id = m.source_id AND o.account_id = $7))
+                        THEN 'pending' ELSE 'waiting_for_message' END)
+                    RETURNING id, group_jid, kind, user_id, state, adopted_at"#,id,adoption.jid,adoption.kind.as_str(),adoption.name,user,permission,account.id)
                     .fetch_one(&mut *tx).await.map_err(failure)?;
                 let owner = Owner::from_principal_str(user).map_err(failure)?;
                 entity_registry_db_utils::insert_entity(

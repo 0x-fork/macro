@@ -14,5 +14,5 @@ export interface WhatsAppGroupMessages {
   /** Messages in descending sent_at, id order. */
   messages: WhatsAppGroupMessage[];
   /** Cursor for older messages. */
-  next_cursor?: WhatsAppGroupMessagesNextCursor;
+  nextCursor?: WhatsAppGroupMessagesNextCursor;
 }

@@ -2,7 +2,7 @@ use super::*;
 use crate::domain::timeline::TimelineRepository;
 use crate::domain::{
     events::*,
-    ports::{Authorizer, EffectsRepository, GroupEffect, GroupPublisher, Origin, SendRateLimiter},
+    ports::{EffectsRepository, GroupEffect, GroupPublisher, Origin, SendRateLimiter},
     service::LinkedService,
     session::SessionService,
 };
@@ -19,12 +19,18 @@ use std::sync::Arc;
 
 mod changes;
 mod concurrency;
+mod deletion;
 mod media;
 mod pairing;
 mod rich;
 mod timeline;
 
 const GROUP: &str = "120363000000000001@g.us";
+/// A test user's id, typed.
+fn person(user: &str) -> macro_user_id::user_id::MacroUserIdStr<'static> {
+    user.to_owned().try_into().expect("test user ids are valid")
+}
+
 const ALICE: &str = "macro|alice@example.com";
 const BOB: &str = "macro|bob@example.com";
 const CAROL: &str = "macro|carol@example.com";
@@ -33,13 +39,6 @@ const BOB_JID: &str = "15550000002@s.whatsapp.net";
 const CUSTOMER_JID: &str = "15558880001@s.whatsapp.net";
 
 struct Allow;
-
-#[async_trait]
-impl Authorizer for Allow {
-    async fn require_group_owner(&self, _: Uuid, _: &str) -> LinkedResult<()> {
-        Ok(())
-    }
-}
 
 const ALL_ON: Features = Features {
     pairing: true,
@@ -50,7 +49,7 @@ const ALL_ON: Features = Features {
 fn services(pool: &PgPool) -> (LinkedService, SessionService, Arc<PgLinkedRepository>) {
     let repository = Arc::new(PgLinkedRepository::new(pool.clone()));
     (
-        LinkedService::new(ALL_ON, repository.clone(), Arc::new(Allow), Arc::new(Allow)),
+        LinkedService::new(ALL_ON, repository.clone(), Arc::new(Allow)),
         SessionService::new(repository.clone()),
         repository,
     )
@@ -115,7 +114,7 @@ async fn pair(
     jid: &str,
 ) -> SessionScope {
     let pairing = linked
-        .connect(user, false, SendAuthority::Human)
+        .connect(&person(user), false, SendAuthority::Human)
         .await
         .unwrap();
     let lease = session.begin_lease(pairing.account_id).await.unwrap();
@@ -229,7 +228,7 @@ async fn adopted(
         .unwrap();
     let binding = linked
         .adopt(
-            ALICE,
+            &person(ALICE),
             &AdoptGroup {
                 group_jid: GROUP.into(),
             },
@@ -258,7 +257,7 @@ async fn adopted(
 async fn adoption_creates_a_shared_entity_and_leaving_whatsapp_keeps_view_access(pool: PgPool) {
     let (linked, session, _, binding, _, bob) = adopted(&pool).await;
     assert_eq!(binding.user_id, ALICE);
-    let mine = &linked.chats(ALICE).await.unwrap().chats[0];
+    let mine = &linked.chats(&person(ALICE)).await.unwrap().chats[0];
     assert_eq!(
         (mine.group.clone(), mine.shared.clone()),
         (
@@ -269,7 +268,7 @@ async fn adoption_creates_a_shared_entity_and_leaving_whatsapp_keeps_view_access
             None
         )
     );
-    let shared = &linked.chats(BOB).await.unwrap().chats[0];
+    let shared = &linked.chats(&person(BOB)).await.unwrap().chats[0];
     assert_eq!(
         (shared.group.clone(), shared.shared.clone()),
         (
@@ -306,7 +305,7 @@ async fn adoption_creates_a_shared_entity_and_leaving_whatsapp_keeps_view_access
     let mut left = text(9, BOB_JID, "unused", "");
     left.kind = InboundKind::Left;
     session.ingest_event(bob, &left).await.unwrap();
-    assert_eq!(linked.adopted_groups(BOB).await.unwrap().len(), 1);
+    assert_eq!(linked.adopted_groups(&person(BOB)).await.unwrap().len(), 1);
     assert!(
         !linked
             .group_detail(&receipt::<MessageView>(BOB, binding.id))
@@ -324,17 +323,17 @@ async fn each_person_adds_their_own_group_once(pool: PgPool) {
         group_jid: GROUP.into(),
     };
     let again = linked
-        .adopt(ALICE, &request, SendAuthority::Human)
+        .adopt(&person(ALICE), &request, SendAuthority::Human)
         .await
         .unwrap();
     assert_eq!(again.id, binding.id, "adding twice returns the same group");
     let bobs = linked
-        .adopt(BOB, &request, SendAuthority::Human)
+        .adopt(&person(BOB), &request, SendAuthority::Human)
         .await
         .unwrap();
     assert_ne!(bobs.id, binding.id);
     assert_eq!(bobs.user_id, BOB);
-    let listed = &linked.chats(BOB).await.unwrap().chats[0];
+    let listed = &linked.chats(&person(BOB)).await.unwrap().chats[0];
     assert_eq!(
         (listed.group.as_ref().map(|g| g.id), listed.shared.clone()),
         (Some(bobs.id), None),
@@ -342,7 +341,7 @@ async fn each_person_adds_their_own_group_once(pool: PgPool) {
     );
     assert!(matches!(
         linked
-            .adopt(CAROL, &request, SendAuthority::Human)
+            .adopt(&person(CAROL), &request, SendAuthority::Human)
             .await
             .unwrap_err()
             .current_context(),
@@ -891,10 +890,10 @@ async fn disconnecting_fails_undispatched_sends_and_stops_observation(pool: PgPo
         )
         .await
         .unwrap();
-    let account = linked.account(ALICE).await.unwrap().unwrap();
+    let account = linked.account(&person(ALICE)).await.unwrap().unwrap();
     let result = linked
         .disconnect(
-            ALICE,
+            &person(ALICE),
             account.authorization_generation,
             SendAuthority::Human,
         )
@@ -904,7 +903,7 @@ async fn disconnecting_fails_undispatched_sends_and_stops_observation(pool: PgPo
     assert!(
         !linked
             .disconnect(
-                ALICE,
+                &person(ALICE),
                 account.authorization_generation,
                 SendAuthority::Human
             )
@@ -944,7 +943,7 @@ async fn stored_group_facts_authorize_adoption_and_sending_however_old(pool: PgP
         group_jid: GROUP.into(),
     };
     let binding = linked
-        .adopt(ALICE, &request, SendAuthority::Human)
+        .adopt(&person(ALICE), &request, SendAuthority::Human)
         .await
         .unwrap();
     let detail = linked
@@ -987,7 +986,7 @@ async fn stored_group_facts_authorize_adoption_and_sending_however_old(pool: PgP
     assert!(matches!(
         linked
             .adopt(
-                ALICE,
+                &person(ALICE),
                 &AdoptGroup {
                     group_jid: "120363000000000002@g.us".into()
                 },
@@ -1031,7 +1030,7 @@ async fn messages_stamped_around_adoption_follow_the_second_granular_boundary(po
 
 #[async_trait]
 impl SendRateLimiter for Allow {
-    async fn check(&self, _: &str) -> LinkedResult<()> {
+    async fn check(&self, _: &macro_user_id::user_id::MacroUserIdStr<'_>) -> LinkedResult<()> {
         Ok(())
     }
 }
@@ -1042,13 +1041,13 @@ async fn rate_limited_send_never_creates_a_dispatchable_intent(pool: PgPool) {
 
     #[async_trait]
     impl SendRateLimiter for Denied {
-        async fn check(&self, _: &str) -> LinkedResult<()> {
+        async fn check(&self, _: &macro_user_id::user_id::MacroUserIdStr<'_>) -> LinkedResult<()> {
             Err(LinkedError::RateLimited.into())
         }
     }
 
     let (_, session, repository, binding, alice, _) = adopted(&pool).await;
-    let linked = LinkedService::new(ALL_ON, repository, Arc::new(Allow), Arc::new(Denied));
+    let linked = LinkedService::new(ALL_ON, repository, Arc::new(Denied));
     let request = SendReply {
         idempotency_key: Uuid::now_v7(),
         message: ReplyContent::Text {

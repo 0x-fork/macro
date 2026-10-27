@@ -35,7 +35,9 @@ function pairingOptions(userId: string, pairingId: string) {
     gcTime: 0,
     staleTime: 0,
     retry: false,
-    refetchInterval: PAIRING_POLL_MS,
+    // A pairing that can't be read (gone, or someone else's) never comes back.
+    refetchInterval: (query) =>
+      query.state.status === 'error' ? false : PAIRING_POLL_MS,
     refetchIntervalInBackground: false,
   });
 }

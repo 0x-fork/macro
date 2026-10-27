@@ -1,6 +1,6 @@
 # Type Alias: AdoptedGroup
 
-> **AdoptedGroup** = \{ `group_id`: `string`; \}
+> **AdoptedGroup** = \{ `groupId`: `string`; \}
 
 Adoption response.
 
@@ -8,4 +8,4 @@ Adoption response.
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
-| <a id="property-group_id"></a> `group_id` | `string` | Shareable entity identifier. |
+| <a id="property-groupid"></a> `groupId` | `string` | Shareable entity identifier. |

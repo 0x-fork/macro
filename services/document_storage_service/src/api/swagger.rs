@@ -466,6 +466,7 @@ use utoipa::OpenApi;
         whatsapp_linked::inbound::router::message_attachments,
         whatsapp_linked::inbound::router::adopted_groups,
         whatsapp_linked::inbound::router::messages,
+        whatsapp_linked::inbound::router::message,
         whatsapp_linked::inbound::router::mark_read,
         whatsapp_linked::inbound::router::open_sends,
         whatsapp_linked::inbound::router::permissions,

@@ -38,7 +38,11 @@ async fn shown(world: &World, binding: &Binding, source: &str) -> WhatsAppGroupM
     .unwrap();
     world
         .linked
-        .messages(&receipt::<ViewAccessLevel>(ALICE, binding.id), None, 100)
+        .messages(
+            &receipt::<ViewAccessLevel>(ALICE, binding.id),
+            None,
+            Some(100),
+        )
         .await
         .unwrap()
         .messages
@@ -904,7 +908,11 @@ async fn group_changes_land_once_as_system_lines_that_never_notify(pool: PgPool)
 
     let page = world
         .linked
-        .messages(&receipt::<ViewAccessLevel>(ALICE, binding.id), None, 100)
+        .messages(
+            &receipt::<ViewAccessLevel>(ALICE, binding.id),
+            None,
+            Some(100),
+        )
         .await
         .unwrap()
         .messages;
@@ -965,7 +973,7 @@ async fn group_changes_land_once_as_system_lines_that_never_notify(pool: PgPool)
     // Only the three texts are unread, and only they notify.
     let summary = world
         .linked
-        .adopted_groups(ALICE)
+        .adopted_groups(&person(ALICE))
         .await
         .unwrap()
         .into_iter()

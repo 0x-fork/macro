@@ -90,24 +90,24 @@ function content(request: GroupSend): LinkedReplyContent {
     }))
     .with({ kind: 'media' }, ({ uploadId, caption }) => ({
       type: 'media' as const,
-      upload_id: uploadId,
+      uploadId,
       caption: caption ?? null,
     }))
     .with({ kind: 'reaction' }, ({ messageId, emoji }) => ({
       type: 'mutation' as const,
-      message_id: messageId,
+      messageId,
       operation: 'reaction' as const,
       text: emoji,
     }))
     .with({ kind: 'edit' }, ({ messageId, text }) => ({
       type: 'mutation' as const,
-      message_id: messageId,
+      messageId,
       operation: 'edit' as const,
       text,
     }))
     .with({ kind: 'delete' }, ({ messageId }) => ({
       type: 'mutation' as const,
-      message_id: messageId,
+      messageId,
       operation: 'delete' as const,
       text: null,
     }))
@@ -141,6 +141,8 @@ function writeFailure(
           'INVALID_JSON',
           'UNKNOWN_ERROR',
           'temporarily_unavailable',
+          'backlogged',
+          'internal_error',
           'lease_fenced',
           // Not recorded; DSS takes one write per second per person.
           'rate_limited'
@@ -171,7 +173,19 @@ function writeFailure(
         kind: 'refused',
         reason: "WhatsApp wasn't reachable in time, so this wasn't sent.",
       }))
-      .with(P.union('conflict', 'CONFLICT', 'identity_conflict'), () => ({
+      .with(
+        P.union(
+          'cannot_add_not_in_group',
+          'cannot_add_community',
+          'cannot_add_own_chat',
+          'cannot_add_not_in_chat_list'
+        ),
+        () => ({
+          kind: 'refused',
+          reason: "This chat can't be in Macro, so nothing was sent.",
+        })
+      )
+      .with(P.union('conflict', 'CONFLICT'), () => ({
         kind: 'refused',
         reason: 'This conflicts with an earlier WhatsApp request.',
       }))
@@ -184,8 +198,8 @@ function progress(send: LinkedSendProgress): SendProgress {
   return {
     id: send.id,
     state: send.state,
-    messageId: send.message_id ?? undefined,
-    errorCode: send.error_code ?? undefined,
+    messageId: send.messageId ?? undefined,
+    errorCode: send.errorCode ?? undefined,
   };
 }
 
@@ -196,8 +210,16 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
       id: group.id,
       kind: group.kind,
       name: group.name,
-      unreadCount: group.unread_count,
-      canSend: group.can_send,
+      ownerId: group.userId,
+      unreadCount: group.unreadCount,
+      canSend: group.canSend,
+      community: group.community
+        ? {
+            id: group.community.id,
+            name: group.community.name,
+            announcements: group.community.announcements,
+          }
+        : undefined,
     })),
   detail: async (id) => {
     const view = await throwOnErr(() => client.detail(id));
@@ -205,14 +227,14 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
       id,
       kind: view.kind,
       name: view.name,
-      ownerId: view.user_id,
-      accessLevel: view.access_level,
-      canSend: view.can_send,
-      sendReason: view.send_reason ?? undefined,
-      phone: view.sending_identity
-        ? phoneFromJid(view.sending_identity)
+      ownerId: view.userId,
+      accessLevel: view.accessLevel,
+      canSend: view.canSend,
+      sendReason: view.sendReason ?? undefined,
+      phone: view.sendingIdentity
+        ? phoneFromJid(view.sendingIdentity)
         : undefined,
-      unreadCount: view.unread_count,
+      unreadCount: view.unreadCount,
       members: (view.roster?.participants ?? []).map((person) => ({
         id: person.jid,
         name:
@@ -224,7 +246,7 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
       backfill: view.backfill
         ? { state: view.backfill.state, imported: view.backfill.imported }
         : undefined,
-      disappearingSeconds: view.disappearing_seconds ?? undefined,
+      disappearingSeconds: view.disappearingSeconds ?? undefined,
       community: view.community
         ? {
             name: view.community.name,
@@ -232,10 +254,10 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
           }
         : undefined,
       limits: {
-        textBytes: view.limits.text_limit_bytes,
-        attachmentBytes: view.limits.attachment_limit_bytes,
-        attachmentTypes: view.limits.attachment_types,
-        editSeconds: view.limits.mutation_window_seconds,
+        textBytes: view.limits.textLimitBytes,
+        attachmentBytes: view.limits.attachmentLimitBytes,
+        attachmentTypes: view.limits.attachmentTypes,
+        editSeconds: view.limits.mutationWindowSeconds,
         mutations: view.limits.mutations,
       },
     };
@@ -243,13 +265,13 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
   messages: async (id, before) => {
     const page = await throwOnErr(() => client.messages(id, before));
     return {
-      before: page.next_cursor ?? undefined,
+      before: page.nextCursor ?? undefined,
       messages: page.messages.map((message) => ({
         id: message.id,
         kind: message.kind,
         sender: {
           name: message.sender.name,
-          userId: message.sender.user_id ?? undefined,
+          userId: message.sender.userId ?? undefined,
         },
         body: message.body,
         mentions: message.mentions.map((mention) => ({
@@ -258,10 +280,10 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
         })),
         forwarded: message.forwarded,
         rich: message.rich ? richContent(message.rich) : undefined,
-        sentAt: message.sent_at,
-        edited: !!message.edited_at,
+        sentAt: message.sentAt,
+        edited: !!message.editedAt,
         deleted: message.deleted,
-        replyTo: message.reply_to ?? undefined,
+        replyTo: message.replyTo ?? undefined,
         reactions: message.reactions.map((reaction) => ({
           emoji: reaction.emoji,
           count: reaction.count,
@@ -270,12 +292,12 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
         attachments: message.attachments.map((attachment) => ({
           ordinal: attachment.ordinal,
           state: attachment.state,
-          fileName: attachment.file_name,
+          fileName: attachment.fileName,
           mime: attachment.mime,
-          documentId: attachment.document_id ?? undefined,
+          documentId: attachment.documentId ?? undefined,
           width: attachment.width ?? undefined,
           height: attachment.height ?? undefined,
-          durationSeconds: attachment.duration_seconds ?? undefined,
+          durationSeconds: attachment.durationSeconds ?? undefined,
           presentation: attachment.presentation ?? undefined,
         })),
       })),
@@ -283,9 +305,9 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
   },
   send: async (id, request, idempotencyKey) => {
     const result = await client.send(id, {
-      idempotency_key: idempotencyKey,
+      idempotencyKey,
       message: content(request),
-      reply_to: 'replyTo' in request ? (request.replyTo ?? null) : null,
+      replyTo: 'replyTo' in request ? (request.replyTo ?? null) : null,
     });
     return result.isOk()
       ? ok(progress(result.value))
@@ -297,7 +319,7 @@ export const whatsappGroupApi: WhatsAppGroupApi = {
     const result = await client.upload(id, file);
     return result.isOk()
       ? ok({
-          uploadId: result.value.upload_id,
+          uploadId: result.value.uploadId,
           audio: result.value.kind === 'audio',
         })
       : err(writeFailure(result.error));

@@ -27,26 +27,26 @@ it('decodes shared viewing separately from the callers own sending account and h
     id: '019a061e-0000-7000-8000-000000000001',
     kind: 'group',
     name: 'Shared group',
-    user_id: 'macro|owner@example.test',
-    unread_count: 3,
-    last_message_at: null,
-    can_send: false,
-    send_reason: 'no_account',
-    access_level: 'view',
-    sending_identity: null,
+    userId: 'macro|owner@example.test',
+    unreadCount: 3,
+    lastMessageAt: null,
+    canSend: false,
+    sendReason: 'no_account',
+    accessLevel: 'view',
+    sendingIdentity: null,
     roster: null,
-    share_permission: {
+    sharePermission: {
       id: 'share-1',
       owner: 'macro|owner@example.test',
       channelSharePermissions: [],
     },
     limits: {
-      text_limit_bytes: 65536,
-      attachment_limit_bytes: 33554432,
-      max_attachments: 1,
+      textLimitBytes: 65536,
+      attachmentLimitBytes: 33554432,
+      maxAttachments: 1,
       mutations: ['reaction', 'edit', 'delete'],
-      mutation_window_seconds: 900,
-      attachment_types: ['image/png', 'application/pdf'],
+      mutationWindowSeconds: 900,
+      attachmentTypes: ['image/png', 'application/pdf'],
     },
   } satisfies WhatsAppGroupDetail;
   client.detail.mockResolvedValue(ok(detail));
@@ -64,41 +64,41 @@ it('decodes shared viewing separately from the callers own sending account and h
 
 it('decodes pagination, deleted flags, reaction ownership and attachment states from the independent timeline', async () => {
   const page = {
-    next_cursor: '019a061e-0000-7000-8000-000000000002',
+    nextCursor: '019a061e-0000-7000-8000-000000000002',
     messages: [
       {
         id: '019a061e-0000-7000-8000-000000000003',
         kind: 'message',
-        sender: { person_id: 'person-1', user_id: null, name: 'Ana Ruiz' },
+        sender: { personId: 'person-1', userId: null, name: 'Ana Ruiz' },
         body: '',
         mentions: [],
         forwarded: false,
-        view_once: false,
+        viewOnce: false,
         rich: null,
-        reply_to: null,
-        sent_at: '2026-10-21T12:00:00Z',
-        received_at: '2026-10-21T12:00:01Z',
-        edited_at: null,
+        replyTo: null,
+        sentAt: '2026-10-21T12:00:00Z',
+        receivedAt: '2026-10-21T12:00:01Z',
+        editedAt: null,
         deleted: true,
         reactions: [{ emoji: '👍', count: 2, mine: true }],
         attachments: [
           {
             ordinal: 0,
             state: 'unsupported',
-            file_name: 'drawing.psd',
+            fileName: 'drawing.psd',
             mime: 'image/vnd.adobe.photoshop',
             size: 1024,
-            document_id: null,
+            documentId: null,
           },
         ],
-        delivery_state: null,
+        deliveryState: null,
       },
     ],
   } satisfies WhatsAppGroupMessages;
   client.messages.mockResolvedValue(ok(page));
   const result = await whatsappGroupApi.messages('group-id', 'before-id');
   expect(client.messages).toHaveBeenCalledWith('group-id', 'before-id');
-  expect(result.before).toBe(page.next_cursor);
+  expect(result.before).toBe(page.nextCursor);
   expect(result.messages[0]).toMatchObject({
     deleted: true,
     sender: { name: 'Ana Ruiz' },
@@ -111,24 +111,24 @@ it('decodes pagination, deleted flags, reaction ownership and attachment states 
 
 it('decodes mentions, forwarding, media presentation and every rich type, keeping only http(s) links', async () => {
   const base: Omit<WhatsAppGroupMessage, 'id'> = {
-    sender: { person_id: 'person-1', user_id: null, name: 'Ana Ruiz' },
+    sender: { personId: 'person-1', userId: null, name: 'Ana Ruiz' },
     body: '',
-    reply_to: null,
-    sent_at: '2026-10-21T12:00:00Z',
-    received_at: '2026-10-21T12:00:01Z',
-    edited_at: null,
+    replyTo: null,
+    sentAt: '2026-10-21T12:00:00Z',
+    receivedAt: '2026-10-21T12:00:01Z',
+    editedAt: null,
     deleted: false,
     reactions: [],
     attachments: [],
-    delivery_state: null,
+    deliveryState: null,
     kind: 'message',
     mentions: [],
     forwarded: false,
-    view_once: false,
+    viewOnce: false,
     rich: null,
   };
   const page = {
-    next_cursor: null,
+    nextCursor: null,
     messages: [
       {
         ...base,
@@ -147,13 +147,13 @@ it('decodes mentions, forwarding, media presentation and every rich type, keepin
           {
             ordinal: 0,
             state: 'ready',
-            file_name: 'sticker.webp',
+            fileName: 'sticker.webp',
             mime: 'image/webp',
             size: 2048,
-            document_id: 'doc-1',
+            documentId: 'doc-1',
             width: 512,
             height: 512,
-            duration_seconds: null,
+            durationSeconds: null,
             presentation: 'sticker',
           },
         ],
@@ -294,9 +294,9 @@ it('preserves the deliberate send key and maps quotes and reactions without a ch
     'intent-key'
   );
   expect(client.send).toHaveBeenCalledWith('group-id', {
-    idempotency_key: 'intent-key',
+    idempotencyKey: 'intent-key',
     message: { type: 'text', text: 'Reply', mentions: [] },
-    reply_to: 'quoted-id',
+    replyTo: 'quoted-id',
   });
   await whatsappGroupApi.send(
     'group-id',
@@ -308,13 +308,13 @@ it('preserves the deliberate send key and maps quotes and reactions without a ch
     'mention-key'
   );
   expect(client.send).toHaveBeenLastCalledWith('group-id', {
-    idempotency_key: 'mention-key',
+    idempotencyKey: 'mention-key',
     message: {
       type: 'text',
       text: 'Hi @15550001111',
       mentions: ['15550001111@s.whatsapp.net'],
     },
-    reply_to: null,
+    replyTo: null,
   });
   await whatsappGroupApi.send(
     'group-id',
@@ -322,14 +322,14 @@ it('preserves the deliberate send key and maps quotes and reactions without a ch
     'reaction-key'
   );
   expect(client.send).toHaveBeenLastCalledWith('group-id', {
-    idempotency_key: 'reaction-key',
+    idempotencyKey: 'reaction-key',
     message: {
       type: 'mutation',
-      message_id: 'message-id',
+      messageId: 'message-id',
       operation: 'reaction',
       text: '',
     },
-    reply_to: null,
+    replyTo: null,
   });
 });
 
@@ -394,13 +394,13 @@ it('reads recorded progress by send id', async () => {
     ok([
       {
         id: 'send-1',
-        group_id: 'group-id',
-        user_id: 'macro|me@example.test',
-        created_at: '2026-10-21T12:00:00Z',
+        groupId: 'group-id',
+        userId: 'macro|me@example.test',
+        createdAt: '2026-10-21T12:00:00Z',
         state: 'accepted',
-        message_id: 'message-9',
+        messageId: 'message-9',
         payload: {
-          idempotency_key: 'key-1',
+          idempotencyKey: 'key-1',
           message: { type: 'text', text: 'x' },
         },
       },

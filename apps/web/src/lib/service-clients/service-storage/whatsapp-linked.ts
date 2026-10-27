@@ -7,6 +7,7 @@ import type { LinkedAccountView } from './generated/schemas/linkedAccountView';
 import type { LinkedAdoptGroup } from './generated/schemas/linkedAdoptGroup';
 import type { LinkedChats } from './generated/schemas/linkedChats';
 import type { LinkedDisconnect } from './generated/schemas/linkedDisconnect';
+import type { LinkedDisconnectRequest } from './generated/schemas/linkedDisconnectRequest';
 import type { LinkedFeatures } from './generated/schemas/linkedFeatures';
 import type { LinkedPairing } from './generated/schemas/linkedPairing';
 import type { LinkedPairState } from './generated/schemas/linkedPairState';
@@ -36,8 +37,8 @@ export const whatsappLinkedClient = {
   connect: () => post<LinkedPairing>(`${root}/connect`, { replace: false }),
   disconnect: (authorizationGeneration: number) =>
     post<LinkedDisconnect>(`${root}/disconnect`, {
-      authorization_generation: authorizationGeneration,
-    }),
+      authorizationGeneration,
+    } satisfies LinkedDisconnectRequest),
   /** Pairing material is never cached by the browser. */
   pairing: (id: string) =>
     fetchWithToken<LinkedPairState>(pairing(id), { cache: 'no-store' }),

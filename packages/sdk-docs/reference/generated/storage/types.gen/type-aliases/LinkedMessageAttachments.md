@@ -1,6 +1,6 @@
 # Type Alias: LinkedMessageAttachments
 
-> **LinkedMessageAttachments** = \{ `linked_attachments`: [`LinkedAttachment`](LinkedAttachment.md)[]; `message_id`: `string`; \}
+> **LinkedMessageAttachments** = \{ `linkedAttachments`: [`LinkedAttachment`](LinkedAttachment.md)[]; `messageId`: `string`; \}
 
 The attachments of one linked group message.
 
@@ -8,5 +8,5 @@ The attachments of one linked group message.
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
-| <a id="property-linked_attachments"></a> `linked_attachments` | [`LinkedAttachment`](LinkedAttachment.md)[] | Its attachments in order; deleted ones are omitted. |
-| <a id="property-message_id"></a> `message_id` | `string` | Group message. |
+| <a id="property-linkedattachments"></a> `linkedAttachments` | [`LinkedAttachment`](LinkedAttachment.md)[] | Its attachments in order; deleted ones are omitted. |
+| <a id="property-messageid"></a> `messageId` | `string` | Group message. |

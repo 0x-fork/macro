@@ -146,6 +146,7 @@ async fn a_phone_scanning_the_qr_links_the_account_through_the_encrypted_store(p
     let release = CancellationToken::new();
     let control = AccountControl {
         signals: signal_receiver,
+        cause: tracing::Span::none(),
         release: release.clone(),
         stop: CancellationToken::new(),
     };
@@ -221,6 +222,7 @@ async fn a_phone_scanning_the_qr_links_the_account_through_the_encrypted_store(p
     let release = CancellationToken::new();
     let control = AccountControl {
         signals: signal_receiver,
+        cause: tracing::Span::none(),
         release: release.clone(),
         stop: CancellationToken::new(),
     };
@@ -464,6 +466,50 @@ fn group_metadata_keeps_the_timer_and_tells_a_community_from_its_groups() {
         observed_at,
     );
     assert_eq!(turned_off.disappearing_seconds, None);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_fresh_device_replaces_one_whose_data_key_kms_lost(pool: PgPool) {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    let whatsapp = FakeWhatsApp::start().await.unwrap();
+    let account = insert_pairing_account(&pool).await;
+    let scope = SessionService::new(Arc::new(PgLinkedRepository::new(pool.clone())))
+        .begin_lease(account)
+        .await
+        .unwrap()
+        .scope;
+    let connector = |kms| {
+        WhatsmeowConnector::new(
+            pool.clone(),
+            kms,
+            test_signal(),
+            whatsapp.dialer(),
+            Some(whatsapp.media_base_url()),
+            Duration::from_secs(10),
+        )
+    };
+    let (sink, _received) = mpsc::unbounded_channel();
+    let sink: Arc<dyn InboundSink> = Arc::new(RecordingSink(sink));
+    let (session, _events) = connector(FakeWhatsAppKms::new("arn:aws:kms:test:key/lost"))
+        .open(scope, false, Arc::clone(&sink))
+        .await
+        .unwrap();
+    session.disconnect().await;
+
+    // KMS lost the key that wrapped the device's data key.
+    let replaced = connector(FakeWhatsAppKms::new("arn:aws:kms:test:key/lost"));
+    let error = replaced
+        .open(scope, false, Arc::clone(&sink))
+        .await
+        .err()
+        .unwrap();
+    assert!(matches!(error, SessionError::DeviceUnreadable), "{error:?}");
+    let (session, _events) = replaced
+        .open(scope, true, Arc::clone(&sink))
+        .await
+        .expect("a fresh device does not need the lost key");
+    assert_eq!(session.identity_jid().await, None);
+    session.disconnect().await;
 }
 
 /// IQ errors keep the whole response node, whose attributes carry JIDs; the

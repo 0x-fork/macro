@@ -11,8 +11,13 @@ own shareable Macro entity. Each person sends from their own account. Behind the
 - `whatsapp-linked.tsx`: production wiring (shared queries + split navigation).
 - `context/whatsapp-linked-context.tsx`: the capability contract tests fake.
 - `views/whatsapp-page.tsx`: account states, the header (search + account
-  strip), the Add to Macro and Can't be added sections (plus In Macro while
-  searching), and the pairing/confirm dialogs.
+  strip), the chat sections and Can't be added, and the pairing/confirm
+  dialogs.
+- `components/conversation-sections.tsx` + `core/chat.ts`
+  `conversationSections`: Direct messages / Groups / one section per
+  community, on view-shell's `CollapsibleSection` (what Chat's rail uses);
+  External's sidebar renders the same sections. Open state is
+  `primitives/open-sections.ts`, per user.
 - `components/chat-list.tsx`: one-line chat rows styled like Macro's list rows
   (`bg-list-hover`, actions on hover/focus, always on touch).
 - `core/chat.ts`: chat sections, search matching and row wording.
@@ -41,6 +46,12 @@ own shareable Macro entity. Each person sends from their own account. Behind the
 - The QR is encoded locally with `uqr`; never send the value to an image service.
 - `core/pairing.ts` matches DSS's pairing states exhaustively; a new state
   must be handled there, not fall through to "preparing".
+- `primitives/pairing-flow.ts` replaces an expired pairing on its own (like
+  WhatsApp Web) only when the server says `expired`, the tab stayed visible,
+  and fewer than `AUTO_ROLLS` codes rolled since the last click; otherwise the
+  QR square offers **Show a new code**. A pairing that arrives after Cancel is
+  cancelled at once.
+- Disconnect results are toasts, not page state.
 - Wire types come from DSS's generated `@service-storage/generated/schemas`
   (`Linked*`); change `crates/whatsapp_linked` and regenerate, never hand-type.
 - Adoption failures carry DSS's `LinkedError` code (`whatsappErrorResponse`);
@@ -48,7 +59,8 @@ own shareable Macro entity. Each person sends from their own account. Behind the
 - The chat list (`GET /meta/linked/chats`) arrives sorted by recent activity;
   keep DSS's order. Sections follow its `group`/`shared`/`canAdd`/
   `cannotAddReason` fields; direct chats are addable, except the chat with
-  yourself.
+  yourself. DSS sends reason codes (`cannotAddReason`, and
+  `cannot_add_<reason>` on a refused add); `core/chat.ts` words them.
   User-facing copy says "chat", not "group". Community groups show as "Community · Group"
   (`communityTitle`); disappearing and community groups are addable, a
   community itself is not.

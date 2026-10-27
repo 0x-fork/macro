@@ -32,6 +32,16 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
   its owner sends; shared viewers see "Only <owner> can reply in this chat".
   User-facing copy says "chat"; code, routes and the entity type keep "group".
 - Viewing follows ordinary entity sharing. WhatsApp membership controls sending.
+- Members, sharing and Stop syncing live in the generic `SidePanel`
+  (`components/chat-details.tsx`), floating and closed by default like an
+  in-view email thread. The header is `ViewShell.TopBar` (kept visible on
+  touch, under the safe area) with Share in a `HeaderActionGroup` and
+  `SidePanel.Toggle`. The host
+  (`whatsapp-group.tsx`, the functional fixture, tests) supplies
+  `SidePanel.Root`; the view renders the `SidePanel.Layout`. While it is
+  open on a pane at least 900px wide, the timeline and composer pad
+  `SidePanel.FLOATING_CLEARANCE_PX` on the right so the card never covers
+  them.
 - Every write uses the viewer's own connected WhatsApp account.
 - A draft keeps one idempotency key until DSS records it; unknown outcomes
   retry quietly with that key, so a resend can never arrive twice.
@@ -43,13 +53,17 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
 - History imported after adding (`backfill` on the detail) lands older than
   the rows shown; the view keeps its distance from the bottom when rows appear
   above, and says "Importing history…" / "Waiting for … phone" until DSS
-  reports `done` or `partial`.
+  reports `done` or `partial`. `waiting_for_message` (no message to import
+  from yet) shows nothing.
 - Images, video and audio play inline: `fileUrl` resolves the imported
   document's presigned URL and `InboundMedia` hands it to Chat's
   `MediaPreview` (or an audio player); `groupMessageData` keeps them out of
   the document chips. DSS's declared width/height reserve the space (keeps
   the open-at-bottom scroll right); stickers, GIFs and voice notes follow the
-  attachment's `presentation`.
+  attachment's `presentation`. A file whose URL can't be resolved, or whose
+  image, video or audio fails to load (expired or missing), shows
+  "Attachment unavailable" instead of loading forever (Chat's media tiles
+  report it through `MediaPreview`'s `onError`).
 - The timeline and composer use Chat's layout (`macro-message-width` column,
   `CustomScrollbar`, `ChannelInputContainer` → centered column). The view
   follows the bottom (a `ResizeObserver` on the content) until the reader

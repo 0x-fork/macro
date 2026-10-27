@@ -1,5 +1,6 @@
 import type { ChannelInputProps } from '@channel/Input/ChannelInput';
 import type { InputHandle, InputSnapshot } from '@channel/Input/types';
+import { SidePanel } from '@components/app/side-panel';
 import {
   cleanup,
   fireEvent,
@@ -69,15 +70,18 @@ function mount(fake: ReturnType<typeof createFakeGroup>) {
   render(() => (
     <QueryClientProvider client={new QueryClient()}>
       <WhatsAppGroupProvider value={fake.capabilities}>
-        <WhatsAppGroupView
-          userId={group.ownerId}
-          share={
-            <button type="button" onClick={share}>
-              Share
-            </button>
-          }
-          onConnect={connect}
-        />
+        <SidePanel.Root floating defaultOpen={false}>
+          <WhatsAppGroupView
+            userId={group.ownerId}
+            share={
+              <button type="button" onClick={share}>
+                Share
+              </button>
+            }
+            onShare={share}
+            onConnect={connect}
+          />
+        </SidePanel.Root>
       </WhatsAppGroupProvider>
     </QueryClientProvider>
   ));
@@ -226,6 +230,23 @@ it('says while history imports and shows older messages as they land', () => {
 
   fake.setGroup({ ...group, backfill: { state: 'partial', imported: 500 } });
   expect(screen.getByText('Earlier messages stay in WhatsApp')).toBeTruthy();
+});
+
+it('says nothing while the chat waits for its first message', () => {
+  const fake = createFakeGroup({
+    group: {
+      ...group,
+      backfill: { state: 'waiting_for_message', imported: 0 },
+    },
+    messages: [],
+  });
+  mount(fake);
+  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.queryByText(/Importing history|Waiting for/)).toBeNull();
+  expect(screen.getByText(/No messages yet/)).toBeTruthy();
+
+  fake.setGroup({ ...group, backfill: { state: 'pending', imported: 0 } });
+  expect(screen.getByRole('status').textContent).toBe('Importing history…');
 });
 
 it('tells a shared viewer whose phone the import waits for', () => {
@@ -651,4 +672,70 @@ it('shows a direct chat as the person, and who can reply when shared', () => {
     /^Only .+ can reply in this chat$/
   );
   expect(screen.queryByTestId('whatsapp-composer')).toBeNull();
+});
+
+it('opens members, sharing and syncing in the side panel', async () => {
+  const fake = createFakeGroup({
+    group: {
+      ...group,
+      members: [
+        { id: 'ben@s.whatsapp.net', name: 'Ben Okafor', admin: false },
+        { id: '14155550101@s.whatsapp.net', name: 'Ana Ruiz', admin: true },
+        { id: '14155550142@s.whatsapp.net', name: 'Wolf', admin: false },
+      ],
+    },
+  });
+  const { share } = mount(fake);
+  expect(screen.queryByRole('list', { name: 'WhatsApp members' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /side panel/i }));
+
+  const members = await screen.findByRole('list', {
+    name: 'WhatsApp members',
+  });
+  // You first, then admins, then everyone else by name.
+  expect(
+    [...members.querySelectorAll('li')].map((row) => row.textContent)
+  ).toEqual([
+    'WWolf (you)+14155550142',
+    'ARAna Ruiz+14155550101Admin',
+    'BOBen Okafor',
+  ]);
+  fireEvent.click(screen.getByRole('button', { name: 'Share…' }));
+  expect(share).toHaveBeenCalledOnce();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Stop syncing' }));
+  const confirm = await screen.findByRole('dialog');
+  fireEvent.click(
+    [...confirm.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Stop syncing'
+    ) as HTMLButtonElement
+  );
+  await waitFor(() => expect(fake.capabilities.stopSync).toHaveBeenCalled());
+  expect(
+    await screen.findByText('Syncing stopped. Its history stays in Macro.')
+  ).toBeTruthy();
+  expect(screen.getByText('This chat is no longer syncing')).toBeTruthy();
+});
+
+it('lets the owner stop syncing a direct chat from its details', async () => {
+  const fake = createFakeGroup({
+    group: { ...group, kind: 'direct', name: 'Ana Ruiz', members: [] },
+  });
+  mount(fake);
+  fireEvent.click(screen.getByRole('button', { name: /side panel/i }));
+  expect(
+    await screen.findByRole('button', { name: 'Stop syncing' })
+  ).toBeTruthy();
+  expect(screen.queryByRole('list', { name: 'WhatsApp members' })).toBeNull();
+  expect(screen.getByText(/Only its owner can reply/)).toBeTruthy();
+});
+
+it('keeps syncing controls from a shared viewer', async () => {
+  const fake = createFakeGroup({
+    group: { ...group, accessLevel: 'view', canSend: false },
+  });
+  mount(fake);
+  fireEvent.click(screen.getByRole('button', { name: /side panel/i }));
+  expect(await screen.findByRole('button', { name: 'Share…' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Stop syncing' })).toBeNull();
 });

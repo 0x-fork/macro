@@ -27,9 +27,10 @@ const ICONS = {
 export function WhatsAppSystemLine(props: {
   id: string;
   line: SystemLine;
+  chat: 'group' | 'direct';
   occurredAt: string;
 }) {
-  const text = () => describeSystemLine(props.line);
+  const text = () => describeSystemLine(props.line, props.chat);
   return (
     <SystemActivityLine
       id={props.id}

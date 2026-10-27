@@ -46,7 +46,7 @@ async fn a_system_line_names_people_and_never_notifies_or_counts_as_unread(pool:
     session.ingest_event(alice, &added).await.unwrap();
 
     let messages = linked
-        .messages(&receipt::<MessageView>(BOB, binding.id), None, 50)
+        .messages(&receipt::<MessageView>(BOB, binding.id), None, Some(50))
         .await
         .unwrap()
         .messages;
@@ -60,7 +60,7 @@ async fn a_system_line_names_people_and_never_notifies_or_counts_as_unread(pool:
     assert_eq!(line.participants, vec![person("+15550000002", None)]);
     assert_eq!(
         repository
-            .summary(binding.id, BOB)
+            .group_facts(binding.id, BOB)
             .await
             .unwrap()
             .unread_count,
@@ -110,7 +110,7 @@ fn vote(event: u128, voter: &str, source: &str, revision: i64, selected: &[&str]
 
 async fn tallies(linked: &LinkedService, group: Uuid) -> Vec<WhatsAppPollOption> {
     let messages = linked
-        .messages(&receipt::<MessageView>(ALICE, group), None, 50)
+        .messages(&receipt::<MessageView>(ALICE, group), None, Some(50))
         .await
         .unwrap()
         .messages;
@@ -213,7 +213,7 @@ async fn a_re_imported_placeholder_gains_its_content_and_mentions_read_as_names(
     session.ingest_event(alice, &mention).await.unwrap();
 
     let messages = linked
-        .messages(&receipt::<MessageView>(ALICE, binding.id), None, 50)
+        .messages(&receipt::<MessageView>(ALICE, binding.id), None, Some(50))
         .await
         .unwrap()
         .messages;
@@ -258,7 +258,7 @@ async fn a_change_whatsapp_made_without_naming_anyone_is_the_groups_own_line(poo
     session.ingest_event(alice, &renamed).await.unwrap();
 
     let messages = linked
-        .messages(&receipt::<MessageView>(ALICE, binding.id), None, 50)
+        .messages(&receipt::<MessageView>(ALICE, binding.id), None, Some(50))
         .await
         .unwrap()
         .messages;

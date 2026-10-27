@@ -12,6 +12,7 @@ import type { WhatsAppAccount } from '../core/account';
 import type { AdoptFailure } from '../core/adopt';
 import type { WhatsAppChat } from '../core/chat';
 import type { PairingStep } from '../core/pairing';
+import { createOpenSections } from '../primitives/open-sections';
 
 function signalRead<Value>(
   initial: Value | undefined
@@ -43,12 +44,42 @@ export function createFakeWhatsApp(initial: {
   );
   const [chats, setChats] = signalRead<WhatsAppChat[]>(initial.chats);
   const [features] = signalRead({ pairing: true, adoption: true });
-  const [pairing, setPairingRead] = signalRead<PairingRead>(undefined);
-  const setPairing = (step: PairingStep, expiresAt?: string) =>
-    setPairingRead({
-      step,
-      expiresAt: expiresAt ?? new Date(Date.now() + 52_000).toISOString(),
-    });
+  // Pairings are numbered as `connect` starts them; reads are per pairing.
+  let started = 0;
+  const [pairings, setPairings] = createSignal<
+    Record<string, PairingRead | 'error'>
+  >({});
+  /** The server can't read a pairing (gone, or not the caller's). */
+  const failPairingRead = (pairingId: string) =>
+    setPairings((current) => ({ ...current, [pairingId]: 'error' }));
+  /** Report `step` for a pairing, the latest started one by default. */
+  const setPairing = (
+    step: PairingStep,
+    options: { pairingId?: string; expiresAt?: string } = {}
+  ) =>
+    setPairings((current) => ({
+      ...current,
+      [options.pairingId ?? `pairing-${started}`]: {
+        step,
+        expiresAt:
+          options.expiresAt ?? new Date(Date.now() + 52_000).toISOString(),
+      },
+    }));
+  const pairingRead = (
+    pairingId: Accessor<string>
+  ): SourceRead<PairingRead> => ({
+    get isPending() {
+      return pairings()[pairingId()] === undefined;
+    },
+    get isError() {
+      return pairings()[pairingId()] === 'error';
+    },
+    get data() {
+      const read = pairings()[pairingId()];
+      return read === 'error' ? undefined : read;
+    },
+    refetch: vi.fn(),
+  });
   const chatsEnabled: Accessor<boolean>[] = [];
   const capabilities = {
     features,
@@ -62,14 +93,14 @@ export function createFakeWhatsApp(initial: {
       desktopUrl: (pairingId: string) =>
         `macro:///external?whatsappPairing=${pairingId}`,
     },
-    pairing: vi.fn((_pairingId: Accessor<string>) => pairing),
+    pairing: vi.fn(pairingRead),
     connect: vi.fn(
       (): ResultAsync<
         { pairingId: string; expiresAt: string },
         RequestFailure
       > =>
         okAsync({
-          pairingId: 'pairing-1',
+          pairingId: `pairing-${++started}`,
           expiresAt: new Date(Date.now() + 52_000).toISOString(),
         })
     ),
@@ -91,6 +122,14 @@ export function createFakeWhatsApp(initial: {
     isConnecting: () => false,
     isDisconnecting: () => false,
     openGroup: vi.fn(),
+    sections: createOpenSections('test:whatsapp-sections', () => undefined),
   } satisfies WhatsAppLinkedCapabilities;
-  return { capabilities, setAccount, setChats, setPairing, chatsEnabled };
+  return {
+    capabilities,
+    setAccount,
+    setChats,
+    setPairing,
+    failPairingRead,
+    chatsEnabled,
+  };
 }

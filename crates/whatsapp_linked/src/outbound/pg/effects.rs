@@ -32,7 +32,7 @@ impl EffectsRepository for PgLinkedRepository {
                     "macro" => Origin::Macro,
                     "history" => Origin::History,
                     "whatsapp" => Origin::Whatsapp,
-                    _ => return Err(LinkedError::Unavailable.into()),
+                    other => return Err(corrupt(format_args!("message origin {other:?}"))),
                 },
                 associated_user: row.user_id,
                 system: row.kind == "system",

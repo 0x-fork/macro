@@ -51,6 +51,7 @@ impl EffectsService {
                     tracing::warn!(
                         message_id = %effect.message_id,
                         code = error.current_context().code(),
+                    error = %error,
                         "WhatsApp group notification will retry"
                     );
                     self.repository.defer_effect(effect.message_id).await?;

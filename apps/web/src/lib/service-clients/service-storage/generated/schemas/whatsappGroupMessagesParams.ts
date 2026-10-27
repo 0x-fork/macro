@@ -11,7 +11,7 @@ export type WhatsappGroupMessagesParams = {
    */
   before?: string | null;
   /**
-   * Page size, 1 through 100.
+   * Page size, up to [`PAGE_LIMIT`]; [`DEFAULT_PAGE`] when absent.
    */
   limit?: number | null;
 };

@@ -16,14 +16,14 @@ import type { LinkedAttachmentWidth } from './linkedAttachmentWidth';
  */
 export interface LinkedAttachment {
   /** The private document, once ready. */
-  document_id?: LinkedAttachmentDocumentId;
+  documentId?: LinkedAttachmentDocumentId;
   /**
    * Length of audio or video in whole seconds, when declared.
    * @minimum 0
    */
-  duration_seconds?: LinkedAttachmentDurationSeconds;
+  durationSeconds?: LinkedAttachmentDurationSeconds;
   /** Display filename. */
-  file_name: string;
+  fileName: string;
   /**
    * Pixel height, when declared.
    * @minimum 0

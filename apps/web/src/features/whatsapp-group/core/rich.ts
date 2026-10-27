@@ -179,8 +179,12 @@ export type SystemLineText = {
   icon: 'added' | 'removed' | 'edit' | 'picture' | 'pin' | 'call' | 'timer';
 };
 
-export function describeSystemLine(line: SystemLine): SystemLineText {
-  const text = systemLineParts(line);
+/** `chat` decides whether a call reads as a group call. */
+export function describeSystemLine(
+  line: SystemLine,
+  chat: 'group' | 'direct'
+): SystemLineText {
+  const text = systemLineParts(line, chat);
   // WhatsApp didn't say who: the verb starts the sentence.
   return text.actor
     ? text
@@ -190,7 +194,10 @@ export function describeSystemLine(line: SystemLine): SystemLineText {
       };
 }
 
-function systemLineParts(line: SystemLine): SystemLineText {
+function systemLineParts(
+  line: SystemLine,
+  chat: 'group' | 'direct'
+): SystemLineText {
   const actor = line.actor?.name;
   const people = namesList(line.participants);
   return match(line)
@@ -283,23 +290,27 @@ function systemLineParts(line: SystemLine): SystemLineText {
       icon: 'pin',
     }))
     .with({ action: 'call' }, ({ call }) => ({
-      verb: callLine(call),
+      verb: callLine(call, chat),
       icon: 'call',
     }))
     .exhaustive();
 }
 
-function callLine(call: CallSummary | undefined): string {
-  const kind = call?.video ? 'video call' : 'voice call';
+function callLine(
+  call: CallSummary | undefined,
+  chat: 'group' | 'direct'
+): string {
+  const kind = `${chat === 'group' ? 'group ' : ''}${call?.video ? 'video call' : 'voice call'}`;
+  const plain = `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`;
   return match(call?.outcome)
-    .with('missed', () => `Missed group ${kind}`)
-    .with('rejected', () => `Declined group ${kind}`)
+    .with('missed', () => `Missed ${kind}`)
+    .with('rejected', () => `Declined ${kind}`)
     .with('answered', () =>
       call?.durationSeconds
-        ? `Group ${kind} · ${formatDuration(call.durationSeconds)}`
-        : `Group ${kind}`
+        ? `${plain} · ${formatDuration(call.durationSeconds)}`
+        : plain
     )
-    .with(P.union('other', undefined), () => `Group ${kind}`)
+    .with(P.union('other', undefined), () => plain)
     .exhaustive();
 }
 

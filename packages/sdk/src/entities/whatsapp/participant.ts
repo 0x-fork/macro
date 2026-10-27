@@ -1,4 +1,4 @@
-import type { LinkedParticipant as WhatsAppParticipantRecord } from '../../../generated/storage/types.gen';
+import type { WhatsAppParticipant as WhatsAppParticipantRecord } from '../../../generated/storage/types.gen';
 import type { WhatsAppGroup } from './group';
 
 /** Someone in an added WhatsApp chat, from its roster; mention them in a text reply. */

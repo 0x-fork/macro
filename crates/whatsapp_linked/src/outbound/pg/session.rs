@@ -18,7 +18,8 @@ fn work(row: WorkRow) -> LinkedResult<PairingWork> {
     Ok(PairingWork {
         id: row.id,
         account_id: row.account_id,
-        state: PairingState::parse(&row.state).ok_or(LinkedError::Unavailable)?,
+        state: PairingState::parse(&row.state)
+            .ok_or_else(|| corrupt(format_args!("state {:?}", row.state)))?,
         expected_identity_jid: row.expected_identity_jid,
         expires_at: row.expires_at,
         passkey_response: row.passkey_response,
@@ -32,9 +33,21 @@ async fn fail_pairing_in(
     account: Uuid,
     generation: i64,
 ) -> LinkedResult<()> {
+    end_pairing_in(tx, pairing, account, generation, PairingState::Failed).await
+}
+
+/// Ends a live transaction as `state` and returns its account to disconnected.
+async fn end_pairing_in(
+    tx: &mut Transaction<'_, Postgres>,
+    pairing: Uuid,
+    account: Uuid,
+    generation: i64,
+    state: PairingState,
+) -> LinkedResult<()> {
     sqlx::query!(
-        "UPDATE whatsapp_pairing SET state = 'failed', consumed_at = clock_timestamp(), qr_code = NULL, pair_code = NULL, passkey_challenge = NULL, passkey_response = NULL, updated_at = now() WHERE id = $1",
-        pairing
+        "UPDATE whatsapp_pairing SET state = $2, consumed_at = clock_timestamp(), qr_code = NULL, pair_code = NULL, passkey_challenge = NULL, passkey_response = NULL, updated_at = now() WHERE id = $1",
+        pairing,
+        state.as_str()
     )
     .execute(&mut **tx)
     .await
@@ -84,6 +97,12 @@ impl SessionRepository for PgLinkedRepository {
         .map_err(failure)?;
         tx.commit().await.map_err(failure)?;
         Ok(accounts)
+    }
+
+    async fn announce_released(&self, account: Uuid) -> LinkedResult<()> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        notify(&mut tx, signals::ACCOUNT_RELEASED, account).await?;
+        tx.commit().await.map_err(failure)
     }
 
     async fn fleet_health(&self) -> LinkedResult<FleetHealth> {
@@ -245,6 +264,16 @@ impl SessionRepository for PgLinkedRepository {
                         .execute(&mut *tx)
                         .await
                         .map_err(failure)?;
+                    }
+                    PairingUpdate::Expired => {
+                        end_pairing_in(
+                            &mut tx,
+                            pairing,
+                            account.id,
+                            account.generation,
+                            PairingState::Expired,
+                        )
+                        .await?;
                     }
                     PairingUpdate::Failed => {
                         fail_pairing_in(&mut tx, pairing, account.id, account.generation).await?;
@@ -428,14 +457,15 @@ impl SessionRepository for PgLinkedRepository {
         })
     }
 
-    async fn update_chats(&self, scope: SessionScope, chats: &[ChatUpdate]) -> LinkedResult<()> {
+    async fn update_chats(&self, scope: SessionScope, chats: &[ChatUpdate]) -> LinkedResult<bool> {
         let mut tx = self.pool.begin().await.map_err(failure)?;
         let account = fence_in(&mut tx, scope).await?;
         if account.state != AccountState::Connected {
-            return Ok(());
+            return Ok(false);
         }
-        chats::update_chats_in(&mut tx, &account, chats).await?;
-        tx.commit().await.map_err(failure)
+        let anchored = chats::update_chats_in(&mut tx, &account, chats).await?;
+        tx.commit().await.map_err(failure)?;
+        Ok(anchored)
     }
 
     async fn backfill_work(&self, scope: SessionScope) -> LinkedResult<Vec<BackfillWork>> {
@@ -447,6 +477,24 @@ impl SessionRepository for PgLinkedRepository {
         let work = chats::backfill_work_in(&mut tx, &account).await?;
         tx.commit().await.map_err(failure)?;
         Ok(work)
+    }
+
+    async fn backfill_waiting_for_message(
+        &self,
+        scope: SessionScope,
+        group: Uuid,
+    ) -> LinkedResult<()> {
+        let mut tx = self.pool.begin().await.map_err(failure)?;
+        let account = fence_in(&mut tx, scope).await?;
+        chats::set_backfill_in(
+            &mut tx,
+            &account,
+            group,
+            BackfillState::WaitingForMessage,
+            false,
+        )
+        .await?;
+        tx.commit().await.map_err(failure)
     }
 
     async fn backfill_requested(&self, scope: SessionScope, group: Uuid) -> LinkedResult<()> {

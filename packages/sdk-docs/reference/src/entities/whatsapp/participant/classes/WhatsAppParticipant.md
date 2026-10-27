@@ -102,7 +102,7 @@ Seed a participant from the chat's roster.
 | Parameter | Type |
 | ------ | ------ |
 | `group` | [`WhatsAppGroup`](../../group/classes/WhatsAppGroup.md) |
-| `record` | [`LinkedParticipant`](../../../../../generated/storage/types.gen/type-aliases/LinkedParticipant.md) |
+| `record` | [`WhatsAppParticipant`](../../../../../generated/storage/types.gen/type-aliases/WhatsAppParticipant.md) |
 
 #### Returns
 

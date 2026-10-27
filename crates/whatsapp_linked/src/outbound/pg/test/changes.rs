@@ -61,7 +61,7 @@ async fn rosters_signal_only_real_changes_and_rename_the_owners_group(pool: PgPo
     );
     assert!(
         linked
-            .chats(ALICE)
+            .chats(&person(ALICE))
             .await
             .unwrap()
             .chats
@@ -191,7 +191,7 @@ async fn change_audiences_come_from_the_store(pool: PgPool) {
         .await
         .unwrap();
     let message = linked
-        .messages(&receipt::<MessageView>(ALICE, binding.id), None, 1)
+        .messages(&receipt::<MessageView>(ALICE, binding.id), None, Some(1))
         .await
         .unwrap()
         .messages[0]

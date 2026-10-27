@@ -15,17 +15,16 @@ struct Documents {
 
 #[async_trait]
 impl DocumentStore for Documents {
-    async fn store(&self, import: &DocumentImport) -> LinkedResult<()> {
+    async fn store(&self, import: &DocumentImport, bytes: Vec<u8>) -> LinkedResult<()> {
         let mut fail = self.fail.lock().unwrap();
         if *fail > 0 {
             *fail -= 1;
             return Err(LinkedError::Unavailable.into());
         }
-        self.stored.lock().unwrap().push((
-            import.document_id,
-            import.owner.clone(),
-            import.bytes.clone(),
-        ));
+        self.stored
+            .lock()
+            .unwrap()
+            .push((import.document_id, import.owner.clone(), bytes));
         Ok(())
     }
 }
@@ -400,14 +399,14 @@ async fn a_passkey_assertion_is_forwarded_once(pool: PgPool) {
     workspace(&pool).await;
     let (linked, session, _) = services(&pool);
     let pairing = linked
-        .connect(ALICE, false, SendAuthority::Human)
+        .connect(&person(ALICE), false, SendAuthority::Human)
         .await
         .unwrap();
     let lease = session.begin_lease(pairing.account_id).await.unwrap();
     let assertion = serde_json::json!({ "id": "credential", "response": {} });
     assert!(
         linked
-            .passkey(ALICE, pairing.id, &assertion, SendAuthority::Human)
+            .passkey(&person(ALICE), pairing.id, &assertion, SendAuthority::Human)
             .await
             .is_err(),
         "only a transaction waiting on a passkey accepts one"
@@ -423,7 +422,7 @@ async fn a_passkey_assertion_is_forwarded_once(pool: PgPool) {
         .await
         .unwrap();
     let state = linked
-        .pair_state(ALICE, pairing.id, SendAuthority::Human)
+        .pair_state(&person(ALICE), pairing.id, SendAuthority::Human)
         .await
         .unwrap();
     assert_eq!(
@@ -432,12 +431,12 @@ async fn a_passkey_assertion_is_forwarded_once(pool: PgPool) {
     );
     assert!(
         linked
-            .passkey(BOB, pairing.id, &assertion, SendAuthority::Human)
+            .passkey(&person(BOB), pairing.id, &assertion, SendAuthority::Human)
             .await
             .is_err()
     );
     linked
-        .passkey(ALICE, pairing.id, &assertion, SendAuthority::Human)
+        .passkey(&person(ALICE), pairing.id, &assertion, SendAuthority::Human)
         .await
         .unwrap();
     assert_eq!(

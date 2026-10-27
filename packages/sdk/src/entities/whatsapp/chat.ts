@@ -91,9 +91,9 @@ export class WhatsAppChat extends MacroEntity<LinkedChat> {
    */
   async adopt(): Promise<WhatsAppGroup> {
     const result = await this.mutate((client) =>
-      client.storage.linkedAdopt({ body: { group_jid: this.id } }),
+      client.storage.linkedAdopt({ body: { groupJid: this.id } }),
     );
-    return WhatsAppGroup.byId(this.client, result.group_id);
+    return WhatsAppGroup.byId(this.client, result.groupId);
   }
 
   /** Reload the chat's list entry. */

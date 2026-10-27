@@ -14,24 +14,24 @@ export interface LinkedCapabilities {
    * Largest attachment in bytes.
    * @minimum 0
    */
-  attachment_limit_bytes: number;
+  attachmentLimitBytes: number;
   /** Supported attachment MIME types. */
-  attachment_types: string[];
+  attachmentTypes: string[];
   /**
    * Attachments per send.
    * @minimum 0
    */
-  max_attachments: number;
+  maxAttachments: number;
   /**
    * Edits and deletes are offered this long after sending.
    * @minimum 0
    */
-  mutation_window_seconds: number;
+  mutationWindowSeconds: number;
   /** Supported message operations. */
   mutations: LinkedMutation[];
   /**
    * Maximum UTF-8 bytes per text send.
    * @minimum 0
    */
-  text_limit_bytes: number;
+  textLimitBytes: number;
 }

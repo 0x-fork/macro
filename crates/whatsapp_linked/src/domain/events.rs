@@ -77,13 +77,16 @@ pub enum PairingUpdate {
         /// Verified phone-number JID of the linked account.
         identity_jid: String,
     },
+    /// WhatsApp's QR session ran out of codes before any was scanned.
+    Expired,
     /// Pairing failed.
     Failed,
 }
 
 /// Kind of a normalized group message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::IntoStaticStr)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum MessageKind {
     /// Text, possibly quoting `target`.
     Text,
@@ -108,24 +111,7 @@ pub enum MessageKind {
 impl MessageKind {
     /// Snake-case name, as serialized.
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Text => "text",
-            Self::Reaction => "reaction",
-            Self::Edit => "edit",
-            Self::Delete => "delete",
-            Self::Unsupported => "unsupported",
-            Self::Rich => "rich",
-            Self::System => "system",
-            Self::PollVote => "poll_vote",
-        }
-    }
-
-    /// A new timeline entry rather than a change to an existing one.
-    pub fn is_entry(self) -> bool {
-        matches!(
-            self,
-            Self::Text | Self::Unsupported | Self::Rich | Self::System
-        )
+        self.into()
     }
 }
 

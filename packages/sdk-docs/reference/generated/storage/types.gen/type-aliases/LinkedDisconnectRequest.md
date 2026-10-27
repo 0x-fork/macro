@@ -1,6 +1,6 @@
 # Type Alias: LinkedDisconnectRequest
 
-> **LinkedDisconnectRequest** = \{ `authorization_generation`: `number`; \}
+> **LinkedDisconnectRequest** = \{ `authorizationGeneration`: `number`; \}
 
 The consent generation the owner deliberately disconnects.
 
@@ -8,4 +8,4 @@ The consent generation the owner deliberately disconnects.
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
-| <a id="property-authorization_generation"></a> `authorization_generation` | `number` | Fences retries against a later reconnect or replacement. |
+| <a id="property-authorizationgeneration"></a> `authorizationGeneration` | `number` | Fences retries against a later reconnect or replacement. |

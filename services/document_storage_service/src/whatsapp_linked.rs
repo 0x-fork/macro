@@ -34,14 +34,8 @@ use whatsapp_linked::{
         service::LinkedService,
     },
     inbound::router::LinkedRouterState,
-    outbound::{
-        access::EntityAccessAuthorizer,
-        pg::{
-            PgLinkedRepository,
-            signals::{self, Change, ChangeSignal},
-        },
-        trace_context,
-    },
+    outbound::pg::PgLinkedRepository,
+    signals::{self, Change, ChangeSignal, trace_context},
 };
 
 /// Router state mounted at `/meta/linked`.
@@ -97,7 +91,6 @@ pub(crate) fn build(dependencies: Dependencies) -> State {
     let service = LinkedService::new(
         features,
         repository.clone(),
-        Arc::new(EntityAccessAuthorizer::new(access.clone())),
         Arc::new(SendRequestLimiter(rate_limit::RateLimitServiceImpl {
             repo: rate_limit::RedisRateLimitAdapter { redis },
         })),
@@ -358,7 +351,12 @@ struct DssGroupPublisher {
 }
 #[async_trait]
 impl GroupPublisher for DssGroupPublisher {
-    #[tracing::instrument(name="whatsapp.groups.notify",skip_all,err,fields(group_id=%effect.group_id,message_id=%effect.message_id))]
+    #[tracing::instrument(
+        name = "whatsapp.linked.notify",
+        skip_all,
+        err,
+        fields(group_id = %effect.group_id, message_id = %effect.message_id)
+    )]
     async fn publish(&self, effect: &GroupEffect) -> LinkedResult<()> {
         if !effect.first_publication || effect.origin == Origin::History {
             return Ok(());
@@ -428,9 +426,9 @@ impl DocumentStore for DssDocumentStore {
         name = "whatsapp.linked.store_document",
         skip_all,
         err,
-        fields(document_id = %import.document_id, group_id = %import.group_id, size = import.bytes.len())
+        fields(document_id = %import.document_id, group_id = %import.group_id, size = bytes.len())
     )]
-    async fn store(&self, import: &DocumentImport) -> LinkedResult<()> {
+    async fn store(&self, import: &DocumentImport, bytes: Vec<u8>) -> LinkedResult<()> {
         let id = import.document_id.to_string();
         let owner = MacroUserIdStr::try_from(import.owner.clone()).map_err(unavailable)?;
         let file_type = FileType::all()
@@ -494,9 +492,7 @@ impl DocumentStore for DssDocumentStore {
                 ))
                 .content_type(file_type.mime_type())
                 .checksum_sha256(base64::engine::general_purpose::STANDARD.encode(import.sha256))
-                .body(aws_sdk_s3::primitives::ByteStream::from(
-                    import.bytes.clone(),
-                ))
+                .body(aws_sdk_s3::primitives::ByteStream::from(bytes))
                 .send()
                 .await
                 .map_err(unavailable)?;
@@ -512,9 +508,9 @@ struct SendRequestLimiter<R>(R);
 #[async_trait]
 impl<R: rate_limit::RateLimitService> SendRateLimiter for SendRequestLimiter<R> {
     #[tracing::instrument(name = "whatsapp.linked.send_rate_limit", skip_all, err)]
-    async fn check(&self, user: &str) -> LinkedResult<()> {
+    async fn check(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<()> {
         let key = rate_limit::RateLimitKey::builder(&"whatsapp-linked-send")
-            .append(&user)
+            .append(&user.as_ref())
             .finish();
         let result = self
             .0

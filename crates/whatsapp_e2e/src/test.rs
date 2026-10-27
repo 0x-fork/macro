@@ -16,7 +16,7 @@ use whatsapp_fake_server::{FakePhone, FakeWhatsApp};
 use whatsapp_linked::domain::models::{
     AccountState, AdoptGroup, Binding, ChatKind, Features, ReplyContent, SendAuthority, SendReply,
 };
-use whatsapp_linked::domain::ports::{Authorizer, LinkedResult};
+use whatsapp_linked::domain::ports::LinkedResult;
 use whatsapp_linked::domain::service::LinkedService;
 use whatsapp_linked::outbound::pg::PgLinkedRepository;
 use whatsmeow::types::Jid;
@@ -28,6 +28,11 @@ mod group_kinds;
 mod message_types;
 
 const TIMEOUT: Duration = Duration::from_secs(60);
+/// A test user's id, typed.
+fn person(user: &str) -> macro_user_id::user_id::MacroUserIdStr<'static> {
+    user.to_owned().try_into().expect("test user ids are valid")
+}
+
 const ALICE: &str = "macro|alice@example.com";
 const BOB: &str = "macro|bob@example.com";
 
@@ -49,13 +54,6 @@ async fn take_fleet_slot(pool: &PgPool) -> PgConnection {
 }
 
 struct Allow;
-
-#[async_trait]
-impl Authorizer for Allow {
-    async fn require_group_owner(&self, _: Uuid, _: &str) -> LinkedResult<()> {
-        Ok(())
-    }
-}
 
 /// The database, the DSS-side domain service and the fake WhatsApp world:
 /// Alice and Bob (Macro users with their own WhatsApp) and a customer who is
@@ -88,7 +86,6 @@ impl World {
             },
             Arc::new(PgLinkedRepository::new(pool.clone())),
             Arc::new(Allow),
-            Arc::new(Allow),
         );
         let whatsapp = FakeWhatsApp::start().await.unwrap();
         let alice = whatsapp.add_user("15550000001", "Alice").await;
@@ -118,12 +115,12 @@ impl World {
     async fn pair(&self, user: &str, phone: &FakePhone) -> Jid {
         let pairing = self
             .linked
-            .connect(user, false, SendAuthority::Human)
+            .connect(&person(user), false, SendAuthority::Human)
             .await
             .unwrap();
         let qr = wait_for_rows(&self.pool, TIMEOUT, || async {
             self.linked
-                .pair_state(user, pairing.id, SendAuthority::Human)
+                .pair_state(&person(user), pairing.id, SendAuthority::Human)
                 .await
                 .ok()?
                 .qr
@@ -136,7 +133,7 @@ impl World {
             .expect("the phone approves the QR code");
         let identity = phone.jid().to_string();
         wait_for_rows(&self.pool, TIMEOUT, || async {
-            let account = self.linked.account(user).await.ok()??;
+            let account = self.linked.account(&person(user)).await.ok()??;
             (account.state == AccountState::Connected
                 && account.identity_jid.as_deref() == Some(identity.as_str()))
             .then_some(())
@@ -162,7 +159,7 @@ impl World {
     async fn adopt(&self, user: &str, users: &[&str]) -> Binding {
         let group = self.group.to_string();
         wait_for_rows(&self.pool, TIMEOUT, || async {
-            let chats = self.linked.chats(user).await.ok()?.chats;
+            let chats = self.linked.chats(&person(user)).await.ok()?.chats;
             chats
                 .iter()
                 .any(|chat| chat.jid == group && chat.can_add)
@@ -172,7 +169,11 @@ impl World {
         .expect("the replica lists the group");
         let binding = self
             .linked
-            .adopt(user, &AdoptGroup { group_jid: group }, SendAuthority::Human)
+            .adopt(
+                &person(user),
+                &AdoptGroup { group_jid: group },
+                SendAuthority::Human,
+            )
             .await
             .unwrap();
         let mut tx = self.pool.begin().await.unwrap();
@@ -195,7 +196,7 @@ impl World {
     /// A viewer opens the WhatsApp page; their account's refreshed roster
     /// makes it an observer of a group shared with them.
     async fn observe(&self, user: &str, binding: &Binding) {
-        self.linked.chats(user).await.unwrap();
+        self.linked.chats(&person(user)).await.unwrap();
         let observing = wait_for_rows(&self.pool, TIMEOUT, || async {
             sqlx::query_scalar!(
                 r#"SELECT m.account_id FROM whatsapp_group_membership m
@@ -851,7 +852,7 @@ async fn a_message_queued_before_a_crash_is_ingested_once(pool: PgPool) {
 
 #[async_trait]
 impl whatsapp_linked::domain::ports::SendRateLimiter for Allow {
-    async fn check(&self, _: &str) -> LinkedResult<()> {
+    async fn check(&self, _: &macro_user_id::user_id::MacroUserIdStr<'_>) -> LinkedResult<()> {
         Ok(())
     }
 }
@@ -918,7 +919,7 @@ async fn group_renames_and_removals_in_whatsapp_reach_macro_live(pool: PgPool) {
         .await;
     let detail = world
         .linked
-        .adopted_groups(ALICE)
+        .adopted_groups(&person(ALICE))
         .await
         .unwrap()
         .into_iter()
@@ -1081,7 +1082,7 @@ async fn adding_a_group_imports_its_earlier_messages_once_without_notifying(pool
     );
     let summary = world
         .linked
-        .adopted_groups(ALICE)
+        .adopted_groups(&person(ALICE))
         .await
         .unwrap()
         .into_iter()
@@ -1156,6 +1157,38 @@ async fn backfill_waits_for_an_offline_phone_and_never_duplicates_live_messages(
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_quiet_group_waits_for_its_first_message_then_imports(pool: PgPool) {
+    let world = World::new(pool).await;
+    let replica = world.replica().await;
+    world.pair(ALICE, &world.alice).await;
+    let binding = world.adopt(ALICE, &[]).await;
+    assert_eq!(
+        backfill_state(&world, &binding, &["waiting_for_message"]).await,
+        ("waiting_for_message".to_owned(), 0),
+        "nobody posted: nothing to start importing from"
+    );
+
+    let first = world
+        .customer
+        .send_text(&world.group, "anyone here?")
+        .await
+        .unwrap();
+    world.timeline(&binding, &first).await;
+    assert_eq!(
+        backfill_state(&world, &binding, &["done", "partial"])
+            .await
+            .0,
+        "done",
+        "the first message starts the import, which finds nothing earlier"
+    );
+    assert_eq!(
+        origins(&world.pool, binding.id).await,
+        [("anyone here?".to_owned(), "whatsapp".to_owned())]
+    );
+    replica.drain(TIMEOUT).await.unwrap();
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn the_chat_list_follows_history_sync_and_live_messages(pool: PgPool) {
     let world = World::new(pool).await;
     // Before linking: a direct chat and a group message on Alice's phone.
@@ -1177,7 +1210,7 @@ async fn the_chat_list_follows_history_sync_and_live_messages(pool: PgPool) {
         .await
         .unwrap();
     let listed = wait_for_rows(&world.pool, TIMEOUT, || async {
-        let chats = world.linked.chats(ALICE).await.ok()?.chats;
+        let chats = world.linked.chats(&person(ALICE)).await.ok()?.chats;
         let direct = chats
             .iter()
             .find(|chat| chat.jid == world.customer.jid().to_string())?
@@ -1213,11 +1246,43 @@ async fn the_chat_list_follows_history_sync_and_live_messages(pool: PgPool) {
         .await
         .unwrap();
     let top = wait_for_rows(&world.pool, TIMEOUT, || async {
-        let chats = world.linked.chats(ALICE).await.ok()?.chats;
+        let chats = world.linked.chats(&person(ALICE)).await.ok()?.chats;
         (chats.first()?.jid == world.bob.jid().to_string()).then(|| chats[0].clone())
     })
     .await;
     let top = world.expect(top, "Bob's new chat is first").await;
     assert_eq!(top.name, "Bob");
     replica.drain(TIMEOUT).await.unwrap();
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_device_whose_kms_key_was_lost_asks_to_reconnect_and_pairs_again(pool: PgPool) {
+    let world = World::new(pool).await;
+    let replica = world.replica().await;
+    world.pair(ALICE, &world.alice).await;
+    replica.drain(TIMEOUT).await.unwrap();
+
+    // KMS lost the key that wrapped Alice's device (a new LocalStack): the
+    // next replica can never read it, so Alice is asked to reconnect.
+    let lost = Replica::start(
+        &world.pool.connect_options(),
+        &world.whatsapp,
+        &SharedKms::new(),
+    )
+    .await;
+    let logged_out = wait_for_rows(&world.pool, TIMEOUT, || async {
+        let account = world.linked.account(&person(ALICE)).await.ok()??;
+        (account.state == AccountState::LoggedOut).then_some(())
+    })
+    .await;
+    world
+        .expect(
+            logged_out,
+            "an unreadable device marks the account logged out",
+        )
+        .await;
+
+    // Pairing again replaces the device instead of failing to open it.
+    world.pair(ALICE, &world.alice).await;
+    lost.drain(TIMEOUT).await.unwrap();
 }

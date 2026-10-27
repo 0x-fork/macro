@@ -29,9 +29,7 @@ impl People {
             return person.clone();
         }
         WhatsAppPersonRef {
-            name: jid
-                .strip_suffix("@s.whatsapp.net")
-                .map(|phone| format!("+{phone}"))
+            name: crate::domain::jid::phone_number(jid)
                 .unwrap_or_else(|| UNKNOWN_PERSON.to_owned()),
             user_id: None,
         }

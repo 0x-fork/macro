@@ -1,21 +1,23 @@
 import { SearchBar } from '@app/components/view-shell';
 import { ViewSkeleton } from '@app/components/view-shell/ViewSkeleton';
+import { toast } from '@core/component/Toast/Toast';
+import { isMobile } from '@core/mobile/isMobile';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Button, ConfirmDialog } from '@ui';
-import { createSignal, type JSX, Match, onMount, Show, Switch } from 'solid-js';
+import { createSignal, Match, onMount, Show, Switch } from 'solid-js';
 import { match } from 'ts-pattern';
 import { AccountStrip, ConnectCard } from '../components/account-card';
-import {
-  AddableChatList,
-  ChatSectionHeading,
-  InMacroChatList,
-  UnsupportedChatList,
-} from '../components/chat-list';
+import { ChatList, UnsupportedChatList } from '../components/chat-list';
+import { ConversationSectionList } from '../components/conversation-sections';
 import { PairingDialog, type PasskeyMode } from '../components/pairing-dialog';
 import { useWhatsAppLinked } from '../context/whatsapp-linked-context';
 import { accountStatus } from '../core/account';
 import { adoptFailureMessage } from '../core/adopt';
-import { chatSections, type WhatsAppChat } from '../core/chat';
+import {
+  chatSections,
+  conversationSections,
+  type WhatsAppChat,
+} from '../core/chat';
 import { createPairingFlow } from '../primitives/pairing-flow';
 
 function Notice(props: { children: string }) {
@@ -34,19 +36,6 @@ function LoadFailure(props: { what: string; onRetry: () => void }) {
         Try again
       </Button>
     </div>
-  );
-}
-
-function ChatSection(props: {
-  id: string;
-  title: string;
-  children: JSX.Element;
-}) {
-  return (
-    <section class="flex flex-col" aria-labelledby={props.id}>
-      <ChatSectionHeading id={props.id}>{props.title}</ChatSectionHeading>
-      {props.children}
-    </section>
   );
 }
 
@@ -93,21 +82,19 @@ export function WhatsAppPage(props: {
       .exhaustive();
   };
   const [confirmingDisconnect, setConfirmingDisconnect] = createSignal(false);
-  const [notice, setNotice] = createSignal<string>();
   const [adding, setAdding] = createSignal<ReadonlySet<string>>(new Set());
   const [addErrors, setAddErrors] = createSignal<Record<string, string>>({});
 
   const disconnect = async (generation: number) => {
-    setNotice(undefined);
     const result = await whatsapp.disconnect(generation);
     setConfirmingDisconnect(false);
     if (result.isErr()) {
-      setNotice("Couldn't disconnect WhatsApp. Try again.");
+      toast.failure("Couldn't disconnect WhatsApp. Try again.");
       return;
     }
     // WhatsApp unlinks the device asynchronously; its Linked devices list is
     // the authority either way.
-    setNotice(
+    toast.success(
       result.value.remoteUnlinkRequested
         ? 'Disconnected. Macro will disappear from WhatsApp → Linked devices on your phone shortly.'
         : 'Disconnected in Macro. To finish, remove Macro under WhatsApp → Linked devices on your phone.'
@@ -138,9 +125,11 @@ export function WhatsAppPage(props: {
     <div class="flex min-w-0 flex-col">
       <Switch>
         <Match when={whatsapp.account.isPending}>
-          <p role="status" class="px-4 py-4 text-sm text-ink-muted">
-            Loading your WhatsApp connection…
-          </p>
+          <ViewSkeleton.Rows
+            label="Loading your WhatsApp connection"
+            count={2}
+            class="px-2 py-3"
+          />
         </Match>
         <Match when={!status()}>
           <LoadFailure
@@ -170,53 +159,53 @@ export function WhatsAppPage(props: {
                     />
                   </div>
                 </div>
-                <Show when={pairing.startFailed()}>
-                  <Notice>Couldn't start linking WhatsApp. Try again.</Notice>
-                </Show>
-                <Show when={notice()}>
-                  {(text) => <Notice>{text()}</Notice>}
-                </Show>
               </div>
               <Switch>
                 <Match when={chats.data}>
                   {(list) => {
                     const sections = () => chatSections(list(), query());
                     const searching = () => query().trim() !== '';
+                    const kinds = () => conversationSections(sections().listed);
                     return (
                       <>
                         {/* External's sidebar (or the phone's drill-in list)
                             already lists added chats; here only search hits. */}
-                        <Show when={searching() && sections().inMacro.length}>
-                          <ChatSection id="whatsapp-in-macro" title="In Macro">
-                            <InMacroChatList
-                              chats={sections().inMacro}
-                              onOpenGroup={whatsapp.openGroup}
-                            />
-                          </ChatSection>
-                        </Show>
-                        <ChatSection
-                          id="whatsapp-add-groups"
-                          title="Add to Macro"
-                        >
-                          <AddableChatList
-                            chats={sections().addable}
-                            canAdd={whatsapp.features.data?.adoption ?? false}
-                            adding={adding()}
-                            errors={addErrors()}
-                            empty={
-                              searching()
-                                ? 'No chats to add match your search.'
-                                : 'Every WhatsApp chat you can add is already in Macro.'
+                        <div class="flex flex-col gap-(--sidebar-section-gap) px-2 pt-3">
+                          <ConversationSectionList
+                            sections={kinds()}
+                            // A search shows its matches in every section.
+                            isOpen={(id) =>
+                              searching() || whatsapp.sections.isOpen(id)
                             }
-                            onAdd={(chat) =>
-                              fireAndForget(
-                                adopt(chat),
-                                'whatsapp-linked.adopt'
-                              )
-                            }
-                            onOpenGroup={whatsapp.openGroup}
+                            onOpenChange={whatsapp.sections.setOpen}
+                            list={(items, label) => (
+                              <ChatList
+                                label={label}
+                                chats={items}
+                                inCommunity={items[0]?.community !== undefined}
+                                canAdd={
+                                  whatsapp.features.data?.adoption ?? false
+                                }
+                                adding={adding()}
+                                errors={addErrors()}
+                                onAdd={(chat) =>
+                                  fireAndForget(
+                                    adopt(chat),
+                                    'whatsapp-linked.adopt'
+                                  )
+                                }
+                                onOpenGroup={whatsapp.openGroup}
+                              />
+                            )}
                           />
-                        </ChatSection>
+                        </div>
+                        <Show when={!sections().listed.length}>
+                          <p class="px-4 py-2 text-sm text-ink-extra-muted">
+                            {searching()
+                              ? 'No chats to add match your search.'
+                              : 'Every WhatsApp chat you can add is already in Macro.'}
+                          </p>
+                        </Show>
                         <Show when={sections().unsupported.length}>
                           <UnsupportedChatList
                             chats={sections().unsupported}
@@ -252,14 +241,14 @@ export function WhatsAppPage(props: {
             <div class="flex flex-col gap-3 px-4 py-4">
               <ConnectCard
                 reconnect={current().reconnect}
+                phone={isMobile()}
                 unavailable={whatsapp.features.data?.pairing === false}
                 pending={whatsapp.isConnecting()}
                 onConnect={() => pairing.start()}
               />
-              <Show when={pairing.startFailed()}>
+              <Show when={pairing.startFailed() && !pairing.open()}>
                 <Notice>Couldn't start linking WhatsApp. Try again.</Notice>
               </Show>
-              <Show when={notice()}>{(text) => <Notice>{text()}</Notice>}</Show>
             </div>
           )}
         </Match>
@@ -267,7 +256,8 @@ export function WhatsAppPage(props: {
       <PairingDialog
         open={pairing.open()}
         step={pairing.step()}
-        secondsLeft={pairing.secondsLeft()}
+        refreshing={pairing.refreshing()}
+        retryFailed={pairing.startFailed()}
         passkey={passkeyMode()}
         ceremony={pairing.passkey()}
         onConfirmPasskey={() =>

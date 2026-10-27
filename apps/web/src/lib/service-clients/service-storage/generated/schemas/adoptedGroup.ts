@@ -10,5 +10,5 @@
  */
 export interface AdoptedGroup {
   /** Shareable entity identifier. */
-  group_id: string;
+  groupId: string;
 }

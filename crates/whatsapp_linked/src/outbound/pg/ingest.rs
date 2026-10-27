@@ -38,7 +38,7 @@ pub(super) struct Reservation {
 pub(super) enum Reserve {
     /// Persist through this reservation.
     Reserved(Box<Reservation>),
-    /// Retry later: the target has not arrived or the binding needs an owner.
+    /// Retry later: the target has not arrived.
     Defer,
     /// The sender identity is ambiguous.
     Quarantine,
@@ -106,14 +106,14 @@ pub(super) async fn reserve_in(
     message: &Message,
     accepted_send: Option<Uuid>,
 ) -> LinkedResult<Reserve> {
-    let current = sqlx::query!(
+    let current = sqlx::query_scalar!(
         "SELECT state FROM whatsapp_group WHERE id = $1 FOR UPDATE",
         binding.id
     )
     .fetch_one(&mut **tx)
     .await
     .map_err(failure)?;
-    if current.state != "active" && accepted_send.is_none() {
+    if current != "active" && accepted_send.is_none() {
         return Ok(Reserve::Skip);
     }
     let sender = &message.sender;
@@ -609,7 +609,7 @@ async fn retain_in(
     .await
     .map_err(failure)?;
     if retained >= MAX_RETAINED_EVENTS {
-        return Err(LinkedError::Unavailable.into());
+        return Err(LinkedError::Backlogged.into());
     }
     let payload = serde_json::to_value(event).map_err(failure)?;
     sqlx::query!(
@@ -760,6 +760,7 @@ impl PgLinkedRepository {
                 tracing::warn!(
                     event_id = %event.event_id,
                     code = error.current_context().code(),
+                    error = %error,
                     "WhatsApp event deferred after a persistence failure"
                 );
                 Ok(IngestOutcome::Deferred)
@@ -812,7 +813,7 @@ impl PgLinkedRepository {
         .await
         .map_err(failure)?;
         if retained >= MAX_RETAINED_EVENTS {
-            return Err(LinkedError::Unavailable.into());
+            return Err(LinkedError::Backlogged.into());
         }
         let payload = serde_json::to_value(event).map_err(failure)?;
         sqlx::query!(

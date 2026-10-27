@@ -15,5 +15,5 @@ export interface LinkedUploadedAttachment {
   /** Category. */
   kind: LinkedMediaKind;
   /** Use as `upload_id` in a media send; also the future document id. */
-  upload_id: string;
+  uploadId: string;
 }

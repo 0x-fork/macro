@@ -11,9 +11,9 @@ import type { LinkedPairingState } from './linkedPairingState';
  */
 export interface LinkedPairing {
   /** Account being connected. */
-  account_id: string;
+  accountId: string;
   /** Database-assigned deadline. */
-  expires_at: string;
+  expiresAt: string;
   /** One-use transaction id. */
   id: string;
   /** Current state. */

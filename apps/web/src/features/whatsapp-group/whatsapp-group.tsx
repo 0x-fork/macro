@@ -1,10 +1,10 @@
 import { useNavigate } from '@app/lib/split-router';
 import { externalRoute } from '@app/routes/routes';
+import { SidePanel } from '@components/app/side-panel';
 import {
   useSplitDisplayName,
   useSplitPanel,
 } from '@components/app/split-layout/layoutUtils';
-import { SplitPanel } from '@components/app/split-panel';
 import { getPermissions } from '@core/component/SharePermissions';
 import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
@@ -43,19 +43,24 @@ export function WhatsAppGroup(props: {
   });
   return (
     <WhatsAppGroupProvider value={source}>
-      <WhatsAppGroupView
-        leading={props.leading ?? <SplitPanel.CloseButton class="shrink-0" />}
-        userId={userId()}
-        share={
-          <ShareTrigger
-            onClick={share}
-            id={props.groupId}
-            blockType="whatsapp_group"
-            hotkeyScope={panel?.splitHotkeyScope}
-          />
-        }
-        onConnect={() => navigate({ route: externalRoute, params: {} })}
-      />
+      {/* Like an in-view email thread: the details panel floats over the
+          conversation and starts closed. */}
+      <SidePanel.Root floating defaultOpen={false}>
+        <WhatsAppGroupView
+          leading={props.leading}
+          userId={userId()}
+          share={
+            <ShareTrigger
+              onClick={share}
+              id={props.groupId}
+              blockType="whatsapp_group"
+              hotkeyScope={panel?.splitHotkeyScope}
+            />
+          }
+          onShare={share}
+          onConnect={() => navigate({ route: externalRoute, params: {} })}
+        />
+      </SidePanel.Root>
     </WhatsAppGroupProvider>
   );
 }

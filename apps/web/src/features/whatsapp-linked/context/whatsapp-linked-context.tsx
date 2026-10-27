@@ -10,6 +10,12 @@ import type { AdoptFailure } from '../core/adopt';
 import type { WhatsAppChat } from '../core/chat';
 import type { PairingStep, PasskeyChallenge } from '../core/pairing';
 
+/** Which collapsible sections of a list are open; unknown ones start open. */
+export type OpenSections = {
+  isOpen: (sectionId: string) => boolean;
+  setOpen: (sectionId: string, open: boolean) => void;
+};
+
 /** A server read as the WhatsApp page needs it; `data` is set once loaded. */
 export type SourceRead<Value> = {
   readonly isPending: boolean;
@@ -95,6 +101,8 @@ export type WhatsAppLinkedCapabilities = {
   isDisconnecting: Accessor<boolean>;
   /** Host action: open a group in Macro. */
   openGroup: (groupId: string) => void;
+  /** The chat list's folded sections, remembered per person. */
+  sections: OpenSections;
 };
 
 const Context = createContext<WhatsAppLinkedCapabilities>();

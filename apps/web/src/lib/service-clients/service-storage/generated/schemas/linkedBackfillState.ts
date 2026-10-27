@@ -13,6 +13,7 @@ export type LinkedBackfillState =
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const LinkedBackfillState = {
+  waiting_for_message: 'waiting_for_message',
   pending: 'pending',
   running: 'running',
   waiting_for_phone: 'waiting_for_phone',

@@ -5,10 +5,11 @@
 use super::*;
 use crate::domain::{
     events::*,
-    ports::{MutationTarget, SendIntent, SendRepository, SendingFacts, StagedUpload},
+    ports::{MutationTarget, SendIntent, SendRepository, StagedUpload, StoredSend},
 };
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 
 struct SendRow {
     id: Uuid,
@@ -27,7 +28,8 @@ fn progress(row: SendRow) -> LinkedResult<SendProgress> {
         user_id: row.user_id,
         group_id: row.group_id,
         payload: decode(row.payload)?,
-        state: DeliveryState::parse(&row.state).ok_or(LinkedError::Unavailable)?,
+        state: DeliveryState::parse(&row.state)
+            .ok_or_else(|| corrupt(format_args!("state {:?}", row.state)))?,
         message_id: row.message_id,
         error_code: row.error_code,
         created_at: row.created_at,
@@ -53,7 +55,7 @@ impl SendRepository for PgLinkedRepository {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"#,
             id,
             upload.group_id,
-            upload.user,
+            upload.user.as_ref(),
             upload.mime,
             upload.filename,
             &upload.sha256[..],
@@ -68,14 +70,15 @@ impl SendRepository for PgLinkedRepository {
         Ok(id)
     }
 
-    async fn staged_upload(
+    async fn staged_upload_mime(
         &self,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         group_id: Uuid,
         upload: Uuid,
-    ) -> LinkedResult<Option<(String, String)>> {
-        Ok(sqlx::query!(
-            r#"SELECT mime, filename FROM whatsapp_media_blob b
+    ) -> LinkedResult<Option<String>> {
+        let user = user.as_ref();
+        sqlx::query_scalar!(
+            r#"SELECT mime FROM whatsapp_media_blob b
             WHERE document_id = $1 AND group_id = $2 AND user_id = $3
               AND NOT EXISTS (SELECT 1 FROM whatsapp_group_attachment a WHERE a.document_id = b.document_id)"#,
             upload,
@@ -84,19 +87,15 @@ impl SendRepository for PgLinkedRepository {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(failure)?
-        .map(|row| (row.mime, row.filename)))
+        .map_err(failure)
     }
 
-    async fn sending_facts(
+    async fn account_roster(
         &self,
         account: &Account,
         binding: &Binding,
-    ) -> LinkedResult<SendingFacts> {
-        if binding.kind == ChatKind::Direct {
-            return Ok(crate::domain::ports::direct_sending_facts(account, binding));
-        }
-        let group = sqlx::query_scalar!(
+    ) -> LinkedResult<Option<GroupInfo>> {
+        sqlx::query_scalar!(
             "SELECT metadata FROM whatsapp_group_roster WHERE account_id = $1 AND group_jid = $2",
             account.id,
             binding.group_jid
@@ -105,10 +104,7 @@ impl SendRepository for PgLinkedRepository {
         .await
         .map_err(failure)?
         .map(decode::<GroupInfo>)
-        .transpose()?;
-        Ok(crate::domain::ports::sending_facts_from_roster(
-            account, group,
-        ))
+        .transpose()
     }
 
     async fn mutation_target(
@@ -138,9 +134,10 @@ impl SendRepository for PgLinkedRepository {
     async fn stored_send(
         &self,
         group_id: Uuid,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         idempotency_key: Uuid,
-    ) -> LinkedResult<Option<([u8; 32], SendProgress)>> {
+    ) -> LinkedResult<Option<StoredSend>> {
+        let user = user.as_ref();
         let Some(row) = sqlx::query!(
             r#"SELECT id, user_id, group_id, payload, state, message_id, error_code, created_at, request_sha256
             FROM whatsapp_send WHERE group_id = $1 AND user_id = $2 AND idempotency_key = $3"#,
@@ -157,10 +154,10 @@ impl SendRepository for PgLinkedRepository {
         let digest: [u8; 32] = row
             .request_sha256
             .try_into()
-            .map_err(|_| LinkedError::Unavailable)?;
-        Ok(Some((
-            digest,
-            progress(SendRow {
+            .map_err(|_| corrupt("sha256 is not 32 bytes"))?;
+        Ok(Some(StoredSend {
+            request_sha256: digest,
+            progress: progress(SendRow {
                 id: row.id,
                 user_id: row.user_id,
                 group_id: row.group_id,
@@ -170,7 +167,7 @@ impl SendRepository for PgLinkedRepository {
                 error_code: row.error_code,
                 created_at: row.created_at,
             })?,
-        )))
+        }))
     }
 
     async fn enqueue(&self, intent: SendIntent<'_>) -> LinkedResult<SendProgress> {
@@ -181,6 +178,7 @@ impl SendRepository for PgLinkedRepository {
             request,
             digest,
         } = intent;
+        let user = user.as_ref();
         let payload = serde_json::to_value(request).map_err(failure)?;
         let mut tx = self.pool.begin().await.map_err(failure)?;
         sqlx::query!(
@@ -235,15 +233,14 @@ impl SendRepository for PgLinkedRepository {
         } else {
             Some(sqlx::query_scalar!(
             r#"UPDATE whatsapp_group b SET next_sequence = next_sequence + 1
-            WHERE b.id = $1 AND b.id = $2 AND b.state = 'active'
+            WHERE b.id = $1 AND b.state = 'active'
               AND EXISTS (
                 SELECT 1 FROM whatsapp_linked_account a JOIN whatsapp_group_membership m ON m.account_id = a.id
-                WHERE a.id = $3 AND a.user_id = $4 AND a.state = 'connected' AND a.generation = $5
+                WHERE a.id = $2 AND a.user_id = $3 AND a.state = 'connected' AND a.generation = $4
                   AND m.binding_id = b.id AND m.generation = a.generation AND m.consent_ended_at IS NULL
                   AND m.remote_member AND m.can_post AND m.reconciled)
-              AND whatsapp_group_can_view(b.id, $4)
+              AND whatsapp_group_can_view(b.id, $3)
             RETURNING next_sequence"#,
-            binding.id,
             binding.id,
             account.id,
             user,
@@ -268,7 +265,7 @@ impl SendRepository for PgLinkedRepository {
             payload,
             account.authorization_generation,
             sequence,
-            crate::outbound::trace_context::current()
+            crate::signals::trace_context::current()
         )
         .execute(&mut *tx)
         .await
@@ -304,7 +301,12 @@ impl SendRepository for PgLinkedRepository {
         })
     }
 
-    async fn open_sends(&self, group_id: Uuid, user: &str) -> LinkedResult<Vec<SendProgress>> {
+    async fn open_sends(
+        &self,
+        group_id: Uuid,
+        user: &MacroUserIdStr<'_>,
+    ) -> LinkedResult<Vec<SendProgress>> {
+        let user = user.as_ref();
         sqlx::query_as!(
             SendRow,
             r#"SELECT id, user_id, group_id, payload, state, message_id, error_code, created_at FROM whatsapp_send
@@ -325,9 +327,10 @@ impl SendRepository for PgLinkedRepository {
     async fn sends_for(
         &self,
         group_id: Uuid,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         ids: &[Uuid],
     ) -> LinkedResult<Vec<SendProgress>> {
+        let user = user.as_ref();
         sqlx::query_as!(
             SendRow,
             r#"SELECT id, user_id, group_id, payload, state, message_id, error_code, created_at FROM whatsapp_send
@@ -465,7 +468,7 @@ impl PgLinkedRepository {
                 SELECT id FROM whatsapp_send WHERE account_id = $1 AND generation = $3 AND state = 'pending'
                 ORDER BY group_id, group_sequence LIMIT $4 FOR UPDATE SKIP LOCKED)
               AND b.id = s.group_id
-            RETURNING s.id, s.group_id AS binding_id, s.group_sequence, s.payload, s.traceparent, b.group_jid,
+            RETURNING s.id, s.group_id, s.group_sequence, s.payload, s.traceparent, b.group_jid,
               (SELECT r.metadata FROM whatsapp_group_roster r WHERE r.account_id = s.account_id AND r.group_jid = b.group_jid) AS roster"#,
             account.id,
             scope.lease_epoch,
@@ -480,7 +483,7 @@ impl PgLinkedRepository {
             let request: SendReply = decode(row.payload)?;
             match content_in(
                 &mut tx,
-                row.binding_id,
+                row.group_id,
                 &request,
                 account.identity_jid.as_deref(),
             )
@@ -506,7 +509,7 @@ impl PgLinkedRepository {
                     .execute(&mut *tx)
                     .await
                     .map_err(failure)?;
-                    failed.push(row.binding_id);
+                    failed.push(row.group_id);
                 }
             }
         }
@@ -598,7 +601,7 @@ impl PgLinkedRepository {
         .ok_or(LinkedError::NotFound)?;
         lock_group_in(&mut tx, binding).await?;
         let row = sqlx::query!(
-            r#"SELECT s.group_id AS binding_id, s.payload, s.allocated_source_id, s.state, s.created_at
+            r#"SELECT s.group_id, s.payload, s.allocated_source_id, s.state, s.created_at
             FROM whatsapp_send s WHERE s.id = $1 AND s.account_id = $2 AND s.dispatch_started_at IS NOT NULL FOR UPDATE"#,
             send,
             account.id
@@ -628,7 +631,9 @@ impl PgLinkedRepository {
                 .map_err(failure)?;
             }
             SendOutcome::Accepted { server_at } => {
-                let source = row.allocated_source_id.ok_or(LinkedError::Unavailable)?;
+                let source = row
+                    .allocated_source_id
+                    .ok_or_else(|| corrupt("a dispatched send has no source id"))?;
                 let identity = account
                     .identity_jid
                     .clone()
@@ -637,7 +642,7 @@ impl PgLinkedRepository {
                 let binding = sqlx::query_as!(
                     bindings::BindingRow,
                     "SELECT id, group_jid, kind, user_id, state, adopted_at FROM whatsapp_group WHERE id = $1",
-                    row.binding_id
+                    row.group_id
                 )
                 .fetch_one(&mut *tx)
                 .await
@@ -661,7 +666,7 @@ impl PgLinkedRepository {
                             sha256: blob
                                 .sha256
                                 .try_into()
-                                .map_err(|_| LinkedError::Unavailable)?,
+                                .map_err(|_| corrupt("sha256 is not 32 bytes"))?,
                             locator: vec![],
                             width: unsigned(blob.width),
                             height: unsigned(blob.height),
@@ -745,7 +750,7 @@ impl PgLinkedRepository {
                     }),
                 };
                 let InboundKind::Message(message) = &event.kind else {
-                    return Err(LinkedError::Unavailable.into());
+                    return Err(corrupt("an accepted send is not a message"));
                 };
                 sqlx::query!(
                     "UPDATE whatsapp_send SET state = 'accepted', claimed_epoch = NULL, updated_at = now() WHERE id = $1 AND state IN ('sending', 'unknown')",
@@ -801,7 +806,7 @@ impl PgLinkedRepository {
         let account = fence_in(&mut tx, scope).await?;
         let row = sqlx::query!(
             r#"SELECT b.mime, b.filename, b.sha256, b.bytes FROM whatsapp_send s
-            JOIN whatsapp_media_blob b ON b.document_id = (s.payload->'message'->>'upload_id')::uuid
+            JOIN whatsapp_media_blob b ON b.document_id = (s.payload->'message'->>'uploadId')::uuid
               AND b.user_id = s.user_id AND b.group_id = s.group_id
             WHERE s.id = $1 AND s.account_id = $2 AND s.claimed_epoch = $3 AND s.state = 'sending'
               AND s.payload->'message'->>'type' = 'media'"#,
@@ -815,13 +820,14 @@ impl PgLinkedRepository {
         .ok_or(LinkedError::NotFound)?;
         tx.commit().await.map_err(failure)?;
         Ok(OutboundMedia {
-            kind: MediaKind::of(&row.mime).ok_or(LinkedError::Unavailable)?,
+            kind: MediaKind::of(&row.mime)
+                .ok_or_else(|| corrupt(format_args!("staged upload type {:?}", row.mime)))?,
             mime: row.mime,
             filename: row.filename,
             sha256: row
                 .sha256
                 .try_into()
-                .map_err(|_| LinkedError::Unavailable)?,
+                .map_err(|_| corrupt("sha256 is not 32 bytes"))?,
             bytes: row.bytes,
         })
     }

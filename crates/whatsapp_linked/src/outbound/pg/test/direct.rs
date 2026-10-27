@@ -41,7 +41,7 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
         .await
         .unwrap();
 
-    let listed = linked.chats(ALICE).await.unwrap().chats;
+    let listed = linked.chats(&person(ALICE)).await.unwrap().chats;
     let chat = listed.iter().find(|chat| chat.jid == CUSTOMER_JID).unwrap();
     assert_eq!(
         (chat.kind, chat.can_add, chat.cannot_add_reason),
@@ -52,7 +52,7 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
     };
     assert!(matches!(
         linked
-            .adopt(ALICE, &own, SendAuthority::Human)
+            .adopt(&person(ALICE), &own, SendAuthority::Human)
             .await
             .unwrap_err()
             .current_context(),
@@ -62,13 +62,13 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
         group_jid: CUSTOMER_JID.into(),
     };
     let binding = linked
-        .adopt(ALICE, &request, SendAuthority::Human)
+        .adopt(&person(ALICE), &request, SendAuthority::Human)
         .await
         .unwrap();
     assert_eq!(binding.kind, ChatKind::Direct);
     assert_eq!(
         linked
-            .adopt(ALICE, &request, SendAuthority::Human)
+            .adopt(&person(ALICE), &request, SendAuthority::Human)
             .await
             .unwrap()
             .id,
@@ -89,7 +89,7 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
         (ChatKind::Direct, "Customer", true)
     );
     assert!(detail.roster.is_none());
-    let bobs_list = linked.chats(BOB).await.unwrap().chats;
+    let bobs_list = linked.chats(&person(BOB)).await.unwrap().chats;
     let bobs = bobs_list
         .iter()
         .find(|chat| chat.jid == CUSTOMER_JID)
@@ -111,7 +111,7 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
         );
     }
     let messages = linked
-        .messages(&receipt::<MessageView>(ALICE, binding.id), None, 10)
+        .messages(&receipt::<MessageView>(ALICE, binding.id), None, Some(10))
         .await
         .unwrap()
         .messages;

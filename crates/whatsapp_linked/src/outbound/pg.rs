@@ -18,83 +18,7 @@ mod session;
 mod test;
 mod timeline;
 
-/// Signals between DSS and the session service. Each payload is a JSON
-/// [`signals::Signal`] (or [`signals::ChangeSignal`] for `whatsapp_changed`)
-/// carrying the sender's `traceparent`, so the receiver joins its trace.
-pub mod signals {
-    use serde::{Deserialize, Serialize};
-    use uuid::Uuid;
-
-    /// `<pairing_id>`: start, update or stop pairing.
-    pub const PAIRING_REQUESTED: &str = "whatsapp_pairing_requested";
-    /// `<account_id>`: claim pending sends.
-    pub const SEND_REQUESTED: &str = "whatsapp_send_requested";
-    /// `<account_id>`: re-read the account's groups.
-    pub const GROUPS_REQUESTED: &str = "whatsapp_groups_requested";
-    /// `<account_id>`: consent or adopted groups changed; re-read the account.
-    pub const ACCOUNT_CHANGED: &str = "whatsapp_account_changed";
-    /// `<account_id>`: a replica released the account (session service only).
-    pub const ACCOUNT_RELEASED: &str = "whatsapp_account_released";
-    /// `<document_id>`: attachment bytes are ready to import (DSS listens).
-    pub const MEDIA_READY: &str = "whatsapp_media_ready";
-    /// `<message_id>`: a standalone message notification is ready (DSS listens).
-    pub const GROUP_EFFECTS: &str = "whatsapp_group_effects";
-    /// A [`ChangeSignal`]: something a page shows changed (DSS listens and
-    /// pushes `whatsapp_changed` to the people who see it).
-    pub const CHANGED: &str = "whatsapp_changed";
-
-    /// Payload of every signal except [`CHANGED`].
-    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct Signal {
-        /// The id the channel documents.
-        pub id: Uuid,
-        /// The sender's W3C trace context.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub traceparent: Option<String>,
-    }
-
-    impl Signal {
-        /// Read a payload; `None` when malformed.
-        pub fn parse(payload: &str) -> Option<Self> {
-            serde_json::from_str(payload).ok()
-        }
-    }
-
-    /// What changed.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    #[serde(tag = "scope", rename_all = "snake_case")]
-    pub enum Change {
-        /// The account's own group list (roster) changed: its owner's add list.
-        Groups {
-            /// Account whose roster changed.
-            account_id: Uuid,
-        },
-        /// A group entity's details, timeline or sends changed: everyone who
-        /// can view it.
-        Group {
-            /// Group entity.
-            group_id: Uuid,
-        },
-    }
-
-    /// Payload of [`CHANGED`].
-    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-    pub struct ChangeSignal {
-        /// What changed.
-        #[serde(flatten)]
-        pub change: Change,
-        /// The sender's W3C trace context.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        pub traceparent: Option<String>,
-    }
-
-    impl ChangeSignal {
-        /// Read a payload; `None` when malformed.
-        pub fn parse(payload: &str) -> Option<Self> {
-            serde_json::from_str(payload).ok()
-        }
-    }
-}
+use crate::signals;
 
 /// Repository over MacroDB.
 #[derive(Clone)]
@@ -121,13 +45,19 @@ pub(crate) fn helper_failure(error: impl std::fmt::Display) -> rootcause::Report
     rootcause::report!("{error:#}").context(LinkedError::Unavailable)
 }
 
+/// Stored data that breaks an invariant this crate maintains.
+pub(crate) fn corrupt(what: impl std::fmt::Display) -> rootcause::Report<LinkedError> {
+    rootcause::report!("stored WhatsApp data is invalid: {what}").context(LinkedError::Internal)
+}
+
 /// Decode a JSON column written by this crate.
 pub(crate) fn decode<T: serde::de::DeserializeOwned>(value: serde_json::Value) -> LinkedResult<T> {
-    serde_json::from_value(value).map_err(failure)
+    serde_json::from_value(value)
+        .map_err(|error| rootcause::Report::new(error).context(LinkedError::Internal))
 }
 
 pub(crate) fn account_state(value: &str) -> LinkedResult<AccountState> {
-    AccountState::parse(value).ok_or_else(|| LinkedError::Unavailable.into())
+    AccountState::parse(value).ok_or_else(|| corrupt(format_args!("account state {value:?}")))
 }
 
 /// Signal `channel` when the transaction commits, carrying the current trace.
@@ -138,7 +68,7 @@ pub(crate) async fn notify(
 ) -> LinkedResult<()> {
     let payload = serde_json::to_string(&signals::Signal {
         id,
-        traceparent: super::trace_context::current(),
+        traceparent: signals::trace_context::current(),
     })
     .map_err(failure)?;
     sqlx::query!("SELECT pg_notify($1, $2)", channel, payload)
@@ -155,7 +85,7 @@ pub(crate) async fn notify_change(
 ) -> LinkedResult<()> {
     let payload = serde_json::to_string(&signals::ChangeSignal {
         change,
-        traceparent: super::trace_context::current(),
+        traceparent: signals::trace_context::current(),
     })
     .map_err(failure)?;
     sqlx::query!("SELECT pg_notify($1, $2)", signals::CHANGED, payload)
@@ -268,6 +198,19 @@ pub(crate) async fn end_consent_in(
         "UPDATE whatsapp_send SET state = 'failed', error_code = $2, claimed_epoch = NULL, updated_at = now() WHERE account_id = $1 AND dispatch_started_at IS NULL AND state IN ('pending', 'sending')",
         account,
         error_code
+    )
+    .execute(&mut **tx)
+    .await
+    .map_err(failure)?;
+    // The chat list and rosters were this consent's view of WhatsApp; a
+    // relink (perhaps with another number) starts from its own history sync.
+    sqlx::query!("DELETE FROM whatsapp_chat WHERE account_id = $1", account)
+        .execute(&mut **tx)
+        .await
+        .map_err(failure)?;
+    sqlx::query!(
+        "DELETE FROM whatsapp_group_roster WHERE account_id = $1",
+        account
     )
     .execute(&mut **tx)
     .await

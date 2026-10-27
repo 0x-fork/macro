@@ -15,19 +15,19 @@ import type { LinkedSendReply } from './linkedSendReply';
  */
 export interface LinkedSendProgress {
   /** Intent creation time. */
-  created_at: string;
+  createdAt: string;
   /** Sanitized failure code. */
-  error_code?: LinkedSendProgressErrorCode;
+  errorCode?: LinkedSendProgressErrorCode;
   /** Group entity. */
-  group_id: string;
+  groupId: string;
   /** Stable intent id. */
   id: string;
   /** Group message, once WhatsApp accepted it. */
-  message_id?: LinkedSendProgressMessageId;
+  messageId?: LinkedSendProgressMessageId;
   /** The original request, so a failed draft can be recovered. */
   payload: LinkedSendReply;
   /** Current state. */
   state: LinkedDeliveryState;
   /** Person who submitted it. */
-  user_id: string;
+  userId: string;
 }

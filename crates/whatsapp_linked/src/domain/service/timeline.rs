@@ -9,94 +9,103 @@ use models_permissions::share_permission::{
 };
 impl LinkedService {
     /// List all shared groups, including for viewers with no WhatsApp account.
-    #[tracing::instrument(name = "whatsapp.groups.list", skip_all, err)]
-    pub async fn adopted_groups(&self, user: &str) -> LinkedResult<Vec<WhatsAppGroupSummary>> {
+    #[tracing::instrument(name = "whatsapp.linked.list", skip_all, err, fields(count))]
+    pub async fn adopted_groups(
+        &self,
+        user: &MacroUserIdStr<'_>,
+    ) -> LinkedResult<Vec<WhatsAppGroupSummary>> {
         let records = self.timeline.visible_groups(user).await?;
         let account = self.accounts.owned_account(user).await?;
-        let groups = records
+        tracing::Span::current().record("count", records.len());
+        Ok(records
             .into_iter()
             .map(|record| {
-                let facts = account.as_ref().map(|a| match record.binding.kind {
-                    ChatKind::Group => sending_facts_from_roster(a, record.roster),
-                    ChatKind::Direct => direct_sending_facts(a, &record.binding),
-                });
-                let mut group = record.summary;
-                group.send_reason = reply_block(
+                let facts = account
+                    .as_ref()
+                    .map(|account| sending_facts(account, &record.binding, record.roster));
+                let reason = reply_block(
                     self.features,
                     account.as_ref(),
                     &record.binding,
                     facts.as_ref(),
                 );
-                group.can_send = group.send_reason.is_none();
-                group
+                record.facts.summary(reason)
             })
-            .collect();
-        Ok(groups)
+            .collect())
     }
     /// Authorized group detail, standard sharing and own sending identity.
+    #[tracing::instrument(name = "whatsapp.linked.detail", skip_all, err, fields(group_id))]
     pub async fn group_detail<T: RequiredPermission>(
         &self,
         access: &EntityAccessReceipt<T>,
     ) -> LinkedResult<WhatsAppGroupDetail> {
         let (user, id) = view_scope(access)?;
+        tracing::Span::current().record("group_id", tracing::field::display(id));
         let binding = self
             .bindings
             .binding(id)
             .await?
             .ok_or(LinkedError::NotFound)?;
-        let account = self.accounts.owned_account(user).await?;
-        let mut group = self.timeline.summary(id, user).await?;
+        // A bot viewer reads, but has no WhatsApp account of its own.
+        let account = match access.get_authenticated_user() {
+            Ok(person) => self.accounts.owned_account(person).await?,
+            Err(_) => None,
+        };
+        let facts = self.timeline.group_facts(id, user).await?;
         let observers = self.groups.group_accounts(id, user).await?;
         self.groups.request_groups_refresh(&observers).await?;
-        group.send_reason = self.reply_block(account.as_ref(), &binding).await?;
-        group.can_send = group.send_reason.is_none();
+        let reason = self.reply_block(account.as_ref(), &binding).await?;
         let access_level = match access.entity_permission() {
             EntityPermission::AccessLevel { access_level } => *access_level,
             _ => return Err(LinkedError::Forbidden.into()),
         };
         let roster = self.groups.binding_roster(&binding).await?;
-        let community = match roster.as_ref().and_then(|r| r.community_jid.as_deref()) {
-            Some(community_jid) => {
-                let parent = self
-                    .groups
-                    .binding_community(&binding, community_jid)
-                    .await?;
-                roster.as_ref().and_then(|r| r.community(parent.as_ref()))
-            }
-            None => None,
-        };
         Ok(WhatsAppGroupDetail {
-            group,
+            group: facts.summary(reason),
             share_permission: self.timeline.permissions(id).await?,
             access_level,
             disappearing_seconds: roster.as_ref().and_then(|r| r.disappearing_seconds),
-            community,
-            roster,
+            roster: roster.as_ref().map(WhatsAppRoster::from),
             sending_identity: account.and_then(|a| a.identity_jid),
             limits: Capabilities::default(),
         })
     }
-    /// Read the complete timeline through view access, without remote membership.
+    /// Read the complete timeline through view access, without remote
+    /// membership. `limit` defaults to [`DEFAULT_PAGE`], at most [`PAGE_LIMIT`].
     pub async fn messages<T: RequiredPermission>(
         &self,
         access: &EntityAccessReceipt<T>,
         before: Option<Uuid>,
-        limit: i64,
+        limit: Option<i64>,
     ) -> LinkedResult<WhatsAppGroupMessages> {
         let (user, id) = view_scope(access)?;
-        if !(1..=100).contains(&limit) {
-            return Err(LinkedError::Invalid("limit must be between 1 and 100").into());
+        let limit = limit.unwrap_or(DEFAULT_PAGE);
+        if !(1..=PAGE_LIMIT).contains(&limit) {
+            return Err(LinkedError::Invalid("the page size is out of range").into());
         }
         self.timeline.messages(id, user, before, limit).await
     }
+    /// One message through view access, as the timeline shows it.
+    pub async fn message<T: RequiredPermission>(
+        &self,
+        access: &EntityAccessReceipt<T>,
+        message: Uuid,
+    ) -> LinkedResult<WhatsAppGroupMessage> {
+        let (user, id) = view_scope(access)?;
+        self.timeline
+            .message(id, user, message)
+            .await?
+            .ok_or_else(|| LinkedError::NotFound.into())
+    }
     /// Advance the caller's own read cursor monotonically.
-    #[tracing::instrument(name="whatsapp.groups.read",skip_all,err,fields(message_id=%message))]
+    #[tracing::instrument(name = "whatsapp.linked.read", skip_all, err, fields(group_id, message_id = %message))]
     pub async fn mark_read<T: RequiredPermission>(
         &self,
         access: &EntityAccessReceipt<T>,
         message: Uuid,
     ) -> LinkedResult<()> {
         let (user, id) = receipt_scope(access)?;
+        tracing::Span::current().record("group_id", tracing::field::display(id));
         self.timeline.mark_read(id, user, message).await
     }
     /// List only the caller's pending, uncertain or failed sends.
@@ -118,7 +127,7 @@ impl LinkedService {
     /// Only the actual owner, in a session of their own, controls link, team
     /// and channel sharing; ordinary people grants use the generic
     /// direct-access endpoints. Everything is shared read-only.
-    #[tracing::instrument(name = "whatsapp.groups.permissions", skip_all, err, fields(group_id))]
+    #[tracing::instrument(name = "whatsapp.linked.permissions", skip_all, err, fields(group_id))]
     pub async fn update_permissions<T: RequiredPermission>(
         &self,
         access: &EntityAccessReceipt<T>,
@@ -129,9 +138,7 @@ impl LinkedService {
         let (user, id) = receipt_scope(access)?;
         tracing::Span::current().record("group_id", tracing::field::display(id));
         let facts = self.timeline.share_facts(id).await?;
-        let actor =
-            MacroUserIdStr::try_from(user.to_owned()).map_err(|_| LinkedError::Forbidden)?;
-        if !facts.owner.is_user(&actor) {
+        if !facts.owner.is_user(user) {
             return Err(LinkedError::Forbidden.into());
         }
         if update
@@ -148,7 +155,7 @@ impl LinkedService {
                 .unwrap_or_default(),
         )?;
         let command = authorize_team_share(
-            Some(&actor),
+            Some(user),
             &facts,
             TeamShareRequest {
                 access_level: update.team_share_access_level,

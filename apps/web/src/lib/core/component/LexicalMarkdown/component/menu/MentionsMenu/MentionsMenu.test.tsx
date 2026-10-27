@@ -67,8 +67,28 @@ vi.mock('@queries/whatsapp-groups', () => ({
       return userId() !== '';
     },
     data: [
-      { id: 'group-1', name: 'Design Crit', unreadCount: 0, canSend: true },
-      { id: 'group-2', name: 'Launch Room', unreadCount: 0, canSend: true },
+      {
+        id: 'group-1',
+        name: 'Design Crit',
+        ownerId: 'macro|gab@macro.com',
+        unreadCount: 0,
+        canSend: true,
+      },
+      {
+        id: 'group-2',
+        name: 'Launch Room',
+        ownerId: 'macro|gab@macro.com',
+        unreadCount: 0,
+        canSend: true,
+      },
+      // Shared with the viewer: only its owner may share it on.
+      {
+        id: 'group-3',
+        name: 'Design Review',
+        ownerId: 'macro|ana@macro.com',
+        unreadCount: 0,
+        canSend: false,
+      },
     ],
   }),
 }));
@@ -456,7 +476,7 @@ it('records mentions against the editing source outside a legacy block', () => {
   );
 });
 
-it('offers WhatsApp groups to share by mention, only in channel composers', () => {
+it("offers the viewer's own WhatsApp chats to share by mention, only in channel composers", () => {
   mocks.whatsappEnabled = true;
   Element.prototype.scrollIntoView = vi.fn();
   vi.mocked(useEmailSearchMention).mockReturnValue({
@@ -481,6 +501,7 @@ it('offers WhatsApp groups to share by mention, only in channel composers', () =
   expect(screen.getByText('WhatsApp chats')).toBeTruthy();
   expect(screen.getByText('Design Crit')).toBeTruthy();
   expect(screen.queryByText('Launch Room')).toBeNull();
+  expect(screen.queryByText('Design Review')).toBeNull();
   cleanup();
 
   mocks.whatsappUserIds = [];

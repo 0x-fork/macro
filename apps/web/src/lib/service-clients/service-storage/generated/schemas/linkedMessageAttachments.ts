@@ -11,7 +11,7 @@ import type { LinkedAttachment } from './linkedAttachment';
  */
 export interface LinkedMessageAttachments {
   /** Its attachments in order; deleted ones are omitted. */
-  linked_attachments: LinkedAttachment[];
+  linkedAttachments: LinkedAttachment[];
   /** Group message. */
-  message_id: string;
+  messageId: string;
 }

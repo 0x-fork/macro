@@ -11,5 +11,5 @@
 export interface LinkedDisconnect {
   /** The session service was asked to log the device out of WhatsApp. It
 unlinks asynchronously; WhatsApp's Linked devices list is authoritative. */
-  remote_unlink_requested: boolean;
+  remoteUnlinkRequested: boolean;
 }

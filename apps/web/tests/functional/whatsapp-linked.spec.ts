@@ -1,5 +1,17 @@
 import { join } from 'node:path';
 import { expect, type Page, test } from '@playwright/test';
+import type {
+  AdoptedGroup,
+  LinkedAccount,
+  LinkedAccountView,
+  LinkedAdoptGroup,
+  LinkedDisconnect,
+  LinkedPairing,
+  LinkedSendProgress,
+  LinkedSendReply,
+  LinkedUploadedAttachment,
+  MarkRead,
+} from '../../src/lib/service-clients/service-storage/generated/schemas';
 
 const USER_ID = 'macro|wa-tester@example.test';
 
@@ -13,44 +25,45 @@ type Chat = {
   shared?: { id: string; name: string; ownerId: string };
   /** The account's chat with itself. */
   self?: boolean;
+  community?: { id: string; name: string; announcements: boolean };
 };
 
 /** Server state the mocked DSS `/meta/linked` routes answer from. */
 type LinkedServer = {
-  account: null | {
-    id: string;
-    user_id: string;
-    authorization_generation: number;
-    identity_jid: string | null;
-    state: string;
-  };
+  account: LinkedAccount | null;
+  /** What a pairing reports unless `pairingStates` names it. */
   pairingState: string;
+  pairingStates: Record<string, string>;
+  /** Pairings started so far; `connect` numbers them `pairing-1`, `pairing-2`, … */
+  connects: number;
   chats: Chat[];
   /** The added group's history import, as `GET /whatsapp-groups/{id}` reports it. */
   backfill: { state: string; imported: number } | null;
   /** History the owner's phone sent so far, older than everything shown. */
   imported: unknown[];
   requests: string[];
-  adoptions: unknown[];
+  adoptions: LinkedAdoptGroup[];
   passkeyAnswers: unknown[];
   canSend: boolean;
   sharedViewer: boolean;
-  outgoing: unknown[];
+  outgoing: LinkedSendReply[];
   grants: { userId: string; accessLevel: string }[];
   permissionUpdates: unknown[];
   readMessages: string[];
   /** Responses for the next sends, in order; afterwards a send is recorded. */
   sendReplies: { status: number; json: unknown }[];
   /** Progress `POST /delivery` reports, by send id. */
-  delivery: Record<string, { state: string; message_id: string | null }>;
+  delivery: Record<string, Pick<LinkedSendProgress, 'state' | 'messageId'>>;
   /** What `POST /attachments` says it staged. */
-  upload: { filename: string; kind: string };
+  upload: Omit<LinkedUploadedAttachment, 'uploadId'>;
 };
 
 function server(): LinkedServer {
   return {
     account: null,
     pairingState: 'qr',
+    pairingStates: {},
+    connects: 0,
     backfill: null,
     imported: [],
     chats: [
@@ -118,22 +131,22 @@ const incomingMessage = {
   mentions: [],
   forwarded: false,
   rich: null,
-  sender: { name: 'Ana Ruiz', user_id: null },
+  sender: { name: 'Ana Ruiz', userId: null },
   body: 'The updated designs are ready for review.',
-  sent_at: '2026-10-21T10:00:00Z',
-  edited_at: null,
+  sentAt: '2026-10-21T10:00:00Z',
+  editedAt: null,
   deleted: false,
-  reply_to: null,
+  replyTo: null,
   reactions: [{ emoji: '👍', count: 2, mine: false }],
   attachments: [
     {
       ordinal: 0,
       state: 'loading',
-      file_name: 'design.pdf',
-      document_id: null,
+      fileName: 'design.pdf',
+      documentId: null,
     },
   ],
-  delivery_state: null,
+  deliveryState: null,
 };
 
 /** Real client, queries and production adapter; the network is mocked here. */
@@ -227,40 +240,39 @@ async function mount(page: Page, state: LinkedServer, query = '') {
             json: {
               id: GROUP_ID,
               name: 'Design Crit',
-              user_id: state.sharedViewer
-                ? 'macro|owner@example.test'
-                : USER_ID,
-              access_level: state.sharedViewer ? 'view' : 'owner',
-              can_send: state.canSend,
-              send_reason: state.canSend ? null : 'no_account',
-              sending_identity: state.canSend
+              userId: state.sharedViewer ? 'macro|owner@example.test' : USER_ID,
+              accessLevel: state.sharedViewer ? 'view' : 'owner',
+              canSend: state.canSend,
+              sendReason: state.canSend ? null : 'no_account',
+              sendingIdentity: state.canSend
                 ? '14155550142@s.whatsapp.net'
                 : null,
-              unread_count: 1,
+              unreadCount: 1,
               backfill: state.backfill,
               roster: {
                 participants: [
                   {
                     jid: '14155550199@s.whatsapp.net',
+                    alternateJid: null,
                     displayName: 'Ana Ruiz',
                     admin: true,
                   },
                 ],
               },
               limits: {
-                text_limit_bytes: 65536,
-                attachment_limit_bytes: 33554432,
-                mutation_window_seconds: 900,
-                max_attachments: 1,
+                textLimitBytes: 65536,
+                attachmentLimitBytes: 33554432,
+                mutationWindowSeconds: 900,
+                maxAttachments: 1,
                 mutations: ['reaction', 'edit', 'delete'],
-                attachment_types: ['image/png', 'application/pdf', 'audio/ogg'],
+                attachmentTypes: ['image/png', 'application/pdf', 'audio/ogg'],
               },
             },
           });
         if (suffix === '/messages')
           return route.fulfill({
             json: {
-              next_cursor: url.searchParams.has('before')
+              nextCursor: url.searchParams.has('before')
                 ? null
                 : 'older-cursor',
               messages: url.searchParams.has('before')
@@ -269,7 +281,7 @@ async function mount(page: Page, state: LinkedServer, query = '') {
                       ...incomingMessage,
                       id: 'message-0',
                       body: 'Previous day discussion',
-                      sent_at: '2026-10-20T10:00:00Z',
+                      sentAt: '2026-10-20T10:00:00Z',
                       attachments: [],
                     },
                   ]
@@ -280,33 +292,33 @@ async function mount(page: Page, state: LinkedServer, query = '') {
                       ...incomingMessage,
                       id: 'message-2',
                       body: 'Looking now. Thanks, Ana!',
-                      sender: { name: 'Me', user_id: USER_ID },
-                      sent_at: new Date().toISOString(),
-                      reply_to: 'message-1',
+                      sender: { name: 'Me', userId: USER_ID },
+                      sentAt: new Date().toISOString(),
+                      replyTo: 'message-1',
                       reactions: [],
                       attachments: [],
-                      delivery_state: 'delivered',
+                      deliveryState: 'accepted',
                     },
                   ],
             },
           });
         if (suffix === '/sends' && method === 'POST') {
-          const body = route.request().postDataJSON();
+          const body: LinkedSendReply = route.request().postDataJSON();
           state.outgoing.push(body);
           const reply = state.sendReplies.shift();
           if (reply)
             return route.fulfill({ status: reply.status, json: reply.json });
-          const id = `send-${body.idempotency_key}`;
-          state.delivery[id] ??= { state: 'pending', message_id: null };
+          const id = `send-${body.idempotencyKey}`;
+          state.delivery[id] ??= { state: 'pending', messageId: null };
           return route.fulfill({
             json: {
               id,
-              group_id: GROUP_ID,
-              user_id: USER_ID,
-              created_at: new Date().toISOString(),
+              groupId: GROUP_ID,
+              userId: USER_ID,
+              createdAt: new Date().toISOString(),
               payload: body,
               ...state.delivery[id],
-            },
+            } satisfies LinkedSendProgress,
           });
         }
         if (suffix === '/delivery')
@@ -315,20 +327,24 @@ async function mount(page: Page, state: LinkedServer, query = '') {
               .filter((id) => state.delivery[id])
               .map((id) => ({
                 id,
-                group_id: GROUP_ID,
-                user_id: USER_ID,
-                created_at: new Date().toISOString(),
+                groupId: GROUP_ID,
+                userId: USER_ID,
+                createdAt: new Date().toISOString(),
                 payload: {},
                 ...state.delivery[id],
               })),
           });
         if (suffix === '/read') {
-          state.readMessages.push(route.request().postDataJSON().message_id);
+          const body: MarkRead = route.request().postDataJSON();
+          state.readMessages.push(body.messageId);
           return route.fulfill({ json: {} });
         }
         if (suffix === '/attachments')
           return route.fulfill({
-            json: { upload_id: 'upload-1', ...state.upload },
+            json: {
+              uploadId: 'upload-1',
+              ...state.upload,
+            } satisfies LinkedUploadedAttachment,
           });
         if (suffix === '/permissions' && method === 'PATCH') {
           state.permissionUpdates.push(route.request().postDataJSON());
@@ -359,45 +375,50 @@ async function mount(page: Page, state: LinkedServer, query = '') {
               id: item.group?.id,
               kind: item.kind,
               name: item.group?.name,
-              user_id: USER_ID,
-              unread_count: item.group?.id === GROUP_ID ? 2 : 0,
-              can_send: item.group?.id === GROUP_ID,
-              send_reason: item.group?.id === GROUP_ID ? null : 'not_observing',
+              userId: USER_ID,
+              unreadCount: item.group?.id === GROUP_ID ? 2 : 0,
+              canSend: item.group?.id === GROUP_ID,
+              sendReason: item.group?.id === GROUP_ID ? null : 'not_observing',
+              community: item.community ?? null,
             })),
         });
       if (path === 'account')
-        return route.fulfill({ json: { account: state.account } });
+        return route.fulfill({
+          json: { account: state.account } satisfies LinkedAccountView,
+        });
       if (path === 'connect')
         return route.fulfill({
           json: {
-            id: 'pairing-1',
-            account_id: 'account-1',
-            expires_at: new Date(Date.now() + 60_000).toISOString(),
+            id: `pairing-${++state.connects}`,
+            accountId: 'account-1',
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
             state: 'waiting',
-          },
+          } satisfies LinkedPairing,
         });
-      if (path === 'pairing/pairing-1' && method === 'DELETE')
-        return route.fulfill({ status: 204 });
-      if (path === 'pairing/pairing-1/passkey') {
+      const pairing = /^pairing\/(pairing-\d+)(\/passkey)?$/.exec(path);
+      if (pairing && method === 'DELETE') return route.fulfill({ status: 204 });
+      if (pairing?.[2]) {
         state.passkeyAnswers.push(route.request().postDataJSON());
         return route.fulfill({ status: 204 });
       }
-      if (path === 'pairing/pairing-1') {
-        if (state.pairingState === 'success')
+      if (pairing) {
+        const id = pairing[1] ?? '';
+        const pairingState = state.pairingStates[id] ?? state.pairingState;
+        if (pairingState === 'success')
           state.account = {
             id: 'account-1',
-            user_id: USER_ID,
-            authorization_generation: 4,
-            identity_jid: '14155550142:3@s.whatsapp.net',
+            userId: USER_ID,
+            authorizationGeneration: 4,
+            identityJid: '14155550142:3@s.whatsapp.net',
             state: 'connected',
           };
         return route.fulfill({
           headers: { 'Cache-Control': 'no-store' },
           json: {
-            state: state.pairingState,
-            qr: state.pairingState === 'qr' ? '2@ref,noise,identity,adv' : null,
+            state: pairingState,
+            qr: pairingState === 'qr' ? `2@ref-${id},noise,identity,adv` : null,
             challenge:
-              state.pairingState === 'passkey'
+              pairingState === 'passkey'
                 ? { challenge: 'Y2hhbGxlbmdl', rpId: 'whatsapp.com' }
                 : null,
             expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -412,34 +433,26 @@ async function mount(page: Page, state: LinkedServer, query = '') {
               archived: false,
               pinned: false,
               shared: chat.group ? null : (chat.shared ?? null),
+              community: chat.community ?? null,
               canAdd: !chat.self && !chat.group && !chat.shared,
-              cannotAddReason: chat.self
-                ? "your chat with yourself can't be added to Macro"
-                : null,
+              cannotAddReason: chat.self ? 'own_chat' : null,
             })),
           },
         });
       if (path === 'groups/adopt' && method === 'POST') {
-        const body = route.request().postDataJSON() as { group_jid: string };
+        const body: LinkedAdoptGroup = route.request().postDataJSON();
         state.adoptions.push(body);
-        const group = state.chats.find(({ jid }) => jid === body.group_jid);
+        const group = state.chats.find(({ jid }) => jid === body.groupJid);
         if (group) group.group = { id: 'group-new', name: group.name };
         return route.fulfill({
-          json: {
-            id: 'binding-1',
-            group_id: 'group-new',
-            group_jid: body.group_jid,
-            team_id: 'team-acme',
-            user_id: USER_ID,
-            adopted_at: '2026-10-20T12:00:00Z',
-            ownership_state: 'active',
-            state: 'active',
-          },
+          json: { groupId: 'group-new' } satisfies AdoptedGroup,
         });
       }
       if (path === 'disconnect') {
         state.account = null;
-        return route.fulfill({ json: { remote_unlink_requested: true } });
+        return route.fulfill({
+          json: { remoteUnlinkRequested: true } satisfies LinkedDisconnect,
+        });
       }
       return route.fulfill({ status: 404, json: {} });
     }
@@ -473,19 +486,19 @@ test('links WhatsApp by QR, then adds a shareable WhatsApp group', async ({
       name: 'Scan this code with WhatsApp on your phone',
     })
   ).toBeVisible();
-  await expect(dialog.getByText(/Expires in \d:\d\d/)).toBeVisible();
 
   state.pairingState = 'success';
   await expect(page.getByText('+14155550142')).toBeVisible();
   await expect(dialog).toBeHidden();
   expect(state.requests).not.toContain('DELETE pairing/pairing-1');
 
-  const groups = page.getByRole('list', { name: 'Chats to add to Macro' });
+  const groups = page.getByRole('list', { name: 'Groups' });
   await expect(groups.getByText('Launch War Room')).toBeVisible();
   await expect(groups.getByText('Design Crit')).toHaveCount(0);
   // Direct chats are added like groups; only the chat with yourself isn't.
   await expect(
-    groups
+    page
+      .getByRole('list', { name: 'Direct messages' })
       .getByRole('listitem')
       .filter({ hasText: 'Ana Ruiz' })
       .getByText('Direct chat')
@@ -496,20 +509,22 @@ test('links WhatsApp by QR, then adds a shareable WhatsApp group', async ({
     .getByRole('listitem')
     .filter({ hasText: 'You' });
   await expect(
-    self.getByText("Your chat with yourself can't be added to Macro")
+    self.getByText("Your chat with yourself can't be added")
   ).toBeVisible();
   await expect(self.getByRole('button')).toHaveCount(0);
   const search = page.getByRole('searchbox', { name: 'Search WhatsApp chats' });
+  // While searching, your own added chats show in their section to open.
   await search.fill('design');
   await expect(
-    page
-      .getByRole('list', { name: 'WhatsApp chats in Macro' })
-      .getByText('Design Crit')
+    groups
+      .getByRole('listitem')
+      .filter({ hasText: 'Design Crit' })
+      .getByRole('button', { name: 'Open' })
   ).toBeVisible();
   await search.fill('launch');
   await expect(groups.getByRole('listitem')).toHaveCount(1);
   await search.fill('');
-  await expect(groups.getByRole('listitem')).toHaveCount(3);
+  await expect(groups.getByRole('listitem')).toHaveCount(2);
   await groups
     .getByRole('button', { name: /shared with you by Group Owner/i })
     .click();
@@ -524,7 +539,7 @@ test('links WhatsApp by QR, then adds a shareable WhatsApp group', async ({
     .click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(groups.getByText('Launch War Room')).toHaveCount(0);
-  expect(state.adoptions).toEqual([{ group_jid: '120363003@g.us' }]);
+  expect(state.adoptions).toEqual([{ groupJid: '120363003@g.us' }]);
   expect(unexpected).toEqual([]);
 });
 
@@ -532,9 +547,9 @@ test('a refused add says why, on that group', async ({ page }) => {
   const state = server();
   state.account = {
     id: 'account-1',
-    user_id: USER_ID,
-    authorization_generation: 4,
-    identity_jid: '14155550142:3@s.whatsapp.net',
+    userId: USER_ID,
+    authorizationGeneration: 4,
+    identityJid: '14155550142:3@s.whatsapp.net',
     state: 'connected',
   };
   const unexpected = await mount(page, state);
@@ -549,7 +564,7 @@ test('a refused add says why, on that group', async ({ page }) => {
     })
   );
   const row = page
-    .getByRole('list', { name: 'Chats to add to Macro' })
+    .getByRole('list', { name: 'Groups' })
     .getByRole('listitem')
     .filter({ hasText: 'Launch War Room' });
   await row.getByRole('button', { name: 'Add to Macro' }).click();
@@ -578,6 +593,77 @@ test('External lists groups in Macro with unread counts and read-only tags', asy
   expect(unexpected).toEqual([]);
 });
 
+test('chats sort into direct messages, groups and communities on the page and in External', async ({
+  page,
+}) => {
+  const state = server();
+  state.account = {
+    id: 'account-1',
+    userId: USER_ID,
+    authorizationGeneration: 4,
+    identityJid: '14155550142:3@s.whatsapp.net',
+    state: 'connected',
+  };
+  const neighbours = (announcements: boolean) => ({
+    id: '120363000000000010@g.us',
+    name: 'Neighbours',
+    announcements,
+  });
+  state.chats.push(
+    {
+      jid: '120363011@g.us',
+      kind: 'group',
+      name: 'Neighbours',
+      lastActivityAt: '2026-10-19T09:00:00Z',
+      group: null,
+      community: neighbours(true),
+    },
+    {
+      jid: '120363012@g.us',
+      kind: 'group',
+      name: 'Garden',
+      lastActivityAt: '2026-10-18T09:00:00Z',
+      group: { id: 'group-garden', name: 'Garden' },
+      community: neighbours(false),
+    }
+  );
+  await mount(page, state);
+  const rows = (label: string) =>
+    page.getByRole('list', { name: label }).getByRole('listitem');
+  await expect(rows('Direct messages')).toHaveText([/Ana Ruiz/]);
+  await expect(rows('Groups')).toHaveText([/Launch War Room/, /Ana, Ben/]);
+  // Garden is already in Macro; its announcements are not.
+  await expect(rows('Neighbours')).toHaveText([/^Announcements/]);
+  // Folding a section is remembered across reloads.
+  const groupsHeading = page.getByRole('button', {
+    name: 'Groups',
+    exact: true,
+  });
+  await groupsHeading.click();
+  await expect(groupsHeading).toHaveAttribute('aria-expanded', 'false');
+  await page.reload();
+  await expect(rows('Direct messages')).toHaveText([/Ana Ruiz/]);
+  await expect(
+    page.getByRole('button', { name: 'Groups', exact: true })
+  ).toHaveAttribute('aria-expanded', 'false');
+
+  const here = new URL(page.url());
+  await page.goto(`${here.origin}${here.pathname}?view=in-macro`);
+  const nav = page.getByRole('navigation', {
+    name: 'WhatsApp chats in Macro',
+  });
+  await expect(
+    nav.getByRole('navigation', { name: 'Groups' }).getByRole('button')
+  ).toHaveText([/design-crit/]);
+  await expect(
+    nav.getByRole('navigation', { name: 'Neighbours' }).getByRole('button')
+  ).toHaveText([/Garden/]);
+  await nav.getByRole('button', { name: 'Garden' }).click();
+  expect(await page.evaluate(() => window.openedGroups)).toContain(
+    'group-garden'
+  );
+});
+
 test('cancelling a pairing tells the server and keeps the account unlinked', async ({
   page,
 }) => {
@@ -595,21 +681,45 @@ test('cancelling a pairing tells the server and keeps the account unlinked', asy
   await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
 });
 
-test('an expired pairing offers a new code', async ({ page }) => {
+test('an expired code rolls to a new pairing on its own', async ({ page }) => {
+  const state = server();
+  await mount(page, state);
+
+  await page.getByRole('button', { name: 'Connect' }).click();
+  const dialog = page.getByRole('dialog');
+  const code = dialog.getByRole('img', { name: /Scan this code/ });
+  await expect(code).toBeVisible();
+  const first = await code.innerHTML();
+
+  state.pairingStates['pairing-1'] = 'expired';
+  await expect.poll(() => state.connects).toBe(2);
+  await expect(code).toBeVisible();
+  await expect.poll(() => code.innerHTML()).not.toBe(first);
+  await expect(dialog.getByText('Code expired')).toHaveCount(0);
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  expect(state.requests).not.toContain('DELETE pairing/pairing-2');
+});
+
+test('after a few codes without a scan, the dialog asks for a click', async ({
+  page,
+}) => {
   const state = server();
   state.pairingState = 'expired';
   await mount(page, state);
 
   await page.getByRole('button', { name: 'Connect' }).click();
-  await expect(
-    page.getByText('This code expired before it was scanned.')
-  ).toBeVisible();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Code expired')).toBeVisible();
+  // The first code plus three automatic ones.
+  expect(state.connects).toBe(4);
+  await expect(dialog.getByText('Tap Link a device')).toBeVisible();
+
   state.pairingState = 'qr';
-  await page.getByRole('button', { name: 'Show a new code' }).click();
-  await expect(page.getByRole('img', { name: /Scan this code/ })).toBeVisible();
-  expect(
-    state.requests.filter((request) => request === 'POST connect')
-  ).toHaveLength(2);
+  await dialog.getByRole('button', { name: 'Show a new code' }).click();
+  await expect(
+    dialog.getByRole('img', { name: /Scan this code/ })
+  ).toBeVisible();
+  expect(state.connects).toBe(5);
 });
 
 test('a browser hands WhatsApp’s passkey step to Macro desktop by pairing id', async ({
@@ -680,7 +790,7 @@ test('an independent group reads, replies, reacts and pages through channel rows
   await expect.poll(() => state.outgoing.length).toBe(1);
   expect(state.outgoing[0]).toMatchObject({
     message: { type: 'text', text: 'Thanks from my own WhatsApp' },
-    reply_to: 'message-1',
+    replyTo: 'message-1',
   });
   // Shown at once, before WhatsApp accepts it.
   await expect(
@@ -693,7 +803,7 @@ test('an independent group reads, replies, reacts and pages through channel rows
     message: {
       type: 'mutation',
       operation: 'reaction',
-      message_id: 'message-1',
+      messageId: 'message-1',
       text: '👍',
     },
   });
@@ -718,13 +828,13 @@ function everyMessageType() {
   const file = (id: string, mime: string, extra: Record<string, unknown>) => ({
     ordinal: 0,
     state: 'ready',
-    file_name: id,
+    fileName: id,
     mime,
     size: 1024,
-    document_id: `document-${id}`,
+    documentId: `document-${id}`,
     width: null,
     height: null,
-    duration_seconds: null,
+    durationSeconds: null,
     presentation: null,
     ...extra,
   });
@@ -733,12 +843,12 @@ function everyMessageType() {
       ...base,
       id: 'type-system',
       kind: 'system',
-      sent_at: at(1),
+      sentAt: at(1),
       rich: {
         type: 'system',
         action: 'participants_added',
-        actor: { name: 'Ana Ruiz', user_id: null },
-        participants: [{ name: '+1 555 0100', user_id: null }],
+        actor: { name: 'Ana Ruiz', userId: null },
+        participants: [{ name: '+1 555 0100', userId: null }],
         value: null,
         call: null,
       },
@@ -746,15 +856,15 @@ function everyMessageType() {
     {
       ...base,
       id: 'type-mention',
-      sent_at: at(2),
+      sentAt: at(2),
       forwarded: true,
       body: 'Ping @15550001111 about https://example.com',
-      mentions: [{ token: '15550001111', name: 'Ben Ode', user_id: null }],
+      mentions: [{ token: '15550001111', name: 'Ben Ode', userId: null }],
     },
     {
       ...base,
       id: 'type-poll',
-      sent_at: at(3),
+      sentAt: at(3),
       rich: {
         type: 'poll',
         question: 'Lunch?',
@@ -762,21 +872,22 @@ function everyMessageType() {
           { name: 'Tacos', votes: 2, mine: true, voters: [] },
           { name: 'Pho', votes: 0, mine: false, voters: [] },
         ],
-        selectable_count: 1,
+        selectableCount: 1,
         voters: 2,
       },
     },
     {
       ...base,
       id: 'type-location',
-      sent_at: at(4),
+      sentAt: at(4),
       rich: {
         type: 'location',
         latitude: 40.7128,
         longitude: -74.006,
         name: 'City Hall',
         address: null,
-        url: null,
+        // Sender-supplied: only http(s) links may open.
+        url: 'javascript:alert(document.cookie)',
         live: false,
         comment: null,
       },
@@ -784,7 +895,7 @@ function everyMessageType() {
     {
       ...base,
       id: 'type-contacts',
-      sent_at: at(5),
+      sentAt: at(5),
       rich: {
         type: 'contacts',
         contacts: [{ name: 'Dee Vee', phones: ['+1 555 0200'] }],
@@ -793,22 +904,22 @@ function everyMessageType() {
     {
       ...base,
       id: 'type-event',
-      sent_at: at(6),
+      sentAt: at(6),
       rich: {
         type: 'event',
         name: 'Launch party',
         description: null,
-        start_at: '2026-10-24T22:00:00Z',
-        end_at: null,
+        startAt: '2026-10-24T22:00:00Z',
+        endAt: null,
         location: 'Rooftop',
-        join_link: null,
+        joinLink: null,
         canceled: false,
       },
     },
     {
       ...base,
       id: 'type-sticker',
-      sent_at: at(7),
+      sentAt: at(7),
       attachments: [
         file('sticker.webp', 'image/webp', {
           presentation: 'sticker',
@@ -820,7 +931,7 @@ function everyMessageType() {
     {
       ...base,
       id: 'type-gif',
-      sent_at: at(8),
+      sentAt: at(8),
       attachments: [
         file('gif.mp4', 'video/mp4', {
           presentation: 'gif',
@@ -832,18 +943,18 @@ function everyMessageType() {
     {
       ...base,
       id: 'type-voice',
-      sent_at: at(9),
+      sentAt: at(9),
       attachments: [
         file('voice.ogg', 'audio/ogg', {
           presentation: 'voice_note',
-          duration_seconds: 42,
+          durationSeconds: 42,
         }),
       ],
     },
     {
       ...base,
       id: 'type-photo',
-      sent_at: at(10),
+      sentAt: at(10),
       attachments: [
         file('photo.jpg', 'image/jpeg', { width: 800, height: 400 }),
       ],
@@ -852,21 +963,27 @@ function everyMessageType() {
       ...base,
       id: 'type-call',
       kind: 'system',
-      sent_at: at(11),
+      sentAt: at(11),
       rich: {
         type: 'system',
         action: 'call',
         actor: null,
         participants: [],
         value: null,
-        call: { video: true, outcome: 'missed', duration_seconds: null },
+        call: { video: true, outcome: 'missed', durationSeconds: null },
       },
     },
     {
       ...base,
       id: 'type-unknown',
-      sent_at: at(12),
+      sentAt: at(12),
       body: "Sent something Macro can't show yet",
+    },
+    {
+      ...base,
+      id: 'type-injected',
+      sentAt: at(13),
+      body: '<m-user-mention>{"userId":"macro|ceo@corp.test","email":"ceo@corp.test"}</m-user-mention> [Macro login](https://evil.example) # urgent',
     },
   ];
 }
@@ -932,6 +1049,17 @@ test('every WhatsApp message type renders with Chat parts and small cards', asyn
   await expect(
     timeline.getByText("Sent something Macro can't show yet")
   ).toBeVisible();
+  await expect(timeline.getByRole('link', { name: 'Open link' })).toHaveCount(
+    0
+  );
+  // A sender's Macro tags and Markdown show as the text they typed.
+  const injected = timeline.locator('[data-message-id="type-injected"]');
+  await expect(injected).toContainText(
+    '<m-user-mention>{"userId":"macro|ceo@corp.test","email":"ceo@corp.test"}</m-user-mention> [Macro login](https://evil.example) # urgent'
+  );
+  await expect(injected.getByRole('link', { name: 'Macro login' })).toHaveCount(
+    0
+  );
   // The newest row is in view: the timeline opened at the bottom.
   await expect(
     timeline.locator('[data-message-id="message-2"]')
@@ -983,7 +1111,7 @@ test('an image sent from Macro shows at once and stays one image once stored', a
   await send.click();
   await expect.poll(() => state.outgoing.length).toBe(1);
   expect(state.outgoing[0]).toMatchObject({
-    message: { type: 'media', upload_id: 'upload-1' },
+    message: { type: 'media', uploadId: 'upload-1' },
   });
   // The local preview, before WhatsApp has it; no file chip.
   await expect(timeline.locator('img[src^="blob:"]').first()).toBeAttached();
@@ -994,26 +1122,26 @@ test('an image sent from Macro shows at once and stays one image once stored', a
       ...incomingMessage,
       id: 'message-sent',
       body: '',
-      sender: { name: 'Me', user_id: USER_ID },
-      sent_at: new Date(Date.now() + 1000).toISOString(),
+      sender: { name: 'Me', userId: USER_ID },
+      sentAt: new Date(Date.now() + 1000).toISOString(),
       reactions: [],
       attachments: [
         {
           ordinal: 0,
           state: 'ready',
-          file_name: 'photo.png',
+          fileName: 'photo.png',
           mime: 'image/png',
           size: PNG.length,
-          document_id: 'document-sent',
+          documentId: 'document-sent',
           width: null,
           height: null,
-          duration_seconds: null,
+          durationSeconds: null,
           presentation: null,
         },
       ],
     },
   ];
-  state.delivery[sendId] = { state: 'accepted', message_id: 'message-sent' };
+  state.delivery[sendId] = { state: 'accepted', messageId: 'message-sent' };
   await expect(
     timeline.locator('[data-message-id="message-sent"]')
   ).toBeVisible();
@@ -1045,7 +1173,7 @@ test('history imported after adding shows up older, with the import state', asyn
       ...incomingMessage,
       id: 'message-imported',
       body: 'From before the group was added',
-      sent_at: '2026-10-19T10:00:00Z',
+      sentAt: '2026-10-19T10:00:00Z',
       reactions: [],
       attachments: [],
     },
@@ -1105,8 +1233,8 @@ test('an unknown outcome retries quietly under the same key', async ({
   await typeInComposer(page, 'Arrives once');
   await page.getByRole('button', { name: 'Send message' }).click();
   await expect.poll(() => state.outgoing.length).toBe(2);
-  const [first, second] = state.outgoing as { idempotency_key: string }[];
-  expect(second?.idempotency_key).toBe(first?.idempotency_key);
+  const [first, second] = state.outgoing;
+  expect(second?.idempotencyKey).toBe(first?.idempotencyKey);
   await expect(page.getByText(/Couldn't reach WhatsApp/)).toHaveCount(0);
   await expect(
     page.locator('[role="log"]').getByText('Arrives once')
@@ -1173,6 +1301,53 @@ for (const mobile of [false, true]) {
         expect(unexpected).toEqual([]);
       });
     }
+  });
+}
+
+for (const mobile of [false, true]) {
+  test.describe(`${mobile ? 'mobile' : 'desktop'} details`, () => {
+    test.use({
+      viewport: mobile
+        ? { width: 390, height: 844 }
+        : { width: 1440, height: 900 },
+      isMobile: mobile,
+      hasTouch: mobile,
+    });
+    test('members, sharing and syncing open in the side panel', async ({
+      page,
+    }) => {
+      const state = server();
+      const unexpected = await mount(page, state, `?group=${GROUP_ID}`);
+      await expect(
+        page.getByRole('textbox', { name: 'Message Design Crit' })
+      ).toBeVisible();
+      await page
+        .getByRole('button', { name: mobile ? 'Show details' : /side panel/i })
+        .click();
+      const members = page.getByRole('list', { name: 'WhatsApp members' });
+      await expect(members).toBeVisible();
+      await expect(members.getByRole('listitem')).toHaveText([
+        /Ana Ruiz\+14155550199Admin/,
+      ]);
+      await expect(page.getByRole('button', { name: 'Share…' })).toBeVisible();
+      await page.getByRole('button', { name: 'Stop syncing' }).click();
+      await page
+        .getByLabel('Stop syncing this chat?')
+        .getByRole('button', { name: 'Stop syncing' })
+        .click();
+      await expect
+        .poll(() => state.requests)
+        .toContain(`DELETE whatsapp-groups/${GROUP_ID}`);
+      await expect(
+        page.getByText('Syncing stopped. Its history stays in Macro.')
+      ).toBeVisible();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth > innerWidth
+        )
+      ).toBe(false);
+      expect(unexpected).toEqual([]);
+    });
   });
 }
 

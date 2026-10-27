@@ -11,5 +11,5 @@
 | `path.group_id` | `string` | - |
 | <a id="property-query"></a> `query?` | \{ `before?`: `string` \| `null`; `limit?`: `number` \| `null`; \} | - |
 | `query.before?` | `string` \| `null` | Last message id in the previous page. |
-| `query.limit?` | `number` \| `null` | Page size, 1 through 100. |
+| `query.limit?` | `number` \| `null` | Page size, up to [`PAGE_LIMIT`]; [`DEFAULT_PAGE`] when absent. |
 | <a id="property-url"></a> `url` | `"/meta/linked/whatsapp-groups/{group_id}/messages"` | - |

@@ -9,6 +9,7 @@ use crate::domain::{
     },
 };
 use async_trait::async_trait;
+use macro_user_id::user_id::MacroUserIdStr;
 use models_permissions::share_permission::{
     LinkShare, SharePermissionV2, UpdateSharePermissionRequestV2, access_level::AccessLevel,
 };
@@ -97,82 +98,13 @@ impl PgLinkedRepository {
         }
         Ok(people)
     }
-}
-
-#[async_trait]
-impl TimelineRepository for PgLinkedRepository {
-    async fn visible_groups(&self, user: &str) -> LinkedResult<Vec<VisibleGroup>> {
-        let rows = sqlx::query!(r#"SELECT g.id,g.name,g.kind,g.user_id,g.group_jid,g.state,g.adopted_at,g.backfill_state,g.backfill_imported,
-            (SELECT count(*) FROM whatsapp_group_message m WHERE m.binding_id=g.id AND m.message_id IS NOT NULL
-              AND m.deleted_at IS NULL AND m.origin<>'history' AND m.kind<>'system'
-              AND NOT EXISTS(SELECT 1 FROM whatsapp_external_person p WHERE p.id=m.person_id AND p.user_id=$1)
-              AND (r.message_id IS NULL OR (m.source_at,m.id)>(r.read_at,r.message_id))) AS "unread_count!",
-            (SELECT max(source_at) FROM whatsapp_group_message WHERE binding_id=g.id AND message_id IS NOT NULL) AS last_message_at,
-            roster.metadata AS "metadata?"
-            FROM whatsapp_group g
-            LEFT JOIN whatsapp_group_read_state r ON r.group_id=g.id AND r.user_id=$1
-            LEFT JOIN whatsapp_linked_account a ON a.user_id=$1
-            LEFT JOIN whatsapp_group_roster roster ON roster.account_id=a.id AND roster.group_jid=g.group_jid
-            WHERE whatsapp_group_can_view(g.id,$1)
-              AND (r.user_id IS NOT NULL OR EXISTS (SELECT 1 FROM entity_access ea
-                WHERE ea.entity_id=g.id AND ea.entity_type='whatsapp_group'
-                  AND (ea.source_id=$1 OR ea.source_id IN (SELECT team_id::text FROM team_user WHERE user_id=$1)
-                    OR ea.source_id IN (SELECT channel_id::text FROM comms_channel_participants WHERE user_id=$1 AND left_at IS NULL))))
-            ORDER BY g.adopted_at DESC LIMIT 2000"#,user)
-            .fetch_all(&self.pool).await.map_err(failure)?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(VisibleGroup {
-                    summary: WhatsAppGroupSummary {
-                        id: row.id,
-                        name: row.name,
-                        kind: ChatKind::parse(&row.kind).ok_or(LinkedError::Unavailable)?,
-                        user_id: row.user_id.clone(),
-                        unread_count: row.unread_count,
-                        last_message_at: row.last_message_at,
-                        can_send: false,
-                        send_reason: None,
-                        backfill: backfill(row.backfill_state.as_deref(), row.backfill_imported),
-                    },
-                    binding: bindings::binding(bindings::BindingRow {
-                        id: row.id,
-                        group_jid: row.group_jid,
-                        kind: row.kind,
-                        user_id: row.user_id,
-                        state: row.state,
-                        adopted_at: row.adopted_at,
-                    })?,
-                    roster: row.metadata.map(decode).transpose()?,
-                })
-            })
-            .collect()
-    }
-    async fn summary(&self, group: Uuid, user: &str) -> LinkedResult<WhatsAppGroupSummary> {
-        let row = sqlx::query!(r#"SELECT g.id,g.name,g.kind,g.user_id,g.backfill_state,g.backfill_imported,
-            (SELECT count(*) FROM whatsapp_group_message m WHERE m.binding_id = g.id AND m.message_id IS NOT NULL
-              AND m.deleted_at IS NULL AND m.origin <> 'history' AND m.kind <> 'system'
-              AND NOT EXISTS (SELECT 1 FROM whatsapp_external_person p WHERE p.id = m.person_id AND p.user_id = $2)
-              AND (r.message_id IS NULL OR (m.source_at,m.id) > (r.read_at,r.message_id))) AS "unread_count!",
-            (SELECT max(source_at) FROM whatsapp_group_message WHERE binding_id = g.id AND message_id IS NOT NULL) AS last_message_at
-            FROM whatsapp_group g LEFT JOIN whatsapp_group_read_state r ON r.group_id = g.id AND r.user_id = $2
-            WHERE g.id = $1"#,group,user).fetch_optional(&self.pool).await.map_err(failure)?.ok_or(LinkedError::NotFound)?;
-        Ok(WhatsAppGroupSummary {
-            id: row.id,
-            name: row.name,
-            kind: ChatKind::parse(&row.kind).ok_or(LinkedError::Unavailable)?,
-            user_id: row.user_id,
-            unread_count: row.unread_count,
-            last_message_at: row.last_message_at,
-            can_send: false,
-            send_reason: None,
-            backfill: backfill(row.backfill_state.as_deref(), row.backfill_imported),
-        })
-    }
-    async fn messages(
+    /// A newest-first page of the timeline, or only the message `only`.
+    async fn timeline_page(
         &self,
         group: Uuid,
         user: &str,
         before: Option<Uuid>,
+        only: Option<Uuid>,
         limit: i64,
     ) -> LinkedResult<WhatsAppGroupMessages> {
         let rows = sqlx::query!(r#"SELECT m.id,m.person_id,p.user_id,COALESCE(p.display_name,'WhatsApp participant') AS "name!",
@@ -181,7 +113,8 @@ impl TimelineRepository for PgLinkedRepository {
             FROM whatsapp_group_message m JOIN whatsapp_external_person p ON p.id = m.person_id
             WHERE m.binding_id = $1 AND m.message_id IS NOT NULL
               AND ($3::uuid IS NULL OR (m.source_at,m.id) < (SELECT source_at,id FROM whatsapp_group_message WHERE id = $3 AND binding_id = $1 AND message_id IS NOT NULL))
-            ORDER BY m.source_at DESC,m.id DESC LIMIT $4"#,group,user,before,limit+1)
+              AND ($5::uuid IS NULL OR m.id = $5)
+            ORDER BY m.source_at DESC,m.id DESC LIMIT $4"#,group,user,before,limit+1,only)
             .fetch_all(&self.pool).await.map_err(failure)?;
         let more = rows.len() > limit as usize;
         let mut messages = Vec::with_capacity(rows.len());
@@ -296,7 +229,120 @@ impl TimelineRepository for PgLinkedRepository {
             next_cursor,
         })
     }
-    async fn mark_read(&self, group: Uuid, user: &str, message: Uuid) -> LinkedResult<()> {
+
+    /// The chats `user` can see (or just `only`, already authorized), with
+    /// the caller's own roster. Candidates come from the viewer's grants and
+    /// read cursors before the visibility check, so a viewer who sees few
+    /// chats never scans every chat.
+    async fn group_rows(&self, user: &str, only: Option<Uuid>) -> LinkedResult<Vec<VisibleGroup>> {
+        let rows = sqlx::query!(r#"WITH sources AS MATERIALIZED (
+                SELECT array_append(ARRAY(SELECT team_id::text FROM team_user WHERE user_id = $1)
+                    || ARRAY(SELECT channel_id::text FROM comms_channel_participants WHERE user_id = $1 AND left_at IS NULL), $1) AS ids),
+            candidates AS MATERIALIZED (
+                SELECT $2::uuid AS id WHERE $2::uuid IS NOT NULL
+                UNION
+                SELECT ea.entity_id FROM entity_access ea, sources s
+                WHERE $2::uuid IS NULL AND ea.entity_type = 'whatsapp_group' AND ea.source_id = ANY(s.ids)
+                UNION
+                SELECT rs.group_id FROM whatsapp_group_read_state rs WHERE $2::uuid IS NULL AND rs.user_id = $1)
+            SELECT g.id,g.name,g.kind,g.user_id,g.group_jid,g.state,g.adopted_at,g.backfill_state,g.backfill_imported,
+            (SELECT count(*) FROM (SELECT 1 FROM whatsapp_group_message m WHERE m.binding_id=g.id AND m.message_id IS NOT NULL
+              AND m.deleted_at IS NULL AND m.origin<>'history' AND m.kind<>'system'
+              AND NOT EXISTS(SELECT 1 FROM whatsapp_external_person p WHERE p.id=m.person_id AND p.user_id=$1)
+              AND (r.message_id IS NULL OR (m.source_at,m.id)>(r.read_at,r.message_id)) LIMIT $3) unread) AS "unread_count!",
+            (SELECT max(source_at) FROM whatsapp_group_message WHERE binding_id=g.id AND message_id IS NOT NULL) AS last_message_at,
+            roster.metadata AS "metadata?",
+            seen.community_jid AS "community_jid?",seen.community_announcements AS "community_announcements?",parent.name AS "community_name?"
+            FROM candidates c JOIN whatsapp_group g ON g.id=c.id
+            LEFT JOIN whatsapp_group_read_state r ON r.group_id=g.id AND r.user_id=$1
+            LEFT JOIN whatsapp_linked_account a ON a.user_id=$1
+            LEFT JOIN whatsapp_group_roster roster ON roster.account_id=a.id AND roster.group_jid=g.group_jid
+            LEFT JOIN LATERAL (SELECT r.metadata->>'communityJid' AS community_jid,COALESCE((r.metadata->>'communityAnnouncements')::boolean,false) AS community_announcements
+              FROM whatsapp_group_roster r JOIN whatsapp_group_membership m ON m.account_id=r.account_id
+              WHERE m.binding_id=g.id AND m.consent_ended_at IS NULL AND r.group_jid=g.group_jid
+              ORDER BY r.observed_at DESC LIMIT 1) seen ON true
+            LEFT JOIN LATERAL (SELECT r.metadata->>'name' AS name
+              FROM whatsapp_group_roster r JOIN whatsapp_group_membership m ON m.account_id=r.account_id
+              WHERE m.binding_id=g.id AND m.consent_ended_at IS NULL AND r.group_jid=seen.community_jid
+              ORDER BY r.observed_at DESC LIMIT 1) parent ON true
+            -- On the candidate, not the chat: Postgres would otherwise check every chat.
+            WHERE ($2::uuid IS NOT NULL OR whatsapp_group_can_view(c.id,$1))
+            ORDER BY g.adopted_at DESC LIMIT 2000"#,user,only,UNREAD_COUNT_CAP)
+            .fetch_all(&self.pool).await.map_err(failure)?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(VisibleGroup {
+                    facts: GroupFacts {
+                        id: row.id,
+                        name: row.name,
+                        kind: ChatKind::parse(&row.kind)
+                            .ok_or_else(|| corrupt(format_args!("kind {:?}", row.kind)))?,
+                        user_id: row.user_id.clone(),
+                        unread_count: row.unread_count,
+                        last_message_at: row.last_message_at,
+                        backfill: backfill(row.backfill_state.as_deref(), row.backfill_imported),
+                        community: row.community_jid.map(|jid| CommunityFacts {
+                            jid,
+                            name: row.community_name,
+                            announcements: row.community_announcements.unwrap_or(false),
+                        }),
+                    },
+                    binding: bindings::binding(bindings::BindingRow {
+                        id: row.id,
+                        group_jid: row.group_jid,
+                        kind: row.kind,
+                        user_id: row.user_id,
+                        state: row.state,
+                        adopted_at: row.adopted_at,
+                    })?,
+                    roster: row.metadata.map(decode).transpose()?,
+                })
+            })
+            .collect()
+    }
+}
+
+#[async_trait]
+impl TimelineRepository for PgLinkedRepository {
+    async fn visible_groups(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<Vec<VisibleGroup>> {
+        let user = user.as_ref();
+        self.group_rows(user, None).await
+    }
+    async fn group_facts(&self, group: Uuid, user: &str) -> LinkedResult<GroupFacts> {
+        self.group_rows(user, Some(group))
+            .await?
+            .pop()
+            .map(|visible| visible.facts)
+            .ok_or_else(|| LinkedError::NotFound.into())
+    }
+    async fn messages(
+        &self,
+        group: Uuid,
+        user: &str,
+        before: Option<Uuid>,
+        limit: i64,
+    ) -> LinkedResult<WhatsAppGroupMessages> {
+        self.timeline_page(group, user, before, None, limit).await
+    }
+    async fn message(
+        &self,
+        group: Uuid,
+        user: &str,
+        message: Uuid,
+    ) -> LinkedResult<Option<WhatsAppGroupMessage>> {
+        Ok(self
+            .timeline_page(group, user, None, Some(message), 1)
+            .await?
+            .messages
+            .pop())
+    }
+    async fn mark_read(
+        &self,
+        group: Uuid,
+        user: &MacroUserIdStr<'_>,
+        message: Uuid,
+    ) -> LinkedResult<()> {
+        let user = user.as_ref();
         let changed = sqlx::query!(r#"INSERT INTO whatsapp_group_read_state (user_id,group_id,message_id,read_at)
             SELECT $2,$1,id,source_at FROM whatsapp_group_message WHERE id = $3 AND binding_id = $1 AND message_id IS NOT NULL
             ON CONFLICT (user_id,group_id) DO UPDATE SET message_id = excluded.message_id,read_at = excluded.read_at
@@ -347,12 +393,13 @@ impl TimelineRepository for PgLinkedRepository {
     async fn update_permissions(
         &self,
         group: Uuid,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         update: &UpdateSharePermissionRequestV2,
         command: Option<
             &models_permissions::share_permission::team_share::AuthorizedTeamShareCommand,
         >,
     ) -> LinkedResult<()> {
+        let user = user.as_ref();
         let mut tx = self.pool.begin().await.map_err(failure)?;
         share_permission_db_utils::team_share::acquire_guard(&mut tx)
             .await

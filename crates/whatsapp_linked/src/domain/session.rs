@@ -3,7 +3,12 @@
 //! [`SessionService::begin_lease`]; every write is fenced by that epoch, and a
 //! `Fenced` error means the replica must stop the account immediately.
 
-use super::{events::*, models::*, ports::*, service::is_group_jid};
+use super::{
+    events::*,
+    jid::{Jid, JidKind, is_group_jid, is_person_jid},
+    models::*,
+    ports::*,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -46,6 +51,12 @@ impl SessionService {
     #[tracing::instrument(name = "whatsapp.session.release_lease", skip_all, err, fields(account_id = %scope.account_id, lease_epoch = scope.lease_epoch))]
     pub async fn release_lease(&self, scope: SessionScope) -> LinkedResult<()> {
         self.repository.release_lease(scope).await
+    }
+
+    /// Tell other replicas an unlocked account still needs a session. Call
+    /// after unlocking, or the next replica's lock attempt loses the race.
+    pub async fn announce_released(&self, account: Uuid) -> LinkedResult<()> {
+        self.repository.announce_released(account).await
     }
 
     /// Lifecycle of an account, for discovery and stop decisions.
@@ -93,9 +104,13 @@ impl SessionService {
             PairingUpdate::PairCode(code) => ("pair_code", !code.is_empty() && code.len() <= 64),
             PairingUpdate::Passkey { challenge } => (
                 "passkey",
-                challenge.is_object() && challenge.to_string().len() <= 32 * 1024,
+                challenge.is_object() && challenge.to_string().len() <= PASSKEY_LIMIT_BYTES,
             ),
-            PairingUpdate::Success { identity_jid } => ("success", is_user_jid(identity_jid)),
+            PairingUpdate::Success { identity_jid } => (
+                "success",
+                Jid::parse(identity_jid).is_some_and(|jid| jid.kind == JidKind::Phone),
+            ),
+            PairingUpdate::Expired => ("expired", true),
             PairingUpdate::Failed => ("failed", true),
         };
         tracing::Span::current().record("update", name);
@@ -227,23 +242,35 @@ impl SessionService {
     }
 
     /// Record what the account learned about chats in its WhatsApp chat list
-    /// (history sync, live messages, contact and chat-setting updates).
-    #[tracing::instrument(name = "whatsapp.session.update_chats", skip_all, err, fields(account_id = %scope.account_id, count = chats.len()))]
+    /// (history sync, live messages, contact and chat-setting updates). A
+    /// batch is a whole history sync, so a chat whose JID or kind is invalid
+    /// is skipped (counted on the span) rather than refusing the rest.
+    #[tracing::instrument(name = "whatsapp.session.update_chats", skip_all, err, fields(account_id = %scope.account_id, count = chats.len(), skipped))]
     pub async fn update_chats(
         &self,
         scope: SessionScope,
         chats: &[ChatUpdate],
-    ) -> LinkedResult<()> {
+    ) -> LinkedResult<bool> {
         let valid: Vec<ChatUpdate> = chats
             .iter()
             .filter(|chat| match chat.kind {
                 ChatKind::Group => is_group_jid(&chat.jid),
-                ChatKind::Direct => is_user_jid(&chat.jid) || is_lid_jid(&chat.jid),
+                ChatKind::Direct => is_person_jid(&chat.jid),
             })
             .cloned()
             .collect();
+        let skipped = chats.len() - valid.len();
+        tracing::Span::current().record("skipped", skipped);
+        if skipped > 0 {
+            tracing::debug!(
+                account_id = %scope.account_id,
+                skipped,
+                reason = "invalid_chat_jid",
+                "Skipped WhatsApp chats with an invalid JID"
+            );
+        }
         if valid.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
         self.repository.update_chats(scope, &valid).await
     }
@@ -254,6 +281,18 @@ impl SessionService {
         let work = self.repository.backfill_work(scope).await?;
         tracing::Span::current().record("count", work.len());
         Ok(work)
+    }
+
+    /// No message of an added chat is known to start importing from.
+    #[tracing::instrument(name = "whatsapp.session.backfill_waiting_for_message", skip_all, err, fields(account_id = %scope.account_id, group_id = %group))]
+    pub async fn backfill_waiting_for_message(
+        &self,
+        scope: SessionScope,
+        group: Uuid,
+    ) -> LinkedResult<()> {
+        self.repository
+            .backfill_waiting_for_message(scope, group)
+            .await
     }
 
     /// A page of earlier messages was requested from the phone just now.
@@ -277,7 +316,7 @@ impl SessionService {
         page: &HistoryPage,
     ) -> LinkedResult<Vec<(Uuid, BackfillState)>> {
         if !is_group_jid(&page.chat_jid) && !is_person_jid(&page.chat_jid) {
-            return Ok(vec![]);
+            return Err(LinkedError::Invalid("a history page names no WhatsApp chat").into());
         }
         self.repository.backfill_page(scope, page).await
     }
@@ -308,7 +347,7 @@ impl SessionService {
 
     /// Persist an event durably without notification or document work, so the protocol event can
     /// be acknowledged right after; `replay_deferred` ingests it. Idempotent on
-    /// `event_id`. `Unavailable` when the account's backlog is full: do not ack.
+    /// `event_id`. `Backlogged` when the account's backlog is full: do not ack.
     #[tracing::instrument(name = "whatsapp.session.enqueue_inbound", skip_all, err, fields(account_id = %scope.account_id, event_id = %event.event_id))]
     pub async fn enqueue_inbound(
         &self,
@@ -337,6 +376,7 @@ impl SessionService {
                 Err(error) => tracing::warn!(
                     event_id = %event.event_id,
                     code = error.current_context().code(),
+                    error = %error,
                     "Deferred WhatsApp event will retry"
                 ),
             }
@@ -393,22 +433,6 @@ impl SessionService {
             .record_send_outcome(scope, send, &outcome)
             .await
     }
-}
-
-/// Phone-number user JIDs, the form a paired account reports.
-fn is_user_jid(jid: &str) -> bool {
-    jid.len() <= 256
-        && jid
-            .strip_suffix("@s.whatsapp.net")
-            .is_some_and(|user| !user.is_empty() && user.bytes().all(|b| b.is_ascii_digit()))
-}
-
-/// Phone-number or LID JIDs that can identify a person.
-fn is_person_jid(jid: &str) -> bool {
-    is_user_jid(jid)
-        || jid.strip_suffix("@lid").is_some_and(|user| {
-            !user.is_empty() && user.len() <= 64 && user.bytes().all(|b| b.is_ascii_digit())
-        })
 }
 
 pub(crate) fn validate_event(event: &InboundEvent) -> LinkedResult<()> {
@@ -503,11 +527,4 @@ pub(crate) fn validate_event(event: &InboundEvent) -> LinkedResult<()> {
             Ok(())
         }
     }
-}
-
-fn is_lid_jid(jid: &str) -> bool {
-    jid.len() <= 256
-        && jid
-            .strip_suffix("@lid")
-            .is_some_and(|user| !user.is_empty() && user.bytes().all(|b| b.is_ascii_digit()))
 }

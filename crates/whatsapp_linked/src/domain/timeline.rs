@@ -2,6 +2,7 @@
 use super::{models::*, ports::LinkedResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 use models_permissions::share_permission::{SharePermissionV2, UpdateSharePermissionRequestV2};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -11,6 +12,7 @@ pub mod view;
 
 /// Adopted group visible through ordinary entity sharing.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct WhatsAppGroupSummary {
     /// Entity identifier.
@@ -21,7 +23,8 @@ pub struct WhatsAppGroupSummary {
     pub kind: ChatKind,
     /// Actual entity owner.
     pub user_id: String,
-    /// Unread live messages for this viewer.
+    /// Unread live messages for this viewer, counted up to
+    /// [`UNREAD_COUNT_CAP`].
     pub unread_count: i64,
     /// Latest message timestamp.
     pub last_message_at: Option<DateTime<Utc>>,
@@ -29,12 +32,15 @@ pub struct WhatsAppGroupSummary {
     pub can_send: bool,
     /// Reason sending is blocked.
     pub send_reason: Option<ReplyBlock>,
-    /// Importing earlier messages after the group was added; `null` for
-    /// groups added before this existed.
+    /// Importing earlier messages after the chat was added; `null` when
+    /// there is nothing to import.
     pub backfill: Option<Backfill>,
+    /// The WhatsApp community this group belongs to, if any.
+    pub community: Option<CommunityReference>,
 }
 /// Full group detail and current viewer capabilities.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct WhatsAppGroupDetail {
     /// List metadata.
@@ -45,19 +51,68 @@ pub struct WhatsAppGroupDetail {
     /// Caller's effective permission.
     pub access_level: models_permissions::share_permission::access_level::AccessLevel,
     /// Latest remote metadata, absent when no observer is connected.
-    pub roster: Option<GroupInfo>,
+    pub roster: Option<WhatsAppRoster>,
     /// WhatsApp's disappearing-messages timer in seconds while it is on;
     /// Macro keeps the messages anyway. `null` when off or unknown.
     pub disappearing_seconds: Option<u32>,
-    /// The WhatsApp community this group belongs to, if any.
-    pub community: Option<CommunityReference>,
     /// Caller's own phone identity, never another account's identity.
     pub sending_identity: Option<String>,
     /// Size and mutation limits.
     pub limits: Capabilities,
 }
+/// A chat's WhatsApp metadata as the caller's account last read it.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+pub struct WhatsAppRoster {
+    /// WhatsApp subject.
+    pub name: String,
+    /// Everyone in the chat.
+    pub participants: Vec<WhatsAppParticipant>,
+    /// Only admins may post.
+    pub announce: bool,
+    /// When this was read from WhatsApp.
+    pub observed_at: DateTime<Utc>,
+}
+
+/// Someone in a WhatsApp chat; Macro access is a separate grant.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
+pub struct WhatsAppParticipant {
+    /// Phone-number or LID JID.
+    pub jid: String,
+    /// The other address WhatsApp verified for them.
+    pub alternate_jid: Option<String>,
+    /// Their WhatsApp name, untrusted.
+    pub display_name: Option<String>,
+    /// Group admin.
+    pub admin: bool,
+}
+
+impl From<&GroupInfo> for WhatsAppRoster {
+    fn from(info: &GroupInfo) -> Self {
+        Self {
+            name: info.name.clone(),
+            participants: info
+                .participants
+                .iter()
+                .map(|participant| WhatsAppParticipant {
+                    jid: participant.identity.jid.clone(),
+                    alternate_jid: participant.identity.alternate_jid.clone(),
+                    display_name: participant.identity.display_name.clone(),
+                    admin: participant.admin,
+                })
+                .collect(),
+            announce: info.announce,
+            observed_at: info.observed_at,
+        }
+    }
+}
+
 /// Message sender from protocol-verified identity evidence.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct WhatsAppGroupSender {
     /// External person identity.
@@ -69,6 +124,7 @@ pub struct WhatsAppGroupSender {
 }
 /// Grouped reactions.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct WhatsAppGroupReaction {
     /// Emoji.
@@ -80,6 +136,7 @@ pub struct WhatsAppGroupReaction {
 }
 /// One message in an adopted group.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct WhatsAppGroupMessage {
     /// Stable message id.
@@ -219,6 +276,7 @@ pub enum WhatsAppRichContent {
 
 /// Newest-first timeline page; `before` is the last returned message id.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct WhatsAppGroupMessages {
     /// Messages in descending sent_at, id order.
@@ -228,6 +286,7 @@ pub struct WhatsAppGroupMessages {
 }
 /// Mark messages through this message read.
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct MarkRead {
     /// Message in the addressed group.
@@ -235,15 +294,76 @@ pub struct MarkRead {
 }
 /// Adoption response.
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 pub struct AdoptedGroup {
     /// Shareable entity identifier.
     pub group_id: Uuid,
 }
+/// Most unread messages counted per chat; the list shows more as this many.
+pub const UNREAD_COUNT_CAP: i64 = 100;
+
+/// What the store knows about one chat for one viewer; the domain turns it
+/// into a [`WhatsAppGroupSummary`] for both the list and the detail.
+#[derive(Debug, Clone)]
+pub struct GroupFacts {
+    /// Entity identifier.
+    pub id: Uuid,
+    /// Display name.
+    pub name: String,
+    /// Group or direct chat.
+    pub kind: ChatKind,
+    /// Owner.
+    pub user_id: String,
+    /// Unread live messages for this viewer, at most [`UNREAD_COUNT_CAP`].
+    pub unread_count: i64,
+    /// Latest message timestamp.
+    pub last_message_at: Option<DateTime<Utc>>,
+    /// History import progress.
+    pub backfill: Option<Backfill>,
+    /// The community the newest roster any observer reported names.
+    pub community: Option<CommunityFacts>,
+}
+
+/// A chat's community as its observers' rosters report it.
+#[derive(Debug, Clone)]
+pub struct CommunityFacts {
+    /// The community's JID.
+    pub jid: String,
+    /// The community's own name, when an observer has its metadata.
+    pub name: Option<String>,
+    /// The chat is the community's announcement group.
+    pub announcements: bool,
+}
+
+impl GroupFacts {
+    /// The chat as the list and the detail show it.
+    pub fn summary(self, send_reason: Option<ReplyBlock>) -> WhatsAppGroupSummary {
+        WhatsAppGroupSummary {
+            id: self.id,
+            name: self.name,
+            kind: self.kind,
+            user_id: self.user_id,
+            unread_count: self.unread_count,
+            last_message_at: self.last_message_at,
+            can_send: send_reason.is_none(),
+            send_reason,
+            backfill: self.backfill,
+            community: self.community.map(|community| {
+                CommunityReference::named(
+                    community.jid,
+                    community.name.as_deref(),
+                    community.announcements,
+                )
+            }),
+        }
+    }
+}
+
 /// Batched facts for one visible entity and the caller's own remote roster.
 pub struct VisibleGroup {
-    /// Shared entity metadata.
-    pub summary: WhatsAppGroupSummary,
+    /// Shared entity facts.
+    pub facts: GroupFacts,
     /// Lifecycle and remote group identity.
     pub binding: Binding,
     /// Caller-account roster, absent when not connected or not a remote member.
@@ -254,19 +374,32 @@ pub struct VisibleGroup {
 #[async_trait]
 pub trait TimelineRepository: Send + Sync {
     /// Candidate list already filtered by generic sharing.
-    async fn visible_groups(&self, user: &str) -> LinkedResult<Vec<VisibleGroup>>;
-    /// Metadata for an authorized group.
-    async fn summary(&self, group: Uuid, user: &str) -> LinkedResult<WhatsAppGroupSummary>;
-    /// Bounded, stable pagination.
+    async fn visible_groups(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<Vec<VisibleGroup>>;
+    /// Facts for an authorized group, for a viewer principal (a person or a
+    /// bot, whose id is not a Macro user id).
+    async fn group_facts(&self, group: Uuid, viewer: &str) -> LinkedResult<GroupFacts>;
+    /// Bounded, stable pagination for a viewer principal.
     async fn messages(
         &self,
         group: Uuid,
-        user: &str,
+        viewer: &str,
         before: Option<Uuid>,
         limit: i64,
     ) -> LinkedResult<WhatsAppGroupMessages>;
+    /// One message of the timeline, shaped like a page entry.
+    async fn message(
+        &self,
+        group: Uuid,
+        viewer: &str,
+        message: Uuid,
+    ) -> LinkedResult<Option<WhatsAppGroupMessage>>;
     /// Monotone viewer read cursor, scoped to this group.
-    async fn mark_read(&self, group: Uuid, user: &str, message: Uuid) -> LinkedResult<()>;
+    async fn mark_read(
+        &self,
+        group: Uuid,
+        user: &MacroUserIdStr<'_>,
+        message: Uuid,
+    ) -> LinkedResult<()>;
     /// Standard permission object.
     async fn permissions(&self, group: Uuid) -> LinkedResult<SharePermissionV2>;
     /// Guarded canonical team-sharing facts for domain authorization.
@@ -278,7 +411,7 @@ pub trait TimelineRepository: Send + Sync {
     async fn update_permissions(
         &self,
         group: Uuid,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         update: &UpdateSharePermissionRequestV2,
         command: Option<
             &models_permissions::share_permission::team_share::AuthorizedTeamShareCommand,

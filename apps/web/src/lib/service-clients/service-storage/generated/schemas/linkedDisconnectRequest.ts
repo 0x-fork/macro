@@ -10,5 +10,5 @@
  */
 export interface LinkedDisconnectRequest {
   /** Fences retries against a later reconnect or replacement. */
-  authorization_generation: number;
+  authorizationGeneration: number;
 }

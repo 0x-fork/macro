@@ -110,14 +110,19 @@ them apart.
 An account paired before the list existed only gets groups and chats with new
 messages: WhatsApp sends the full list once, at pairing.
 
-Adding a group sets `backfill_state = 'pending'`. The owner's account then
+Adding a group sets `backfill_state = 'pending'` when a message of the chat is
+known to start from (the chat list's anchor, or a stored message the account
+saw), else `waiting_for_message`: nothing to import from until someone posts.
+The chat's first message (live, history sync or chat-list update) makes it
+`pending` and starts the import at once. The owner's account then
 imports the chat's earlier messages from the phone, on demand only: it asks for
 the anchor message itself when it predates adoption (a placeholder resend) and
 for pages of 50 messages before the oldest imported one (history sync on
 demand), until the phone has nothing older (`done`) or 500 messages / 90 days
 (`partial`). An unanswered request (60 s) means `waiting_for_phone`, retried
-every 5 minutes and at once on reconnect; a chat without an anchor waits for its
-first live message. Imported messages are ingested as history (origin
+every 5 minutes and at once on reconnect. WhatsApp's group info carries no
+message id, so a quiet chat of an account paired before the chat list existed
+has no other anchor. Imported messages are ingested as history (origin
 `history`): no notifications, no unread, deduplicated with live messages by
 source id, and only into the owner's own groups, which replaces the
 adoption-time boundary for them.

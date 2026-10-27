@@ -1,6 +1,6 @@
 # Type Alias: WhatsAppGroupSummary
 
-> **WhatsAppGroupSummary** = \{ `backfill?`: `null` \| [`LinkedBackfill`](LinkedBackfill.md); `can_send`: `boolean`; `id`: `string`; `kind`: [`LinkedChatKind`](LinkedChatKind.md); `last_message_at?`: `string` \| `null`; `name`: `string`; `send_reason?`: `null` \| [`LinkedReplyBlock`](LinkedReplyBlock.md); `unread_count`: `number`; `user_id`: `string`; \}
+> **WhatsAppGroupSummary** = \{ `backfill?`: `null` \| [`LinkedBackfill`](LinkedBackfill.md); `canSend`: `boolean`; `community?`: `null` \| [`LinkedCommunityReference`](LinkedCommunityReference.md); `id`: `string`; `kind`: [`LinkedChatKind`](LinkedChatKind.md); `lastMessageAt?`: `string` \| `null`; `name`: `string`; `sendReason?`: `null` \| [`LinkedReplyBlock`](LinkedReplyBlock.md); `unreadCount`: `number`; `userId`: `string`; \}
 
 Adopted group visible through ordinary entity sharing.
 
@@ -9,11 +9,12 @@ Adopted group visible through ordinary entity sharing.
 | Property | Type | Description |
 | ------ | ------ | ------ |
 | <a id="property-backfill"></a> `backfill?` | `null` \| [`LinkedBackfill`](LinkedBackfill.md) | - |
-| <a id="property-can_send"></a> `can_send` | `boolean` | Caller may currently send from their own account. |
+| <a id="property-cansend"></a> `canSend` | `boolean` | Caller may currently send from their own account. |
+| <a id="property-community"></a> `community?` | `null` \| [`LinkedCommunityReference`](LinkedCommunityReference.md) | - |
 | <a id="property-id"></a> `id` | `string` | Entity identifier. |
 | <a id="property-kind"></a> `kind` | [`LinkedChatKind`](LinkedChatKind.md) | A group, or a direct chat with one person (only its owner sends). |
-| <a id="property-last_message_at"></a> `last_message_at?` | `string` \| `null` | Latest message timestamp. |
+| <a id="property-lastmessageat"></a> `lastMessageAt?` | `string` \| `null` | Latest message timestamp. |
 | <a id="property-name"></a> `name` | `string` | Display name: the group's, or a direct chat's other person. |
-| <a id="property-send_reason"></a> `send_reason?` | `null` \| [`LinkedReplyBlock`](LinkedReplyBlock.md) | - |
-| <a id="property-unread_count"></a> `unread_count` | `number` | Unread live messages for this viewer. |
-| <a id="property-user_id"></a> `user_id` | `string` | Actual entity owner. |
+| <a id="property-sendreason"></a> `sendReason?` | `null` \| [`LinkedReplyBlock`](LinkedReplyBlock.md) | - |
+| <a id="property-unreadcount"></a> `unreadCount` | `number` | Unread live messages for this viewer, counted up to [`UNREAD_COUNT_CAP`]. |
+| <a id="property-userid"></a> `userId` | `string` | Actual entity owner. |

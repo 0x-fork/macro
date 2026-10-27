@@ -1,4 +1,11 @@
 use super::*;
+
+/// A test person's typed id.
+fn person(name: &str) -> MacroUserIdStr<'static> {
+    format!("macro|{name}@example.com")
+        .try_into()
+        .expect("test user ids are valid")
+}
 use rate_limit::outbound::redis::RedisRateLimitOps;
 use std::{
     collections::HashMap,
@@ -47,14 +54,15 @@ async fn a_users_budget_is_shared_across_replicas_and_recovers_after_one_second(
     let counter = Counter::default();
     let first_replica = limiter(counter.clone());
     let second_replica = limiter(counter.clone());
-    let (first, second) = tokio::join!(first_replica.check("alice"), second_replica.check("alice"));
+    let alice = person("alice");
+    let (first, second) = tokio::join!(first_replica.check(&alice), second_replica.check(&alice));
     assert_eq!(usize::from(first.is_ok()) + usize::from(second.is_ok()), 1);
     let denied = first.err().or_else(|| second.err()).unwrap();
     assert_eq!(denied.current_context(), &LinkedError::RateLimited);
-    second_replica.check("bob").await.unwrap();
+    second_replica.check(&person("bob")).await.unwrap();
     assert_eq!(counter.windows.lock().unwrap().len(), 2);
     counter.now.store(1, Ordering::Relaxed);
-    second_replica.check("alice").await.unwrap();
+    second_replica.check(&person("alice")).await.unwrap();
 }
 
 struct Unavailable;
@@ -80,7 +88,11 @@ async fn unavailable_shared_counter_fails_closed() {
         repo: rate_limit::RedisRateLimitAdapter { redis: Unavailable },
     });
     assert_eq!(
-        limiter.check("alice").await.unwrap_err().current_context(),
+        limiter
+            .check(&person("alice"))
+            .await
+            .unwrap_err()
+            .current_context(),
         &LinkedError::Unavailable
     );
 }
@@ -99,6 +111,7 @@ async fn redis_enforces_the_shared_budget_without_affecting_another_user() {
     });
     let alice = format!("whatsapp-rate-test-{}", uuid::Uuid::now_v7());
     let bob = format!("whatsapp-rate-test-{}", uuid::Uuid::now_v7());
+    let (alice, bob) = (person(&alice), person(&bob));
     let (one, two, other) = tokio::join!(
         first.check(&alice),
         second.check(&alice),

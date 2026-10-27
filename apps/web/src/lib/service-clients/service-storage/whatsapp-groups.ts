@@ -7,6 +7,7 @@ import type {
   LinkedSendProgress,
   LinkedSendReply,
   LinkedUploadedAttachment,
+  MarkRead,
   SharePermissionV2,
   UpdateSharePermissionRequestV2,
   WhatsAppGroupDetail,
@@ -52,7 +53,7 @@ export const whatsappGroupsClient = {
   markRead: (id: string, messageId: string) =>
     dssFetch(`${group(id)}/read`, {
       method: 'POST',
-      body: JSON.stringify({ message_id: messageId }),
+      body: JSON.stringify({ messageId } satisfies MarkRead),
     }),
   stopSync: (id: string) => dssFetch(group(id), { method: 'DELETE' }),
   permissions: (id: string) =>

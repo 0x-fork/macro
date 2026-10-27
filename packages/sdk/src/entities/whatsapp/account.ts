@@ -28,10 +28,10 @@ export class WhatsAppAccount extends MacroEntity<LinkedAccount> {
   readonly state = this.field('state');
 
   /** Verified remote identity, absent until pairing succeeds. */
-  readonly identity = this.field('identity_jid');
+  readonly identity = this.field('identityJid');
 
   /** The Macro user who owns this account. */
-  readonly owner = this.mappedField('user_id', (id) =>
+  readonly owner = this.mappedField('userId', (id) =>
     User.byId(this.client, id),
   );
 

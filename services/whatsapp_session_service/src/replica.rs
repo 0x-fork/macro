@@ -174,7 +174,7 @@ pub async fn start<Kms: WhatsAppKms + 'static>(
     );
     let supervisor = Supervisor::new(
         locks,
-        PgAccountDirectory::new(deps.pool, sessions),
+        PgAccountDirectory::new(sessions),
         Arc::new(runner),
         SupervisorConfig {
             max_accounts: deps.max_accounts,

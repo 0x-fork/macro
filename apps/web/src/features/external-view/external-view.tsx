@@ -15,6 +15,7 @@ import { useSearchParams } from '@solidjs/router';
 import { createSignal, Show } from 'solid-js';
 import { z } from 'zod';
 import { whatsappGroupApi } from '../whatsapp-group/queries/production-api';
+import { createOpenSections } from '../whatsapp-linked/primitives/open-sections';
 import { WhatsAppLinked } from '../whatsapp-linked/whatsapp-linked';
 import { InMacroGroups, UnreadCount } from './components/in-macro-section';
 
@@ -62,12 +63,18 @@ export function ExternalView() {
       'external-view'
     );
   const [groupsOpen, setGroupsOpen] = createSignal(true);
+  const sections = createOpenSections(
+    'macro:whatsapp:sidebar-sections:v2',
+    userId
+  );
   const inMacroGroups = () => (
     <InMacroGroups
       groups={inMacro()}
       isPending={groups.isPending}
       isError={groups.isError}
       activeGroupId={params.groupId}
+      isOpen={sections.isOpen}
+      onOpenChange={sections.setOpen}
       onOpenGroup={openGroup}
       onRetry={() => fireAndForget(groups.refetch(), 'external-view')}
     />
@@ -94,7 +101,7 @@ export function ExternalView() {
               id="external-whatsapp-groups"
               class="px-2 pt-4 pb-1 text-xs font-semibold tracking-tight text-ink-extra-muted"
             >
-              Groups
+              In Macro
             </h2>
             {inMacroGroups()}
           </section>

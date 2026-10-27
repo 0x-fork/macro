@@ -38,7 +38,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
     assert_eq!(detail.group.unread_count, 1);
     assert_eq!(detail.group.send_reason, Some(ReplyBlock::NoAccount));
     assert!(detail.sending_identity.is_none());
-    let messages = linked.messages(&receipt, None, 50).await.unwrap();
+    let messages = linked.messages(&receipt, None, Some(50)).await.unwrap();
     assert_eq!(messages.messages[0].body, "Shared history");
     let bot_access = EntityAccessReceipt::<MessageView>::try_new_bot(
         "bot|00000000-0000-0000-0000-000000000123"
@@ -59,7 +59,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
     .unwrap();
     assert_eq!(
         linked
-            .messages(&bot_access, None, 50)
+            .messages(&bot_access, None, Some(50))
             .await
             .unwrap()
             .messages[0]
@@ -81,7 +81,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
         .unwrap();
     assert_eq!(
         repository
-            .summary(binding.id, CAROL)
+            .group_facts(binding.id, CAROL)
             .await
             .unwrap()
             .unread_count,
@@ -152,10 +152,10 @@ async fn timeline_cursor_and_read_cursor_are_group_scoped_and_monotone(pool: PgP
     session.ingest_event(alice, &early).await.unwrap();
     session.ingest_event(alice, &late).await.unwrap();
     let receipt = receipt::<MessageView>(BOB, binding.id);
-    let page = linked.messages(&receipt, None, 1).await.unwrap();
+    let page = linked.messages(&receipt, None, Some(1)).await.unwrap();
     assert_eq!(page.messages[0].body, "newer");
     let next = linked
-        .messages(&receipt, page.next_cursor, 1)
+        .messages(&receipt, page.next_cursor, Some(1))
         .await
         .unwrap();
     assert_eq!(next.messages[0].body, "older");
@@ -170,7 +170,7 @@ async fn timeline_cursor_and_read_cursor_are_group_scoped_and_monotone(pool: PgP
         .unwrap();
     assert_eq!(
         repository
-            .summary(binding.id, BOB)
+            .group_facts(binding.id, BOB)
             .await
             .unwrap()
             .unread_count,
@@ -178,7 +178,7 @@ async fn timeline_cursor_and_read_cursor_are_group_scoped_and_monotone(pool: PgP
     );
     assert!(
         repository
-            .mark_read(Uuid::now_v7(), BOB, page.messages[0].id)
+            .mark_read(Uuid::now_v7(), &person(BOB), page.messages[0].id)
             .await
             .is_err()
     );
@@ -258,12 +258,18 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
             .await
             .is_err()
     );
-    assert!(linked.adopted_groups(CAROL).await.unwrap().is_empty());
+    assert!(
+        linked
+            .adopted_groups(&person(CAROL))
+            .await
+            .unwrap()
+            .is_empty()
+    );
     linked
         .update_permissions(&owner, &update, SendAuthority::Human)
         .await
         .unwrap();
-    let shared = linked.adopted_groups(CAROL).await.unwrap();
+    let shared = linked.adopted_groups(&person(CAROL)).await.unwrap();
     assert_eq!(shared[0].id, binding.id);
     assert_eq!(shared[0].send_reason, Some(ReplyBlock::NoAccount));
     assert_eq!(
@@ -285,7 +291,13 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
         )
         .await
         .unwrap();
-    assert!(linked.adopted_groups(CAROL).await.unwrap().is_empty());
+    assert!(
+        linked
+            .adopted_groups(&person(CAROL))
+            .await
+            .unwrap()
+            .is_empty()
+    );
     session
         .ingest_event(alice, &text(50, CUSTOMER_JID, "PUBLIC", "Link sharing"))
         .await
@@ -316,7 +328,13 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
         .await
         .unwrap();
     // Public links grant known-ID access, never global group discovery.
-    assert!(linked.adopted_groups(CAROL).await.unwrap().is_empty());
+    assert!(
+        linked
+            .adopted_groups(&person(CAROL))
+            .await
+            .unwrap()
+            .is_empty()
+    );
     use entity_access::domain::ports::EntityAccessService;
     let access = entity_access::domain::service::EntityAccessServiceImpl::new(
         entity_access::outbound::PgAccessRepository::new(pool.clone()),
@@ -342,12 +360,15 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
         )
         .await
         .unwrap();
-    let page = linked.messages(&shared, None, 50).await.unwrap();
+    let page = linked.messages(&shared, None, Some(50)).await.unwrap();
     linked
         .mark_read(&shared, page.messages[0].id)
         .await
         .unwrap();
-    assert_eq!(linked.adopted_groups(CAROL).await.unwrap().len(), 1);
+    assert_eq!(
+        linked.adopted_groups(&person(CAROL)).await.unwrap().len(),
+        1
+    );
     linked
         .update_permissions(
             &owner,
@@ -397,7 +418,13 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
             .unwrap(),
         None
     );
-    assert!(linked.adopted_groups(CAROL).await.unwrap().is_empty());
+    assert!(
+        linked
+            .adopted_groups(&person(CAROL))
+            .await
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -456,7 +483,13 @@ async fn a_group_mentioned_in_a_channel_is_readable_by_its_current_members(pool:
     .execute(&pool)
     .await
     .unwrap();
-    assert!(linked.adopted_groups(CAROL).await.unwrap().is_empty());
+    assert!(
+        linked
+            .adopted_groups(&person(CAROL))
+            .await
+            .unwrap()
+            .is_empty()
+    );
     // What mentioning the group in the channel writes.
     let mut tx = pool.begin().await.unwrap();
     entity_access_db_utils::channel_share::insert_if_absent(
@@ -469,7 +502,7 @@ async fn a_group_mentioned_in_a_channel_is_readable_by_its_current_members(pool:
     .await
     .unwrap();
     tx.commit().await.unwrap();
-    let listed = linked.adopted_groups(CAROL).await.unwrap();
+    let listed = linked.adopted_groups(&person(CAROL)).await.unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].id, binding.id);
     assert_eq!(listed[0].send_reason, Some(ReplyBlock::NoAccount));
@@ -482,7 +515,11 @@ async fn a_group_mentioned_in_a_channel_is_readable_by_its_current_members(pool:
     .await
     .unwrap();
     assert!(
-        linked.adopted_groups(CAROL).await.unwrap().is_empty(),
+        linked
+            .adopted_groups(&person(CAROL))
+            .await
+            .unwrap()
+            .is_empty(),
         "leaving the channel ends access"
     );
 }
@@ -578,4 +615,22 @@ async fn the_owner_sees_and_revokes_channel_grants(pool: PgPool) {
             .channel_share_permissions,
         Some(vec![])
     );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn one_message_reads_like_its_timeline_entry(pool: PgPool) {
+    let (linked, session, _, binding, alice, _) = adopted(&pool).await;
+    for (event, source) in [(1, "ONE"), (2, "TWO")] {
+        session
+            .ingest_event(alice, &text(event, CUSTOMER_JID, source, source))
+            .await
+            .unwrap();
+    }
+    let viewer = receipt::<MessageView>(BOB, binding.id);
+    let page = linked.messages(&viewer, None, Some(50)).await.unwrap();
+    let older = page.messages.last().unwrap();
+    let one = linked.message(&viewer, older.id).await.unwrap();
+    assert_eq!((one.id, one.body.as_str()), (older.id, older.body.as_str()));
+    let missing = linked.message(&viewer, Uuid::now_v7()).await.unwrap_err();
+    assert_eq!(missing.current_context(), &LinkedError::NotFound);
 }

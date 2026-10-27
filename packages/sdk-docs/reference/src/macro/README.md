@@ -628,6 +628,12 @@ Re-exports [WhatsAppChat](../entities/whatsapp/chat/classes/WhatsAppChat.md)
 
 ***
 
+### WhatsAppCommunity
+
+Re-exports [WhatsAppCommunity](../entities/whatsapp/chat/type-aliases/WhatsAppCommunity.md)
+
+***
+
 ### WhatsAppGroup
 
 Re-exports [WhatsAppGroup](../entities/whatsapp/group/classes/WhatsAppGroup.md)

@@ -24,6 +24,7 @@ import type { UseQueryResult } from '@tanstack/solid-query';
 import { ResultAsync } from 'neverthrow';
 import { type Accessor, createMemo, createSignal } from 'solid-js';
 import type {
+  OpenSections,
   PasskeyCapability,
   RequestFailure,
   SourceRead,
@@ -94,6 +95,7 @@ function pageLoad(
 /** The WhatsApp page's capabilities, from the shared linked-device queries. */
 export function createWhatsAppLinkedCapabilities(host: {
   openGroup: (groupId: string) => void;
+  sections: OpenSections;
 }): WhatsAppLinkedCapabilities {
   const user = useUserId();
   const currentUser = () => user() ?? '';
@@ -128,6 +130,7 @@ export function createWhatsAppLinkedCapabilities(host: {
   const [chatsRead, setChatsRead] = createSignal<SourceRead<WhatsAppChat[]>>();
   traceWhatsappLoad('page.load', () => pageLoad(account, chatsRead()));
   return {
+    sections: host.sections,
     features: sourceRead(useWhatsappLinkedConfigurationQuery(), (features) => ({
       pairing: features.pairing,
       adoption: features.adoption,
@@ -154,7 +157,7 @@ export function createWhatsAppLinkedCapabilities(host: {
       ),
     connect: () =>
       ResultAsync.fromPromise(connect.mutateAsync(), failure).map(
-        (pairing) => ({ pairingId: pairing.id, expiresAt: pairing.expires_at })
+        (pairing) => ({ pairingId: pairing.id, expiresAt: pairing.expiresAt })
       ),
     cancelPairing: (pairingId) =>
       ResultAsync.fromPromise(cancel.mutateAsync(pairingId), failure).map(
@@ -164,17 +167,17 @@ export function createWhatsAppLinkedCapabilities(host: {
     disconnect: (generation) =>
       ResultAsync.fromPromise(disconnect.mutateAsync(generation), failure).map(
         (result) => ({
-          remoteUnlinkRequested: result.remote_unlink_requested,
+          remoteUnlinkRequested: result.remoteUnlinkRequested,
         })
       ),
     adopt: (groupJid) =>
       ResultAsync.fromPromise(
-        adopt.mutateAsync({ group_jid: groupJid }),
+        adopt.mutateAsync({ groupJid }),
         (error): AdoptFailure => ({
           kind: 'adopt-failed',
           ...decodeAdoptRefusal(error),
         })
-      ).map((binding) => ({ groupId: binding.group_id })),
+      ).map((binding) => ({ groupId: binding.groupId })),
     isConnecting: () => connect.isPending,
     isDisconnecting: () => disconnect.isPending,
     openGroup: host.openGroup,

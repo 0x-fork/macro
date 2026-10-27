@@ -12,13 +12,13 @@ import type { LinkedAccountState } from './linkedAccountState';
  */
 export interface LinkedAccount {
   /** Explicit consent generation; reconnecting a socket never changes it. */
-  authorization_generation: number;
+  authorizationGeneration: number;
   /** Stable account identity. */
   id: string;
   /** WhatsApp-verified identity, absent until the first pairing succeeds. */
-  identity_jid?: LinkedAccountIdentityJid;
+  identityJid?: LinkedAccountIdentityJid;
   /** Lifecycle. */
   state: LinkedAccountState;
   /** Authenticated owner. */
-  user_id: string;
+  userId: string;
 }

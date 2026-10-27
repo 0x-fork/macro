@@ -15,25 +15,25 @@ afterEach(() => {
 
 const account = {
   id: 'account',
-  user_id: 'owner',
+  userId: 'owner',
   state: 'connected',
-  identity_jid: '15550000001@s.whatsapp.net',
-  authorization_generation: 1,
+  identityJid: '15550000001@s.whatsapp.net',
+  authorizationGeneration: 1,
 };
 const summary = {
   id: 'group',
   name: 'Support',
   kind: 'group',
-  user_id: 'owner',
-  unread_count: 1,
-  last_message_at: '2026-10-21',
-  can_send: true,
-  send_reason: null,
+  userId: 'owner',
+  unreadCount: 1,
+  lastMessageAt: '2026-10-21',
+  canSend: true,
+  sendReason: null,
 };
 const remote = { jid: '12036301@g.us' };
 const roster = {
   name: 'Remote support',
-  observed_at: '2026-10-21',
+  observedAt: '2026-10-21',
   announce: false,
   participants: [
     {
@@ -47,50 +47,50 @@ const roster = {
 const detail = {
   ...summary,
   roster,
-  disappearing_seconds: 604800,
+  disappearingSeconds: 604800,
   community: { id: '12036399@g.us', name: 'Neighbours', announcements: false },
-  sending_identity: account.identity_jid,
-  access_level: 'owner',
-  share_permission: {
+  sendingIdentity: account.identityJid,
+  accessLevel: 'owner',
+  sharePermission: {
     id: 'permission',
     owner: 'owner',
     linkShare: null,
     teamShareAccessLevel: null,
   },
   limits: {
-    text_limit_bytes: 16384,
-    mutation_window_seconds: 600,
-    max_attachments: 1,
-    attachment_limit_bytes: 33554432,
-    attachment_types: ['text/plain'],
+    textLimitBytes: 16384,
+    mutationWindowSeconds: 600,
+    maxAttachments: 1,
+    attachmentLimitBytes: 33554432,
+    attachmentTypes: ['text/plain'],
     mutations: ['reaction', 'edit', 'delete'],
   },
 };
 const progress = {
   id: 'intent',
-  group_id: 'group',
-  user_id: 'owner',
+  groupId: 'group',
+  userId: 'owner',
   state: 'unknown',
-  message_id: null,
-  error_code: null,
-  created_at: '2026-10-21',
+  messageId: null,
+  errorCode: null,
+  createdAt: '2026-10-21',
   payload: {
-    idempotency_key: 'stable',
+    idempotencyKey: 'stable',
     message: { type: 'text', text: 'hello' },
   },
 };
 const message = {
   id: 'message',
-  sender: { person_id: 'person', user_id: null, name: 'Customer' },
+  sender: { personId: 'person', userId: null, name: 'Customer' },
   body: 'hello',
-  reply_to: null,
-  sent_at: '2026-10-21',
-  received_at: '2026-10-21',
-  edited_at: null,
+  replyTo: null,
+  sentAt: '2026-10-21',
+  receivedAt: '2026-10-21',
+  editedAt: null,
   deleted: false,
   reactions: [],
   attachments: [],
-  delivery_state: null,
+  deliveryState: null,
 };
 
 function fixture(handler: (request: Request) => Response | Promise<Response>) {
@@ -145,7 +145,7 @@ test('the chat list shows a group someone else shared instead of adding it again
           shared: {
             id: 'theirs',
             name: 'Remote support',
-            owner_id: 'macro|ana@example.com',
+            ownerId: 'macro|ana@example.com',
           },
           canAdd: false,
           cannotAddReason: null,
@@ -177,7 +177,7 @@ test('the chat list lists groups and direct chats and adds a group by its handle
   const { macro, requests } = fixture((request) =>
     Response.json(
       request.method === 'POST'
-        ? { group_id: 'group' }
+        ? { groupId: 'group' }
         : {
             chats: [
               {
@@ -227,7 +227,7 @@ test('the chat list lists groups and direct chats and adds a group by its handle
     '/meta/linked/chats',
     '/meta/linked/groups/adopt',
   ]);
-  expect(await requests[1].json()).toEqual({ group_jid: remote.jid });
+  expect(await requests[1].json()).toEqual({ groupJid: remote.jid });
 });
 
 test('account access stays owner-scoped and no account normalizes to undefined', async () => {
@@ -242,8 +242,8 @@ test('timeline pagination is lazy and messages use their own group-scoped handle
   const { group, requests } = fixture((request) =>
     Response.json(
       new URL(request.url).searchParams.has('before')
-        ? { messages: [{ ...message, id: 'older' }], next_cursor: null }
-        : { messages: [message], next_cursor: 'message' },
+        ? { messages: [{ ...message, id: 'older' }], nextCursor: null }
+        : { messages: [message], nextCursor: 'message' },
     ),
   );
   const iterator = group.messages({ limit: 1 });
@@ -265,7 +265,7 @@ test('read cursors and permission changes use standalone routes and reject cross
     () => new Response(null, { status: 204 }),
   );
   await group.markRead(WhatsAppMessage.byId(macro._client, group, 'message'));
-  expect(await requests[0].json()).toEqual({ message_id: 'message' });
+  expect(await requests[0].json()).toEqual({ messageId: 'message' });
   await group.updatePermissions({ teamShareAccessLevel: 'view' });
   expect(requests[1].method).toBe('PATCH');
   expect(new URL(requests[1].url).pathname).toBe(
@@ -295,7 +295,7 @@ test('owner-token send preserves intent and unknown delivery is read without res
   expect(sent.group.id).toBe('group');
   expect(await sent.state()).toBe('unknown');
   expect(await requests[0].json()).toEqual({
-    idempotency_key: 'stable',
+    idempotencyKey: 'stable',
     message: { type: 'text', text: 'hello', mentions: [] },
   });
   await sent.refresh();
@@ -312,7 +312,7 @@ test('owner-token send preserves intent and unknown delivery is read without res
 test('staged uploads stay scoped to their adopted group and carry no credentials', async () => {
   const { macro, group, requests } = fixture(() =>
     Response.json({
-      upload_id: 'upload',
+      uploadId: 'upload',
       filename: 'note.txt',
       kind: 'document',
     }),
@@ -341,10 +341,10 @@ test('mutations and replies accept only standalone WhatsApp messages', async () 
     { idempotencyKey: 'reaction' },
   );
   expect(await requests[0].json()).toEqual({
-    idempotency_key: 'reaction',
+    idempotencyKey: 'reaction',
     message: {
       type: 'mutation',
-      message_id: 'message',
+      messageId: 'message',
       operation: 'reaction',
       text: '👍',
     },
@@ -363,7 +363,7 @@ test("a text reply mentions roster participants and refuses another chat's", asy
     { idempotencyKey: 'mention' },
   );
   expect(await requests[1].json()).toEqual({
-    idempotency_key: 'mention',
+    idempotencyKey: 'mention',
     message: {
       type: 'text',
       text: 'hi @15550001111',
@@ -381,6 +381,16 @@ test("a text reply mentions roster participants and refuses another chat's", asy
     ),
   ).rejects.toThrow('another group');
   expect(requests).toHaveLength(2);
+});
+
+test('a message handle reads only its own message', async () => {
+  const { macro, group, requests } = fixture(() => Response.json(message));
+  const handle = WhatsAppMessage.byId(macro._client, group, 'message');
+  expect(await handle.body()).toBe('hello');
+  expect(handle.group.id).toBe('group');
+  expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
+    '/meta/linked/whatsapp-groups/group/messages/message',
+  ]);
 });
 
 test('a chat handle reads its entry from the chat list', async () => {
@@ -417,15 +427,15 @@ test('sends, delivery and attachment states stay scoped to the chat', async () =
     if (path.endsWith('/messages/attachments'))
       return Response.json([
         {
-          message_id: 'message',
-          linked_attachments: [
+          messageId: 'message',
+          linkedAttachments: [
             {
               ordinal: 0,
               state: 'ready',
-              file_name: 'note.txt',
+              fileName: 'note.txt',
               mime: 'text/plain',
               size: 5,
-              document_id: 'document',
+              documentId: 'document',
             },
           ],
         },
@@ -459,8 +469,8 @@ test('a send recovers its original intent as handles', async () => {
       {
         ...progress,
         payload: {
-          idempotency_key: 'stable',
-          reply_to: 'quoted',
+          idempotencyKey: 'stable',
+          replyTo: 'quoted',
           message: {
             type: 'text',
             text: 'hi @15550001111',

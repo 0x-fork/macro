@@ -1,5 +1,7 @@
 use super::*;
 
+mod http;
+
 #[tokio::test]
 async fn a_rate_limited_request_returns_429_with_retry_after() {
     let response = ApiError(LinkedError::RateLimited).into_response();

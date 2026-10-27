@@ -16309,7 +16309,7 @@
       },
       "delete": {
         "tags": ["whatsapp_linked::inbound::router"],
-        "summary": "Stop syncing the group, locally.",
+        "summary": "Stop syncing the group, locally. Owner only, in their own session.",
         "operationId": "linked_detach",
         "parameters": [
           {
@@ -16444,7 +16444,7 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "Page size, 1 through 100.",
+            "description": "Page size, up to [`PAGE_LIMIT`]; [`DEFAULT_PAGE`] when absent.",
             "required": false,
             "schema": {
               "type": ["integer", "null"],
@@ -16506,6 +16506,45 @@
                   "items": {
                     "$ref": "#/components/schemas/LinkedMessageAttachments"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/linked/whatsapp-groups/{group_id}/messages/{message_id}": {
+      "get": {
+        "tags": ["whatsapp_linked::inbound::router"],
+        "summary": "One message of the timeline, as the timeline shows it.",
+        "operationId": "whatsapp_group_message",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhatsAppGroupMessage"
                 }
               }
             }
@@ -19799,9 +19838,9 @@
       "AdoptedGroup": {
         "type": "object",
         "description": "Adoption response.",
-        "required": ["group_id"],
+        "required": ["groupId"],
         "properties": {
-          "group_id": {
+          "groupId": {
             "type": "string",
             "format": "uuid",
             "description": "Shareable entity identifier."
@@ -33288,9 +33327,9 @@
       "LinkedAccount": {
         "type": "object",
         "description": "One person's account, never owned by a workspace.",
-        "required": ["id", "user_id", "state", "authorization_generation"],
+        "required": ["id", "userId", "state", "authorizationGeneration"],
         "properties": {
-          "authorization_generation": {
+          "authorizationGeneration": {
             "type": "integer",
             "format": "int64",
             "description": "Explicit consent generation; reconnecting a socket never changes it."
@@ -33300,7 +33339,7 @@
             "format": "uuid",
             "description": "Stable account identity."
           },
-          "identity_jid": {
+          "identityJid": {
             "type": ["string", "null"],
             "description": "WhatsApp-verified identity, absent until the first pairing succeeds."
           },
@@ -33308,7 +33347,7 @@
             "$ref": "#/components/schemas/LinkedAccountState",
             "description": "Lifecycle."
           },
-          "user_id": {
+          "userId": {
             "type": "string",
             "description": "Authenticated owner."
           }
@@ -33339,9 +33378,9 @@
       "LinkedAdoptGroup": {
         "type": "object",
         "description": "Explicit adoption request; the account is selected server-side. The\ngroup's name always follows WhatsApp.",
-        "required": ["group_jid"],
+        "required": ["groupJid"],
         "properties": {
-          "group_jid": {
+          "groupJid": {
             "type": "string",
             "description": "A group the requester's account has joined, or a direct chat from\ntheir chat list (the other person's JID, as the list names it)."
           }
@@ -33350,20 +33389,20 @@
       "LinkedAttachment": {
         "type": "object",
         "description": "One attachment of a linked message.",
-        "required": ["ordinal", "state", "file_name", "mime", "size"],
+        "required": ["ordinal", "state", "fileName", "mime", "size"],
         "properties": {
-          "document_id": {
+          "documentId": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "The private document, once ready."
           },
-          "duration_seconds": {
+          "durationSeconds": {
             "type": ["integer", "null"],
             "format": "int32",
             "description": "Length of audio or video in whole seconds, when declared.",
             "minimum": 0
           },
-          "file_name": {
+          "fileName": {
             "type": "string",
             "description": "Display filename."
           },
@@ -33436,7 +33475,14 @@
       "LinkedBackfillState": {
         "type": "string",
         "description": "Where importing a group's earlier messages stands.",
-        "enum": ["pending", "running", "waiting_for_phone", "done", "partial"]
+        "enum": [
+          "waiting_for_message",
+          "pending",
+          "running",
+          "waiting_for_phone",
+          "done",
+          "partial"
+        ]
       },
       "LinkedCannotAdd": {
         "type": "string",
@@ -33447,34 +33493,34 @@
         "type": "object",
         "description": "Operations implemented for linked groups, independent of current permission.",
         "required": [
-          "text_limit_bytes",
+          "textLimitBytes",
           "mutations",
-          "mutation_window_seconds",
-          "max_attachments",
-          "attachment_limit_bytes",
-          "attachment_types"
+          "mutationWindowSeconds",
+          "maxAttachments",
+          "attachmentLimitBytes",
+          "attachmentTypes"
         ],
         "properties": {
-          "attachment_limit_bytes": {
+          "attachmentLimitBytes": {
             "type": "integer",
             "format": "int32",
             "description": "Largest attachment in bytes.",
             "minimum": 0
           },
-          "attachment_types": {
+          "attachmentTypes": {
             "type": "array",
             "items": {
               "type": "string"
             },
             "description": "Supported attachment MIME types."
           },
-          "max_attachments": {
+          "maxAttachments": {
             "type": "integer",
             "format": "int32",
             "description": "Attachments per send.",
             "minimum": 0
           },
-          "mutation_window_seconds": {
+          "mutationWindowSeconds": {
             "type": "integer",
             "format": "int32",
             "description": "Edits and deletes are offered this long after sending.",
@@ -33487,7 +33533,7 @@
             },
             "description": "Supported message operations."
           },
-          "text_limit_bytes": {
+          "textLimitBytes": {
             "type": "integer",
             "format": "int32",
             "description": "Maximum UTF-8 bytes per text send.",
@@ -33626,23 +33672,14 @@
       "LinkedDeliveryState": {
         "type": "string",
         "description": "Observed send state. `unknown` means the request may have reached WhatsApp;\nit is never sent again automatically.",
-        "enum": [
-          "pending",
-          "sending",
-          "unknown",
-          "accepted",
-          "sent",
-          "delivered",
-          "read",
-          "failed"
-        ]
+        "enum": ["pending", "sending", "unknown", "accepted", "failed"]
       },
       "LinkedDisconnect": {
         "type": "object",
         "description": "Result of disconnecting an account.",
-        "required": ["remote_unlink_requested"],
+        "required": ["remoteUnlinkRequested"],
         "properties": {
-          "remote_unlink_requested": {
+          "remoteUnlinkRequested": {
             "type": "boolean",
             "description": "The session service was asked to log the device out of WhatsApp. It\nunlinks asynchronously; WhatsApp's Linked devices list is authoritative."
           }
@@ -33651,9 +33688,9 @@
       "LinkedDisconnectRequest": {
         "type": "object",
         "description": "The consent generation the owner deliberately disconnects.",
-        "required": ["authorization_generation"],
+        "required": ["authorizationGeneration"],
         "properties": {
-          "authorization_generation": {
+          "authorizationGeneration": {
             "type": "integer",
             "format": "int64",
             "description": "Fences retries against a later reconnect or replacement."
@@ -33679,55 +33716,6 @@
           }
         }
       },
-      "LinkedGroupInfo": {
-        "type": "object",
-        "description": "One full metadata read of a group, never an incomplete membership delta.",
-        "required": ["jid", "name", "participants", "announce", "observedAt"],
-        "properties": {
-          "announce": {
-            "type": "boolean",
-            "description": "Only admins may post."
-          },
-          "communityAnnouncements": {
-            "type": "boolean",
-            "description": "The community's announcement group (everyone reads, admins post)."
-          },
-          "communityJid": {
-            "type": ["string", "null"],
-            "description": "The community a linked subgroup or announcement group belongs to."
-          },
-          "communityParent": {
-            "type": "boolean",
-            "description": "The community itself: it has no messages of its own and can't be added."
-          },
-          "disappearingSeconds": {
-            "type": ["integer", "null"],
-            "format": "int32",
-            "description": "Disappearing-messages timer in seconds while it is on. Macro keeps the\nmessages; its sends carry the timer so phones treat them like their own.",
-            "minimum": 0
-          },
-          "jid": {
-            "type": "string",
-            "description": "Remote group JID."
-          },
-          "name": {
-            "type": "string",
-            "description": "Current subject."
-          },
-          "observedAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "When the session service read this metadata."
-          },
-          "participants": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LinkedParticipant"
-            },
-            "description": "Full roster."
-          }
-        }
-      },
       "LinkedGroupReference": {
         "type": "object",
         "description": "A group entity bound to a remote group.",
@@ -33744,25 +33732,6 @@
           }
         }
       },
-      "LinkedIdentity": {
-        "type": "object",
-        "description": "Verified sender aliases, supplied only by protocol metadata.",
-        "required": ["jid"],
-        "properties": {
-          "alternateJid": {
-            "type": ["string", "null"],
-            "description": "Verified alternate identity, never inferred from a name or phone typed by a user."
-          },
-          "displayName": {
-            "type": ["string", "null"],
-            "description": "Untrusted display name."
-          },
-          "jid": {
-            "type": "string",
-            "description": "Phone-number or LID account JID."
-          }
-        }
-      },
       "LinkedMediaKind": {
         "type": "string",
         "description": "Attachment categories WhatsApp distinguishes.",
@@ -33776,16 +33745,16 @@
       "LinkedMessageAttachments": {
         "type": "object",
         "description": "The attachments of one linked group message.",
-        "required": ["message_id", "linked_attachments"],
+        "required": ["messageId", "linkedAttachments"],
         "properties": {
-          "linked_attachments": {
+          "linkedAttachments": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LinkedAttachment"
             },
             "description": "Its attachments in order; deleted ones are omitted."
           },
-          "message_id": {
+          "messageId": {
             "type": "string",
             "format": "uuid",
             "description": "Group message."
@@ -33832,14 +33801,14 @@
       "LinkedPairing": {
         "type": "object",
         "description": "Owner-bound pairing transaction, without its QR or pairing code.",
-        "required": ["id", "account_id", "state", "expires_at"],
+        "required": ["id", "accountId", "state", "expiresAt"],
         "properties": {
-          "account_id": {
+          "accountId": {
             "type": "string",
             "format": "uuid",
             "description": "Account being connected."
           },
-          "expires_at": {
+          "expiresAt": {
             "type": "string",
             "format": "date-time",
             "description": "Database-assigned deadline."
@@ -33867,25 +33836,6 @@
           "cancelled",
           "failed"
         ]
-      },
-      "LinkedParticipant": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/LinkedIdentity",
-            "description": "Identity evidence."
-          },
-          {
-            "type": "object",
-            "required": ["admin"],
-            "properties": {
-              "admin": {
-                "type": "boolean",
-                "description": "Group admin; only admins post in announcement groups."
-              }
-            }
-          }
-        ],
-        "description": "Current remote participant; Macro access is a separate grant."
       },
       "LinkedReplyBlock": {
         "type": "string",
@@ -33926,7 +33876,7 @@
           {
             "type": "object",
             "description": "One attachment staged through the attachments route.",
-            "required": ["upload_id", "type"],
+            "required": ["uploadId", "type"],
             "properties": {
               "caption": {
                 "type": ["string", "null"],
@@ -33936,7 +33886,7 @@
                 "type": "string",
                 "enum": ["media"]
               },
-              "upload_id": {
+              "uploadId": {
                 "type": "string",
                 "format": "uuid",
                 "description": "The staged upload, which becomes the message's private document."
@@ -33946,9 +33896,9 @@
           {
             "type": "object",
             "description": "An operation on an existing message in this group.",
-            "required": ["message_id", "operation", "type"],
+            "required": ["messageId", "operation", "type"],
             "properties": {
-              "message_id": {
+              "messageId": {
                 "type": "string",
                 "format": "uuid",
                 "description": "Existing group message, resolved to its WhatsApp source by the server."
@@ -33975,23 +33925,23 @@
         "description": "Durable result of a deliberate send.",
         "required": [
           "id",
-          "user_id",
-          "group_id",
+          "userId",
+          "groupId",
           "payload",
           "state",
-          "created_at"
+          "createdAt"
         ],
         "properties": {
-          "created_at": {
+          "createdAt": {
             "type": "string",
             "format": "date-time",
             "description": "Intent creation time."
           },
-          "error_code": {
+          "errorCode": {
             "type": ["string", "null"],
             "description": "Sanitized failure code."
           },
-          "group_id": {
+          "groupId": {
             "type": "string",
             "format": "uuid",
             "description": "Group entity."
@@ -34001,7 +33951,7 @@
             "format": "uuid",
             "description": "Stable intent id."
           },
-          "message_id": {
+          "messageId": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Group message, once WhatsApp accepted it."
@@ -34014,7 +33964,7 @@
             "$ref": "#/components/schemas/LinkedDeliveryState",
             "description": "Current state."
           },
-          "user_id": {
+          "userId": {
             "type": "string",
             "description": "Person who submitted it."
           }
@@ -34023,9 +33973,9 @@
       "LinkedSendReply": {
         "type": "object",
         "description": "Explicit send action from a person. Only deliberate sends reach WhatsApp.",
-        "required": ["idempotency_key", "message"],
+        "required": ["idempotencyKey", "message"],
         "properties": {
-          "idempotency_key": {
+          "idempotencyKey": {
             "type": "string",
             "format": "uuid",
             "description": "Stable client intent key. A changed payload with this key is a conflict."
@@ -34034,7 +33984,7 @@
             "$ref": "#/components/schemas/LinkedReplyContent",
             "description": "Content."
           },
-          "reply_to": {
+          "replyTo": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Group message being quoted, within this group."
@@ -34076,7 +34026,7 @@
       "LinkedUploadedAttachment": {
         "type": "object",
         "description": "A staged attachment, sent only by a later deliberate send.",
-        "required": ["upload_id", "filename", "kind"],
+        "required": ["uploadId", "filename", "kind"],
         "properties": {
           "filename": {
             "type": "string",
@@ -34086,7 +34036,7 @@
             "$ref": "#/components/schemas/LinkedMediaKind",
             "description": "Category."
           },
-          "upload_id": {
+          "uploadId": {
             "type": "string",
             "format": "uuid",
             "description": "Use as `upload_id` in a media send; also the future document id."
@@ -34266,9 +34216,9 @@
       "MarkRead": {
         "type": "object",
         "description": "Mark messages through this message read.",
-        "required": ["message_id"],
+        "required": ["messageId"],
         "properties": {
-          "message_id": {
+          "messageId": {
             "type": "string",
             "format": "uuid",
             "description": "Message in the addressed group."
@@ -44684,24 +44634,13 @@
           },
           {
             "type": "object",
-            "required": ["share_permission", "access_level", "limits"],
+            "required": ["sharePermission", "accessLevel", "limits"],
             "properties": {
-              "access_level": {
+              "accessLevel": {
                 "$ref": "#/components/schemas/AccessLevel",
                 "description": "Caller's effective permission."
               },
-              "community": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/LinkedCommunityReference",
-                    "description": "The WhatsApp community this group belongs to, if any."
-                  }
-                ]
-              },
-              "disappearing_seconds": {
+              "disappearingSeconds": {
                 "type": ["integer", "null"],
                 "format": "int32",
                 "description": "WhatsApp's disappearing-messages timer in seconds while it is on;\nMacro keeps the messages anyway. `null` when off or unknown.",
@@ -44717,16 +44656,16 @@
                     "type": "null"
                   },
                   {
-                    "$ref": "#/components/schemas/LinkedGroupInfo",
+                    "$ref": "#/components/schemas/WhatsAppRoster",
                     "description": "Latest remote metadata, absent when no observer is connected."
                   }
                 ]
               },
-              "sending_identity": {
+              "sendingIdentity": {
                 "type": ["string", "null"],
                 "description": "Caller's own phone identity, never another account's identity."
               },
-              "share_permission": {
+              "sharePermission": {
                 "$ref": "#/components/schemas/SharePermissionV2",
                 "description": "Owner-controlled standard sharing configuration."
               }
@@ -44742,14 +44681,14 @@
           "id",
           "sender",
           "body",
-          "sent_at",
-          "received_at",
+          "sentAt",
+          "receivedAt",
           "deleted",
           "reactions",
           "attachments",
           "kind",
           "forwarded",
-          "view_once",
+          "viewOnce",
           "mentions"
         ],
         "properties": {
@@ -44768,7 +44707,7 @@
             "type": "boolean",
             "description": "Deleted for everyone."
           },
-          "delivery_state": {
+          "deliveryState": {
             "oneOf": [
               {
                 "type": "null"
@@ -44779,7 +44718,7 @@
               }
             ]
           },
-          "edited_at": {
+          "editedAt": {
             "type": ["string", "null"],
             "format": "date-time",
             "description": "Last edit timestamp."
@@ -44811,12 +44750,12 @@
             },
             "description": "Reactions grouped by emoji."
           },
-          "received_at": {
+          "receivedAt": {
             "type": "string",
             "format": "date-time",
             "description": "Timestamp first received by Macro."
           },
-          "reply_to": {
+          "replyTo": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Message quoted by this one."
@@ -44836,12 +44775,12 @@
             "$ref": "#/components/schemas/WhatsAppGroupSender",
             "description": "Sender."
           },
-          "sent_at": {
+          "sentAt": {
             "type": "string",
             "format": "date-time",
             "description": "Timestamp assigned by WhatsApp."
           },
-          "view_once": {
+          "viewOnce": {
             "type": "boolean",
             "description": "Sent as view-once in WhatsApp; Macro shows it like any media."
           }
@@ -44859,7 +44798,7 @@
             },
             "description": "Messages in descending sent_at, id order."
           },
-          "next_cursor": {
+          "nextCursor": {
             "type": ["string", "null"],
             "format": "uuid",
             "description": "Cursor for older messages."
@@ -44889,18 +44828,18 @@
       "WhatsAppGroupSender": {
         "type": "object",
         "description": "Message sender from protocol-verified identity evidence.",
-        "required": ["person_id", "name"],
+        "required": ["personId", "name"],
         "properties": {
           "name": {
             "type": "string",
             "description": "Display name, never authentication evidence."
           },
-          "person_id": {
+          "personId": {
             "type": "string",
             "format": "uuid",
             "description": "External person identity."
           },
-          "user_id": {
+          "userId": {
             "type": ["string", "null"],
             "description": "Verified Macro user association, if present."
           }
@@ -44909,14 +44848,7 @@
       "WhatsAppGroupSummary": {
         "type": "object",
         "description": "Adopted group visible through ordinary entity sharing.",
-        "required": [
-          "id",
-          "name",
-          "kind",
-          "user_id",
-          "unread_count",
-          "can_send"
-        ],
+        "required": ["id", "name", "kind", "userId", "unreadCount", "canSend"],
         "properties": {
           "backfill": {
             "oneOf": [
@@ -44925,13 +44857,24 @@
               },
               {
                 "$ref": "#/components/schemas/LinkedBackfill",
-                "description": "Importing earlier messages after the group was added; `null` for\ngroups added before this existed."
+                "description": "Importing earlier messages after the chat was added; `null` when\nthere is nothing to import."
               }
             ]
           },
-          "can_send": {
+          "canSend": {
             "type": "boolean",
             "description": "Caller may currently send from their own account."
+          },
+          "community": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedCommunityReference",
+                "description": "The WhatsApp community this group belongs to, if any."
+              }
+            ]
           },
           "id": {
             "type": "string",
@@ -44942,7 +44885,7 @@
             "$ref": "#/components/schemas/LinkedChatKind",
             "description": "A group, or a direct chat with one person (only its owner sends)."
           },
-          "last_message_at": {
+          "lastMessageAt": {
             "type": ["string", "null"],
             "format": "date-time",
             "description": "Latest message timestamp."
@@ -44951,7 +44894,7 @@
             "type": "string",
             "description": "Display name: the group's, or a direct chat's other person."
           },
-          "send_reason": {
+          "sendReason": {
             "oneOf": [
               {
                 "type": "null"
@@ -44962,12 +44905,12 @@
               }
             ]
           },
-          "unread_count": {
+          "unreadCount": {
             "type": "integer",
             "format": "int64",
-            "description": "Unread live messages for this viewer."
+            "description": "Unread live messages for this viewer, counted up to\n[`UNREAD_COUNT_CAP`]."
           },
-          "user_id": {
+          "userId": {
             "type": "string",
             "description": "Actual entity owner."
           }
@@ -45033,6 +44976,29 @@
         "type": "string",
         "description": "What a timeline entry is.",
         "enum": ["message", "system"]
+      },
+      "WhatsAppParticipant": {
+        "type": "object",
+        "description": "Someone in a WhatsApp chat; Macro access is a separate grant.",
+        "required": ["jid", "admin"],
+        "properties": {
+          "admin": {
+            "type": "boolean",
+            "description": "Group admin."
+          },
+          "alternateJid": {
+            "type": ["string", "null"],
+            "description": "The other address WhatsApp verified for them."
+          },
+          "displayName": {
+            "type": ["string", "null"],
+            "description": "Their WhatsApp name, untrusted."
+          },
+          "jid": {
+            "type": "string",
+            "description": "Phone-number or LID JID."
+          }
+        }
       },
       "WhatsAppPersonRef": {
         "type": "object",
@@ -45204,6 +45170,33 @@
           }
         ],
         "description": "Structured content of a message besides its body."
+      },
+      "WhatsAppRoster": {
+        "type": "object",
+        "description": "A chat's WhatsApp metadata as the caller's account last read it.",
+        "required": ["name", "participants", "announce", "observedAt"],
+        "properties": {
+          "announce": {
+            "type": "boolean",
+            "description": "Only admins may post."
+          },
+          "name": {
+            "type": "string",
+            "description": "WhatsApp subject."
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this was read from WhatsApp."
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WhatsAppParticipant"
+            },
+            "description": "Everyone in the chat."
+          }
+        }
       },
       "WhatsAppSystemAction": {
         "type": "string",

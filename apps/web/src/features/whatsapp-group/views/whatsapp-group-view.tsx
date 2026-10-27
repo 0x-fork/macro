@@ -1,3 +1,5 @@
+import { ViewShell } from '@app/components/view-shell';
+import { ChannelLoading } from '@channel/Channel/ChannelLoading';
 import { buildChannelMessageListMeta } from '@channel/Channel/message-list-meta';
 import { ChannelInput } from '@channel/Input/ChannelInput';
 import { ChannelInputContainer } from '@channel/Input/ChannelInputContainer';
@@ -9,8 +11,9 @@ import { DateDivider } from '@channel/Message/DateDivider';
 import { NewDivider } from '@channel/Message/NewDivider';
 import { SenderName } from '@channel/Message/SenderName';
 import { MaybeMessageActionDrawerManager } from '@channel/Mobile/MessageActionDrawerManager';
-import { HeaderActionButton } from '@components/app/HeaderActionButton';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { FloatRegionOrInline } from '@components/app/mobile/float-regions/FloatRegion';
+import { SidePanel, useSidePanel } from '@components/app/side-panel';
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
@@ -18,12 +21,12 @@ import type {
   MessageActionContext,
   MessageActions,
 } from '@core/messages/types';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { getDisplayName, tryMacroId } from '@core/user';
 import type { IUser } from '@core/user/types';
 import { fireAndForget } from '@core/util/fireAndForget';
 import ShareFatIcon from '@phosphor/share-fat.svg';
 import TimerIcon from '@phosphor/timer.svg';
-import UsersThreeIcon from '@phosphor/users-three.svg';
 import WhatsappIcon from '@phosphor/whatsapp-logo.svg';
 import { Button, ConfirmDialog, Tooltip } from '@ui';
 import {
@@ -38,6 +41,7 @@ import {
   Show,
 } from 'solid-js';
 import { match } from 'ts-pattern';
+import { ChatDetails } from '../components/chat-details';
 import { InboundAttachmentPlaceholder } from '../components/inbound-attachment';
 import {
   InboundMedia,
@@ -179,6 +183,8 @@ function MessageMedia(props: {
             kind: file.kind,
             fileName: file.attachment.fileName,
             url: url() ?? file.attachment.previewUrl,
+            unavailable:
+              !url() && !file.attachment.previewUrl && !!stored?.isError,
             previewUrl: file.attachment.previewUrl,
             width: file.attachment.width,
             height: file.attachment.height,
@@ -204,6 +210,8 @@ export function WhatsAppGroupView(props: {
   leading?: JSX.Element;
   /** The Share control; the host owns the share dialog. */
   share: JSX.Element;
+  /** Opens the host's share dialog from the details panel. */
+  onShare: () => void;
   onConnect: () => void;
 }) {
   const source = useWhatsAppGroup();
@@ -223,11 +231,11 @@ export function WhatsAppGroupView(props: {
     },
   });
   const [deleting, setDeleting] = createSignal<string>();
-  const [roster, setRoster] = createSignal(false);
-  const [stopping, setStopping] = createSignal(false);
+  const sidePanel = useSidePanel();
+  // The floating details card covers the right of the pane; where the pane
+  // is wide enough, the timeline and composer make room for it instead.
+  const detailsBeside = () => !isTouchDevice() && !!sidePanel?.isOpen();
   const [stopped, setStopped] = createSignal(false);
-  const [stopError, setStopError] = createSignal<string>();
-  const [stopPending, setStopPending] = createSignal(false);
   let scroller: HTMLDivElement | undefined;
   let alive = true;
   let newest: string | undefined;
@@ -372,11 +380,6 @@ export function WhatsAppGroupView(props: {
     scroller.scrollTop =
       scroller.scrollHeight - scroller.clientHeight - fromBottom;
   });
-  const memberLabel = () => {
-    const count = source.group.data?.members.length;
-    if (count === undefined) return 'Members';
-    return count === 1 ? '1 member' : `${count} members`;
-  };
   const importing = () =>
     backfillStatus(
       source.group.data?.backfill,
@@ -487,8 +490,10 @@ export function WhatsAppGroupView(props: {
   };
 
   return (
-    <div class="flex h-full min-h-0 min-w-0 flex-col bg-panel text-ink touch:pt-(--mobile-content-inset-top)">
-      <header class="flex h-12 shrink-0 items-center gap-2 px-3 touch:px-(--mobile-chrome-gutter)">
+    <div class="flex h-full min-h-0 min-w-0 flex-col bg-panel text-ink">
+      {/* Desktop chrome is the view shell's top bar; touch keeps it as the
+          page header, below the safe area. */}
+      <ViewShell.TopBar class="touch:flex touch:h-auto touch:min-h-12 touch:px-(--mobile-chrome-gutter) touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.75rem)]">
         {props.leading}
         <span
           aria-hidden="true"
@@ -522,409 +527,444 @@ export function WhatsAppGroupView(props: {
             <Show when={importing()}>{(status) => <> · {status()}</>}</Show>
           </span>
         </div>
-        <div class="flex shrink-0 items-center gap-1">
-          {/* A direct chat is the person in the title; it has no roster. */}
-          <Show when={source.group.data?.kind !== 'direct'}>
-            <HeaderActionButton
-              label={memberLabel()}
-              icon={<UsersThreeIcon />}
-              tooltip="WhatsApp members"
-              onClick={() => setRoster((value) => !value)}
-            />
-          </Show>
-          {props.share}
+        <div class="ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
+          <HeaderActionGroup label="Sharing">{props.share}</HeaderActionGroup>
+          <SidePanel.Toggle />
         </div>
-      </header>
-      <Show when={roster() && source.group.data?.kind !== 'direct'}>
-        <aside class="max-h-56 shrink-0 overflow-y-auto border-b border-edge-muted p-4">
-          <h2 class="mb-2 text-sm font-medium">WhatsApp members</h2>
-          <p class="mb-2 text-xs text-ink-muted">
-            WhatsApp membership controls who can send. Share controls who can
-            read in Macro.
-          </p>
-          <ul class="space-y-1 text-sm">
-            <For each={source.group.data?.members}>
-              {(member) => (
-                <li>
-                  {member.name}
-                  {member.admin ? ' · Admin' : ''}
-                </li>
-              )}
-            </For>
-          </ul>
-          <Show when={source.group.data?.accessLevel === 'owner'}>
-            <Button
-              class="mt-3"
-              variant="outline"
-              size="sm"
-              disabled={stopped()}
-              onClick={() => setStopping(true)}
-            >
-              {stopped() ? 'Syncing stopped' : 'Stop syncing'}
-            </Button>
+      </ViewShell.TopBar>
+      {/* Members, sharing and syncing open in the generic floating side
+          panel over the timeline, like an email thread's details. */}
+      <div class="relative min-h-0 min-w-0 flex-1">
+        <SidePanel.Layout headerToggle={false} floating>
+          <Show when={source.group.data}>
+            {(group) => (
+              <ChatDetails
+                group={group()}
+                stopped={stopped()}
+                onShare={props.onShare}
+                onStopSync={async () => {
+                  try {
+                    await source.stopSync();
+                  } catch {
+                    toast.failure("Couldn't stop syncing. Try again.");
+                    return false;
+                  }
+                  if (alive) setStopped(true);
+                  return true;
+                }}
+              />
+            )}
           </Show>
-        </aside>
-      </Show>
-      <StaticMarkdownContext>
-        <MaybeMessageActionDrawerManager>
-          {/* Chat's thread list layout: a full-width scroller with Chat's
-              custom scrollbar, rows in the centered message column. */}
-          <div class="relative min-h-0 flex-1">
+          <div class="@container/whatsapp-chat size-full min-h-0 min-w-0">
             <div
-              ref={setScroller}
-              class="scrollbar-hidden h-full overflow-y-auto overscroll-contain px-2 pb-4 [overflow-anchor:none] mobile:pb-(--mobile-content-inset-bottom)"
-              role="log"
-              aria-label="WhatsApp messages"
-              onWheel={intent}
-              onTouchMove={intent}
-              onKeyDown={intent}
-              onPointerDown={intent}
-              onScroll={() => {
-                if (!scroller) return;
-                fromBottom =
-                  scroller.scrollHeight -
-                  scroller.scrollTop -
-                  scroller.clientHeight;
-                if (Date.now() - intentAt < 1000) following = fromBottom < 80;
-                if (fromBottom < 60) markRead();
+              style={{
+                '--details-clearance': `${detailsBeside() ? SidePanel.FLOATING_CLEARANCE_PX : 0}px`,
               }}
+              class="flex size-full min-h-0 min-w-0 flex-col @min-[900px]/whatsapp-chat:pr-(--details-clearance)"
             >
-              <div class="flex w-full justify-center">
-                <div
-                  ref={(content) => grown.observe(content)}
-                  class="macro-message-width relative"
-                >
-                  <Show
-                    when={source.group.isPending || source.timeline.isPending}
-                  >
-                    <p role="status" class="p-6 text-sm text-ink-muted">
-                      Loading WhatsApp chat…
-                    </p>
-                  </Show>
-                  <Show when={source.group.isError || source.timeline.isError}>
-                    <div class="p-4 text-sm">
-                      <p role="alert">
-                        Couldn't load this chat. You may need access from its
-                        owner.
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          source.group.refetch();
-                          source.timeline.refetch();
-                        }}
-                      >
-                        Try again
-                      </Button>
-                    </div>
-                  </Show>
-                  <Show when={source.hasOlder()}>
-                    <div class="flex justify-center p-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={source.loadingOlder()}
-                        onClick={() =>
-                          fireAndForget(older(), 'whatsapp-group.older')
-                        }
-                      >
-                        {source.loadingOlder()
-                          ? 'Loading…'
-                          : 'Load earlier messages'}
-                      </Button>
-                    </div>
-                  </Show>
-                  <Show when={source.timeline.data && !source.hasOlder()}>
-                    <Show
-                      when={
-                        source.group.data && disappearingNote(source.group.data)
-                      }
+              <StaticMarkdownContext>
+                <MaybeMessageActionDrawerManager>
+                  {/* Chat's thread list layout: a full-width scroller with Chat's
+              custom scrollbar, rows in the centered message column. */}
+                  <div class="relative min-h-0 flex-1">
+                    <div
+                      ref={setScroller}
+                      class="scrollbar-hidden h-full overflow-y-auto overscroll-contain px-2 pb-4 [overflow-anchor:none] mobile:pb-(--mobile-content-inset-bottom)"
+                      role="log"
+                      aria-label="WhatsApp messages"
+                      onWheel={intent}
+                      onTouchMove={intent}
+                      onKeyDown={intent}
+                      onPointerDown={intent}
+                      onScroll={() => {
+                        if (!scroller) return;
+                        fromBottom =
+                          scroller.scrollHeight -
+                          scroller.scrollTop -
+                          scroller.clientHeight;
+                        if (Date.now() - intentAt < 1000)
+                          following = fromBottom < 80;
+                        if (fromBottom < 60) markRead();
+                      }}
                     >
-                      {(note) => (
-                        <p class="p-3 text-center text-xs text-ink-muted">
-                          {note()}
-                        </p>
-                      )}
-                    </Show>
-                    <Show when={importing() ?? historyStart()}>
-                      {(note) => (
-                        <p
-                          role="status"
-                          class="p-3 text-center text-xs text-ink-muted"
+                      <div class="flex w-full justify-center">
+                        <div
+                          ref={(content) => grown.observe(content)}
+                          class="macro-message-width relative"
                         >
-                          {note()}
-                        </p>
-                      )}
-                    </Show>
-                  </Show>
-                  <Show
-                    when={
-                      source.timeline.data &&
-                      rows().length === 0 &&
-                      !importing()
-                    }
-                  >
-                    <p class="p-6 text-center text-sm text-ink-muted">
-                      No messages yet. New WhatsApp messages will appear here.
-                    </p>
-                  </Show>
-                  <For each={rows()}>
-                    {(message) => {
-                      const systemLine = () =>
-                        message.kind === 'system' &&
-                        message.rich?.type === 'system'
-                          ? message.rich
-                          : undefined;
-                      const meta = () =>
-                        listMeta()[
-                          message.kind === 'system'
-                            ? `activity:${message.id}`
-                            : message.id
-                        ];
-                      const quoted = () =>
-                        message.replyTo
-                          ? messagesById().get(message.replyTo)
-                          : undefined;
-                      const actions = actionsFor(message);
-                      const placeholders = () =>
-                        message.attachments.filter(
-                          (attachment) => attachment.state !== 'ready'
-                        );
-                      return (
-                        <Show
-                          when={message.kind !== 'system'}
-                          fallback={
-                            <>
-                              <DateDivider
-                                createdAt={message.sentAt}
-                                listMeta={meta()}
-                              />
-                              <Show when={systemLine()}>
-                                {(line) => (
-                                  <WhatsAppSystemLine
-                                    id={message.id}
-                                    line={line()}
-                                    occurredAt={message.sentAt}
-                                  />
-                                )}
-                              </Show>
-                            </>
-                          }
-                        >
-                          <NewDivider
-                            createdAt={message.sentAt}
-                            listMeta={meta()}
-                            onDismiss={markRead}
-                          />
-                          <DateDivider
-                            createdAt={message.sentAt}
-                            listMeta={meta()}
-                          />
-                          <ChannelMessage
-                            parent={{
-                              type: 'whatsapp_group',
-                              id: source.group.data?.id ?? '',
-                            }}
-                            message={groupMessageData(message, props.userId)}
-                            actions={actions}
-                            listMeta={meta()}
-                            targeted={
-                              conversation.target()?.message.id === message.id
+                          <Show
+                            when={
+                              source.group.isPending ||
+                              source.timeline.isPending
                             }
-                            renderContent={(content) => (
-                              <>
-                                <Show
-                                  when={!message.deleted && message.forwarded}
+                          >
+                            {/* The header already clears the top inset. */}
+                            <div class="touch:[--mobile-content-inset-top:0px]">
+                              <ChannelLoading />
+                            </div>
+                          </Show>
+                          <Show
+                            when={
+                              source.group.isError || source.timeline.isError
+                            }
+                          >
+                            <div class="p-4 text-sm">
+                              <p role="alert">
+                                Couldn't load this chat. You may need access
+                                from its owner.
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  source.group.refetch();
+                                  source.timeline.refetch();
+                                }}
+                              >
+                                Try again
+                              </Button>
+                            </div>
+                          </Show>
+                          <Show when={source.hasOlder()}>
+                            <div class="flex justify-center p-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={source.loadingOlder()}
+                                onClick={() =>
+                                  fireAndForget(older(), 'whatsapp-group.older')
+                                }
+                              >
+                                {source.loadingOlder()
+                                  ? 'Loading…'
+                                  : 'Load earlier messages'}
+                              </Button>
+                            </div>
+                          </Show>
+                          <Show
+                            when={source.timeline.data && !source.hasOlder()}
+                          >
+                            <Show
+                              when={
+                                source.group.data &&
+                                disappearingNote(source.group.data)
+                              }
+                            >
+                              {(note) => (
+                                <p class="p-3 text-center text-xs text-ink-muted">
+                                  {note()}
+                                </p>
+                              )}
+                            </Show>
+                            <Show when={importing() ?? historyStart()}>
+                              {(note) => (
+                                <p
+                                  role="status"
+                                  class="p-3 text-center text-xs text-ink-muted"
                                 >
-                                  <ForwardedTag />
-                                </Show>
+                                  {note()}
+                                </p>
+                              )}
+                            </Show>
+                          </Show>
+                          <Show
+                            when={
+                              source.timeline.data &&
+                              rows().length === 0 &&
+                              !importing()
+                            }
+                          >
+                            <p class="p-6 text-center text-sm text-ink-muted">
+                              No messages yet. New WhatsApp messages will appear
+                              here.
+                            </p>
+                          </Show>
+                          <For each={rows()}>
+                            {(message) => {
+                              const systemLine = () =>
+                                message.kind === 'system' &&
+                                message.rich?.type === 'system'
+                                  ? message.rich
+                                  : undefined;
+                              const meta = () =>
+                                listMeta()[
+                                  message.kind === 'system'
+                                    ? `activity:${message.id}`
+                                    : message.id
+                                ];
+                              const quoted = () =>
+                                message.replyTo
+                                  ? messagesById().get(message.replyTo)
+                                  : undefined;
+                              const actions = actionsFor(message);
+                              const placeholders = () =>
+                                message.attachments.flatMap((attachment) =>
+                                  attachment.state === 'ready'
+                                    ? []
+                                    : [
+                                        {
+                                          state: attachment.state,
+                                          fileName: attachment.fileName,
+                                        },
+                                      ]
+                                );
+                              return (
                                 <Show
-                                  when={!message.deleted && message.replyTo}
-                                >
-                                  {(id) => (
-                                    <button
-                                      type="button"
-                                      class="mb-1 block max-w-full truncate border-l-2 border-accent py-0.5 pl-3 text-left text-xs text-ink-muted"
-                                      onClick={() =>
-                                        fireAndForget(
-                                          openQuoted(id()),
-                                          'whatsapp-group.quote'
-                                        )
-                                      }
-                                    >
-                                      <Show
-                                        when={quoted()}
-                                        fallback="View quoted message"
-                                      >
-                                        {(reply) => (
-                                          <>
-                                            <SenderName
-                                              message={groupMessageData(
-                                                reply(),
-                                                props.userId
-                                              )}
-                                            />
-                                            : {quotePreview(reply())}
-                                          </>
+                                  when={message.kind !== 'system'}
+                                  fallback={
+                                    <>
+                                      <DateDivider
+                                        createdAt={message.sentAt}
+                                        listMeta={meta()}
+                                      />
+                                      <Show when={systemLine()}>
+                                        {(line) => (
+                                          <WhatsAppSystemLine
+                                            id={message.id}
+                                            line={line()}
+                                            chat={
+                                              source.group.data?.kind ?? 'group'
+                                            }
+                                            occurredAt={message.sentAt}
+                                          />
                                         )}
                                       </Show>
-                                    </button>
-                                  )}
-                                </Show>
-                                {content}
-                                <Show when={!message.deleted && message.rich}>
-                                  {(rich) => <RichCard rich={rich()} />}
-                                </Show>
-                                <MessageMedia
-                                  attachments={message.attachments}
-                                  sent={conversation.sentFiles(message.id)}
-                                />
-                                <Show when={placeholders().length > 0}>
-                                  <div class="mt-1 flex flex-wrap gap-2">
-                                    <For each={placeholders()}>
-                                      {(attachment) => (
-                                        <InboundAttachmentPlaceholder
-                                          attachment={attachment}
+                                    </>
+                                  }
+                                >
+                                  <NewDivider
+                                    createdAt={message.sentAt}
+                                    listMeta={meta()}
+                                    onDismiss={markRead}
+                                  />
+                                  <DateDivider
+                                    createdAt={message.sentAt}
+                                    listMeta={meta()}
+                                  />
+                                  <ChannelMessage
+                                    timestampFormat="time"
+                                    message={groupMessageData(
+                                      message,
+                                      props.userId
+                                    )}
+                                    actions={actions}
+                                    listMeta={meta()}
+                                    targeted={
+                                      conversation.target()?.message.id ===
+                                      message.id
+                                    }
+                                    renderContent={(content) => (
+                                      <>
+                                        <Show
+                                          when={
+                                            !message.deleted &&
+                                            message.forwarded
+                                          }
+                                        >
+                                          <ForwardedTag />
+                                        </Show>
+                                        <Show
+                                          when={
+                                            !message.deleted && message.replyTo
+                                          }
+                                        >
+                                          {(id) => (
+                                            <button
+                                              type="button"
+                                              class="mb-1 block max-w-full truncate border-l-2 border-accent py-0.5 pl-3 text-left text-xs text-ink-muted"
+                                              onClick={() =>
+                                                fireAndForget(
+                                                  openQuoted(id()),
+                                                  'whatsapp-group.quote'
+                                                )
+                                              }
+                                            >
+                                              <Show
+                                                when={quoted()}
+                                                fallback="View quoted message"
+                                              >
+                                                {(reply) => (
+                                                  <>
+                                                    <SenderName
+                                                      message={groupMessageData(
+                                                        reply(),
+                                                        props.userId
+                                                      )}
+                                                    />
+                                                    : {quotePreview(reply())}
+                                                  </>
+                                                )}
+                                              </Show>
+                                            </button>
+                                          )}
+                                        </Show>
+                                        {content}
+                                        <Show
+                                          when={
+                                            !message.deleted && message.rich
+                                          }
+                                        >
+                                          {(rich) => <RichCard rich={rich()} />}
+                                        </Show>
+                                        <MessageMedia
+                                          attachments={message.attachments}
+                                          sent={conversation.sentFiles(
+                                            message.id
+                                          )}
                                         />
-                                      )}
-                                    </For>
-                                  </div>
+                                        <Show when={placeholders().length > 0}>
+                                          <div class="mt-1 flex flex-wrap gap-2">
+                                            <For each={placeholders()}>
+                                              {(attachment) => (
+                                                <InboundAttachmentPlaceholder
+                                                  state={attachment.state}
+                                                  fileName={attachment.fileName}
+                                                />
+                                              )}
+                                            </For>
+                                          </div>
+                                        </Show>
+                                      </>
+                                    )}
+                                  />
                                 </Show>
-                              </>
-                            )}
-                          />
-                        </Show>
-                      );
-                    }}
-                  </For>
-                </div>
-              </div>
-            </div>
-            <CustomScrollbar
-              scrollContainer={scrollerElement}
-              watchContent
-              onScrollIntent={intent}
-            />
-          </div>
-        </MaybeMessageActionDrawerManager>
-      </StaticMarkdownContext>
-      <Show when={source.group.data}>
-        {(group) => (
-          <FloatRegionOrInline region="accessory">
-            <Show
-              when={group().canSend && !stopped()}
-              fallback={
-                <ChannelInputContainer>
-                  <div class="macro-message-width flex shrink-0 flex-wrap items-center gap-2 border-t border-edge-muted px-4 pt-3 text-sm text-ink-muted touch:rounded-2xl touch:border-0 touch:island touch:px-3 touch:py-2">
-                    <span role="status">
-                      {stopped()
-                        ? 'This chat is no longer syncing'
-                        : composerNote(
-                            group(),
-                            getDisplayName(tryMacroId(group().ownerId)) ||
-                              undefined
-                          )}
-                    </span>
+                              );
+                            }}
+                          </For>
+                        </div>
+                      </div>
+                    </div>
+                    <CustomScrollbar
+                      scrollContainer={scrollerElement}
+                      watchContent
+                      onScrollIntent={intent}
+                    />
+                  </div>
+                </MaybeMessageActionDrawerManager>
+              </StaticMarkdownContext>
+              <Show when={source.group.data}>
+                {(group) => (
+                  <FloatRegionOrInline region="accessory">
                     <Show
-                      when={
-                        group().sendReason === 'no_account' ||
-                        group().sendReason === 'disconnected'
+                      when={group().canSend && !stopped()}
+                      fallback={
+                        <ChannelInputContainer>
+                          <div class="macro-message-width flex shrink-0 flex-wrap items-center gap-2 border-t border-edge-muted px-4 pt-3 text-sm text-ink-muted touch:rounded-2xl touch:border-0 touch:island touch:px-3 touch:py-2">
+                            <span role="status">
+                              {stopped()
+                                ? 'This chat is no longer syncing'
+                                : composerNote(
+                                    group(),
+                                    getDisplayName(
+                                      tryMacroId(group().ownerId)
+                                    ) || undefined
+                                  )}
+                            </span>
+                            <Show
+                              when={
+                                group().sendReason === 'no_account' ||
+                                group().sendReason === 'disconnected'
+                              }
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={props.onConnect}
+                              >
+                                Connect WhatsApp
+                              </Button>
+                            </Show>
+                          </div>
+                        </ChannelInputContainer>
                       }
                     >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={props.onConnect}
-                      >
-                        Connect WhatsApp
-                      </Button>
-                    </Show>
-                  </div>
-                </ChannelInputContainer>
-              }
-            >
-              <ChannelInputContainer>
-                <div
-                  data-keep-keyboard
-                  class="relative flex w-full flex-col items-center gap-1"
-                >
-                  <Show when={conversation.target()}>
-                    {(target) => (
-                      <InputFlag
-                        label={
-                          target().kind === 'edit' ? (
-                            'Editing message'
-                          ) : (
-                            <>
-                              Replying to{' '}
-                              <SenderName
-                                message={groupMessageData(
-                                  target().message,
-                                  props.userId
-                                )}
+                      <ChannelInputContainer>
+                        <div
+                          data-keep-keyboard
+                          class="relative flex w-full flex-col items-center gap-1"
+                        >
+                          <Show when={conversation.target()}>
+                            {(target) => (
+                              <InputFlag
+                                label={
+                                  target().kind === 'edit' ? (
+                                    'Editing message'
+                                  ) : (
+                                    <>
+                                      Replying to{' '}
+                                      <SenderName
+                                        message={groupMessageData(
+                                          target().message,
+                                          props.userId
+                                        )}
+                                      />
+                                    </>
+                                  )
+                                }
+                                onActivate={() =>
+                                  fireAndForget(
+                                    openQuoted(target().message.id),
+                                    'whatsapp-group.quote'
+                                  )
+                                }
+                                dismissLabel={
+                                  target().kind === 'edit'
+                                    ? 'Cancel edit'
+                                    : 'Cancel reply'
+                                }
+                                onDismiss={() => setTarget(undefined)}
                               />
-                            </>
-                          )
-                        }
-                        onActivate={() =>
-                          fireAndForget(
-                            openQuoted(target().message.id),
-                            'whatsapp-group.quote'
-                          )
-                        }
-                        dismissLabel={
-                          target().kind === 'edit'
-                            ? 'Cancel edit'
-                            : 'Cancel reply'
-                        }
-                        onDismiss={() => setTarget(undefined)}
-                      />
-                    )}
-                  </Show>
-                  <ChannelInput
-                    input={{
-                      mode: 'channel',
-                      id: `whatsapp-group-input-${group().id}`,
-                      placeholder: composerPlaceholder(group()),
-                    }}
-                    features={WHATSAPP_COMPOSER}
-                    participants={() => mentionable(group())}
-                    fileAccept={group().limits.attachmentTypes.join(',')}
-                    uploadAttachment={async (file) => {
-                      const result = await conversation.upload(file);
-                      return result.isOk()
-                        ? {
-                            failed: false,
-                            destination: 'staged',
-                            id: result.value.uploadId,
-                          }
-                        : { failed: true, reason: result.error };
-                    }}
-                    onReady={(handle) => {
-                      input = handle;
-                    }}
-                    onChange={setInputSnapshot}
-                    onSend={send}
-                    onSendError={(error) =>
-                      toast.failure(
-                        error instanceof DraftRefusal
-                          ? error.message
-                          : "Couldn't send to WhatsApp. Try again."
-                      )
-                    }
-                    onEscape={
-                      conversation.target()
-                        ? () => setTarget(undefined)
-                        : undefined
-                    }
-                  />
-                </div>
-              </ChannelInputContainer>
-            </Show>
-          </FloatRegionOrInline>
-        )}
-      </Show>
+                            )}
+                          </Show>
+                          <ChannelInput
+                            input={{
+                              mode: 'channel',
+                              id: `whatsapp-group-input-${group().id}`,
+                              placeholder: composerPlaceholder(group()),
+                            }}
+                            features={WHATSAPP_COMPOSER}
+                            participants={() => mentionable(group())}
+                            fileAccept={group().limits.attachmentTypes.join(
+                              ','
+                            )}
+                            uploadAttachment={async (file) => {
+                              const result = await conversation.upload(file);
+                              return result.isOk()
+                                ? {
+                                    failed: false,
+                                    destination: 'staged',
+                                    id: result.value.uploadId,
+                                  }
+                                : { failed: true, reason: result.error };
+                            }}
+                            onReady={(handle) => {
+                              input = handle;
+                            }}
+                            onChange={setInputSnapshot}
+                            onSend={send}
+                            onSendError={(error) =>
+                              toast.failure(
+                                error instanceof DraftRefusal
+                                  ? error.message
+                                  : "Couldn't send to WhatsApp. Try again."
+                              )
+                            }
+                            onEscape={
+                              conversation.target()
+                                ? () => setTarget(undefined)
+                                : undefined
+                            }
+                          />
+                        </div>
+                      </ChannelInputContainer>
+                    </Show>
+                  </FloatRegionOrInline>
+                )}
+              </Show>
+            </div>
+          </div>
+        </SidePanel.Layout>
+      </div>
       <ConfirmDialog
         open={!!deleting()}
         onOpenChange={(open) => {
@@ -940,33 +980,6 @@ export function WhatsAppGroupView(props: {
           if (id) await conversation.remove(id);
         }}
       />
-      <ConfirmDialog
-        open={stopping()}
-        onOpenChange={setStopping}
-        title="Stop syncing this chat?"
-        body="Its history stays in Macro. New messages will stop syncing."
-        confirmLabel="Stop syncing"
-        tone="danger"
-        pending={stopPending()}
-        onConfirm={async () => {
-          setStopPending(true);
-          try {
-            await source.stopSync();
-            if (!alive) return;
-            setStopped(true);
-            setStopping(false);
-          } catch {
-            if (alive) setStopError("Couldn't stop syncing. Try again.");
-          } finally {
-            if (alive) setStopPending(false);
-          }
-        }}
-      />
-      <Show when={stopError()}>
-        <p role="alert" class="p-2 text-xs text-failure-ink">
-          {stopError()}
-        </p>
-      </Show>
     </div>
   );
 }

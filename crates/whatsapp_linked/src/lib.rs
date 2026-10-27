@@ -1,6 +1,6 @@
 #![deny(missing_docs)]
-//! Personal WhatsApp accounts linked as devices: pairing, group adoption into
-//! group entitys, inbound ingestion and deliberate sends. DSS serves the HTTP
+//! Personal WhatsApp accounts linked as devices: pairing, adding chats as
+//! independently shared entities, inbound ingestion and deliberate sends. DSS serves the HTTP
 //! API; the WhatsApp session service calls [`domain::session::SessionService`]
 //! in-process. The two coordinate only through Postgres rows and `NOTIFY`.
 
@@ -12,3 +12,5 @@ pub mod inbound;
 /// Postgres adapters.
 #[cfg(feature = "outbound")]
 pub mod outbound;
+/// `NOTIFY` channels and payloads shared by DSS and the session service.
+pub mod signals;

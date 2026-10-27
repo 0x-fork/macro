@@ -102,7 +102,8 @@ impl<Kms: WhatsAppKms + 'static> WhatsmeowConnector<Kms> {
 fn store_error(error: WhatsAppStoreError) -> SessionError {
     match error {
         WhatsAppStoreError::Fenced => SessionError::Fenced,
-        WhatsAppStoreError::Kms(_) => SessionError::Kms,
+        error if error.is_unreadable_device() => SessionError::DeviceUnreadable,
+        WhatsAppStoreError::Kms(_) => SessionError::KmsUnavailable,
         error => internal(error),
     }
 }
@@ -134,16 +135,16 @@ impl<Kms: WhatsAppKms + 'static> SessionConnector for WhatsmeowConnector<Kms> {
         fresh_device: bool,
         inbound: Arc<dyn InboundSink>,
     ) -> Result<(WhatsmeowSession, mpsc::UnboundedReceiver<SessionEvent>), SessionError> {
-        let store = self.open_store(scope).await?;
-        let mut device = self.load_device(&store).await?;
-        if fresh_device && device.id.is_some() {
-            // Deleting the device row drops its data key and every stored
-            // value; reopening generates both anew.
-            device.delete().await.map_err(internal)?;
-            let store = self.open_store(scope).await?;
-            device = self.load_device(&store).await?;
-            return self.start(scope, store, device, inbound);
+        if fresh_device {
+            // Deleted before opening, so a device whose data key KMS no longer
+            // unwraps is replaced too. Its data key and every stored value go
+            // with the row; opening generates both anew.
+            PgWhatsAppStore::reset_device(&self.pool, scope.account_id, scope.lease_epoch)
+                .await
+                .map_err(store_error)?;
         }
+        let store = self.open_store(scope).await?;
+        let device = self.load_device(&store).await?;
         self.start(scope, store, device, inbound)
     }
 }
@@ -781,8 +782,8 @@ impl WhatsAppSession for WhatsmeowSession {
             while let Some(item) = codes.recv().await {
                 let event = match item {
                     QrChannelItem::Code { code, .. } => SessionEvent::Qr(code),
+                    QrChannelItem::Timeout => SessionEvent::PairExpired,
                     QrChannelItem::Error(_)
-                    | QrChannelItem::Timeout
                     | QrChannelItem::ErrUnexpectedEvent
                     | QrChannelItem::ClientOutdated
                     | QrChannelItem::ScannedWithoutMultidevice => SessionEvent::PairFailed,
@@ -902,8 +903,9 @@ impl WhatsAppSession for WhatsmeowSession {
     }
 
     async fn group(&self, group_jid: &str) -> Result<Option<GroupInfo>, SessionError> {
-        let jid: Jid = group_jid.parse().map_err(|error| {
-            SessionError::Internal(rootcause::report!("{error:?}").into_dynamic())
+        // The parse error repeats the JID; keep it out of logs.
+        let jid: Jid = group_jid.parse().map_err(|_| {
+            SessionError::Internal(rootcause::report!("invalid group JID").into_dynamic())
         })?;
         match self.client.get_group_info(&jid).await {
             Ok(group) => Ok(Some(group_info(group, Utc::now()))),

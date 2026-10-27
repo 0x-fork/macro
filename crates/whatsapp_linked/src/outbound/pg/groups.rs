@@ -4,6 +4,7 @@ use super::*;
 use crate::domain::ports::{GroupRepository, StoredChat, VisibleAdoption};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 
 /// The same facts, ignoring when they were read and listing-only fields.
 fn same_facts(stored: &GroupInfo, observed: &GroupInfo) -> bool {
@@ -354,9 +355,10 @@ impl GroupRepository for PgLinkedRepository {
 
     async fn visible_adoptions(
         &self,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         groups: &[String],
     ) -> LinkedResult<Vec<VisibleAdoption>> {
+        let user = user.as_ref();
         sqlx::query_as!(
             VisibleAdoption,
             r#"SELECT b.group_jid, b.id, b.name, b.user_id AS owner_id
@@ -369,26 +371,6 @@ impl GroupRepository for PgLinkedRepository {
         .fetch_all(&self.pool)
         .await
         .map_err(failure)
-    }
-
-    async fn binding_community(
-        &self,
-        binding: &Binding,
-        community_jid: &str,
-    ) -> LinkedResult<Option<GroupInfo>> {
-        sqlx::query_scalar!(
-            r#"SELECT r.metadata FROM whatsapp_group_roster r
-            JOIN whatsapp_group_membership m ON m.account_id = r.account_id
-            WHERE m.binding_id = $1 AND m.consent_ended_at IS NULL AND r.group_jid = $2
-            ORDER BY r.observed_at DESC LIMIT 1"#,
-            binding.id,
-            community_jid
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(failure)?
-        .map(decode::<GroupInfo>)
-        .transpose()
     }
 
     async fn binding_roster(&self, binding: &Binding) -> LinkedResult<Option<GroupInfo>> {

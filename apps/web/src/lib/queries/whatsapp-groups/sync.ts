@@ -15,7 +15,7 @@ import { whatsappGroupsKeys } from './keys';
 const WHATSAPP_CHANGED_MESSAGE_TYPE = 'whatsapp_changed';
 const whatsappChangedSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('groups') }),
-  z.object({ scope: z.literal('group'), group_id: z.string() }),
+  z.object({ scope: z.literal('group'), groupId: z.string() }),
 ]);
 type WhatsappChange = z.infer<typeof whatsappChangedSchema>;
 
@@ -93,7 +93,7 @@ export function useWhatsappGroupSync(
     )
   );
   onWhatsappChanged((change) => {
-    if (change.scope !== 'group' || change.group_id !== groupId()) return;
+    if (change.scope !== 'group' || change.groupId !== groupId()) return;
     cancel();
     fireAndForget(refreshGroup(userId(), groupId()), 'whatsapp-sync');
   });

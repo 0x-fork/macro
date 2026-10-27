@@ -54,13 +54,13 @@ export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
   readonly state = this.field('state');
 
   /** Sanitized failure code, when present. */
-  readonly errorCode = this.field('error_code');
+  readonly errorCode = this.field('errorCode');
 
   /** When the send intent was created. */
-  readonly createdAt = this.field('created_at');
+  readonly createdAt = this.field('createdAt');
 
   /** Group message once WhatsApp accepted the send. */
-  readonly message = this.mappedField('message_id', (id) =>
+  readonly message = this.mappedField('messageId', (id) =>
     id ? WhatsAppMessage.byId(this.client, this.group, id) : undefined,
   );
 
@@ -76,12 +76,12 @@ export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
       .returnType<WhatsAppReply>()
       .with({ type: 'media' }, (wire) => ({
         type: 'media',
-        upload: WhatsAppUpload.byId(this.group, wire.upload_id),
+        upload: WhatsAppUpload.byId(this.group, wire.uploadId),
         caption: wire.caption ?? undefined,
       }))
       .with({ type: 'mutation' }, (wire) => ({
         type: 'mutation',
-        message: WhatsAppMessage.byId(this.client, this.group, wire.message_id),
+        message: WhatsAppMessage.byId(this.client, this.group, wire.messageId),
         operation: wire.operation,
         text: wire.text ?? undefined,
       }))
@@ -94,10 +94,10 @@ export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
       }))
       .exhaustive();
     return {
-      idempotencyKey: payload.idempotency_key,
+      idempotencyKey: payload.idempotencyKey,
       message,
-      replyTo: payload.reply_to
-        ? WhatsAppMessage.byId(this.client, this.group, payload.reply_to)
+      replyTo: payload.replyTo
+        ? WhatsAppMessage.byId(this.client, this.group, payload.replyTo)
         : undefined,
     };
   }

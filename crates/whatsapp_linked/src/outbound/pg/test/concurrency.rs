@@ -5,7 +5,11 @@ use tokio::sync::Barrier;
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn sends_and_roster_refreshes_share_a_consistent_lock_order(pool: PgPool) {
     let (_, session, repository, binding, alice, _) = adopted(&pool).await;
-    let account = repository.owned_account(ALICE).await.unwrap().unwrap();
+    let account = repository
+        .owned_account(&person(ALICE))
+        .await
+        .unwrap()
+        .unwrap();
     let barrier = Barrier::new(2);
     let sends = async {
         for index in 0..64 {
@@ -20,7 +24,7 @@ async fn sends_and_roster_refreshes_share_a_consistent_lock_order(pool: PgPool) 
             barrier.wait().await;
             repository
                 .enqueue(SendIntent {
-                    user: ALICE,
+                    user: &person(ALICE),
                     account: &account,
                     binding: &binding,
                     request: &request,
@@ -54,7 +58,7 @@ async fn observers_can_refresh_groups_in_opposite_orders(pool: PgPool) {
         .unwrap();
     linked
         .adopt(
-            ALICE,
+            &person(ALICE),
             &AdoptGroup {
                 group_jid: second.jid.clone(),
             },

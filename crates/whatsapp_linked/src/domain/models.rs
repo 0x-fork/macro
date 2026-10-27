@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 /// Independently controlled backend rollout switches. None grants access.
 #[derive(Debug, Clone, Copy, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedFeatures))]
 pub struct Features {
@@ -20,10 +21,21 @@ pub struct Features {
 
 /// Account lifecycle. Transport outages are not stored: a connected account
 /// stays connected while its session service reconnects.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    strum::IntoStaticStr,
+    strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedAccountState))]
+#[strum(serialize_all = "snake_case")]
 pub enum AccountState {
     /// A pairing transaction is in progress.
     Pairing,
@@ -37,29 +49,19 @@ pub enum AccountState {
 
 impl AccountState {
     /// Stable storage spelling.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Pairing => "pairing",
-            Self::Connected => "connected",
-            Self::LoggedOut => "logged_out",
-            Self::Disconnected => "disconnected",
-        }
+    pub fn as_str(self) -> &'static str {
+        self.into()
     }
 
     /// Parse the storage spelling.
     pub fn parse(value: &str) -> Option<Self> {
-        Some(match value {
-            "pairing" => Self::Pairing,
-            "connected" => Self::Connected,
-            "logged_out" => Self::LoggedOut,
-            "disconnected" => Self::Disconnected,
-            _ => return None,
-        })
+        value.parse().ok()
     }
 }
 
 /// One person's account, never owned by a workspace.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedAccount))]
 pub struct Account {
@@ -76,10 +78,21 @@ pub struct Account {
 }
 
 /// Pairing transaction state.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    strum::IntoStaticStr,
+    strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedPairingState))]
+#[strum(serialize_all = "snake_case")]
 pub enum PairingState {
     /// Waiting for a session-service replica to start the device.
     Waiting,
@@ -99,43 +112,19 @@ pub enum PairingState {
 
 impl PairingState {
     /// Stable storage spelling.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Waiting => "waiting",
-            Self::Qr => "qr",
-            Self::Passkey => "passkey",
-            Self::Success => "success",
-            Self::Expired => "expired",
-            Self::Cancelled => "cancelled",
-            Self::Failed => "failed",
-        }
+    pub fn as_str(self) -> &'static str {
+        self.into()
     }
 
     /// Parse the storage spelling.
     pub fn parse(value: &str) -> Option<Self> {
-        Some(match value {
-            "waiting" => Self::Waiting,
-            "qr" => Self::Qr,
-            "passkey" => Self::Passkey,
-            "success" => Self::Success,
-            "expired" => Self::Expired,
-            "cancelled" => Self::Cancelled,
-            "failed" => Self::Failed,
-            _ => return None,
-        })
-    }
-
-    /// Whether the transaction has ended.
-    pub const fn is_terminal(self) -> bool {
-        matches!(
-            self,
-            Self::Success | Self::Expired | Self::Cancelled | Self::Failed
-        )
+        value.parse().ok()
     }
 }
 
 /// Owner-bound pairing transaction, without its QR or pairing code.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedPairing))]
 pub struct Pairing {
@@ -175,6 +164,7 @@ pub struct PairState {
 /// Explicit adoption request; the account is selected server-side. The
 /// group's name always follows WhatsApp.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedAdoptGroup))]
 pub struct AdoptGroup {
@@ -215,11 +205,10 @@ pub struct Binding {
     pub adopted_at: DateTime<Utc>,
 }
 
-/// Verified sender aliases, supplied only by protocol metadata.
+/// Verified sender aliases, supplied only by protocol metadata. Stored in
+/// roster metadata and retained events as camelCase JSON.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedIdentity))]
 pub struct Identity {
     /// Phone-number or LID account JID.
     pub jid: String,
@@ -242,16 +231,13 @@ impl Identity {
         [Some(self.jid.as_str()), self.alternate_jid.as_deref()]
             .into_iter()
             .flatten()
-            .find_map(|jid| jid.strip_suffix("@s.whatsapp.net"))
-            .map(|phone| format!("+{phone}"))
+            .find_map(super::jid::phone_number)
     }
 }
 
 /// Current remote participant; Macro access is a separate grant.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedParticipant))]
 pub struct Participant {
     /// Identity evidence.
     #[serde(flatten)]
@@ -261,10 +247,10 @@ pub struct Participant {
 }
 
 /// One full metadata read of a group, never an incomplete membership delta.
+/// The session service reports it and it is stored as roster metadata
+/// (camelCase JSON); the API shows it as [`crate::domain::timeline::WhatsAppRoster`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedGroupInfo))]
 pub struct GroupInfo {
     /// Remote group JID.
     pub jid: String,
@@ -293,6 +279,7 @@ pub struct GroupInfo {
 
 /// A group entity bound to a remote group.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedGroupReference))]
 pub struct GroupReference {
@@ -318,6 +305,22 @@ pub struct CommunityReference {
 
 /// Shown when the community itself is not in the account's group list.
 const UNKNOWN_COMMUNITY_NAME: &str = "WhatsApp community";
+
+impl CommunityReference {
+    /// The community `id`, named after its own metadata's `name` when known.
+    pub fn named(id: String, name: Option<&str>, announcements: bool) -> Self {
+        let name = name
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .unwrap_or(UNKNOWN_COMMUNITY_NAME)
+            .to_owned();
+        Self {
+            id,
+            name,
+            announcements,
+        }
+    }
+}
 
 /// Another person's group entity the caller can view.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -374,17 +377,11 @@ impl GroupInfo {
     /// The community this group belongs to, named after `parent` (the
     /// community's own metadata) when known.
     pub fn community(&self, parent: Option<&GroupInfo>) -> Option<CommunityReference> {
-        let id = self.community_jid.clone()?;
-        let name = parent
-            .map(|parent| parent.name.trim())
-            .filter(|name| !name.is_empty())
-            .unwrap_or(UNKNOWN_COMMUNITY_NAME)
-            .to_owned();
-        Some(CommunityReference {
-            id,
-            name,
-            announcements: self.community_announcements,
-        })
+        Some(CommunityReference::named(
+            self.community_jid.clone()?,
+            parent.map(|parent| parent.name.as_str()),
+            self.community_announcements,
+        ))
     }
 
     /// Whether the given identity may post under the group's current settings.
@@ -396,10 +393,22 @@ impl GroupInfo {
 }
 
 /// Whether a WhatsApp chat is a group or a one-to-one chat.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::IntoStaticStr,
+    strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedChatKind))]
+#[strum(serialize_all = "snake_case")]
 pub enum ChatKind {
     /// A group chat (`…@g.us`).
     Group,
@@ -409,20 +418,13 @@ pub enum ChatKind {
 
 impl ChatKind {
     /// Stable storage spelling.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Group => "group",
-            Self::Direct => "direct",
-        }
+    pub fn as_str(self) -> &'static str {
+        self.into()
     }
 
     /// Parse the storage spelling.
     pub fn parse(value: &str) -> Option<Self> {
-        Some(match value {
-            "group" => Self::Group,
-            "direct" => Self::Direct,
-            _ => return None,
-        })
+        value.parse().ok()
     }
 }
 
@@ -492,13 +494,27 @@ pub struct ChatList {
 }
 
 /// Where importing a group's earlier messages stands.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    strum::IntoStaticStr,
+    strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedBackfillState))]
+#[strum(serialize_all = "snake_case")]
 pub enum BackfillState {
-    /// Waiting to start: the owner's account has not seen a message in this
-    /// chat yet, or has not picked it up.
+    /// Nothing to start from: the owner's account knows no message in this
+    /// chat yet (paired before WhatsApp sent its chat list, and quiet since).
+    /// Becomes `pending` with the chat's first message.
+    WaitingForMessage,
+    /// About to start: the owner's account has not picked it up yet.
     Pending,
     /// Asking the owner's phone for earlier messages.
     Running,
@@ -513,31 +529,13 @@ pub enum BackfillState {
 
 impl BackfillState {
     /// Stable storage spelling.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Running => "running",
-            Self::WaitingForPhone => "waiting_for_phone",
-            Self::Done => "done",
-            Self::Partial => "partial",
-        }
+    pub fn as_str(self) -> &'static str {
+        self.into()
     }
 
     /// Parse the storage spelling.
     pub fn parse(value: &str) -> Option<Self> {
-        Some(match value {
-            "pending" => Self::Pending,
-            "running" => Self::Running,
-            "waiting_for_phone" => Self::WaitingForPhone,
-            "done" => Self::Done,
-            "partial" => Self::Partial,
-            _ => return None,
-        })
-    }
-
-    /// Still importing (show "Importing history…").
-    pub const fn is_active(self) -> bool {
-        matches!(self, Self::Pending | Self::Running | Self::WaitingForPhone)
+        value.parse().ok()
     }
 }
 
@@ -591,6 +589,7 @@ pub enum ReplyContent {
     /// One attachment staged through the attachments route.
     Media {
         /// The staged upload, which becomes the message's private document.
+        #[serde(rename = "uploadId")]
         upload_id: Uuid,
         /// Optional caption; audio has none.
         caption: Option<String>,
@@ -598,6 +597,7 @@ pub enum ReplyContent {
     /// An operation on an existing message in this group.
     Mutation {
         /// Existing group message, resolved to its WhatsApp source by the server.
+        #[serde(rename = "messageId")]
         message_id: Uuid,
         /// Explicit operation.
         operation: Mutation,
@@ -608,6 +608,7 @@ pub enum ReplyContent {
 
 /// Explicit send action from a person. Only deliberate sends reach WhatsApp.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedSendReply))]
 pub struct SendReply {
@@ -622,10 +623,21 @@ pub struct SendReply {
 
 /// Observed send state. `unknown` means the request may have reached WhatsApp;
 /// it is never sent again automatically.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    strum::IntoStaticStr,
+    strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedDeliveryState))]
+#[strum(serialize_all = "snake_case")]
 pub enum DeliveryState {
     /// Durable intent, not yet claimed.
     Pending,
@@ -635,49 +647,25 @@ pub enum DeliveryState {
     Unknown,
     /// WhatsApp accepted the message; this does not establish delivery.
     Accepted,
-    /// Reported sent.
-    Sent,
-    /// Reported delivered.
-    Delivered,
-    /// Reported read.
-    Read,
     /// Rejected, expired or no longer authorized.
     Failed,
 }
 
 impl DeliveryState {
     /// Stable storage spelling.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "pending",
-            Self::Sending => "sending",
-            Self::Unknown => "unknown",
-            Self::Accepted => "accepted",
-            Self::Sent => "sent",
-            Self::Delivered => "delivered",
-            Self::Read => "read",
-            Self::Failed => "failed",
-        }
+    pub fn as_str(self) -> &'static str {
+        self.into()
     }
 
     /// Parse the storage spelling.
     pub fn parse(value: &str) -> Option<Self> {
-        Some(match value {
-            "pending" => Self::Pending,
-            "sending" => Self::Sending,
-            "unknown" => Self::Unknown,
-            "accepted" => Self::Accepted,
-            "sent" => Self::Sent,
-            "delivered" => Self::Delivered,
-            "read" => Self::Read,
-            "failed" => Self::Failed,
-            _ => return None,
-        })
+        value.parse().ok()
     }
 }
 
 /// Durable result of a deliberate send.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedSendProgress))]
 pub struct SendProgress {
@@ -715,24 +703,46 @@ pub enum MediaKind {
     Document,
 }
 
+/// Every MIME type Macro sends to WhatsApp, with its category.
+pub const SENDABLE_MEDIA: [(&str, MediaKind); 10] = [
+    ("image/jpeg", MediaKind::Image),
+    ("image/png", MediaKind::Image),
+    ("image/webp", MediaKind::Image),
+    ("audio/mpeg", MediaKind::Audio),
+    ("audio/ogg", MediaKind::Audio),
+    ("audio/aac", MediaKind::Audio),
+    ("audio/mp4", MediaKind::Audio),
+    ("video/mp4", MediaKind::Video),
+    ("application/pdf", MediaKind::Document),
+    ("text/plain", MediaKind::Document),
+];
+
 impl MediaKind {
     /// Category of a supported MIME type; anything else is refused.
     pub fn of(mime: &str) -> Option<Self> {
-        Some(match mime {
-            "image/jpeg" | "image/png" | "image/webp" => Self::Image,
-            "audio/mpeg" | "audio/ogg" | "audio/aac" | "audio/mp4" => Self::Audio,
-            "video/mp4" => Self::Video,
-            "application/pdf" | "text/plain" => Self::Document,
-            _ => return None,
-        })
+        SENDABLE_MEDIA
+            .iter()
+            .find(|(sendable, _)| *sendable == mime)
+            .map(|(_, kind)| *kind)
     }
 }
 
 /// How WhatsApp shows an attachment, when not as a plain file of its kind.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    strum::IntoStaticStr,
+    strum::EnumString,
+)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedMediaPresentation))]
+#[strum(serialize_all = "snake_case")]
 pub enum MediaPresentation {
     /// A sticker: a small image (WebP, possibly animated), no caption.
     Sticker,
@@ -743,23 +753,14 @@ pub enum MediaPresentation {
 }
 
 impl MediaPresentation {
-    /// Stored form.
+    /// Stable storage spelling.
     pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Sticker => "sticker",
-            Self::Gif => "gif",
-            Self::VoiceNote => "voice_note",
-        }
+        self.into()
     }
 
-    /// Parses the stored form.
+    /// Parse the storage spelling.
     pub fn parse(value: &str) -> Option<Self> {
-        Some(match value {
-            "sticker" => Self::Sticker,
-            "gif" => Self::Gif,
-            "voice_note" => Self::VoiceNote,
-            _ => return None,
-        })
+        value.parse().ok()
     }
 }
 
@@ -768,6 +769,7 @@ pub const MEDIA_LIMIT_BYTES: usize = 32 * 1024 * 1024;
 
 /// A staged attachment, sent only by a later deliberate send.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedUploadedAttachment))]
 pub struct UploadedAttachment {
@@ -797,6 +799,7 @@ pub enum AttachmentState {
 
 /// One attachment of a linked message.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedAttachment))]
 pub struct LinkedAttachment {
@@ -824,6 +827,7 @@ pub struct LinkedAttachment {
 
 /// The attachments of one linked group message.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedMessageAttachments))]
 pub struct MessageAttachments {
@@ -836,6 +840,17 @@ pub struct MessageAttachments {
 /// Most people one text send may @-mention.
 pub const MENTION_LIMIT: usize = 64;
 
+/// Largest WebAuthn challenge or assertion passed through a pairing.
+pub const PASSKEY_LIMIT_BYTES: usize = 32 * 1024;
+
+/// Most messages or send ids one attachments or delivery request names.
+pub const BATCH_LIMIT: usize = 100;
+
+/// Most messages in one timeline page, and the page size when none is asked.
+pub const PAGE_LIMIT: i64 = 100;
+/// Timeline page size when the caller names none.
+pub const DEFAULT_PAGE: i64 = 50;
+
 /// Days a participant's receipt is kept.
 pub const RECEIPT_RETENTION_DAYS: i32 = 30;
 /// Maximum UTF-8 bytes in one text send.
@@ -847,6 +862,7 @@ pub const SEND_EXPIRY_SECONDS: i64 = 10 * 60;
 
 /// Operations implemented for linked groups, independent of current permission.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedCapabilities))]
 pub struct Capabilities {
@@ -872,21 +888,10 @@ impl Default for Capabilities {
             mutation_window_seconds: MUTATION_WINDOW_SECONDS as u32,
             max_attachments: 1,
             attachment_limit_bytes: MEDIA_LIMIT_BYTES as u32,
-            attachment_types: [
-                "image/jpeg",
-                "image/png",
-                "image/webp",
-                "audio/mpeg",
-                "audio/ogg",
-                "audio/aac",
-                "audio/mp4",
-                "video/mp4",
-                "application/pdf",
-                "text/plain",
-            ]
-            .into_iter()
-            .map(str::to_owned)
-            .collect(),
+            attachment_types: SENDABLE_MEDIA
+                .iter()
+                .map(|(mime, _)| (*mime).to_owned())
+                .collect(),
         }
     }
 }
@@ -907,12 +912,13 @@ pub enum ReplyBlock {
     NotObserving,
     /// The viewer is not in the group, or only admins may post.
     NotAllowedInGroup,
-    /// The group is detached, or needs a new content owner.
+    /// The group is detached.
     GroupUnavailable,
 }
 
 /// Owner-scoped account state, including not connected.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedAccountView))]
 pub struct AccountView {
@@ -922,6 +928,7 @@ pub struct AccountView {
 
 /// Result of disconnecting an account.
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedDisconnect))]
 pub struct Disconnect {
@@ -937,7 +944,9 @@ pub enum SendAuthority {
     Human,
     /// The person's verified API credential; sends only from their own account.
     UserApiToken,
-    /// A bot, harness, or other automation principal; never sends to WhatsApp.
+    /// Acting for the person without being them: a session carrying an agent
+    /// attribution. Bots, harnesses and internal callers never reach these use
+    /// cases (`UserOnly` rejects them). Never sends to WhatsApp.
     Automation,
 }
 
@@ -965,9 +974,6 @@ pub enum LinkedError {
     /// The account is not connected.
     #[error("connect your WhatsApp account first")]
     Disconnected,
-    /// A sender identity is ambiguous; the event is quarantined.
-    #[error("identity_conflict")]
-    IdentityConflict,
     /// The intent expired before it was attempted.
     #[error("send_expired")]
     SendExpired,
@@ -980,6 +986,14 @@ pub enum LinkedError {
     /// Retryable infrastructure failure.
     #[error("WhatsApp is temporarily unavailable; retry shortly")]
     Unavailable,
+    /// The account has too many events waiting to be stored; the session
+    /// service leaves the event unacknowledged and WhatsApp redelivers it.
+    #[error("too many WhatsApp events are waiting for this account")]
+    Backlogged,
+    /// Stored data broke an invariant; retrying does not help. The report
+    /// carries the cause.
+    #[error("something went wrong with this WhatsApp chat")]
+    Internal,
 }
 
 impl LinkedError {
@@ -996,11 +1010,12 @@ impl LinkedError {
             Self::Forbidden => "forbidden",
             Self::Conflict => "conflict",
             Self::Disconnected => "disconnected",
-            Self::IdentityConflict => "identity_conflict",
             Self::SendExpired => "send_expired",
             Self::Fenced => "lease_fenced",
             Self::RateLimited => "rate_limited",
             Self::Unavailable => "temporarily_unavailable",
+            Self::Backlogged => "backlogged",
+            Self::Internal => "internal_error",
         }
     }
 }

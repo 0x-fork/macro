@@ -8,16 +8,27 @@ export type GroupSummary = {
   /** A group, or a one-to-one chat (named after the other person). */
   kind: 'group' | 'direct';
   name: string;
+  /** The Macro user who added it; only they share it on. */
+  ownerId: string;
   unreadCount: number;
   /** False for viewers who can only read. */
   canSend: boolean;
+  /** The WhatsApp community the group belongs to. */
+  community?: { id: string; name: string; announcements: boolean };
 };
 /**
  * Importing the chat's earlier messages from the owner's phone after it was
  * added. Absent for groups added before imports existed.
  */
 export type GroupBackfill = {
-  state: 'pending' | 'running' | 'waiting_for_phone' | 'done' | 'partial';
+  /** `waiting_for_message`: nobody has posted since adding; nothing to import from yet. */
+  state:
+    | 'waiting_for_message'
+    | 'pending'
+    | 'running'
+    | 'waiting_for_phone'
+    | 'done'
+    | 'partial';
   /** Messages the phone sent, including ones already shown. */
   imported: number;
 };
@@ -80,15 +91,7 @@ export type GroupSend =
 /** A recorded send, as DSS reports its progress. */
 export type SendProgress = {
   id: string;
-  state:
-    | 'pending'
-    | 'sending'
-    | 'unknown'
-    | 'accepted'
-    | 'sent'
-    | 'delivered'
-    | 'read'
-    | 'failed';
+  state: 'pending' | 'sending' | 'unknown' | 'accepted' | 'failed';
   messageId?: string;
   errorCode?: string;
 };
@@ -169,10 +172,7 @@ export function recordedOutcome(
 ): 'waiting' | 'accepted' | { failed: string } {
   return match(progress.state)
     .with(P.union('pending', 'sending'), () => 'waiting' as const)
-    .with(
-      P.union('accepted', 'sent', 'delivered', 'read'),
-      () => 'accepted' as const
-    )
+    .with('accepted', () => 'accepted' as const)
     .with(P.union('failed', 'unknown'), () => ({
       failed: deliveryFailure(progress),
     }))
@@ -219,7 +219,7 @@ export function backfillStatus(
         ? 'Waiting for your phone to import history'
         : "Waiting for the owner's phone to import history"
     )
-    .with(P.union('done', 'partial'), () => undefined)
+    .with(P.union('waiting_for_message', 'done', 'partial'), () => undefined)
     .exhaustive();
 }
 

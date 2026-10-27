@@ -13,7 +13,7 @@ import type { LinkedReplyContentOneOfSixType } from './linkedReplyContentOneOfSi
  */
 export type LinkedReplyContentOneOfSix = {
   /** Existing group message, resolved to its WhatsApp source by the server. */
-  message_id: string;
+  messageId: string;
   /** Explicit operation. */
   operation: LinkedMutation;
   /** Replacement text or emoji; absent for delete, empty to remove a reaction. */

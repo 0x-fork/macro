@@ -1,5 +1,5 @@
 //! Capabilities the linked-device use cases need. Postgres adapters implement
-//! the repositories; DSS supplies the authorizer and group notification publisher.
+//! the repositories; DSS supplies the group notification publisher.
 //!
 //! Repository methods that change state are atomic and re-check, under lock, the
 //! facts their contract names. Methods that signal another process do it with
@@ -9,6 +9,7 @@
 use super::{events::*, models::*};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
 /// Result of every port and service call.
@@ -19,41 +20,46 @@ pub type LinkedResult<T> = Result<T, rootcause::Report<LinkedError>>;
 pub trait SendRateLimiter: Send + Sync {
     /// Consume one request across all groups and service replicas. Requests
     /// rejected later still count; infrastructure failure must fail closed.
-    async fn check(&self, user: &str) -> LinkedResult<()>;
+    async fn check(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<()>;
 }
 
 /// Owner-scoped account and pairing transitions.
 #[async_trait]
 pub trait AccountRepository: Send + Sync {
     /// The person's account, if they ever started pairing.
-    async fn owned_account(&self, user: &str) -> LinkedResult<Option<Account>>;
+    async fn owned_account(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<Option<Account>>;
     /// Return the live transaction, or start one: create the account if absent,
     /// otherwise move it to `pairing` and bump its generation. Fails with
     /// `Conflict` when the account is connected and `replace` is false. With
     /// `replace`, first ends the old consent exactly like
     /// [`AccountRepository::disconnect`] and drops the expected identity.
     /// Signals `whatsapp_pairing_requested`.
-    async fn begin_pairing(&self, user: &str, replace: bool) -> LinkedResult<Pairing>;
+    async fn begin_pairing(
+        &self,
+        user: &MacroUserIdStr<'_>,
+        replace: bool,
+    ) -> LinkedResult<Pairing>;
     /// The owner's transaction with its current codes; an unconsumed transaction
     /// past its deadline is expired first (and its pairing account disconnected).
     /// `NotFound` for another user's transaction.
-    async fn pair_state(&self, user: &str, pairing: Uuid) -> LinkedResult<PairState>;
+    async fn pair_state(&self, user: &MacroUserIdStr<'_>, pairing: Uuid)
+    -> LinkedResult<PairState>;
     /// Store the owner's WebAuthn assertion for a live transaction waiting on a
     /// passkey; `NotFound` otherwise. Signals `whatsapp_pairing_requested`.
     async fn submit_passkey(
         &self,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         pairing: Uuid,
         response: &serde_json::Value,
     ) -> LinkedResult<()>;
     /// Cancel the owner's live transaction and end the pairing consent.
     /// Signals `whatsapp_pairing_requested`. Idempotent.
-    async fn cancel_pairing(&self, user: &str, pairing: Uuid) -> LinkedResult<()>;
+    async fn cancel_pairing(&self, user: &MacroUserIdStr<'_>, pairing: Uuid) -> LinkedResult<()>;
     /// End consent at exactly this generation: state `disconnected`, generation
     /// + 1, memberships end, live pairings cancel, undispatched sends fail.
     /// Returns false when that generation was already disconnected.
     /// Signals `whatsapp_account_changed`.
-    async fn disconnect(&self, user: &str, generation: i64) -> LinkedResult<bool>;
+    async fn disconnect(&self, user: &MacroUserIdStr<'_>, generation: i64) -> LinkedResult<bool>;
 }
 
 /// A group entity bound to a remote group, as one viewer can see it.
@@ -80,24 +86,17 @@ pub trait GroupRepository: Send + Sync {
     /// (`whatsapp_groups_requested`); the replica rate limits refreshes.
     async fn request_groups_refresh(&self, accounts: &[Uuid]) -> LinkedResult<()>;
     /// Accounts whose rosters describe a group entity: its observers, and the
-    /// viewer's own connected account.
-    async fn group_accounts(&self, group_id: Uuid, user: &str) -> LinkedResult<Vec<Uuid>>;
+    /// viewer's own connected account (a bot viewer has none).
+    async fn group_accounts(&self, group_id: Uuid, viewer: &str) -> LinkedResult<Vec<Uuid>>;
     /// Group entities bound to these remote groups that the person can see,
     /// newest first.
     async fn visible_adoptions(
         &self,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         groups: &[String],
     ) -> LinkedResult<Vec<VisibleAdoption>>;
     /// Latest metadata for a binding's group from any account consenting to it.
     async fn binding_roster(&self, binding: &Binding) -> LinkedResult<Option<GroupInfo>>;
-    /// Latest metadata for the binding's community (`community_jid`) from any
-    /// account consenting to the binding.
-    async fn binding_community(
-        &self,
-        binding: &Binding,
-        community_jid: &str,
-    ) -> LinkedResult<Option<GroupInfo>>;
 
     /// The account's stored chat list (without the roster), newest first.
     async fn account_chats(&self, account: Uuid) -> LinkedResult<Vec<StoredChat>>;
@@ -138,7 +137,7 @@ pub struct Adoption {
 /// A new binding, authorized by the domain.
 pub struct AdoptionRecord<'a> {
     /// Adopting person.
-    pub user: &'a str,
+    pub user: &'a MacroUserIdStr<'a>,
     /// Their account at the generation that authorized adoption.
     pub account: &'a Account,
     /// What to add.
@@ -184,38 +183,6 @@ pub struct SendingFacts {
     pub can_post: bool,
 }
 
-/// A direct chat has two people: only its owner's own account is in it.
-pub(crate) fn direct_sending_facts(account: &Account, binding: &Binding) -> SendingFacts {
-    let owner = account.user_id == binding.user_id;
-    SendingFacts {
-        observing: owner,
-        remote_member: owner,
-        can_post: owner,
-    }
-}
-
-/// Membership eligibility derived only from the caller's own protocol metadata.
-pub(crate) fn sending_facts_from_roster(
-    account: &Account,
-    group: Option<GroupInfo>,
-) -> SendingFacts {
-    SendingFacts {
-        observing: group.is_some(),
-        remote_member: group.as_ref().is_some_and(|g| {
-            account
-                .identity_jid
-                .as_deref()
-                .is_some_and(|i| g.participant(i).is_some())
-        }),
-        can_post: group.as_ref().is_some_and(|g| {
-            account
-                .identity_jid
-                .as_deref()
-                .is_some_and(|i| g.can_post(i))
-        }),
-    }
-}
-
 /// What a mutation request points at.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MutationTarget {
@@ -227,10 +194,19 @@ pub struct MutationTarget {
     pub deleted: bool,
 }
 
+/// An earlier send found by its intent key.
+#[derive(Debug, Clone)]
+pub struct StoredSend {
+    /// SHA-256 of its canonical request; a retry must match it.
+    pub request_sha256: [u8; 32],
+    /// Where it got to.
+    pub progress: SendProgress,
+}
+
 /// A validated intent, authorized by the domain.
 pub struct SendIntent<'a> {
     /// Sending person.
-    pub user: &'a str,
+    pub user: &'a MacroUserIdStr<'a>,
     /// Their account at its current generation.
     pub account: &'a Account,
     /// Binding.
@@ -244,7 +220,7 @@ pub struct SendIntent<'a> {
 /// A validated attachment upload.
 pub struct StagedUpload<'a> {
     /// Uploader, who will own the document.
-    pub user: &'a str,
+    pub user: &'a MacroUserIdStr<'a>,
     /// Group it may be sent to.
     pub group_id: Uuid,
     /// Display filename.
@@ -264,45 +240,48 @@ pub struct StagedUpload<'a> {
 pub trait SendRepository: Send + Sync {
     /// Stage an attachment for a later send by the same person in the same group.
     async fn stage_upload(&self, upload: StagedUpload<'_>) -> LinkedResult<Uuid>;
-    /// MIME type and filename of the person's staged upload in this group.
-    async fn staged_upload(
+    /// MIME type of the person's unsent staged upload in this group.
+    async fn staged_upload_mime(
         &self,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         group_id: Uuid,
         upload: Uuid,
-    ) -> LinkedResult<Option<(String, String)>>;
-    /// Own-account membership facts for the person's account in the binding.
-    async fn sending_facts(
+    ) -> LinkedResult<Option<String>>;
+    /// The person's own account's roster of the binding's group, if any.
+    async fn account_roster(
         &self,
         account: &Account,
         binding: &Binding,
-    ) -> LinkedResult<SendingFacts>;
+    ) -> LinkedResult<Option<GroupInfo>>;
     /// The source of a group message in this binding, for quotes and mutations.
     async fn mutation_target(
         &self,
         binding: &Binding,
         message: Uuid,
     ) -> LinkedResult<Option<MutationTarget>>;
-    /// The person's earlier send with this intent key in the group, with the
-    /// SHA-256 of its canonical request.
+    /// The person's earlier send with this intent key in the group.
     async fn stored_send(
         &self,
         group_id: Uuid,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         idempotency_key: Uuid,
-    ) -> LinkedResult<Option<([u8; 32], SendProgress)>>;
+    ) -> LinkedResult<Option<StoredSend>>;
     /// Record the intent and assign the group sequence. Replays with the same key
     /// return the stored progress; a different payload is a `Conflict`. Inserts
     /// only while the account is connected at its generation, the binding is
     /// active and the membership still observes. Signals `whatsapp_send_requested`.
     async fn enqueue(&self, intent: SendIntent<'_>) -> LinkedResult<SendProgress>;
     /// The person's sends in a group that are not yet accepted, newest first.
-    async fn open_sends(&self, group_id: Uuid, user: &str) -> LinkedResult<Vec<SendProgress>>;
+    async fn open_sends(
+        &self,
+        group_id: Uuid,
+        user: &MacroUserIdStr<'_>,
+    ) -> LinkedResult<Vec<SendProgress>>;
     /// The person's sends for these group messages or intent ids.
     async fn sends_for(
         &self,
         group_id: Uuid,
-        user: &str,
+        user: &MacroUserIdStr<'_>,
         ids: &[Uuid],
     ) -> LinkedResult<Vec<SendProgress>>;
 }
@@ -324,6 +303,9 @@ pub trait SessionRepository: Send + Sync {
     async fn begin_lease(&self, account: Uuid) -> LinkedResult<Lease>;
     /// Return claimed but undispatched sends to `pending` before handing over.
     async fn release_lease(&self, scope: SessionScope) -> LinkedResult<()>;
+    /// Tell other replicas the account is free to take while it still needs
+    /// a session (`whatsapp_account_released`).
+    async fn announce_released(&self, account: Uuid) -> LinkedResult<()>;
     /// Remove and return the owner's WebAuthn assertion, so it is forwarded once.
     async fn take_passkey_response(
         &self,
@@ -390,10 +372,19 @@ pub trait SessionRepository: Send + Sync {
     async fn observed_groups(&self, scope: SessionScope) -> LinkedResult<Vec<String>>;
 
     /// Upsert chat-list rows. Signals the owner's list when something changed.
-    async fn update_chats(&self, scope: SessionScope, chats: &[ChatUpdate]) -> LinkedResult<()>;
+    /// Returns whether an added chat waiting for its first message got one
+    /// (it is `pending` now).
+    async fn update_chats(&self, scope: SessionScope, chats: &[ChatUpdate]) -> LinkedResult<bool>;
 
     /// The account owner's groups still importing earlier messages.
     async fn backfill_work(&self, scope: SessionScope) -> LinkedResult<Vec<BackfillWork>>;
+
+    /// No message of the chat is known to start from (`waiting_for_message`).
+    async fn backfill_waiting_for_message(
+        &self,
+        scope: SessionScope,
+        group: Uuid,
+    ) -> LinkedResult<()>;
 
     /// A page was requested from the phone just now (`running`).
     async fn backfill_requested(&self, scope: SessionScope, group: Uuid) -> LinkedResult<()>;
@@ -523,7 +514,7 @@ pub struct DocumentImport {
     pub attachment: AttachmentRef,
     /// Reserved document id.
     pub document_id: Uuid,
-    /// Channel the document is shared with.
+    /// The chat whose viewers inherit access to the document.
     pub group_id: Uuid,
     /// Owner of the document.
     pub owner: String,
@@ -531,10 +522,8 @@ pub struct DocumentImport {
     pub filename: String,
     /// MIME type.
     pub mime: String,
-    /// SHA-256 of `bytes`.
+    /// SHA-256 of the bytes.
     pub sha256: [u8; 32],
-    /// Plaintext bytes.
-    pub bytes: Vec<u8>,
     /// Earlier failed imports.
     pub attempts: i32,
 }
@@ -542,15 +531,18 @@ pub struct DocumentImport {
 /// The import queue between blobs and documents.
 #[async_trait]
 pub trait MediaRepository: Send + Sync {
-    /// Imports whose retry time has come.
+    /// Imports whose retry time has come, claimed, without their bytes.
     async fn due_imports(&self, limit: i64) -> LinkedResult<Vec<DocumentImport>>;
+    /// One claimed import's plaintext bytes; `None` once the blob is gone.
+    async fn import_bytes(&self, import: &DocumentImport) -> LinkedResult<Option<Vec<u8>>>;
     /// The document holds the bytes: attach it to the message, drop the blob and
     /// queue publication.
     async fn import_stored(&self, import: &DocumentImport) -> LinkedResult<()>;
     /// Retry later, or give up and show a notice on the message.
     async fn import_failed(&self, import: &DocumentImport, permanent: bool) -> LinkedResult<()>;
-    /// Delete staged uploads nobody sent and participant receipts older than
-    /// [`RECEIPT_RETENTION_DAYS`](crate::domain::models::RECEIPT_RETENTION_DAYS).
+    /// Delete staged uploads nobody sent, participant receipts older than
+    /// [`RECEIPT_RETENTION_DAYS`](crate::domain::models::RECEIPT_RETENTION_DAYS)
+    /// and pairings consumed over a day ago (they keep the expected identity).
     async fn expire_retained(&self) -> LinkedResult<u64>;
 }
 
@@ -559,12 +551,5 @@ pub trait MediaRepository: Send + Sync {
 pub trait DocumentStore: Send + Sync {
     /// Create the document with the reserved id, owned by `owner`, holding the
     /// bytes; group viewers inherit attachment access. Never rewrites uploaded bytes.
-    async fn store(&self, import: &DocumentImport) -> LinkedResult<()>;
-}
-
-/// Native authorization owned by entity access.
-#[async_trait]
-pub trait Authorizer: Send + Sync {
-    /// The person owns the group entity.
-    async fn require_group_owner(&self, group_id: Uuid, user: &str) -> LinkedResult<()>;
+    async fn store(&self, import: &DocumentImport, bytes: Vec<u8>) -> LinkedResult<()>;
 }

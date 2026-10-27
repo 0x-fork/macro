@@ -18,8 +18,5 @@ export const LinkedDeliveryState = {
   sending: 'sending',
   unknown: 'unknown',
   accepted: 'accepted',
-  sent: 'sent',
-  delivered: 'delivered',
-  read: 'read',
   failed: 'failed',
 } as const;

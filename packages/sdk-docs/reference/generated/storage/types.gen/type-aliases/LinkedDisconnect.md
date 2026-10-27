@@ -1,6 +1,6 @@
 # Type Alias: LinkedDisconnect
 
-> **LinkedDisconnect** = \{ `remote_unlink_requested`: `boolean`; \}
+> **LinkedDisconnect** = \{ `remoteUnlinkRequested`: `boolean`; \}
 
 Result of disconnecting an account.
 
@@ -8,4 +8,4 @@ Result of disconnecting an account.
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
-| <a id="property-remote_unlink_requested"></a> `remote_unlink_requested` | `boolean` | The session service was asked to log the device out of WhatsApp. It unlinks asynchronously; WhatsApp's Linked devices list is authoritative. |
+| <a id="property-remoteunlinkrequested"></a> `remoteUnlinkRequested` | `boolean` | The session service was asked to log the device out of WhatsApp. It unlinks asynchronously; WhatsApp's Linked devices list is authoritative. |
