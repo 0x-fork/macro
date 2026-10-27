@@ -359,6 +359,7 @@ async fn every_supported_interactive_entity_can_be_added_and_removed() {
         EntityType::ForeignEntity,
         EntityType::CrmCompany,
         EntityType::CrmContact,
+        EntityType::AgentSession,
     ] {
         let favorites = Arc::new(FakeFavoritesService::default());
         let authorizer = Arc::new(FakeAuthorizer::default());
