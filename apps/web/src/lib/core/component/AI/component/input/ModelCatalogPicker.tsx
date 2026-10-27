@@ -105,7 +105,7 @@ function ModelList(props: {
 }) {
   const Row = props.row;
   return (
-    <Dropdown.Group class="bg-transparent py-0">
+    <Dropdown.Group class="py-0">
       <Dropdown.GroupLabel class="h-6 font-medium text-ink-muted">
         {props.label}
       </Dropdown.GroupLabel>
@@ -519,7 +519,8 @@ export function ModelCatalogMenu(
 
   return (
     <>
-      <div class="sticky top-0 z-10 bg-menu py-1">
+      {/* A transparent edge keeps the menu's bevel visible above the fill. */}
+      <div class="sticky top-0 z-10 border-x border-t border-transparent bg-menu bg-clip-padding py-1">
         <div class="flex h-8 items-center gap-2 px-3">
           <MagnifyingGlassIcon
             aria-hidden="true"
@@ -549,7 +550,7 @@ export function ModelCatalogMenu(
 
       {props.children}
       <Show when={props.options.length === 0}>
-        <div class="bg-menu px-3 py-2 text-xs text-ink-muted" role="status">
+        <div class="px-3 py-2 text-xs text-ink-muted" role="status">
           {props.emptyMessage ?? 'No models available.'}
         </div>
       </Show>
