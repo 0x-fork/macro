@@ -50,6 +50,8 @@ const response = Promise.withResolvers<Response>();
 const sent = Promise.withResolvers<void>();
 const settling = Promise.withResolvers<void>();
 let result: Promise<unknown> | undefined;
+let readResult: Promise<{ data: unknown; error: boolean }> | undefined;
+let readApiRequests = 0;
 function requireHost(): CacheHost {
   if (!host) throw new Error('cache not started');
   return host;
@@ -89,6 +91,7 @@ const api = {
       seedUuid,
       epochs: [...epochs],
       apiRequests,
+      readApiRequests,
       visibility: document.visibilityState,
     };
   },
@@ -98,6 +101,41 @@ const api = {
       lock.name?.includes(scope)
     );
   },
+  async beginRead() {
+    const current = requireHost();
+    const watchQuery = current.watchQuery;
+    if (!watchQuery) throw new Error('worker query watches unavailable');
+    const started = Promise.withResolvers<void>();
+    const client = createClient({
+      url: 'https://parking.invalid/graphql',
+      fetch: async () => {
+        readApiRequests += 1;
+        return new Response(JSON.stringify({ data }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+      exchanges: [
+        normalizedCacheExchange({
+          ...current,
+          async watchQuery(args) {
+            const pending = watchQuery(args);
+            started.resolve();
+            return await pending;
+          },
+        }),
+        fetchExchange,
+      ],
+    });
+    readResult = client
+      .query(query, {})
+      .toPromise()
+      .then((result) => ({
+        data: result.data,
+        error: !!result.error,
+      }));
+    await started.promise;
+  },
+  readResult: () => readResult,
   async beginMutation() {
     const current = requireHost();
     await current.writeQuery({ query, data });

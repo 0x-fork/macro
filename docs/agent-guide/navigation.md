@@ -58,8 +58,11 @@ mutation confirmations wait for storage instead of being sent twice.
 
 Verify the all-hidden case without activating the former owner: no held physical
 owner lock after parking, preserved generation/queue, and successful reads/writes
-from a returning tab. Also verify a pending HTTP response settling after parking
-and multiple surviving clients. A drain that Safari has already suspended still
+from a returning tab. Start a query while parked, resume storage from another
+tab, and verify that the original query completes—not just a fresh query key.
+Replacement must not strand an in-flight query when it invalidates its snapshot;
+cache-only reads still never use the network. Also verify a pending HTTP response
+settling after parking and multiple surviving clients. A drain that Safari has already suspended still
 waits for that worker to resume; no deadline kills it or steals its lock. Lifecycle
 telemetry uses `park-started`, `parked`, `unpark-started`, `unpark-completed`, and
 `visibility-handoff-*` owner events.

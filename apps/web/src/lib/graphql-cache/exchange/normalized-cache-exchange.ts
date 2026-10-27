@@ -36,6 +36,7 @@
  */
 
 import { fireAndForget } from '@core/util/fireAndForget';
+import { Telemetry } from '@macro-inc/observability';
 import {
   type Client,
   CombinedError,
@@ -77,6 +78,7 @@ import {
   isOwnerEpochLostError,
   isOwnerLockUnavailableError,
   type QueryRevalidationWire,
+  type ReadResult,
 } from '../protocol';
 import { createDeferredQueryRereads } from './deferred-query-rereads';
 import {
@@ -499,15 +501,18 @@ export function normalizedCacheExchange(
 
     // Async reads must not resurrect a torn-down operation, overwrite a newer
     // network result, or undo a subsequent optimistic/affected cache reread.
-    const beginCacheRead = (key: number): (() => boolean) => {
+    const beginCacheRead = (key: number) => {
       const state = queryState(key);
       const version = ++state.cacheReadVersion;
       const generation = cacheGeneration;
-      return () =>
-        generation === cacheGeneration &&
+      const isLatest = () =>
         activeOps.has(key) &&
         queryStates.get(key) === state &&
         state.cacheReadVersion === version;
+      return {
+        isCurrent: () => generation === cacheGeneration && isLatest(),
+        isLatest,
+      };
     };
 
     const acquireQueryResultTurn = async (key: number): Promise<() => void> => {
@@ -696,12 +701,16 @@ export function normalizedCacheExchange(
     // Deliver cache changes directly. Reexecuting through urql first replays
     // the previous network result as stale, which can reset collection sources
     // and replay their persistence acknowledgements during an optimistic edit.
-    const emitWatchedQuery = async (key: number): Promise<void> => {
+    const emitWatchedQuery = async (
+      key: number,
+      retrying = false
+    ): Promise<void> => {
       const operation = activeOps.get(key);
       if (!operation) return;
-      const isCurrent = beginCacheRead(key);
+      const readVersion = beginCacheRead(key);
+      let read: ReadResult | undefined;
       try {
-        const read = await documentReader.read({
+        read = await documentReader.read({
           opKey: key,
           query: queryText(operation),
           operationName: operationName(operation),
@@ -709,16 +718,28 @@ export function normalizedCacheExchange(
           priority: 'user-visible',
           entityResolvers,
         });
-        if (!isCurrent()) return;
-        if (read.kind === 'hit') {
-          emitAffectedResult(
-            cacheResult(operation, read.data, false, 'affected-cache-reread')
+      } catch (error) {
+        reportReadError(error, operation);
+      }
+      if (!readVersion.isCurrent()) {
+        if (!readVersion.isLatest()) return;
+        if (!retrying) {
+          await Telemetry.anonymousSpan(
+            'graphql_cache.read_retry',
+            async (span) => {
+              span.setAttr('cache.retry.reason', 'generation-change');
+              span.setAttr('cache.retry.count', 1);
+              span.setAttr('cache.retry.read_type', 'affected');
+              await emitWatchedQuery(key, true);
+            }
           );
           return;
         }
-      } catch (error) {
-        reportReadError(error, operation);
-        if (!isCurrent()) return;
+      } else if (read?.kind === 'hit') {
+        emitAffectedResult(
+          cacheResult(operation, read.data, false, 'affected-cache-reread')
+        );
+        return;
       }
       reexecuteAffected(key);
     };
@@ -968,14 +989,15 @@ export function normalizedCacheExchange(
       }
 
       async function readThenRoute(
-        op: Operation
+        op: Operation,
+        previousAttempt?: { networkForwarded: boolean }
       ): Promise<OperationResult | undefined> {
         if (isHydrateOnly(op)) {
           enqueueHydrationForward(op);
           return undefined;
         }
         const readState = queryState(op.key);
-        const isCurrentRead = beginCacheRead(op.key);
+        const readVersion = beginCacheRead(op.key);
         const policy = op.context.requestPolicy;
         if (policy === 'network-only') {
           enqueueQueryForward(op);
@@ -983,7 +1005,8 @@ export function normalizedCacheExchange(
         }
         const registrationOnly =
           op.context[REPLACEMENT_REGISTRATION_ONLY_CONTEXT_KEY] === true;
-        let networkForwarded = false;
+        let networkForwarded = previousAttempt?.networkForwarded ?? false;
+        let read: ReadResult | undefined;
         try {
           const pendingRead = documentReader.read({
             opKey: op.key,
@@ -998,41 +1021,63 @@ export function normalizedCacheExchange(
           });
           // Admit the cache read first, but never wait for the worker's queue
           // before starting a request that needs the network regardless.
-          if (policy === 'cache-and-network' && !registrationOnly) {
+          if (
+            policy === 'cache-and-network' &&
+            !registrationOnly &&
+            !networkForwarded
+          ) {
             networkForwarded = true;
             enqueueQueryForward(op);
           }
-          const read = await pendingRead;
-          if (!isCurrentRead()) return undefined;
-          if (read.kind === 'hit') {
-            const state = queryState(op.key);
-            const stale = networkForwarded && state.networkRequestsInFlight > 0;
-            return {
-              ...cacheResult(op, read.data, stale),
-              // A fast offline failure must not discard a slower usable cache
-              // hit, nor may that hit erase the failed revalidation's error.
-              error: networkForwarded ? state.networkError : undefined,
-            };
-          }
-          if (policy === 'cache-only') {
-            return cacheResult(op, undefined, false);
-          }
+          read = await pendingRead;
         } catch (error) {
           reportReadError(error, op);
           if (
             isOwnerEpochLostError(error) &&
             queryStates.get(op.key) === readState &&
-            (isCurrentRead() || readState.networkBoundQueries > 0)
+            (readVersion.isCurrent() || readState.networkBoundQueries > 0)
           ) {
             readState.replacementFallback = true;
           }
-          if (!isCurrentRead()) return undefined;
-          // `cache-only` must never touch the network, even when the cache
-          // itself fails — degrade to an empty result instead.
-          if (policy === 'cache-only') {
-            return cacheResult(op, undefined, false);
-          }
         }
+        if (!readVersion.isCurrent()) {
+          // Teardown, remount, or a newer result still fences this attempt.
+          if (!readVersion.isLatest()) return undefined;
+          if (!previousAttempt) {
+            // Only the generation changed. The host may have routed this read
+            // to the replacement without emitting another affected-key push.
+            // Retry here: urql deduplicates reexecutions of a pending query.
+            return await Telemetry.anonymousSpan(
+              'graphql_cache.read_retry',
+              async (span) => {
+                span.setAttr('cache.retry.reason', 'generation-change');
+                span.setAttr('cache.retry.count', 1);
+                span.setAttr('cache.retry.read_type', 'operation');
+                span.setAttr('cache.request_policy', policy);
+                const result = await readThenRoute(op, { networkForwarded });
+                span.setAttr('cache.retry.cache_result', result !== undefined);
+                span.setAttr(
+                  'cache.retry.has_data',
+                  result?.data !== undefined
+                );
+                return result;
+              }
+            );
+          }
+          // Bound churn to one fresh read, then use the normal policy fallback.
+          // Never publish a snapshot from the invalidated generation.
+        } else if (read?.kind === 'hit') {
+          const state = queryState(op.key);
+          const stale = networkForwarded && state.networkRequestsInFlight > 0;
+          return {
+            ...cacheResult(op, read.data, stale),
+            // A fast offline failure must not discard a slower usable cache
+            // hit, nor may that hit erase the failed revalidation's error.
+            error: networkForwarded ? state.networkError : undefined,
+          };
+        }
+        // `cache-only` must never touch the network, including after churn.
+        if (policy === 'cache-only') return cacheResult(op, undefined, false);
         if (!networkForwarded && !registrationOnly) enqueueQueryForward(op);
         return undefined;
       }

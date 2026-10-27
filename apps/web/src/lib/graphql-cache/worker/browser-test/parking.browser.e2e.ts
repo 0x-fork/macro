@@ -44,6 +44,44 @@ test('all-hidden storage parks and another page reopens it without waking the ol
   expect(old.visibility).toBe('hidden');
 });
 
+test('delivers a query admitted while parked across replacement without API fallback', async ({
+  context,
+  page,
+}, info) => {
+  const url = `${path(info.project.name)}?scope=cache-parking-${crypto.randomUUID()}`;
+  await page.goto(url);
+  await page.evaluate(() => window.cacheParkingHarness.start(true));
+  const before = await page.evaluate(() =>
+    window.cacheParkingHarness.snapshot()
+  );
+  const other = await context.newPage();
+  await other.goto(url);
+  await other.bringToFront();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.evaluate(() => window.cacheParkingHarness.parked());
+  await page.evaluate(() => window.cacheParkingHarness.beginRead());
+  await other.evaluate(() => window.cacheParkingHarness.start());
+  expect(
+    await page.evaluate(() => window.cacheParkingHarness.readResult())
+  ).toEqual({
+    data: { user: { id: 'macro|parking-fixture' } },
+    error: false,
+  });
+  const after = await page.evaluate(() =>
+    window.cacheParkingHarness.snapshot()
+  );
+  expect(after.readApiRequests).toBe(0);
+  expect(after.clientId).toBe(before.clientId);
+  expect(after.generation).toBe(before.generation);
+  expect(after.queue?.map((item) => item.uuid)).toEqual([before.seedUuid]);
+});
+
 test('settles a response received while parked before a competing expired-lease claim', async ({
   context,
   page,

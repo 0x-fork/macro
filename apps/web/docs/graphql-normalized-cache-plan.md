@@ -244,6 +244,16 @@ Only read callers are canceled, not admitted engine work or writes. Readiness
 restores deadlines and refreshes dependency registrations with preserved-storage
 semantics, including when startup finishes on its original owner.
 
+A replacement also invalidates document-read cursors and in-flight snapshots.
+The exchange retries a still-current read once against the new generation instead
+of dropping its only result: urql deduplicates a reexecution while that operation
+is still pending. Teardown, remount, and newer cache/network results still fence
+old reads. This applies to initial queries and affected watched rereads; continued
+churn uses normal request-policy handling. Cache-and-network never forwards a
+second request for this retry, and cache-only/replacement-registration-only reads
+never gain a network fallback. The anonymous page-side `graphql_cache.read_retry`
+span times the extra read without exporting query contents or identities.
+
 Already-sent HTTP mutations may finish while parked. Their local commit, rollback,
 or defer requests wait for storage and retain their position ahead of later
 claims. Accepted settlement requests survive their caller disconnecting; their
@@ -257,7 +267,8 @@ write. If a drain itself stalls, writes wait until it can finish or existing
 failure/navigation recovery applies. Owner telemetry adds `park-started`, `parked`,
 `unpark-started`, and `unpark-completed` alongside the `visibility-handoff-*` events.
 The backend-free `parking.browser.e2e.ts` exercises physical release, retained
-clients/storage, and a response settled after parking.
+clients/storage, a query admitted while parked completing across replacement
+without network fallback, and a response settled after parking.
 
 Every departure rejects already-routed optimistic enqueues whose replies were
 lost as `admitted-enqueue-uncertain`, including requests from surviving tabs.
