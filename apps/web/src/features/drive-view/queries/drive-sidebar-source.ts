@@ -3,17 +3,28 @@ import {
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import { useFavoritesData } from '@queries/favorites/favorites';
+import { useDatabasesQuery } from '@queries/storage/databases';
+import { useFormsQuery } from '@queries/storage/forms';
 import { createGraphqlFoldersQuery } from '@queries/storage/graphql-folders';
 import { useProjectsQuery } from '@queries/storage/projects';
-import { createMemo } from 'solid-js';
+import { type Accessor, createMemo } from 'solid-js';
 import type { DriveSidebarSource } from '../context/drive-source';
+import { selectSidebarDatabases } from './drive-databases';
+import { hiddenFormDatabases } from './drive-forms';
 
-export function createDriveSidebarSource(): DriveSidebarSource {
+type DriveSidebarOptions = {
+  databasesEnabled: Accessor<boolean>;
+  formsEnabled: Accessor<boolean>;
+};
+
+export function createDriveSidebarSource(
+  options: DriveSidebarOptions
+): DriveSidebarSource {
   if (isFeatureEnabled(enableGraphqlSoup)) {
-    return createGraphqlDriveSidebarSource();
+    return createGraphqlDriveSidebarSource(options);
   }
 
-  return createRestDriveSidebarSource();
+  return createRestDriveSidebarSource(options);
 }
 
 function createSidebarFavorites() {
@@ -30,7 +41,26 @@ function createSidebarFavorites() {
   );
 }
 
-function createGraphqlDriveSidebarSource(): DriveSidebarSource {
+function createSidebarDatabases(options: DriveSidebarOptions) {
+  const databases = useDatabasesQuery();
+  const forms = useFormsQuery();
+  return createMemo(() => {
+    if (!options.databasesEnabled() || databases.isPending) return [];
+    // The forms list names the databases made for polls; without it, show none.
+    const formsEnabled = options.formsEnabled();
+    if (formsEnabled && forms.isPending) return [];
+    const listedForms = formsEnabled ? forms.data : [];
+    if (!listedForms) return [];
+    return selectSidebarDatabases(
+      databases.data ?? [],
+      hiddenFormDatabases(listedForms)
+    );
+  });
+}
+
+function createGraphqlDriveSidebarSource(
+  options: DriveSidebarOptions
+): DriveSidebarSource {
   const folders = createGraphqlFoldersQuery();
 
   return {
@@ -41,10 +71,13 @@ function createGraphqlDriveSidebarSource(): DriveSidebarSource {
       await folders.refetch({ requestPolicy: 'network-only' });
     },
     favorites: createSidebarFavorites(),
+    databases: createSidebarDatabases(options),
   };
 }
 
-function createRestDriveSidebarSource(): DriveSidebarSource {
+function createRestDriveSidebarSource(
+  options: DriveSidebarOptions
+): DriveSidebarSource {
   const projects = useProjectsQuery();
 
   return {
@@ -62,5 +95,6 @@ function createRestDriveSidebarSource(): DriveSidebarSource {
     },
 
     favorites: createSidebarFavorites(),
+    databases: createSidebarDatabases(options),
   };
 }

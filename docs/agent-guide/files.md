@@ -57,7 +57,10 @@ touch uses the global search overlay and creation uses the dock's New button.
 The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
 selecting another pill leaves the folder tree. The sidebar contains `New file or folder`, `My Files`, `Recent`,
-`Shared with me`, collapsible Favorites, and a searchable folder hierarchy.
+`Shared with me`, collapsible Favorites, a collapsible Databases section
+listing every database the viewer owns or has been shared, by name (past ten,
+it scrolls within its own height; hidden when there are none or databases are
+disabled), and a searchable folder hierarchy.
 The Drive sidebar's import card (**Import files**, see
 [setup cards](setup-cards.md#import-from-connected-apps)) lists Notion; its
 **Import** (or a successful **Connect**) opens a new agent chat beside Drive
