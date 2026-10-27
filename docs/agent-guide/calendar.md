@@ -535,6 +535,13 @@ switches the open details.
 Desktop event details stay inside the visible calendar grid, including Home
 previews and narrow splits. They overlap wide Day-view events when needed and
 shrink to fit the pane; long details scroll while the RSVP row stays visible.
+As in Google Calendar, the popover opens beside the event, aligned with its top,
+and switches only between the right and left side; when it doesn't fit below,
+it slides up to stay in the window instead of opening above the event. Sections
+that load after it opens (join requests, meeting notes) therefore never move it
+from below the event to above it. Check placement with an event low in a tall
+window, a short window, and a pending join request; the backend-free regression
+is `apps/web/src/features/calendar-view/browser-test/playwright.config.ts`.
 
 The `New event` composer (also opened by dragging a range on the grid) has an `Event kind`
 pill choosing between `Event` and `Out of office`. Picking `Out of office` hides the guests,

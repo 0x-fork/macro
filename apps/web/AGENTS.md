@@ -39,6 +39,13 @@ Composer typeahead menus choosing the side with room for their full list
 phone screen and below one near the top, have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/LexicalMarkdown/directive/browser-test/playwright.config.ts`.
 
+Event details placement has a backend-free browser regression: the desktop
+popover stays beside its event when join requests arrive after it opens, and
+slides into a short window; the phone drawer shows late requests:
+`bunx playwright test --config src/features/calendar-view/browser-test/playwright.config.ts`.
+Keep the popover's `flip` limited to `left-start`: an end fallback re-places it
+above the event whenever a late section changes its height.
+
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.

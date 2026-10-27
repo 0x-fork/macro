@@ -529,7 +529,11 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
       }}
       placement="right-start"
       gutter={8}
-      flip
+      // Flip only to the other side, never to an end alignment: sections
+      // that arrive after opening (join requests, meeting notes) change the
+      // height, and an end fallback would re-place the popover from below
+      // the event to above it. Slide keeps a tall popover in view instead.
+      flip="left-start"
       slide
       overlap
       fitViewport
