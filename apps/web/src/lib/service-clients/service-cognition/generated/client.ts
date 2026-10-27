@@ -40,6 +40,7 @@ import type {
   PipedreamCatalogResponse,
   PipedreamCompleteRequest,
   PipedreamConnectionResponse,
+  PipedreamRecoverRequest,
   PipedreamTokenResponse,
   PipedreamUpdateRequest,
   ProjectionStateResponse,
@@ -2616,6 +2617,81 @@ export const deletePipedreamMcpConnection = async (
     status: res.status,
     headers: res.headers,
   } as deletePipedreamMcpConnectionResponse;
+};
+
+/**
+ * Called after the Connect UI closes without a success event. Answers 404
+when Pipedream has no new account for this user and app.
+ * @summary Register an account a Connect flow created but the Connect UI never
+reported.
+ */
+export type recoverPipedreamMcpConnectionResponse200 = {
+  data: PipedreamConnectionResponse;
+  status: 200;
+};
+
+export type recoverPipedreamMcpConnectionResponse401 = {
+  data: string;
+  status: 401;
+};
+
+export type recoverPipedreamMcpConnectionResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type recoverPipedreamMcpConnectionResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type recoverPipedreamMcpConnectionResponse501 = {
+  data: ErrorResponse;
+  status: 501;
+};
+
+export type recoverPipedreamMcpConnectionResponseSuccess =
+  recoverPipedreamMcpConnectionResponse200 & {
+    headers: Headers;
+  };
+export type recoverPipedreamMcpConnectionResponseError = (
+  | recoverPipedreamMcpConnectionResponse401
+  | recoverPipedreamMcpConnectionResponse404
+  | recoverPipedreamMcpConnectionResponse500
+  | recoverPipedreamMcpConnectionResponse501
+) & {
+  headers: Headers;
+};
+
+export type recoverPipedreamMcpConnectionResponse =
+  | recoverPipedreamMcpConnectionResponseSuccess
+  | recoverPipedreamMcpConnectionResponseError;
+
+export const getRecoverPipedreamMcpConnectionUrl = () => {
+  return `/pipedream/mcp/recover`;
+};
+
+export const recoverPipedreamMcpConnection = async (
+  pipedreamRecoverRequest: PipedreamRecoverRequest,
+  options?: RequestInit
+): Promise<recoverPipedreamMcpConnectionResponse> => {
+  const res = await fetch(getRecoverPipedreamMcpConnectionUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pipedreamRecoverRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: recoverPipedreamMcpConnectionResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as recoverPipedreamMcpConnectionResponse;
 };
 
 /**

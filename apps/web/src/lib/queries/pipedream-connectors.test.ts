@@ -1,11 +1,12 @@
 import type { openPipedreamConnectUI } from '@core/pipedream/connect-ui';
-import { ok } from 'neverthrow';
+import { err, ok } from 'neverthrow';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   open: vi.fn(),
   close: vi.fn(),
   complete: vi.fn(),
+  recover: vi.fn(),
   setData: vi.fn(),
   invalidate: vi.fn(async () => {}),
   native: false,
@@ -31,6 +32,7 @@ vi.mock('@service-cognition/client', () => ({
   cognitionApiServiceClient: {
     createPipedreamToken: async () => ok({ token: 'fixture' }),
     completePipedreamConnection: mocks.complete,
+    recoverPipedreamConnection: mocks.recover,
   },
 }));
 
@@ -42,6 +44,9 @@ beforeEach(() => {
   mocks.userId = 'user-one';
   mocks.open.mockImplementation(() => ({ close: mocks.close }));
   mocks.openNative.mockImplementation(() => ({ close: mocks.close }));
+  mocks.recover.mockResolvedValue(
+    err([{ code: 'NOT_FOUND', message: 'Resource not found' }])
+  );
 });
 
 async function connect(native = false) {
@@ -79,6 +84,7 @@ describe('verified Pipedream connection completion', () => {
     );
     const { pending, event } = await connect();
     event({ type: 'success', accountId: 'apn_test' });
+    await vi.waitFor(() => expect(mocks.complete).toHaveBeenCalled());
     mocks.userId = 'user-two';
     complete({ app_slug: 'linear', enabled: true });
     expect(await pending).toBe('closed');
@@ -133,5 +139,34 @@ describe('verified Pipedream connection completion', () => {
     event({ type: 'close' });
     expect(await pending).toBe('closed');
     expect(mocks.complete).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    'registers an account the Connect UI never reported (native=%s)',
+    async (native) => {
+      mocks.recover.mockResolvedValue(
+        ok({ app_slug: 'linear', enabled: true })
+      );
+      const { pending, event } = await connect(native);
+      event({ type: 'close' });
+      expect(await pending).toBe('connected');
+      expect(mocks.recover).toHaveBeenCalledExactlyOnceWith({
+        app_slug: 'linear',
+        server_name: 'Linear',
+      });
+      expect(mocks.complete).not.toHaveBeenCalled();
+      expect(mocks.invalidate).toHaveBeenCalledOnce();
+    }
+  );
+
+  it('surfaces recovery failures other than a missing account', async () => {
+    mocks.recover.mockResolvedValue(
+      err([{ code: 'SERVER_ERROR', message: 'boom' }])
+    );
+    const { pending, event } = await connect();
+    const rejected = expect(pending).rejects.toThrow();
+    event({ type: 'close' });
+    await rejected;
+    expect(mocks.setData).not.toHaveBeenCalled();
   });
 });

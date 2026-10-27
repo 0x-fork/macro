@@ -151,9 +151,15 @@ plugin redirects external popups and breaks the embedded iframe's return path.
 `pipedream-connect.html` is a separate Vite entry, served at
 `/app/pipedream-connect.html`, without a Macro browser login. The Connect token
 and one-time state travel only in its URL fragment, which the page removes on
-load. Its **Return to Macro** link is consumed by the Tauri navigation bridge
+load. When Connect finishes it opens the `macro://` callback itself, keeping
+**Return to Macro** as a fallback link; the Tauri navigation bridge consumes it
 without changing the active route. Backend registration still verifies account
-ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
+ownership. Done, logout, and the ten-minute timeout retire pending callbacks.
+
+Connect can close without reporting success (an OAuth provider severs its
+consent popup's opener) even though Pipedream created the account. Every close
+without success, on web and native, asks `/pipedream/mcp/recover` to register
+the user's newest account for that app from the last fifteen minutes.
 
 ### General
 

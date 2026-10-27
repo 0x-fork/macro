@@ -94,6 +94,10 @@ export type PipedreamCompleteRequest = {
   account_id: string;
   server_name?: string;
 };
+export type PipedreamRecoverRequest = {
+  app_slug: string;
+  server_name?: string;
+};
 export type { PipedreamCatalogEntryResponse } from './generated/schemas/pipedreamCatalogEntryResponse';
 export type { PipedreamCatalogResponse } from './generated/schemas/pipedreamCatalogResponse';
 
@@ -459,6 +463,19 @@ export const cognitionApiServiceClient = {
   async completePipedreamConnection(args: PipedreamCompleteRequest) {
     return (
       await dcsFetch<PipedreamConnectionResponse>(`/pipedream/mcp/complete`, {
+        method: 'POST',
+        body: JSON.stringify(args),
+      })
+    ).map((result) => result);
+  },
+
+  /**
+   * Register an account a Connect flow created but the Connect UI never
+   * reported. Fails with `NOT_FOUND` when there is none.
+   */
+  async recoverPipedreamConnection(args: PipedreamRecoverRequest) {
+    return (
+      await dcsFetch<PipedreamConnectionResponse>(`/pipedream/mcp/recover`, {
         method: 'POST',
         body: JSON.stringify(args),
       })

@@ -1,6 +1,9 @@
-import { openPipedreamConnectUI } from '@core/pipedream/connect-ui';
+import {
+  openPipedreamConnectUI,
+  type PipedreamConnectEvent,
+  type PipedreamConnectUI,
+} from '@core/pipedream/connect-ui';
 import { pipedreamSlugsMatch } from '@core/pipedream/slugs';
-import { fireAndForget } from '@core/util/fireAndForget';
 import { isTauri } from '@core/util/platform';
 import { ThrownResultError, throwOnErr } from '@core/util/result';
 import { type Span, Telemetry } from '@macro-inc/observability';
@@ -257,70 +260,76 @@ async function connectPipedreamAccount(
         .openNativePipedreamConnectUI
     : openPipedreamConnectUI;
   if (currentUserId() !== userId) return 'closed';
-  const consent = span.span('pipedream.consent');
-  return await new Promise<PipedreamConnectOutcome>((resolve, reject) => {
-    let settled = false;
-    const ui = openConnectUI({
-      token: token.value.token,
-      app: args.appSlug,
-      container: args.container,
-      onEvent: (event) => {
-        if (event.type === 'success' && !settled) {
-          settled = true;
-          consent.end();
-          fireAndForget(
-            (async () => {
-              try {
-                if (currentUserId() !== userId) {
-                  resolve('closed');
-                  return;
-                }
-                const connection = await span.span(
-                  'pipedream.register',
-                  async () =>
-                    throwOnErr(
-                      async () =>
-                        await cognitionApiServiceClient.completePipedreamConnection(
-                          {
-                            account_id: event.accountId,
-                            server_name: args.serverName,
-                          }
-                        )
-                    )
-                );
-                if (currentUserId() !== userId) {
-                  resolve('closed');
-                  return;
-                }
-                if (
-                  !pipedreamSlugsMatch(connection.app_slug, args.appSlug) ||
-                  !connection.enabled
-                ) {
-                  throw new Error('The requested connector was not enabled');
-                }
-                upsertConnection(connection);
-                await invalidateConnections();
-                resolve('connected');
-              } catch (error) {
-                reject(
-                  error instanceof Error
-                    ? error
-                    : new Error('failed to register Pipedream connection')
-                );
-              } finally {
-                ui.close();
-              }
-            })(),
-            'pipedream-connect'
-          );
-        } else if (event.type === 'close' && !settled) {
-          settled = true;
-          consent.end();
-          resolve('closed');
-        }
-        // 'error' events are shown inside the Connect UI itself; the user
-        // can retry there or close, so they don't settle the promise.
-      },
+  let ui: PipedreamConnectUI | undefined;
+  const consented = await span.span(
+    'pipedream.consent',
+    async () =>
+      new Promise<ConsentResult>((resolve) => {
+        ui = openConnectUI({
+          token: token.value.token,
+          app: args.appSlug,
+          container: args.container,
+          // 'error' events are shown inside the Connect UI itself; the user
+          // can retry there or close, so they don't settle the flow.
+          onEvent: (event) => {
+            if (event.type !== 'error') resolve(event);
+          },
+        });
+      })
+  );
+  try {
+    if (currentUserId() !== userId) return 'closed';
+    const connection =
+      consented.type === 'success'
+        ? await span.span('pipedream.register', async () =>
+            throwOnErr(
+              async () =>
+                await cognitionApiServiceClient.completePipedreamConnection({
+                  account_id: consented.accountId,
+                  server_name: args.serverName,
+                })
+            )
+          )
+        : await recoverUnreportedConnection(args, span);
+    if (!connection || currentUserId() !== userId) return 'closed';
+    if (
+      !pipedreamSlugsMatch(connection.app_slug, args.appSlug) ||
+      !connection.enabled
+    ) {
+      throw new Error('The requested connector was not enabled');
+    }
+    upsertConnection(connection);
+    await invalidateConnections();
+    return 'connected';
+  } finally {
+    ui?.close();
+  }
+}
+
+type ConsentResult = Exclude<PipedreamConnectEvent, { type: 'error' }>;
+
+/**
+ * Pipedream's Connect UI drops its success message when an OAuth provider
+ * severs the consent popup's opener, reporting only a close although the
+ * account exists. Ask the backend to find and register that account.
+ */
+async function recoverUnreportedConnection(
+  args: Parameters<typeof connectPipedreamApp>[0],
+  span: Span
+): Promise<PipedreamConnectionResponse | undefined> {
+  return span.span('pipedream.recover', async (recover) => {
+    const result = await cognitionApiServiceClient.recoverPipedreamConnection({
+      app_slug: args.appSlug,
+      server_name: args.serverName,
     });
-  }).finally(() => consent.end());
+    if (result.isErr()) {
+      if (!result.error.some((e) => e.code === 'NOT_FOUND')) {
+        throw new ThrownResultError(result.error);
+      }
+      recover.setAttr('connector.recovered', false);
+      return undefined;
+    }
+    recover.setAttr('connector.recovered', true);
+    return result.value;
+  });
 }

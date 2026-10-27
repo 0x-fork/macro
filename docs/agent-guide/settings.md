@@ -528,8 +528,8 @@ connected) or `Specific apps`, which reveals a `Search connectors` box over the 
 Pipedream catalog (results are `option` rows; picking one adds it) and a row per picked app
 with a connected / not-connected dot for the *current viewer* plus an inline `Connect`
 that opens the Pipedream Connect flow inside the web page. Native apps open
-consent in the system browser; choose **Return to Macro** after authorization
-to save the connection in the waiting app. Unconnected picks never block
+consent in the system browser, which returns to the waiting app on its own after
+authorization (**Return to Macro** is the fallback link). Unconnected picks never block
 saving; each teammate connects their own account. An agent session that calls a picked
 but unconnected app gets a tool result saying so, and the agent's reply renders a
 `Connect <app>` chip that opens Agents → Connections for that app. The same page

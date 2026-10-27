@@ -176,6 +176,7 @@ export const cognitionExcluded = [
   'listPipedreamMcpConnections',
   'mcpAuthCallback',
   'mcpOauthClientMetadata',
+  'recoverPipedreamMcpConnection',
   'rejectToolCall',
   // Channel discovery shares the app-only import workflow below.
   'discoverHandler',

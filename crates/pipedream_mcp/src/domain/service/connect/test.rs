@@ -83,6 +83,21 @@ impl PipedreamConnect for FakePipedream {
         Ok(self.accounts.get(account_id).cloned())
     }
 
+    async fn list_accounts(
+        &self,
+        external_user_id: &str,
+        app_slug: &str,
+    ) -> anyhow::Result<Vec<PipedreamAccount>> {
+        Ok(self
+            .accounts
+            .values()
+            .filter(|a| {
+                a.external_user_id.as_deref() == Some(external_user_id) && a.app_slug == app_slug
+            })
+            .cloned()
+            .collect())
+    }
+
     async fn delete_account(&self, account_id: &str) -> anyhow::Result<()> {
         self.deleted.lock().unwrap().push(account_id.to_owned());
         Ok(())
@@ -96,6 +111,18 @@ fn account(id: &str, external_user_id: Option<&str>, app_slug: &str) -> Pipedrea
         app_slug: app_slug.to_owned(),
         app_name: "Linear".to_owned(),
         healthy: true,
+        created_at: None,
+    }
+}
+
+fn now() -> chrono::DateTime<chrono::Utc> {
+    "2026-10-27T18:00:00Z".parse().unwrap()
+}
+
+fn created(id: &str, external_user_id: &str, minutes_ago: i64) -> PipedreamAccount {
+    PipedreamAccount {
+        created_at: Some(now() - chrono::TimeDelta::minutes(minutes_ago)),
+        ..account(id, Some(external_user_id), "linear")
     }
 }
 
@@ -267,4 +294,96 @@ async fn disconnect_of_unknown_app_is_a_quiet_noop() {
 
     assert!(removed.is_none());
     assert!(pd.deleted.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn recovery_stores_the_newest_recent_account_the_ui_never_reported() {
+    let store = FakeStore::default();
+    let mut pd = FakePipedream::default();
+    for account in [
+        created("apn_older", "macro|user-1@example.com", 5),
+        created("apn_newest", "macro|user-1@example.com", 1),
+    ] {
+        pd.accounts.insert(account.id.clone(), account);
+    }
+
+    let record = recover_pipedream_connection(
+        &store,
+        &pd,
+        &user("macro|user-1@example.com"),
+        "linear",
+        None,
+        now(),
+    )
+    .await
+    .unwrap()
+    .expect("recovered");
+
+    assert_eq!(record.account_id, "apn_newest");
+    assert!(
+        store
+            .load(&user("macro|user-1@example.com"), "linear")
+            .await
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[tokio::test]
+async fn recovery_ignores_accounts_outside_the_window_and_other_users() {
+    let store = FakeStore::default();
+    let mut pd = FakePipedream::default();
+    for account in [
+        created("apn_stale", "macro|user-1@example.com", 60),
+        created("apn_theirs", "macro|user-2@example.com", 1),
+    ] {
+        pd.accounts.insert(account.id.clone(), account);
+    }
+
+    let recovered = recover_pipedream_connection(
+        &store,
+        &pd,
+        &user("macro|user-1@example.com"),
+        "linear",
+        None,
+        now(),
+    )
+    .await
+    .unwrap();
+
+    assert!(recovered.is_none());
+    assert!(store.records.lock().unwrap().is_empty(), "nothing stored");
+}
+
+#[tokio::test]
+async fn recovery_does_not_report_the_already_stored_account_as_new() {
+    let store = FakeStore::default();
+    store
+        .save(&PipedreamConnection {
+            user_id: user("macro|user-1@example.com"),
+            app_slug: "linear".into(),
+            server_name: "Linear".into(),
+            account_id: "apn_1".into(),
+            enabled: true,
+        })
+        .await
+        .unwrap();
+    let mut pd = FakePipedream::default();
+    pd.accounts.insert(
+        "apn_1".into(),
+        created("apn_1", "macro|user-1@example.com", 1),
+    );
+
+    let recovered = recover_pipedream_connection(
+        &store,
+        &pd,
+        &user("macro|user-1@example.com"),
+        "linear",
+        None,
+        now(),
+    )
+    .await
+    .unwrap();
+
+    assert!(recovered.is_none());
 }

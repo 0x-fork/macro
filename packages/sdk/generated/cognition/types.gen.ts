@@ -1391,6 +1391,21 @@ export type PipedreamConnectionResponse = {
 };
 
 /**
+ * Request body for recovering a connect flow whose result the Connect UI
+ * never reported.
+ */
+export type PipedreamRecoverRequest = {
+    /**
+     * The Pipedream app the flow was connecting, by name slug.
+     */
+    app_slug: string;
+    /**
+     * Optional display name for the connector, as for completion.
+     */
+    server_name?: string | null;
+};
+
+/**
  * Response from creating a Pipedream Connect token.
  */
 export type PipedreamTokenResponse = {
@@ -3269,6 +3284,28 @@ export type UpdatePipedreamMcpConnectionResponses = {
 };
 
 export type UpdatePipedreamMcpConnectionResponse = UpdatePipedreamMcpConnectionResponses[keyof UpdatePipedreamMcpConnectionResponses];
+
+export type RecoverPipedreamMcpConnectionData = {
+    body: PipedreamRecoverRequest;
+    path?: never;
+    query?: never;
+    url: '/pipedream/mcp/recover';
+};
+
+export type RecoverPipedreamMcpConnectionErrors = {
+    401: string;
+    404: ErrorResponse;
+    500: ErrorResponse;
+    501: ErrorResponse;
+};
+
+export type RecoverPipedreamMcpConnectionError = RecoverPipedreamMcpConnectionErrors[keyof RecoverPipedreamMcpConnectionErrors];
+
+export type RecoverPipedreamMcpConnectionResponses = {
+    200: PipedreamConnectionResponse;
+};
+
+export type RecoverPipedreamMcpConnectionResponse = RecoverPipedreamMcpConnectionResponses[keyof RecoverPipedreamMcpConnectionResponses];
 
 export type CreatePipedreamMcpTokenData = {
     body?: never;

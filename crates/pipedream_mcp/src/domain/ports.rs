@@ -97,6 +97,14 @@ pub trait PipedreamConnect: Send + Sync + 'static {
         account_id: &str,
     ) -> impl Future<Output = anyhow::Result<Option<PipedreamAccount>>> + Send;
 
+    /// List the accounts connected for `external_user_id` (our user ID) to
+    /// `app_slug`, in no particular order.
+    fn list_accounts(
+        &self,
+        external_user_id: &str,
+        app_slug: &str,
+    ) -> impl Future<Output = anyhow::Result<Vec<PipedreamAccount>>> + Send;
+
     /// Delete a connected account from Pipedream (revoking our copy of the
     /// grant).
     fn delete_account(&self, account_id: &str) -> impl Future<Output = anyhow::Result<()>> + Send;
