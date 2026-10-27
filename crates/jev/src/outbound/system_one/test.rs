@@ -4,8 +4,8 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use super::*;
 
-fn provider(server: &MockServer) -> TypesafeJev {
-    TypesafeJev::with_base_url("test-key", &server.uri()).unwrap()
+fn provider(server: &MockServer) -> SystemOneJev {
+    SystemOneJev::typesafe_at("test-key", &server.uri()).unwrap()
 }
 
 fn questions(texts: &[&str]) -> Vec<YesNoQuestion> {
@@ -156,10 +156,52 @@ async fn missing_or_out_of_range_answers_are_invalid() {
     }
 }
 
+#[tokio::test]
+async fn clef_flash_runs_on_the_account_and_unwraps_the_cloudflare_envelope() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/accounts/acct/ai/run/@cf/cloudflare/clef-flash"))
+        .and(header("authorization", "Bearer cf-token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "result": {
+                "model": "clef-flash",
+                "answers": { "q0": noul(0.81) },
+                "usage": { "input_tokens": 42, "output_tokens": 0 }
+            },
+            "success": true,
+            "errors": [],
+            "messages": []
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let clef = SystemOneJev::clef_flash_at("acct", "cf-token", &server.uri()).unwrap();
+
+    let evaluation = clef
+        .evaluate(&json!("Fix the login bug"), &questions(&["Code?"]))
+        .await
+        .unwrap();
+
+    assert_eq!(clef.model_id(), "clef-flash");
+    assert_eq!(evaluation.probabilities[0].get(), 0.81);
+    assert_eq!(evaluation.input_tokens, 42);
+    let requests = server.received_requests().await.unwrap();
+    let body: Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(body["model"], "clef-flash");
+}
+
 #[test]
 fn rejects_blank_credentials() {
     assert!(matches!(
-        TypesafeJev::new("  "),
-        Err(TypesafeConfigError::EmptyApiKey)
+        SystemOneJev::typesafe("  "),
+        Err(SystemOneConfigError::EmptyApiKey)
+    ));
+    assert!(matches!(
+        SystemOneJev::clef_flash(" ", "token"),
+        Err(SystemOneConfigError::EmptyAccountId)
+    ));
+    assert!(matches!(
+        SystemOneJev::clef_flash("acct", ""),
+        Err(SystemOneConfigError::EmptyApiKey)
     ));
 }

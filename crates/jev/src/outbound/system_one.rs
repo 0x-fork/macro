@@ -1,7 +1,9 @@
-//! TypeSafe adapter for the [`JevProvider`] port.
+//! HTTP adapter for the [`JevProvider`] port against System One decision
+//! models: TypeSafe's hosted Jev and Cloudflare Workers AI's Clef.
 //!
-//! Every question goes out as a `noul` (yes/no) question in one
-//! `POST /v1/systemone` request whose `state` is the caller's JSON input.
+//! Both speak the same contract: every question goes out as a `noul`
+//! (yes/no) question in one request whose `state` is the caller's JSON input.
+//! Cloudflare wraps the answer in its API envelope (`{"result": ...}`).
 //! The adapter never logs the input, the questions, or response bodies.
 
 use std::{collections::HashMap, time::Duration};
@@ -22,9 +24,13 @@ maybe_env_var! {
     pub struct TypesafeApiKey;
 }
 
-const DEFAULT_BASE_URL: &str = "https://api.typesafe.ai";
-const MODEL: &str = "jev-latest";
-/// Per-attempt deadline. Jev answers in well under a second when healthy.
+const TYPESAFE_BASE_URL: &str = "https://api.typesafe.ai";
+const TYPESAFE_MODEL: &str = "jev-latest";
+const CLOUDFLARE_BASE_URL: &str = "https://api.cloudflare.com/client/v4";
+/// Cloudflare's fast 9B decision model; the request names the variant too.
+const CLEF_FLASH_MODEL: &str = "clef-flash";
+/// Per-attempt deadline. System One models answer in well under a second
+/// when healthy.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// Waits before each retry of a timed-out, rate-limited, overloaded or
 /// failed request. Rejections and malformed responses are not retried.
@@ -32,29 +38,87 @@ const RETRY_DELAYS: [Duration; 2] = [Duration::from_millis(250), Duration::from_
 /// TypeSafe's "overloaded" status.
 const OVERLOADED: u16 = 529;
 
-/// Yes/no evaluation through TypeSafe's hosted Jev model.
-pub struct TypesafeJev {
+/// How a provider wraps its evaluation in the response body.
+#[derive(Debug, Clone, Copy)]
+enum Envelope {
+    /// The body is the evaluation.
+    Bare,
+    /// The body is Cloudflare's `{"result": evaluation, ...}` envelope.
+    Cloudflare,
+}
+
+/// Yes/no evaluation through a hosted System One decision model.
+pub struct SystemOneJev {
     client: Client,
     endpoint: String,
     api_key: String,
+    model: &'static str,
+    provider: &'static str,
+    envelope: Envelope,
 }
 
-impl TypesafeJev {
-    /// Construct once at startup against the public TypeSafe API.
-    pub fn new(api_key: &str) -> Result<Self, TypesafeConfigError> {
-        Self::with_base_url(api_key, DEFAULT_BASE_URL)
+impl SystemOneJev {
+    /// TypeSafe's Jev; construct once at startup.
+    pub fn typesafe(api_key: &str) -> Result<Self, SystemOneConfigError> {
+        Self::typesafe_at(api_key, TYPESAFE_BASE_URL)
     }
 
-    /// Construct against another API base, e.g. a test server.
-    pub fn with_base_url(api_key: &str, base_url: &str) -> Result<Self, TypesafeConfigError> {
+    /// TypeSafe's Jev against another API base, e.g. a test server.
+    pub fn typesafe_at(api_key: &str, base_url: &str) -> Result<Self, SystemOneConfigError> {
+        Self::build(
+            api_key,
+            format!("{}/v1/systemone", base_url.trim_end_matches('/')),
+            TYPESAFE_MODEL,
+            "typesafe",
+            Envelope::Bare,
+        )
+    }
+
+    /// Cloudflare Workers AI's Clef Flash; construct once at startup.
+    pub fn clef_flash(account_id: &str, api_token: &str) -> Result<Self, SystemOneConfigError> {
+        Self::clef_flash_at(account_id, api_token, CLOUDFLARE_BASE_URL)
+    }
+
+    /// Clef Flash against another API base, e.g. a test server.
+    pub fn clef_flash_at(
+        account_id: &str,
+        api_token: &str,
+        base_url: &str,
+    ) -> Result<Self, SystemOneConfigError> {
+        let account_id = account_id.trim();
+        if account_id.is_empty() {
+            return Err(SystemOneConfigError::EmptyAccountId);
+        }
+        Self::build(
+            api_token,
+            format!(
+                "{}/accounts/{account_id}/ai/run/@cf/cloudflare/{CLEF_FLASH_MODEL}",
+                base_url.trim_end_matches('/')
+            ),
+            CLEF_FLASH_MODEL,
+            "cloudflare",
+            Envelope::Cloudflare,
+        )
+    }
+
+    fn build(
+        api_key: &str,
+        endpoint: String,
+        model: &'static str,
+        provider: &'static str,
+        envelope: Envelope,
+    ) -> Result<Self, SystemOneConfigError> {
         let api_key = api_key.trim();
         if api_key.is_empty() {
-            return Err(TypesafeConfigError::EmptyApiKey);
+            return Err(SystemOneConfigError::EmptyApiKey);
         }
         Ok(Self {
             client: Client::builder().timeout(REQUEST_TIMEOUT).build()?,
-            endpoint: format!("{}/v1/systemone", base_url.trim_end_matches('/')),
+            endpoint,
             api_key: api_key.to_owned(),
+            model,
+            provider,
+            envelope,
         })
     }
 
@@ -76,7 +140,7 @@ impl TypesafeJev {
                     "http"
                 };
                 span.record("error.type", kind);
-                tracing::warn!(kind, "Jev request failed");
+                tracing::warn!(kind, "System One request failed");
                 JevError::Unavailable
             })?;
         let status = response.status();
@@ -84,17 +148,24 @@ impl TypesafeJev {
         if !status.is_success() {
             let error = status_error(status);
             span.record("error.type", status.as_str());
-            tracing::warn!(status = status.as_u16(), "Jev request failed");
+            tracing::warn!(status = status.as_u16(), "System One request failed");
             return Err(error);
         }
-        response.json().await.map_err(|error| {
+        let body = match self.envelope {
+            Envelope::Bare => response.json::<EvaluateResponse>().await,
+            Envelope::Cloudflare => response
+                .json::<CloudflareEnvelope>()
+                .await
+                .map(|envelope| envelope.result),
+        };
+        body.map_err(|error| {
             let kind = if error.is_timeout() {
                 "timeout"
             } else {
                 "invalid_response"
             };
             span.record("error.type", kind);
-            tracing::warn!(kind, "Jev response unusable");
+            tracing::warn!(kind, "System One response unusable");
             if error.is_timeout() {
                 JevError::Unavailable
             } else {
@@ -104,27 +175,31 @@ impl TypesafeJev {
     }
 }
 
-/// Startup failures for [`TypesafeJev::new`].
+/// Startup failures for [`SystemOneJev`] constructors.
 #[derive(Debug, thiserror::Error)]
-pub enum TypesafeConfigError {
+pub enum SystemOneConfigError {
     /// The credential contains no usable key.
-    #[error("TYPESAFE_API_KEY must not be empty")]
+    #[error("the System One API credential must not be empty")]
     EmptyApiKey,
+    /// The Cloudflare account id is blank.
+    #[error("CLOUDFLARE_ACCOUNT_ID must not be empty")]
+    EmptyAccountId,
     /// The HTTP client could not be constructed.
     #[error(transparent)]
     HttpClient(#[from] reqwest::Error),
 }
 
-impl JevProvider for TypesafeJev {
+impl JevProvider for SystemOneJev {
     fn model_id(&self) -> &'static str {
-        MODEL
+        self.model
     }
 
-    #[tracing::instrument(name = "classify jev-latest", skip_all, err, fields(
+    #[tracing::instrument(name = "jev.evaluate", skip_all, err, fields(
+        otel.name = %format!("classify {}", self.model),
         otel.kind = "client",
         gen_ai.operation.name = "classify",
-        gen_ai.provider.name = "typesafe",
-        gen_ai.request.model = MODEL,
+        gen_ai.provider.name = self.provider,
+        gen_ai.request.model = self.model,
         gen_ai.response.model = tracing::field::Empty,
         gen_ai.usage.input_tokens = tracing::field::Empty,
         gen_ai.usage.output_tokens = tracing::field::Empty,
@@ -139,7 +214,7 @@ impl JevProvider for TypesafeJev {
         questions: &[YesNoQuestion],
     ) -> Result<Evaluation, JevError> {
         let span = tracing::Span::current();
-        let request = EvaluateRequest::new(input, questions);
+        let request = EvaluateRequest::new(self.model, input, questions);
         let mut retries = RETRY_DELAYS.iter();
         let mut attempts = 1_u8;
         let response = loop {
@@ -167,7 +242,7 @@ impl JevProvider for TypesafeJev {
         span.record("gen_ai.usage.output_tokens", response.usage.output_tokens);
         response.into_evaluation(questions.len()).inspect_err(|_| {
             span.record("error.type", "invalid_response");
-            tracing::warn!(kind = "invalid_response", "Jev answers unusable");
+            tracing::warn!(kind = "invalid_response", "System One answers unusable");
         })
     }
 }
@@ -196,9 +271,9 @@ struct EvaluateRequest<'a> {
 }
 
 impl<'a> EvaluateRequest<'a> {
-    fn new(input: &'a Value, questions: &'a [YesNoQuestion]) -> Self {
+    fn new(model: &'static str, input: &'a Value, questions: &'a [YesNoQuestion]) -> Self {
         Self {
-            model: MODEL,
+            model,
             state: input,
             questions: questions
                 .iter()
@@ -222,6 +297,11 @@ struct NoulQuestion<'a> {
     #[serde(rename = "type")]
     kind: &'static str,
     instructions: &'a str,
+}
+
+#[derive(Debug, Deserialize)]
+struct CloudflareEnvelope {
+    result: EvaluateResponse,
 }
 
 #[derive(Debug, Deserialize)]

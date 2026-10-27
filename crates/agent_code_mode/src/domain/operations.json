@@ -5,6 +5,7 @@
   "agent-harness.listAgentConversations": "List Agent Conversations",
   "agent-harness.startFreshAgentConversation": "Start Fresh Agent Conversation",
   "agent-harness.retryAgentConversationTurn": "Retry Agent Conversation Turn",
+  "agent-harness.chooseAgentMode": "Choose Agent Mode",
   "agent-harness.loadAgentModelsHandler": "Load Agent Models",
   "agent-harness.listAgentRepositories": "List Agent Repositories",
   "agent-harness.listAgentRepositoryBranches": "List Agent Repository Branches",

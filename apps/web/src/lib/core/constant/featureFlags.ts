@@ -164,6 +164,16 @@ export const enableSidebarPromotions = defineFlag({
   default: onInDev,
 });
 
+/**
+ * Auto in the agent composer's mode switch: the agent harness picks Chat or
+ * Code per prompt. Macro employees only; the backend checks the same key.
+ */
+export const enableComposerAutoMode = defineFlag({
+  key: 'enable-composer-auto-mode',
+  env: 'ENABLE_COMPOSER_AUTO_MODE',
+  default: onInDev,
+});
+
 /** Shows the Reviews shortcut in Tasks; copied Reviews links remain accessible. */
 export const enableTasksReviews = defineFlag({
   key: 'enable-tasks-reviews',
