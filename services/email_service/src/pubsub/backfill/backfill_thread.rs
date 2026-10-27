@@ -53,8 +53,11 @@ pub async fn backfill_thread(
         .await
         .map_err(|error| map_email_api_error(error, "Failed to get provider thread message IDs"))?;
 
-    // insert thread object
-    let thread_db_id = email_db_client::threads::insert::insert_blank_thread(
+    // The priority pass and the normal sweep both enqueue a thread, and both
+    // copies can pass the check above while they wait for Gmail. Only the copy
+    // that inserts the thread backfills its messages; counting them twice
+    // would complete the thread early and strand the duplicates.
+    let Some(thread_db_id) = email_db_client::threads::insert::insert_blank_thread(
         &ctx.db,
         &thread_provider_id,
         link.id,
@@ -65,7 +68,11 @@ pub async fn backfill_thread(
             e,
             format!("Failed to insert thread shell for {}", thread_provider_id),
         )
-    })?;
+    })?
+    else {
+        incr_completed_threads(ctx, link, scope.job_id).await?;
+        return Ok(());
+    };
 
     // create backfill pubsub message for each email message
     enqueue_backfill_messages(ctx, scope, link, thread_db_id, message_ids).await

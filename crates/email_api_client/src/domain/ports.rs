@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use super::models::{
     AccessToken, ApiOperationKind, CalendarPart, ChangeBatch, EmailApiError,
-    MessageWithCalendarParts, ProviderSubscription, RateLimitRefusal, SendRequest, SentIds,
-    SyncCursor, ThreadListPage, TokenError, TokenFreshness,
+    MessageWithCalendarParts, ProviderSubscription, RateLimitRefusal, RequestPermit, SendRequest,
+    SentIds, SyncCursor, ThreadListPage, TokenError, TokenFreshness,
 };
 
 #[cfg(test)]
@@ -315,6 +315,27 @@ pub trait ProviderRateLimiter: Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), RateLimitRefusal>> + Send;
 }
 
+/// Admits provider requests for a linked mailbox. An admitted request holds a
+/// permit until it completes. A permit dropped unfinished releases itself, and
+/// a crashed process's permits expire on their own.
+pub trait ProviderRequestGate: Send + Sync + 'static {
+    /// Admits one operation, or reports when the mailbox may try again. An
+    /// adapter may hold the caller briefly for room before refusing.
+    fn acquire(
+        &self,
+        link_id: Uuid,
+        operation: ApiOperationKind,
+    ) -> impl Future<Output = Result<RequestPermit, RateLimitRefusal>> + Send;
+
+    /// Releases a permit. A provider rate limit in `error` makes every caller
+    /// for the mailbox wait out a shared cooldown.
+    fn finish(
+        &self,
+        permit: RequestPermit,
+        error: Option<&EmailApiError>,
+    ) -> impl Future<Output = ()> + Send;
+}
+
 /// Mailbox adapter used when provider capabilities are intentionally unavailable.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NoOpMailboxClient;
@@ -555,5 +576,19 @@ impl ProviderTokenSource for NoOpProviderTokenSource {
 impl ProviderRateLimiter for AlwaysAllowRateLimiter {
     async fn check_rate_limit(&self, _: Uuid, _: ApiOperationKind) -> Result<(), RateLimitRefusal> {
         Ok(())
+    }
+}
+
+impl ProviderRequestGate for AlwaysAllowRateLimiter {
+    async fn acquire(
+        &self,
+        link_id: Uuid,
+        _: ApiOperationKind,
+    ) -> Result<RequestPermit, RateLimitRefusal> {
+        Ok(RequestPermit::new(link_id, Uuid::nil(), |_, _| {}))
+    }
+
+    async fn finish(&self, permit: RequestPermit, _: Option<&EmailApiError>) {
+        permit.disarm();
     }
 }

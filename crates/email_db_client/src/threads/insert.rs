@@ -156,13 +156,14 @@ pub async fn insert_thread(
     Ok(existing_id)
 }
 
-/// inserts a thread object into the database that has no metadata or rizz
+/// Inserts a thread with no metadata, returning its id, or `None` when the
+/// mailbox already has the thread, including when a concurrent insert won.
 #[tracing::instrument(skip(pool), err)]
 pub async fn insert_blank_thread(
     pool: &PgPool,
     thread_provider_id: &str,
     link_id: Uuid,
-) -> anyhow::Result<Uuid> {
+) -> anyhow::Result<Option<Uuid>> {
     let thread = thread::Thread {
         db_id: macro_uuid::generate_uuid_v7(),
         provider_id: Some(thread_provider_id.to_string()),
@@ -180,5 +181,5 @@ pub async fn insert_blank_thread(
     let mut tx = pool.begin().await?;
     let id = insert_thread(&mut tx, &thread, link_id).await?;
     tx.commit().await?;
-    Ok(id)
+    Ok((id == thread.db_id).then_some(id))
 }

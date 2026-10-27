@@ -8,6 +8,10 @@ use models_email::service::pubsub::SFSUploaderMessage;
 use models_email::service::pubsub::ScheduledPubsubMessage;
 use uuid::Uuid;
 
+/// Message attribute counting how often a backfill operation has been sent
+/// back to its queue by [`SQS::defer_email_backfill_message`].
+pub const BACKFILL_DEFERRALS_ATTRIBUTE: &str = "deferrals";
+
 impl SQS {
     pub fn email_link_manager_queue(mut self, link_manager_queue: &str) -> Self {
         self.link_manager_queue = Some(link_manager_queue.to_string());
@@ -64,6 +68,35 @@ impl SQS {
             return enqueue_backfill_message(&self.inner, email_backfill_queue, message).await;
         }
         Err(anyhow::anyhow!("email_backfill_queue is not configured"))
+    }
+
+    /// Sends a backfill operation back to the backfill queue as a new message
+    /// that becomes visible after `delay_seconds`. Unlike waiting out the
+    /// visibility timeout, the wait uses none of the operation's deliveries.
+    /// `deferrals` is recorded in [`BACKFILL_DEFERRALS_ATTRIBUTE`].
+    #[tracing::instrument(skip(self), err)]
+    pub async fn defer_email_backfill_message(
+        &self,
+        message: &BackfillPubsubMessage,
+        delay_seconds: i32,
+        deferrals: u32,
+    ) -> anyhow::Result<()> {
+        let Some(email_backfill_queue) = &self.email_backfill_queue else {
+            anyhow::bail!("email_backfill_queue is not configured");
+        };
+        let deferrals = aws_sdk_sqs::types::MessageAttributeValue::builder()
+            .data_type("Number")
+            .string_value(deferrals.to_string())
+            .build()?;
+        self.inner
+            .send_message()
+            .queue_url(email_backfill_queue)
+            .message_body(serde_json::to_string(&message)?)
+            .delay_seconds(delay_seconds)
+            .message_attributes(BACKFILL_DEFERRALS_ATTRIBUTE, deferrals)
+            .send()
+            .await?;
+        Ok(())
     }
 
     /// Sends a message to the email crm cleanup queue

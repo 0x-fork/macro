@@ -112,9 +112,9 @@ async fn blank_upsert_preserves_populated_timestamp(pool: Pool<Postgres>) -> any
 
     // A redelivered backfill blank insert must not wipe the timestamp or
     // rewrite the row.
-    let upserted_thread_id = insert_blank_thread(&pool, "prov1", link_id).await?;
+    let inserted = insert_blank_thread(&pool, "prov1", link_id).await?;
 
-    assert_eq!(upserted_thread_id, existing_thread_id);
+    assert_eq!(inserted, None, "the mailbox already had the thread");
     let after = get_thread_by_id_and_link_id(&pool, existing_thread_id, link_id)
         .await?
         .expect("provider thread should still exist");
@@ -137,7 +137,9 @@ async fn blank_upsert_preserves_populated_timestamp(pool: Pool<Postgres>) -> any
 async fn blank_insert_creates_new_thread(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let link_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
 
-    let thread_id = insert_blank_thread(&pool, "prov-brand-new", link_id).await?;
+    let thread_id = insert_blank_thread(&pool, "prov-brand-new", link_id)
+        .await?
+        .expect("the thread is new");
 
     let thread = get_thread_by_id_and_link_id(&pool, thread_id, link_id)
         .await?
@@ -145,6 +147,28 @@ async fn blank_insert_creates_new_thread(pool: Pool<Postgres>) -> anyhow::Result
     assert_eq!(thread.provider_id.as_deref(), Some("prov-brand-new"));
     assert_eq!(thread.latest_inbound_message_ts, None);
 
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("links"))
+)]
+async fn only_one_of_two_concurrent_blank_inserts_creates_the_thread(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    let link_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")?;
+
+    let (first, second) = tokio::join!(
+        insert_blank_thread(&pool, "prov-raced", link_id),
+        insert_blank_thread(&pool, "prov-raced", link_id)
+    );
+
+    assert_eq!(
+        [first?, second?].iter().flatten().count(),
+        1,
+        "only the winning insert backfills the thread's messages"
+    );
     Ok(())
 }
 

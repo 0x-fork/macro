@@ -1,5 +1,5 @@
 use crate::pubsub::backfill::{
-    backfill_attachment, backfill_message, backfill_thread, depopulate_crm_contact,
+    backfill_attachment, backfill_message, backfill_thread, deferral, depopulate_crm_contact,
     depopulate_crm_for_user, error_handlers, increment_counters, init, list_threads,
     populate_crm_contact, populate_crm_for_user, seed_sent_contact, update_metadata,
 };
@@ -45,9 +45,13 @@ pub async fn process_message(
         }
 
         // A temporary failure occurred. We log it and don't clean up the message, so it gets retried
-        Err(ProcessingError::Retryable(e)) => {
-            error_handlers::handle_retryable_error(&data, &e).await
-        }
+        Err(ProcessingError::Retryable(e)) => match deferral::rate_limit(&e) {
+            Some(retry_after) => {
+                error_handlers::defer_rate_limited_operation(&ctx, message, &data, &e, retry_after)
+                    .await
+            }
+            None => error_handlers::handle_retryable_error(&data, &e).await,
+        },
     }
 }
 

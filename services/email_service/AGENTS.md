@@ -67,6 +67,20 @@ the gateway `/email` prefix.
   calendar refresh so unrelated invitation updates retain teammates' OOO rows.
 - Spawn `run_transfers` regardless of the Outlook flags. Gmail inbox moves
   finish there; with writes off it pauses only the Outlook retire step.
+- Every `GmailApi` call takes a permit from `RedisGmailRequestGate`
+  (`outbound/email_api/gmail_gate.rs`): per mailbox it caps requests in
+  flight and quota units per window, and pauses after a Gmail 429 (live work
+  for a second, backfill for at least 10 s). A "Too many concurrent requests"
+  429 also lowers that mailbox's in-flight cap, which then rises by one a
+  minute back to five; backfill gets what the cap leaves above two. It fails
+  closed, so a Redis outage surfaces as local rate limits. Consumers must
+  requeue or redeliver a rate-limited message, never drop it. Up to twelve
+  refused backfill requests per mailbox wait up to 20 s for room so backfill's
+  slots don't idle; the rest are sent back as new, delayed messages
+  (`pubsub/backfill/deferral.rs`), because waiting out the visibility timeout
+  would spend the queue's 20 deliveries.
+  Inbox sync releases the upload claims of a refused attachment fetch and
+  requeues the upsert, because a claimed attachment is never offered again.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.
