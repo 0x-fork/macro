@@ -3,6 +3,7 @@ import {
   recipientEntityMapper,
   type WithCustomUserInput,
 } from '@core/user/combinedRecipient';
+import { parseLocalDate } from '@core/util/local-date';
 import { TZDateMini } from '@date-fns/tz';
 import type { CalendarCapabilities } from '@service-calendar/generated/schemas/calendarCapabilities';
 import type { CalendarProvider } from '@service-calendar/generated/schemas/calendarProvider';
@@ -16,18 +17,14 @@ import type { GuestPolicy } from '@service-storage/generated/schemas/guestPolicy
 import {
   addDays,
   addHours,
-  addMinutes,
-  differenceInCalendarDays,
-  differenceInMinutes,
   endOfDay,
   format,
-  isValid,
   parseISO,
   startOfHour,
 } from 'date-fns';
 import { type Accessor, batch, createMemo, createSignal } from 'solid-js';
 import type { CalendarEvent } from '../../types';
-import { isTimedPointEvent, parseLocalDate } from '../../utils/calendar-date';
+import { isTimedPointEvent } from '../../utils/calendar-date';
 import {
   calendarMacroCallUrl,
   removeCalendarMacroCall,
@@ -429,47 +426,6 @@ export function convertTimesForAllDay(
     allDay,
     start: format(start, DATETIME_VALUE),
     end: format(end, DATETIME_VALUE),
-  };
-}
-
-export function moveAllDayRange(
-  state: EventEditorInitialValues,
-  nextStart: string
-): EventEditorInitialValues {
-  if (nextStart === '') return { ...state, start: '', end: '' };
-  const duration = differenceInCalendarDays(
-    parseISO(state.end),
-    parseISO(state.start)
-  );
-  const durationDays = Number.isFinite(duration) ? Math.max(0, duration) : 0;
-  return {
-    ...state,
-    start: nextStart,
-    end: shiftDateValue(nextStart, durationDays),
-  };
-}
-
-/**
- * Moves a timed range's end with its start, keeping the duration, as Google
- * Calendar does. A range with no positive duration (incomplete, or already
- * ending before it starts) keeps its end, since there is nothing to keep.
- */
-export function moveTimedRange(
-  state: EventEditorInitialValues,
-  nextStart: string
-): EventEditorInitialValues {
-  const start = parseISO(nextStart);
-  const duration = differenceInMinutes(
-    parseISO(state.end),
-    parseISO(state.start)
-  );
-  if (!isValid(start) || !Number.isFinite(duration) || duration <= 0) {
-    return { ...state, start: nextStart };
-  }
-  return {
-    ...state,
-    start: nextStart,
-    end: format(addMinutes(start, duration), DATETIME_VALUE),
   };
 }
 

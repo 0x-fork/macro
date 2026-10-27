@@ -393,6 +393,10 @@ fragment SoupPropertyValueFields on GraphqlPropertyValue {
 	... on GraphqlDatePropertyValue {
 		dateValue: value
 	}
+	... on GraphqlDateRangePropertyValue {
+		rangeStart: start
+		rangeEnd: end
+	}
 	... on GraphqlSelectOptionPropertyValue {
 		optionIds
 	}

@@ -473,6 +473,8 @@
 - [DatabaseWebhookResponse](type-aliases/DatabaseWebhookResponse.md)
 - [DataType](type-aliases/DataType.md)
 - [DateOperator](type-aliases/DateOperator.md)
+- [DateRange](type-aliases/DateRange.md)
+- [DateRangeOperator](type-aliases/DateRangeOperator.md)
 - [DeclineCallData](type-aliases/DeclineCallData.md)
 - [DeclineCallError](type-aliases/DeclineCallError.md)
 - [DeclineCallErrors](type-aliases/DeclineCallErrors.md)

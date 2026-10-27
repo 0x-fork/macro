@@ -2443,6 +2443,12 @@ export type CellValue = {
      */
     value: string;
 } | {
+    type: 'date_range';
+    /**
+     * A span of time; its end may not come before its start.
+     */
+    value: DateRange;
+} | {
     type: 'link';
     /**
      * Complete http or https URLs; at most one for a single-valued column.
@@ -3480,6 +3486,8 @@ export type ColumnKind = {
     type: 'boolean';
 } | {
     type: 'date';
+} | {
+    type: 'date_range';
 } | {
     type: 'link';
 } | {
@@ -5028,7 +5036,7 @@ export type CustomSpeakerAssignment = {
 /**
  * Data type for property values, determining storage and validation.
  */
-export type DataType = 'BOOLEAN' | 'DATE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
+export type DataType = 'BOOLEAN' | 'DATE' | 'DATE_RANGE' | 'NUMBER' | 'STRING' | 'SELECT_NUMBER' | 'SELECT_STRING' | 'TAG' | 'ENTITY' | 'LINK';
 
 /**
  * A database: a named collection of tables, owned and shared as one entity.
@@ -5275,6 +5283,27 @@ export type DatabaseWebhookResponse = {
  * How a date cell compares to a date-time.
  */
 export type DateOperator = 'before' | 'after' | 'onOrBefore' | 'onOrAfter';
+
+/**
+ * A span of time from `start` to `end`, both included. A write whose end
+ * comes before its start is refused.
+ */
+export type DateRange = {
+    /**
+     * Where it ends; never before the start.
+     */
+    end: string;
+    /**
+     * Where it starts.
+     */
+    start: string;
+};
+
+/**
+ * How a date-range cell stands to a day: the whole day starting at the
+ * test's date-time, so a range from 1 PM to 5 PM contains its day.
+ */
+export type DateRangeOperator = 'contains' | 'doesNotContain' | 'endsBefore' | 'endsOnOrAfter' | 'startsAfter' | 'startsOnOrBefore';
 
 /**
  * Response body for `DELETE /channels/mentions/{mention_id}`.
@@ -6768,6 +6797,16 @@ export type FilterTest = {
     operator: DateOperator;
     /**
      * The date-time compared against.
+     */
+    value: string;
+} | {
+    kind: 'dateRange';
+    /**
+     * How the cell's range stands to the day.
+     */
+    operator: DateRangeOperator;
+    /**
+     * The start of the day compared against.
      */
     value: string;
 } | {
@@ -11446,6 +11485,13 @@ export type PropertyValue = {
      */
     value: string;
 } | {
+    type: 'DateRange';
+    /**
+     * Date range value
+     * Serializes as: {"type": "DateRange", "value": {"start": "2025-01-01T00:00:00Z", "end": "2025-01-31T00:00:00Z"}}
+     */
+    value: DateRange;
+} | {
     type: 'SelectOption';
     /**
      * Select option(s) - always an array (check is_multi_select to determine if single or multi)
@@ -11671,7 +11717,8 @@ export type RequestStatus = 'pending' | 'granted' | 'denied' | 'cancelled';
 export type RequestedHarnessScope = 'private' | 'team';
 
 /**
- * A layout as an op asks for it: a board may leave its card title out.
+ * A layout as an op asks for it: a board or timeline may leave its title
+ * out.
  */
 export type RequestedLayout = {
     /**
@@ -11702,6 +11749,30 @@ export type RequestedLayout = {
     /**
      * The column a card is titled by. Left out, a board keeps the
      * title it has, and a new board takes the table's first column.
+     */
+    title?: string;
+} | {
+    /**
+     * The columns a bar shows after its title, in order.
+     */
+    barFields?: Array<string>;
+    /**
+     * The select or tag column whose options color the bars, if any.
+     */
+    colorBy: string | null;
+    /**
+     * The single-select or single-person column grouping the bars, if
+     * any.
+     */
+    groupBy: string | null;
+    kind: 'timeline';
+    /**
+     * The date-range column whose cells are the bars.
+     */
+    range: string;
+    /**
+     * The column a bar is labelled by. Left out, a timeline keeps the
+     * title it has, and a new timeline takes the table's first column.
      */
     title?: string;
 };
@@ -12353,6 +12424,9 @@ export type SetPropertyValue = {
 } | {
     type: 'date';
     value: string;
+} | {
+    type: 'date_range';
+    value: DateRange;
 } | {
     type: 'number';
     value: number;
@@ -13962,6 +14036,12 @@ export type SqlCell = {
      */
     value: string;
 } | {
+    type: 'dateRange';
+    /**
+     * A span from one date-time to another.
+     */
+    value: DateRange;
+} | {
     type: 'options';
     /**
      * The selected option ids; one for single-select columns.
@@ -14037,7 +14117,7 @@ export type SqlOutcome = {
 /**
  * The value kind of a result column.
  */
-export type SqlOutcomeKind = 'text' | 'number' | 'boolean' | 'date' | 'select' | 'entity' | 'row';
+export type SqlOutcomeKind = 'text' | 'number' | 'boolean' | 'date' | 'dateRange' | 'select' | 'entity' | 'row';
 
 /**
  * One option of a select column.
@@ -15793,6 +15873,30 @@ export type ViewLayout = {
      * the cards by the table's first remaining column.
      */
     title: string;
+} | {
+    /**
+     * The columns a bar shows after its title, in order.
+     */
+    barFields?: Array<string>;
+    /**
+     * The select or tag column whose options color the bars, if any.
+     */
+    colorBy: string | null;
+    /**
+     * The single-select or single-person column whose values group the
+     * bars, if any; moving a bar to another group sets this column.
+     */
+    groupBy: string | null;
+    kind: 'timeline';
+    /**
+     * The date-range column whose cells are the bars.
+     */
+    range: string;
+    /**
+     * The column a bar is labelled by, of any type. Removing it labels
+     * the bars by the table's first remaining column.
+     */
+    title: string;
 };
 
 export type ViewPatch = {
@@ -16500,8 +16604,8 @@ export type WhatsAppSystemLine = {
 
 /**
  * How a question is asked. Each column kind takes a few, the first its
- * default; kinds asked one way only (numbers, checkboxes, entity and row
- * pickers) take none.
+ * default; kinds asked one way only (numbers, checkboxes, date ranges,
+ * entity and row pickers) take none.
  */
 export type Widget = 'short' | 'paragraph' | 'datetime' | 'date' | 'url' | 'file' | 'choice' | 'dropdown' | 'checkboxes';
 

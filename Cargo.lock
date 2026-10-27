@@ -13080,6 +13080,7 @@ dependencies = [
  "fractional_index",
  "macro_user_id",
  "macro_uuid",
+ "nom 8.0.0",
  "schemars 1.2.1",
  "serde",
  "serde_json",

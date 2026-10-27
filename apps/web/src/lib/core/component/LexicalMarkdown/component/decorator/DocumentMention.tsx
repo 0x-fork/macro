@@ -1,4 +1,3 @@
-import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { calendarMentionOpen } from '@app/features/calendar-view/mention-open-target';
 import { openCalendarEventSplit } from '@app/features/calendar-view/open-calendar-event';
 import { whatsappGroupContent } from '@app/features/external-view/hosted-content';
@@ -38,6 +37,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { canNestBlock } from '@core/orchestrator';
 import { formatDate } from '@core/util/date';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { parseLocalDate } from '@core/util/local-date';
 import { matches } from '@core/util/match';
 import { openInNewSplitForMention } from '@core/util/openInNewSplit';
 import { ThrownResultError } from '@core/util/result';

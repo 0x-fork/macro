@@ -1,3 +1,4 @@
+import { DateTimeRangeFields } from '@app/components/date-time-range/date-time-range-fields';
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
 import SpinnerIcon from '@icon/system/regular/spinner.svg';
@@ -16,7 +17,6 @@ import {
   exportCalendarDescription,
 } from '../../utils/calendar-description';
 import type { CalendarEventFormController } from './create-calendar-event-form-controller';
-import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
 import { EventGuestPolicyRow } from './EventGuestPolicyRow';
 import {
   EventComposerCalendarPill,
@@ -223,7 +223,8 @@ export function EventForm(props: EventFormProps) {
                 reason={props.detailsReadOnlyReason}
                 class="block min-w-0"
               >
-                <EventDateTimeRangeFields
+                <DateTimeRangeFields
+                  subject="event"
                   start={state().start}
                   end={state().end}
                   allDay={state().allDay}

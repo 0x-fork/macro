@@ -121,8 +121,9 @@ surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
 recurrence, Guests, conferencing, Location, and Notifications open on the first
 click from the title field and accept changes without closing the composer.
-Open the start/end date picker and its nested time list; selecting a time keeps
-the date picker open. Escape dismisses the active menu before the composer.
+Each end is a date button (its calendar closes on a pick) and, unless all day,
+a time field: type `3p` or `15:30` and the list jumps there, Enter commits,
+Escape restores the old time. Escape dismisses the active menu before the composer.
 Moving the start date or time moves the end with it, keeping the event's length
 (all-day dates keep their day count), until the end is picked in the same edit;
 after that the end stays put, and a start past it shows the end-before-start

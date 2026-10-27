@@ -6,4 +6,4 @@
  */
 import type { EntityType } from './entityType';
 
-export type PropertyDataTypeOneOfOnethreeSpecificType = null | EntityType;
+export type PropertyDataTypeOneOfOnefiveSpecificType = null | EntityType;
