@@ -31,16 +31,18 @@ interactive after execution. A review is an optional human workflow, not a
 security barrier against direct SDK writes.
 
 The independent `@macro-inc/sdk-docs` package uses TypeDoc and its Markdown plugin to generate the canonical public SDK Markdown
-hierarchy and an HTML site from one reflection model. Backend entity sections
-and namespace overviews use those Markdown pages. Compact overviews include
-linked local option types and enums; full sections also include linked wire types.
+hierarchy and an HTML site from one reflection model. The backend catalog is built from those Markdown pages: an index per entity
+(classes, methods with signatures, and types, by symbol) and a reference per
+symbol, each class split into its own methods, with links rewritten to the
+symbols they name. Wire types an entity reaches are included as symbols; a name
+two pages share is qualified by its service or entity (`storage.Message`).
 Discovery uses at most 32 topics; agent and host setup share a topic, as do
 native channels and linked WhatsApp groups. New SDK
 services must also be registered in the generated operation-label catalog.
 There is no separate declaration parser. Private, protected and internal members
-are excluded. `DescribeCodeTools` provides the compact catalog, generated API
-documentation and workflow guides. See [documentation hosting](../sdk-docs/README.md). Jev
-selects likely sections before a code-mode turn, bounded by
+are excluded. `DescribeCodeTools` provides the compact catalog, entity indexes and workflow
+guides; `ReadCodeDocs` provides symbol references. See [documentation hosting](../sdk-docs/README.md). Jev
+selects likely entity indexes before a code-mode turn, bounded by
 one second and a context byte cap; failure leaves the compact catalog available.
 There is no runtime documentation helper. See the
 [agent playbook](../../crates/agent_code_mode/SKILL.md).

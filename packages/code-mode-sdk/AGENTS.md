@@ -9,7 +9,8 @@ HTML worker belong to `packages/sdk-docs`.
 ## Start here
 
 - `scripts/generate.ts`: bundle and backend artifact generation.
-- `scripts/typedoc.ts`: collect linked Markdown documentation by entity.
+- `scripts/typedoc.ts`: index each entity and split linked Markdown into
+  per-symbol references (classes, methods, types).
 - `scripts/catalog.ts`: compact entity descriptions; agent and harness docs share
   a topic, as do native channels and standalone WhatsApp groups, so discovery stays
   within its 32-question classifier limit.

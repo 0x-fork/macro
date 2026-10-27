@@ -16012,15 +16012,15 @@ export interface WebSearchToolError {
   error_code: string;
 }
 /**
- * Look up Macro SDK documentation for ExecuteCode. Before writing a program, pass task, a short description of what the program must do, to receive every relevant SDK entity reference in one call; skip it only when the references you need are already in context. Request up to five entity names together for full declarations, e.g. entities omitted for size. Request topics for workflow guides. With no arguments, returns the compact entity catalog.
+ * Find Macro SDK methods for ExecuteCode. Before writing a program, pass task, a short description of what the program must do, to receive the index of every relevant SDK entity in one call; skip it only when the indexes you need are already in context. An index lists each class, method and type by symbol with its signature; read the symbols you need with ReadCodeDocs. Request up to five entity names together for their indexes, e.g. entities omitted for size. Request topics for workflow guides. With no arguments, returns the compact entity catalog.
  */
 export interface DescribeCodeTools {
   /**
-   * What the program you are about to write must do, in the user's terms, e.g. 'find unread emails from Acme this week and summarize them'. Returns every relevant SDK entity reference.
+   * What the program you are about to write must do, in the user's terms, e.g. 'find unread emails from Acme this week and summarize them'. Returns the index of every relevant SDK entity.
    */
   task?: string | null;
   /**
-   * Up to five SDK entity names such as documents, email, ai, or core. Empty names, topics and task list the compact entity catalog.
+   * Up to five SDK entity names such as documents, email, ai, or core, for their indexes. Empty names, topics and task list the compact entity catalog.
    */
   names?: string[];
   /**
@@ -16049,18 +16049,17 @@ export interface CodeToolsDescription {
    */
   instructions: string;
   /**
-   * SDK entities; full declarations are omitted in the compact catalog.
+   * SDK entities; indexes are omitted in the compact catalog.
    */
   tools: SdkDocumentation[];
 }
 /**
- * Every SDK reference Jev considers relevant to a described task.
+ * Every SDK entity Jev considers relevant to a described task.
  */
 export interface TaskDocumentation {
   status: SelectionStatus;
   /**
-   * Relevant entities, most relevant first, each with its full reference or,
-   * when that does not fit, its namespace overview.
+   * Relevant entities, most relevant first, each with its index.
    */
   entities: SdkDocumentation[];
   /**
@@ -16069,7 +16068,7 @@ export interface TaskDocumentation {
   omitted: string[];
 }
 /**
- * Public Markdown documentation generated from the real SDK by TypeDoc.
+ * One SDK entity, generated from the real SDK by TypeDoc.
  */
 export interface SdkDocumentation {
   /**
@@ -16081,9 +16080,10 @@ export interface SdkDocumentation {
    */
   description: string;
   /**
-   * API reference Markdown; omitted in a compact catalog.
+   * Every class, method and type the entity declares, one line each and
+   * named by the symbol `ReadCodeDocs` reads; omitted in a compact catalog.
    */
-  documentation?: string | null;
+  index?: string | null;
 }
 /**
  * One requested Markdown guide.
@@ -16098,7 +16098,7 @@ export interface CodeGuide {
 /**
  * Copy turn_id from the current prompt’s hidden invocation context; never substitute another turn’s ID for a stale call. Run a JavaScript ES module in Deno. Export async function main({macro, session, execution}); return {data: <JSON>}. Optional reviews: [{kind: "email" | "calendar", id: "..."}] defaults to an empty list when omitted. The host supplies real public Macro SDK handles authenticated as the explicitly selected acting_as account. Optional imports: import {Macro} from "@macro-inc/sdk"; import Handlebars from "handlebars". main also receives token, hosts, sessionId and executionId for explicit SDK construction. Never print, return or persist token. No TypeScript syntax or package installation.
  *
- * Prefer ExecuteCode for supported Macro work, including a single precise call. SDK API reference sections expanded in context are already your documentation. Execute directly when they cover the task; do not call DescribeCodeTools merely to confirm them. The compact entity index alone is not a method reference. Use DescribeCodeTools only for missing methods, options, enum values or workflow guides, requesting the missing entities together rather than guessing. Request up to five entity names together (e.g. workspace, documents, email, ai, core).
+ * Prefer ExecuteCode for supported Macro work, including a single precise call. Entity indexes in context list each method with its signature. Before writing a program, read the symbols it needs with ReadCodeDocs for their parameters, options and return types, all together in one call, unless their reference is already in context; do not guess option names. Use DescribeCodeTools for the index of an entity not in context or for workflow guides, requesting entities together (e.g. documents, email, ai, core).
  *
  * For editable email/calendar drafts, persist them with execution.reviews.create({kind, title, drafts}), then return reviews: [await review.reference()]. This does not send emails or create calendar events. Creation immediately presents a completed PresentReview ACP tool call, even while main continues. "Presented to the user" means saved in the conversation, not approved or sent. The saved cards remain usable after this execution and chat continues. User decisions arrive as typed system events referring to the same review ID. Use GetReview to read final drafts and confirmed outcomes; notifications never authorize repeating an action. Use the direct EditDocument tool for AI document edits. Direct human-interactive tools, subagents and unsupported SDK operations remain available.
  *
@@ -16160,6 +16160,45 @@ export interface ExecutionActivity {
    */
   label: string;
   status: RecordedCallStatus;
+}
+/**
+ * Read the Macro SDK reference for symbols named in an entity index or another reference: a class (Task), one of its methods (TaskNamespace.create) or a type (CreateReviewOptions). Request every symbol the next program needs together, up to ten. Each reference has the full signature, parameters, option fields and return type; symbols it names in backticks can be read the same way.
+ */
+export interface ReadCodeDocs {
+  /**
+   * Up to ten symbols exactly as an index or reference names them, e.g. ["TaskNamespace.create", "Task"].
+   */
+  symbols: string[];
+}
+/**
+ * The references for requested symbols, within one result's budget.
+ */
+export interface SymbolReferences {
+  /**
+   * References in request order.
+   */
+  references: SymbolReference[];
+  /**
+   * Requested symbols left out for size; request them again.
+   */
+  omitted: string[];
+  /**
+   * Requested symbols no index or reference names.
+   */
+  unknown: string[];
+}
+/**
+ * One symbol's reference.
+ */
+export interface SymbolReference {
+  /**
+   * The symbol as requested.
+   */
+  symbol: string;
+  /**
+   * Its TypeDoc reference; symbols it names in backticks can be read too.
+   */
+  reference: string;
 }
 /**
  * Retrieve a chat thread's message history by its ID. Returns the conversation title and messages with their roles, content, and attachment references.

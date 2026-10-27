@@ -901,8 +901,8 @@ and settlement tests still require the isolated backend fixtures above.
 ## Code mode in agent sessions
 
 When the harness has its local Deno runtime configured, the session's `macro_internal`
-server exposes `DescribeCodeTools` and `ExecuteCode`. The in-process agent sees
-both schemas on its first model call, without `SearchTools` or `LoadTools`.
+server exposes `DescribeCodeTools`, `ReadCodeDocs` and `ExecuteCode`. The in-process agent sees
+all three schemas on its first model call, without `SearchTools` or `LoadTools`.
 For Macro's in-process agent, the backend evaluates the session owner's
 `ai-code-mode` flag once per conversational turn. Enabled users get a smaller
 direct toolset: SDK-supported searches, reads, listing, and data operations run
@@ -957,19 +957,21 @@ prompted by someone else, the existing owner-approval card asks to “run potent
 It offers Approve, Decline and, for a named requester, Always allow; the card
 does not display source code. Executions acting as the verified requester do not need this extra approval.
 
-Every code-mode turn receives a compact entity index. Jev can expand relevant
-entity declarations before generation, with a one-second deadline and index-only
-fallback. Compact namespace references include their linked local options and
-enum types. For workspace overviews, the agent samples relevant categories in
+Every code-mode turn receives the compact entity catalog. Jev can load the
+indexes of relevant entities before generation, with a one-second deadline and
+catalog-only fallback. An entity index lists each class (with its `macro.*`
+accessor and fields), each method with its signature and first sentence, and
+each type, by symbol (`TaskNamespace.create`, `Task`, `storage.Message`). For workspace overviews, the agent samples relevant categories in
 parallel; it reports sampled coverage rather than treating a mixed recent page
 as the whole workspace. `DescribeCodeTools` takes entity names (such as `documents`, `email`,
 `ai`, `agentSessions`) and guide topics (`examples`, `search`, `ai`, `templates`).
-It also takes a `task`: the same Jev selection runs over that text and returns
-every relevant entity reference within a 32 KiB budget, falling back to an
-entity's namespace overview and naming entities omitted for size.
-Expanded API references are already loaded: the agent should execute directly when
-they cover the task and request only missing details. The compact index alone
-is not a method reference. There is no runtime `sdk.help` or
+Names return those entities' indexes. It also takes a `task`: the same Jev
+selection runs over that text and returns every relevant entity index within a
+32 KiB budget, naming entities omitted for size. `ReadCodeDocs` takes up to ten
+symbols and returns each one's TypeDoc reference (signature, parameters, option
+fields, return type) within a 32 KiB budget; references name other symbols in
+backticks, which read the same way. The agent reads the symbols a program uses,
+together, before writing it. There is no runtime `sdk.help` or
 `sdk.ToolName` proxy. The actual SDK exposes `macro.ai.structuredCompletion` and
 `macro.ai.decide`; Handlebars is imported from `handlebars`. Use the direct
 `EditDocument` tool for AI document edits.
@@ -1038,10 +1040,10 @@ provider usage and completed writes may remain after cancellation.
 
 The public workspace MCP (`mcp-server[-dev].macro.com`) evaluates the same
 `ai-code-mode` flag for the OAuth user on `initialize`, `tools/list` and
-`tools/call`, cached per user for a minute. Enabled users see `ExecuteCode` and
-`DescribeCodeTools` in place of the SDK-covered native tools, and the server
-instructions tell the client to call `DescribeCodeTools` with a `task` before
-writing a program. Programs export `async function main({macro})` and return
+`tools/call`, cached per user for a minute. Enabled users see `ExecuteCode`,
+`DescribeCodeTools` and `ReadCodeDocs` in place of the SDK-covered native tools,
+and the server instructions tell the client to call `DescribeCodeTools` with a
+`task`, then `ReadCodeDocs` for the symbols it uses, before writing a program. Programs export `async function main({macro})` and return
 exactly `{data}` (an empty `reviews: []` is dropped). There is no session,
 execution journal, review stack or `execution_id`; the receipt carries status,
 observed SDK activity, result and error. Runs act as the user with no agent
