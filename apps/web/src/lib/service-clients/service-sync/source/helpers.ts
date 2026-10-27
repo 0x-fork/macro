@@ -1,5 +1,5 @@
 import { resumeDocumentSpan } from '@block-md/observability';
-import { SYNC_VIA_GATEWAY } from '@core/constant/featureFlags';
+import { isFeatureEnabled, syncViaGateway } from '@core/constant/featureFlags';
 import { SYNC_SERVICE_HOSTS } from '@core/constant/servers';
 import type {
   InitialSync,
@@ -130,7 +130,9 @@ export const createSyncServiceSource = (
   source: LiveSyncSource;
   doInitialSync: () => ResultAsync<InitialSync, SyncError>;
 } => {
-  const ws: SyncSocket = SYNC_VIA_GATEWAY
+  // Pick a transport for this source's lifetime. Later flag changes apply to
+  // newly created sources without interrupting an editor's active sync session.
+  const ws: SyncSocket = isFeatureEnabled(syncViaGateway)
     ? syncGatewayTransport().attach(
         documentId,
         authorization ? undefined : token,

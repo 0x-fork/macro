@@ -36,7 +36,9 @@ Cloudflare Durable Object sync sockets. It owns routing, not document state.
 - Every router subscribes to the same inbound channel; multiple instances do
   not partition work. Add ownership coordination before horizontal scaling.
 - Local Docker and service inventory wiring are not a hosted deployment.
-  Provision the router before enabling `VITE_SYNC_VIA_GATEWAY` for clients.
+  Provision the router before enabling the `sync-via-gateway` PostHog flag.
+  Deployed dev and production defer to PostHog; local stacks can opt in with
+  `VITE_SYNC_VIA_GATEWAY=true`.
 
 ## Related
 
