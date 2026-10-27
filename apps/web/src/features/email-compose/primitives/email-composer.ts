@@ -411,7 +411,6 @@ export function createEmailComposer(props: EmailComposerOptions) {
   function handleAlreadySent() {
     identityVersion += 1;
     autosave.cancel();
-    props.notices.feedback.alert('This email was already sent');
     resetState();
   }
 
@@ -1118,17 +1117,12 @@ export function createEmailComposer(props: EmailComposerOptions) {
       const draftId = currentDraftId();
       if (draftId) {
         try {
-          await deleteDraftForDiscard(
-            props.drafts,
-            {
-              draftId,
-              draftGeneration: draftGeneration(),
-              threadId: currentThreadId(),
-              inboxId: activeInboxId(),
-            },
-            props.notices,
-            'This email was already sent'
-          );
+          await deleteDraftForDiscard(props.drafts, {
+            draftId,
+            draftGeneration: draftGeneration(),
+            threadId: currentThreadId(),
+            inboxId: activeInboxId(),
+          });
         } catch (error) {
           await reportPersistenceFailure(error, 'delete');
           setDiscarding(false);
@@ -1266,7 +1260,6 @@ export function createEmailComposer(props: EmailComposerOptions) {
       if (state.type === 'sent') {
         if (wasScheduled)
           props.notices.feedback.success('Scheduled email sent');
-        else props.notices.feedback.alert('This email was already sent');
         props.host?.showThread?.(state.threadId);
       } else {
         props.notices.feedback.alert('This draft is no longer available.');

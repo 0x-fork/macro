@@ -669,7 +669,6 @@ export function createReplyComposer(
   };
   function handleAlreadySent() {
     identityVersion += 1;
-    props.notices.feedback.alert('This reply was already sent');
     fireAndForget(
       withDeletionGuard(() => {
         resetState();
@@ -1451,17 +1450,12 @@ export function createReplyComposer(
       const draftId = savedDraftId();
       if (draftId) {
         try {
-          await deleteDraftForDiscard(
-            props.drafts,
-            {
-              draftId,
-              draftGeneration: draftGeneration(),
-              threadId: savedDraftThreadId(),
-              inboxId: activeInboxId(),
-            },
-            props.notices,
-            'This reply was already sent'
-          );
+          await deleteDraftForDiscard(props.drafts, {
+            draftId,
+            draftGeneration: draftGeneration(),
+            threadId: savedDraftThreadId(),
+            inboxId: activeInboxId(),
+          });
         } catch (error) {
           await reportPersistenceFailure(error, 'delete');
           setPendingDeletion(false);
@@ -1665,7 +1659,6 @@ export function createReplyComposer(
         if (state.type === 'sent') {
           if (wasScheduled)
             props.notices.feedback.success('Scheduled email sent');
-          else props.notices.feedback.alert('This email was already sent');
         } else {
           props.notices.feedback.alert('This draft is no longer available.');
         }
