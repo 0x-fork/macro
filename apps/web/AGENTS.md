@@ -194,7 +194,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   even with retained user data; preserve session state on transient failures.
 - Treat a repeated worker-ready frame as a coordinator restart: retire the old
   engine and re-register in place, preserving durable storage and never replaying
-  uncertain enqueues. See `docs/graphql-normalized-cache-plan.md`.
+  uncertain enqueues. Space failed coordinator registrations with bounded,
+  cancelable waits; a missing startup frame is not proof of untouched storage.
+  See `docs/graphql-normalized-cache-plan.md`.
 - Reject already-routed optimistic enqueues with missing replies as uncertain on
   every owner departure; never forward them through network fallback, because
   their durable queue entries may survive the old engine.

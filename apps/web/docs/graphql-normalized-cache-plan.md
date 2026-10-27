@@ -303,8 +303,17 @@ Startup phase budgets are relayed to every page, including late joiners: asset
 loading gets five minutes, taking the lock gets the retry window plus five
 seconds, and database opening gets twenty seconds, plus a five-second page
 response grace. Ordinary read deadlines remain ten seconds. Coordinator
-registration gets sixty seconds per attempt, with three attempts; engine recovery
-retains its bounded five retries. Exhausted bootstrap retries preserve the cache
+registration gets sixty seconds per attempt, with three attempts separated by
+100 ms and 200 ms waits. Safari can abort a shared worker's download when its
+creating page leaves, then briefly reuse that failed startup for immediate
+retries. These waits let the browser retire it without changing the worker name,
+URL, or storage scope. Navigation and disposal cancel the wait; no new adapter
+is created by a canceled initialization, even if its timer already fired.
+`graphql_cache.registration_retry` reports the wait duration, retry number,
+triggering error class, and whether the wait completed or was canceled. This is
+separate from a repeated-ready restart and does not make generic transport
+failures storage-safe. Engine recovery retains its bounded five retries.
+Exhausted bootstrap retries preserve the cache
 scope only when the coordinator explicitly proves storage was untouched, not from
 a page's last-seen phase. Missing/broken transports remain conservatively
 uncertain. Pages retry proven untouched bootstrap and owner-lock failures on reconnect,

@@ -9,6 +9,7 @@ export const CACHE_TELEMETRY_EVENT_NAMES = [
   'graphql_cache.schema_init',
   'graphql_cache.db_ready',
   'graphql_cache.host_ready',
+  'graphql_cache.registration_retry',
   'graphql_cache.host_request',
   'graphql_cache.coordinator_request',
   'graphql_cache.engine_request',

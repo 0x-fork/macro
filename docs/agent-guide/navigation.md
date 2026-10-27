@@ -76,6 +76,18 @@ optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
 `ownerEvent: coordinator-restarted` distinguishes this from engine replacement
 or a BFCache restore.
 
+Separately, leaving the creating page while its SharedWorker is still downloading
+can fail the survivor before its first ready frame. In an isolated Safari fixture,
+hold that download, connect a second page, and navigate the creator through a
+normal link. Release the asset and verify the survivor initializes on its bounded
+registration retries without a reload. Retries wait 100 ms and 200 ms; navigating
+or disposing the survivor during either wait must stop further constructors.
+Verify BFCache restoration starts fresh without resurrecting the canceled retry.
+Use `graphql_cache.registration_retry` to inspect wait timing and cancellation;
+preserve the scope, existing queue, and conservative storage-failure handling.
+Do not inject this failure into a live account or mistake it for a repeated-ready
+loop.
+
 The same write-safety rule applies when an owner navigates away without restarting
 the coordinator: a surviving tab's enqueue may be committed even if its reply was
 lost. It must report an uncertain outcome, not retry or fall through to a second
