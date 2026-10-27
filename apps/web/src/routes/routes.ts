@@ -313,11 +313,15 @@ export const settingsRoute = defineRoute({
   externalSearch: ['pair', 'createAgent'],
 });
 
+// The Agents list and its conversations share one workspace mount, so picking
+// a conversation swaps the pane beside the sidebar instead of rebuilding both.
+const AGENTS_WORKSPACE_MOUNT = 'agents-workspace';
+
 export const agentsRoute = defineRoute({
   id: 'agents',
   path: 'agents/:id',
   params: z.object({ id: z.string() }),
-  remountKey: ({ id }) => id,
+  mountKey: AGENTS_WORKSPACE_MOUNT,
   claim: ({ id }) => ({ namespace: 'agent', id }),
   search: [changesSearch.namespace, agentDetailSearch.namespace],
   toReference: ({ id }) => uuidRouteReference(id, 'agent'),
@@ -327,7 +331,7 @@ export const codersRoute = defineRoute({
   id: 'coders',
   path: 'coders/:id',
   params: z.object({ id: z.string() }),
-  remountKey: ({ id }) => id,
+  mountKey: AGENTS_WORKSPACE_MOUNT,
   claim: ({ id }) => ({ namespace: 'agent', id }),
   search: [changesSearch.namespace, agentDetailSearch.namespace],
   toReference: ({ id }) => uuidRouteReference(id, 'agent'),
@@ -338,7 +342,7 @@ export const agentChatsRoute = defineRoute({
   path: 'agents/chat/:id',
   aliases: ['agent-chats/:id'],
   params: z.object({ id: z.string() }),
-  remountKey: ({ id }) => id,
+  mountKey: AGENTS_WORKSPACE_MOUNT,
   claim: ({ id }) => ({ namespace: 'chat', id }),
   search: [changesSearch.namespace],
   toReference: ({ id }) => uuidRouteReference(id, 'chat'),
@@ -485,6 +489,7 @@ export const routineDetailRoute = defineRoute({
 export const agentsViewRoute = defineRoute({
   id: 'view-agents',
   path: 'agents',
+  mountKey: AGENTS_WORKSPACE_MOUNT,
   search: '*' as const,
   externalSearch: ['createAgent'],
   claim: () => ({ namespace: 'component', id: 'agents' }),

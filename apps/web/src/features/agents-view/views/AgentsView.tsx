@@ -33,6 +33,7 @@ import {
   Show,
   Suspense,
   Switch,
+  useTransition,
 } from 'solid-js';
 import { routineContent } from '../../routines/routine-navigation';
 import { RoutinesPage } from '../../routines/routines-page';
@@ -79,14 +80,14 @@ function LoadingComposer() {
   );
 }
 
-function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
+function AgentsWorkspace(props: { route?: AgentsRoute }) {
   const panel = useSplitPanelOrThrow();
   const layout = useSplitLayout();
   const orchestrator = useGlobalBlockOrchestrator();
   const userId = useUserId();
   useWarmAgentSessionQuery(userId);
   const notifications = useGlobalNotificationSource();
-  const mode = (): AgentsMode => props.initialRoute?.mode ?? 'chat';
+  const mode = (): AgentsMode => props.route?.mode ?? 'chat';
   // The composer's Chat/Code choice; an open conversation keeps its own mode.
   const workspace = createWorkspaceMode(userId());
   const listView = createConversationListView(userId());
@@ -100,12 +101,45 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
   const [selected, setSelected] = createSignal<
     SelectedConversation | undefined
   >(
-    props.initialRoute
+    props.route
       ? {
-          conversation: props.initialRoute.conversation,
-          activeConversationId: props.initialRoute.conversation.id,
+          conversation: props.route.conversation,
+          activeConversationId: props.route.conversation.id,
         }
       : undefined
+  );
+  // A conversation suspends until its first load resolves. Switching inside a
+  // transition keeps the current one on screen until then, instead of blanking
+  // the pane to a spinner; the sidebar highlights the target meanwhile.
+  const [switching, startSwitch] = useTransition();
+  const selectConversation = (conversation: AgentConversationTarget) =>
+    fireAndForget(
+      startSwitch(() => {
+        setPage('new');
+        setSelected({ conversation, activeConversationId: conversation.id });
+      }),
+      'agents-view'
+    );
+  // The list and its conversations share one mount (`mountKey` in the routes),
+  // so the selection follows navigation, including Back and Forward.
+  createEffect(
+    on(
+      () => {
+        const conversation = props.route?.conversation;
+        return conversation && `${conversation.type}:${conversation.id}`;
+      },
+      () => {
+        const conversation = props.route?.conversation;
+        if (!conversation) {
+          setSelected(undefined);
+          return;
+        }
+        // An adopted session id is the conversation already on screen.
+        if (selected()?.activeConversationId === conversation.id) return;
+        selectConversation(conversation);
+      },
+      { defer: true }
+    )
   );
   const dataMode = () => dataModeFor(selected() ? mode() : workspace.mode());
   const [mobileList, setMobileList] = createSignal(!isRoutinesPage());
@@ -240,7 +274,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       id: agentsRouteId({ mode: targetMode, conversation }),
     };
     if (!event?.shiftKey && panel.handle.content().id === next.id) {
-      setSelected({ conversation, activeConversationId: conversation.id });
+      selectConversation(conversation);
       return;
     }
     const result = layout.openWithSplit(next, {
@@ -301,7 +335,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       onFilterChange={listView.setSelected}
       onClearFilters={listView.clear}
       onGroupingChange={listView.setGrouping}
-      activePage={selected() ? undefined : page()}
+      activePage={selected() || switching() ? undefined : page()}
       onCreateRoutine={() =>
         layout.popoverSplit({ type: 'component', id: 'routine-compose' })
       }
@@ -317,7 +351,11 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
             : openPage(next)
       }
       modeForConversation={modeForConversation}
-      activeConversationId={selected()?.activeConversationId}
+      activeConversationId={
+        switching()
+          ? props.route?.conversation.id
+          : selected()?.activeConversationId
+      }
       search={search()}
       conversations={partitioned().conversations}
       archived={partitioned().archived}
@@ -367,72 +405,74 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                   class="main touch:pt-[calc(var(--mobile-content-inset-top,var(--safe-top,0px))+0.5rem)] touch:[&>*]:[--mobile-content-inset-top:0px]"
                   classList={{ hidden: isTouchDevice() && mobileList() }}
                 >
-                  <Show
-                    when={selected()?.conversation}
-                    keyed
-                    fallback={
-                      <>
-                        <Show when={page() !== 'routines'}>
-                          <Topbar
-                            title={pageTitle()}
-                            onBack={
-                              isTouchDevice()
-                                ? () => setMobileList(true)
-                                : undefined
-                            }
-                          />
-                        </Show>
-                        <div class="body">
-                          <Suspense fallback={<LoadingComposer />}>
-                            <Switch>
-                              <Match when={page() === 'routines'}>
-                                <RoutinesPage />
-                              </Match>
-                              <Match when={page() === 'connections'}>
-                                <IntegrationsPage />
-                              </Match>
-                              <Match when={page() === 'agents'}>
-                                <AgentSettings
-                                  createKind={creatingKind()}
-                                  onCloseCreate={() =>
-                                    setCreatingKind(undefined)
+                  {/* Outside the keyed Show, so a conversation switched to in a
+                      transition keeps the previous one shown while it loads. */}
+                  <Suspense fallback={<LoadingComposer />}>
+                    <Show
+                      when={selected()?.conversation}
+                      keyed
+                      fallback={
+                        <>
+                          <Show when={page() !== 'routines'}>
+                            <Topbar
+                              title={pageTitle()}
+                              onBack={
+                                isTouchDevice()
+                                  ? () => setMobileList(true)
+                                  : undefined
+                              }
+                            />
+                          </Show>
+                          <div class="body">
+                            <Suspense fallback={<LoadingComposer />}>
+                              <Switch>
+                                <Match when={page() === 'routines'}>
+                                  <RoutinesPage />
+                                </Match>
+                                <Match when={page() === 'connections'}>
+                                  <IntegrationsPage />
+                                </Match>
+                                <Match when={page() === 'agents'}>
+                                  <AgentSettings
+                                    createKind={creatingKind()}
+                                    onCloseCreate={() =>
+                                      setCreatingKind(undefined)
+                                    }
+                                  />
+                                </Match>
+                              </Switch>
+                              <div
+                                class="contents"
+                                classList={{ hidden: page() !== 'new' }}
+                              >
+                                <NewChatPage
+                                  mode={workspace.mode()}
+                                  onModeChange={workspace.setMode}
+                                  active={
+                                    !isTouchDevice() ||
+                                    (!mobileList() && page() === 'new')
                                   }
+                                  registerFocus={(focus) => {
+                                    composerFocus = focus;
+                                  }}
+                                  workspaceId={panel.handle.id}
+                                  draft={draft()}
+                                  onDraftChange={setDraft}
+                                  roster={rosterSource.roster()}
+                                  rosterLoading={rosterSource.loading()}
+                                  availabilityLoading={rosterSource.availabilityLoading()}
+                                  onStart={startConversation}
+                                  onOpenRoster={openRoster}
                                 />
-                              </Match>
-                            </Switch>
-                            <div
-                              class="contents"
-                              classList={{ hidden: page() !== 'new' }}
-                            >
-                              <NewChatPage
-                                mode={workspace.mode()}
-                                onModeChange={workspace.setMode}
-                                active={
-                                  !isTouchDevice() ||
-                                  (!mobileList() && page() === 'new')
-                                }
-                                registerFocus={(focus) => {
-                                  composerFocus = focus;
-                                }}
-                                workspaceId={panel.handle.id}
-                                draft={draft()}
-                                onDraftChange={setDraft}
-                                roster={rosterSource.roster()}
-                                rosterLoading={rosterSource.loading()}
-                                availabilityLoading={rosterSource.availabilityLoading()}
-                                onStart={startConversation}
-                                onOpenRoster={openRoster}
-                              />
-                            </div>
-                          </Suspense>
-                        </div>
-                      </>
-                    }
-                  >
-                    {(conversation) => (
-                      <Switch>
-                        <Match when={conversation.type === 'agent_session'}>
-                          <Suspense fallback={<LoadingComposer />}>
+                              </div>
+                            </Suspense>
+                          </div>
+                        </>
+                      }
+                    >
+                      {(conversation) => (
+                        <Switch>
+                          <Match when={conversation.type === 'agent_session'}>
                             <AgentSessionPane
                               id={conversation.id}
                               notificationSource={notifications}
@@ -441,11 +481,9 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                               }
                               onDeleted={showComposer}
                             />
-                          </Suspense>
-                        </Match>
-                        <Match when={true}>
-                          <div class="body">
-                            <Suspense fallback={<LoadingComposer />}>
+                          </Match>
+                          <Match when={true}>
+                            <div class="body">
                               <ChatEmptyStateContext.Provider
                                 value={() => (
                                   <div class="px-4 py-16 text-center">
@@ -461,12 +499,12 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                   splitPanelContext={panel}
                                 />
                               </ChatEmptyStateContext.Provider>
-                            </Suspense>
-                          </div>
-                        </Match>
-                      </Switch>
-                    )}
-                  </Show>
+                            </div>
+                          </Match>
+                        </Switch>
+                      )}
+                    </Show>
+                  </Suspense>
                 </main>
                 <Show when={isTouchDevice() && mobileList()}>
                   <div
@@ -488,12 +526,12 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
 }
 
 /** Dedicated Agents workspace used by the new app views layout. */
-export function AgentsView(props: { initialRoute?: AgentsRoute }) {
+export function AgentsView(props: { route?: AgentsRoute }) {
   return (
     <ListEntityMetadataQueryProvider>
       <StaticMarkdownContext>
         <Suspense fallback={<LoadingComposer />}>
-          <AgentsWorkspace initialRoute={props.initialRoute} />
+          <AgentsWorkspace route={props.route} />
         </Suspense>
       </StaticMarkdownContext>
     </ListEntityMetadataQueryProvider>
