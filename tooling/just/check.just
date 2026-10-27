@@ -119,3 +119,13 @@ check *ARGS:
     echo
     if [ "$fail" -ne 0 ]; then echo "FAIL"; exit 1; fi
     echo "OK"
+
+#   just pr-privacy                                  commits since origin/main
+#   PR_TITLE="fix(x): ..." just pr-privacy body.md   plus the PR title and body
+#
+# The same script CI's PR Privacy Check runs; the rule is the Privacy section
+# of .agents/skills/git/SKILL.md.
+# Scan branch commits (and a PR title and body) for personal or support details.
+pr-privacy BODY="":
+    @cd {{ justfile_directory() }} && PR_BODY_FILE="{{ BODY }}" \
+      bash tooling/xtask/crates/xtask_workflows/src/workflows/scripts/pr_privacy_check.sh
