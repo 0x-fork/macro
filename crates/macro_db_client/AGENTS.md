@@ -83,6 +83,11 @@ unreferenced replicas. These additive tables do not change agent-session claims.
   `docs/design/outlook-email-support.md` for failure recovery and deployment order.
 - Quote and alias camelCase columns to Rust field names
   (`SELECT "userId" AS user_id`); don't guess spelling — check `migrations/`.
+- Saved-view sharing uses current team membership and chronological owner/team indexes.
+  Deploy additive revision and team-share columns before service changes. Keep permanent
+  `saved_view_tombstone` IDs and the deletion trigger to prevent delayed creates
+  from resurrecting deleted definitions. Use a fresh disposable database when
+  checking replacement branch migrations.
 
 - The unmerged WhatsApp migrations define standalone group/message/reaction/attachment/read storage; domain queries live in `whatsapp_linked`.
 

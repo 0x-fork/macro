@@ -9,10 +9,17 @@ import {
 } from '@app/components/view-shell/ListHeader';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import BookmarkIcon from '@phosphor/bookmark-simple.svg';
 import { Show } from 'solid-js';
 import { TASK_TABS } from '../constants';
+import { taskSavedViewTitle } from '../primitives/create-task-saved-view-draft';
 import { TasksCreateAction } from '../tasks-create-action';
 import { useTasksView } from '../tasks-view-context';
+import {
+  TaskSavedViewActions,
+  TaskSavedViewMenu,
+  TaskSaveViewButton,
+} from '../views/task-saved-views';
 import { TasksControls } from './TasksControls';
 import { TasksMobileTabs } from './TasksMobileTabs';
 
@@ -22,9 +29,11 @@ export type TasksHeaderProps = {
 };
 
 export function TaskViewBreadcrumbItem() {
-  const { state } = useTasksView();
+  const { state, savedViews } = useTasksView();
   const tabTitle = () =>
-    TASK_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Tasks';
+    state.savedViewActive && savedViews
+      ? taskSavedViewTitle(savedViews.view())
+      : (TASK_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Tasks');
 
   return (
     <ViewBreadcrumbs.Item
@@ -37,7 +46,11 @@ export function TaskViewBreadcrumbItem() {
           isActive={item.isActive()}
           onClick={item.onSelect}
           tooltip={tabTitle()}
+          class="gap-2"
         >
+          <Show when={state.savedViewActive}>
+            <BookmarkIcon class="size-4 shrink-0" aria-hidden="true" />
+          </Show>
           <span class="truncate">{tabTitle()}</span>
         </ViewBreadcrumbs.ReturnButton>
       )}
@@ -66,8 +79,15 @@ export function TasksHeader(props: TasksHeaderProps) {
       when={isTouchDevice()}
       fallback={
         <ListHeader
-          title={<ViewBreadcrumbs.Outlet aria-label="Task location" />}
+          title={
+            <div class="flex min-w-0 items-center gap-1">
+              <ViewBreadcrumbs.Outlet aria-label="Task location" />
+              <TaskSavedViewMenu />
+            </div>
+          }
         >
+          <TaskSaveViewButton />
+          <TaskSavedViewActions />
           <TasksControls />
           <TasksCreateAction
             presentation="toolbar"
@@ -86,7 +106,7 @@ export function TasksHeader(props: TasksHeaderProps) {
       }
     >
       <ViewShell.Header>
-        <div class="flex min-w-0 flex-col @max-[720px]/view-shell:gap-3">
+        <div class="flex min-w-0 flex-col">
           <TasksMobileTabs />
         </div>
       </ViewShell.Header>

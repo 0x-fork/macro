@@ -4158,6 +4158,7 @@
       "crates/remote_env_var",
       "crates/roles_and_permissions",
       "crates/s3_key",
+      "crates/saved_views",
       "crates/scheduled_action",
       "crates/secretsmanager_client",
       "crates/share_permission_db_utils",

@@ -137,11 +137,10 @@ export function buildTaskQuery(
 
   if (primarySort?.reversed) sortDirection = 'asc';
 
-  const compiledFacets = compileFacets(
-    options.facets,
-    TASK_FACETS,
-    options.facetContext ?? EMPTY_TASK_FACET_CONTEXT
-  );
+  const compiledFacets = compileFacets(options.facets, TASK_FACETS, {
+    ...(options.facetContext ?? EMPTY_TASK_FACET_CONTEXT),
+    viewerId: options.userId,
+  });
 
   const properties = propertyScope(
     options.tab,

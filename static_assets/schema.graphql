@@ -424,6 +424,18 @@ type CompleteMutationRoot {
 	in the requested feed.
 	"""
 	undoWorkFeedItemsDone(input: UndoWorkFeedItemsDoneInput!): UndoWorkFeedItemsDonePayload!
+	"""
+	Create once; replaying the same owned ID returns its existing record.
+	"""
+	createSavedView(input: CreateSavedViewInput!): GraphqlSavedView!
+	"""
+	Replace supplied fields only if the caller owns the expected revision.
+	"""
+	updateSavedView(input: UpdateSavedViewInput!): GraphqlSavedView!
+	"""
+	Delete the expected owned revision; repeating a completed deletion returns the ID.
+	"""
+	deleteSavedView(input: DeleteSavedViewInput!): ID!
 }
 
 """
@@ -564,6 +576,28 @@ input CreateInitiativeInput {
 }
 
 """
+Inputs for creating a saved view with a stable client-generated identity.
+"""
+input CreateSavedViewInput {
+	"""
+	Client-generated UUID reused when retrying the same creation.
+	"""
+	id: ID!
+	"""
+	Nonempty display name, limited to 120 characters.
+	"""
+	name: String!
+	"""
+	Consumer-owned JSON object, limited to 32 KiB.
+	"""
+	config: JSON!
+	"""
+	Current team to share with, or null for a private definition.
+	"""
+	sharedTeamId: ID
+}
+
+"""
 Delete an event, one occurrence, or an occurrence onward.
 """
 input DeleteCalendarEventInput {
@@ -628,6 +662,20 @@ type DeleteEmailDraftPayload {
 	Canonical surviving thread, when this delete found a draft.
 	"""
 	thread: GraphqlSoupEmailThread
+}
+
+"""
+Inputs for a revision-guarded deletion.
+"""
+input DeleteSavedViewInput {
+	"""
+	Identity of the definition to delete.
+	"""
+	id: ID!
+	"""
+	Revision that must still match when the deletion commits.
+	"""
+	expectedRevision: Int!
 }
 
 """
@@ -6506,6 +6554,58 @@ type GraphqlRepliedToDocumentCommentThreadMetadata {
 }
 
 """
+A saved filter definition, not a snapshot of matching entities.
+"""
+type GraphqlSavedView {
+	"""
+	Stable identity of this saved definition.
+	"""
+	id: ID!
+	"""
+	User who owns and can edit this definition.
+	"""
+	ownerId: ID!
+	"""
+	Display name chosen by the owner.
+	"""
+	name: String!
+	"""
+	Versioned filter configuration interpreted by the consuming feature.
+	"""
+	config: JSON!
+	"""
+	Team with effective access, or null when the definition is private.
+	"""
+	sharedTeamId: ID
+	"""
+	Current revision required for conditional updates and deletion.
+	"""
+	revision: Int!
+	"""
+	Creation timestamp in RFC 3339 format.
+	"""
+	createdAt: String!
+	"""
+	Last update timestamp in RFC 3339 format.
+	"""
+	updatedAt: String!
+}
+
+"""
+A page ordered by creation time and ID after effective visibility checks.
+"""
+type GraphqlSavedViewPage {
+	"""
+	Definitions the authenticated viewer can currently access.
+	"""
+	nodes: [GraphqlSavedView!]!
+	"""
+	Opaque continuation cursor, or null when the listing is complete.
+	"""
+	nextCursor: String
+}
+
+"""
 An AI routine the authenticated user can access.
 """
 type GraphqlScheduledAction {
@@ -9256,6 +9356,14 @@ The authenticated user and their user-scoped data.
 """
 type GraphqlUser {
 	"""
+	Visible personal and effectively shared definitions, bounded after visibility checks.
+	"""
+	savedViews(kind: String, first: Int, after: String): GraphqlSavedViewPage!
+	"""
+	An authorized definition or null when not found or not visible.
+	"""
+	savedView(id: ID!): GraphqlSavedView
+	"""
 	Stable id of the authenticated user.
 	"""
 	id: ID!
@@ -10011,6 +10119,16 @@ type SaveEmailDraftPayload {
 }
 
 """
+Explicit sharing action: an omitted input leaves sharing unchanged; null team ID makes it private.
+"""
+input SavedViewSharingInput {
+	"""
+	Current team to share with; null explicitly removes sharing.
+	"""
+	teamId: ID
+}
+
+"""
 Immutable content approved by the user.
 """
 input SendEmailAttemptInput {
@@ -10511,6 +10629,32 @@ input UpdateNotificationsInput {
 	Status operation applied to every requested notification.
 	"""
 	operation: NotificationUpdateOperation!
+}
+
+"""
+Inputs for a revision-guarded replacement update.
+"""
+input UpdateSavedViewInput {
+	"""
+	Identity of the definition to update.
+	"""
+	id: ID!
+	"""
+	Revision that must still match when the update commits.
+	"""
+	expectedRevision: Int!
+	"""
+	Replacement display name; omission preserves the current name.
+	"""
+	name: String
+	"""
+	Complete replacement configuration; omission preserves current filters.
+	"""
+	config: JSON
+	"""
+	Explicit sharing change; omission preserves the existing share.
+	"""
+	sharing: SavedViewSharingInput
 }
 
 """

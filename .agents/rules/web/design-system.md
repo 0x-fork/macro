@@ -68,6 +68,7 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   `bg-menu-glass` by ast-grep `tsx-overlay-canonical-surface`, CI error; the
   reply composer, mobile drawer, call controls, and fullscreen media viewers
   are the documented exceptions.
+- Reuse the same styled items and padded groups for dropdown and context menus; vary only their root, trigger, and content composition.
 - **FE-68** Loading placeholders use the shared shimmer: `ListSkeleton.Bar`
   (a pill; pass size and radius) or `skeleton-shimmer bg-skeleton`. A view's
   skeleton is built from `ViewSkeleton` and mirrors its header (title, view
