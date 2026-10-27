@@ -6,6 +6,6 @@
  */
 
 /**
- * The private document, once ready.
+ * The static file holding it, once ready.
  */
-export type LinkedAttachmentDocumentId = string | null;
+export type LinkedAttachmentFileId = string | null;

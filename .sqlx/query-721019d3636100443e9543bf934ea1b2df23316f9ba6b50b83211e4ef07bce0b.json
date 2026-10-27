@@ -1,11 +1,11 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT a.document_id, a.sha256, a.state, a.mime AS \"mime!\", a.filename AS \"filename!\", b.id AS group_id, b.user_id\n            FROM whatsapp_group_attachment a JOIN whatsapp_group b ON b.id = a.binding_id\n            WHERE a.binding_id = $1 AND a.person_id = $2 AND a.source_id = $3 AND a.ordinal = $4 AND a.account_id = $5\n            FOR UPDATE OF a",
+  "query": "SELECT a.blob_id, a.sha256, a.state, a.mime AS \"mime!\", a.filename AS \"filename!\", b.id AS group_id, b.user_id\n            FROM whatsapp_group_attachment a JOIN whatsapp_group b ON b.id = a.binding_id\n            WHERE a.binding_id = $1 AND a.person_id = $2 AND a.source_id = $3 AND a.ordinal = $4 AND a.account_id = $5\n            FOR UPDATE OF a",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "document_id",
+        "name": "blob_id",
         "type_info": "Uuid"
       },
       {
@@ -58,5 +58,5 @@
       false
     ]
   },
-  "hash": "bbdc004911cbdaf82f97e26682029e9cbec7732f94a91ff6c31898f96a3cc99a"
+  "hash": "721019d3636100443e9543bf934ea1b2df23316f9ba6b50b83211e4ef07bce0b"
 }

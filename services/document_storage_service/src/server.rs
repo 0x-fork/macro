@@ -1483,9 +1483,10 @@ pub async fn run() -> anyhow::Result<()> {
     let whatsapp_linked_state =
         crate::whatsapp_linked::build(crate::whatsapp_linked::Dependencies {
             redis: redis_client.clone(),
-            documents: document_service.clone(),
-            s3: macro_aws_config::s3_client().await,
-            document_bucket: config.document_storage_bucket.as_ref().to_owned(),
+            static_files: static_file_service_client::StaticFileServiceClient::new(
+                config.internal_api_key.to_string(),
+                StaticFileServiceUrl::new()?.to_string(),
+            ),
             features: whatsapp_linked::domain::models::Features {
                 pairing: config.whatsapp_linked_pairing_enabled,
                 adoption: config.whatsapp_linked_adoption_enabled,
