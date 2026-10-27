@@ -232,7 +232,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Compose multiselect filters with `Dropdown.MultiSelectItem` and the shared
   searchable filters; follow [multiselect dropdowns](../../docs/agent-guide/ui-conventions.md#multiselect-dropdowns)
   for checkbox, row, Only, keyboard, and touch behavior.
-- Keep adopted WhatsApp groups on `/whatsapp-group/:id` with their own queries; sharing controls viewing and the viewer's own WhatsApp membership controls sending. Never route them through channel context or services.
+- Keep adopted WhatsApp groups in External at `/external/whatsapp/:id` (`/whatsapp-group/:id` redirects) with their own queries; sharing controls viewing and the viewer's own WhatsApp membership controls sending. Never route them through channel context or services.
 - All API/network calls live in service-clients.
 - Open projects through `openProject` (`features/projects/open-project.ts`): it
   retargets an already-open project split to the section or comment in place.
