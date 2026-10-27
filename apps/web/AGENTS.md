@@ -70,6 +70,10 @@ Gate event notes and document Share meeting-link controls with
 on in dev and uses PostHog in production.
 See `docs/agent-guide/calendar.md` at the repo root.
 
+Channel composer draft persistence has a backend-free browser regression:
+`bunx playwright test --config src/features/channel/Input/browser-test/playwright.config.ts`.
+It types a draft, remounts the composer over it, and checks the blank lines survive.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
