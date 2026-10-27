@@ -358,8 +358,8 @@ Generate APNs validators with `scripts/generate-api-schema.ts`; its compact
 `generated/push.ts` entry avoids importing every notification-service schema
 on the startup path. Carry known channel root IDs in push navigation (a null
 `threadId` means the message itself is the root), prefetch the target window
-alongside channel metadata, and keep the channel loading shell stable until
-that target can be positioned.
+alongside channel metadata, and keep the shared Macro loading indicator visible
+until that target can be positioned.
 
 ## macOS notification activation
 
