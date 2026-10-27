@@ -37,10 +37,13 @@ Chat sidebar tabs. Selecting Inbox
 from another mailbox opens Signal; selecting it while in Noise keeps Noise.
 The desktop sidebar continues with `Favorites`, `Drafts`, `Sent`, `Scheduled`,
 and `Reminders` (when reminders are enabled), followed by a **Library** section containing `All mail`,
-`Archived`, and `Shared`, then **Tags**. Sidebar number and sequential shortcuts
-follow that order. Calendar mail remains available through the calendar filter
-and existing Calendar route. Mobile keeps its original tabs and order, including
-separate Signal, Noise, and Calendar tabs.
+`Archived`, and `Shared`, then **Tags**. Sidebar number shortcuts follow that
+order; `Tab` and `Shift+Tab` toggle between Signal and Noise (from another
+mailbox, `Tab` opens Signal and `Shift+Tab` Noise). While the email list itself
+has focus, `Tab` moves browser focus instead; use `g i` or `g o`. Calendar
+mail remains available through the calendar filter and existing Calendar route.
+Mobile keeps its original tabs and order, including separate Signal, Noise, and
+Calendar tabs.
 Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
 shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connections
 use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` or `/` within the surface.
