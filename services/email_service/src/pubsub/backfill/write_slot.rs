@@ -5,7 +5,7 @@ use crate::pubsub::context::PubSubContext;
 use crate::util::redis::backfill_write_slots::BackfillWriteSlot;
 use models_email::email::service::pubsub::{DetailedError, FailureReason, ProcessingError};
 
-/// Takes a backfill write slot for one message write. A slot that stays taken,
+/// Takes a backfill write slot for one write. A slot that stays taken,
 /// or Redis failing to decide, refuses the write so the operation is deferred
 /// instead of written unmetered.
 pub(super) async fn acquire(ctx: &PubSubContext) -> Result<BackfillWriteSlot, ProcessingError> {
