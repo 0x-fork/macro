@@ -4,6 +4,8 @@
  * renderer speak Markdown. These convert at the send and display edges.
  */
 
+import type { Mention } from './rich';
+
 const FENCE = /^```/;
 
 /** Markdown inline syntax the composer writes, one alternative per group. */
@@ -35,8 +37,8 @@ function markdownInline(text: string): string {
       if (italic !== undefined) return `_${markdownInline(italic)}_`;
       if (strike !== undefined) return `~${markdownInline(strike)}~`;
       if (linkText !== undefined && linkUrl !== undefined)
-        return linkText === linkUrl
-          ? linkUrl
+        return linkText === linkUrl || `https://${linkText}` === linkUrl
+          ? linkText
           : `${markdownInline(linkText)} (${linkUrl})`;
       return autolink ?? '';
     }
@@ -73,7 +75,7 @@ export function markdownToWhatsApp(markdown: string): string {
 const WHATSAPP_INLINE =
   /(`[^`\n]+`)|((?:https?:\/\/|www\.)[^\s<>]*[^\s<>.,;:!?'")\]*_~])|(^|[^\p{L}\p{N}*_~])([*_~])(?!\s)([^\n]*?[^\s*_~]|[^\s*_~])\4(?![\p{L}\p{N}*_~])/gu;
 
-/** ASCII punctuation, except `@`. */
+/** ASCII punctuation, minus the `@` that mentions are found by. */
 const PUNCTUATION = /[!-/:-?[-`{-~]/g;
 
 /**
@@ -98,8 +100,52 @@ function urlLink(url: string): string {
 }
 const MARKDOWN_FOR: Record<string, string> = { '*': '**', _: '*', '~': '~~' };
 
-function plainText(text: string): string {
-  return literal(text);
+/** `@<token>` for one of `mentions`, not inside a longer word or number. */
+function mentionPattern(mentions: Mention[]): RegExp | undefined {
+  if (mentions.length === 0) return undefined;
+  const tokens = [...new Set(mentions.map((mention) => mention.token))]
+    .sort((a, b) => b.length - a.length)
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return new RegExp(`@(${tokens.join('|')})(?![\\p{L}\\p{N}])`, 'gu');
+}
+
+/** `macro|ana@example.com` → its email; the mention chip resolves the name. */
+function macroEmail(userId: string): string | undefined {
+  return userId.startsWith('macro|')
+    ? userId.slice('macro|'.length)
+    : undefined;
+}
+
+/**
+ * A mentioned person: a verified Macro user becomes Chat's mention chip,
+ * anyone else their WhatsApp name or number in bold, the way WhatsApp shows
+ * it. The chip's JSON escapes `<` and `>`, so a name can't close the tag.
+ */
+function mentionMarkdown(mention: Mention): string {
+  const email = mention.userId ? macroEmail(mention.userId) : undefined;
+  if (!mention.userId || !email) return `**@${literal(mention.name)}**`;
+  const json = JSON.stringify({
+    userId: mention.userId,
+    email,
+    displayName: mention.name,
+  })
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e');
+  return `<m-user-mention>${json}</m-user-mention>`;
+}
+
+function plainText(text: string, mentions: Mention[]): string {
+  const pattern = mentionPattern(mentions);
+  if (!pattern) return literal(text);
+  let out = '';
+  let last = 0;
+  for (const found of text.matchAll(pattern)) {
+    const mention = mentions.find((each) => each.token === found[1]);
+    if (!mention) continue;
+    out += literal(text.slice(last, found.index)) + mentionMarkdown(mention);
+    last = found.index + found[0].length;
+  }
+  return out + literal(text.slice(last));
 }
 
 /**
@@ -120,30 +166,30 @@ function inlineCode(code: string, before: string, after: string | undefined) {
   return literal(code);
 }
 
-function whatsappInline(text: string): string {
+function whatsappInline(text: string, mentions: Mention[]): string {
   let out = '';
   let last = 0;
   for (const found of text.matchAll(WHATSAPP_INLINE)) {
     const [whole, code, url, before = '', marker = '', inner = ''] = found;
-    out += plainText(text.slice(last, found.index));
+    out += plainText(text.slice(last, found.index), mentions);
     last = found.index + whole.length;
     if (code !== undefined) out += inlineCode(code, out, text[last]);
     else if (url !== undefined) out += urlLink(url);
     else {
       const markdown = MARKDOWN_FOR[marker] ?? '';
-      out += `${plainText(before)}${markdown}${whatsappInline(inner)}${markdown}`;
+      out += `${plainText(before, mentions)}${markdown}${whatsappInline(inner, mentions)}${markdown}`;
     }
   }
-  return out + plainText(text.slice(last));
+  return out + plainText(text.slice(last), mentions);
 }
 
 /** WhatsApp's line formats: `- ` / `* ` bullets, `1. ` numbers and `> ` quotes. */
 const WHATSAPP_LINE = /^(?:([-*]) |(\d{1,9})\. |> ?)/;
 
-function whatsappLine(line: string): string {
+function whatsappLine(line: string, mentions: Mention[]): string {
   const block = WHATSAPP_LINE.exec(line);
-  if (!block) return whatsappInline(line);
-  const rest = whatsappInline(line.slice(block[0].length));
+  if (!block) return whatsappInline(line, mentions);
+  const rest = whatsappInline(line.slice(block[0].length), mentions);
   if (block[1]) return `- ${rest}`;
   if (block[2]) return `${block[2]}. ${rest}`;
   return `> ${rest}`;
@@ -151,16 +197,23 @@ function whatsappLine(line: string): string {
 
 /**
  * A received WhatsApp body as Markdown for the shared message renderer.
- * Only what this function writes is Markdown: WhatsApp's own formatting and
- * links for bare http(s) URLs. Everything else is literal text.
+ * Only what this function writes is Markdown: WhatsApp's own formatting,
+ * links for bare http(s) URLs, and a mention chip for each `@<token>` that
+ * DSS matched to a verified Macro user. Everything else is literal text.
  */
-export function whatsappToMarkdown(text: string): string {
+export function whatsappToMarkdown(
+  text: string,
+  mentions: Mention[] = []
+): string {
   return text
     .split(/(```[\s\S]*?```)/)
     .map((part) =>
       part.startsWith('```') && part.endsWith('```') && part.length >= 6
         ? `\n\`\`\`\n${part.slice(3, -3).replace(/^\n|\n$/g, '')}\n\`\`\`\n`
-        : part.split('\n').map(whatsappLine).join('\n')
+        : part
+            .split('\n')
+            .map((line) => whatsappLine(line, mentions))
+            .join('\n')
     )
     .join('')
     .trim();

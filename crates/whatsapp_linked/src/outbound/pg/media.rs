@@ -316,14 +316,23 @@ impl MediaRepository for PgLinkedRepository {
         tx.commit().await.map_err(failure)
     }
 
-    async fn expire_uploads(&self) -> LinkedResult<u64> {
-        Ok(sqlx::query!(
+    async fn expire_retained(&self) -> LinkedResult<u64> {
+        let uploads = sqlx::query!(
             r#"DELETE FROM whatsapp_media_blob b WHERE b.created_at < now() - interval '1 day'
             AND NOT EXISTS (SELECT 1 FROM whatsapp_group_attachment a WHERE a.document_id = b.document_id)"#
         )
         .execute(&self.pool)
         .await
         .map_err(failure)?
-        .rows_affected())
+        .rows_affected();
+        let receipts = sqlx::query!(
+            "DELETE FROM whatsapp_participant_receipt WHERE source_at < now() - make_interval(days => $1)",
+            crate::domain::models::RECEIPT_RETENTION_DAYS
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(failure)?
+        .rows_affected();
+        Ok(uploads + receipts)
     }
 }

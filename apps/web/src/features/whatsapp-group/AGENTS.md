@@ -43,7 +43,28 @@ lists belong to `features/whatsapp-linked` and `features/external-view`.
 - Images, video and audio play inline: `fileUrl` resolves the imported
   document's presigned URL and `InboundMedia` hands it to Chat's
   `MediaPreview` (or an audio player); `groupMessageData` keeps them out of
-  the document chips. DSS sends no dimensions, so images size on load.
+  the document chips. DSS's declared width/height reserve the space (keeps
+  the open-at-bottom scroll right); stickers, GIFs and voice notes follow the
+  attachment's `presentation`.
+- `kind: 'system'` rows render through Chat's `SystemActivityLine`
+  (`components/system-line.tsx`, words in `core/rich.ts`) and enter the list
+  meta as `activity` entries; they never count toward the unread divider.
+- `rich` polls, locations, contacts and events are small cards
+  (`components/rich-cards.tsx`); votes happen in WhatsApp only. Map links are
+  built from coordinates; nothing is fetched to draw them. Sender-supplied
+  links (a location's URL, an event's join link) survive decoding only as
+  http(s) (`webLink`).
+- Received text is untrusted: `whatsappToMarkdown` turns every punctuation
+  mark into a `&#NN;` reference, so no Markdown, HTML or Macro tag a sender
+  types takes effect. Only what it writes itself is Markdown: WhatsApp's
+  formatting, links for bare http(s) URLs (so Chat's link preview applies),
+  and for each `@<token>` DSS matched, Chat's user-mention chip (verified
+  Macro users) or the WhatsApp name in bold. Inline code stays a code span
+  only when it holds nothing a tag could start with.
+- The composer runs `ChannelInput` with `mentions: 'participants'`: the `@`
+  menu lists the roster (ids are JIDs, minus the sender) and nothing else;
+  `composerMentions` turns the chips into `@<digits>` plus `mentions` on the
+  text send.
 - Senders show their WhatsApp name (`imported_author`), Macro users included.
 - Use backend limits for text, files, edits and deletes.
 - Keep phone numbers and message bodies out of telemetry.

@@ -13,7 +13,9 @@ export function groupMessageData(
 ): MessageData {
   return {
     id: message.id,
-    content: message.deleted ? '' : whatsappToMarkdown(message.body),
+    content: message.deleted
+      ? ''
+      : whatsappToMarkdown(message.body, message.mentions),
     sender_id: message.sender.userId ?? '',
     // WhatsApp's name for everyone, Macro users included: a Macro profile
     // without a name would otherwise show its email.

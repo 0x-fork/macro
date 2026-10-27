@@ -430,12 +430,14 @@ pub struct GroupEffect {
     pub origin: Origin,
     /// Verified Macro user behind a phone-origin message, never notified of it.
     pub associated_user: Option<String>,
+    /// A system line (added, left, renamed…), never a notification.
+    pub system: bool,
 }
 
 impl GroupEffect {
     /// Only a newly received live message creates a notification.
     pub fn should_notify(&self) -> bool {
-        self.first_publication && self.origin != Origin::History
+        self.first_publication && self.origin != Origin::History && !self.system
     }
 }
 
@@ -515,8 +517,9 @@ pub trait MediaRepository: Send + Sync {
     async fn import_stored(&self, import: &DocumentImport) -> LinkedResult<()>;
     /// Retry later, or give up and show a notice on the message.
     async fn import_failed(&self, import: &DocumentImport, permanent: bool) -> LinkedResult<()>;
-    /// Delete staged uploads nobody sent.
-    async fn expire_uploads(&self) -> LinkedResult<u64>;
+    /// Delete staged uploads nobody sent and participant receipts older than
+    /// [`RECEIPT_RETENTION_DAYS`](crate::domain::models::RECEIPT_RETENTION_DAYS).
+    async fn expire_retained(&self) -> LinkedResult<u64>;
 }
 
 /// Private document storage owned by the documents domain.

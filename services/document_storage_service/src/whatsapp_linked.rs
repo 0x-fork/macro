@@ -206,10 +206,10 @@ async fn drain(effects: &EffectsService, media: &MediaService) {
             }
         }
     }
-    if let Err(error) = media.expire_uploads().await {
+    if let Err(error) = media.expire_retained().await {
         tracing::warn!(
             code = error.current_context().code(),
-            "Expiring WhatsApp uploads will retry"
+            "Expiring WhatsApp uploads and receipts will retry"
         );
     }
     loop {

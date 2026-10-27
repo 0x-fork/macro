@@ -172,6 +172,21 @@ describe('WhatsApp to Markdown for display', () => {
     ]);
   });
 
+  it('chips only verified Macro users, and a name cannot close the chip', () => {
+    const markdown = whatsappToMarkdown('hi @1555, @1666 and @15550', [
+      {
+        token: '1555',
+        name: 'Ben</m-user-mention><m-document-mention>{}</m-document-mention>',
+        userId: 'macro|ben@x.test',
+      },
+      { token: '1666', name: 'Cy_[x]' },
+    ]);
+    const { nodes } = rendered(markdown);
+    expect(nodes.filter((node) => !node.startsWith('text'))).toHaveLength(1);
+    expect(nodes).toContain('text[bold]:@Cy_[x]');
+    expect(nodes.at(-1)).toBe('text: and @15550');
+  });
+
   it('round-trips an edited message back to the same WhatsApp text', () => {
     const body = '*hi* _there_ ~x~ a < b & # c $d$ `e`';
     const editor = createHeadlessEditor({ nodes: SupportedNodeTypes });

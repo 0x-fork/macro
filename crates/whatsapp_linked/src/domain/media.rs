@@ -58,8 +58,8 @@ impl MediaService {
         Ok(imported)
     }
 
-    /// Delete staged uploads that were never sent.
-    pub async fn expire_uploads(&self) -> LinkedResult<u64> {
-        self.repository.expire_uploads().await
+    /// Delete staged uploads that were never sent and old participant receipts.
+    pub async fn expire_retained(&self) -> LinkedResult<u64> {
+        self.repository.expire_retained().await
     }
 }
