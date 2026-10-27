@@ -46,6 +46,8 @@ struct MockRepo {
     form_access_callers: Arc<Mutex<Vec<Option<String>>>>,
     form_users: Arc<Mutex<Vec<MacroUserIdStr<'static>>>>,
     form_access_list: Arc<Mutex<Vec<(Uuid, AccessLevel)>>>,
+    whatsapp_group_access: Arc<Mutex<Option<AccessLevel>>>,
+    whatsapp_group_access_callers: Arc<Mutex<Vec<Option<String>>>>,
     reminder_access: Arc<Mutex<Option<AccessLevel>>>,
     team_entity_access: Arc<Mutex<Option<AccessLevel>>>,
     team_agent_session_access: Arc<Mutex<Option<AccessLevel>>>,
@@ -104,6 +106,8 @@ impl MockRepo {
             form_access_callers: Arc::default(),
             form_users: Arc::default(),
             form_access_list: Arc::default(),
+            whatsapp_group_access: Arc::default(),
+            whatsapp_group_access_callers: Arc::default(),
             reminder_access: Arc::new(Mutex::new(None)),
             team_entity_access: Arc::new(Mutex::new(None)),
             team_agent_session_access: Arc::default(),
@@ -193,6 +197,11 @@ impl MockRepo {
 
     fn with_form_access(mut self, level: AccessLevel) -> Self {
         self.form_access = Arc::new(Mutex::new(Some(level)));
+        self
+    }
+
+    fn with_whatsapp_group_access(mut self, level: AccessLevel) -> Self {
+        self.whatsapp_group_access = Arc::new(Mutex::new(Some(level)));
         self
     }
 
@@ -469,6 +478,19 @@ impl AccessRepository for MockRepo {
             .await
             .push(user_id.map(|user_id| user_id.as_ref().to_string()));
         Ok(*self.form_access.lock().await)
+    }
+
+    /// Resolve ordinary shares on an adopted WhatsApp group.
+    async fn get_whatsapp_group_access(
+        &self,
+        _group_id: &str,
+        user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> Result<Option<AccessLevel>, AccessError> {
+        self.whatsapp_group_access_callers
+            .lock()
+            .await
+            .push(user_id.map(|user_id| user_id.as_ref().to_string()));
+        Ok(*self.whatsapp_group_access.lock().await)
     }
 
     async fn list_form_access(
@@ -3024,5 +3046,38 @@ async fn pipeline_receipts_use_their_own_grants() {
             )
             .await
             .is_err()
+    );
+}
+
+const WHATSAPP_GROUP_ID: &str = "0199b1f2-3e22-75b2-97eb-d9c6b91accb1";
+
+#[tokio::test]
+async fn a_whatsapp_group_permission_is_the_repository_group_access() {
+    let repo = MockRepo::new()
+        .with_whatsapp_group_access(AccessLevel::View)
+        .with_form_access(AccessLevel::Edit);
+    let callers = repo.whatsapp_group_access_callers.clone();
+    let service = EntityAccessServiceImpl::new(repo);
+    let user_id = test_user_id();
+
+    let result = service
+        .get_entity_permission(
+            Some(&user_id),
+            WHATSAPP_GROUP_ID,
+            EntityType::WhatsAppGroup,
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        result,
+        EntityPermission::AccessLevel {
+            access_level: AccessLevel::View
+        }
+    );
+    assert_eq!(
+        *callers.lock().await,
+        vec![Some(user_id.as_ref().to_string())]
     );
 }

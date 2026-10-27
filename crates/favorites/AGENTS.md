@@ -37,6 +37,7 @@ hexagonal architecture pattern.
 ## Tool contracts
 
 - The AI adapter omits legacy chat targets; only advertise entity types supported by the domain mutation service.
+- Standalone `WhatsAppGroup` entities are favoritable through the generic entity reference.
 
 ## Checks
 
