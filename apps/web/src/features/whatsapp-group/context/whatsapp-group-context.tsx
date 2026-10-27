@@ -21,7 +21,8 @@ export type WhatsAppGroupCapabilities = {
   timeline: SourceRead<GroupMessage[]>;
   hasOlder: Accessor<boolean>;
   loadingOlder: Accessor<boolean>;
-  loadOlder: () => Promise<unknown>;
+  /** Loads the next older page; false when that request failed. */
+  loadOlder: () => Promise<boolean>;
   /** Records one write; DSS dedupes a retry that reuses its key. */
   send: (
     request: GroupSend,

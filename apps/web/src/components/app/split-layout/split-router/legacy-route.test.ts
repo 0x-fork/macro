@@ -1,19 +1,12 @@
 import { createRoutesManifest, type SplitRoutes } from '@app/lib/split-router';
 import {
   appRoute,
-  externalRoute,
-  externalWhatsappGroupRoute,
   homeSplitRoute,
   legacyContentRoute,
   notFoundRoute,
-  whatsappGroupRoute,
 } from '@app/routes/routes';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  resolveContentLocation,
-  splitContentFromLocation,
-  upgradeLegacyPath,
-} from './legacy-route';
+import { resolveContentLocation, upgradeLegacyPath } from './legacy-route';
 
 vi.mock('@components/app/split-layout/componentRegistry', () => ({
   resolveComponent: vi.fn(() => ({ type: 'mock-component' })),
@@ -33,13 +26,7 @@ const routes = createRoutesManifest({
   definitions: [
     {
       ...appRoute,
-      children: [
-        homeSplitRoute,
-        { ...externalRoute, children: [externalWhatsappGroupRoute] },
-        whatsappGroupRoute,
-        legacyContentRoute,
-        notFoundRoute,
-      ],
+      children: [homeSplitRoute, legacyContentRoute, notFoundRoute],
     },
   ],
   defaultRoute: () => ({ matches: [{ id: 'view-home', params: {} }] }),
@@ -70,23 +57,5 @@ describe('resolveContentLocation', () => {
     expect(
       resolveContentLocation(routes, { type: 'company', id: 'record' }).search
     ).toBeUndefined();
-  });
-});
-
-it('restores a saved WhatsApp group component inside External', () => {
-  const location = resolveContentLocation(routes, {
-    type: 'component',
-    id: 'whatsapp-group:019a061e-0000-7000-8000-000000000001',
-  });
-  expect(location.route.matches.slice(1)).toEqual([
-    { id: 'view-external', params: {} },
-    {
-      id: 'external-whatsapp-group',
-      params: { groupId: '019a061e-0000-7000-8000-000000000001' },
-    },
-  ]);
-  expect(splitContentFromLocation(location)).toEqual({
-    type: 'component',
-    id: 'external',
   });
 });

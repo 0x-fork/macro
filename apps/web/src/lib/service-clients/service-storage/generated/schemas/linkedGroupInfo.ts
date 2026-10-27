@@ -4,8 +4,8 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
-import type { LinkedGroupInfoGroup } from './linkedGroupInfoGroup';
-import type { LinkedGroupInfoShared } from './linkedGroupInfoShared';
+import type { LinkedGroupInfoCommunityJid } from './linkedGroupInfoCommunityJid';
+import type { LinkedGroupInfoDisappearingSeconds } from './linkedGroupInfoDisappearingSeconds';
 import type { LinkedParticipant } from './linkedParticipant';
 
 /**
@@ -14,11 +14,18 @@ import type { LinkedParticipant } from './linkedParticipant';
 export interface LinkedGroupInfo {
   /** Only admins may post. */
   announce: boolean;
-  /** Community announcement or parent group, outside the supported surface. */
-  community: boolean;
-  /** Disappearing messages are on; content is not retained. */
-  disappearing: boolean;
-  group?: LinkedGroupInfoGroup;
+  /** The community's announcement group (everyone reads, admins post). */
+  communityAnnouncements?: boolean;
+  /** The community a linked subgroup or announcement group belongs to. */
+  communityJid?: LinkedGroupInfoCommunityJid;
+  /** The community itself: it has no messages of its own and can't be added. */
+  communityParent?: boolean;
+  /**
+   * Disappearing-messages timer in seconds while it is on. Macro keeps the
+messages; its sends carry the timer so phones treat them like their own.
+   * @minimum 0
+   */
+  disappearingSeconds?: LinkedGroupInfoDisappearingSeconds;
   /** Remote group JID. */
   jid: string;
   /** Current subject. */
@@ -27,5 +34,4 @@ export interface LinkedGroupInfo {
   observedAt: string;
   /** Full roster. */
   participants: LinkedParticipant[];
-  shared?: LinkedGroupInfoShared;
 }

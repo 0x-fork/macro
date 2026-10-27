@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LinkedChatCannotAddReason } from './linkedChatCannotAddReason';
+import type { LinkedChatCommunity } from './linkedChatCommunity';
 import type { LinkedChatGroup } from './linkedChatGroup';
 import type { LinkedChatKind } from './linkedChatKind';
 import type { LinkedChatLastActivityAt } from './linkedChatLastActivityAt';
@@ -18,8 +19,8 @@ export interface LinkedChat {
   archived: boolean;
   /** "Add to Macro" works now. */
   canAdd: boolean;
-  /** Why it can't be added, when it is neither added, shared nor addable. */
   cannotAddReason?: LinkedChatCannotAddReason;
+  community?: LinkedChatCommunity;
   group?: LinkedChatGroup;
   /** WhatsApp chat JID: a group, or the other person's phone-number JID
 (LID when WhatsApp never told us the number). */

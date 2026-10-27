@@ -152,33 +152,11 @@ impl LinkedService {
         Ok((account, identity))
     }
 
-    /// Only a person's own joined groups are discoverable. The stored list is
-    /// returned at once and a refresh is requested (rate limited per account).
-    /// Each group points at the caller's own Macro group once added, or at
-    /// someone else's group that was shared with them.
-    #[tracing::instrument(name = "whatsapp.linked.groups", skip_all, err, fields(count))]
-    pub async fn groups(&self, user: &str) -> LinkedResult<Vec<GroupInfo>> {
-        if !self.features.adoption {
-            return Err(LinkedError::ConfigurationRequired.into());
-        }
-        let (account, identity) = self.connected(user).await?;
-        self.groups.request_groups_refresh(&[account.id]).await?;
-        let mut groups = self.groups.account_groups(account.id).await?;
-        let jids: Vec<String> = groups.iter().map(|g| g.jid.clone()).collect();
-        let adoptions = self.groups.visible_adoptions(user, &jids).await?;
-        for group in &mut groups {
-            (group.group, group.shared) = adoption_of(user, &adoptions, &group.jid);
-            group.name = group.display_name(&identity);
-        }
-        groups.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-        tracing::Span::current().record("count", groups.len());
-        Ok(groups)
-    }
-
     /// The person's WhatsApp chat list, as WhatsApp Web shows it: groups and
-    /// direct chats, newest activity first. Groups carry the same added /
-    /// shared / addable facts as [`Self::groups`]; direct chats are listed but
-    /// not addable yet. Returns stored data and requests a group refresh.
+    /// direct chats, newest activity first. Each chat says whether it is
+    /// added, shared with the caller or addable; direct chats are addable (not
+    /// your own chat) and never shown as shared. Returns stored data
+    /// and requests a group refresh.
     #[tracing::instrument(name = "whatsapp.linked.chats", skip_all, err, fields(count))]
     pub async fn chats(&self, user: &str) -> LinkedResult<ChatList> {
         if !self.features.adoption {
@@ -189,12 +167,7 @@ impl LinkedService {
         let roster = self.groups.account_groups(account.id).await?;
         let stored = self.groups.account_chats(account.id).await?;
         let mut group_jids: Vec<String> = roster.iter().map(|g| g.jid.clone()).collect();
-        group_jids.extend(
-            stored
-                .iter()
-                .filter(|chat| chat.kind == ChatKind::Group)
-                .map(|chat| chat.jid.clone()),
-        );
+        group_jids.extend(stored.iter().map(|chat| chat.jid.clone()));
         group_jids.sort();
         group_jids.dedup();
         let adoptions = self.groups.visible_adoptions(user, &group_jids).await?;
@@ -203,16 +176,21 @@ impl LinkedService {
         for chat in stored {
             listed.insert(chat.jid.clone(), chats.len());
             let (group, shared) = adoption_of(user, &adoptions, &chat.jid);
+            // Someone else's chat with the same person is their own
+            // conversation, not this one.
+            let shared = shared.filter(|_| chat.kind == ChatKind::Group);
             let name = chat
                 .name
                 .clone()
                 .filter(|name| !name.trim().is_empty())
                 .unwrap_or_else(|| chat_fallback_name(&chat.jid, chat.kind, &identity));
             let reason = match chat.kind {
-                ChatKind::Direct => cannot_add::DIRECT,
+                ChatKind::Direct if chat.jid == identity => Some(CannotAdd::OwnChat),
+                ChatKind::Direct => None,
                 // Listed by WhatsApp but not in the account's groups any more.
-                ChatKind::Group => cannot_add::NOT_IN_GROUP,
+                ChatKind::Group => Some(CannotAdd::NotInGroup),
             };
+            let open = group.is_none() && shared.is_none();
             chats.push(Chat {
                 name: if chat.jid == identity {
                     "You".to_owned()
@@ -224,13 +202,14 @@ impl LinkedService {
                 last_activity_at: chat.last_activity_at,
                 archived: chat.archived,
                 pinned: chat.pinned,
-                can_add: false,
-                cannot_add_reason: (group.is_none() && shared.is_none()).then(|| reason.to_owned()),
+                can_add: open && reason.is_none(),
+                cannot_add_reason: reason.filter(|_| open),
                 group,
                 shared,
+                community: None,
             });
         }
-        for info in roster {
+        for info in &roster {
             let index = match listed.get(&info.jid) {
                 Some(index) => *index,
                 None => {
@@ -245,6 +224,7 @@ impl LinkedService {
                         shared: None,
                         can_add: false,
                         cannot_add_reason: None,
+                        community: None,
                     });
                     chats.len() - 1
                 }
@@ -253,18 +233,21 @@ impl LinkedService {
             chat.kind = ChatKind::Group;
             chat.name = info.display_name(&identity);
             (chat.group, chat.shared) = adoption_of(user, &adoptions, &info.jid);
-            let reason = if info.community {
-                Some(cannot_add::COMMUNITY)
-            } else if info.disappearing {
-                Some(cannot_add::DISAPPEARING)
+            chat.community = info.community(
+                info.community_jid
+                    .as_ref()
+                    .and_then(|parent| roster.iter().find(|group| &group.jid == parent)),
+            );
+            let reason = if info.community_parent {
+                Some(CannotAdd::Community)
             } else if info.participant(&identity).is_none() {
-                Some(cannot_add::NOT_IN_GROUP)
+                Some(CannotAdd::NotInGroup)
             } else {
                 None
             };
             let open = chat.group.is_none() && chat.shared.is_none();
             chat.can_add = open && reason.is_none();
-            chat.cannot_add_reason = reason.filter(|_| open).map(str::to_owned);
+            chat.cannot_add_reason = reason.filter(|_| open);
         }
         chats.sort_by(|a, b| {
             b.last_activity_at
@@ -275,14 +258,15 @@ impl LinkedService {
         Ok(ChatList { chats })
     }
 
-    /// Add an existing group the person has joined as their own Macro group;
-    /// never creates or joins a group in WhatsApp. Adding the same group twice
-    /// returns the existing one.
+    /// Add an existing group the person has joined, or a direct chat from
+    /// their chat list, as their own Macro chat; never creates or joins
+    /// anything in WhatsApp. Adding the same chat twice returns the existing
+    /// one.
     #[tracing::instrument(
         name = "whatsapp.linked.adopt",
         skip_all,
         err,
-        fields(binding_id, created)
+        fields(binding_id, created, kind)
     )]
     pub async fn adopt(
         &self,
@@ -294,41 +278,60 @@ impl LinkedService {
         if !self.features.adoption {
             return Err(LinkedError::ConfigurationRequired.into());
         }
-        if !is_group_jid(&request.group_jid) {
-            return Err(LinkedError::Invalid("invalid WhatsApp group").into());
-        }
         let (account, identity) = self.connected(user).await?;
-        let group = self
-            .groups
-            .account_group(account.id, &request.group_jid)
-            .await?
-            .ok_or(LinkedError::Invalid(
-                "your WhatsApp is not in this group any more",
-            ))?;
-        if group.community {
-            return Err(LinkedError::Invalid("community groups can't be added to Macro").into());
-        }
-        if group.disappearing {
-            return Err(LinkedError::Invalid(
-                "groups with disappearing messages can't be added to Macro",
-            )
-            .into());
-        }
-        if group.participant(&identity).is_none() {
-            return Err(LinkedError::Invalid("your WhatsApp is not in this group any more").into());
-        }
+        let adoption = if is_group_jid(&request.group_jid) {
+            let group = self
+                .groups
+                .account_group(account.id, &request.group_jid)
+                .await?
+                .ok_or(LinkedError::CannotAdd(CannotAdd::NotInGroup))?;
+            if group.community_parent {
+                return Err(LinkedError::CannotAdd(CannotAdd::Community).into());
+            }
+            if group.participant(&identity).is_none() {
+                return Err(LinkedError::CannotAdd(CannotAdd::NotInGroup).into());
+            }
+            Adoption {
+                jid: group.jid.clone(),
+                kind: ChatKind::Group,
+                name: group.display_name(&identity),
+                can_post: group.can_post(&identity),
+                observed_at: group.observed_at,
+            }
+        } else {
+            if request.group_jid == identity {
+                return Err(LinkedError::CannotAdd(CannotAdd::OwnChat).into());
+            }
+            let chat = self
+                .groups
+                .account_chats(account.id)
+                .await?
+                .into_iter()
+                .find(|chat| chat.kind == ChatKind::Direct && chat.jid == request.group_jid)
+                .ok_or(LinkedError::CannotAdd(CannotAdd::NotInChatList))?;
+            Adoption {
+                name: chat
+                    .name
+                    .filter(|name| !name.trim().is_empty())
+                    .unwrap_or_else(|| chat_fallback_name(&chat.jid, chat.kind, &identity)),
+                jid: chat.jid,
+                kind: ChatKind::Direct,
+                can_post: true,
+                observed_at: chrono::Utc::now(),
+            }
+        };
         let adopted = self
             .bindings
             .adopt(AdoptionRecord {
                 user,
                 account: &account,
-                name: &group.display_name(&identity),
-                group: &group,
+                adoption: &adoption,
             })
             .await?;
         let span = tracing::Span::current();
         span.record("binding_id", tracing::field::display(adopted.binding.id));
         span.record("created", adopted.created);
+        span.record("kind", adoption.kind.as_str());
         Ok(adopted.binding)
     }
 
@@ -533,6 +536,7 @@ impl LinkedService {
                 mime,
                 bytes,
                 sha256: Sha256::digest(bytes).into(),
+                shape: super::shape::measure(kind, mime, bytes),
             })
             .await?;
         Ok(UploadedAttachment {

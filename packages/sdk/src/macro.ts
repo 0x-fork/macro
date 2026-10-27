@@ -309,6 +309,7 @@ export {
   type WhatsAppReply,
 } from './entities/whatsapp/group';
 export { WhatsAppMessage } from './entities/whatsapp/message';
+export { WhatsAppParticipant } from './entities/whatsapp/participant';
 export { WhatsAppSend } from './entities/whatsapp/send';
 export { WhatsAppUpload } from './entities/whatsapp/upload';
 export type {

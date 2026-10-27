@@ -59,7 +59,15 @@ async fn rosters_signal_only_real_changes_and_rename_the_owners_group(pool: PgPo
             group_id: binding.id
         }
     );
-    assert!(linked.groups(ALICE).await.unwrap().is_empty());
+    assert!(
+        linked
+            .chats(ALICE)
+            .await
+            .unwrap()
+            .chats
+            .iter()
+            .all(|chat| !chat.can_add)
+    );
     let detail = linked
         .group_detail(&receipt::<MessageView>(ALICE, binding.id))
         .await

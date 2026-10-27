@@ -180,11 +180,11 @@ impl WhatsAppSession for FakeSession {
                 admin: true,
             }],
             announce: false,
-            disappearing: false,
-            community: false,
+            disappearing_seconds: None,
+            community_parent: false,
+            community_jid: None,
+            community_announcements: false,
             observed_at: Utc::now(),
-            group: None,
-            shared: None,
         }])
     }
 
@@ -525,6 +525,7 @@ fn group_text(event: u128) -> InboundEvent {
     InboundEvent {
         event_id: Uuid::from_u128(event),
         group_jid: GROUP.to_owned(),
+        chat_alternate_jid: None,
         source_at: Utc::now(),
         observed_at: Utc::now(),
         kind: InboundKind::Message(Message {
@@ -543,6 +544,7 @@ fn group_text(event: u128) -> InboundEvent {
             media: vec![],
             mentions: vec![],
             forwarded: false,
+            view_once: false,
             rich: None,
         }),
     }
@@ -702,11 +704,11 @@ async fn live_group_events_update_the_one_group(pool: PgPool) {
             admin: false,
         }],
         announce: false,
-        disappearing: false,
-        community: false,
+        disappearing_seconds: None,
+        community_parent: false,
+        community_jid: None,
+        community_announcements: false,
         observed_at: Utc::now(),
-        group: None,
-        shared: None,
     };
     event_sender(&whatsapp)
         .send(SessionEvent::GroupChanged {

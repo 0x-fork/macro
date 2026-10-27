@@ -16,7 +16,6 @@ import {
   homeSplitRoute,
   legacyContentRoute,
   notFoundRoute,
-  whatsappGroupRoute,
 } from '@app/routes/routes';
 import type { BlockOrchestrator } from '@core/orchestrator';
 import { createSplitLayout, type SplitManager } from '../layoutManager';
@@ -36,7 +35,6 @@ const routes: SplitRoutes = {
       ...appRoute,
       children: [
         homeSplitRoute,
-        whatsappGroupRoute,
         { ...externalRoute, children: [externalWhatsappGroupRoute] },
         { ...channelsSplitRoute, children: [channelDetailRoute] },
         legacyContentRoute,

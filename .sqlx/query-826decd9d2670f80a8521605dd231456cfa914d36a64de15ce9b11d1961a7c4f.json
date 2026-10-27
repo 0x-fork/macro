@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, group_jid, user_id, state, adopted_at FROM whatsapp_group WHERE id = $1",
+  "query": "INSERT INTO whatsapp_group (id, group_jid, kind, name, user_id, state, share_permission_id, backfill_state) VALUES ($1,$2,$3,$4,$5,'active',$6,'pending') RETURNING id, group_jid, kind, user_id, state, adopted_at",
   "describe": {
     "columns": [
       {
@@ -15,23 +15,33 @@
       },
       {
         "ordinal": 2,
-        "name": "user_id",
+        "name": "kind",
         "type_info": "Text"
       },
       {
         "ordinal": 3,
-        "name": "state",
+        "name": "user_id",
         "type_info": "Text"
       },
       {
         "ordinal": 4,
+        "name": "state",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
         "name": "adopted_at",
         "type_info": "Timestamptz"
       }
     ],
     "parameters": {
       "Left": [
-        "Uuid"
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
       ]
     },
     "nullable": [
@@ -39,8 +49,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "789cab67b176c1c4210c99802510c1adf3efe836a89b78d439c17d0c114fb017"
+  "hash": "826decd9d2670f80a8521605dd231456cfa914d36a64de15ce9b11d1961a7c4f"
 }

@@ -640,6 +640,12 @@ Re-exports [WhatsAppMessage](../entities/whatsapp/message/classes/WhatsAppMessag
 
 ***
 
+### WhatsAppParticipant
+
+Re-exports [WhatsAppParticipant](../entities/whatsapp/participant/classes/WhatsAppParticipant.md)
+
+***
+
 ### WhatsAppReply
 
 Re-exports [WhatsAppReply](../entities/whatsapp/group/type-aliases/WhatsAppReply.md)

@@ -4,8 +4,6 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
+import type { LinkedCannotAdd } from './linkedCannotAdd';
 
-/**
- * Why it can't be added, when it is neither added, shared nor addable.
- */
-export type LinkedChatCannotAddReason = string | null;
+export type LinkedChatCannotAddReason = null | LinkedCannotAdd;

@@ -898,8 +898,8 @@ export const enableInAppTours = defineFlag({
 });
 
 /**
- * Personal WhatsApp linked devices: the External tab, pairing, group adoption
- * and linked-channel composing. Off in dev too: dev has no WhatsApp session
+ * Personal WhatsApp linked devices: the External tab, pairing, adding chats
+ * to Macro and sharing them by mention in channels. Off in dev too: dev has no WhatsApp session
  * service, so the tab would only show errors. Override locally with
  * VITE_ENABLE_WHATSAPP_LINKED=true. Backend switches gate each operation
  * independently.

@@ -82,7 +82,7 @@ async fn the_chat_list_merges_history_activity_and_the_roster(pool: PgPool) {
                 chat.name.as_str(),
                 chat.archived,
                 chat.can_add,
-                chat.cannot_add_reason.as_deref(),
+                chat.cannot_add_reason,
                 chat.group.as_ref().map(|group| group.id),
             )
         })
@@ -95,8 +95,8 @@ async fn the_chat_list_merges_history_activity_and_the_roster(pool: PgPool) {
                 ChatKind::Direct,
                 "Customer",
                 false,
-                false,
-                Some(cannot_add::DIRECT),
+                true,
+                None,
                 None
             ),
             (
@@ -105,7 +105,7 @@ async fn the_chat_list_merges_history_activity_and_the_roster(pool: PgPool) {
                 "Old group",
                 true,
                 false,
-                Some(cannot_add::NOT_IN_GROUP),
+                Some(CannotAdd::NotInGroup),
                 None
             ),
             (

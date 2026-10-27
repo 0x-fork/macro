@@ -1,6 +1,6 @@
 # Type Alias: LinkedChat
 
-> **LinkedChat** = \{ `archived`: `boolean`; `canAdd`: `boolean`; `cannotAddReason?`: `string` \| `null`; `group?`: `null` \| [`LinkedGroupReference`](LinkedGroupReference.md); `jid`: `string`; `kind`: [`LinkedChatKind`](LinkedChatKind.md); `lastActivityAt?`: `string` \| `null`; `name`: `string`; `pinned`: `boolean`; `shared?`: `null` \| [`LinkedSharedGroupReference`](LinkedSharedGroupReference.md); \}
+> **LinkedChat** = \{ `archived`: `boolean`; `canAdd`: `boolean`; `cannotAddReason?`: `null` \| [`LinkedCannotAdd`](LinkedCannotAdd.md); `community?`: `null` \| [`LinkedCommunityReference`](LinkedCommunityReference.md); `group?`: `null` \| [`LinkedGroupReference`](LinkedGroupReference.md); `jid`: `string`; `kind`: [`LinkedChatKind`](LinkedChatKind.md); `lastActivityAt?`: `string` \| `null`; `name`: `string`; `pinned`: `boolean`; `shared?`: `null` \| [`LinkedSharedGroupReference`](LinkedSharedGroupReference.md); \}
 
 One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it.
 
@@ -10,7 +10,8 @@ One chat of the caller's WhatsApp chat list, as WhatsApp Web lists it.
 | ------ | ------ | ------ |
 | <a id="property-archived"></a> `archived` | `boolean` | Archived in WhatsApp. |
 | <a id="property-canadd"></a> `canAdd` | `boolean` | "Add to Macro" works now. |
-| <a id="property-cannotaddreason"></a> `cannotAddReason?` | `string` \| `null` | Why it can't be added, when it is neither added, shared nor addable. |
+| <a id="property-cannotaddreason"></a> `cannotAddReason?` | `null` \| [`LinkedCannotAdd`](LinkedCannotAdd.md) | - |
+| <a id="property-community"></a> `community?` | `null` \| [`LinkedCommunityReference`](LinkedCommunityReference.md) | - |
 | <a id="property-group"></a> `group?` | `null` \| [`LinkedGroupReference`](LinkedGroupReference.md) | - |
 | <a id="property-jid"></a> `jid` | `string` | WhatsApp chat JID: a group, or the other person's phone-number JID (LID when WhatsApp never told us the number). |
 | <a id="property-kind"></a> `kind` | [`LinkedChatKind`](LinkedChatKind.md) | Group or direct chat. |

@@ -3,8 +3,8 @@
 ## What it is
 
 Personal WhatsApp accounts linked as devices (External tab → WhatsApp): link an
-account by QR, list its WhatsApp chats, and add a group as its own shareable
-Macro entity. Each person sends from their own account. Behind the `enable-whatsapp-linked` flag.
+account by QR, list its WhatsApp chats, and add a group or direct chat as its
+own shareable Macro entity. Each person sends from their own account. Behind the `enable-whatsapp-linked` flag.
 
 ## Start here
 
@@ -21,7 +21,8 @@ Macro entity. Each person sends from their own account. Behind the `enable-whats
 
 - Owns: the WhatsApp account page, pairing dialog and one-click adoption
   (no dialog; DSS names the group after WhatsApp).
-- Group timeline and sending: `features/whatsapp-group`; no channel integration.
+- Chat timeline and sending: `features/whatsapp-group`; channels only reach a
+  chat through a mention, which shares it (`MentionsMenu`).
 - One account at a time: there is no replace flow; switching means
   Disconnect, then Connect.
 - Not here: the External tab shell, the groups nested under WhatsApp in its
@@ -46,11 +47,13 @@ Macro entity. Each person sends from their own account. Behind the `enable-whats
   `core/adopt.ts` words each one. Never show a catch-all message.
 - The chat list (`GET /meta/linked/chats`) arrives sorted by recent activity;
   keep DSS's order. Sections follow its `group`/`shared`/`canAdd`/
-  `cannotAddReason` fields; direct chats are listed but not addable until DSS
-  says `canAdd`.
+  `cannotAddReason` fields; direct chats are addable, except the chat with
+  yourself.
+  User-facing copy says "chat", not "group". Community groups show as "Community · Group"
+  (`communityTitle`); disappearing and community groups are addable, a
+  community itself is not.
 - Adoption grants access only to its owner; the generic Share dialog manages
-  later access. No special audience lists or WhatsApp membership requirement
-  for viewing.
+  later access. Viewing never requires WhatsApp membership.
 
 ## Checks
 

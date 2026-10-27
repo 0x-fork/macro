@@ -73,7 +73,7 @@ impl From<rootcause::Report<LinkedError>> for ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let status = match self.0 {
-            LinkedError::Invalid(_) => StatusCode::BAD_REQUEST,
+            LinkedError::Invalid(_) | LinkedError::CannotAdd(_) => StatusCode::BAD_REQUEST,
             LinkedError::Forbidden => StatusCode::FORBIDDEN,
             LinkedError::RateLimited => StatusCode::TOO_MANY_REQUESTS,
             LinkedError::NotFound | LinkedError::ConfigurationRequired => StatusCode::NOT_FOUND,
@@ -142,7 +142,6 @@ where
             "/pairing/{id}",
             get(pairing::<Eas, Auth>).delete(cancel::<Eas, Auth>),
         )
-        .route("/groups", get(groups::<Eas, Auth>))
         .route("/chats", get(chats::<Eas, Auth>))
         .route("/groups/adopt", post(adopt::<Eas, Auth>))
         .route("/whatsapp-groups", get(adopted_groups::<Eas, Auth>))
@@ -359,20 +358,6 @@ pub async fn disconnect<Eas, Auth: MacroAuthorizationService>(
                 body.authorization_generation,
                 authority(&auth.authorization),
             )
-            .await?,
-    ))
-}
-
-/// Groups the caller's account has joined.
-#[utoipa::path(get, path = "/meta/linked/groups", operation_id = "linked_groups", responses((status = 200, body = Vec<GroupInfo>)))]
-pub async fn groups<Eas, Auth: MacroAuthorizationService>(
-    State(state): State<LinkedRouterState<Eas, Auth>>,
-    auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-) -> Result<Json<Vec<GroupInfo>>, ApiError> {
-    Ok(Json(
-        state
-            .service
-            .groups(auth.authorization.macro_user_id.as_ref())
             .await?,
     ))
 }

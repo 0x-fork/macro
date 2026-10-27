@@ -364,8 +364,6 @@ export const storageExcluded = [
   'linkedDisconnect',
   'linkedPairing',
   'linkedPasskey',
-  // The roster group listing is superseded by the chat list (linkedChats).
-  'linkedGroups',
   // Live meeting admission and participant previews are app session flows.
   'meetingGuestJoin',
   // Browser setup reserves an empty RTC room before creating a meeting.

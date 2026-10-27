@@ -6,8 +6,8 @@ export class WhatsAppUpload {
   private constructor(
     /** Correlation identity of the staged upload. */
     readonly id: string,
-    /** The group this upload can be sent to. */
-    readonly groupId: string,
+    /** The chat this upload can be sent to. */
+    readonly group: WhatsAppGroup,
     /** Display filename supplied by the server. */
     readonly filename?: string,
     /** Media category supplied by the server. */
@@ -16,7 +16,7 @@ export class WhatsAppUpload {
 
   /** Reference a previously staged upload in its original group. */
   static byId(group: WhatsAppGroup, id: string): WhatsAppUpload {
-    return new WhatsAppUpload(id, group.id);
+    return new WhatsAppUpload(id, group);
   }
 
   /** Seed a handle from the server's upload receipt. */
@@ -26,7 +26,7 @@ export class WhatsAppUpload {
   ): WhatsAppUpload {
     return new WhatsAppUpload(
       record.upload_id,
-      group.id,
+      group,
       record.filename,
       record.kind,
     );
@@ -36,7 +36,7 @@ export class WhatsAppUpload {
   toJSON() {
     return {
       id: this.id,
-      groupId: this.groupId,
+      group: this.group.id,
       filename: this.filename,
       kind: this.kind,
     };

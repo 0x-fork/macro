@@ -110,6 +110,14 @@ export function useWhatsappGroupQueries(
   );
   return { group, messages };
 }
+/** One chat's detail alone, e.g. to name a mention of it. */
+export function useWhatsappGroupDetailQuery(
+  api: WhatsAppGroupApi,
+  userId: Accessor<string>,
+  groupId: Accessor<string>
+) {
+  return useQuery(() => detailOptions(api, userId(), groupId()));
+}
 export function useWhatsappGroupDeliveryQuery(
   api: WhatsAppGroupApi,
   userId: Accessor<string>,

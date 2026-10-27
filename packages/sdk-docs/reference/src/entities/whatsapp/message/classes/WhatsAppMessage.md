@@ -16,6 +16,7 @@ Message in an independently shared WhatsApp group.
 | <a id="property-deliverystate"></a> `deliveryState` | `readonly` | () => `Promise`\<`NonNullable`\<LinkedDeliveryState \| null \| undefined\> \| `undefined`\> | Caller-owned send's delivery state, when present. | - |
 | <a id="property-editedat"></a> `editedAt` | `readonly` | () => `Promise`\<`string` \| `undefined`\> | Last edit time. | - |
 | <a id="property-forwarded"></a> `forwarded` | `readonly` | () => `Promise`\<`boolean`\> | Forwarded from another chat. | - |
+| <a id="property-group"></a> `group` | `readonly` | [`WhatsAppGroup`](../../group/classes/WhatsAppGroup.md) | The chat this message is in. | - |
 | <a id="property-id"></a> `id` | `public readonly` | `string` | - | [`MacroEntity`](../../../entity/classes/MacroEntity.md).[`id`](../../../entity/classes/MacroEntity.md#property-id) |
 | <a id="property-kind"></a> `kind` | `readonly` | () => `Promise`\<[`WhatsAppMessageKind`](../../../../../generated/storage/types.gen/type-aliases/WhatsAppMessageKind.md)\> | `message`, or `system` for something that happened in the group (see `rich`). | - |
 | <a id="property-mentions"></a> `mentions` | `readonly` | () => `Promise`\<[`WhatsAppMention`](../../../../../generated/storage/types.gen/type-aliases/WhatsAppMention.md)[]\> | People the body @-mentions: `@<token>` in the body is this person. | - |
@@ -24,20 +25,7 @@ Message in an independently shared WhatsApp group.
 | <a id="property-rich"></a> `rich` | `readonly` | () => `Promise`\<`NonNullable`\<WhatsAppRichContent \| null \| undefined\> \| `undefined`\> | Poll (with tallies), location, contact cards, event or system line. | - |
 | <a id="property-sender"></a> `sender` | `readonly` | () => `Promise`\<[`WhatsAppGroupSender`](../../../../../generated/storage/types.gen/type-aliases/WhatsAppGroupSender.md)\> | Protocol-verified sender association and display name. | - |
 | <a id="property-sentat"></a> `sentAt` | `readonly` | () => `Promise`\<`string`\> | WhatsApp timestamp. | - |
-
-## Accessors
-
-### groupId
-
-#### Get Signature
-
-> **get** **groupId**(): `string`
-
-Group identity for checking reply/mutation scope.
-
-##### Returns
-
-`string`
+| <a id="property-viewonce"></a> `viewOnce` | `readonly` | () => `Promise`\<`boolean`\> | Sent as view-once in WhatsApp; Macro keeps and shows it like any media. | - |
 
 ## Methods
 

@@ -2,6 +2,7 @@ import { parseLocalDate } from '@app/features/calendar/utils/calendar-date';
 import { calendarMentionOpen } from '@app/features/calendar-view/mention-open-target';
 import { openCalendarEventSplit } from '@app/features/calendar-view/open-calendar-event';
 import { whatsappGroupContent } from '@app/features/external-view/hosted-content';
+import { whatsappGroupApi } from '@app/features/whatsapp-group/queries/production-api';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { URL_PARAMS as CHANNEL_PARAMS } from '@block-channel/constants';
 import { useSplitLayout } from '@components/app/split-layout/layout';
@@ -32,6 +33,7 @@ import {
   ENABLE_BLOCK_IN_BLOCK,
   enableDatabases,
 } from '@core/constant/featureFlags';
+import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { canNestBlock } from '@core/orchestrator';
 import { formatDate } from '@core/util/date';
@@ -60,6 +62,7 @@ import {
 import { useDatabaseDetailQuery } from '@queries/storage/databases';
 import { useFormDetailQuery } from '@queries/storage/forms';
 import { useSystemSkillsQuery } from '@queries/storage/system-skills';
+import { useWhatsappGroupDetailQuery } from '@queries/whatsapp-groups';
 import { blockNameToItemType } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
 import { Button, Tooltip } from '@ui';
@@ -458,6 +461,77 @@ function createRecentMention(createdAt: number | undefined) {
 }
 
 /**
+ * A reference that opens its item on click or Enter: its icon and name in
+ * the mention chip, without a document preview.
+ */
+function EntityMentionLink(props: {
+  documentId: string;
+  blockName: string;
+  name: string;
+  icon: JSX.Element;
+  collapsed?: boolean;
+  onOpen: (event: MouseEvent | KeyboardEvent) => void;
+}) {
+  const open = (event: MouseEvent | KeyboardEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    props.onOpen(event);
+  };
+  return (
+    <span
+      class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
+      role="link"
+      tabIndex={0}
+      on:mousedown={(event) => event.preventDefault()}
+      on:click={open}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') open(event);
+      }}
+    >
+      <MentionContainer
+        icon={props.icon}
+        collapsed={props.collapsed}
+        text={
+          <span
+            data-document-mention="true"
+            data-document-id={props.documentId}
+            data-block-name={props.blockName}
+            data-document-name={props.name}
+          >
+            {props.name}
+          </span>
+        }
+      />
+    </span>
+  );
+}
+
+/** How an unavailable reference reads: `Deleted` or `No Access`. */
+function UnavailableMentionChip(props: {
+  access: PreviewItemNoAccess['access'];
+  collapsed?: boolean;
+}) {
+  return (
+    <Show
+      when={props.access === 'no_access'}
+      fallback={
+        <MentionContainer
+          icon={<TrashSimple />}
+          text="Deleted"
+          collapsed={props.collapsed}
+        />
+      }
+    >
+      <MentionContainer
+        icon={<EyeSlashDuo />}
+        text="No Access"
+        collapsed={props.collapsed}
+      />
+    </Show>
+  );
+}
+
+/**
  * A database, form or routine reference whose item is gone or hidden from the
  * viewer. It reads `Deleted` or `No Access` like any other unavailable
  * reference, and clicking it keeps the item's card open (a tap opens the card
@@ -500,22 +574,10 @@ function UnavailableMention(props: {
               if (event.key === 'Enter') open(event);
             }}
           >
-            <Show
-              when={props.access === 'no_access'}
-              fallback={
-                <MentionContainer
-                  icon={<TrashSimple />}
-                  text="Deleted"
-                  collapsed={props.collapsed}
-                />
-              }
-            >
-              <MentionContainer
-                icon={<EyeSlashDuo />}
-                text="No Access"
-                collapsed={props.collapsed}
-              />
-            </Show>
+            <UnavailableMentionChip
+              access={props.access}
+              collapsed={props.collapsed}
+            />
           </span>
         }
         content={
@@ -638,16 +700,6 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
   );
   const name = () =>
     detail.isSuccess ? detail.data.database.name : props.documentName;
-  const open = (event: MouseEvent | KeyboardEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openDocument(
-      'database',
-      props.documentId,
-      props.blockParams,
-      openInNewSplitForMention(event.shiftKey, true)
-    );
-  };
   const expand = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -662,31 +714,21 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
       when={detailUnavailable(detail)}
       fallback={
         <span class="inline-flex items-baseline gap-1">
-          <span
-            class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-            role="link"
-            tabIndex={0}
-            on:mousedown={(event) => event.preventDefault()}
-            on:click={open}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') open(event);
-            }}
-          >
-            <MentionContainer
-              icon={<EntityIcon targetType="database" size="fill" />}
-              collapsed={props.collapsed}
-              text={
-                <span
-                  data-document-mention="true"
-                  data-document-id={props.documentId}
-                  data-block-name="database"
-                  data-document-name={name()}
-                >
-                  {name() || 'Database'}
-                </span>
-              }
-            />
-          </span>
+          <EntityMentionLink
+            documentId={props.documentId}
+            blockName="database"
+            name={name() || 'Database'}
+            icon={<EntityIcon targetType="database" size="fill" />}
+            collapsed={props.collapsed}
+            onOpen={(event) =>
+              openDocument(
+                'database',
+                props.documentId,
+                props.blockParams,
+                openInNewSplitForMention(event.shiftKey, true)
+              )
+            }
+          />
           <Show
             when={enabled().enabled && editable() && wrapper?.isInteractable()}
           >
@@ -727,45 +769,25 @@ function FormMention(props: DocumentMentionDecoratorProps) {
   const detail = useFormDetailQuery(() => props.documentId);
   const name = () =>
     detail.isSuccess ? detail.data.form.name : props.documentName;
-  const open = (event: MouseEvent | KeyboardEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openDocument(
-      'form',
-      props.documentId,
-      props.blockParams,
-      openInNewSplitForMention(event.shiftKey, true)
-    );
-  };
   return (
     <Show
       when={detailUnavailable(detail)}
       fallback={
-        <span
-          class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-          role="link"
-          tabIndex={0}
-          on:mousedown={(event) => event.preventDefault()}
-          on:click={open}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') open(event);
-          }}
-        >
-          <MentionContainer
-            icon={<EntityIcon targetType="form" size="fill" />}
-            collapsed={props.collapsed}
-            text={
-              <span
-                data-document-mention="true"
-                data-document-id={props.documentId}
-                data-block-name="form"
-                data-document-name={name()}
-              >
-                {name() || 'Form'}
-              </span>
-            }
-          />
-        </span>
+        <EntityMentionLink
+          documentId={props.documentId}
+          blockName="form"
+          name={name() || 'Form'}
+          icon={<EntityIcon targetType="form" size="fill" />}
+          collapsed={props.collapsed}
+          onOpen={(event) =>
+            openDocument(
+              'form',
+              props.documentId,
+              props.blockParams,
+              openInNewSplitForMention(event.shiftKey, true)
+            )
+          }
+        />
       }
     >
       {(access) => (
@@ -785,44 +807,41 @@ function FormMention(props: DocumentMentionDecoratorProps) {
 }
 
 /**
- * A WhatsApp group: not a previewable document, so it shows its stored name
- * and opens inside External.
+ * A WhatsApp chat: not a previewable document, so it shows its name and opens
+ * inside External; a viewer the chat isn't shared with sees it as
+ * unavailable.
  */
 function WhatsAppGroupMention(props: DocumentMentionDecoratorProps) {
   const { openWithSplit } = useSplitLayout();
-  const open = (event: MouseEvent | KeyboardEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    openWithSplit(whatsappGroupContent(props.documentId), {
-      preferNewSplit: openInNewSplitForMention(event.shiftKey, true),
-    });
-  };
+  const userId = useUserId();
+  const detail = useWhatsappGroupDetailQuery(
+    whatsappGroupApi,
+    () => userId() ?? '',
+    () => props.documentId
+  );
+  const name = () => (detail.isSuccess ? detail.data.name : props.documentName);
   return (
-    <span
-      class="rounded-xs hover:bg-hover focus-visible:outline-2 focus-visible:outline-ink/30"
-      role="link"
-      tabIndex={0}
-      on:mousedown={(event) => event.preventDefault()}
-      on:click={open}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') open(event);
-      }}
+    <Show
+      when={detailUnavailable(detail)}
+      fallback={
+        <EntityMentionLink
+          documentId={props.documentId}
+          blockName="whatsapp_group"
+          name={name() || 'WhatsApp chat'}
+          icon={<EntityIcon targetType="whatsapp_group" size="fill" />}
+          collapsed={props.collapsed}
+          onOpen={(event) =>
+            openWithSplit(whatsappGroupContent(props.documentId), {
+              preferNewSplit: openInNewSplitForMention(event.shiftKey, true),
+            })
+          }
+        />
+      }
     >
-      <MentionContainer
-        icon={<EntityIcon targetType="whatsapp_group" size="fill" />}
-        collapsed={props.collapsed}
-        text={
-          <span
-            data-document-mention="true"
-            data-document-id={props.documentId}
-            data-block-name="whatsapp_group"
-            data-document-name={props.documentName}
-          >
-            {props.documentName || 'WhatsApp group'}
-          </span>
-        }
-      />
-    </span>
+      {(access) => (
+        <UnavailableMentionChip access={access()} collapsed={props.collapsed} />
+      )}
+    </Show>
   );
 }
 

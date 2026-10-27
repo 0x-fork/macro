@@ -14,5 +14,5 @@ export interface LinkedSharedGroupReference {
   /** Display name, following WhatsApp. */
   name: string;
   /** Macro user who added the group and shared it. */
-  owner_id: string;
+  ownerId: string;
 }

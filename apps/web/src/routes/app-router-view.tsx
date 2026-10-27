@@ -154,7 +154,6 @@ import {
   tasksSplitRoute,
   teamInviteRoute,
   welcomeRoute,
-  whatsappGroupRoute,
 } from './routes';
 import {
   AppShell,
@@ -164,10 +163,6 @@ import {
   withMeetingShell,
 } from './shells';
 
-const WhatsAppGroupRedirectRouteView = lazyNamed(
-  () => import('@app/features/whatsapp-group/route-views'),
-  'WhatsAppGroupRedirectRouteView'
-);
 const ExternalWhatsAppGroupRouteView = lazyNamed(
   () => import('@app/features/external-view/route-views'),
   'ExternalWhatsAppGroupRouteView'
@@ -430,10 +425,6 @@ export function AppRouterView() {
         <Route definition={callsRoute} component={CallsRouteView}>
           <Route definition={callsCallRoute} component={CallsCallDetail} />
         </Route>
-        <Route
-          definition={whatsappGroupRoute}
-          component={WhatsAppGroupRedirectRouteView}
-        />
         <Route definition={callDetailRoute} component={CallDetailRouteView} />
         <Route definition={companiesRoute} component={CompaniesRouteView}>
           <Route definition={crmPipelineRoute}>

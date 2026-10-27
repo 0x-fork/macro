@@ -1,7 +1,9 @@
 import { afterEach, expect, test } from 'bun:test';
 import {
   Macro,
+  WhatsAppChat,
   WhatsAppMessage,
+  WhatsAppParticipant,
   WhatsAppSend,
   WhatsAppUpload,
 } from '../src/macro';
@@ -21,26 +23,32 @@ const account = {
 const summary = {
   id: 'group',
   name: 'Support',
+  kind: 'group',
   user_id: 'owner',
   unread_count: 1,
   last_message_at: '2026-10-21',
   can_send: true,
   send_reason: null,
 };
-const remote = {
-  jid: '12036301@g.us',
+const remote = { jid: '12036301@g.us' };
+const roster = {
   name: 'Remote support',
-  observedAt: '2026-10-21',
-  participants: [],
+  observed_at: '2026-10-21',
   announce: false,
-  disappearing: false,
-  community: false,
-  group: null,
-  shared: null,
+  participants: [
+    {
+      jid: '15550001111@s.whatsapp.net',
+      alternateJid: null,
+      displayName: 'Customer',
+      admin: false,
+    },
+  ],
 };
 const detail = {
   ...summary,
-  roster: remote,
+  roster,
+  disappearing_seconds: 604800,
+  community: { id: '12036399@g.us', name: 'Neighbours', announcements: false },
   sending_identity: account.identity_jid,
   access_level: 'owner',
   share_permission: {
@@ -111,11 +119,58 @@ test('shared groups can be listed without a WhatsApp connection and handles fetc
   expect(groups[0].entityType).toBe('whatsapp_group');
   expect(await groups[0].name()).toBe('Support');
   expect(await groups[0].canSend()).toBe(true);
+  expect(await groups[0].kind()).toBe('group');
+  expect(await groups[0].disappearingSeconds()).toBe(604800);
+  expect((await groups[0].community())?.name).toBe('Neighbours');
+  expect((await groups[0].community())?.chat.id).toBe('12036399@g.us');
   expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
     '/meta/linked/whatsapp-groups',
     '/meta/linked/whatsapp-groups/group',
   ]);
   expect(JSON.stringify(groups[0])).not.toContain('owner-api-token');
+});
+
+test('the chat list shows a group someone else shared instead of adding it again', async () => {
+  const { macro } = fixture(() =>
+    Response.json({
+      chats: [
+        {
+          jid: remote.jid,
+          kind: 'group',
+          name: 'Remote support',
+          lastActivityAt: null,
+          archived: false,
+          pinned: false,
+          group: null,
+          shared: {
+            id: 'theirs',
+            name: 'Remote support',
+            owner_id: 'macro|ana@example.com',
+          },
+          canAdd: false,
+          cannotAddReason: null,
+          community: null,
+        },
+        {
+          jid: '12036399@g.us',
+          kind: 'group',
+          name: 'Neighbours',
+          lastActivityAt: null,
+          archived: false,
+          pinned: false,
+          group: null,
+          shared: null,
+          canAdd: false,
+          cannotAddReason: 'community',
+          community: null,
+        },
+      ],
+    }),
+  );
+  const [shared, community] = await macro.whatsapp.chats();
+  expect(await shared.group()).toBeUndefined();
+  expect((await shared.shared())?.id).toBe('theirs');
+  expect(await community.cannotAddReason()).toBe('community');
 });
 
 test('the chat list lists groups and direct chats and adds a group by its handle', async () => {
@@ -134,8 +189,9 @@ test('the chat list lists groups and direct chats and adds a group by its handle
                 pinned: true,
                 group: null,
                 shared: null,
-                canAdd: false,
-                cannotAddReason: "direct chats can't be added to Macro yet",
+                canAdd: true,
+                cannotAddReason: null,
+                community: null,
               },
               {
                 jid: remote.jid,
@@ -148,6 +204,11 @@ test('the chat list lists groups and direct chats and adds a group by its handle
                 shared: null,
                 canAdd: true,
                 cannotAddReason: null,
+                community: {
+                  id: '12036399@g.us',
+                  name: 'Neighbours',
+                  announcements: false,
+                },
               },
             ],
           },
@@ -155,10 +216,11 @@ test('the chat list lists groups and direct chats and adds a group by its handle
   );
   const [direct, group] = await macro.whatsapp.chats();
   expect(await direct.kind()).toBe('direct');
-  expect(await direct.cannotAddReason()).toBe(
-    "direct chats can't be added to Macro yet",
-  );
+  expect(await direct.canAdd()).toBe(true);
   expect(await group.canAdd()).toBe(true);
+  expect((await group.community())?.name).toBe('Neighbours');
+  expect((await group.community())?.chat.id).toBe('12036399@g.us');
+  expect(await direct.community()).toBeUndefined();
   const adopted = await group.adopt();
   expect(adopted.id).toBe('group');
   expect(requests.map((r) => new URL(r.url).pathname)).toEqual([
@@ -259,7 +321,7 @@ test('staged uploads stay scoped to their adopted group and carry no credentials
     new File(['hello'], 'note.txt', { type: 'text/plain' }),
   );
   expect(upload).toBeInstanceOf(WhatsAppUpload);
-  expect(upload.groupId).toBe(group.id);
+  expect(upload.group.id).toBe(group.id);
   expect(JSON.stringify(upload)).not.toContain('owner-api-token');
   const other = WhatsAppUpload.byId(
     macro.whatsapp.byId('other'),
@@ -289,17 +351,18 @@ test('mutations and replies accept only standalone WhatsApp messages', async () 
   });
 });
 
-test('a text reply names the participants it mentions by their WhatsApp ids', async () => {
-  const { group, requests } = fixture(() => Response.json(progress));
+test("a text reply mentions roster participants and refuses another chat's", async () => {
+  const { macro, group, requests } = fixture((request) =>
+    Response.json(request.method === 'POST' ? progress : detail),
+  );
+  const [customer] = await group.participants();
+  expect(customer.displayName).toBe('Customer');
+  expect(customer.mentionToken).toBe('15550001111');
   await group.reply(
-    {
-      type: 'text',
-      text: 'hi @15550001111',
-      mentions: ['15550001111@s.whatsapp.net'],
-    },
+    { type: 'text', text: 'hi @15550001111', mentions: [customer] },
     { idempotencyKey: 'mention' },
   );
-  expect(await requests[0].json()).toEqual({
+  expect(await requests[1].json()).toEqual({
     idempotency_key: 'mention',
     message: {
       type: 'text',
@@ -307,4 +370,124 @@ test('a text reply names the participants it mentions by their WhatsApp ids', as
       mentions: ['15550001111@s.whatsapp.net'],
     },
   });
+  const stranger = WhatsAppParticipant.byId(
+    macro.whatsapp.byId('other'),
+    '15550002222@s.whatsapp.net',
+  );
+  await expect(
+    group.reply(
+      { type: 'text', text: 'hi @15550002222', mentions: [stranger] },
+      { idempotencyKey: 'stranger' },
+    ),
+  ).rejects.toThrow('another group');
+  expect(requests).toHaveLength(2);
+});
+
+test('a chat handle reads its entry from the chat list', async () => {
+  const { macro, requests } = fixture(() =>
+    Response.json({
+      chats: [
+        {
+          jid: remote.jid,
+          kind: 'group',
+          name: 'Remote support',
+          lastActivityAt: null,
+          archived: false,
+          pinned: false,
+          group: { id: 'group', name: 'Remote support' },
+          shared: null,
+          canAdd: false,
+          cannotAddReason: null,
+          community: null,
+        },
+      ],
+    }),
+  );
+  const chat = WhatsAppChat.byId(macro._client, remote.jid);
+  expect((await chat.group())?.id).toBe('group');
+  expect(new URL(requests[0].url).pathname).toBe('/meta/linked/chats');
+  await expect(
+    WhatsAppChat.byId(macro._client, 'missing@g.us').name(),
+  ).rejects.toThrow('not available');
+});
+
+test('sends, delivery and attachment states stay scoped to the chat', async () => {
+  const { macro, group, requests } = fixture((request) => {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith('/messages/attachments'))
+      return Response.json([
+        {
+          message_id: 'message',
+          linked_attachments: [
+            {
+              ordinal: 0,
+              state: 'ready',
+              file_name: 'note.txt',
+              mime: 'text/plain',
+              size: 5,
+              document_id: 'document',
+            },
+          ],
+        },
+      ]);
+    return Response.json([progress]);
+  });
+  const [open] = await group.sends();
+  expect(open.id).toBe('intent');
+  const target = WhatsAppMessage.byId(macro._client, group, 'message');
+  const delivered = await group.delivery([open, target]);
+  expect(delivered[0].id).toBe('intent');
+  expect(await requests[1].json()).toEqual(['intent', 'message']);
+  const [states] = await group.messageAttachments([target]);
+  expect(states.message.id).toBe('message');
+  expect(states.attachments[0].document?.id).toBe('document');
+  const other = macro.whatsapp.byId('other');
+  await expect(
+    group.messageAttachments([
+      WhatsAppMessage.byId(macro._client, other, 'message'),
+    ]),
+  ).rejects.toThrow('another group');
+  await expect(
+    group.delivery([WhatsAppSend.byId(macro._client, other, 'intent')]),
+  ).rejects.toThrow('another group');
+  expect(requests).toHaveLength(3);
+});
+
+test('a send recovers its original intent as handles', async () => {
+  const { macro, group } = fixture(() =>
+    Response.json([
+      {
+        ...progress,
+        payload: {
+          idempotency_key: 'stable',
+          reply_to: 'quoted',
+          message: {
+            type: 'text',
+            text: 'hi @15550001111',
+            mentions: ['15550001111@s.whatsapp.net'],
+          },
+        },
+      },
+    ]),
+  );
+  const send = WhatsAppSend.byId(macro._client, group, 'intent');
+  const intent = await send.request();
+  expect(intent.idempotencyKey).toBe('stable');
+  expect(intent.replyTo?.id).toBe('quoted');
+  expect(intent.replyTo?.group.id).toBe('group');
+  if (intent.message.type !== 'text') throw new Error('expected text');
+  expect(intent.message.mentions?.map((mention) => mention.id)).toEqual([
+    '15550001111@s.whatsapp.net',
+  ]);
+});
+
+test('detach stops syncing through the owner route', async () => {
+  const { group, requests } = fixture(
+    () => new Response(null, { status: 204 }),
+  );
+  await group.detach();
+  expect(requests[0].method).toBe('DELETE');
+  expect(new URL(requests[0].url).pathname).toBe(
+    '/meta/linked/whatsapp-groups/group',
+  );
 });

@@ -16143,28 +16143,6 @@
         }
       }
     },
-    "/meta/linked/groups": {
-      "get": {
-        "tags": ["whatsapp_linked::inbound::router"],
-        "summary": "Groups the caller's account has joined.",
-        "operationId": "linked_groups",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LinkedGroupInfo"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/meta/linked/groups/adopt": {
       "post": {
         "tags": ["whatsapp_linked::inbound::router"],
@@ -33365,7 +33343,7 @@
         "properties": {
           "group_jid": {
             "type": "string",
-            "description": "Group the requester's account has joined."
+            "description": "A group the requester's account has joined, or a direct chat from\ntheir chat list (the other person's JID, as the list names it)."
           }
         }
       },
@@ -33460,6 +33438,11 @@
         "description": "Where importing a group's earlier messages stands.",
         "enum": ["pending", "running", "waiting_for_phone", "done", "partial"]
       },
+      "LinkedCannotAdd": {
+        "type": "string",
+        "description": "Why a chat can't be added to Macro; the app words it from the code.",
+        "enum": ["not_in_group", "community", "own_chat", "not_in_chat_list"]
+      },
       "LinkedCapabilities": {
         "type": "object",
         "description": "Operations implemented for linked groups, independent of current permission.",
@@ -33526,8 +33509,26 @@
             "description": "\"Add to Macro\" works now."
           },
           "cannotAddReason": {
-            "type": ["string", "null"],
-            "description": "Why it can't be added, when it is neither added, shared nor addable."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedCannotAdd",
+                "description": "Why it can't be added, when it is neither added, shared nor addable."
+              }
+            ]
+          },
+          "community": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LinkedCommunityReference",
+                "description": "The community a group belongs to (a community's group or its\nannouncement group); `null` otherwise."
+              }
+            ]
           },
           "group": {
             "oneOf": [
@@ -33590,6 +33591,25 @@
               "$ref": "#/components/schemas/LinkedChat"
             },
             "description": "Newest activity first; chats with unknown activity last, by name."
+          }
+        }
+      },
+      "LinkedCommunityReference": {
+        "type": "object",
+        "description": "The WhatsApp community a group belongs to.",
+        "required": ["id", "name", "announcements"],
+        "properties": {
+          "announcements": {
+            "type": "boolean",
+            "description": "This group is the community's announcement group."
+          },
+          "id": {
+            "type": "string",
+            "description": "The community's WhatsApp JID."
+          },
+          "name": {
+            "type": "string",
+            "description": "The community's name."
           }
         }
       },
@@ -33662,38 +33682,29 @@
       "LinkedGroupInfo": {
         "type": "object",
         "description": "One full metadata read of a group, never an incomplete membership delta.",
-        "required": [
-          "jid",
-          "name",
-          "participants",
-          "announce",
-          "disappearing",
-          "community",
-          "observedAt"
-        ],
+        "required": ["jid", "name", "participants", "announce", "observedAt"],
         "properties": {
           "announce": {
             "type": "boolean",
             "description": "Only admins may post."
           },
-          "community": {
+          "communityAnnouncements": {
             "type": "boolean",
-            "description": "Community announcement or parent group, outside the supported surface."
+            "description": "The community's announcement group (everyone reads, admins post)."
           },
-          "disappearing": {
+          "communityJid": {
+            "type": ["string", "null"],
+            "description": "The community a linked subgroup or announcement group belongs to."
+          },
+          "communityParent": {
             "type": "boolean",
-            "description": "Disappearing messages are on; content is not retained."
+            "description": "The community itself: it has no messages of its own and can't be added."
           },
-          "group": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/LinkedGroupReference",
-                "description": "The caller's own Macro group for this remote group, once they added\nit. Only set by the groups listing."
-              }
-            ]
+          "disappearingSeconds": {
+            "type": ["integer", "null"],
+            "format": "int32",
+            "description": "Disappearing-messages timer in seconds while it is on. Macro keeps the\nmessages; its sends carry the timer so phones treat them like their own.",
+            "minimum": 0
           },
           "jid": {
             "type": "string",
@@ -33714,17 +33725,6 @@
               "$ref": "#/components/schemas/LinkedParticipant"
             },
             "description": "Full roster."
-          },
-          "shared": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/LinkedSharedGroupReference",
-                "description": "Someone else's Macro group for this remote group that was shared with\nthe caller, when the caller has not added their own. Only set by the\ngroups listing."
-              }
-            ]
           }
         }
       },
@@ -34044,7 +34044,7 @@
       "LinkedSharedGroupReference": {
         "type": "object",
         "description": "Another person's group entity the caller can view.",
-        "required": ["id", "name", "owner_id"],
+        "required": ["id", "name", "ownerId"],
         "properties": {
           "id": {
             "type": "string",
@@ -34055,7 +34055,7 @@
             "type": "string",
             "description": "Display name, following WhatsApp."
           },
-          "owner_id": {
+          "ownerId": {
             "type": "string",
             "description": "Macro user who added the group and shared it."
           }
@@ -44690,6 +44690,23 @@
                 "$ref": "#/components/schemas/AccessLevel",
                 "description": "Caller's effective permission."
               },
+              "community": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/LinkedCommunityReference",
+                    "description": "The WhatsApp community this group belongs to, if any."
+                  }
+                ]
+              },
+              "disappearing_seconds": {
+                "type": ["integer", "null"],
+                "format": "int32",
+                "description": "WhatsApp's disappearing-messages timer in seconds while it is on;\nMacro keeps the messages anyway. `null` when off or unknown.",
+                "minimum": 0
+              },
               "limits": {
                 "$ref": "#/components/schemas/LinkedCapabilities",
                 "description": "Size and mutation limits."
@@ -44732,6 +44749,7 @@
           "attachments",
           "kind",
           "forwarded",
+          "view_once",
           "mentions"
         ],
         "properties": {
@@ -44822,6 +44840,10 @@
             "type": "string",
             "format": "date-time",
             "description": "Timestamp assigned by WhatsApp."
+          },
+          "view_once": {
+            "type": "boolean",
+            "description": "Sent as view-once in WhatsApp; Macro shows it like any media."
           }
         }
       },
@@ -44887,7 +44909,14 @@
       "WhatsAppGroupSummary": {
         "type": "object",
         "description": "Adopted group visible through ordinary entity sharing.",
-        "required": ["id", "name", "user_id", "unread_count", "can_send"],
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "user_id",
+          "unread_count",
+          "can_send"
+        ],
         "properties": {
           "backfill": {
             "oneOf": [
@@ -44909,6 +44938,10 @@
             "format": "uuid",
             "description": "Entity identifier."
           },
+          "kind": {
+            "$ref": "#/components/schemas/LinkedChatKind",
+            "description": "A group, or a direct chat with one person (only its owner sends)."
+          },
           "last_message_at": {
             "type": ["string", "null"],
             "format": "date-time",
@@ -44916,7 +44949,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Display name."
+            "description": "Display name: the group's, or a direct chat's other person."
           },
           "send_reason": {
             "oneOf": [

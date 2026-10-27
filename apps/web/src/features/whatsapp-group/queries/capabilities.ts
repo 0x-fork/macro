@@ -112,7 +112,8 @@ export function createWhatsAppGroupCapabilities(
     },
     hasOlder: () => queries.messages.hasNextPage,
     loadingOlder: () => queries.messages.isFetchingNextPage,
-    loadOlder: () => queries.messages.fetchNextPage(),
+    loadOlder: async () =>
+      !(await queries.messages.fetchNextPage()).isFetchNextPageError,
     send: (request, idempotencyKey) =>
       Telemetry.span('whatsapp.group.send.attempt', async (span) => {
         span.setAttr('whatsapp.group.id', groupId());

@@ -7,7 +7,7 @@ A staged attachment scoped to one adopted group; use it in a deliberate media se
 | Property | Modifier | Type | Description |
 | ------ | ------ | ------ | ------ |
 | <a id="property-filename"></a> `filename?` | `readonly` | `string` | Display filename supplied by the server. |
-| <a id="property-groupid"></a> `groupId` | `readonly` | `string` | The group this upload can be sent to. |
+| <a id="property-group"></a> `group` | `readonly` | [`WhatsAppGroup`](../../group/classes/WhatsAppGroup.md) | The chat this upload can be sent to. |
 | <a id="property-id"></a> `id` | `readonly` | `string` | Correlation identity of the staged upload. |
 | <a id="property-kind"></a> `kind?` | `readonly` | [`LinkedMediaKind`](../../../../../generated/storage/types.gen/type-aliases/LinkedMediaKind.md) | Media category supplied by the server. |
 
@@ -15,18 +15,18 @@ A staged attachment scoped to one adopted group; use it in a deliberate media se
 
 ### toJSON()
 
-> **toJSON**(): \{ `filename`: `string` \| `undefined`; `groupId`: `string`; `id`: `string`; `kind`: [`LinkedMediaKind`](../../../../../generated/storage/types.gen/type-aliases/LinkedMediaKind.md) \| `undefined`; \}
+> **toJSON**(): \{ `filename`: `string` \| `undefined`; `group`: `string`; `id`: `string`; `kind`: [`LinkedMediaKind`](../../../../../generated/storage/types.gen/type-aliases/LinkedMediaKind.md) \| `undefined`; \}
 
 Serialize the upload reference without credentials.
 
 #### Returns
 
-\{ `filename`: `string` \| `undefined`; `groupId`: `string`; `id`: `string`; `kind`: [`LinkedMediaKind`](../../../../../generated/storage/types.gen/type-aliases/LinkedMediaKind.md) \| `undefined`; \}
+\{ `filename`: `string` \| `undefined`; `group`: `string`; `id`: `string`; `kind`: [`LinkedMediaKind`](../../../../../generated/storage/types.gen/type-aliases/LinkedMediaKind.md) \| `undefined`; \}
 
 | Name | Type |
 | ------ | ------ |
 | `filename` | `string` \| `undefined` |
-| `groupId` | `string` |
+| `group` | `string` |
 | `id` | `string` |
 | `kind` | [`LinkedMediaKind`](../../../../../generated/storage/types.gen/type-aliases/LinkedMediaKind.md) \| `undefined` |
 

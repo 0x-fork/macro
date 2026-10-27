@@ -1,8 +1,33 @@
-import type { LinkedChat } from '../../../generated/storage/types.gen';
+import type {
+  LinkedChat,
+  LinkedCommunityReference,
+} from '../../../generated/storage/types.gen';
 import { MacroNotFoundError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import { WhatsAppGroup } from './group';
+
+/** The WhatsApp community a group belongs to. */
+export type WhatsAppCommunity = {
+  /** The community itself, as a chat of the list (it can't be added). */
+  chat: WhatsAppChat;
+  /** The community's name. */
+  name: string;
+  /** This group is the community's announcement group. */
+  announcements: boolean;
+};
+
+/** A community reference as a handle on the community's own chat. */
+export function communityOf(
+  client: MacroClient,
+  record: LinkedCommunityReference,
+): WhatsAppCommunity {
+  return {
+    chat: WhatsAppChat.byId(client, record.id),
+    name: record.name,
+    announcements: record.announcements,
+  };
+}
 
 /** One chat of the current user's WhatsApp chat list: a group or a direct chat. */
 export class WhatsAppChat extends MacroEntity<LinkedChat> {
@@ -41,8 +66,13 @@ export class WhatsAppChat extends MacroEntity<LinkedChat> {
   /** Whether adding it to Macro works now. */
   readonly canAdd = this.field('canAdd');
 
-  /** Why it can't be added, when it is neither added, shared nor addable. */
+  /** Why it can't be added (`not_in_group`, `community`, `own_chat`, `not_in_chat_list`), when it is neither added, shared nor addable. */
   readonly cannotAddReason = this.field('cannotAddReason');
+
+  /** The WhatsApp community a group belongs to, if any: the community's own chat, its name, and whether this is its announcement group. */
+  readonly community = this.mappedField('community', (record) =>
+    record ? communityOf(this.client, record) : undefined,
+  );
 
   /** The current user's own Macro group for this chat, once added. */
   readonly group = this.mappedField('group', (record) =>
@@ -55,9 +85,9 @@ export class WhatsAppChat extends MacroEntity<LinkedChat> {
   );
 
   /**
-   * Add a group chat to Macro as the current user's own group; its earlier
-   * messages are imported from the phone. Adding it again returns the same
-   * group. Direct chats can't be added yet.
+   * Add the chat (a group or a direct chat) to Macro as the current user's
+   * own; its earlier messages are imported from the phone. Adding it again
+   * returns the same chat. Only the owner sends in a direct chat.
    */
   async adopt(): Promise<WhatsAppGroup> {
     const result = await this.mutate((client) =>

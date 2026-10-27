@@ -23,6 +23,8 @@ use whatsmeow::types::Jid;
 
 use super::*;
 
+mod direct_chats;
+mod group_kinds;
 mod message_types;
 
 const TIMEOUT: Duration = Duration::from_secs(60);
@@ -160,8 +162,11 @@ impl World {
     async fn adopt(&self, user: &str, users: &[&str]) -> Binding {
         let group = self.group.to_string();
         wait_for_rows(&self.pool, TIMEOUT, || async {
-            let groups = self.linked.groups(user).await.ok()?;
-            groups.iter().any(|info| info.jid == group).then_some(())
+            let chats = self.linked.chats(user).await.ok()?.chats;
+            chats
+                .iter()
+                .any(|chat| chat.jid == group && chat.can_add)
+                .then_some(())
         })
         .await
         .expect("the replica lists the group");
@@ -190,7 +195,7 @@ impl World {
     /// A viewer opens the WhatsApp page; their account's refreshed roster
     /// makes it an observer of a group shared with them.
     async fn observe(&self, user: &str, binding: &Binding) {
-        self.linked.groups(user).await.unwrap();
+        self.linked.chats(user).await.unwrap();
         let observing = wait_for_rows(&self.pool, TIMEOUT, || async {
             sqlx::query_scalar!(
                 r#"SELECT m.account_id FROM whatsapp_group_membership m
@@ -1195,11 +1200,8 @@ async fn the_chat_list_follows_history_sync_and_live_messages(pool: PgPool) {
         .await;
     assert_eq!(direct.kind, ChatKind::Direct);
     assert_eq!(direct.name, "Customer");
-    assert!(!direct.can_add);
-    assert_eq!(
-        direct.cannot_add_reason.as_deref(),
-        Some("direct chats can't be added to Macro yet")
-    );
+    assert!(direct.can_add);
+    assert_eq!(direct.cannot_add_reason, None);
     assert_eq!(group.kind, ChatKind::Group);
     assert_eq!(group.name, "Customer escalations");
     assert!(group.can_add);

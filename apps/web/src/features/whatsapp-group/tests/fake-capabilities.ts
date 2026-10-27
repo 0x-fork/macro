@@ -13,6 +13,7 @@ import type {
 
 export const group: GroupDetail = {
   id: '019a061e-0000-7000-8000-000000000001',
+  kind: 'group',
   name: 'Design Crit',
   ownerId: 'macro|me@example.test',
   accessLevel: 'owner',
@@ -25,7 +26,6 @@ export const group: GroupDetail = {
     textBytes: 65536,
     attachmentBytes: 33554432,
     attachmentTypes: ['image/png', 'application/pdf', 'audio/ogg'],
-    maxAttachments: 1,
     editSeconds: 900,
     mutations: ['reaction', 'edit', 'delete'],
   },
@@ -78,7 +78,7 @@ export function createFakeGroup(
     timeline: read(timeline),
     hasOlder: () => false,
     loadingOlder: () => false,
-    loadOlder: vi.fn(async () => undefined),
+    loadOlder: vi.fn(async () => true),
     send: vi.fn(
       async (
         _request: GroupSend,

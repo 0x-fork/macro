@@ -126,6 +126,7 @@
 - [src/entities/whatsapp/group](src/entities/whatsapp/group/README.md)
 - [src/entities/whatsapp/message](src/entities/whatsapp/message/README.md)
 - [src/entities/whatsapp/namespace](src/entities/whatsapp/namespace/README.md)
+- [src/entities/whatsapp/participant](src/entities/whatsapp/participant/README.md)
 - [src/entities/whatsapp/send](src/entities/whatsapp/send/README.md)
 - [src/entities/whatsapp/upload](src/entities/whatsapp/upload/README.md)
 - [src/entities/workspace/items](src/entities/workspace/items/README.md)

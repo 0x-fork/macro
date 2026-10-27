@@ -1,4 +1,5 @@
 import { SearchBar } from '@app/components/view-shell';
+import { ViewSkeleton } from '@app/components/view-shell/ViewSkeleton';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Button, ConfirmDialog } from '@ui';
 import { createSignal, type JSX, Match, onMount, Show, Switch } from 'solid-js';
@@ -205,7 +206,7 @@ export function WhatsAppPage(props: {
                             empty={
                               searching()
                                 ? 'No chats to add match your search.'
-                                : 'Every WhatsApp group you can add is already in Macro.'
+                                : 'Every WhatsApp chat you can add is already in Macro.'
                             }
                             onAdd={(chat) =>
                               fireAndForget(
@@ -227,9 +228,7 @@ export function WhatsAppPage(props: {
                   }}
                 </Match>
                 <Match when={chats.isPending}>
-                  <p role="status" class="px-4 py-2 text-sm text-ink-muted">
-                    Loading chats…
-                  </p>
+                  <ViewSkeleton.Rows label="Loading chats" class="px-2 pt-3" />
                 </Match>
                 <Match when={chats.isError}>
                   <LoadFailure what="your chats" onRetry={chats.refetch} />
@@ -239,7 +238,7 @@ export function WhatsAppPage(props: {
                 open={confirmingDisconnect()}
                 onOpenChange={setConfirmingDisconnect}
                 title="Disconnect WhatsApp?"
-                body="Macro stops syncing and sending from this account. Groups and their history stay in Macro."
+                body="Macro stops syncing and sending from this account. Chats and their history stay in Macro."
                 confirmLabel="Disconnect"
                 tone="danger"
                 pending={whatsapp.isDisconnecting()}

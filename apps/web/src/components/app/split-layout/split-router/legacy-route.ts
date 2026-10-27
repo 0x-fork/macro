@@ -21,7 +21,6 @@ import {
   routineIdFromContent,
   routineLocation,
 } from '@app/features/routines/routine-navigation';
-import { parseWhatsAppGroupComponentId } from '@app/features/whatsapp-group/core/route';
 import {
   canonicalRoute,
   decodePane,
@@ -292,14 +291,6 @@ export function splitLocationFromContent(
   }
 
   if (content.type === 'component') {
-    const groupId = parseWhatsAppGroupComponentId(content.id);
-    if (groupId)
-      return {
-        route: paneRoute(
-          { id: 'view-external', params: {} },
-          { id: 'external-whatsapp-group', params: { groupId } }
-        ),
-      };
     const viewId = `view-${content.id}`;
     if (routes.byId.has(viewId)) {
       return { route: paneRoute({ id: viewId, params: {} }) };
@@ -417,9 +408,6 @@ export function splitContentFromLocation(
     throw new Error('Invalid routine detail split route');
   }
 
-  // The retired route only redirects; its pane belongs to External.
-  if (root.id === 'whatsapp-group')
-    return { type: 'component', id: 'external' };
   if (root.id.startsWith('view-'))
     return { type: 'component', id: root.id.slice('view-'.length) };
   if (root.id === 'drive') return { type: 'component', id: 'documents' };

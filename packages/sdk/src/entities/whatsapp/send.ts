@@ -5,6 +5,7 @@ import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import type { WhatsAppGroup, WhatsAppReply } from './group';
 import { WhatsAppMessage } from './message';
+import { WhatsAppParticipant } from './participant';
 import { WhatsAppUpload } from './upload';
 
 /** One deliberate send intent. Unknown outcomes must never be automatically resent. */
@@ -87,7 +88,9 @@ export class WhatsAppSend extends MacroEntity<LinkedSendProgress> {
       .with({ type: 'text' }, (wire) => ({
         type: 'text',
         text: wire.text,
-        mentions: wire.mentions ?? [],
+        mentions: (wire.mentions ?? []).map((jid) =>
+          WhatsAppParticipant.byId(this.group, jid),
+        ),
       }))
       .exhaustive();
     return {

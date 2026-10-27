@@ -46,7 +46,7 @@ export function getShareItemNoun(itemType: ShareItemType): string {
     .with('channel_message', () => 'message')
     .with('channel_thread', () => 'thread')
     .with('foreign', () => 'item')
-    .with('whatsapp_group', () => 'WhatsApp group')
+    .with('whatsapp_group', () => 'WhatsApp chat')
     .with(
       'document',
       'chat',

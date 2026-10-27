@@ -39,12 +39,18 @@ export function decodeChat(
         ? {
             kind: 'shared',
             groupId: chat.shared.id,
-            ownerId: chat.shared.owner_id,
-            ownerName: ownerName(chat.shared.owner_id),
+            ownerId: chat.shared.ownerId,
+            ownerName: ownerName(chat.shared.ownerId),
           }
         : undefined,
     canAdd: chat.canAdd,
     cannotAddReason: chat.cannotAddReason ?? undefined,
+    community: chat.community
+      ? {
+          name: chat.community.name,
+          announcements: chat.community.announcements,
+        }
+      : undefined,
   };
 }
 
