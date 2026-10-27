@@ -953,16 +953,18 @@ above.
 
 Task rows show a circular status icon: empty for Not started, partially filled
 for In progress or In review, checked for Completed, and crossed for Canceled.
-Task @mention pills use the same live status and update when a task changes.
+Task @mention pills and @mention menu rows use the same live status and update
+when a task changes. Pills show status only in their leading icon; the trailing
+badges carry priority and the first assignee.
 Lightweight previews fall back to the task completion flag until status
 properties arrive; missing or unknown status without completion stays empty.
 The navigation and creation icons remain generic task icons.
 
-The backend-free browser fixture exercises the real row icon and document
-mention, including completing and reopening without a reload:
+The backend-free browser fixture exercises the real row icon, document
+mention, and mention menu row, including completing and reopening without a reload:
 `bunx playwright test --config src/lib/core/component/LexicalMarkdown/component/decorator/browser-test/playwright.config.ts task-status.browser.e2e.ts`.
 
-![Task status icons in rows and mentions](images/task-status-icons.png)
+![Task status icons in rows, mentions, and mention menu rows](images/task-status-icons.png)
 
 The Task, Subtask, Project, and Tag entries use a wide menu with original icons and muted descriptions. Subtask opens a parent-task picker, then the normal task composer. Saving includes the selected Parent task property; if that link cannot be confirmed, keep the created task and show a warning instead of asking the user to create it again. Canceling either step creates nothing.
 

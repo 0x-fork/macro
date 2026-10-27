@@ -3034,8 +3034,9 @@ each operation; wait for saving to finish and reload to check persistence.
 
 ### Task mention status
 
-Task @mention pills display the same circular completion/status icon as task
-rows. The icon updates in place as preview data changes; unknown status uses
+Task @mention pills and @mention menu rows display the same circular
+completion/status icon as task rows; pills do not repeat it after the title.
+The icon updates in place as preview data changes; unknown status uses
 an empty circle, and subtype-only previews use their completion flag. See
 [tasks](tasks.md#task-status-icons) for states and the browser regression.
 
