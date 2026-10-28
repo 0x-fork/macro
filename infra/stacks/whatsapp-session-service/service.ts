@@ -274,7 +274,7 @@ export class WhatsappSessionService extends pulumi.ComponentResource {
                 // outlive the drain and its logs and spans still ship.
                 dependsOn: [
                   { containerName: 'log_router', condition: 'START' },
-                  { containerName: 'datadog-agent', condition: 'START' },
+                  { containerName: 'datadog_agent', condition: 'START' },
                 ],
                 secrets: [...dopplerEcsEnvironment.containerSecrets],
                 environment: [
