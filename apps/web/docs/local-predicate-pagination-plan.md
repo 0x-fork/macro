@@ -44,7 +44,7 @@ After the optimistic fact-index prerequisite is complete, the index has the requ
 
 1. Local predicate cursors are separate from opaque server GraphQL Soup cursors. Neither cursor is translated into the other.
 2. A local page chain is valid only within one cache-engine generation and one exact cache revision.
-3. Any cache revision or engine-generation change discards the complete local continuation chain and reevaluates its initial page. Pages from different revisions are never merged.
+3. A cache revision change discards the complete local continuation chain and re-reads it from the first row through its last loaded row. An input change (filter, sort, limit, view) or an engine-generation change starts again from the initial page. Pages from different revisions are never merged.
 4. A live network response tagged with the current cache revision replaces the local chain and becomes authoritative again.
 5. Local pagination remains all-or-network. Unsupported compilation, incomplete projections, malformed cursors, storage errors, or query-relevant uncertainty never produce an approximate page.
 6. Cursor pagination uses keyset semantics over `(sort_value, record_key)`, matching the existing ordering exactly.
@@ -152,7 +152,7 @@ type EntityFilterCacheResult =
   | { kind: 'stale-cursor'; revision: CacheRevision };
 ```
 
-A stale cursor means the engine generation or query changed; native engines that predate row positions also return it after any write. It is a recoverable control-flow result: clear the local page chain and request its first page at the reported current revision. It is not a user-visible error and must not silently continue from the stale boundary.
+A stale cursor means the engine generation or query changed; native engines that predate row positions also return it after any write. It is a recoverable control-flow result: reevaluate the chain from its first page at the reported current revision. It is not a user-visible error and must not silently continue from the stale boundary.
 
 ## Keyset semantics
 
@@ -222,9 +222,10 @@ The exact generation representation should reuse the cache host's replacement li
 Behavior:
 
 - initial local evaluation replaces the entire local chain;
-- local `fetchNextPage` evaluates with the last page's local cursor and appends only after revision checks pass;
+- local `fetchNextPage` evaluates with the last page's local cursor and appends only when the page and the displayed chain share a revision; when a cache write raced the page, it re-reads the list through the page's last row instead;
 - duplicate concurrent next-page calls share or reject behind one in-flight promise;
-- a filter, sort, limit, feature-option, revision, or generation change invalidates the chain;
+- a filter, sort, limit, or feature-option change invalidates the chain and starts again from the initial page;
+- a revision change re-reads the chain through its last loaded row (`through`), and at least as many rows as the server pages shown, so a cache write never collapses a scrolled Mail list to its first page, and mail arriving above never pushes its last row off. A generation change, or a native engine that predates `endCursor`, re-reads the first page. The `graphql_cache.soup_local_evaluation` span records `evaluation.through` and `evaluation.depth` (rows read);
 - local pages are flattened in order with defensive key deduplication at the page boundary;
 - `hasNextPage` comes from the authoritative chain: local `nextCursor` while local, urql while network;
 - `isFetchingNextPage` combines local and urql fetch state;
