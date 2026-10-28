@@ -46,6 +46,11 @@ slides into a short window; the phone drawer shows late requests:
 Keep the popover's `flip` limited to `left-start`: an end fallback re-places it
 above the event whenever a late section changes its height.
 
+The desktop app's local runtime setup (find an agent, connect, create the
+agent, retry, open a session) has a backend-free browser regression over a
+scripted runtime:
+`bunx playwright test --config src/features/local-runtime/browser-test/playwright.config.ts`.
+
 Meeting-note creation, linking, optional team access, retry, and unlinking have desktop and
 phone browser coverage in `features/calendar-notes`:
 `bunx playwright test --config src/features/calendar-notes/browser-test/playwright.config.ts`.
