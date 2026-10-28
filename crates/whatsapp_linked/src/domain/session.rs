@@ -254,8 +254,8 @@ impl SessionService {
         let valid: Vec<ChatUpdate> = chats
             .iter()
             .filter(|chat| match chat.kind {
-                ChatKind::Group => is_group_jid(&chat.jid),
-                ChatKind::Direct => is_person_jid(&chat.jid),
+                ExternalChatKind::Group => is_group_jid(&chat.jid),
+                ExternalChatKind::Direct => is_person_jid(&chat.jid),
             })
             .cloned()
             .collect();
@@ -284,7 +284,7 @@ impl SessionService {
     }
 
     /// No message of an added chat is known to start importing from.
-    #[tracing::instrument(name = "whatsapp.session.backfill_waiting_for_message", skip_all, err, fields(account_id = %scope.account_id, group_id = %group))]
+    #[tracing::instrument(name = "whatsapp.session.backfill_waiting_for_message", skip_all, err, fields(account_id = %scope.account_id, chat_id = %group))]
     pub async fn backfill_waiting_for_message(
         &self,
         scope: SessionScope,
@@ -296,13 +296,13 @@ impl SessionService {
     }
 
     /// A page of earlier messages was requested from the phone just now.
-    #[tracing::instrument(name = "whatsapp.session.backfill_requested", skip_all, err, fields(account_id = %scope.account_id, group_id = %group))]
+    #[tracing::instrument(name = "whatsapp.session.backfill_requested", skip_all, err, fields(account_id = %scope.account_id, chat_id = %group))]
     pub async fn backfill_requested(&self, scope: SessionScope, group: Uuid) -> LinkedResult<()> {
         self.repository.backfill_requested(scope, group).await
     }
 
     /// The phone did not answer; the import waits for it.
-    #[tracing::instrument(name = "whatsapp.session.backfill_unanswered", skip_all, err, fields(account_id = %scope.account_id, group_id = %group))]
+    #[tracing::instrument(name = "whatsapp.session.backfill_unanswered", skip_all, err, fields(account_id = %scope.account_id, chat_id = %group))]
     pub async fn backfill_unanswered(&self, scope: SessionScope, group: Uuid) -> LinkedResult<()> {
         self.repository.backfill_unanswered(scope, group).await
     }

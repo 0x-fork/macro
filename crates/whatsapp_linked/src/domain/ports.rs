@@ -62,12 +62,12 @@ pub trait AccountRepository: Send + Sync {
     async fn disconnect(&self, user: &MacroUserIdStr<'_>, generation: i64) -> LinkedResult<bool>;
 }
 
-/// A group entity bound to a remote group, as one viewer can see it.
+/// An external chat bound to a remote chat, as one viewer can see it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VisibleAdoption {
-    /// Remote group.
-    pub group_jid: String,
-    /// Group entity.
+    /// Remote chat id (WhatsApp JID).
+    pub remote_id: String,
+    /// External chat entity.
     pub id: Uuid,
     /// Display name.
     pub name: String,
@@ -83,11 +83,11 @@ pub trait GroupRepository: Send + Sync {
     /// One joined group, as last observed.
     async fn account_group(&self, account: Uuid, group: &str) -> LinkedResult<Option<GroupInfo>>;
     /// Ask each account's replica to re-read its groups
-    /// (`whatsapp_groups_requested`); the replica rate limits refreshes.
+    /// (`whatsapp_roster_requested`); the replica rate limits refreshes.
     async fn request_groups_refresh(&self, accounts: &[Uuid]) -> LinkedResult<()>;
     /// Accounts whose rosters describe a group entity: its observers, and the
     /// viewer's own connected account (a bot viewer has none).
-    async fn group_accounts(&self, group_id: Uuid, viewer: &str) -> LinkedResult<Vec<Uuid>>;
+    async fn group_accounts(&self, chat_id: Uuid, viewer: &str) -> LinkedResult<Vec<Uuid>>;
     /// Group entities bound to these remote groups that the person can see,
     /// newest first.
     async fn visible_adoptions(
@@ -108,7 +108,7 @@ pub struct StoredChat {
     /// Chat JID.
     pub jid: String,
     /// Group or direct.
-    pub kind: ChatKind,
+    pub kind: ExternalChatKind,
     /// Name WhatsApp reported, if any.
     pub name: Option<String>,
     /// Newest activity.
@@ -125,7 +125,7 @@ pub struct Adoption {
     /// The chat's JID.
     pub jid: String,
     /// Group or direct chat.
-    pub kind: ChatKind,
+    pub kind: ExternalChatKind,
     /// Display name, following WhatsApp.
     pub name: String,
     /// The account may post now (always for a direct chat).
@@ -156,7 +156,7 @@ pub struct Adopted {
 #[async_trait]
 pub trait BindingRepository: Send + Sync {
     /// The binding of a group entity.
-    async fn binding(&self, group_id: Uuid) -> LinkedResult<Option<Binding>>;
+    async fn binding(&self, chat_id: Uuid) -> LinkedResult<Option<Binding>>;
     /// Adopt atomically, serialized per person and remote group: one live group
     /// entity per (owner, remote group), owned by the caller. Records the
     /// caller-account's membership and signals its session service.
@@ -222,7 +222,7 @@ pub struct StagedUpload<'a> {
     /// Uploader, who will own the static file.
     pub user: &'a MacroUserIdStr<'a>,
     /// Group it may be sent to.
-    pub group_id: Uuid,
+    pub chat_id: Uuid,
     /// Display filename.
     pub filename: &'a str,
     /// Supported MIME type.
@@ -244,7 +244,7 @@ pub trait SendRepository: Send + Sync {
     async fn staged_upload_mime(
         &self,
         user: &MacroUserIdStr<'_>,
-        group_id: Uuid,
+        chat_id: Uuid,
         upload: Uuid,
     ) -> LinkedResult<Option<String>>;
     /// The person's own account's roster of the binding's group, if any.
@@ -262,7 +262,7 @@ pub trait SendRepository: Send + Sync {
     /// The person's earlier send with this intent key in the group.
     async fn stored_send(
         &self,
-        group_id: Uuid,
+        chat_id: Uuid,
         user: &MacroUserIdStr<'_>,
         idempotency_key: Uuid,
     ) -> LinkedResult<Option<StoredSend>>;
@@ -274,13 +274,13 @@ pub trait SendRepository: Send + Sync {
     /// The person's sends in a group that are not yet accepted, newest first.
     async fn open_sends(
         &self,
-        group_id: Uuid,
+        chat_id: Uuid,
         user: &MacroUserIdStr<'_>,
     ) -> LinkedResult<Vec<SendProgress>>;
     /// The person's sends for these group messages or intent ids.
     async fn sends_for(
         &self,
-        group_id: Uuid,
+        chat_id: Uuid,
         user: &MacroUserIdStr<'_>,
         ids: &[Uuid],
     ) -> LinkedResult<Vec<SendProgress>>;
@@ -427,14 +427,14 @@ pub trait SessionRepository: Send + Sync {
     ) -> LinkedResult<()>;
 }
 
-/// Who wrote a group message.
+/// Who wrote a message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Origin {
-    /// A person's phone or WhatsApp app.
-    Whatsapp,
+    /// Someone at the provider: a person's phone or app.
+    Remote,
     /// A deliberate send from Macro.
     Macro,
-    /// History sync.
+    /// Earlier messages imported after adding the chat.
     History,
 }
 
@@ -442,7 +442,7 @@ pub enum Origin {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupEffect {
     /// Group entity.
-    pub group_id: Uuid,
+    pub chat_id: Uuid,
     /// Group message.
     pub message_id: Uuid,
     /// Revision to publish.
@@ -478,8 +478,10 @@ pub trait EffectsRepository: Send + Sync {
 /// What a new message's notification names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MessageNotice {
+    /// The service the chat lives in.
+    pub provider: ExternalChatProvider,
     /// The chat's name.
-    pub group_name: String,
+    pub chat_name: String,
     /// The message was deleted, or edited before it was announced.
     pub superseded: bool,
 }
@@ -515,7 +517,7 @@ pub struct FileImport {
     /// The staged bytes' id (the upload id of a file sent from Macro).
     pub blob_id: Uuid,
     /// The chat the attachment belongs to.
-    pub group_id: Uuid,
+    pub chat_id: Uuid,
     /// Owner of the static file: the uploader, or the chat's owner.
     pub owner: String,
     /// Display filename.

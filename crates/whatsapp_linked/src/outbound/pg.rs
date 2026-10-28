@@ -99,7 +99,7 @@ pub(crate) async fn notify_change(
 /// locking any child row. Accounts, when needed, must be locked first.
 async fn lock_group_in(tx: &mut Transaction<'_, Postgres>, group: Uuid) -> LinkedResult<()> {
     sqlx::query!(
-        "SELECT id FROM whatsapp_group WHERE id = $1 FOR UPDATE",
+        "SELECT id FROM external_chat WHERE id = $1 FOR UPDATE",
         group
     )
     .fetch_optional(&mut **tx)
@@ -188,7 +188,7 @@ pub(crate) async fn end_consent_in(
     .await
     .map_err(failure)?;
     sqlx::query!(
-        "UPDATE whatsapp_group_membership SET consent_ended_at = COALESCE(consent_ended_at, now()) WHERE account_id = $1",
+        "UPDATE whatsapp_chat_membership SET consent_ended_at = COALESCE(consent_ended_at, now()) WHERE account_id = $1",
         account
     )
     .execute(&mut **tx)
@@ -208,12 +208,9 @@ pub(crate) async fn end_consent_in(
         .execute(&mut **tx)
         .await
         .map_err(failure)?;
-    sqlx::query!(
-        "DELETE FROM whatsapp_group_roster WHERE account_id = $1",
-        account
-    )
-    .execute(&mut **tx)
-    .await
-    .map_err(failure)?;
+    sqlx::query!("DELETE FROM whatsapp_roster WHERE account_id = $1", account)
+        .execute(&mut **tx)
+        .await
+        .map_err(failure)?;
     Ok(())
 }

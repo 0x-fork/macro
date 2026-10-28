@@ -391,7 +391,7 @@ async fn pairing_records_the_qr_and_identity_then_refreshes_groups(pool: PgPool)
     assert_eq!(linked.identity_jid.as_deref(), Some(IDENTITY));
     assert_eq!(linked.lease_epoch, 1);
     let roster = sqlx::query_scalar!(
-        "SELECT group_jid FROM whatsapp_group_roster WHERE account_id = $1",
+        "SELECT group_jid FROM whatsapp_roster WHERE account_id = $1",
         account
     )
     .fetch_all(&pool)
@@ -792,7 +792,7 @@ async fn live_group_events_update_the_one_group(pool: PgPool) {
     listener.recv().await.unwrap();
     let roster = |pool: PgPool| async move {
         sqlx::query_scalar!(
-            "SELECT group_jid FROM whatsapp_group_roster WHERE account_id = $1 ORDER BY group_jid",
+            "SELECT group_jid FROM whatsapp_roster WHERE account_id = $1 ORDER BY group_jid",
             account
         )
         .fetch_all(&pool)

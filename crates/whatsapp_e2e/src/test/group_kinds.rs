@@ -35,7 +35,7 @@ async fn a_disappearing_group_is_kept_in_macro_and_macro_sends_disappear(pool: P
         .await
         .unwrap();
     assert_eq!(detail.disappearing_seconds, Some(WEEK));
-    assert!(detail.group.can_send);
+    assert!(detail.chat.can_send);
 
     // The customer's phone wraps its messages as disappearing.
     let gone = world
@@ -153,8 +153,10 @@ async fn a_communitys_groups_are_added_and_used_but_not_the_community(pool: PgPo
     assert_eq!(listed(&announcements), (true, None, Some(neighbours(true))));
 
     let adopt = |jid: &Jid| {
-        let request = AdoptGroup {
-            group_jid: jid.to_string(),
+        let request = AddChat {
+            provider: ExternalChatProvider::WhatsApp,
+            remote_id: jid.to_string(),
+            kind: ExternalChatKind::Group,
         };
         let linked = &world.linked;
         async move {
@@ -175,8 +177,8 @@ async fn a_communitys_groups_are_added_and_used_but_not_the_community(pool: PgPo
         .group_detail(&receipt::<ViewAccessLevel>(ALICE, binding.id))
         .await
         .unwrap();
-    assert_eq!(detail.group.community, Some(neighbours(false)));
-    assert!(detail.group.can_send);
+    assert_eq!(detail.chat.community, Some(neighbours(false)));
+    assert!(detail.chat.can_send);
     let tomatoes = world
         .customer
         .send_text(&garden, "tomatoes are ready")
@@ -203,11 +205,8 @@ async fn a_communitys_groups_are_added_and_used_but_not_the_community(pool: PgPo
         .group_detail(&receipt::<ViewAccessLevel>(ALICE, notices.id))
         .await
         .unwrap();
-    assert_eq!(detail.group.community, Some(neighbours(true)));
-    assert_eq!(
-        detail.group.send_reason,
-        Some(ReplyBlock::NotAllowedInGroup)
-    );
+    assert_eq!(detail.chat.community, Some(neighbours(true)));
+    assert_eq!(detail.chat.send_reason, Some(ReplyBlock::NotAllowed));
     let notice = world
         .customer
         .send_text(&announcements, "street party on Sunday")

@@ -438,10 +438,10 @@ impl SessionRepository for PgLinkedRepository {
         let mut tx = self.pool.begin().await.map_err(failure)?;
         let account = fence_in(&mut tx, scope).await?;
         let groups = sqlx::query_scalar!(
-            r#"SELECT DISTINCT b.group_jid FROM whatsapp_group b JOIN whatsapp_group_membership m ON m.binding_id = b.id
+            r#"SELECT DISTINCT b.remote_id FROM external_chat b JOIN whatsapp_chat_membership m ON m.chat_id = b.id
             WHERE m.account_id = $1 AND m.generation = $2 AND m.consent_ended_at IS NULL AND b.state = 'active'
-              AND whatsapp_group_can_view(b.id, $3)
-            ORDER BY b.group_jid"#,
+              AND external_chat_can_view(b.id, $3)
+            ORDER BY b.remote_id"#,
             account.id,
             account.generation,
             account.user_id

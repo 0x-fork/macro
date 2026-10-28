@@ -59,8 +59,10 @@ async fn observers_can_refresh_groups_in_opposite_orders(pool: PgPool) {
     linked
         .adopt(
             &person(ALICE),
-            &AdoptGroup {
-                group_jid: second.jid.clone(),
+            &AddChat {
+                provider: ExternalChatProvider::WhatsApp,
+                remote_id: second.jid.clone(),
+                kind: ExternalChatKind::Group,
             },
             SendAuthority::Human,
         )

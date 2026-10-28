@@ -757,12 +757,12 @@ impl<Session: WhatsAppSession> Running<'_, Session> {
                     if elapsed(group.requested_at) >= self.config.backfill_timeout {
                         tracing::info!(
                             account_id = %self.scope.account_id,
-                            group_id = %group.group_id,
+                            chat_id = %group.chat_id,
                             "The phone did not answer a history request; waiting for it"
                         );
                         survive(
                             self.sessions
-                                .backfill_unanswered(self.scope, group.group_id)
+                                .backfill_unanswered(self.scope, group.chat_id)
                                 .await,
                             "backfill_unanswered",
                         )?;
@@ -785,7 +785,7 @@ impl<Session: WhatsAppSession> Running<'_, Session> {
             if group.state != BackfillState::WaitingForMessage {
                 survive(
                     self.sessions
-                        .backfill_waiting_for_message(self.scope, group.group_id)
+                        .backfill_waiting_for_message(self.scope, group.chat_id)
                         .await,
                     "backfill_waiting_for_message",
                 )?;
@@ -795,7 +795,7 @@ impl<Session: WhatsAppSession> Running<'_, Session> {
         let span = tracing::info_span!(
             "whatsapp.backfill.request",
             account_id = %self.scope.account_id,
-            group_id = %group.group_id,
+            chat_id = %group.chat_id,
             imported = group.imported,
             first = group.cursor.is_none(),
             outcome = tracing::field::Empty,
@@ -817,7 +817,7 @@ impl<Session: WhatsAppSession> Running<'_, Session> {
                     tracing::Span::current().record("outcome", "requested");
                     survive(
                         self.sessions
-                            .backfill_requested(self.scope, group.group_id)
+                            .backfill_requested(self.scope, group.chat_id)
                             .await,
                         "backfill_requested",
                     )?;
@@ -960,7 +960,7 @@ impl<Session: WhatsAppSession> Running<'_, Session> {
             "whatsapp.send.dispatch",
             account_id = %self.scope.account_id,
             send_id = %send.id,
-            group_sequence = send.group_sequence,
+            chat_sequence = send.chat_sequence,
             outcome = tracing::field::Empty,
         );
         // The dispatch joins the trace of the request that recorded the send.

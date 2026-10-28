@@ -1,8 +1,8 @@
 use super::*;
 use crate::domain::rich::{Call, CallOutcome, Poll, PollOption, SystemAction};
 
-fn person(name: &str, user: Option<&str>) -> WhatsAppPersonRef {
-    WhatsAppPersonRef {
+fn person(name: &str, user: Option<&str>) -> ExternalChatPersonRef {
+    ExternalChatPersonRef {
         name: name.to_owned(),
         user_id: user.map(str::to_owned),
     }
@@ -28,15 +28,15 @@ fn mentions_name_people_seen_in_the_group_else_their_number() {
     assert_eq!(
         mentions,
         vec![
-            WhatsAppMention {
+            ExternalChatMention {
                 token: "15550001111".to_owned(),
                 person: person("Ana", Some("macro|ana@example.com")),
             },
-            WhatsAppMention {
+            ExternalChatMention {
                 token: "15550002222".to_owned(),
                 person: person("+15550002222", None),
             },
-            WhatsAppMention {
+            ExternalChatMention {
                 token: "987654321".to_owned(),
                 person: person(UNKNOWN_PERSON, None),
             },
@@ -82,10 +82,10 @@ fn a_poll_tallies_current_votes_per_option_and_marks_the_viewers() {
 
     assert_eq!(
         view,
-        Some(WhatsAppRichContent::Poll(WhatsAppPoll {
+        Some(ExternalChatRichContent::Poll(ExternalChatPoll {
             question: "Lunch?".to_owned(),
             options: vec![
-                WhatsAppPollOption {
+                ExternalChatPollOption {
                     name: "Pizza".to_owned(),
                     votes: 2,
                     mine: true,
@@ -94,7 +94,7 @@ fn a_poll_tallies_current_votes_per_option_and_marks_the_viewers() {
                         person("Ben", None)
                     ],
                 },
-                WhatsAppPollOption {
+                ExternalChatPollOption {
                     name: "Sushi".to_owned(),
                     votes: 0,
                     mine: false,
@@ -143,7 +143,7 @@ fn a_system_line_names_who_did_it_and_to_whom() {
 
     assert_eq!(
         rich_view(added, &ana, &[], "viewer", &people),
-        Some(WhatsAppRichContent::System(WhatsAppSystemLine {
+        Some(ExternalChatRichContent::System(ExternalChatSystemLine {
             action: SystemAction::ParticipantsAdded,
             actor: Some(ana.clone()),
             participants: vec![person("Ben", None), person("+15550003333", None)],
@@ -153,7 +153,7 @@ fn a_system_line_names_who_did_it_and_to_whom() {
     );
     assert_eq!(
         rich_view(renamed_by_whatsapp, &ana, &[], "viewer", &people),
-        Some(WhatsAppRichContent::System(WhatsAppSystemLine {
+        Some(ExternalChatRichContent::System(ExternalChatSystemLine {
             action: SystemAction::SubjectChanged,
             actor: None,
             participants: vec![],
@@ -161,7 +161,7 @@ fn a_system_line_names_who_did_it_and_to_whom() {
             call: None,
         }))
     );
-    let Some(WhatsAppRichContent::System(line)) = rich_view(call, &ana, &[], "viewer", &people)
+    let Some(ExternalChatRichContent::System(line)) = rich_view(call, &ana, &[], "viewer", &people)
     else {
         panic!("expected a system line");
     };

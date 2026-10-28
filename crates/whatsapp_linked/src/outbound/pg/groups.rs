@@ -16,7 +16,7 @@ fn same_facts(stored: &GroupInfo, observed: &GroupInfo) -> bool {
 }
 
 /// Store and reconcile full metadata for groups one account has joined.
-/// Signals `whatsapp_changed` only for what actually changed: the account's
+/// Signals `external_chat_changed` only for what actually changed: the account's
 /// list, and each affected group entity.
 pub(super) async fn store_groups_in(
     tx: &mut Transaction<'_, Postgres>,
@@ -28,8 +28,8 @@ pub(super) async fn store_groups_in(
     // Lock the entire batch, including removals, in one stable order before
     // touching roster or membership rows. Observers may list groups differently.
     let locked = sqlx::query_scalar!(
-        r#"SELECT id FROM whatsapp_group WHERE group_jid = ANY($1)
-        OR ($2 AND group_jid IN (SELECT group_jid FROM whatsapp_group_roster WHERE account_id = $3))
+        r#"SELECT id FROM external_chat WHERE provider = 'whatsapp' AND (remote_id = ANY($1)
+        OR ($2 AND remote_id IN (SELECT group_jid FROM whatsapp_roster WHERE account_id = $3)))
         ORDER BY id FOR UPDATE"#,
         &listed,
         complete,
@@ -39,7 +39,7 @@ pub(super) async fn store_groups_in(
     .await
     .map_err(failure)?;
     let stored: std::collections::HashMap<String, GroupInfo> = sqlx::query!(
-        "SELECT group_jid, metadata FROM whatsapp_group_roster WHERE account_id = $1 AND group_jid = ANY($2)",
+        "SELECT group_jid, metadata FROM whatsapp_roster WHERE account_id = $1 AND group_jid = ANY($2)",
         account.id,
         &listed
     )
@@ -71,11 +71,11 @@ pub(super) async fn store_groups_in(
         .map(|group| serde_json::to_value(group).map_err(failure))
         .collect::<LinkedResult<Vec<_>>>()?;
     sqlx::query!(
-        r#"INSERT INTO whatsapp_group_roster (account_id, group_jid, observed_at, metadata)
+        r#"INSERT INTO whatsapp_roster (account_id, group_jid, observed_at, metadata)
         SELECT $1, read.group_jid, read.observed_at, read.metadata
         FROM UNNEST($2::text[], $3::timestamptz[], $4::jsonb[]) AS read(group_jid, observed_at, metadata)
         ON CONFLICT (account_id, group_jid) DO UPDATE SET observed_at = excluded.observed_at, metadata = excluded.metadata
-        WHERE whatsapp_group_roster.observed_at <= excluded.observed_at"#,
+        WHERE whatsapp_roster.observed_at <= excluded.observed_at"#,
         account.id,
         &fresh.iter().map(|group| group.jid.clone()).collect::<Vec<_>>(),
         &fresh.iter().map(|group| group.observed_at).collect::<Vec<_>>(),
@@ -105,7 +105,7 @@ pub(super) async fn store_groups_in(
         }
     }
     sqlx::query!(
-        r#"UPDATE whatsapp_group g SET name = renamed.name
+        r#"UPDATE external_chat g SET name = renamed.name
         FROM UNNEST($1::uuid[], $2::text[]) AS renamed(id, name)
         WHERE g.id = renamed.id AND g.user_id = $3 AND g.name <> renamed.name"#,
         &renames.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
@@ -125,7 +125,7 @@ pub(super) async fn store_groups_in(
             .max()
             .unwrap_or_else(Utc::now);
         let left = sqlx::query_scalar!(
-            "DELETE FROM whatsapp_group_roster WHERE account_id = $1 AND NOT (group_jid = ANY($2)) RETURNING group_jid",
+            "DELETE FROM whatsapp_roster WHERE account_id = $1 AND NOT (group_jid = ANY($2)) RETURNING group_jid",
             account.id,
             &listed
         )
@@ -140,13 +140,13 @@ pub(super) async fn store_groups_in(
         // The owner's account is always in its own direct chats: keep
         // observing them at the account's current generation.
         sqlx::query!(
-            r#"INSERT INTO whatsapp_group_membership (binding_id,account_id,generation,consent_at,remote_member,can_post,reconciled,observed_at)
-            SELECT g.id,$1,$2,clock_timestamp(),true,true,true,$4 FROM whatsapp_group g
+            r#"INSERT INTO whatsapp_chat_membership (chat_id,account_id,generation,consent_at,remote_member,can_post,reconciled,observed_at)
+            SELECT g.id,$1,$2,clock_timestamp(),true,true,true,$4 FROM external_chat g
             WHERE g.kind = 'direct' AND g.user_id = $3 AND g.state = 'active'
-            ON CONFLICT (binding_id,account_id) DO UPDATE SET generation = excluded.generation, consent_ended_at = NULL,
+            ON CONFLICT (chat_id,account_id) DO UPDATE SET generation = excluded.generation, consent_ended_at = NULL,
               remote_member = true, can_post = true, reconciled = true, observed_at = excluded.observed_at
-            WHERE whatsapp_group_membership.generation <> excluded.generation
-              OR whatsapp_group_membership.consent_ended_at IS NOT NULL"#,
+            WHERE whatsapp_chat_membership.generation <> excluded.generation
+              OR whatsapp_chat_membership.consent_ended_at IS NOT NULL"#,
             account.id,
             account.generation,
             account.user_id,
@@ -168,7 +168,7 @@ async fn signal_changes_in(
     if list_changed {
         notify_change(
             tx,
-            signals::Change::Groups {
+            signals::Change::Chats {
                 account_id: account.id,
             },
         )
@@ -176,8 +176,8 @@ async fn signal_changes_in(
     }
     groups.sort();
     groups.dedup();
-    for group_id in groups {
-        notify_change(tx, signals::Change::Group { group_id }).await?;
+    for chat_id in groups {
+        notify_change(tx, signals::Change::Chat { chat_id }).await?;
     }
     Ok(())
 }
@@ -190,7 +190,7 @@ pub(super) async fn group_left_in(
     observed_at: DateTime<Utc>,
 ) -> LinkedResult<()> {
     let listed = sqlx::query_scalar!(
-        "SELECT 1 AS listed FROM whatsapp_group_roster WHERE account_id = $1 AND group_jid = $2",
+        "SELECT 1 AS listed FROM whatsapp_roster WHERE account_id = $1 AND group_jid = $2",
         account.id,
         group
     )
@@ -214,9 +214,9 @@ async fn reconcile_in(
 ) -> LinkedResult<Vec<(Uuid, String)>> {
     let jids: Vec<String> = groups.iter().map(|group| group.jid.clone()).collect();
     let permitted: Vec<(Uuid, String)> = sqlx::query!(
-        r#"SELECT b.id, b.group_jid FROM whatsapp_group b
-        WHERE b.group_jid = ANY($1) AND b.id = ANY($3) AND b.state <> 'detached'
-          AND whatsapp_group_can_view(b.id, $2)
+        r#"SELECT b.id, b.remote_id FROM external_chat b
+        WHERE b.provider = 'whatsapp' AND b.remote_id = ANY($1) AND b.id = ANY($3) AND b.state <> 'detached'
+          AND external_chat_can_view(b.id, $2)
         ORDER BY b.id"#,
         &jids,
         account.user_id,
@@ -226,7 +226,7 @@ async fn reconcile_in(
     .await
     .map_err(failure)?
     .into_iter()
-    .map(|row| (row.id, row.group_jid))
+    .map(|row| (row.id, row.remote_id))
     .collect();
     let identity = account.identity_jid.as_deref().unwrap_or_default();
     let facts: Vec<&GroupInfo> = permitted
@@ -234,12 +234,12 @@ async fn reconcile_in(
         .filter_map(|(_, jid)| groups.iter().find(|group| &group.jid == jid).copied())
         .collect();
     sqlx::query!(
-        r#"INSERT INTO whatsapp_group_membership (binding_id,account_id,generation,consent_at,remote_member,can_post,reconciled,observed_at)
-        SELECT fact.binding_id, $1, $2, clock_timestamp(), fact.remote_member, fact.can_post, true, fact.observed_at
-        FROM UNNEST($3::uuid[], $4::bool[], $5::bool[], $6::timestamptz[]) AS fact(binding_id, remote_member, can_post, observed_at)
-        ON CONFLICT (binding_id,account_id) DO UPDATE SET generation = excluded.generation, consent_ended_at = NULL,
+        r#"INSERT INTO whatsapp_chat_membership (chat_id,account_id,generation,consent_at,remote_member,can_post,reconciled,observed_at)
+        SELECT fact.chat_id, $1, $2, clock_timestamp(), fact.remote_member, fact.can_post, true, fact.observed_at
+        FROM UNNEST($3::uuid[], $4::bool[], $5::bool[], $6::timestamptz[]) AS fact(chat_id, remote_member, can_post, observed_at)
+        ON CONFLICT (chat_id,account_id) DO UPDATE SET generation = excluded.generation, consent_ended_at = NULL,
         remote_member = excluded.remote_member, can_post = excluded.can_post, reconciled = true, observed_at = excluded.observed_at
-        WHERE whatsapp_group_membership.observed_at <= excluded.observed_at"#,
+        WHERE whatsapp_chat_membership.observed_at <= excluded.observed_at"#,
         account.id,
         account.generation,
         &permitted.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
@@ -272,10 +272,10 @@ async fn left_selected_in(
     observed_at: DateTime<Utc>,
     locked: Option<&[Uuid]>,
 ) -> LinkedResult<Vec<Uuid>> {
-    sqlx::query!("SELECT id FROM whatsapp_group WHERE group_jid = $1 AND ($2::uuid[] IS NULL OR id = ANY($2)) ORDER BY id FOR UPDATE", group, locked)
+    sqlx::query!("SELECT id FROM external_chat WHERE provider = 'whatsapp' AND remote_id = $1 AND ($2::uuid[] IS NULL OR id = ANY($2)) ORDER BY id FOR UPDATE", group, locked)
         .fetch_all(&mut **tx).await.map_err(failure)?;
     sqlx::query!(
-        "DELETE FROM whatsapp_group_roster WHERE account_id = $1 AND group_jid = $2",
+        "DELETE FROM whatsapp_roster WHERE account_id = $1 AND group_jid = $2",
         account.id,
         group
     )
@@ -283,11 +283,11 @@ async fn left_selected_in(
     .await
     .map_err(failure)?;
     sqlx::query_scalar!(
-        r#"UPDATE whatsapp_group_membership m SET remote_member = false, can_post = false, reconciled = true, observed_at = $4
-        FROM whatsapp_group b
-        WHERE b.id = m.binding_id AND b.group_jid = $1 AND m.account_id = $2 AND m.generation = $3 AND m.observed_at <= $4
+        r#"UPDATE whatsapp_chat_membership m SET remote_member = false, can_post = false, reconciled = true, observed_at = $4
+        FROM external_chat b
+        WHERE b.id = m.chat_id AND b.provider = 'whatsapp' AND b.remote_id = $1 AND m.account_id = $2 AND m.generation = $3 AND m.observed_at <= $4
           AND ($5::uuid[] IS NULL OR b.id = ANY($5))
-        RETURNING m.binding_id"#,
+        RETURNING m.chat_id"#,
         group,
         account.id,
         account.generation,
@@ -303,7 +303,7 @@ async fn left_selected_in(
 impl GroupRepository for PgLinkedRepository {
     async fn account_groups(&self, account: Uuid) -> LinkedResult<Vec<GroupInfo>> {
         sqlx::query_scalar!(
-            "SELECT metadata FROM whatsapp_group_roster WHERE account_id = $1 ORDER BY group_jid LIMIT 2000",
+            "SELECT metadata FROM whatsapp_roster WHERE account_id = $1 ORDER BY group_jid LIMIT 2000",
             account
         )
         .fetch_all(&self.pool)
@@ -316,7 +316,7 @@ impl GroupRepository for PgLinkedRepository {
 
     async fn account_group(&self, account: Uuid, group: &str) -> LinkedResult<Option<GroupInfo>> {
         sqlx::query_scalar!(
-            "SELECT metadata FROM whatsapp_group_roster WHERE account_id = $1 AND group_jid = $2",
+            "SELECT metadata FROM whatsapp_roster WHERE account_id = $1 AND group_jid = $2",
             account,
             group
         )
@@ -338,14 +338,14 @@ impl GroupRepository for PgLinkedRepository {
         tx.commit().await.map_err(failure)
     }
 
-    async fn group_accounts(&self, group_id: Uuid, user: &str) -> LinkedResult<Vec<Uuid>> {
+    async fn group_accounts(&self, chat_id: Uuid, user: &str) -> LinkedResult<Vec<Uuid>> {
         sqlx::query_scalar!(
-            r#"SELECT m.account_id AS "account_id!" FROM whatsapp_group_membership m
+            r#"SELECT m.account_id AS "account_id!" FROM whatsapp_chat_membership m
             JOIN whatsapp_linked_account a ON a.id = m.account_id
-            WHERE m.binding_id = $1 AND m.consent_ended_at IS NULL AND a.state = 'connected'
+            WHERE m.chat_id = $1 AND m.consent_ended_at IS NULL AND a.state = 'connected'
             UNION
             SELECT id FROM whatsapp_linked_account WHERE user_id = $2 AND state = 'connected'"#,
-            group_id,
+            chat_id,
             user
         )
         .fetch_all(&self.pool)
@@ -361,9 +361,9 @@ impl GroupRepository for PgLinkedRepository {
         let user = user.as_ref();
         sqlx::query_as!(
             VisibleAdoption,
-            r#"SELECT b.group_jid, b.id, b.name, b.user_id AS owner_id
-            FROM whatsapp_group b
-            WHERE b.group_jid = ANY($2) AND b.state <> 'detached' AND whatsapp_group_can_view(b.id, $1)
+            r#"SELECT b.remote_id, b.id, b.name, b.user_id AS owner_id
+            FROM external_chat b
+            WHERE b.provider = 'whatsapp' AND b.remote_id = ANY($2) AND b.state <> 'detached' AND external_chat_can_view(b.id, $1)
             ORDER BY b.adopted_at DESC, b.id DESC"#,
             user,
             groups
@@ -375,12 +375,12 @@ impl GroupRepository for PgLinkedRepository {
 
     async fn binding_roster(&self, binding: &Binding) -> LinkedResult<Option<GroupInfo>> {
         let roster = sqlx::query_scalar!(
-            r#"SELECT r.metadata FROM whatsapp_group_roster r
-            JOIN whatsapp_group_membership m ON m.account_id = r.account_id
-            WHERE m.binding_id = $1 AND m.consent_ended_at IS NULL AND r.group_jid = $2
+            r#"SELECT r.metadata FROM whatsapp_roster r
+            JOIN whatsapp_chat_membership m ON m.account_id = r.account_id
+            WHERE m.chat_id = $1 AND m.consent_ended_at IS NULL AND r.group_jid = $2
             ORDER BY r.observed_at DESC LIMIT 1"#,
             binding.id,
-            binding.group_jid
+            binding.remote_id
         )
         .fetch_optional(&self.pool)
         .await
@@ -409,8 +409,8 @@ impl GroupRepository for PgLinkedRepository {
         }
         let names = sqlx::query!(
             r#"SELECT a.jid, p.display_name AS "display_name!" FROM whatsapp_identity_alias a
-            JOIN whatsapp_external_person p ON p.id = a.person_id
-            WHERE a.binding_id = $1 AND a.jid = ANY($2) AND p.display_name IS NOT NULL"#,
+            JOIN external_chat_person p ON p.id = a.person_id
+            WHERE a.chat_id = $1 AND a.jid = ANY($2) AND p.display_name IS NOT NULL"#,
             binding.id,
             &jids
         )

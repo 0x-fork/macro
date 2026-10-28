@@ -20,7 +20,6 @@ outbound = [
   "dep:entity_access",
   "dep:entity_access_db_utils",
   "dep:entity_registry_db_utils",
-  "dep:model-entity",
   "dep:model_owner",
   "dep:share_permission_db_utils",
   "dep:opentelemetry",
@@ -47,7 +46,7 @@ share_permission_db_utils = { path = "../share_permission_db_utils", optional = 
 entity_registry_db_utils = { path = "../entity_registry/entity_registry_db_utils", optional = true }
 entity_access_db_utils = { path = "../entity_access_db_utils", optional = true }
 model_owner = { path = "../model_owner", optional = true }
-model-entity = { path = "../model-entity", optional = true }
+model-entity = { path = "../model-entity" }
 opentelemetry = { workspace = true, features = ["trace"], optional = true }
 async-trait = { workspace = true, optional = true }
 axum = { workspace = true, features = ["multipart"], optional = true }

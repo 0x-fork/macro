@@ -95,7 +95,7 @@ impl<Session: WhatsAppSession> MediaImports<Session> {
         let span = tracing::info_span!(
             "whatsapp.media.import",
             account_id = %self.scope.account_id,
-            binding_id = %import.attachment.binding_id,
+            chat_id = %import.attachment.chat_id,
             ordinal = import.attachment.ordinal,
             size = import.size,
             outcome = tracing::field::Empty,

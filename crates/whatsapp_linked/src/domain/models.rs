@@ -1,7 +1,8 @@
-//! Personal accounts, adopted-group bindings and deliberate sends, as DSS and
+//! Personal accounts, added external chats and deliberate sends, as DSS and
 //! the web app see them. Session-service events live in [`super::events`].
 
 use chrono::{DateTime, Utc};
+pub use model_entity::{ExternalChatKind, ExternalChatProvider};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -20,7 +21,7 @@ use uuid::Uuid;
 )]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedAccountState))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppAccountState))]
 #[strum(serialize_all = "snake_case")]
 pub enum AccountState {
     /// A pairing transaction is in progress.
@@ -49,7 +50,7 @@ impl AccountState {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedAccount))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppAccount))]
 pub struct Account {
     /// Stable account identity.
     pub id: Uuid,
@@ -77,7 +78,7 @@ pub struct Account {
 )]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedPairingState))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppPairingState))]
 #[strum(serialize_all = "snake_case")]
 pub enum PairingState {
     /// Waiting for a session-service replica to start the device.
@@ -112,7 +113,7 @@ impl PairingState {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedPairing))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppPairing))]
 pub struct Pairing {
     /// One-use transaction id.
     pub id: Uuid,
@@ -129,7 +130,7 @@ pub struct Pairing {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedPairState))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppPairState))]
 pub struct PairState {
     /// Current state.
     pub state: PairingState,
@@ -147,23 +148,26 @@ pub struct PairState {
     pub expires_at: DateTime<Utc>,
 }
 
-/// Explicit adoption request; the account is selected server-side. The
-/// group's name always follows WhatsApp.
+/// Explicit request to add a chat; the provider account is selected
+/// server-side. The chat's name always follows the provider.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedAdoptGroup))]
-pub struct AdoptGroup {
-    /// A group the requester's account has joined, or a direct chat from
-    /// their chat list (the other person's JID, as the list names it).
-    pub group_jid: String,
+#[cfg_attr(feature = "schema", schema(as = ExternalChatAdd))]
+pub struct AddChat {
+    /// The service the chat lives in.
+    pub provider: ExternalChatProvider,
+    /// The chat's id at the provider, as its chat list names it. WhatsApp: a
+    /// group the requester's account has joined, or a direct chat's other
+    /// person's JID.
+    pub remote_id: String,
+    /// Group or direct chat; must match what `remote_id` is.
+    pub kind: ExternalChatKind,
 }
 
 /// Binding lifecycle.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedBindingState))]
 pub enum BindingState {
     /// Observed and sendable.
     Active,
@@ -171,18 +175,19 @@ pub enum BindingState {
     Detached,
 }
 
-/// One remote group bound to a person's group entity.
+/// One remote chat bound to a person's external chat entity.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedBinding))]
 pub struct Binding {
-    /// Stable binding identity, independent of any observing account.
+    /// Stable binding identity, independent of any observing account; the
+    /// external chat entity id.
     pub id: Uuid,
-    /// Remote chat identity, never its display name: the group, or a direct
-    /// chat's other person.
-    pub group_jid: String,
+    /// The service the chat lives in.
+    pub provider: ExternalChatProvider,
+    /// Remote chat identity, never its display name. WhatsApp: the group's
+    /// JID, or a direct chat's other person.
+    pub remote_id: String,
     /// Group or direct chat.
-    pub kind: ChatKind,
+    pub kind: ExternalChatKind,
     /// The person who added the group, its owner.
     pub user_id: String,
     /// Lifecycle.
@@ -234,7 +239,7 @@ pub struct Participant {
 
 /// One full metadata read of a group, never an incomplete membership delta.
 /// The session service reports it and it is stored as roster metadata
-/// (camelCase JSON); the API shows it as [`crate::domain::timeline::WhatsAppRoster`].
+/// (camelCase JSON); the API shows it as [`crate::domain::timeline::ExternalChatMembers`].
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupInfo {
@@ -263,13 +268,13 @@ pub struct GroupInfo {
     pub observed_at: DateTime<Utc>,
 }
 
-/// A group entity bound to a remote group.
+/// An external chat entity bound to a remote chat.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedGroupReference))]
-pub struct GroupReference {
-    /// Group entity id.
+#[cfg_attr(feature = "schema", schema(as = ExternalChatReference))]
+pub struct ChatReference {
+    /// External chat entity id.
     pub id: Uuid,
     /// Display name, following WhatsApp.
     pub name: String,
@@ -279,7 +284,7 @@ pub struct GroupReference {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedCommunityReference))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatCommunity))]
 pub struct CommunityReference {
     /// The community's WhatsApp JID.
     pub id: String,
@@ -308,17 +313,17 @@ impl CommunityReference {
     }
 }
 
-/// Another person's group entity the caller can view.
+/// Another person's external chat entity the caller can view.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedSharedGroupReference))]
-pub struct SharedGroupReference {
-    /// Group entity id.
+#[cfg_attr(feature = "schema", schema(as = SharedExternalChatReference))]
+pub struct SharedChatReference {
+    /// External chat entity id.
     pub id: Uuid,
     /// Display name, following WhatsApp.
     pub name: String,
-    /// Macro user who added the group and shared it.
+    /// Macro user who added the chat and shared it.
     pub owner_id: String,
 }
 
@@ -378,47 +383,11 @@ impl GroupInfo {
     }
 }
 
-/// Whether a WhatsApp chat is a group or a one-to-one chat.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    strum::IntoStaticStr,
-    strum::EnumString,
-)]
-#[serde(rename_all = "snake_case")]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedChatKind))]
-#[strum(serialize_all = "snake_case")]
-pub enum ChatKind {
-    /// A group chat (`…@g.us`).
-    Group,
-    /// A direct chat with one person.
-    Direct,
-}
-
-impl ChatKind {
-    /// Stable storage spelling.
-    pub fn as_str(self) -> &'static str {
-        self.into()
-    }
-
-    /// Parse the storage spelling.
-    pub fn parse(value: &str) -> Option<Self> {
-        value.parse().ok()
-    }
-}
-
 /// Why a chat can't be added to Macro; the app words it from the code.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq, thiserror::Error)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedCannotAdd))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppCannotAdd))]
 pub enum CannotAdd {
     /// The account's WhatsApp left the group or was removed.
     #[error("your WhatsApp is not in this group any more")]
@@ -438,13 +407,13 @@ pub enum CannotAdd {
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedChat))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppChat))]
 pub struct Chat {
     /// WhatsApp chat JID: a group, or the other person's phone-number JID
     /// (LID when WhatsApp never told us the number).
     pub jid: String,
     /// Group or direct chat.
-    pub kind: ChatKind,
+    pub kind: ExternalChatKind,
     /// Group: the subject, or member names for an unnamed group. Direct: the
     /// contact or WhatsApp name, else `+<phone>`. Always non-empty.
     pub name: String,
@@ -455,11 +424,11 @@ pub struct Chat {
     pub archived: bool,
     /// Pinned in WhatsApp.
     pub pinned: bool,
-    /// The caller's own Macro group for this chat, once added.
-    pub group: Option<GroupReference>,
-    /// Someone else's Macro group for this chat shared with the caller, when
-    /// the caller has not added their own.
-    pub shared: Option<SharedGroupReference>,
+    /// The caller's own external chat for this chat, once added.
+    pub added: Option<ChatReference>,
+    /// Someone else's external chat for this chat shared with the caller,
+    /// when the caller has not added their own.
+    pub shared: Option<SharedChatReference>,
     /// "Add to Macro" works now.
     pub can_add: bool,
     /// Why it can't be added, when it is neither added, shared nor addable.
@@ -473,7 +442,7 @@ pub struct Chat {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedChats))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppChats))]
 pub struct ChatList {
     /// Newest activity first; chats with unknown activity last, by name.
     pub chats: Vec<Chat>,
@@ -493,7 +462,7 @@ pub struct ChatList {
 )]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedBackfillState))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatBackfillState))]
 #[strum(serialize_all = "snake_case")]
 pub enum BackfillState {
     /// Nothing to start from: the owner's account knows no message in this
@@ -525,11 +494,11 @@ impl BackfillState {
     }
 }
 
-/// Earlier messages imported after adding a group.
+/// Earlier messages imported after adding a chat.
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedBackfill))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatBackfill))]
 pub struct Backfill {
     /// Progress.
     pub state: BackfillState,
@@ -542,11 +511,11 @@ pub const BACKFILL_MESSAGE_LIMIT: u32 = 500;
 /// Earlier messages older than this many days before adding are not imported.
 pub const BACKFILL_MAX_AGE_DAYS: i64 = 90;
 
-/// Deliberate operations on an existing linked-group message.
+/// Deliberate operations on an existing message.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedMutation))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatMutation))]
 pub enum Mutation {
     /// Add, replace or remove the caller's reaction.
     Reaction,
@@ -560,7 +529,7 @@ pub enum Mutation {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedReplyContent))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatReplyContent))]
 pub enum ReplyContent {
     /// Plain text.
     Text {
@@ -580,9 +549,9 @@ pub enum ReplyContent {
         /// Optional caption; audio has none.
         caption: Option<String>,
     },
-    /// An operation on an existing message in this group.
+    /// An operation on an existing message in this chat.
     Mutation {
-        /// Existing group message, resolved to its WhatsApp source by the server.
+        /// Existing message, resolved to its provider source by the server.
         #[serde(rename = "messageId")]
         message_id: Uuid,
         /// Explicit operation.
@@ -596,13 +565,13 @@ pub enum ReplyContent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedSendReply))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatSendReply))]
 pub struct SendReply {
     /// Stable client intent key. A changed payload with this key is a conflict.
     pub idempotency_key: Uuid,
     /// Content.
     pub message: ReplyContent,
-    /// Group message being quoted, within this group.
+    /// Message being quoted, within this chat.
     #[serde(default)]
     pub reply_to: Option<Uuid>,
 }
@@ -622,7 +591,7 @@ pub struct SendReply {
 )]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedDeliveryState))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatDeliveryState))]
 #[strum(serialize_all = "snake_case")]
 pub enum DeliveryState {
     /// Durable intent, not yet claimed.
@@ -653,19 +622,19 @@ impl DeliveryState {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedSendProgress))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatSendProgress))]
 pub struct SendProgress {
     /// Stable intent id.
     pub id: Uuid,
     /// Person who submitted it.
     pub user_id: String,
-    /// Group entity.
-    pub group_id: Uuid,
+    /// External chat.
+    pub chat_id: Uuid,
     /// The original request, so a failed draft can be recovered.
     pub payload: SendReply,
     /// Current state.
     pub state: DeliveryState,
-    /// Group message, once WhatsApp accepted it.
+    /// The chat's message, once the provider accepted it.
     pub message_id: Option<Uuid>,
     /// Sanitized failure code.
     pub error_code: Option<String>,
@@ -677,7 +646,7 @@ pub struct SendProgress {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedMediaKind))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatMediaKind))]
 pub enum MediaKind {
     /// JPEG, PNG or WebP.
     Image,
@@ -727,7 +696,7 @@ impl MediaKind {
 )]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedMediaPresentation))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatMediaPresentation))]
 #[strum(serialize_all = "snake_case")]
 pub enum MediaPresentation {
     /// A sticker: a small image (WebP, possibly animated), no caption.
@@ -757,7 +726,7 @@ pub const MEDIA_LIMIT_BYTES: usize = 32 * 1024 * 1024;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedUploadedAttachment))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatUploadedAttachment))]
 pub struct UploadedAttachment {
     /// Use as `upload_id` in a media send.
     pub upload_id: Uuid,
@@ -767,11 +736,11 @@ pub struct UploadedAttachment {
     pub kind: MediaKind,
 }
 
-/// Where an attachment of a linked message stands.
+/// Where an attachment of a message stands.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedAttachmentState))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatAttachmentState))]
 pub enum AttachmentState {
     /// Downloading or importing.
     Loading,
@@ -783,12 +752,12 @@ pub enum AttachmentState {
     Unsupported,
 }
 
-/// One attachment of a linked message.
+/// One attachment of a message.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedAttachment))]
-pub struct LinkedAttachment {
+#[cfg_attr(feature = "schema", schema(as = ExternalChatAttachment))]
+pub struct Attachment {
     /// Position within the message.
     pub ordinal: i16,
     /// Current state.
@@ -811,16 +780,16 @@ pub struct LinkedAttachment {
     pub presentation: Option<MediaPresentation>,
 }
 
-/// The attachments of one linked group message.
+/// The attachments of one message.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedMessageAttachments))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatMessageAttachments))]
 pub struct MessageAttachments {
-    /// Group message.
+    /// The message.
     pub message_id: Uuid,
     /// Its attachments in order; deleted ones are omitted.
-    pub linked_attachments: Vec<LinkedAttachment>,
+    pub attachments: Vec<Attachment>,
 }
 
 /// Most people one text send may @-mention.
@@ -846,11 +815,11 @@ pub const MUTATION_WINDOW_SECONDS: i64 = 10 * 60;
 /// Unattempted intents expire this long after they were created.
 pub const SEND_EXPIRY_SECONDS: i64 = 10 * 60;
 
-/// Operations implemented for linked groups, independent of current permission.
+/// Operations implemented for a chat, independent of current permission.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedCapabilities))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatCapabilities))]
 pub struct Capabilities {
     /// Maximum UTF-8 bytes per text send.
     pub text_limit_bytes: u32,
@@ -886,25 +855,25 @@ impl Default for Capabilities {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedReplyBlock))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatReplyBlock))]
 pub enum ReplyBlock {
-    /// The viewer has not connected their own WhatsApp.
+    /// The viewer has not connected their own account at the provider.
     NoAccount,
-    /// The viewer's account is not connected.
+    /// The viewer's provider account is not connected.
     Disconnected,
-    /// The viewer's account has not adopted this group.
-    NotObserving,
-    /// The viewer is not in the group, or only admins may post.
-    NotAllowedInGroup,
-    /// The group is detached.
-    GroupUnavailable,
+    /// The viewer has not added this chat from their own account.
+    NotAdded,
+    /// The viewer is not in the chat, or may not post in it now.
+    NotAllowed,
+    /// The chat is detached.
+    Unavailable,
 }
 
 /// Owner-scoped account state, including not connected.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedAccountView))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppAccountView))]
 pub struct AccountView {
     /// The caller's account, when one exists.
     pub account: Option<Account>,
@@ -914,7 +883,7 @@ pub struct AccountView {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedDisconnect))]
+#[cfg_attr(feature = "schema", schema(as = WhatsAppDisconnect))]
 pub struct Disconnect {
     /// The session service was asked to log the device out of WhatsApp. It
     /// unlinks asynchronously; WhatsApp's Linked devices list is authoritative.

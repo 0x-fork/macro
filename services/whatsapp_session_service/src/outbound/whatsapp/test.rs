@@ -311,7 +311,7 @@ async fn attachments_travel_both_ways_with_a_sealed_locator(pool: PgPool) {
     );
     let import = MediaImport {
         attachment: AttachmentRef {
-            binding_id: Uuid::now_v7(),
+            chat_id: Uuid::now_v7(),
             person_id: Uuid::now_v7(),
             source_id: incoming.clone(),
             ordinal: 0,
@@ -338,7 +338,7 @@ async fn attachments_travel_both_ways_with_a_sealed_locator(pool: PgPool) {
     let send = ClaimedSend {
         id: Uuid::now_v7(),
         group_jid: group.to_string(),
-        group_sequence: 1,
+        chat_sequence: 1,
         content: OutgoingContent::Media {
             kind: MediaKind::Image,
             mime: "image/jpeg".to_owned(),
@@ -388,22 +388,22 @@ async fn attachments_travel_both_ways_with_a_sealed_locator(pool: PgPool) {
 #[test]
 fn group_metadata_keeps_the_timer_and_tells_a_community_from_its_groups() {
     use whatsmeow::types::{
-        GroupEphemeral, GroupInfo as WhatsAppGroup, GroupIsDefaultSub, GroupLinkedParent,
-        GroupName, GroupParent,
+        GroupEphemeral, GroupInfo as ExternalChat, GroupIsDefaultSub, GroupLinkedParent, GroupName,
+        GroupParent,
     };
     let community: whatsmeow::types::Jid = "120363000000000010@g.us".parse().unwrap();
-    let group = |jid: &str| WhatsAppGroup {
+    let group = |jid: &str| ExternalChat {
         jid: jid.parse().unwrap(),
         name: GroupName {
             name: "Neighbours".to_owned(),
             ..GroupName::default()
         },
-        ..WhatsAppGroup::default()
+        ..ExternalChat::default()
     };
     let observed_at = chrono::Utc::now();
 
     let parent = super::group_info(
-        WhatsAppGroup {
+        ExternalChat {
             parent: GroupParent {
                 is_parent: true,
                 ..GroupParent::default()
@@ -416,7 +416,7 @@ fn group_metadata_keeps_the_timer_and_tells_a_community_from_its_groups() {
     assert_eq!(parent.community_jid, None);
 
     let announcements = super::group_info(
-        WhatsAppGroup {
+        ExternalChat {
             linked_parent: GroupLinkedParent {
                 linked_parent_jid: community.clone(),
             },
@@ -435,7 +435,7 @@ fn group_metadata_keeps_the_timer_and_tells_a_community_from_its_groups() {
     assert!(announcements.community_announcements);
 
     let vanishing = super::group_info(
-        WhatsAppGroup {
+        ExternalChat {
             ephemeral: GroupEphemeral {
                 is_ephemeral: true,
                 disappearing_timer: 604_800,
@@ -456,7 +456,7 @@ fn group_metadata_keeps_the_timer_and_tells_a_community_from_its_groups() {
     // A group that had disappearing messages and turned them off: WhatsApp
     // still lists `<ephemeral expiration="0"/>`.
     let turned_off = super::group_info(
-        WhatsAppGroup {
+        ExternalChat {
             ephemeral: GroupEphemeral {
                 is_ephemeral: true,
                 disappearing_timer: 0,

@@ -65,8 +65,10 @@ async fn disappearing_and_community_groups_are_added_like_any_other(pool: PgPool
     assert_eq!(listed(SUBGROUP), (true, None, Some(neighbours(false))));
 
     let adopt = |jid: &str| {
-        let request = AdoptGroup {
-            group_jid: jid.to_owned(),
+        let request = AddChat {
+            provider: ExternalChatProvider::WhatsApp,
+            remote_id: jid.to_owned(),
+            kind: ExternalChatKind::Group,
         };
         let linked = &linked;
         async move {
@@ -92,21 +94,18 @@ async fn disappearing_and_community_groups_are_added_like_any_other(pool: PgPool
     let vanishing = adopt(GROUP).await.unwrap();
     let shown = detail(vanishing.clone()).await;
     assert_eq!(shown.disappearing_seconds, Some(WEEK));
-    assert_eq!(shown.group.community, None);
-    assert!(shown.group.can_send);
+    assert_eq!(shown.chat.community, None);
+    assert!(shown.chat.can_send);
 
     let garden = detail(adopt(SUBGROUP).await.unwrap()).await;
-    assert_eq!(garden.group.community, Some(neighbours(false)));
+    assert_eq!(garden.chat.community, Some(neighbours(false)));
     assert_eq!(garden.disappearing_seconds, None);
-    assert!(garden.group.can_send);
+    assert!(garden.chat.can_send);
 
     // Everyone reads the announcement group; only admins post.
     let notices = detail(adopt(ANNOUNCEMENTS).await.unwrap()).await;
-    assert_eq!(notices.group.community, Some(neighbours(true)));
-    assert_eq!(
-        notices.group.send_reason,
-        Some(ReplyBlock::NotAllowedInGroup)
-    );
+    assert_eq!(notices.chat.community, Some(neighbours(true)));
+    assert_eq!(notices.chat.send_reason, Some(ReplyBlock::NotAllowed));
 
     // The list carries the community too, so it can group the chats.
     let listed = linked.adopted_groups(&person(ALICE)).await.unwrap();
@@ -119,8 +118,8 @@ async fn disappearing_and_community_groups_are_added_like_any_other(pool: PgPool
             .clone()
     };
     assert_eq!(community_of(vanishing.id), None);
-    assert_eq!(community_of(garden.group.id), Some(neighbours(false)));
-    assert_eq!(community_of(notices.group.id), Some(neighbours(true)));
+    assert_eq!(community_of(garden.chat.id), Some(neighbours(false)));
+    assert_eq!(community_of(notices.chat.id), Some(neighbours(true)));
 
     // A message in the disappearing group is kept like any other.
     assert_eq!(

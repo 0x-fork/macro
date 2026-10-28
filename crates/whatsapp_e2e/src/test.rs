@@ -14,7 +14,8 @@ use sqlx::{Connection, PgConnection, PgPool};
 use uuid::Uuid;
 use whatsapp_fake_server::{FakePhone, FakeWhatsApp};
 use whatsapp_linked::domain::models::{
-    AccountState, AdoptGroup, Binding, ChatKind, ReplyContent, SendAuthority, SendReply,
+    AccountState, AddChat, Binding, ExternalChatKind, ExternalChatProvider, ReplyContent,
+    SendAuthority, SendReply,
 };
 use whatsapp_linked::domain::ports::LinkedResult;
 use whatsapp_linked::domain::service::LinkedService;
@@ -166,7 +167,11 @@ impl World {
             .linked
             .adopt(
                 &person(user),
-                &AdoptGroup { group_jid: group },
+                &AddChat {
+                    provider: ExternalChatProvider::WhatsApp,
+                    remote_id: group,
+                    kind: ExternalChatKind::Group,
+                },
                 SendAuthority::Human,
             )
             .await
@@ -176,7 +181,7 @@ impl World {
             entity_access_db_utils::direct_share::set(
                 &mut tx,
                 &binding.id,
-                EntityType::WhatsAppGroup,
+                EntityType::ExternalChat,
                 &(*viewer).to_owned().try_into().unwrap(),
                 Some(AccessLevel::View),
                 false,
@@ -194,9 +199,9 @@ impl World {
         self.linked.chats(&person(user)).await.unwrap();
         let observing = wait_for_rows(&self.pool, TIMEOUT, || async {
             sqlx::query_scalar!(
-                r#"SELECT m.account_id FROM whatsapp_group_membership m
+                r#"SELECT m.account_id FROM whatsapp_chat_membership m
                 JOIN whatsapp_linked_account a ON a.id = m.account_id
-                WHERE m.binding_id = $1 AND a.user_id = $2 AND m.consent_ended_at IS NULL AND m.remote_member"#,
+                WHERE m.chat_id = $1 AND a.user_id = $2 AND m.consent_ended_at IS NULL AND m.remote_member"#,
                 binding.id,
                 user
             )
@@ -269,7 +274,7 @@ impl World {
             (
                 "external messages (source, origin, message)",
                 sqlx::query_scalar!(
-                    r#"SELECT source_id || ' ' || origin || ' ' || coalesce(message_id::text, '-') AS "row!" FROM whatsapp_group_message"#
+                    r#"SELECT source_id || ' ' || origin || ' ' || coalesce(message_id::text, '-') AS "row!" FROM external_chat_message"#
                 )
                 .fetch_all(pool)
                 .await,
@@ -295,7 +300,7 @@ impl World {
                 sqlx::query_scalar!(
                     r#"SELECT c.chat_jid || ' ' || c.kind || ' ' || coalesce(c.anchor->>'id', '-') || ' '
                         || coalesce((SELECT string_agg(coalesce(g.backfill_state, '-') || '/' || g.backfill_imported, ',')
-                            FROM whatsapp_group g WHERE g.group_jid = c.chat_jid), '') AS "row!"
+                            FROM external_chat g WHERE g.remote_id = c.chat_jid), '') AS "row!"
                     FROM whatsapp_chat c"#
                 )
                 .fetch_all(pool)
@@ -394,7 +399,7 @@ fn receipt<Permission: entity_access::domain::models::RequiredPermission>(
         EntityAccessAuth::Authenticated(user.to_owned().try_into().unwrap()),
         Entity {
             entity_id: channel.to_string(),
-            entity_type: EntityType::WhatsAppGroup,
+            entity_type: EntityType::ExternalChat,
         },
         EntityPermission::AccessLevel {
             access_level: AccessLevel::View,
@@ -406,7 +411,7 @@ fn receipt<Permission: entity_access::domain::models::RequiredPermission>(
 /// The content of every standalone message for one WhatsApp message.
 async fn group_messages(pool: &PgPool, binding: Uuid, source_id: &str) -> Vec<String> {
     sqlx::query_scalar!(
-        "SELECT body FROM whatsapp_group_message WHERE binding_id=$1 AND source_id=$2 AND message_id IS NOT NULL",
+        "SELECT body FROM external_chat_message WHERE chat_id=$1 AND source_id=$2 AND message_id IS NOT NULL",
         binding,
         source_id
     )
@@ -417,7 +422,7 @@ async fn group_messages(pool: &PgPool, binding: Uuid, source_id: &str) -> Vec<St
 
 async fn observations(pool: &PgPool, binding: Uuid, source_id: &str) -> i64 {
     sqlx::query_scalar!(
-        r#"SELECT count(*) AS "count!" FROM whatsapp_message_observation WHERE binding_id = $1 AND source_id = $2"#,
+        r#"SELECT count(*) AS "count!" FROM whatsapp_message_observation WHERE chat_id = $1 AND source_id = $2"#,
         binding,
         source_id
     )
@@ -718,9 +723,9 @@ async fn a_phone_image_is_downloaded_for_import(pool: PgPool) {
     assert!(copies[0].contains("the damaged box"), "{copies:?}");
     let downloaded = wait_for_rows(&world.pool, TIMEOUT, || async {
         sqlx::query_scalar!(
-            "SELECT b.bytes FROM whatsapp_group_attachment a
-             JOIN whatsapp_media_blob b ON b.id = a.blob_id
-             WHERE a.binding_id = $1 AND a.source_id = $2 AND a.state = 'downloaded'",
+            "SELECT b.bytes FROM external_chat_attachment a
+             JOIN external_chat_media_blob b ON b.id = a.blob_id
+             WHERE a.chat_id = $1 AND a.source_id = $2 AND a.state = 'downloaded'",
             binding.id,
             &source
         )
@@ -805,7 +810,7 @@ async fn a_message_queued_before_a_crash_is_ingested_once(pool: PgPool) {
     // Hold ingestion back so the replica can only queue the event, then
     // crash it in that window.
     let mut blocker = world.pool.begin().await.unwrap();
-    sqlx::raw_sql("LOCK TABLE whatsapp_group_message IN SHARE ROW EXCLUSIVE MODE")
+    sqlx::raw_sql("LOCK TABLE external_chat_message IN SHARE ROW EXCLUSIVE MODE")
         .execute(&mut *blocker)
         .await
         .unwrap();
@@ -863,7 +868,7 @@ async fn group_renames_and_removals_in_whatsapp_reach_macro_live(pool: PgPool) {
         .rename_group(&world.group, "Escalations, renamed");
     let renamed = wait_for_rows(&world.pool, TIMEOUT, || async {
         sqlx::query_scalar!(
-            "SELECT name FROM whatsapp_group WHERE id = $1 AND name = 'Escalations, renamed'",
+            "SELECT name FROM external_chat WHERE id = $1 AND name = 'Escalations, renamed'",
             binding.id
         )
         .fetch_optional(&world.pool)
@@ -878,7 +883,7 @@ async fn group_renames_and_removals_in_whatsapp_reach_macro_live(pool: PgPool) {
     let line = wait_for_rows(&world.pool, TIMEOUT, || async {
         sqlx::query!(
             r#"SELECT rich->>'action' AS "action!", rich->>'value' AS value, (rich->>'byWhatsapp')::boolean AS "by_whatsapp!"
-            FROM whatsapp_group_message WHERE binding_id = $1 AND kind = 'system' AND message_id IS NOT NULL"#,
+            FROM external_chat_message WHERE chat_id = $1 AND kind = 'system' AND message_id IS NOT NULL"#,
             binding.id
         )
         .fetch_optional(&world.pool)
@@ -899,7 +904,7 @@ async fn group_renames_and_removals_in_whatsapp_reach_macro_live(pool: PgPool) {
     world.whatsapp.remove_from_group(&world.group, &world.alice);
     let left = wait_for_rows(&world.pool, TIMEOUT, || async {
         let listed = sqlx::query_scalar!(
-            r#"SELECT count(*) AS "count!" FROM whatsapp_group_roster r
+            r#"SELECT count(*) AS "count!" FROM whatsapp_roster r
             JOIN whatsapp_linked_account a ON a.id = r.account_id WHERE a.user_id = $1"#,
             ALICE
         )
@@ -952,9 +957,9 @@ async fn senders_named_only_by_lid_land_as_the_people_they_are(pool: PgPool) {
 
     let authors = sqlx::query!(
         r#"SELECT m.source_id, p.user_id, array_agg(a.jid ORDER BY a.jid) AS "aliases!"
-        FROM whatsapp_group_message m JOIN whatsapp_external_person p ON p.id = m.person_id
+        FROM external_chat_message m JOIN external_chat_person p ON p.id = m.person_id
         JOIN whatsapp_identity_alias a ON a.person_id = p.id
-        WHERE m.binding_id = $1 GROUP BY m.source_id, p.user_id"#,
+        WHERE m.chat_id = $1 GROUP BY m.source_id, p.user_id"#,
         binding.id
     )
     .fetch_all(&world.pool)
@@ -998,7 +1003,7 @@ async fn senders_named_only_by_lid_land_as_the_people_they_are(pool: PgPool) {
 async fn backfill_state(world: &World, binding: &Binding, states: &[&str]) -> (String, i32) {
     let state = wait_for_rows(&world.pool, TIMEOUT, || async {
         let row = sqlx::query!(
-            "SELECT backfill_state, backfill_imported FROM whatsapp_group WHERE id = $1",
+            "SELECT backfill_state, backfill_imported FROM external_chat WHERE id = $1",
             binding.id
         )
         .fetch_one(&world.pool)
@@ -1019,7 +1024,7 @@ async fn backfill_state(world: &World, binding: &Binding, states: &[&str]) -> (S
 /// stamps whole seconds, so time does not order them within a test).
 async fn origins(pool: &PgPool, binding: Uuid) -> Vec<(String, String)> {
     sqlx::query!(
-        "SELECT body, origin FROM whatsapp_group_message WHERE binding_id = $1 AND message_id IS NOT NULL ORDER BY body",
+        "SELECT body, origin FROM external_chat_message WHERE chat_id = $1 AND message_id IS NOT NULL ORDER BY body",
         binding
     )
     .fetch_all(pool)
@@ -1085,7 +1090,7 @@ async fn adding_a_group_imports_its_earlier_messages_once_without_notifying(pool
         .unwrap();
     assert_eq!(summary.unread_count, 0, "history is never unread");
     let notifying = sqlx::query_scalar!(
-        r#"SELECT count(*) AS "count!" FROM whatsapp_group_message WHERE binding_id = $1 AND origin <> 'history'"#,
+        r#"SELECT count(*) AS "count!" FROM external_chat_message WHERE chat_id = $1 AND origin <> 'history'"#,
         binding.id
     )
     .fetch_one(&world.pool)
@@ -1146,7 +1151,7 @@ async fn backfill_waits_for_an_offline_phone_and_never_duplicates_live_messages(
     // "old one" may also have arrived live, within adoption's clock skew.
     assert_eq!(
         (stored[0].1.as_str(), stored[1].1.as_str()),
-        ("whatsapp", "whatsapp")
+        ("remote", "remote")
     );
     replica.drain(TIMEOUT).await.unwrap();
 }
@@ -1178,7 +1183,7 @@ async fn a_quiet_group_waits_for_its_first_message_then_imports(pool: PgPool) {
     );
     assert_eq!(
         origins(&world.pool, binding.id).await,
-        [("anyone here?".to_owned(), "whatsapp".to_owned())]
+        [("anyone here?".to_owned(), "remote".to_owned())]
     );
     replica.drain(TIMEOUT).await.unwrap();
 }
@@ -1226,11 +1231,11 @@ async fn the_chat_list_follows_history_sync_and_live_messages(pool: PgPool) {
     let (direct, group) = world
         .expect(listed, "history sync lists the direct chat and the group")
         .await;
-    assert_eq!(direct.kind, ChatKind::Direct);
+    assert_eq!(direct.kind, ExternalChatKind::Direct);
     assert_eq!(direct.name, "Customer");
     assert!(direct.can_add);
     assert_eq!(direct.cannot_add_reason, None);
-    assert_eq!(group.kind, ChatKind::Group);
+    assert_eq!(group.kind, ExternalChatKind::Group);
     assert_eq!(group.name, "Customer escalations");
     assert!(group.can_add);
 

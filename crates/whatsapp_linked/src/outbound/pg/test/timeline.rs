@@ -10,7 +10,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
     entity_access_db_utils::direct_share::set(
         &mut tx,
         &binding.id,
-        EntityType::WhatsAppGroup,
+        EntityType::ExternalChat,
         &CAROL.to_owned().try_into().unwrap(),
         Some(AccessLevel::View),
         false,
@@ -29,14 +29,14 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
                 .0,
             None,
             &binding.id.to_string(),
-            EntityType::WhatsAppGroup,
+            EntityType::ExternalChat,
         )
         .await
         .unwrap();
     let detail = linked.group_detail(&receipt).await.unwrap();
-    assert_eq!(detail.group.name, "Customer escalations");
-    assert_eq!(detail.group.unread_count, 1);
-    assert_eq!(detail.group.send_reason, Some(ReplyBlock::NoAccount));
+    assert_eq!(detail.chat.name, "Customer escalations");
+    assert_eq!(detail.chat.unread_count, 1);
+    assert_eq!(detail.chat.send_reason, Some(ReplyBlock::NoAccount));
     assert!(detail.sending_identity.is_none());
     let messages = linked.messages(&receipt, None, Some(50)).await.unwrap();
     assert_eq!(messages.messages[0].body, "Shared history");
@@ -50,7 +50,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
         },
         Entity {
             entity_id: binding.id.to_string(),
-            entity_type: EntityType::WhatsAppGroup,
+            entity_type: EntityType::ExternalChat,
         },
         EntityPermission::AccessLevel {
             access_level: AccessLevel::View,
@@ -67,7 +67,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
         "Shared history"
     );
     let bot_detail = linked.group_detail(&bot_access).await.unwrap();
-    assert!(!bot_detail.group.can_send);
+    assert!(!bot_detail.chat.can_send);
     assert!(bot_detail.sending_identity.is_none());
     assert!(
         linked
@@ -119,7 +119,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
     entity_access_db_utils::direct_share::set(
         &mut tx,
         &binding.id,
-        EntityType::WhatsAppGroup,
+        EntityType::ExternalChat,
         &CAROL.to_owned().try_into().unwrap(),
         None,
         false,
@@ -135,7 +135,7 @@ async fn shared_viewer_without_whatsapp_reads_history_and_unread_but_cannot_send
                     .0,
                 None,
                 &binding.id.to_string(),
-                EntityType::WhatsAppGroup
+                EntityType::ExternalChat
             )
             .await
             .is_err()
@@ -345,7 +345,7 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
             .get_access_level(
                 Some(&carol.0),
                 &binding.id.to_string(),
-                EntityType::WhatsAppGroup
+                EntityType::ExternalChat
             )
             .await
             .unwrap(),
@@ -356,7 +356,7 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
             &carol.0,
             None,
             &binding.id.to_string(),
-            EntityType::WhatsAppGroup,
+            EntityType::ExternalChat,
         )
         .await
         .unwrap();
@@ -389,7 +389,7 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
             .get_access_level(
                 Some(&carol.0),
                 &binding.id.to_string(),
-                EntityType::WhatsAppGroup
+                EntityType::ExternalChat
             )
             .await
             .unwrap(),
@@ -412,7 +412,7 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
             .get_access_level(
                 Some(&carol.0),
                 &binding.id.to_string(),
-                EntityType::WhatsAppGroup
+                EntityType::ExternalChat
             )
             .await
             .unwrap(),
@@ -431,7 +431,7 @@ async fn canonical_team_sharing_is_owner_only_and_reversible(pool: PgPool) {
 async fn shared_sender_uses_own_roster_without_adopting_again(pool: PgPool) {
     let (linked, session, _, binding, alice, bob) = adopted(&pool).await;
     sqlx::query!(
-        "DELETE FROM whatsapp_group_membership WHERE binding_id=$1 AND account_id=$2",
+        "DELETE FROM whatsapp_chat_membership WHERE chat_id=$1 AND account_id=$2",
         binding.id,
         bob.account_id
     )
@@ -440,7 +440,7 @@ async fn shared_sender_uses_own_roster_without_adopting_again(pool: PgPool) {
     .unwrap();
     let access = receipt::<MessageView>(BOB, binding.id);
     let detail = linked.group_detail(&access).await.unwrap();
-    assert!(detail.group.can_send);
+    assert!(detail.chat.can_send);
     assert_eq!(detail.sending_identity.as_deref(), Some(BOB_JID));
     let progress = linked
         .send_reply(
@@ -495,7 +495,7 @@ async fn a_group_mentioned_in_a_channel_is_readable_by_its_current_members(pool:
     entity_access_db_utils::channel_share::insert_if_absent(
         &mut tx,
         &binding.id,
-        EntityType::WhatsAppGroup,
+        EntityType::ExternalChat,
         &channel,
         AccessLevel::View,
     )
@@ -572,7 +572,7 @@ async fn the_owner_sees_and_revokes_channel_grants(pool: PgPool) {
     entity_access_db_utils::channel_share::insert_if_absent(
         &mut transaction,
         &binding.id,
-        entity_access_db_utils::EntityType::WhatsAppGroup,
+        entity_access_db_utils::EntityType::ExternalChat,
         &Uuid::parse_str(&channel).unwrap(),
         AccessLevel::View,
     )

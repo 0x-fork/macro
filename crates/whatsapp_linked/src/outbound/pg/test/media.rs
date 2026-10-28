@@ -48,7 +48,7 @@ impl FileStore for Files {
 }
 
 async fn released_files(pool: &PgPool) -> Vec<Uuid> {
-    sqlx::query_scalar!("SELECT file_id FROM whatsapp_file_deletion ORDER BY file_id")
+    sqlx::query_scalar!("SELECT file_id FROM external_chat_file_deletion ORDER BY file_id")
         .fetch_all(pool)
         .await
         .unwrap()
@@ -72,10 +72,10 @@ fn photo(event: u128, sender: &str, source: &str, bytes: &[u8]) -> InboundEvent 
     event
 }
 
-async fn content(pool: &PgPool, group_id: Uuid) -> Vec<String> {
+async fn content(pool: &PgPool, chat_id: Uuid) -> Vec<String> {
     sqlx::query_scalar!(
-        "SELECT body FROM whatsapp_group_message WHERE binding_id=$1 AND message_id IS NOT NULL ORDER BY source_at",
-        group_id
+        "SELECT body FROM external_chat_message WHERE chat_id=$1 AND message_id IS NOT NULL ORDER BY source_at",
+        chat_id
     )
     .fetch_all(pool)
     .await
@@ -124,7 +124,7 @@ async fn an_inbound_photo_is_downloaded_once_and_becomes_a_static_file(pool: PgP
     ));
     assert_eq!(content(&pool, binding.id).await, vec![""]);
     let first = sqlx::query_scalar!(
-        "SELECT id FROM whatsapp_group_message WHERE binding_id=$1 AND message_id IS NOT NULL",
+        "SELECT id FROM external_chat_message WHERE chat_id=$1 AND message_id IS NOT NULL",
         binding.id
     )
     .fetch_one(&pool)
@@ -134,11 +134,8 @@ async fn an_inbound_photo_is_downloaded_once_and_becomes_a_static_file(pool: PgP
         .message_attachments(&receipt::<MessageView>(ALICE, binding.id), &[first])
         .await
         .unwrap();
-    assert_eq!(
-        states[0].linked_attachments[0].state,
-        AttachmentState::Unavailable
-    );
-    assert_eq!(states[0].linked_attachments[0].file_name, "receipt.jpg");
+    assert_eq!(states[0].attachments[0].state, AttachmentState::Unavailable);
+    assert_eq!(states[0].attachments[0].file_name, "receipt.jpg");
 
     // A fresh message imports cleanly, surviving one failed file write.
     session
@@ -154,12 +151,10 @@ async fn an_inbound_photo_is_downloaded_once_and_becomes_a_static_file(pool: PgP
     *files.fail.lock().unwrap() = 1;
     let media = MediaService::new(repository.clone(), files.clone());
     assert_eq!(media.import_pending().await.unwrap(), 0);
-    sqlx::query!(
-        "UPDATE whatsapp_group_attachment SET retry_at = now() WHERE state = 'downloaded'"
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    sqlx::query!("UPDATE external_chat_attachment SET retry_at = now() WHERE state = 'downloaded'")
+        .execute(&pool)
+        .await
+        .unwrap();
     assert_eq!(media.import_pending().await.unwrap(), 1);
     assert_eq!(media.import_pending().await.unwrap(), 0);
     let stored = files.stored.lock().unwrap().clone();
@@ -170,7 +165,7 @@ async fn an_inbound_photo_is_downloaded_once_and_becomes_a_static_file(pool: PgP
     );
     assert_eq!(stored[0].bytes, bytes);
     let attached =
-        sqlx::query_scalar!("SELECT file_id FROM whatsapp_group_attachment WHERE state = 'ready'")
+        sqlx::query_scalar!("SELECT file_id FROM external_chat_attachment WHERE state = 'ready'")
             .fetch_all(&pool)
             .await
             .unwrap();
@@ -181,7 +176,7 @@ async fn an_inbound_photo_is_downloaded_once_and_becomes_a_static_file(pool: PgP
         "attachment state does not rewrite the plain body"
     );
     let second = sqlx::query_scalar!(
-        "SELECT message_id AS \"id!\" FROM whatsapp_group_message WHERE source_id = '3EB0PIC2'"
+        "SELECT message_id AS \"id!\" FROM external_chat_message WHERE source_id = '3EB0PIC2'"
     )
     .fetch_one(&pool)
     .await
@@ -191,8 +186,8 @@ async fn an_inbound_photo_is_downloaded_once_and_becomes_a_static_file(pool: PgP
         .await
         .unwrap();
     assert_eq!(
-        states[0].linked_attachments[0],
-        LinkedAttachment {
+        states[0].attachments[0],
+        Attachment {
             ordinal: 0,
             state: AttachmentState::Ready,
             file_name: "receipt.jpg".into(),
@@ -205,7 +200,7 @@ async fn an_inbound_photo_is_downloaded_once_and_becomes_a_static_file(pool: PgP
             presentation: None,
         }
     );
-    let blobs = sqlx::query_scalar!(r#"SELECT count(*) AS "count!" FROM whatsapp_media_blob"#)
+    let blobs = sqlx::query_scalar!(r#"SELECT count(*) AS "count!" FROM external_chat_media_blob"#)
         .fetch_one(&pool)
         .await
         .unwrap();
@@ -284,7 +279,7 @@ async fn a_file_stored_after_its_message_was_deleted_is_deleted(pool: PgPool) {
     repository.import_stored(&imports[0], late).await.unwrap();
     assert_eq!(released_files(&pool).await, vec![late]);
     let ready = sqlx::query_scalar!(
-        r#"SELECT count(*) AS "count!" FROM whatsapp_group_attachment WHERE file_id IS NOT NULL"#
+        r#"SELECT count(*) AS "count!" FROM external_chat_attachment WHERE file_id IS NOT NULL"#
     )
     .fetch_one(&pool)
     .await
@@ -546,7 +541,7 @@ async fn a_sent_image_keeps_the_size_read_from_its_file(pool: PgPool) {
         .await
         .unwrap();
     let stored = sqlx::query!(
-        "SELECT width, height, duration_seconds FROM whatsapp_group_attachment WHERE binding_id = $1 AND source_id = '3EB0PNG'",
+        "SELECT width, height, duration_seconds FROM external_chat_attachment WHERE chat_id = $1 AND source_id = '3EB0PNG'",
         binding.id
     )
     .fetch_one(&pool)

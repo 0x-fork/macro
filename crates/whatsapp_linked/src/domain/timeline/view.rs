@@ -12,23 +12,23 @@ mod test;
 /// their verified Macro user) and the roster's names.
 #[derive(Debug, Default)]
 pub struct People {
-    by_jid: HashMap<String, WhatsAppPersonRef>,
+    by_jid: HashMap<String, ExternalChatPersonRef>,
 }
 
 impl People {
     /// Learn a person's name; the first name given for an id wins, so pass
     /// the better sources first.
-    pub fn learn(&mut self, jid: &str, person: WhatsAppPersonRef) {
+    pub fn learn(&mut self, jid: &str, person: ExternalChatPersonRef) {
         self.by_jid.entry(jid.to_owned()).or_insert(person);
     }
 
     /// The person behind an id: their name when known, else their phone
     /// number, else a generic name.
-    pub fn get(&self, jid: &str) -> WhatsAppPersonRef {
+    pub fn get(&self, jid: &str) -> ExternalChatPersonRef {
         if let Some(person) = self.by_jid.get(jid) {
             return person.clone();
         }
-        WhatsAppPersonRef {
+        ExternalChatPersonRef {
             name: crate::domain::jid::phone_number(jid)
                 .unwrap_or_else(|| UNKNOWN_PERSON.to_owned()),
             user_id: None,
@@ -47,16 +47,16 @@ pub struct StoredVote {
     /// Hashes of the options chosen.
     pub selected: Vec<String>,
     /// Who voted.
-    pub voter: WhatsAppPersonRef,
+    pub voter: ExternalChatPersonRef,
 }
 
 /// The mentions of a body, by name.
-pub fn mentions_view(mentions: &[String], people: &People) -> Vec<WhatsAppMention> {
+pub fn mentions_view(mentions: &[String], people: &People) -> Vec<ExternalChatMention> {
     mentions
         .iter()
         .filter_map(|jid| {
             let (token, _) = jid.split_once('@')?;
-            Some(WhatsAppMention {
+            Some(ExternalChatMention {
                 token: token.to_owned(),
                 person: people.get(jid),
             })
@@ -64,13 +64,13 @@ pub fn mentions_view(mentions: &[String], people: &People) -> Vec<WhatsAppMentio
         .collect()
 }
 
-fn poll_option(option: &PollOption, votes: &[&StoredVote], viewer: &str) -> WhatsAppPollOption {
-    let voters: Vec<WhatsAppPersonRef> = votes
+fn poll_option(option: &PollOption, votes: &[&StoredVote], viewer: &str) -> ExternalChatPollOption {
+    let voters: Vec<ExternalChatPersonRef> = votes
         .iter()
         .filter(|vote| vote.selected.contains(&option.hash))
         .map(|vote| vote.voter.clone())
         .collect();
-    WhatsAppPollOption {
+    ExternalChatPollOption {
         name: option.name.clone(),
         votes: voters.len() as i64,
         mine: voters
@@ -82,10 +82,10 @@ fn poll_option(option: &PollOption, votes: &[&StoredVote], viewer: &str) -> What
 
 fn system_view(
     line: SystemLine,
-    sender: &WhatsAppPersonRef,
+    sender: &ExternalChatPersonRef,
     people: &People,
-) -> WhatsAppSystemLine {
-    WhatsAppSystemLine {
+) -> ExternalChatSystemLine {
+    ExternalChatSystemLine {
         action: line.action,
         actor: (!line.by_whatsapp).then(|| sender.clone()),
         participants: line
@@ -102,13 +102,13 @@ fn system_view(
 /// message; `viewer` decides `mine`.
 pub fn rich_view(
     rich: RichContent,
-    sender: &WhatsAppPersonRef,
+    sender: &ExternalChatPersonRef,
     votes: &[&StoredVote],
     viewer: &str,
     people: &People,
-) -> Option<WhatsAppRichContent> {
+) -> Option<ExternalChatRichContent> {
     Some(match rich {
-        RichContent::Poll(poll) => WhatsAppRichContent::Poll(WhatsAppPoll {
+        RichContent::Poll(poll) => ExternalChatRichContent::Poll(ExternalChatPoll {
             options: poll
                 .options
                 .iter()
@@ -123,16 +123,18 @@ pub fn rich_view(
         }),
         // Links were sender-supplied; ones stored before they were checked
         // are checked again.
-        RichContent::Location(location) => WhatsAppRichContent::Location(Location {
+        RichContent::Location(location) => ExternalChatRichContent::Location(Location {
             url: location.url.as_deref().and_then(web_link),
             ..location
         }),
-        RichContent::Contacts(contacts) => WhatsAppRichContent::Contacts(contacts),
-        RichContent::Event(event) => WhatsAppRichContent::Event(Event {
+        RichContent::Contacts(contacts) => ExternalChatRichContent::Contacts(contacts),
+        RichContent::Event(event) => ExternalChatRichContent::Event(Event {
             join_link: event.join_link.as_deref().and_then(web_link),
             ..event
         }),
-        RichContent::System(line) => WhatsAppRichContent::System(system_view(line, sender, people)),
+        RichContent::System(line) => {
+            ExternalChatRichContent::System(system_view(line, sender, people))
+        }
         // Votes are applied to their poll, never shown on their own.
         RichContent::PollVote(_) => return None,
     })

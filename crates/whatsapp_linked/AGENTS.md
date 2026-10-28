@@ -2,14 +2,18 @@
 
 ## What it is
 
-Personal WhatsApp accounts linked as devices: owner-bound pairing, adopting an
-existing group or direct chat as the adopter's own, independently shared
-`WhatsAppGroup` entity (one per owner and WhatsApp chat, named after WhatsApp),
-ingesting chat traffic, and deliberate sends from each person's own account.
-"Group" in table, column, type and route names means any added chat;
-`Binding.kind` / `whatsapp_group.kind` says group or direct (only the owner
-sends in a direct chat). DSS serves the HTTP API
-(`/meta/linked/*`); the WhatsApp session service calls
+External chats and their one provider, personal WhatsApp accounts linked as
+devices: owner-bound pairing, adding an existing group or direct chat as the
+adder's own, independently shared `ExternalChat` entity (one per owner,
+provider and remote chat, named after WhatsApp), ingesting chat traffic, and
+deliberate sends from each person's own account. The crate holds both the
+provider-neutral domain (timeline, read state, sharing, sends, uploads,
+notification effects, `/external-chats` routes) and the WhatsApp provider
+(pairing, roster, chat list, JIDs, ingest, dispatch, `/whatsapp` routes).
+Internal names such as `Binding` (an added chat) and `GroupFacts` predate the
+split. `Binding.kind` / `external_chat.kind` says group or direct (only the
+owner sends in a direct chat). DSS serves the HTTP API (`/external-chats/*`,
+`/whatsapp/*`); the WhatsApp session service calls
 `domain::session::SessionService` in-process. They share no HTTP: only MacroDB
 rows and `NOTIFY` (the `outbound::pg` notify helper).
 
@@ -26,15 +30,15 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
   pair. Only what is still LID-only is quarantined.
 - `src/domain/rich.rs`: stored structured content (`RichContent`: poll, poll
   vote, location, contact cards, event, system line) in
-  `whatsapp_group_message.rich`; `kind = 'system'` rows never notify or count
+  `external_chat_message.rich`; `kind = 'system'` rows never notify or count
   as unread. `src/domain/timeline/view.rs` resolves ids in mentions, system
   lines and votes to names and tallies polls. Poll votes are stored per voter
-  in `whatsapp_group_poll_vote` through the reaction path of `reserve_in`. A
+  in `external_chat_poll_vote` through the reaction path of `reserve_in`. A
   re-ingested message fills in `rich`/`mentions`/`forwarded` an earlier copy
   lacked (re-importing history upgrades old placeholders).
 - `src/outbound/pg/chats.rs`: the account's chat list (`whatsapp_chat`,
-  `GET /chats` via `LinkedService::chats`) and importing earlier messages of
-  added groups (`backfill_*` columns on `whatsapp_group`; limits
+  `GET /whatsapp/chats` via `LinkedService::chats`) and importing earlier messages of
+  added chats (`backfill_*` columns on `external_chat`; limits
   `BACKFILL_MESSAGE_LIMIT` / `BACKFILL_MAX_AGE_DAYS` in `models.rs`). The
   anchor is the chat's `whatsapp_chat.anchor`, else the newest stored message
   the account saw; without one the group is `waiting_for_message` until a chat
@@ -47,23 +51,24 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
   (`src/signals/trace_context.rs`), public so DSS and the session service
   never import `outbound`; `src/outbound/pg.rs` sends them inside the
   writing transaction. Every write a page shows calls
-  `notify_change` (`whatsapp_changed`); DSS pushes it to viewers. Roster writes
+  `notify_change` (`external_chat_changed`); DSS pushes it to viewers. Roster writes
   signal only real changes (`groups.rs` `same_facts`).
 - Migrations:
   `crates/macro_db_client/migrations/20261027061310_whatsapp_linked.sql` (the
-  final schema, including the one view rule `whatsapp_group_access_level`, which
-  entity_access also calls) and
-  `20261027061311_validate_entity_whatsapp_group_type.sql` (validates the entity
-  type check in its own transaction), then
+  first schema, with its entity type validation), then
   `20261027194950_whatsapp_attachments_as_static_files.sql` (attachments keep a
-  static `file_id`; released files queue in `whatsapp_file_deletion`). Deleting a user cascades to their account,
+  static `file_id`), then `*_external_chat.sql` (the generic `external_chat*`
+  tables, the view rule `external_chat_access_level` that entity_access also
+  calls, and `whatsapp_roster`/`whatsapp_chat_membership`; released files
+  queue in `external_chat_file_deletion`) and its entity type validation.
+  Deleting a user cascades to their account,
   chats (with their grants, entity record and sharing settings) and sends;
   aliases outlive the account that saw them.
 ## Boundaries
 
 - Depends on: `entity_access` (group receipts; owner-only routes take an owner receipt), `entity_access_db_utils`
   (ordinary grants), `entity_registry_db_utils`, and `share_permission_db_utils`.
-- Used by: DSS (`src/whatsapp_linked.rs` composition), the session service.
+- Used by: DSS (`src/external_chat.rs` composition), the session service.
 
 ## Checks
 
@@ -83,25 +88,26 @@ rows and `NOTIFY` (the `outbound::pg` notify helper).
 - Bot view receipts can read a known shared group, but never borrow an acting user's phone, send records, or unread cursor.
 - View access uses ordinary `entity_access` grants (people, teams, and channels
   through mentions) and link/team sharing, independent of WhatsApp membership;
-  `whatsapp_group_can_view` and entity_access both call `whatsapp_group_access_level`; change the rule only there. Only the adopter receives an owner grant; use the generic
+  `external_chat_can_view` and entity_access both call `external_chat_access_level`; change the rule only there. Only the adopter receives an owner grant; use the generic
   direct-access endpoints to share with people.
 - `src/domain/timeline.rs` and `src/domain/service/timeline.rs` own list/detail,
-  timeline, unread and sharing use cases. Group HTTP paths are
-  `/meta/linked/whatsapp-groups/{group_id}`. Soup/search are deferred.
-- Store messages/reactions/attachments/poll votes in `whatsapp_group_message`,
-  `whatsapp_group_reaction`, `whatsapp_group_attachment` and
-  `whatsapp_group_poll_vote`; never native comms tables.
-- Attachment bytes cross Postgres (`whatsapp_media_blob`, ≤ 32 MiB) because the
+  timeline, unread and sharing use cases. Chat HTTP paths are
+  `/external-chats/{chat_id}`; queries look chats up by `(provider,
+  remote_id)`. Soup/search are deferred.
+- Store messages/reactions/attachments/poll votes in `external_chat_message`,
+  `external_chat_reaction`, `external_chat_attachment` and
+  `external_chat_poll_vote`; never native comms tables.
+- Attachment bytes cross Postgres (`external_chat_media_blob`, ≤ 32 MiB) because the
   session service has no file storage; DSS stores them as static files (like
   Chat's media, readable by id) through the `FileStore` port and deletes the
-  blob. A file no attachment references is queued in `whatsapp_file_deletion`
+  blob. A file no attachment references is queued in `external_chat_file_deletion`
   (trigger) and deleted by `MediaService::delete_released`.
   `events::Media::locator` is sealed by the session service; never read it.
 - `src/domain/media.rs` + `src/outbound/pg/media.rs`: download claims, import
   queue. `src/domain/shape.rs` reads a staged upload's pixel size and length
-  (stored on `whatsapp_media_blob`, sent with the message). Not implemented:
+  (stored on `external_chat_media_blob`, sent with the message). Not implemented:
   participant-receipt UI.
 
 ## Related
 
-- Docs: `docs/architecture/whatsapp-linked-devices.md` · Rules: `.agents/rules/observability.md`
+- Docs: `docs/architecture/external-chats.md`, `docs/architecture/whatsapp-linked-devices.md` · Rules: `.agents/rules/observability.md`

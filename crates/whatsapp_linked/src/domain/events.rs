@@ -1,7 +1,7 @@
 //! Types exchanged in-process with the WhatsApp session service. They carry no
 //! whatsmeow types: the session service maps protocol events onto them.
 
-use super::models::{BackfillState, ChatKind, Identity, MediaPresentation, PairingState};
+use super::models::{BackfillState, ExternalChatKind, Identity, MediaPresentation, PairingState};
 pub use super::rich::RichContent;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -332,7 +332,7 @@ pub struct MediaShape {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AttachmentRef {
     /// Binding the message belongs to.
-    pub binding_id: Uuid,
+    pub chat_id: Uuid,
     /// Verified author.
     pub person_id: Uuid,
     /// WhatsApp message id.
@@ -390,7 +390,7 @@ pub struct ClaimedSend {
     /// Group to send to.
     pub group_jid: String,
     /// Commit order within the group, across all accounts.
-    pub group_sequence: i64,
+    pub chat_sequence: i64,
     /// Content.
     pub content: OutgoingContent,
     /// The group's disappearing-messages timer in seconds, as the sending
@@ -440,7 +440,7 @@ pub struct ChatUpdate {
     /// Chat JID (groups; direct chats by phone-number JID when known).
     pub jid: String,
     /// Group or direct.
-    pub kind: ChatKind,
+    pub kind: ExternalChatKind,
     /// Group subject, or the contact or WhatsApp name of a direct chat.
     pub name: Option<String>,
     /// Activity; only ever moves forward.
@@ -460,7 +460,7 @@ pub struct ChatUpdate {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BackfillWork {
     /// Group entity.
-    pub group_id: Uuid,
+    pub chat_id: Uuid,
     /// WhatsApp group.
     pub group_jid: String,
     /// Progress.

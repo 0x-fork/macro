@@ -1,5 +1,7 @@
-//! Thin HTTP adapter: authenticated owners and WhatsApp group receipts flow to
-//! [`LinkedService`]. Mounted by DSS under `/meta/linked`.
+//! Thin HTTP adapter: authenticated owners and external chat receipts flow to
+//! [`LinkedService`]. DSS mounts [`external_chats_router`] at `/external-chats`
+//! (any provider's added chats) and [`whatsapp_router`] at `/whatsapp` (the
+//! WhatsApp account, pairing and chat list).
 
 use crate::domain::{models::*, service::LinkedService, timeline::*};
 use axum::extract::Query;
@@ -12,7 +14,7 @@ use axum::{
 };
 use entity_access::domain::models::{OwnerAccessLevel, ViewAccessLevel};
 use entity_access::{
-    domain::ports::EntityAccessService, inbound::axum_extractors::WhatsAppGroupAccessLevelExtractor,
+    domain::ports::EntityAccessService, inbound::axum_extractors::ExternalChatAccessLevelExtractor,
 };
 use macro_authorization::{
     CredentialOrigin, MacroAuthorizationExtractor, MacroAuthorizationService,
@@ -100,7 +102,7 @@ impl IntoResponse for ApiError {
 /// Explicit pairing intent; replacement is a separate deliberate action.
 #[derive(Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[schema(as = LinkedConnect)]
+#[schema(as = WhatsAppConnect)]
 pub struct Connect {
     /// Replace the retained identity with a different WhatsApp account.
     #[serde(default)]
@@ -110,7 +112,7 @@ pub struct Connect {
 /// The consent generation the owner deliberately disconnects.
 #[derive(Deserialize, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
-#[schema(as = LinkedDisconnectRequest)]
+#[schema(as = WhatsAppDisconnectRequest)]
 pub struct DisconnectRequest {
     /// Fences retries against a later reconnect or replacement.
     pub authorization_generation: i64,
@@ -127,77 +129,87 @@ fn authority(user: &MacroUserAuthentication) -> SendAuthority {
     }
 }
 
-/// Build the routes. Pairing codes and send drafts are never cached.
-pub fn router<Eas, Auth, S>(state: LinkedRouterState<Eas, Auth>) -> Router<S>
+/// Pairing codes and send drafts are never cached.
+fn no_store<S: Clone + Send + Sync + 'static>(router: Router<S>) -> Router<S> {
+    router.layer(axum::middleware::map_response(
+        |mut response: Response| async move {
+            let headers = response.headers_mut();
+            headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+            headers.insert(
+                header::REFERRER_POLICY,
+                HeaderValue::from_static("no-referrer"),
+            );
+            response
+        },
+    ))
+}
+
+/// Added chats of any provider, under `/external-chats`.
+pub fn external_chats_router<Eas, Auth, S>(state: LinkedRouterState<Eas, Auth>) -> Router<S>
 where
     Eas: EntityAccessService,
     Auth: MacroAuthorizationService,
     S: Send + Sync + 'static,
 {
-    Router::new()
-        .route("/account", get(account::<Eas, Auth>))
-        .route("/connect", post(connect::<Eas, Auth>))
-        .route("/disconnect", post(disconnect::<Eas, Auth>))
-        .route(
-            "/pairing/{id}",
-            get(pairing::<Eas, Auth>).delete(cancel::<Eas, Auth>),
-        )
-        .route("/chats", get(chats::<Eas, Auth>))
-        .route("/groups/adopt", post(adopt::<Eas, Auth>))
-        .route("/whatsapp-groups", get(adopted_groups::<Eas, Auth>))
-        .route(
-            "/whatsapp-groups/{group_id}",
-            get(group::<Eas, Auth>).delete(detach::<Eas, Auth>),
-        )
-        .route(
-            "/whatsapp-groups/{group_id}/messages",
-            get(messages::<Eas, Auth>),
-        )
-        .route(
-            "/whatsapp-groups/{group_id}/messages/{message_id}",
-            get(message::<Eas, Auth>),
-        )
-        .route(
-            "/whatsapp-groups/{group_id}/read",
-            post(mark_read::<Eas, Auth>),
-        )
-        .route(
-            "/whatsapp-groups/{group_id}/permissions",
-            get(permissions::<Eas, Auth>).patch(update_permissions::<Eas, Auth>),
-        )
-        .route("/pairing/{id}/passkey", post(passkey::<Eas, Auth>))
-        .route(
-            "/whatsapp-groups/{group_id}/sends",
-            get(open_sends::<Eas, Auth>).post(reply::<Eas, Auth>),
-        )
-        .route(
-            "/whatsapp-groups/{group_id}/attachments",
-            post(upload::<Eas, Auth>).layer(DefaultBodyLimit::max(MEDIA_LIMIT_BYTES + 64 * 1024)),
-        )
-        .route(
-            "/whatsapp-groups/{group_id}/delivery",
-            post(delivery::<Eas, Auth>),
-        )
-        .route(
-            "/whatsapp-groups/{group_id}/messages/attachments",
-            post(message_attachments::<Eas, Auth>),
-        )
-        .layer(axum::middleware::map_response(
-            |mut response: Response| async move {
-                let headers = response.headers_mut();
-                headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-                headers.insert(
-                    header::REFERRER_POLICY,
-                    HeaderValue::from_static("no-referrer"),
-                );
-                response
-            },
-        ))
-        .with_state(state)
+    no_store(
+        Router::new()
+            .route("/", get(list::<Eas, Auth>).post(add::<Eas, Auth>))
+            .route(
+                "/{chat_id}",
+                get(chat::<Eas, Auth>).delete(remove::<Eas, Auth>),
+            )
+            .route("/{chat_id}/messages", get(messages::<Eas, Auth>))
+            .route(
+                "/{chat_id}/messages/{message_id}",
+                get(message::<Eas, Auth>),
+            )
+            .route(
+                "/{chat_id}/messages/attachments",
+                post(message_attachments::<Eas, Auth>),
+            )
+            .route("/{chat_id}/read", post(mark_read::<Eas, Auth>))
+            .route(
+                "/{chat_id}/permissions",
+                get(permissions::<Eas, Auth>).patch(update_permissions::<Eas, Auth>),
+            )
+            .route(
+                "/{chat_id}/sends",
+                get(open_sends::<Eas, Auth>).post(send::<Eas, Auth>),
+            )
+            .route(
+                "/{chat_id}/attachments",
+                post(upload::<Eas, Auth>)
+                    .layer(DefaultBodyLimit::max(MEDIA_LIMIT_BYTES + 64 * 1024)),
+            )
+            .route("/{chat_id}/delivery", post(delivery::<Eas, Auth>)),
+    )
+    .with_state(state)
+}
+
+/// The caller's WhatsApp account, pairing and chat list, under `/whatsapp`.
+pub fn whatsapp_router<Eas, Auth, S>(state: LinkedRouterState<Eas, Auth>) -> Router<S>
+where
+    Eas: EntityAccessService,
+    Auth: MacroAuthorizationService,
+    S: Send + Sync + 'static,
+{
+    no_store(
+        Router::new()
+            .route("/account", get(account::<Eas, Auth>))
+            .route("/connect", post(connect::<Eas, Auth>))
+            .route("/disconnect", post(disconnect::<Eas, Auth>))
+            .route(
+                "/pairing/{id}",
+                get(pairing::<Eas, Auth>).delete(cancel::<Eas, Auth>),
+            )
+            .route("/pairing/{id}/passkey", post(passkey::<Eas, Auth>))
+            .route("/chats", get(chats::<Eas, Auth>)),
+    )
+    .with_state(state)
 }
 
 /// The caller's own account.
-#[utoipa::path(get, path = "/meta/linked/account", operation_id = "linked_account", responses((status = 200, body = AccountView)))]
+#[utoipa::path(get, path = "/whatsapp/account", operation_id = "whatsapp_account", responses((status = 200, body = AccountView)))]
 pub async fn account<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
@@ -211,7 +223,7 @@ pub async fn account<Eas, Auth: MacroAuthorizationService>(
 }
 
 /// Start or resume the caller's pairing transaction.
-#[utoipa::path(post, path = "/meta/linked/connect", operation_id = "linked_connect", request_body = Connect, responses((status = 200, body = Pairing)))]
+#[utoipa::path(post, path = "/whatsapp/connect", operation_id = "whatsapp_connect", request_body = Connect, responses((status = 200, body = Pairing)))]
 pub async fn connect<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
@@ -230,7 +242,7 @@ pub async fn connect<Eas, Auth: MacroAuthorizationService>(
 }
 
 /// Poll the caller's pairing transaction, including its current QR code.
-#[utoipa::path(get, path = "/meta/linked/pairing/{id}", operation_id = "linked_pairing", params(("id" = Uuid, Path)), responses((status = 200, body = PairState)))]
+#[utoipa::path(get, path = "/whatsapp/pairing/{id}", operation_id = "whatsapp_pairing", params(("id" = Uuid, Path)), responses((status = 200, body = PairState)))]
 pub async fn pairing<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
@@ -249,7 +261,7 @@ pub async fn pairing<Eas, Auth: MacroAuthorizationService>(
 }
 
 /// Cancel the caller's pairing transaction.
-#[utoipa::path(delete, path = "/meta/linked/pairing/{id}", operation_id = "linked_cancel_pairing", params(("id" = Uuid, Path)), responses((status = 204)))]
+#[utoipa::path(delete, path = "/whatsapp/pairing/{id}", operation_id = "whatsapp_cancel_pairing", params(("id" = Uuid, Path)), responses((status = 204)))]
 pub async fn cancel<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
@@ -267,7 +279,7 @@ pub async fn cancel<Eas, Auth: MacroAuthorizationService>(
 }
 
 /// Forward the owner's WebAuthn assertion to the pairing replica.
-#[utoipa::path(post, path = "/meta/linked/pairing/{id}/passkey", operation_id = "linked_passkey", params(("id" = Uuid, Path)), request_body = Object, responses((status = 204)))]
+#[utoipa::path(post, path = "/whatsapp/pairing/{id}/passkey", operation_id = "whatsapp_passkey", params(("id" = Uuid, Path)), request_body = Object, responses((status = 204)))]
 pub async fn passkey<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
@@ -288,19 +300,19 @@ pub async fn passkey<Eas, Auth: MacroAuthorizationService>(
 
 /// Multipart body of the attachments route.
 #[derive(utoipa::ToSchema)]
-#[schema(as = LinkedUploadRequest)]
+#[schema(as = ExternalChatUploadRequest)]
 pub struct UploadRequest {
     /// One supported image, audio, video, PDF or text file.
     #[schema(value_type = String, format = Binary)]
     pub file: Vec<u8>,
 }
 
-/// Stage one attachment for a later media reply in this group.
-#[utoipa::path(post, path = "/meta/linked/whatsapp-groups/{group_id}/attachments", operation_id = "linked_upload", params(("group_id" = Uuid, Path)), request_body(content = UploadRequest, content_type = "multipart/form-data"), responses((status = 200, body = UploadedAttachment)))]
+/// Stage one attachment for a later media send in this chat.
+#[utoipa::path(post, path = "/external-chats/{chat_id}/attachments", operation_id = "external_chat_upload", params(("chat_id" = Uuid, Path)), request_body(content = UploadRequest, content_type = "multipart/form-data"), responses((status = 200, body = UploadedAttachment)))]
 pub async fn upload<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
     mut input: Multipart,
 ) -> Result<Json<UploadedAttachment>, ApiError> {
     let invalid = |message| ApiError(LinkedError::Invalid(message));
@@ -339,7 +351,7 @@ pub async fn upload<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
 }
 
 /// End the caller's observation consent.
-#[utoipa::path(post, path = "/meta/linked/disconnect", operation_id = "linked_disconnect", request_body = DisconnectRequest, responses((status = 200, body = Disconnect)))]
+#[utoipa::path(post, path = "/whatsapp/disconnect", operation_id = "whatsapp_disconnect", request_body = DisconnectRequest, responses((status = 200, body = Disconnect)))]
 pub async fn disconnect<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
@@ -359,7 +371,7 @@ pub async fn disconnect<Eas, Auth: MacroAuthorizationService>(
 
 /// The caller's WhatsApp chat list (groups and direct chats), newest
 /// activity first, with what can be added to Macro.
-#[utoipa::path(get, path = "/meta/linked/chats", operation_id = "linked_chats", responses((status = 200, body = ChatList)))]
+#[utoipa::path(get, path = "/whatsapp/chats", operation_id = "whatsapp_chats", responses((status = 200, body = ChatList)))]
 pub async fn chats<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
@@ -372,13 +384,13 @@ pub async fn chats<Eas, Auth: MacroAuthorizationService>(
     ))
 }
 
-/// Adopt one of the caller's groups into a standalone group entity.
-#[utoipa::path(post, path = "/meta/linked/groups/adopt", operation_id = "linked_adopt", request_body = AdoptGroup, responses((status = 200, body = AdoptedGroup)))]
-pub async fn adopt<Eas, Auth: MacroAuthorizationService>(
+/// Add one of the caller's provider chats as their own external chat.
+#[utoipa::path(post, path = "/external-chats", operation_id = "external_chat_add", request_body = AddChat, responses((status = 200, body = AddedChat)))]
+pub async fn add<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-    Json(body): Json<AdoptGroup>,
-) -> Result<Json<AdoptedGroup>, ApiError> {
+    Json(body): Json<AddChat>,
+) -> Result<Json<AddedChat>, ApiError> {
     let binding = state
         .service
         .adopt(
@@ -387,17 +399,17 @@ pub async fn adopt<Eas, Auth: MacroAuthorizationService>(
             authority(&auth.authorization),
         )
         .await?;
-    Ok(Json(AdoptedGroup {
-        group_id: binding.id,
+    Ok(Json(AddedChat {
+        chat_id: binding.id,
     }))
 }
 
-/// Linked metadata for a group the caller can read.
-#[utoipa::path(get, path = "/meta/linked/whatsapp-groups/{group_id}", operation_id = "whatsapp_group", params(("group_id" = Uuid, Path)), responses((status = 200, body = WhatsAppGroupDetail)))]
-pub async fn group<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
+/// An external chat the caller can read.
+#[utoipa::path(get, path = "/external-chats/{chat_id}", operation_id = "external_chat", params(("chat_id" = Uuid, Path)), responses((status = 200, body = ExternalChatDetail)))]
+pub async fn chat<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
-) -> Result<Json<WhatsAppGroupDetail>, ApiError> {
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+) -> Result<Json<ExternalChatDetail>, ApiError> {
     Ok(Json(
         state
             .service
@@ -406,12 +418,12 @@ pub async fn group<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     ))
 }
 
-/// Send to WhatsApp from the caller's own account (one request per second per user).
-#[utoipa::path(post, path = "/meta/linked/whatsapp-groups/{group_id}/sends", operation_id = "linked_reply", params(("group_id" = Uuid, Path)), request_body = SendReply, responses((status = 200, body = SendProgress), (status = 429, description = "One send request per second per user; Retry-After: 1")))]
-pub async fn reply<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
+/// Send to the chat from the caller's own provider account (one request per second per user).
+#[utoipa::path(post, path = "/external-chats/{chat_id}/sends", operation_id = "external_chat_send", params(("chat_id" = Uuid, Path)), request_body = SendReply, responses((status = 200, body = SendProgress), (status = 429, description = "One send request per second per user; Retry-After: 1")))]
+pub async fn send<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
     Json(body): Json<SendReply>,
 ) -> Result<Json<SendProgress>, ApiError> {
     Ok(Json(
@@ -426,11 +438,11 @@ pub async fn reply<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     ))
 }
 
-/// The caller's send progress for intents or group messages.
-#[utoipa::path(post, path = "/meta/linked/whatsapp-groups/{group_id}/delivery", operation_id = "linked_delivery", params(("group_id" = Uuid, Path)), request_body = Vec<Uuid>, responses((status = 200, body = Vec<SendProgress>)))]
+/// The caller's send progress for intents or messages.
+#[utoipa::path(post, path = "/external-chats/{chat_id}/delivery", operation_id = "external_chat_delivery", params(("chat_id" = Uuid, Path)), request_body = Vec<Uuid>, responses((status = 200, body = Vec<SendProgress>)))]
 pub async fn delivery<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
     Json(ids): Json<Vec<Uuid>>,
 ) -> Result<Json<Vec<SendProgress>>, ApiError> {
     Ok(Json(
@@ -441,11 +453,11 @@ pub async fn delivery<Eas: EntityAccessService, Auth: MacroAuthorizationService>
     ))
 }
 
-/// Attachment states of linked messages, by group message id (at most 100).
-#[utoipa::path(post, path = "/meta/linked/whatsapp-groups/{group_id}/messages/attachments", operation_id = "linked_message_attachments", params(("group_id" = Uuid, Path)), request_body = Vec<Uuid>, responses((status = 200, body = Vec<MessageAttachments>)))]
+/// Attachment states of messages, by message id (at most 100).
+#[utoipa::path(post, path = "/external-chats/{chat_id}/messages/attachments", operation_id = "external_chat_message_attachments", params(("chat_id" = Uuid, Path)), request_body = Vec<Uuid>, responses((status = 200, body = Vec<MessageAttachments>)))]
 pub async fn message_attachments<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
     Json(ids): Json<Vec<Uuid>>,
 ) -> Result<Json<Vec<MessageAttachments>>, ApiError> {
     Ok(Json(
@@ -456,12 +468,12 @@ pub async fn message_attachments<Eas: EntityAccessService, Auth: MacroAuthorizat
     ))
 }
 
-/// Stop syncing the group, locally. Owner only, in their own session.
-#[utoipa::path(delete, path = "/meta/linked/whatsapp-groups/{group_id}", operation_id = "linked_detach", params(("group_id" = Uuid, Path)), responses((status = 204)))]
-pub async fn detach<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
+/// Stop syncing the chat, locally. Owner only, in their own session.
+#[utoipa::path(delete, path = "/external-chats/{chat_id}", operation_id = "external_chat_remove", params(("chat_id" = Uuid, Path)), responses((status = 204)))]
+pub async fn remove<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-    access: WhatsAppGroupAccessLevelExtractor<OwnerAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<OwnerAccessLevel, Eas, Auth>,
 ) -> Result<StatusCode, ApiError> {
     state
         .service
@@ -473,12 +485,12 @@ pub async fn detach<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// List adopted groups the caller can view, including without WhatsApp.
-#[utoipa::path(get, path = "/meta/linked/whatsapp-groups", operation_id = "whatsapp_groups", responses((status = 200, body = Vec<WhatsAppGroupSummary>)))]
-pub async fn adopted_groups<Eas, Auth: MacroAuthorizationService>(
+/// List external chats the caller can view, including without a provider account.
+#[utoipa::path(get, path = "/external-chats", operation_id = "external_chats", responses((status = 200, body = Vec<ExternalChatSummary>)))]
+pub async fn list<Eas, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-) -> Result<Json<Vec<WhatsAppGroupSummary>>, ApiError> {
+) -> Result<Json<Vec<ExternalChatSummary>>, ApiError> {
     Ok(Json(
         state
             .service
@@ -498,12 +510,12 @@ pub struct TimelineQuery {
 }
 
 /// Newest-first timeline through ordinary view access.
-#[utoipa::path(get, path = "/meta/linked/whatsapp-groups/{group_id}/messages", operation_id = "whatsapp_group_messages", params(("group_id" = Uuid, Path), TimelineQuery), responses((status = 200, body = WhatsAppGroupMessages)))]
+#[utoipa::path(get, path = "/external-chats/{chat_id}/messages", operation_id = "external_chat_messages", params(("chat_id" = Uuid, Path), TimelineQuery), responses((status = 200, body = ExternalChatMessages)))]
 pub async fn messages<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
     Query(query): Query<TimelineQuery>,
-) -> Result<Json<WhatsAppGroupMessages>, ApiError> {
+) -> Result<Json<ExternalChatMessages>, ApiError> {
     Ok(Json(
         state
             .service
@@ -516,18 +528,18 @@ pub async fn messages<Eas: EntityAccessService, Auth: MacroAuthorizationService>
 #[derive(Deserialize)]
 pub struct MessagePath {
     /// Unused here; the access extractor reads it.
-    pub group_id: Uuid,
+    pub chat_id: Uuid,
     /// The message.
     pub message_id: Uuid,
 }
 
 /// One message of the timeline, as the timeline shows it.
-#[utoipa::path(get, path = "/meta/linked/whatsapp-groups/{group_id}/messages/{message_id}", operation_id = "whatsapp_group_message", params(("group_id" = Uuid, Path), ("message_id" = Uuid, Path)), responses((status = 200, body = WhatsAppGroupMessage)))]
+#[utoipa::path(get, path = "/external-chats/{chat_id}/messages/{message_id}", operation_id = "external_chat_message", params(("chat_id" = Uuid, Path), ("message_id" = Uuid, Path)), responses((status = 200, body = ExternalChatMessage)))]
 pub async fn message<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
     Path(path): Path<MessagePath>,
-) -> Result<Json<WhatsAppGroupMessage>, ApiError> {
+) -> Result<Json<ExternalChatMessage>, ApiError> {
     Ok(Json(
         state
             .service
@@ -537,10 +549,10 @@ pub async fn message<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
 }
 
 /// Advance this viewer's read position.
-#[utoipa::path(post, path = "/meta/linked/whatsapp-groups/{group_id}/read", operation_id = "whatsapp_group_read", params(("group_id" = Uuid, Path)), request_body = MarkRead, responses((status = 204)))]
+#[utoipa::path(post, path = "/external-chats/{chat_id}/read", operation_id = "external_chat_read", params(("chat_id" = Uuid, Path)), request_body = MarkRead, responses((status = 204)))]
 pub async fn mark_read<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
     Json(body): Json<MarkRead>,
 ) -> Result<StatusCode, ApiError> {
     state
@@ -551,10 +563,10 @@ pub async fn mark_read<Eas: EntityAccessService, Auth: MacroAuthorizationService
 }
 
 /// Caller-owned pending, failed and uncertain sends.
-#[utoipa::path(get, path = "/meta/linked/whatsapp-groups/{group_id}/sends", operation_id = "whatsapp_group_sends", params(("group_id" = Uuid, Path)), responses((status = 200, body = Vec<SendProgress>)))]
+#[utoipa::path(get, path = "/external-chats/{chat_id}/sends", operation_id = "external_chat_sends", params(("chat_id" = Uuid, Path)), responses((status = 200, body = Vec<SendProgress>)))]
 pub async fn open_sends<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
 ) -> Result<Json<Vec<SendProgress>>, ApiError> {
     Ok(Json(
         state
@@ -565,10 +577,10 @@ pub async fn open_sends<Eas: EntityAccessService, Auth: MacroAuthorizationServic
 }
 
 /// Generic Share dialog policy.
-#[utoipa::path(get, path = "/meta/linked/whatsapp-groups/{group_id}/permissions", operation_id = "whatsapp_group_permissions", params(("group_id" = Uuid, Path)), responses((status = 200, body = SharePermissionV2)))]
+#[utoipa::path(get, path = "/external-chats/{chat_id}/permissions", operation_id = "external_chat_permissions", params(("chat_id" = Uuid, Path)), responses((status = 200, body = SharePermissionV2)))]
 pub async fn permissions<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
-    access: WhatsAppGroupAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<ViewAccessLevel, Eas, Auth>,
 ) -> Result<Json<SharePermissionV2>, ApiError> {
     Ok(Json(
         state
@@ -579,11 +591,11 @@ pub async fn permissions<Eas: EntityAccessService, Auth: MacroAuthorizationServi
 }
 
 /// The owner, in their own session, updates link, team and channel sharing.
-#[utoipa::path(patch, path = "/meta/linked/whatsapp-groups/{group_id}/permissions", operation_id = "whatsapp_group_update_permissions", params(("group_id" = Uuid, Path)), request_body = UpdateSharePermissionRequestV2, responses((status = 204)))]
+#[utoipa::path(patch, path = "/external-chats/{chat_id}/permissions", operation_id = "external_chat_update_permissions", params(("chat_id" = Uuid, Path)), request_body = UpdateSharePermissionRequestV2, responses((status = 204)))]
 pub async fn update_permissions<Eas: EntityAccessService, Auth: MacroAuthorizationService>(
     State(state): State<LinkedRouterState<Eas, Auth>>,
     auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-    access: WhatsAppGroupAccessLevelExtractor<OwnerAccessLevel, Eas, Auth>,
+    access: ExternalChatAccessLevelExtractor<OwnerAccessLevel, Eas, Auth>,
     Json(body): Json<UpdateSharePermissionRequestV2>,
 ) -> Result<StatusCode, ApiError> {
     state

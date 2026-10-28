@@ -16,10 +16,10 @@ fn text_reply(text: &str) -> SendReply {
 async fn remaining(pool: &PgPool, group: Uuid) -> [i64; 6] {
     sqlx::query!(
         r#"SELECT
-            (SELECT count(*) FROM whatsapp_group WHERE id = $1) AS "groups!",
-            (SELECT count(*) FROM whatsapp_group_message WHERE binding_id = $1) AS "messages!",
-            (SELECT count(*) FROM whatsapp_external_person WHERE binding_id = $1) AS "people!",
-            (SELECT count(*) FROM whatsapp_send WHERE group_id = $1) AS "sends!",
+            (SELECT count(*) FROM external_chat WHERE id = $1) AS "groups!",
+            (SELECT count(*) FROM external_chat_message WHERE chat_id = $1) AS "messages!",
+            (SELECT count(*) FROM external_chat_person WHERE chat_id = $1) AS "people!",
+            (SELECT count(*) FROM whatsapp_send WHERE chat_id = $1) AS "sends!",
             (SELECT count(*) FROM entity_access WHERE entity_id = $1) AS "grants!",
             (SELECT count(*) FROM entity WHERE id = $1) AS "entities!""#,
         group
@@ -41,7 +41,7 @@ async fn remaining(pool: &PgPool, group: Uuid) -> [i64; 6] {
 
 async fn aliases(pool: &PgPool, group: Uuid) -> i64 {
     sqlx::query_scalar!(
-        r#"SELECT count(*) AS "count!" FROM whatsapp_identity_alias WHERE binding_id = $1"#,
+        r#"SELECT count(*) AS "count!" FROM whatsapp_identity_alias WHERE chat_id = $1"#,
         group
     )
     .fetch_one(pool)
@@ -77,7 +77,7 @@ async fn deleting_people_who_sent_removes_their_whatsapp_data(pool: PgPool) {
         "only the deleted sender's send goes"
     );
     let permission = sqlx::query_scalar!(
-        "SELECT share_permission_id FROM whatsapp_group WHERE id = $1",
+        "SELECT share_permission_id FROM external_chat WHERE id = $1",
         binding.id
     )
     .fetch_one(&pool)
@@ -138,7 +138,7 @@ async fn receipts_are_stored_once_per_message_and_expire(pool: PgPool) {
         IngestOutcome::Applied
     );
     let stored = sqlx::query_scalar!(
-        r#"SELECT receipt_state FROM whatsapp_participant_receipt WHERE binding_id = $1 ORDER BY source_id"#,
+        r#"SELECT receipt_state FROM whatsapp_participant_receipt WHERE chat_id = $1 ORDER BY source_id"#,
         binding.id
     )
     .fetch_all(&pool)
@@ -147,7 +147,7 @@ async fn receipts_are_stored_once_per_message_and_expire(pool: PgPool) {
     assert_eq!(stored, vec!["read", "read"]);
     repository.expire_retained().await.unwrap();
     let left = sqlx::query_scalar!(
-        r#"SELECT count(*) AS "count!" FROM whatsapp_participant_receipt WHERE binding_id = $1"#,
+        r#"SELECT count(*) AS "count!" FROM whatsapp_participant_receipt WHERE chat_id = $1"#,
         binding.id
     )
     .fetch_one(&pool)

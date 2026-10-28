@@ -60,7 +60,7 @@ database. Nothing talks to WhatsApp or AWS (the KMS is
 - The change triggers live in `src/watch_tables.sql`; add a table there when a
   test waits on it.
 - A failed ingest wait prints the `whatsapp_inbound_event` and
-  `whatsapp_group_message` rows; start debugging there.
+  `external_chat_message` rows; start debugging there.
 - Fake phones send each group message as a real phone does: a sender key
   distribution message in a per-device `pkmsg`, plus the `skmsg`, under one
   message ID. The service must ignore the key-only part.

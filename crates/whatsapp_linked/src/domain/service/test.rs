@@ -13,9 +13,10 @@ fn account(state: AccountState) -> Account {
 
 fn binding(state: BindingState) -> Binding {
     Binding {
-        kind: ChatKind::Group,
+        kind: ExternalChatKind::Group,
         id: Uuid::from_u128(2),
-        group_jid: "120363000000000001@g.us".into(),
+        provider: ExternalChatProvider::WhatsApp,
+        remote_id: "120363000000000001@g.us".into(),
         user_id: "macro|alice@example.com".into(),
         state,
         adopted_at: Utc::now(),
@@ -49,17 +50,17 @@ fn reply_block_names_the_first_missing_fact() {
             &binding(BindingState::Detached),
             Some(&facts())
         ),
-        Some(ReplyBlock::GroupUnavailable)
+        Some(ReplyBlock::Unavailable)
     );
     assert_eq!(
         reply_block(Some(&connected), &active, None),
-        Some(ReplyBlock::NotObserving)
+        Some(ReplyBlock::NotAdded)
     );
     let mut announce = facts();
     announce.can_post = false;
     assert_eq!(
         reply_block(Some(&connected), &active, Some(&announce)),
-        Some(ReplyBlock::NotAllowedInGroup)
+        Some(ReplyBlock::NotAllowed)
     );
 }
 

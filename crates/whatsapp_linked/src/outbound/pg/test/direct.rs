@@ -6,7 +6,7 @@ use super::*;
 fn customer_chat(name: &str) -> ChatUpdate {
     ChatUpdate {
         jid: CUSTOMER_JID.to_owned(),
-        kind: ChatKind::Direct,
+        kind: ExternalChatKind::Direct,
         name: Some(name.to_owned()),
         last_activity_at: Some(Utc::now()),
         archived: None,
@@ -45,10 +45,12 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
     let chat = listed.iter().find(|chat| chat.jid == CUSTOMER_JID).unwrap();
     assert_eq!(
         (chat.kind, chat.can_add, chat.cannot_add_reason),
-        (ChatKind::Direct, true, None)
+        (ExternalChatKind::Direct, true, None)
     );
-    let own = AdoptGroup {
-        group_jid: ALICE_JID.into(),
+    let own = AddChat {
+        provider: ExternalChatProvider::WhatsApp,
+        remote_id: ALICE_JID.into(),
+        kind: ExternalChatKind::Direct,
     };
     assert!(matches!(
         linked
@@ -58,14 +60,29 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
             .current_context(),
         LinkedError::CannotAdd(CannotAdd::OwnChat)
     ));
-    let request = AdoptGroup {
-        group_jid: CUSTOMER_JID.into(),
+    let as_group = AddChat {
+        provider: ExternalChatProvider::WhatsApp,
+        remote_id: CUSTOMER_JID.into(),
+        kind: ExternalChatKind::Group,
+    };
+    assert!(matches!(
+        linked
+            .adopt(&person(ALICE), &as_group, SendAuthority::Human)
+            .await
+            .unwrap_err()
+            .current_context(),
+        LinkedError::Invalid(_)
+    ));
+    let request = AddChat {
+        provider: ExternalChatProvider::WhatsApp,
+        remote_id: CUSTOMER_JID.into(),
+        kind: ExternalChatKind::Direct,
     };
     let binding = linked
         .adopt(&person(ALICE), &request, SendAuthority::Human)
         .await
         .unwrap();
-    assert_eq!(binding.kind, ChatKind::Direct);
+    assert_eq!(binding.kind, ExternalChatKind::Direct);
     assert_eq!(
         linked
             .adopt(&person(ALICE), &request, SendAuthority::Human)
@@ -82,13 +99,13 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
         .unwrap();
     assert_eq!(
         (
-            detail.group.kind,
-            detail.group.name.as_str(),
-            detail.group.can_send
+            detail.chat.kind,
+            detail.chat.name.as_str(),
+            detail.chat.can_send
         ),
-        (ChatKind::Direct, "Customer", true)
+        (ExternalChatKind::Direct, "Customer", true)
     );
-    assert!(detail.roster.is_none());
+    assert!(detail.members.is_none());
     let bobs_list = linked.chats(&person(BOB)).await.unwrap().chats;
     let bobs = bobs_list
         .iter()
@@ -143,7 +160,7 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
     entity_access_db_utils::direct_share::set(
         &mut tx,
         &binding.id,
-        EntityType::WhatsAppGroup,
+        EntityType::ExternalChat,
         &BOB.to_owned().try_into().unwrap(),
         Some(AccessLevel::View),
         false,
@@ -157,8 +174,8 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
         .await
         .unwrap();
     assert_eq!(
-        (bobs_view.group.can_send, bobs_view.group.send_reason),
-        (false, Some(ReplyBlock::NotObserving))
+        (bobs_view.chat.can_send, bobs_view.chat.send_reason),
+        (false, Some(ReplyBlock::NotAdded))
     );
     let send = |user: &'static str| SendReply {
         idempotency_key: Uuid::now_v7(),
@@ -207,7 +224,7 @@ async fn a_direct_chat_is_added_kept_and_sent_to_only_by_its_owner(pool: PgPool)
             .group_detail(&receipt::<MessageView>(ALICE, binding.id))
             .await
             .unwrap()
-            .group
+            .chat
             .name,
         "Customer (Acme)"
     );

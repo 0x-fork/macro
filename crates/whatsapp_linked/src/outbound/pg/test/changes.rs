@@ -1,4 +1,4 @@
-//! `whatsapp_changed` signals: only for real changes, and to the right scope.
+//! `external_chat_changed` signals: only for real changes, and to the right scope.
 use super::*;
 use signals::{Change, ChangeSignal};
 use sqlx::postgres::PgListener;
@@ -28,35 +28,35 @@ async fn rosters_signal_only_real_changes_and_rename_the_owners_group(pool: PgPo
     session.update_group(alice, &info).await.unwrap();
     assert_eq!(
         next(&mut listener).await,
-        Change::Groups {
+        Change::Chats {
             account_id: alice.account_id
         },
         "an unchanged refresh signals nothing; the rename comes first"
     );
     assert_eq!(
         next(&mut listener).await,
-        Change::Group {
-            group_id: binding.id
+        Change::Chat {
+            chat_id: binding.id
         }
     );
     let detail = linked
         .group_detail(&receipt::<MessageView>(ALICE, binding.id))
         .await
         .unwrap();
-    assert_eq!(detail.group.name, "Escalations, renamed");
-    assert!(detail.group.can_send);
+    assert_eq!(detail.chat.name, "Escalations, renamed");
+    assert!(detail.chat.can_send);
 
     session.group_left(alice, GROUP, Utc::now()).await.unwrap();
     assert_eq!(
         next(&mut listener).await,
-        Change::Groups {
+        Change::Chats {
             account_id: alice.account_id
         }
     );
     assert_eq!(
         next(&mut listener).await,
-        Change::Group {
-            group_id: binding.id
+        Change::Chat {
+            chat_id: binding.id
         }
     );
     assert!(
@@ -72,7 +72,7 @@ async fn rosters_signal_only_real_changes_and_rename_the_owners_group(pool: PgPo
         .group_detail(&receipt::<MessageView>(ALICE, binding.id))
         .await
         .unwrap();
-    assert_eq!(detail.group.send_reason, Some(ReplyBlock::NotObserving));
+    assert_eq!(detail.chat.send_reason, Some(ReplyBlock::NotAdded));
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
@@ -85,8 +85,8 @@ async fn messages_and_send_outcomes_signal_their_group(pool: PgPool) {
         .unwrap();
     assert_eq!(
         next(&mut listener).await,
-        Change::Group {
-            group_id: binding.id
+        Change::Chat {
+            chat_id: binding.id
         }
     );
     let progress = linked
@@ -121,8 +121,8 @@ async fn messages_and_send_outcomes_signal_their_group(pool: PgPool) {
         .unwrap();
     assert_eq!(
         next(&mut listener).await,
-        Change::Group {
-            group_id: binding.id
+        Change::Chat {
+            chat_id: binding.id
         }
     );
 }
@@ -197,7 +197,7 @@ async fn change_audiences_come_from_the_store(pool: PgPool) {
         .messages[0]
         .id;
     let stored = sqlx::query_scalar!(
-        r#"SELECT message_id AS "id!" FROM whatsapp_group_message WHERE id = $1"#,
+        r#"SELECT message_id AS "id!" FROM external_chat_message WHERE id = $1"#,
         message
     )
     .fetch_one(&pool)
@@ -206,7 +206,8 @@ async fn change_audiences_come_from_the_store(pool: PgPool) {
     assert_eq!(
         repository.message_notice(binding.id, stored).await.unwrap(),
         Some(MessageNotice {
-            group_name: "Customer escalations".into(),
+            provider: ExternalChatProvider::WhatsApp,
+            chat_name: "Customer escalations".into(),
             superseded: false,
         })
     );

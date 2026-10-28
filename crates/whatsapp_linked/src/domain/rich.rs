@@ -1,6 +1,6 @@
 //! Structured content of WhatsApp messages that are more than text: polls,
 //! locations, contact cards, events and system lines. Stored as JSON on the
-//! group message (`whatsapp_group_message.rich`) in this form; the timeline
+//! group message (`external_chat_message.rich`) in this form; the timeline
 //! resolves the WhatsApp ids in it to names when it is read.
 
 use chrono::{DateTime, Utc};
@@ -59,7 +59,7 @@ pub struct PollVote {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = WhatsAppLocation))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatLocation))]
 pub struct Location {
     /// Degrees.
     pub latitude: f64,
@@ -86,7 +86,7 @@ pub struct Location {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = WhatsAppContacts))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatContacts))]
 pub struct Contacts {
     /// The cards, in order.
     pub contacts: Vec<ContactCard>,
@@ -96,7 +96,7 @@ pub struct Contacts {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = WhatsAppContactCard))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatContactCard))]
 pub struct ContactCard {
     /// Display name.
     pub name: String,
@@ -108,7 +108,7 @@ pub struct ContactCard {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = WhatsAppEvent))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatEvent))]
 pub struct Event {
     /// Title.
     pub name: String,
@@ -158,7 +158,7 @@ pub struct SystemLine {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = WhatsAppSystemAction))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatSystemAction))]
 pub enum SystemAction {
     /// The group was created.
     GroupCreated,
@@ -194,7 +194,7 @@ pub enum SystemAction {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = WhatsAppCall))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatCall))]
 pub struct Call {
     /// Video rather than voice.
     pub video: bool,
@@ -209,7 +209,7 @@ pub struct Call {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = WhatsAppCallOutcome))]
+#[cfg_attr(feature = "schema", schema(as = ExternalChatCallOutcome))]
 pub enum CallOutcome {
     /// Answered.
     Answered,

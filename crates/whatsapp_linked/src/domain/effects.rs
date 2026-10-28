@@ -4,7 +4,7 @@
 use super::ports::*;
 use std::sync::Arc;
 
-/// Drains `whatsapp_group_message` revisions that are not yet published.
+/// Drains `external_chat_message` revisions that are not yet published.
 #[derive(Clone)]
 pub struct EffectsService {
     repository: Arc<dyn EffectsRepository>,

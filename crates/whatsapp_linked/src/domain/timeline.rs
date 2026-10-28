@@ -1,4 +1,4 @@
-//! Standalone WhatsApp group timeline and sharing contracts.
+//! External chat timeline and sharing contracts.
 use super::{models::*, ports::LinkedResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -10,17 +10,19 @@ use uuid::Uuid;
 /// Names, tallies and system lines as the timeline shows them.
 pub mod view;
 
-/// Adopted group visible through ordinary entity sharing.
+/// An external chat visible through ordinary entity sharing.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppGroupSummary {
+pub struct ExternalChatSummary {
     /// Entity identifier.
     pub id: Uuid,
+    /// The service the chat lives in.
+    pub provider: ExternalChatProvider,
     /// Display name: the group's, or a direct chat's other person.
     pub name: String,
     /// A group, or a direct chat with one person (only its owner sends).
-    pub kind: ChatKind,
+    pub kind: ExternalChatKind,
     /// Actual entity owner.
     pub user_id: String,
     /// Unread live messages for this viewer, counted up to
@@ -35,24 +37,25 @@ pub struct WhatsAppGroupSummary {
     /// Importing earlier messages after the chat was added; `null` when
     /// there is nothing to import.
     pub backfill: Option<Backfill>,
-    /// The WhatsApp community this group belongs to, if any.
+    /// The community (a WhatsApp community) this group belongs to, if any.
     pub community: Option<CommunityReference>,
 }
-/// Full group detail and current viewer capabilities.
+/// Full chat detail and current viewer capabilities.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppGroupDetail {
+pub struct ExternalChatDetail {
     /// List metadata.
     #[serde(flatten)]
-    pub group: WhatsAppGroupSummary,
+    pub chat: ExternalChatSummary,
     /// Owner-controlled standard sharing configuration.
     pub share_permission: SharePermissionV2,
     /// Caller's effective permission.
     pub access_level: models_permissions::share_permission::access_level::AccessLevel,
-    /// Latest remote metadata, absent when no observer is connected.
-    pub roster: Option<WhatsAppRoster>,
-    /// WhatsApp's disappearing-messages timer in seconds while it is on;
+    /// Who is in the chat as an observer last read it; absent when no
+    /// observer is connected.
+    pub members: Option<ExternalChatMembers>,
+    /// The provider's disappearing-messages timer in seconds while it is on;
     /// Macro keeps the messages anyway. `null` when off or unknown.
     pub disappearing_seconds: Option<u32>,
     /// Caller's own phone identity, never another account's identity.
@@ -60,44 +63,44 @@ pub struct WhatsAppGroupDetail {
     /// Size and mutation limits.
     pub limits: Capabilities,
 }
-/// A chat's WhatsApp metadata as the caller's account last read it.
+/// A chat's members as the caller's account last read them.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppRoster {
-    /// WhatsApp subject.
+pub struct ExternalChatMembers {
+    /// The chat's name at the provider.
     pub name: String,
     /// Everyone in the chat.
-    pub participants: Vec<WhatsAppParticipant>,
+    pub participants: Vec<ExternalChatParticipant>,
     /// Only admins may post.
     pub announce: bool,
     /// When this was read from WhatsApp.
     pub observed_at: DateTime<Utc>,
 }
 
-/// Someone in a WhatsApp chat; Macro access is a separate grant.
+/// Someone in an external chat; Macro access is a separate grant.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppParticipant {
-    /// Phone-number or LID JID.
+pub struct ExternalChatParticipant {
+    /// Their id at the provider (WhatsApp: phone-number or LID JID).
     pub jid: String,
-    /// The other address WhatsApp verified for them.
+    /// The other address the provider verified for them.
     pub alternate_jid: Option<String>,
-    /// Their WhatsApp name, untrusted.
+    /// Their name at the provider, untrusted.
     pub display_name: Option<String>,
     /// Group admin.
     pub admin: bool,
 }
 
-impl From<&GroupInfo> for WhatsAppRoster {
+impl From<&GroupInfo> for ExternalChatMembers {
     fn from(info: &GroupInfo) -> Self {
         Self {
             name: info.name.clone(),
             participants: info
                 .participants
                 .iter()
-                .map(|participant| WhatsAppParticipant {
+                .map(|participant| ExternalChatParticipant {
                     jid: participant.identity.jid.clone(),
                     alternate_jid: participant.identity.alternate_jid.clone(),
                     display_name: participant.identity.display_name.clone(),
@@ -114,7 +117,7 @@ impl From<&GroupInfo> for WhatsAppRoster {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppGroupSender {
+pub struct ExternalChatSender {
     /// External person identity.
     pub person_id: Uuid,
     /// Verified Macro user association, if present.
@@ -126,7 +129,7 @@ pub struct WhatsAppGroupSender {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppGroupReaction {
+pub struct ExternalChatReaction {
     /// Emoji.
     pub emoji: String,
     /// Number of reacting people.
@@ -134,20 +137,20 @@ pub struct WhatsAppGroupReaction {
     /// Caller has this reaction.
     pub mine: bool,
 }
-/// One message in an adopted group.
+/// One message in an external chat.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppGroupMessage {
+pub struct ExternalChatMessage {
     /// Stable message id.
     pub id: Uuid,
     /// Sender.
-    pub sender: WhatsAppGroupSender,
-    /// Plain WhatsApp text.
+    pub sender: ExternalChatSender,
+    /// Plain text.
     pub body: String,
     /// Message quoted by this one.
     pub reply_to: Option<Uuid>,
-    /// Timestamp assigned by WhatsApp.
+    /// Timestamp assigned by the provider.
     pub sent_at: DateTime<Utc>,
     /// Timestamp first received by Macro.
     pub received_at: DateTime<Utc>,
@@ -156,40 +159,40 @@ pub struct WhatsAppGroupMessage {
     /// Deleted for everyone.
     pub deleted: bool,
     /// Reactions grouped by emoji.
-    pub reactions: Vec<WhatsAppGroupReaction>,
+    pub reactions: Vec<ExternalChatReaction>,
     /// Imported or pending attachments.
-    pub attachments: Vec<LinkedAttachment>,
+    pub attachments: Vec<Attachment>,
     /// Delivery state for the caller's deliberate send only.
     pub delivery_state: Option<DeliveryState>,
     /// A message, or a system line.
-    pub kind: WhatsAppMessageKind,
+    pub kind: ExternalChatMessageKind,
     /// Forwarded from another chat.
     pub forwarded: bool,
-    /// Sent as view-once in WhatsApp; Macro shows it like any media.
+    /// Sent as view-once; Macro shows it like any media.
     pub view_once: bool,
     /// People the body @-mentions.
-    pub mentions: Vec<WhatsAppMention>,
+    pub mentions: Vec<ExternalChatMention>,
     /// Poll, location, contact cards, event or system line.
-    pub rich: Option<WhatsAppRichContent>,
+    pub rich: Option<ExternalChatRichContent>,
 }
 /// What a timeline entry is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub enum WhatsAppMessageKind {
+pub enum ExternalChatMessageKind {
     /// Something someone sent.
     Message,
-    /// Something that happened in the group (`rich` is a system line): shown
+    /// Something that happened in the chat (`rich` is a system line): shown
     /// as a centered line, never notified or counted as unread.
     System,
 }
 
-/// A person named in a message: a Macro user when verified, else their
-/// WhatsApp name, else their phone number.
+/// A person named in a message: a Macro user when verified, else their name
+/// at the provider, else their phone number.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppPersonRef {
+pub struct ExternalChatPersonRef {
     /// Display name, never authentication evidence.
     pub name: String,
     /// Verified Macro user, if any.
@@ -200,20 +203,20 @@ pub struct WhatsAppPersonRef {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppMention {
-    /// What follows the `@` in the body (the digits of the person's WhatsApp
-    /// id); replace `@<token>` with the name.
+pub struct ExternalChatMention {
+    /// What follows the `@` in the body (WhatsApp: the digits of the
+    /// person's id); replace `@<token>` with the name.
     pub token: String,
     /// Who it is.
     #[serde(flatten)]
-    pub person: WhatsAppPersonRef,
+    pub person: ExternalChatPersonRef,
 }
 
 /// One option of a poll with its votes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppPollOption {
+pub struct ExternalChatPollOption {
     /// Option text.
     pub name: String,
     /// People who chose it.
@@ -221,35 +224,35 @@ pub struct WhatsAppPollOption {
     /// The caller chose it.
     pub mine: bool,
     /// Who chose it.
-    pub voters: Vec<WhatsAppPersonRef>,
+    pub voters: Vec<ExternalChatPersonRef>,
 }
 
 /// A poll, read-only in Macro.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppPoll {
+pub struct ExternalChatPoll {
     /// The question.
     pub question: String,
     /// Options in order, with tallies.
-    pub options: Vec<WhatsAppPollOption>,
+    pub options: Vec<ExternalChatPollOption>,
     /// How many options one person may choose; 0 means any number.
     pub selectable_count: u32,
     /// People who voted for anything.
     pub voters: i64,
 }
 
-/// Something that happened in the group.
+/// Something that happened in the chat.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppSystemLine {
+pub struct ExternalChatSystemLine {
     /// What happened.
     pub action: super::rich::SystemAction,
     /// Who did it; absent when WhatsApp did not say.
-    pub actor: Option<WhatsAppPersonRef>,
+    pub actor: Option<ExternalChatPersonRef>,
     /// Who it happened to (added, removed, promoted, …).
-    pub participants: Vec<WhatsAppPersonRef>,
+    pub participants: Vec<ExternalChatPersonRef>,
     /// New subject or description; disappearing-messages timer in seconds
     /// (`"0"` is off).
     pub value: Option<String>,
@@ -261,26 +264,26 @@ pub struct WhatsAppSystemLine {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub enum WhatsAppRichContent {
+pub enum ExternalChatRichContent {
     /// A poll with current votes.
-    Poll(WhatsAppPoll),
+    Poll(ExternalChatPoll),
     /// A place (or the start of a live location); link to a maps URL.
     Location(super::rich::Location),
     /// Contact cards.
     Contacts(super::rich::Contacts),
-    /// A WhatsApp event.
+    /// An event invitation.
     Event(super::rich::Event),
     /// A system line.
-    System(WhatsAppSystemLine),
+    System(ExternalChatSystemLine),
 }
 
 /// Newest-first timeline page; `before` is the last returned message id.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct WhatsAppGroupMessages {
+pub struct ExternalChatMessages {
     /// Messages in descending sent_at, id order.
-    pub messages: Vec<WhatsAppGroupMessage>,
+    pub messages: Vec<ExternalChatMessage>,
     /// Cursor for older messages.
     pub next_cursor: Option<Uuid>,
 }
@@ -292,27 +295,30 @@ pub struct MarkRead {
     /// Message in the addressed group.
     pub message_id: Uuid,
 }
-/// Adoption response.
+/// The added chat.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-pub struct AdoptedGroup {
+#[cfg_attr(feature = "schema", schema(as = ExternalChatAdded))]
+pub struct AddedChat {
     /// Shareable entity identifier.
-    pub group_id: Uuid,
+    pub chat_id: Uuid,
 }
 /// Most unread messages counted per chat; the list shows more as this many.
 pub const UNREAD_COUNT_CAP: i64 = 100;
 
 /// What the store knows about one chat for one viewer; the domain turns it
-/// into a [`WhatsAppGroupSummary`] for both the list and the detail.
+/// into an [`ExternalChatSummary`] for both the list and the detail.
 #[derive(Debug, Clone)]
 pub struct GroupFacts {
     /// Entity identifier.
     pub id: Uuid,
+    /// The service the chat lives in.
+    pub provider: ExternalChatProvider,
     /// Display name.
     pub name: String,
     /// Group or direct chat.
-    pub kind: ChatKind,
+    pub kind: ExternalChatKind,
     /// Owner.
     pub user_id: String,
     /// Unread live messages for this viewer, at most [`UNREAD_COUNT_CAP`].
@@ -338,9 +344,10 @@ pub struct CommunityFacts {
 
 impl GroupFacts {
     /// The chat as the list and the detail show it.
-    pub fn summary(self, send_reason: Option<ReplyBlock>) -> WhatsAppGroupSummary {
-        WhatsAppGroupSummary {
+    pub fn summary(self, send_reason: Option<ReplyBlock>) -> ExternalChatSummary {
+        ExternalChatSummary {
             id: self.id,
+            provider: self.provider,
             name: self.name,
             kind: self.kind,
             user_id: self.user_id,
@@ -385,14 +392,14 @@ pub trait TimelineRepository: Send + Sync {
         viewer: &str,
         before: Option<Uuid>,
         limit: i64,
-    ) -> LinkedResult<WhatsAppGroupMessages>;
+    ) -> LinkedResult<ExternalChatMessages>;
     /// One message of the timeline, shaped like a page entry.
     async fn message(
         &self,
         group: Uuid,
         viewer: &str,
         message: Uuid,
-    ) -> LinkedResult<Option<WhatsAppGroupMessage>>;
+    ) -> LinkedResult<Option<ExternalChatMessage>>;
     /// Monotone viewer read cursor, scoped to this group.
     async fn mark_read(
         &self,
