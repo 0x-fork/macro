@@ -3,7 +3,7 @@
 Status: **Mail first slice implemented; other flat views retain server-baseline reconciliation**
 
 The `soup-mail-v1` ALL/INBOX slice now uses exclusive keyset pages bound to a
-query fingerprint, engine generation and cache revision. Pages cover complete
+query fingerprint and engine generation; a cursor stays valid across cache revisions. Pages cover complete
 cached Mail projections, not proof of whole-mailbox coverage. This is separate
 from the all-or-network proposal below; other Soup partitions continue to use
 server-baseline reconciliation. See `docs/agent-guide/email.md` (Cached Mail filtering) for the shipped scope and remaining filters.
@@ -122,12 +122,11 @@ Expose an opaque, versioned `EntityFilterCursor` through the browser protocol. I
 - cursor format version;
 - active `soup-flat-v1` profile version;
 - cache-engine generation;
-- cache revision;
 - canonical query fingerprint excluding page limit and cursor;
 - sort value;
 - normalized record key.
 
-The query fingerprint prevents a cursor from one filter, sort, or direction from being reused with another. Generation binding prevents revision `"3"` from an old engine from matching revision `"3"` in a replacement engine. The existing `onCacheGenerationChanged` lifecycle must clear frontend cursor state; the worker boundary must also reject stale-generation cursors rather than relying only on UI ordering.
+The query fingerprint prevents a cursor from one filter, sort, or direction from being reused with another. Generation binding keeps a cursor from an old engine from being read against a replacement engine's index. The existing `onCacheGenerationChanged` lifecycle must clear frontend cursor state; the worker boundary must also reject stale-generation cursors rather than relying only on UI ordering.
 
 Extend the browser API conceptually to:
 
@@ -153,7 +152,7 @@ type EntityFilterCacheResult =
   | { kind: 'stale-cursor'; revision: CacheRevision };
 ```
 
-A stale cursor is a recoverable control-flow result: clear the local page chain and request its first page at the reported current revision. It is not a user-visible error and must not silently continue from the stale boundary.
+A stale cursor means the engine generation or query changed; native engines that predate row positions also return it after any write. It is a recoverable control-flow result: clear the local page chain and request its first page at the reported current revision. It is not a user-visible error and must not silently continue from the stale boundary.
 
 ## Keyset semantics
 
@@ -194,9 +193,9 @@ The existing revision-qualified reads provide the required consistency checks:
 4. a mismatch discards the page and retries from the current revision;
 5. a generation-change notification invalidates all revision and cursor watermarks.
 
-Continuation requests additionally require that the cursor revision equals the engine's current revision before predicate execution. Because engine commands are serialized, a successful predicate call observes one revision. Record selection is a separate command and retains the existing post-selection revision check.
+A cursor is a row position, valid across writes for one engine generation and query. A page read after a write continues after the same row at the current revision. Rows that moved past the boundary since are picked up by the evaluation that write triggers, so the client re-reads its chain rather than stitching together pages from different revisions.
 
-Do not attempt MVCC snapshots across revisions. Revision change means reset and reevaluate, not continue reading an old snapshot.
+A Mail page request may pass `through`, a page's `endCursor`, instead of a cursor. The engine reads every row from the top through that position, and at least `limit` of them, within one engine command, paging the index past its per-query limit. A chain re-read this way ends at the same row when mail arrives above it. Because engine commands are serialized, a successful predicate call observes one revision. Record selection is a separate command and retains the existing post-selection revision check.
 
 ## Frontend local page state
 
@@ -264,7 +263,7 @@ In `cache-turso` and `cache-core`:
 - fetch one bounded extra result for next-cursor detection;
 - retain completeness and relevant-uncertainty checks in the same read transaction;
 - return revision-qualified `PredicatePage` values;
-- validate expected cursor revision/generation before execution;
+- validate the cursor's generation and query before execution;
 - return typed stale-cursor and incomplete outcomes;
 - verify relevant authoritative and optimistic indexes with `EXPLAIN QUERY PLAN`;
 - avoid scanning normalized record blobs, queue JSON, or projection blobs.
@@ -371,7 +370,7 @@ Track at least:
 ### WASM and protocol tests
 
 - first and continuation pages cross the JS boundary with exact revisions;
-- stale revision and stale generation cursors are rejected;
+- stale generation and changed-query cursors are rejected, and a cursor continues after the same row across writes;
 - cursor query fingerprints cannot be reused with changed filters or sort;
 - filter page and selected records carry the same revision;
 - realtime Soup items can appear on a later local page without a Soup query fetch;

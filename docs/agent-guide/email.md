@@ -339,7 +339,7 @@ schema additions before the client: it selects canonical message eligibility/rec
 fields, body-free canonical preview references, and viewer-relative share facts.
 The `soup-mail-v3` property-aware profile and new backfill checkpoint rebuild Mail proof without
 changing the persisted mutation queue format. Native Tauri maintains the same
-predicate projections and revision-bound local page contract as the browser.
+predicate projections and local page contract as the browser.
 Checkpoint v14 restarts older scans to populate property-aware indexes without wiping
 queued work. A background network failure does not hide a usable current-query
 cached Mail page; server-reported GraphQL errors still surface.
