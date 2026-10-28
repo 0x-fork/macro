@@ -19478,6 +19478,7 @@ dependencies = [
  "futures",
  "mockall",
  "opentelemetry",
+ "rustls",
  "sync_service_bebop_schema",
  "thiserror 2.0.18",
  "tokio",
@@ -19486,6 +19487,7 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "url",
+ "webpki-roots 1.0.10",
  "workspace-hack",
 ]
 
