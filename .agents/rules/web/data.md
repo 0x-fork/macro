@@ -80,7 +80,9 @@ Examples: [session query factory](../../../apps/web/src/lib/queries/agent-sessio
 - **FE-49** Refetches and optimistic updates never wipe local state (drafts,
   anchors, selections), and a refetch started before a mutation can't overwrite
   its result. Optimistic rollback state lives in `onMutate`; temporary ids are
-  never openable.
+  never openable. Solid Query returns new objects on every refetch, so a query
+  that polls or refetches under open lists and pickers sets `reconcile: 'id'`;
+  otherwise rows remount and drop focus.
 - **FE-50** Scope invalidation to what changed, but update every reader of it.
   Query keys hold exactly the fetch inputs.
 - **FE-58** With the GraphQL normalized cache, a mutation never refetches the
