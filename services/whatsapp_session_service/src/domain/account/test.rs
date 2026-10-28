@@ -16,7 +16,7 @@ use whatsapp_linked::domain::events::{
 };
 use whatsapp_linked::domain::models::{GroupInfo, Identity, Participant};
 use whatsapp_linked::domain::session::SessionService;
-use whatsapp_linked::outbound::pg::PgLinkedRepository;
+use whatsapp_linked::outbound::pg::PgWhatsAppRepository;
 
 use super::{AccountConfig, AccountSessions};
 use crate::domain::inbound::InboundGate;
@@ -305,7 +305,7 @@ fn runner_with(
         open_failures: Arc::default(),
     };
     let runner = Arc::new(AccountSessions::new(
-        SessionService::new(Arc::new(PgLinkedRepository::new(pool.clone()))),
+        SessionService::new(Arc::new(PgWhatsAppRepository::new(pool.clone()))),
         whatsapp.clone(),
         AccountConfig {
             send_timeout: Duration::from_secs(5),
@@ -446,7 +446,7 @@ async fn a_replica_whose_epoch_was_taken_over_cannot_write_and_stops(pool: PgPoo
     assert_eq!(calls.recv().await, Some(Call::StartPairing));
     assert_eq!(calls.recv().await, Some(Call::Connect));
 
-    let takeover = SessionService::new(Arc::new(PgLinkedRepository::new(pool.clone())))
+    let takeover = SessionService::new(Arc::new(PgWhatsAppRepository::new(pool.clone())))
         .begin_lease(account)
         .await
         .unwrap();
@@ -614,7 +614,7 @@ fn group_text(event: u128) -> InboundEvent {
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
 async fn the_gate_acks_unadopted_traffic_unstored_and_refuses_once_fenced(pool: PgPool) {
     let (account, _pairing) = insert_pairing_account(&pool).await;
-    let sessions = SessionService::new(Arc::new(PgLinkedRepository::new(pool.clone())));
+    let sessions = SessionService::new(Arc::new(PgWhatsAppRepository::new(pool.clone())));
     let stale = sessions.begin_lease(account).await.unwrap().scope;
     let current = sessions.begin_lease(account).await.unwrap().scope;
 
@@ -759,7 +759,7 @@ async fn live_group_events_update_the_one_group(pool: PgPool) {
         .await
         .unwrap();
     listener
-        .listen(whatsapp_linked::signals::CHANGED)
+        .listen(external_chat::signals::CHANGED)
         .await
         .unwrap();
     let (account, whatsapp, mut calls, started) = connected(&pool, Duration::from_secs(3600)).await;

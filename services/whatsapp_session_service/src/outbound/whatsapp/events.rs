@@ -3,14 +3,18 @@
 //! everything outside adopted groups.
 
 use chrono::{DateTime, Utc};
+use external_chat::domain::rich::SystemLine;
+use external_chat::domain::{
+    models::{ExternalChatKind, MediaPresentation},
+    rich::RichContent,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use whatsapp_linked::domain::events::{
     ChatUpdate, HistoryPage, InboundEvent, InboundKind, Media, Message, MessageAnchor, MessageKind,
-    Receipt, ReceiptState, RichContent, Target,
+    Receipt, ReceiptState, Target,
 };
-use whatsapp_linked::domain::models::{ExternalChatKind, Identity, MediaPresentation};
-use whatsapp_linked::domain::rich::SystemLine;
+use whatsapp_linked::domain::models::Identity;
 use whatsmeow::Event;
 use whatsmeow::download::{DownloadableMessage, MediaType};
 use whatsmeow::proto::wa_common::MessageKey;

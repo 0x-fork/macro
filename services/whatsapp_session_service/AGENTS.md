@@ -44,7 +44,7 @@ current, ingests the traffic of added chats (`external_chat`) through `whatsapp_
   `SessionService` (`discoverable_accounts`, `fleet_health`).
 - `outbound/signals.rs`: `LISTEN` for `whatsapp_{account_released,
   pairing_requested, send_requested, groups_requested, account_changed}`.
-  Payloads are `whatsapp_linked::signals::Signal` JSON; each
+  Payloads are `external_chat::signals::Signal` JSON; each
   one's `traceparent` parents a `whatsapp.signal.receive` span that travels
   with the signal (`ports::Traced`): the supervisor's work and the runner's
   `whatsapp.account.signal` span run inside it, and a runner started by it

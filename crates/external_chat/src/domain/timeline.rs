@@ -1,5 +1,5 @@
 //! External chat timeline and sharing contracts.
-use super::{models::*, ports::LinkedResult};
+use super::{models::*, ports::ExternalChatResult, rich::RichContent};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use macro_user_id::user_id::MacroUserIdStr;
@@ -91,26 +91,6 @@ pub struct ExternalChatParticipant {
     pub display_name: Option<String>,
     /// Group admin.
     pub admin: bool,
-}
-
-impl From<&GroupInfo> for ExternalChatMembers {
-    fn from(info: &GroupInfo) -> Self {
-        Self {
-            name: info.name.clone(),
-            participants: info
-                .participants
-                .iter()
-                .map(|participant| ExternalChatParticipant {
-                    jid: participant.identity.jid.clone(),
-                    alternate_jid: participant.identity.alternate_jid.clone(),
-                    display_name: participant.identity.display_name.clone(),
-                    admin: participant.admin,
-                })
-                .collect(),
-            announce: info.announce,
-            observed_at: info.observed_at,
-        }
-    }
 }
 
 /// Message sender from protocol-verified identity evidence.
@@ -310,7 +290,7 @@ pub const UNREAD_COUNT_CAP: i64 = 100;
 /// What the store knows about one chat for one viewer; the domain turns it
 /// into an [`ExternalChatSummary`] for both the list and the detail.
 #[derive(Debug, Clone)]
-pub struct GroupFacts {
+pub struct ChatFacts {
     /// Entity identifier.
     pub id: Uuid,
     /// The service the chat lives in.
@@ -327,24 +307,15 @@ pub struct GroupFacts {
     pub last_message_at: Option<DateTime<Utc>>,
     /// History import progress.
     pub backfill: Option<Backfill>,
-    /// The community the newest roster any observer reported names.
-    pub community: Option<CommunityFacts>,
 }
 
-/// A chat's community as its observers' rosters report it.
-#[derive(Debug, Clone)]
-pub struct CommunityFacts {
-    /// The community's JID.
-    pub jid: String,
-    /// The community's own name, when an observer has its metadata.
-    pub name: Option<String>,
-    /// The chat is the community's announcement group.
-    pub announcements: bool,
-}
-
-impl GroupFacts {
+impl ChatFacts {
     /// The chat as the list and the detail show it.
-    pub fn summary(self, send_reason: Option<ReplyBlock>) -> ExternalChatSummary {
+    pub fn summary(
+        self,
+        send_reason: Option<ReplyBlock>,
+        community: Option<CommunityReference>,
+    ) -> ExternalChatSummary {
         ExternalChatSummary {
             id: self.id,
             provider: self.provider,
@@ -356,72 +327,115 @@ impl GroupFacts {
             can_send: send_reason.is_none(),
             send_reason,
             backfill: self.backfill,
-            community: self.community.map(|community| {
-                CommunityReference::named(
-                    community.jid,
-                    community.name.as_deref(),
-                    community.announcements,
-                )
-            }),
+            community,
         }
     }
 }
 
-/// Batched facts for one visible entity and the caller's own remote roster.
-pub struct VisibleGroup {
+/// One chat a viewer can see.
+pub struct VisibleChat {
     /// Shared entity facts.
-    pub facts: GroupFacts,
-    /// Lifecycle and remote group identity.
-    pub binding: Binding,
-    /// Caller-account roster, absent when not connected or not a remote member.
-    pub roster: Option<GroupInfo>,
+    pub facts: ChatFacts,
+    /// Lifecycle and remote chat identity.
+    pub chat: ChatRef,
 }
 
-/// Group metadata persistence. Object safe because DSS supplies one shared adapter.
+/// One stored message of a timeline page, before the provider names the
+/// people in it and the viewer's delivery state is added.
+#[derive(Debug, Clone)]
+pub struct StoredMessage {
+    /// Stable message id.
+    pub id: Uuid,
+    /// Sender.
+    pub sender: ExternalChatSender,
+    /// Plain text; empty once deleted.
+    pub body: String,
+    /// Message quoted by this one.
+    pub reply_to: Option<Uuid>,
+    /// Timestamp assigned by the provider.
+    pub sent_at: DateTime<Utc>,
+    /// Timestamp first received by Macro.
+    pub received_at: DateTime<Utc>,
+    /// Last edit timestamp.
+    pub edited_at: Option<DateTime<Utc>>,
+    /// Deleted for everyone.
+    pub deleted: bool,
+    /// Reactions grouped by emoji.
+    pub reactions: Vec<ExternalChatReaction>,
+    /// Imported or pending attachments.
+    pub attachments: Vec<Attachment>,
+    /// A message, or a system line.
+    pub kind: ExternalChatMessageKind,
+    /// Forwarded from another chat.
+    pub forwarded: bool,
+    /// Sent as view-once.
+    pub view_once: bool,
+    /// Provider ids of the people the body @-mentions; empty once deleted.
+    pub mentions: Vec<String>,
+    /// Structured content; `None` once deleted.
+    pub rich: Option<RichContent>,
+    /// Current votes when it is a poll.
+    pub votes: Vec<view::StoredVote>,
+}
+
+/// Newest-first stored timeline page; `before` is the last returned message id.
+#[derive(Debug, Clone)]
+pub struct StoredPage {
+    /// Messages in descending sent_at, id order.
+    pub messages: Vec<StoredMessage>,
+    /// Cursor for older messages.
+    pub next_cursor: Option<Uuid>,
+}
+
+/// Chat, message and read-state persistence. Object safe because DSS supplies
+/// one shared adapter.
 #[async_trait]
 pub trait TimelineRepository: Send + Sync {
     /// Candidate list already filtered by generic sharing.
-    async fn visible_groups(&self, user: &MacroUserIdStr<'_>) -> LinkedResult<Vec<VisibleGroup>>;
-    /// Facts for an authorized group, for a viewer principal (a person or a
+    async fn visible_chats(
+        &self,
+        user: &MacroUserIdStr<'_>,
+    ) -> ExternalChatResult<Vec<VisibleChat>>;
+    /// Facts for an authorized chat, for a viewer principal (a person or a
     /// bot, whose id is not a Macro user id).
-    async fn group_facts(&self, group: Uuid, viewer: &str) -> LinkedResult<GroupFacts>;
+    async fn chat_facts(&self, chat: Uuid, viewer: &str) -> ExternalChatResult<ChatFacts>;
     /// Bounded, stable pagination for a viewer principal.
     async fn messages(
         &self,
-        group: Uuid,
+        chat: &ChatRef,
         viewer: &str,
         before: Option<Uuid>,
         limit: i64,
-    ) -> LinkedResult<ExternalChatMessages>;
+    ) -> ExternalChatResult<StoredPage>;
     /// One message of the timeline, shaped like a page entry.
     async fn message(
         &self,
-        group: Uuid,
+        chat: &ChatRef,
         viewer: &str,
         message: Uuid,
-    ) -> LinkedResult<Option<ExternalChatMessage>>;
-    /// Monotone viewer read cursor, scoped to this group.
+    ) -> ExternalChatResult<Option<StoredMessage>>;
+    /// Monotone viewer read cursor, scoped to this chat.
     async fn mark_read(
         &self,
-        group: Uuid,
+        chat: Uuid,
         user: &MacroUserIdStr<'_>,
         message: Uuid,
-    ) -> LinkedResult<()>;
+    ) -> ExternalChatResult<()>;
     /// Standard permission object.
-    async fn permissions(&self, group: Uuid) -> LinkedResult<SharePermissionV2>;
+    async fn permissions(&self, chat: Uuid) -> ExternalChatResult<SharePermissionV2>;
     /// Guarded canonical team-sharing facts for domain authorization.
     async fn share_facts(
         &self,
-        group: Uuid,
-    ) -> LinkedResult<models_permissions::share_permission::team_share::TeamShareFacts>;
+        chat: Uuid,
+    ) -> ExternalChatResult<models_permissions::share_permission::team_share::TeamShareFacts>;
     /// Actual-owner update, including canonical team-share policy.
     async fn update_permissions(
         &self,
-        group: Uuid,
+        chat: Uuid,
         user: &MacroUserIdStr<'_>,
         update: &UpdateSharePermissionRequestV2,
         command: Option<
             &models_permissions::share_permission::team_share::AuthorizedTeamShareCommand,
         >,
-    ) -> LinkedResult<()>;
+    ) -> ExternalChatResult<()>;
 }

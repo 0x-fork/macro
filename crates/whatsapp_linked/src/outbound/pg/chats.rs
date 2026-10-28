@@ -32,7 +32,7 @@ pub(super) async fn update_chats_in(
     tx: &mut Transaction<'_, Postgres>,
     account: &Fenced,
     chats: &[ChatUpdate],
-) -> LinkedResult<bool> {
+) -> ExternalChatResult<bool> {
     let mut merged: std::collections::BTreeMap<String, ChatUpdate> = Default::default();
     for chat in chats {
         let mut chat = chat.clone();
@@ -163,12 +163,12 @@ pub(super) async fn update_chats_in(
     .await
     .map_err(failure)?;
     for chat_id in ready.into_iter().chain(renamed) {
-        notify_change(tx, signals::Change::Chat { chat_id }).await?;
+        notify_change(tx, Change::Chat { chat_id }).await?;
     }
     if changed {
         notify_change(
             tx,
-            signals::Change::Chats {
+            Change::Chats {
                 account_id: account.id,
             },
         )
@@ -177,7 +177,10 @@ pub(super) async fn update_chats_in(
     Ok(anchored)
 }
 
-pub(super) async fn account_chats(pool: &PgPool, account: Uuid) -> LinkedResult<Vec<StoredChat>> {
+pub(super) async fn account_chats(
+    pool: &PgPool,
+    account: Uuid,
+) -> ExternalChatResult<Vec<StoredChat>> {
     sqlx::query!(
         r#"SELECT chat_jid, kind, name, last_activity_at, archived, pinned FROM whatsapp_chat
         WHERE account_id = $1 ORDER BY last_activity_at DESC NULLS LAST, chat_jid LIMIT 5000"#,
@@ -204,14 +207,14 @@ pub(super) async fn account_chats(pool: &PgPool, account: Uuid) -> LinkedResult<
     .collect()
 }
 
-fn backfill_state(value: &str) -> LinkedResult<BackfillState> {
+fn backfill_state(value: &str) -> ExternalChatResult<BackfillState> {
     BackfillState::parse(value).ok_or_else(|| corrupt(format_args!("backfill state {value:?}")))
 }
 
 pub(super) async fn backfill_work_in(
     tx: &mut Transaction<'_, Postgres>,
     account: &Fenced,
-) -> LinkedResult<Vec<BackfillWork>> {
+) -> ExternalChatResult<Vec<BackfillWork>> {
     // The anchor is the chat list's newest message, else the newest message
     // of the chat stored in Macro that this account saw (in this group, or in
     // an earlier or someone else's group for the same chat).
@@ -271,7 +274,7 @@ pub(super) async fn set_backfill_in(
     group: Uuid,
     state: BackfillState,
     stamp_request: bool,
-) -> LinkedResult<()> {
+) -> ExternalChatResult<()> {
     let previous = sqlx::query_scalar!(
         r#"UPDATE external_chat g SET backfill_state = $3,
             backfill_requested_at = CASE WHEN $4 THEN now() ELSE g.backfill_requested_at END
@@ -288,7 +291,7 @@ pub(super) async fn set_backfill_in(
     .await
     .map_err(failure)?;
     if previous.is_some_and(|previous| previous != state.as_str()) {
-        notify_change(tx, signals::Change::Chat { chat_id: group }).await?;
+        notify_change(tx, Change::Chat { chat_id: group }).await?;
     }
     Ok(())
 }
@@ -325,7 +328,7 @@ pub(super) async fn backfill_page_in(
     tx: &mut Transaction<'_, Postgres>,
     account: &Fenced,
     page: &HistoryPage,
-) -> LinkedResult<Vec<(Uuid, BackfillState)>> {
+) -> ExternalChatResult<Vec<(Uuid, BackfillState)>> {
     let rows = sqlx::query!(
         r#"SELECT id, backfill_imported, backfill_cursor, adopted_at FROM external_chat
         WHERE user_id = $1 AND provider = 'whatsapp' AND remote_id = $2 AND state = 'active'
@@ -364,7 +367,7 @@ pub(super) async fn backfill_page_in(
         .execute(&mut **tx)
         .await
         .map_err(failure)?;
-        notify_change(tx, signals::Change::Chat { chat_id: row.id }).await?;
+        notify_change(tx, Change::Chat { chat_id: row.id }).await?;
         states.push((row.id, state));
     }
     Ok(states)

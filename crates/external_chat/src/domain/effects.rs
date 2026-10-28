@@ -8,12 +8,12 @@ use std::sync::Arc;
 #[derive(Clone)]
 pub struct EffectsService {
     repository: Arc<dyn EffectsRepository>,
-    publisher: Arc<dyn GroupPublisher>,
+    publisher: Arc<dyn ChatPublisher>,
 }
 
 impl EffectsService {
-    /// Wire the outbox and the group publisher.
-    pub fn new(repository: Arc<dyn EffectsRepository>, publisher: Arc<dyn GroupPublisher>) -> Self {
+    /// Wire the outbox and the chat publisher.
+    pub fn new(repository: Arc<dyn EffectsRepository>, publisher: Arc<dyn ChatPublisher>) -> Self {
         Self {
             repository,
             publisher,
@@ -28,7 +28,7 @@ impl EffectsService {
         err,
         fields(due, published)
     )]
-    pub async fn publish_pending(&self) -> LinkedResult<usize> {
+    pub async fn publish_pending(&self) -> ExternalChatResult<usize> {
         let effects = self.repository.pending_effects(50).await?;
         tracing::Span::current().record("due", effects.len());
         let mut published = 0;
@@ -52,7 +52,7 @@ impl EffectsService {
                         message_id = %effect.message_id,
                         code = error.current_context().code(),
                     error = %error,
-                        "WhatsApp group notification will retry"
+                        "External chat notification will retry"
                     );
                     self.repository.defer_effect(effect.message_id).await?;
                 }

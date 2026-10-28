@@ -290,13 +290,15 @@ fn api_router(state: ApiContext) -> Router {
         )
         .nest(
             "/external-chats",
-            whatsapp_linked::inbound::router::external_chats_router(
-                state.external_chat_state.clone(),
+            external_chat::inbound::router::external_chats_router(
+                state.external_chat_state.chats.clone(),
             ),
         )
         .nest(
             "/whatsapp",
-            whatsapp_linked::inbound::router::whatsapp_router(state.external_chat_state.clone()),
+            whatsapp_linked::inbound::router::whatsapp_router(
+                state.external_chat_state.whatsapp.clone(),
+            ),
         )
         .nest(
             "/reminders",

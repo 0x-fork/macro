@@ -28,7 +28,7 @@ impl MediaService {
         err,
         fields(due, imported)
     )]
-    pub async fn import_pending(&self) -> LinkedResult<usize> {
+    pub async fn import_pending(&self) -> ExternalChatResult<usize> {
         let due = self.repository.due_imports(8).await?;
         tracing::Span::current().record("due", due.len());
         let mut imported = 0;
@@ -69,7 +69,7 @@ impl MediaService {
         err,
         fields(due, deleted)
     )]
-    pub async fn delete_released(&self) -> LinkedResult<usize> {
+    pub async fn delete_released(&self) -> ExternalChatResult<usize> {
         let due = self.repository.due_file_deletions(25).await?;
         tracing::Span::current().record("due", due.len());
         let mut deleted = vec![];
@@ -89,9 +89,8 @@ impl MediaService {
         Ok(deleted.len())
     }
 
-    /// Delete staged uploads that were never sent, old participant receipts
-    /// and old consumed pairings.
-    pub async fn expire_retained(&self) -> LinkedResult<u64> {
-        self.repository.expire_retained().await
+    /// Delete staged uploads that were never sent.
+    pub async fn expire_uploads(&self) -> ExternalChatResult<u64> {
+        self.repository.expire_uploads().await
     }
 }

@@ -77,7 +77,7 @@ async fn the_chat_list_merges_history_activity_and_the_roster(pool: PgPool) {
         .await
         .unwrap();
 
-    let chats = linked.chats(&person(ALICE)).await.unwrap().chats;
+    let chats = linked.whatsapp.chats(&person(ALICE)).await.unwrap().chats;
     let summary: Vec<_> = chats
         .iter()
         .map(|chat| {
@@ -283,8 +283,14 @@ async fn ending_consent_forgets_the_old_numbers_chat_list(pool: PgPool) {
         .unwrap()
     };
     assert!(stored(pool.clone()).await > 0);
-    let account = linked.account(&person(ALICE)).await.unwrap().unwrap();
+    let account = linked
+        .whatsapp
+        .account(&person(ALICE))
+        .await
+        .unwrap()
+        .unwrap();
     linked
+        .whatsapp
         .disconnect(
             &person(ALICE),
             account.authorization_generation,
@@ -316,7 +322,7 @@ async fn one_batch_may_name_a_chat_twice(pool: PgPool) {
         )
         .await
         .unwrap();
-    let listed = linked.chats(&person(ALICE)).await.unwrap().chats;
+    let listed = linked.whatsapp.chats(&person(ALICE)).await.unwrap().chats;
     let direct = listed.iter().find(|chat| chat.jid == DIRECT).unwrap();
     assert_eq!(
         (direct.name.as_str(), direct.last_activity_at),

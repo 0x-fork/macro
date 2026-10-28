@@ -16,9 +16,12 @@ Web app ──REST──▶ DSS ──── MacroDB ◀──── whatsapp_se
                          rows + NOTIFY      one task + one client per leased account
 ```
 
-- **DSS** serves `/whatsapp/*` (account, pairing, chat list) and
-  `/external-chats/*` (`crates/whatsapp_linked/src/inbound`), authorizes
-  people, writes chats and send intents, and publishes notifications.
+- **DSS** serves `/whatsapp/*` (account, pairing, chat list;
+  `crates/whatsapp_linked/src/inbound`) and `/external-chats/*`
+  (`crates/external_chat/src/inbound`, with `WhatsAppProvider` from
+  `crates/whatsapp_linked/src/domain/provider.rs` as its `ChatProvider`),
+  authorizes people, writes chats and send intents, and publishes
+  notifications.
 - **Session service** holds each account's advisory lock, runs the WhatsApp
   socket, and calls `whatsapp_linked::domain::session::SessionService`
   in-process. There is no service-to-service HTTP.
@@ -149,7 +152,7 @@ are deferred. Edits follow source revision order; deletes are permanent tombston
 Reactions and media live in `external_chat_reaction` and `external_chat_attachment`.
 
 Besides text and media, a message may carry structured content in
-`external_chat_message.rich` (`whatsapp_linked::domain::rich::RichContent`):
+`external_chat_message.rich` (`external_chat::domain::rich::RichContent`):
 polls, locations, contact cards and WhatsApp events, plus `mentions` (WhatsApp
 ids the text @-mentions) and `forwarded`. Poll votes are decrypted by the
 replica with the poll's message secret and kept per voter in

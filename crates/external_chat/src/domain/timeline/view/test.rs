@@ -1,6 +1,12 @@
 use super::*;
 use crate::domain::rich::{Call, CallOutcome, Poll, PollOption, SystemAction};
 
+/// How a provider names an id nobody named: here, a phone number.
+fn phone_number(id: &str) -> Option<String> {
+    id.strip_suffix("@s.whatsapp.net")
+        .map(|number| format!("+{number}"))
+}
+
 fn person(name: &str, user: Option<&str>) -> ExternalChatPersonRef {
     ExternalChatPersonRef {
         name: name.to_owned(),
@@ -10,7 +16,7 @@ fn person(name: &str, user: Option<&str>) -> ExternalChatPersonRef {
 
 #[test]
 fn mentions_name_people_seen_in_the_group_else_their_number() {
-    let mut people = People::default();
+    let mut people = People::new(phone_number);
     people.learn(
         "15550001111@s.whatsapp.net",
         person("Ana", Some("macro|ana@example.com")),
@@ -109,7 +115,7 @@ fn a_poll_tallies_current_votes_per_option_and_marks_the_viewers() {
 
 #[test]
 fn a_system_line_names_who_did_it_and_to_whom() {
-    let mut people = People::default();
+    let mut people = People::new(phone_number);
     people.learn("15550002222@s.whatsapp.net", person("Ben", None));
     let added = RichContent::System(SystemLine {
         action: SystemAction::ParticipantsAdded,

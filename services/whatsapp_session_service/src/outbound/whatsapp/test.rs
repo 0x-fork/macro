@@ -4,6 +4,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use external_chat::domain::models::{AttachmentRef, MediaKind, MediaShape};
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
@@ -12,12 +13,11 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use whatsapp_fake_server::{FakeWhatsApp, test_signal};
 use whatsapp_linked::domain::events::{
-    AttachmentRef, ClaimedSend, InboundEvent, InboundKind, MediaImport, MediaShape, OutboundMedia,
-    OutgoingContent, SessionScope,
+    ClaimedSend, InboundEvent, InboundKind, MediaImport, OutboundMedia, OutgoingContent,
+    SessionScope,
 };
-use whatsapp_linked::domain::models::MediaKind;
 use whatsapp_linked::domain::session::SessionService;
-use whatsapp_linked::outbound::pg::PgLinkedRepository;
+use whatsapp_linked::outbound::pg::PgWhatsAppRepository;
 use whatsapp_store_pg::kms::FakeWhatsAppKms;
 
 use super::WhatsmeowConnector;
@@ -121,7 +121,7 @@ async fn a_phone_scanning_the_qr_links_the_account_through_the_encrypted_store(p
     let account = insert_pairing_account(&pool).await;
     let (copies, mut copied) = mpsc::unbounded_channel();
     let runner = Arc::new(AccountSessions::new(
-        SessionService::new(Arc::new(PgLinkedRepository::new(pool.clone()))),
+        SessionService::new(Arc::new(PgWhatsAppRepository::new(pool.clone()))),
         Tee {
             inner: WhatsmeowConnector::new(
                 pool.clone(),
@@ -253,7 +253,7 @@ async fn attachments_travel_both_ways_with_a_sealed_locator(pool: PgPool) {
     let owner = whatsapp.add_user("15550001111", "Ada").await;
     let peer = whatsapp.add_user("15550002222", "Bob").await;
     let account = insert_pairing_account(&pool).await;
-    let scope = SessionService::new(Arc::new(PgLinkedRepository::new(pool.clone())))
+    let scope = SessionService::new(Arc::new(PgWhatsAppRepository::new(pool.clone())))
         .begin_lease(account)
         .await
         .unwrap()
@@ -473,7 +473,7 @@ async fn a_fresh_device_replaces_one_whose_data_key_kms_lost(pool: PgPool) {
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let whatsapp = FakeWhatsApp::start().await.unwrap();
     let account = insert_pairing_account(&pool).await;
-    let scope = SessionService::new(Arc::new(PgLinkedRepository::new(pool.clone())))
+    let scope = SessionService::new(Arc::new(PgWhatsAppRepository::new(pool.clone())))
         .begin_lease(account)
         .await
         .unwrap()

@@ -1,8 +1,8 @@
 //! Pixel size and length of a file someone sends from Macro, read from its
 //! headers so the timeline and recipients' phones can reserve space for it.
 
-use super::events::MediaShape;
 use super::models::MediaKind;
+use super::models::MediaShape;
 use nom::IResult;
 use nom::bytes::complete::take;
 use nom::number::complete::{be_i32, be_u8, be_u24, be_u32, be_u64};

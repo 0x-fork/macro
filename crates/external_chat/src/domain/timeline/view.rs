@@ -1,4 +1,4 @@
-//! How stored rich content, mentions and votes read in the timeline: WhatsApp
+//! How stored rich content, mentions and votes read in the timeline: provider
 //! ids become people's names, votes become tallies.
 
 use super::*;
@@ -8,29 +8,44 @@ use std::collections::HashMap;
 #[cfg(test)]
 mod test;
 
-/// Who WhatsApp ids are, as far as the group knows: people seen in it (with
+/// Who provider ids are, as far as the chat knows: people seen in it (with
 /// their verified Macro user) and the roster's names.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct People {
-    by_jid: HashMap<String, ExternalChatPersonRef>,
+    by_id: HashMap<String, ExternalChatPersonRef>,
+    unnamed: fn(&str) -> Option<String>,
+}
+
+impl Default for People {
+    fn default() -> Self {
+        Self::new(|_| None)
+    }
 }
 
 impl People {
-    /// Learn a person's name; the first name given for an id wins, so pass
-    /// the better sources first.
-    pub fn learn(&mut self, jid: &str, person: ExternalChatPersonRef) {
-        self.by_jid.entry(jid.to_owned()).or_insert(person);
+    /// Nobody known yet; `unnamed` names an id nobody named (WhatsApp: its
+    /// phone number).
+    pub fn new(unnamed: fn(&str) -> Option<String>) -> Self {
+        Self {
+            by_id: HashMap::new(),
+            unnamed,
+        }
     }
 
-    /// The person behind an id: their name when known, else their phone
-    /// number, else a generic name.
-    pub fn get(&self, jid: &str) -> ExternalChatPersonRef {
-        if let Some(person) = self.by_jid.get(jid) {
+    /// Learn a person's name; the first name given for an id wins, so pass
+    /// the better sources first.
+    pub fn learn(&mut self, id: &str, person: ExternalChatPersonRef) {
+        self.by_id.entry(id.to_owned()).or_insert(person);
+    }
+
+    /// The person behind an id: their name when known, else what `unnamed`
+    /// calls them, else a generic name.
+    pub fn get(&self, id: &str) -> ExternalChatPersonRef {
+        if let Some(person) = self.by_id.get(id) {
             return person.clone();
         }
         ExternalChatPersonRef {
-            name: crate::domain::jid::phone_number(jid)
-                .unwrap_or_else(|| UNKNOWN_PERSON.to_owned()),
+            name: (self.unnamed)(id).unwrap_or_else(|| UNKNOWN_PERSON.to_owned()),
             user_id: None,
         }
     }
@@ -138,4 +153,38 @@ pub fn rich_view(
         // Votes are applied to their poll, never shown on their own.
         RichContent::PollVote(_) => return None,
     })
+}
+
+/// A stored message as the timeline shows it to `viewer`.
+pub fn message_view(
+    message: StoredMessage,
+    delivery_state: Option<DeliveryState>,
+    viewer: &str,
+    people: &People,
+) -> ExternalChatMessage {
+    let sender = ExternalChatPersonRef {
+        name: message.sender.name.clone(),
+        user_id: message.sender.user_id.clone(),
+    };
+    let votes: Vec<&StoredVote> = message.votes.iter().collect();
+    ExternalChatMessage {
+        id: message.id,
+        mentions: mentions_view(&message.mentions, people),
+        rich: message
+            .rich
+            .and_then(|content| rich_view(content, &sender, &votes, viewer, people)),
+        sender: message.sender,
+        body: message.body,
+        reply_to: message.reply_to,
+        sent_at: message.sent_at,
+        received_at: message.received_at,
+        edited_at: message.edited_at,
+        deleted: message.deleted,
+        reactions: message.reactions,
+        attachments: message.attachments,
+        delivery_state,
+        kind: message.kind,
+        forwarded: message.forwarded,
+        view_once: message.view_once,
+    }
 }

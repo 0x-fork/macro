@@ -2,13 +2,13 @@
 
 use super::*;
 use crate::domain::ports::{
-    AudienceRepository, EffectsRepository, GroupEffect, MessageNotice, Origin,
+    AudienceRepository, ChatEffect, EffectsRepository, MessageNotice, Origin,
 };
 use async_trait::async_trait;
 
 #[async_trait]
-impl EffectsRepository for PgLinkedRepository {
-    async fn pending_effects(&self, limit: i64) -> LinkedResult<Vec<GroupEffect>> {
+impl EffectsRepository for PgExternalChatRepository {
+    async fn pending_effects(&self, limit: i64) -> ExternalChatResult<Vec<ChatEffect>> {
         sqlx::query!(
             r#"SELECT b.id AS chat_id, m.message_id AS "message_id!", m.effect_revision, m.published_revision, m.origin, m.content_revision, m.deleted_at, p.user_id, m.kind
             FROM external_chat_message m
@@ -23,7 +23,7 @@ impl EffectsRepository for PgLinkedRepository {
         .map_err(failure)?
         .into_iter()
         .map(|row| {
-            Ok(GroupEffect {
+            Ok(ChatEffect {
                 chat_id: row.chat_id,
                 message_id: row.message_id,
                 revision: row.effect_revision,
@@ -41,7 +41,7 @@ impl EffectsRepository for PgLinkedRepository {
         .collect()
     }
 
-    async fn published(&self, message: Uuid, revision: i64) -> LinkedResult<()> {
+    async fn published(&self, message: Uuid, revision: i64) -> ExternalChatResult<()> {
         sqlx::query!(
             "UPDATE external_chat_message SET published_revision = GREATEST(published_revision, $2) WHERE message_id = $1",
             message,
@@ -53,7 +53,7 @@ impl EffectsRepository for PgLinkedRepository {
         Ok(())
     }
 
-    async fn defer_effect(&self, message: Uuid) -> LinkedResult<()> {
+    async fn defer_effect(&self, message: Uuid) -> ExternalChatResult<()> {
         sqlx::query!(
             "UPDATE external_chat_message SET notification_retry_at = now() + interval '30 seconds' WHERE message_id = $1",
             message
@@ -66,21 +66,11 @@ impl EffectsRepository for PgLinkedRepository {
 }
 
 #[async_trait]
-impl AudienceRepository for PgLinkedRepository {
-    async fn account_owner(&self, account: Uuid) -> LinkedResult<Option<String>> {
-        sqlx::query_scalar!(
-            "SELECT user_id FROM whatsapp_linked_account WHERE id = $1",
-            account
-        )
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(failure)
-    }
-
-    async fn link_viewers(&self, group: Uuid) -> LinkedResult<Vec<String>> {
+impl AudienceRepository for PgExternalChatRepository {
+    async fn link_viewers(&self, chat: Uuid) -> ExternalChatResult<Vec<String>> {
         sqlx::query_scalar!(
             "SELECT user_id FROM external_chat_read_state WHERE chat_id = $1 AND external_chat_can_view(chat_id, user_id)",
-            group
+            chat
         )
         .fetch_all(&self.pool)
         .await
@@ -89,20 +79,20 @@ impl AudienceRepository for PgLinkedRepository {
 
     async fn message_notice(
         &self,
-        group: Uuid,
+        chat: Uuid,
         message: Uuid,
-    ) -> LinkedResult<Option<MessageNotice>> {
+    ) -> ExternalChatResult<Option<MessageNotice>> {
         Ok(sqlx::query!(
             r#"SELECT g.provider, g.name, m.deleted_at IS NOT NULL OR m.content_revision > 0 AS "superseded!"
             FROM external_chat g JOIN external_chat_message m ON m.chat_id = g.id
             WHERE g.id = $1 AND m.id = $2"#,
-            group,
+            chat,
             message
         )
         .fetch_optional(&self.pool)
         .await
         .map_err(failure)?
-        .map(|row| -> LinkedResult<MessageNotice> {
+        .map(|row| -> ExternalChatResult<MessageNotice> {
             Ok(MessageNotice {
                 provider: row
                     .provider
