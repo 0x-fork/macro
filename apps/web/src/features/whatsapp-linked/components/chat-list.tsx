@@ -98,7 +98,6 @@ export function ChatList(props: {
   label: string;
   chats: WhatsAppChat[];
   inCommunity?: boolean;
-  canAdd: boolean;
   /** JIDs whose add is in flight. */
   adding: ReadonlySet<string>;
   errors: Readonly<Record<string, string>>;
@@ -137,12 +136,7 @@ export function ChatList(props: {
                             ? 'Adding…'
                             : 'Add to Macro'
                         }
-                        disabled={!props.canAdd || props.adding.has(chat.jid)}
-                        tooltip={
-                          props.canAdd
-                            ? undefined
-                            : 'Adding WhatsApp chats is turned off'
-                        }
+                        disabled={props.adding.has(chat.jid)}
                         onClick={() => props.onAdd(chat)}
                       >
                         <PlusIcon />

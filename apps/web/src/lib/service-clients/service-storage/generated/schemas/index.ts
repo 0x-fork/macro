@@ -1239,7 +1239,6 @@ export * from './linkedConnect';
 export * from './linkedDeliveryState';
 export * from './linkedDisconnect';
 export * from './linkedDisconnectRequest';
-export * from './linkedFeatures';
 export * from './linkedGroupReference';
 export * from './linkedMediaKind';
 export * from './linkedMediaPresentation';

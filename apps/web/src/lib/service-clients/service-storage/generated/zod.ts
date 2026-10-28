@@ -51686,23 +51686,6 @@ export const linkedChatsResponse = zod
   .describe("The caller's WhatsApp chat list.");
 
 /**
- * @summary Server rollout switches.
- */
-export const linkedConfigurationResponse = zod
-  .object({
-    adoption: zod
-      .boolean()
-      .describe('Allow explicit existing-group adoption and access grants.'),
-    pairing: zod
-      .boolean()
-      .describe('Allow new owner-bound pairing transactions.'),
-    sending: zod.boolean().describe('Allow new deliberate sends.'),
-  })
-  .describe(
-    'Independently controlled backend rollout switches. None grants access.'
-  );
-
-/**
  * @summary Start or resume the caller's pairing transaction.
  */
 export const linkedConnectBody = zod
@@ -51906,7 +51889,6 @@ export const whatsappGroupsResponseItem = zod
         zod.null(),
         zod
           .enum([
-            'sending_disabled',
             'no_account',
             'disconnected',
             'not_observing',
@@ -52005,7 +51987,6 @@ export const whatsappGroupResponse = zod
         zod.null(),
         zod
           .enum([
-            'sending_disabled',
             'no_account',
             'disconnected',
             'not_observing',

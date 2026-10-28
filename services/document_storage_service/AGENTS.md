@@ -28,8 +28,8 @@ threads, pins, recents, notifications, folders, activity.
   `whatsapp_media_ready`; attachments become static files through the static
   file service, which also deletes released ones) and the `whatsapp_changed` pusher (bare
   connection-gateway events to the account owner or a group's viewers);
-  enforces a Redis-shared one-send-request-per-second budget per user;
-  switches `WHATSAPP_LINKED_{PAIRING,ADOPTION,SENDING}_ENABLED` default off.
+  enforces a Redis-shared one-send-request-per-second budget per user.
+  No backend switch: the web flag `enable-whatsapp-linked` gates rollout.
 - Guest call chat is mounted outside account auth at `/call/guest-chat/{call_id}`;
   `call` verifies the RTC session and `messages` owns the shared discussion.
 - `src/service/entity_mutation.rs`: generic entity-mutation plumbing used

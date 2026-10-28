@@ -23,12 +23,7 @@ impl LinkedService {
                 let facts = account
                     .as_ref()
                     .map(|account| sending_facts(account, &record.binding, record.roster));
-                let reason = reply_block(
-                    self.features,
-                    account.as_ref(),
-                    &record.binding,
-                    facts.as_ref(),
-                );
+                let reason = reply_block(account.as_ref(), &record.binding, facts.as_ref());
                 record.facts.summary(reason)
             })
             .collect())

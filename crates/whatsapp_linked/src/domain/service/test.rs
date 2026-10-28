@@ -30,40 +30,21 @@ fn facts() -> SendingFacts {
     }
 }
 
-const ON: Features = Features {
-    pairing: true,
-    adoption: true,
-    sending: true,
-};
-
 #[test]
 fn reply_block_names_the_first_missing_fact() {
     let active = binding(BindingState::Active);
     let connected = account(AccountState::Connected);
+    assert_eq!(reply_block(Some(&connected), &active, Some(&facts())), None);
     assert_eq!(
-        reply_block(ON, Some(&connected), &active, Some(&facts())),
-        None
-    );
-    assert_eq!(
-        reply_block(
-            Features::default(),
-            Some(&connected),
-            &active,
-            Some(&facts())
-        ),
-        Some(ReplyBlock::SendingDisabled)
-    );
-    assert_eq!(
-        reply_block(ON, None, &active, None),
+        reply_block(None, &active, None),
         Some(ReplyBlock::NoAccount)
     );
     assert_eq!(
-        reply_block(ON, Some(&account(AccountState::LoggedOut)), &active, None),
+        reply_block(Some(&account(AccountState::LoggedOut)), &active, None),
         Some(ReplyBlock::Disconnected)
     );
     assert_eq!(
         reply_block(
-            ON,
             Some(&connected),
             &binding(BindingState::Detached),
             Some(&facts())
@@ -71,13 +52,13 @@ fn reply_block_names_the_first_missing_fact() {
         Some(ReplyBlock::GroupUnavailable)
     );
     assert_eq!(
-        reply_block(ON, Some(&connected), &active, None),
+        reply_block(Some(&connected), &active, None),
         Some(ReplyBlock::NotObserving)
     );
     let mut announce = facts();
     announce.can_post = false;
     assert_eq!(
-        reply_block(ON, Some(&connected), &active, Some(&announce)),
+        reply_block(Some(&connected), &active, Some(&announce)),
         Some(ReplyBlock::NotAllowedInGroup)
     );
 }

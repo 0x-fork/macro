@@ -12,12 +12,6 @@ import { whatsappOperation } from './operation';
 /** How often an open pairing dialog asks for a rotated QR or a result. */
 export const PAIRING_POLL_MS = 1500;
 
-const configurationOptions = queryOptions({
-  queryKey: whatsappLinkedKeys.configuration.queryKey,
-  queryFn: () => throwOnErr(client.configuration),
-  staleTime: 30_000,
-});
-
 function accountOptions(userId: string) {
   return queryOptions({
     queryKey: whatsappLinkedKeys.account(userId).queryKey,
@@ -49,11 +43,6 @@ function chatsOptions(userId: string, enabled: boolean) {
     enabled: !!userId && enabled,
     staleTime: 10_000,
   });
-}
-
-/** Which linked-device operations the backend currently allows. */
-export function useWhatsappLinkedConfigurationQuery() {
-  return useQuery(() => configurationOptions);
 }
 
 /** The signed-in person's own linked account, or `account: null`. */

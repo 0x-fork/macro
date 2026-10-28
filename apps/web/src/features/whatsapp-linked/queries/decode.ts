@@ -80,7 +80,6 @@ export function decodeAdoptRefusal(error: unknown): AdoptRefusal {
       reason: 'cannot-add',
       why: 'not_in_chat_list',
     }))
-    .with('configuration_required', () => ({ reason: 'turned-off' }))
     .with('rate_limited', () => ({ reason: 'rate-limited' }))
     .with('backlogged', () => ({ reason: 'busy' }))
     .with('internal_error', () => ({ reason: 'server-error' }))

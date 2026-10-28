@@ -13,7 +13,6 @@ import {
   useSubmitWhatsappPasskeyMutation,
   useWhatsappLinkedAccountQuery,
   useWhatsappLinkedChatsQuery,
-  useWhatsappLinkedConfigurationQuery,
   useWhatsappLinkedPairingQuery,
 } from '@queries/whatsapp-linked';
 import {
@@ -131,10 +130,6 @@ export function createWhatsAppLinkedCapabilities(host: {
   traceWhatsappLoad('page.load', () => pageLoad(account, chatsRead()));
   return {
     sections: host.sections,
-    features: sourceRead(useWhatsappLinkedConfigurationQuery(), (features) => ({
-      pairing: features.pairing,
-      adoption: features.adoption,
-    })),
     account,
     chats: (enabled: Accessor<boolean>) => {
       const read = sourceRead(

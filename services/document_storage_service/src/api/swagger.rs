@@ -450,7 +450,6 @@ use utoipa::OpenApi;
         slack_integration::inbound::axum_router::jobs::cancel,
 
         // Personal WhatsApp linked devices
-        whatsapp_linked::inbound::router::configuration,
         whatsapp_linked::inbound::router::account,
         whatsapp_linked::inbound::router::connect,
         whatsapp_linked::inbound::router::pairing,

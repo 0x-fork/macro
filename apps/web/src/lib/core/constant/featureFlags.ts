@@ -923,10 +923,9 @@ export const enableInAppTours = defineFlag({
 
 /**
  * Personal WhatsApp linked devices: the External tab, pairing, adding chats
- * to Macro and sharing them by mention in channels. Off in dev too: dev has no WhatsApp session
- * service, so the tab would only show errors. Override locally with
- * VITE_ENABLE_WHATSAPP_LINKED=true. Backend switches gate each operation
- * independently.
+ * to Macro and sharing them by mention in channels. The only rollout gate;
+ * the backend always serves the routes. Follows PostHog everywhere; override
+ * locally with VITE_ENABLE_WHATSAPP_LINKED=true.
  */
 export const enableWhatsappLinked = defineFlag({
   key: 'enable-whatsapp-linked',

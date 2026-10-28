@@ -16066,25 +16066,6 @@
         }
       }
     },
-    "/meta/linked/configuration": {
-      "get": {
-        "tags": ["whatsapp_linked::inbound::router"],
-        "summary": "Server rollout switches.",
-        "operationId": "linked_configuration",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LinkedFeatures"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/meta/linked/connect": {
       "post": {
         "tags": ["whatsapp_linked::inbound::router"],
@@ -33773,25 +33754,6 @@
           }
         }
       },
-      "LinkedFeatures": {
-        "type": "object",
-        "description": "Independently controlled backend rollout switches. None grants access.",
-        "required": ["pairing", "adoption", "sending"],
-        "properties": {
-          "adoption": {
-            "type": "boolean",
-            "description": "Allow explicit existing-group adoption and access grants."
-          },
-          "pairing": {
-            "type": "boolean",
-            "description": "Allow new owner-bound pairing transactions."
-          },
-          "sending": {
-            "type": "boolean",
-            "description": "Allow new deliberate sends."
-          }
-        }
-      },
       "LinkedGroupReference": {
         "type": "object",
         "description": "A group entity bound to a remote group.",
@@ -33917,7 +33879,6 @@
         "type": "string",
         "description": "Why the viewer cannot send now.",
         "enum": [
-          "sending_disabled",
           "no_account",
           "disconnected",
           "not_observing",

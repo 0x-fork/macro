@@ -21,7 +21,7 @@ use whatsapp_linked::{
     domain::{
         effects::EffectsService,
         media::MediaService,
-        models::{Features, LinkedError},
+        models::LinkedError,
         ports::{
             AudienceRepository, FileImport, FileStore, GroupEffect, GroupPublisher, LinkedResult,
             Origin, SendRateLimiter,
@@ -38,7 +38,6 @@ pub(crate) type State = LinkedRouterState<EntityAccessService, AuthorizationServ
 
 /// Clients the linked composition needs from DSS.
 pub(crate) struct Dependencies {
-    pub features: Features,
     pub static_files: StaticFileServiceClient,
     pub pool: PgPool,
     pub redis: redis::Client,
@@ -53,7 +52,6 @@ pub(crate) struct Dependencies {
 /// Build the router state and start the publication worker.
 pub(crate) fn build(dependencies: Dependencies) -> State {
     let Dependencies {
-        features,
         static_files,
         pool,
         redis,
@@ -72,7 +70,6 @@ pub(crate) fn build(dependencies: Dependencies) -> State {
     });
     let media = MediaService::new(repository.clone(), Arc::new(StaticFiles(static_files)));
     let service = LinkedService::new(
-        features,
         repository.clone(),
         Arc::new(SendRequestLimiter(rate_limit::RateLimitServiceImpl {
             repo: rate_limit::RedisRateLimitAdapter { redis },

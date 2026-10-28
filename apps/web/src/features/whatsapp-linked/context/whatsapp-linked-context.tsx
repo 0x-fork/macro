@@ -75,8 +75,6 @@ export type RequestFailure = { kind: 'request-failed' };
  * shared `whatsapp-linked` queries; tests pass fakes.
  */
 export type WhatsAppLinkedCapabilities = {
-  /** The backend switches; pairing or adoption may be turned off. */
-  features: SourceRead<{ pairing: boolean; adoption: boolean }>;
   /** The person's own account, `null` when they never connected one. */
   account: SourceRead<WhatsAppAccount | null>;
   /**

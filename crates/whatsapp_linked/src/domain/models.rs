@@ -5,20 +5,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Independently controlled backend rollout switches. None grants access.
-#[derive(Debug, Clone, Copy, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "schema", schema(as = LinkedFeatures))]
-pub struct Features {
-    /// Allow new owner-bound pairing transactions.
-    pub pairing: bool,
-    /// Allow explicit existing-group adoption and access grants.
-    pub adoption: bool,
-    /// Allow new deliberate sends.
-    pub sending: bool,
-}
-
 /// Account lifecycle. Transport outages are not stored: a connected account
 /// stays connected while its session service reconnects.
 #[derive(
@@ -902,8 +888,6 @@ impl Default for Capabilities {
 #[cfg_attr(feature = "schema", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "schema", schema(as = LinkedReplyBlock))]
 pub enum ReplyBlock {
-    /// Sending is switched off on this server.
-    SendingDisabled,
     /// The viewer has not connected their own WhatsApp.
     NoAccount,
     /// The viewer's account is not connected.
@@ -959,9 +943,6 @@ pub enum LinkedError {
     /// The chat can't be added to Macro.
     #[error("{0}")]
     CannotAdd(CannotAdd),
-    /// This operation is switched off on the server.
-    #[error("WhatsApp linking is not enabled")]
-    ConfigurationRequired,
     /// Absent or outside the caller's authorized scope.
     #[error("not found")]
     NotFound,
@@ -1005,7 +986,6 @@ impl LinkedError {
             Self::CannotAdd(CannotAdd::Community) => "cannot_add_community",
             Self::CannotAdd(CannotAdd::OwnChat) => "cannot_add_own_chat",
             Self::CannotAdd(CannotAdd::NotInChatList) => "cannot_add_not_in_chat_list",
-            Self::ConfigurationRequired => "configuration_required",
             Self::NotFound => "not_found",
             Self::Forbidden => "forbidden",
             Self::Conflict => "conflict",

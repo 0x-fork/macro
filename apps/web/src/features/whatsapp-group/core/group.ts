@@ -155,7 +155,6 @@ export function composerNote(
       () => "Your WhatsApp can't post in this group"
     )
     .with('group_unavailable', () => 'This chat is no longer syncing')
-    .with('sending_disabled', () => 'Sending to WhatsApp is turned off')
     .otherwise(() => 'Sending to WhatsApp is unavailable right now');
 }
 

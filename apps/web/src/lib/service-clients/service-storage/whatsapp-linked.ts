@@ -8,7 +8,6 @@ import type { LinkedAdoptGroup } from './generated/schemas/linkedAdoptGroup';
 import type { LinkedChats } from './generated/schemas/linkedChats';
 import type { LinkedDisconnect } from './generated/schemas/linkedDisconnect';
 import type { LinkedDisconnectRequest } from './generated/schemas/linkedDisconnectRequest';
-import type { LinkedFeatures } from './generated/schemas/linkedFeatures';
 import type { LinkedPairing } from './generated/schemas/linkedPairing';
 import type { LinkedPairState } from './generated/schemas/linkedPairState';
 import type { LinkedPasskeyBody } from './generated/schemas/linkedPasskeyBody';
@@ -30,7 +29,6 @@ function post<T extends ObjectLike>(url: string, body: unknown) {
 }
 
 export const whatsappLinkedClient = {
-  configuration: () => fetchWithToken<LinkedFeatures>(`${root}/configuration`),
   account: () => fetchWithToken<LinkedAccountView>(`${root}/account`),
   /** Starts an owner-bound pairing. One account at a time: switching means
    * disconnecting first, so the web never retires a linked identity here. */

@@ -183,9 +183,6 @@ export function WhatsAppPage(props: {
                                 label={label}
                                 chats={items}
                                 inCommunity={items[0]?.community !== undefined}
-                                canAdd={
-                                  whatsapp.features.data?.adoption ?? false
-                                }
                                 adding={adding()}
                                 errors={addErrors()}
                                 onAdd={(chat) =>
@@ -242,7 +239,6 @@ export function WhatsAppPage(props: {
               <ConnectCard
                 reconnect={current().reconnect}
                 phone={isMobile()}
-                unavailable={whatsapp.features.data?.pairing === false}
                 pending={whatsapp.isConnecting()}
                 onConnect={() => pairing.start()}
               />

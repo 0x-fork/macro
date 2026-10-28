@@ -365,7 +365,6 @@ export const storageExcluded = [
   'leaveOrEndCall',
   // Pairing, passkey handoff, and rollout configuration belong to the app session.
   'linkedCancelPairing',
-  'linkedConfiguration',
   'linkedConnect',
   'linkedDisconnect',
   'linkedPairing',

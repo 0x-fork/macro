@@ -43,7 +43,6 @@ export function createFakeWhatsApp(initial: {
     initial.account
   );
   const [chats, setChats] = signalRead<WhatsAppChat[]>(initial.chats);
-  const [features] = signalRead({ pairing: true, adoption: true });
   // Pairings are numbered as `connect` starts them; reads are per pairing.
   let started = 0;
   const [pairings, setPairings] = createSignal<
@@ -82,7 +81,6 @@ export function createFakeWhatsApp(initial: {
   });
   const chatsEnabled: Accessor<boolean>[] = [];
   const capabilities = {
-    features,
     account,
     chats: vi.fn((enabled: Accessor<boolean>) => {
       chatsEnabled.push(enabled);

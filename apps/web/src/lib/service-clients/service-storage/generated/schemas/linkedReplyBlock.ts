@@ -13,7 +13,6 @@ export type LinkedReplyBlock =
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const LinkedReplyBlock = {
-  sending_disabled: 'sending_disabled',
   no_account: 'no_account',
   disconnected: 'disconnected',
   not_observing: 'not_observing',

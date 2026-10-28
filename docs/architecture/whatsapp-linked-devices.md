@@ -208,11 +208,13 @@ sender's identity; the later echo converges on it. A replica that dies after
 echo settles it. Unattempted intents expire after ten minutes. Edits and
 deletes are limited to the sender's own messages for ten minutes.
 
-## Rollout switches
+## Rollout and incidents
 
-DSS config `WHATSAPP_LINKED_PAIRING_ENABLED`, `WHATSAPP_LINKED_ADOPTION_ENABLED`
-and `WHATSAPP_LINKED_SENDING_ENABLED` default to false. Disable sending first
-during an incident. Turning switches off keeps history and access.
+The web flag `enable-whatsapp-linked` is the only rollout gate; DSS always
+serves `/meta/linked`. To stop all WhatsApp traffic (receiving and sending),
+scale the session service to zero tasks: accounts stay `connected`, history and
+access are kept, and sends recorded meanwhile expire unsent after ten minutes.
+Replicas pick every account up again when scaled back.
 
 ## Media
 

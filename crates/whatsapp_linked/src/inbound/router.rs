@@ -76,7 +76,7 @@ impl IntoResponse for ApiError {
             LinkedError::Invalid(_) | LinkedError::CannotAdd(_) => StatusCode::BAD_REQUEST,
             LinkedError::Forbidden => StatusCode::FORBIDDEN,
             LinkedError::RateLimited => StatusCode::TOO_MANY_REQUESTS,
-            LinkedError::NotFound | LinkedError::ConfigurationRequired => StatusCode::NOT_FOUND,
+            LinkedError::NotFound => StatusCode::NOT_FOUND,
             LinkedError::Conflict | LinkedError::Disconnected | LinkedError::SendExpired => {
                 StatusCode::CONFLICT
             }
@@ -135,7 +135,6 @@ where
     S: Send + Sync + 'static,
 {
     Router::new()
-        .route("/configuration", get(configuration::<Eas, Auth>))
         .route("/account", get(account::<Eas, Auth>))
         .route("/connect", post(connect::<Eas, Auth>))
         .route("/disconnect", post(disconnect::<Eas, Auth>))
@@ -195,15 +194,6 @@ where
             },
         ))
         .with_state(state)
-}
-
-/// Server rollout switches.
-#[utoipa::path(get, path = "/meta/linked/configuration", operation_id = "linked_configuration", responses((status = 200, body = Features)))]
-pub async fn configuration<Eas, Auth: MacroAuthorizationService>(
-    State(state): State<LinkedRouterState<Eas, Auth>>,
-    _auth: MacroAuthorizationExtractor<Auth, UserOnly>,
-) -> Json<Features> {
-    Json(state.service.features())
 }
 
 /// The caller's own account.

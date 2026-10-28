@@ -1487,11 +1487,6 @@ pub async fn run() -> anyhow::Result<()> {
                 config.internal_api_key.to_string(),
                 StaticFileServiceUrl::new()?.to_string(),
             ),
-            features: whatsapp_linked::domain::models::Features {
-                pairing: config.whatsapp_linked_pairing_enabled,
-                adoption: config.whatsapp_linked_adoption_enabled,
-                sending: config.whatsapp_linked_sending_enabled,
-            },
             pool: db.clone(),
             access: entity_access_service.clone(),
             authorization: authorization_state.clone(),

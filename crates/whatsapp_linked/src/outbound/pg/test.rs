@@ -40,16 +40,10 @@ const CUSTOMER_JID: &str = "15558880001@s.whatsapp.net";
 
 struct Allow;
 
-const ALL_ON: Features = Features {
-    pairing: true,
-    adoption: true,
-    sending: true,
-};
-
 fn services(pool: &PgPool) -> (LinkedService, SessionService, Arc<PgLinkedRepository>) {
     let repository = Arc::new(PgLinkedRepository::new(pool.clone()));
     (
-        LinkedService::new(ALL_ON, repository.clone(), Arc::new(Allow)),
+        LinkedService::new(repository.clone(), Arc::new(Allow)),
         SessionService::new(repository.clone()),
         repository,
     )
@@ -1047,7 +1041,7 @@ async fn rate_limited_send_never_creates_a_dispatchable_intent(pool: PgPool) {
     }
 
     let (_, session, repository, binding, alice, _) = adopted(&pool).await;
-    let linked = LinkedService::new(ALL_ON, repository, Arc::new(Denied));
+    let linked = LinkedService::new(repository, Arc::new(Denied));
     let request = SendReply {
         idempotency_key: Uuid::now_v7(),
         message: ReplyContent::Text {

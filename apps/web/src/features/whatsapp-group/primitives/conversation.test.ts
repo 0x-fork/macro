@@ -225,11 +225,11 @@ describe('sending to a WhatsApp group', () => {
       expect.any(String)
     );
     state.fake.capabilities.send.mockResolvedValueOnce(
-      err({ kind: 'refused', reason: 'Sending to WhatsApp is turned off.' })
+      err({ kind: 'refused', reason: "Your WhatsApp can't send to this chat." })
     );
     await state.conversation.react(messages[0], '🎉');
     expect(state.notify).toHaveBeenCalledWith(
-      'Sending to WhatsApp is turned off.'
+      "Your WhatsApp can't send to this chat."
     );
     state.dispose();
   });

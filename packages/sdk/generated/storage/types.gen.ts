@@ -9246,24 +9246,6 @@ export type LinkedDisconnectRequest = {
 };
 
 /**
- * Independently controlled backend rollout switches. None grants access.
- */
-export type LinkedFeatures = {
-    /**
-     * Allow explicit existing-group adoption and access grants.
-     */
-    adoption: boolean;
-    /**
-     * Allow new owner-bound pairing transactions.
-     */
-    pairing: boolean;
-    /**
-     * Allow new deliberate sends.
-     */
-    sending: boolean;
-};
-
-/**
  * A group entity bound to a remote group.
  */
 export type LinkedGroupReference = {
@@ -9370,7 +9352,7 @@ export type LinkedPairingState = 'waiting' | 'qr' | 'passkey' | 'success' | 'exp
 /**
  * Why the viewer cannot send now.
  */
-export type LinkedReplyBlock = 'sending_disabled' | 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'group_unavailable';
+export type LinkedReplyBlock = 'no_account' | 'disconnected' | 'not_observing' | 'not_allowed_in_group' | 'group_unavailable';
 
 /**
  * Content of a deliberate send.
@@ -23264,19 +23246,6 @@ export type LinkedChatsResponses = {
 };
 
 export type LinkedChatsResponse = LinkedChatsResponses[keyof LinkedChatsResponses];
-
-export type LinkedConfigurationData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/meta/linked/configuration';
-};
-
-export type LinkedConfigurationResponses = {
-    200: LinkedFeatures;
-};
-
-export type LinkedConfigurationResponse = LinkedConfigurationResponses[keyof LinkedConfigurationResponses];
 
 export type LinkedConnectData = {
     body: LinkedConnect;

@@ -7,7 +7,6 @@ export type AdoptRefusal =
   | { reason: 'gone' }
   | { reason: 'already-added' }
   | { reason: 'disconnected' }
-  | { reason: 'turned-off' }
   | { reason: 'rate-limited' }
   /** DSS's reason this chat can't be in Macro. */
   | { reason: 'cannot-add'; why: CannotAdd }
@@ -36,10 +35,6 @@ export function adoptFailureMessage(failure: AdoptRefusal): string {
     .with(
       { reason: 'disconnected' },
       () => 'Your WhatsApp is disconnected. Reconnect it, then add the chat.'
-    )
-    .with(
-      { reason: 'turned-off' },
-      () => 'Adding WhatsApp chats is turned off.'
     )
     .with(
       { reason: 'rate-limited' },

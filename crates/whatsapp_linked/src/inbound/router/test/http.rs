@@ -239,15 +239,7 @@ async fn every_route_enforces_its_credential_rules(pool: PgPool) {
         user(&pool, id).await;
     }
     let repository = Arc::new(PgLinkedRepository::new(pool.clone()));
-    let service = Arc::new(LinkedService::new(
-        Features {
-            pairing: true,
-            adoption: true,
-            sending: true,
-        },
-        repository.clone(),
-        Arc::new(Unlimited),
-    ));
+    let service = Arc::new(LinkedService::new(repository.clone(), Arc::new(Unlimited)));
     let session = SessionService::new(repository);
     let pairing = service
         .connect(&person(ALICE), false, SendAuthority::Human)
