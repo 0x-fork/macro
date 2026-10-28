@@ -22,7 +22,11 @@ tool list. Expand the discovery row to see the results. An app name alone does
 not establish that the requested action is supported.
 
 For a suitable unconnected app, the assistant offers **Connect <app>**. Clicking
-it opens the hosted authorization flow over the agent transcript on web. In
+it opens the hosted authorization flow over the agent transcript on web. For an
+overlaid app (one with its own MCP server, see Settings → Integrations) it
+opens that server's OAuth consent in a new tab instead, and the session
+continues once the server is authorized; the agent then reaches the app
+through that server rather than Pipedream. In
 native apps, consent opens in the system browser, which returns to Macro on its
 own after authorization (**Return to Macro** is the fallback link). The waiting
 dialog's **Done** checks Pipedream for an account the flow created, and callbacks

@@ -176,6 +176,7 @@ export const cognitionExcluded = [
   'healthHandler',
   'listMcpServers',
   'listPipedreamMcpConnections',
+  'listPipedreamMcpOverlays',
   'mcpAuthCallback',
   'mcpOauthClientMetadata',
   'recoverPipedreamMcpConnection',

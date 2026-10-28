@@ -586,6 +586,13 @@ page automatically and preserves category groups. A failed next page keeps loade
 apps visible and offers Retry. Use the category picker below
 All apps to show one group; changing the search returns to all categories. Group
 counts reflect the currently loaded results.
+Overlaid catalog apps (the `mcp_overlays` table, served at
+`GET /pipedream/mcp/overlays`) look the same in the catalog but never open
+Pipedream: their plus action opens the vendor's own MCP OAuth consent in a new
+tab (system browser on native) and the card turns connected once that server is
+authorized, after which the app appears with the custom MCP servers under
+Installed. Verify with an overlaid app such as Sentry or Asana; completing a
+Pipedream connection for one answers 409.
 Featured and catalog cards use two columns on wide screens and one on narrow
 screens, with a plus action for available apps. Featured cards show app names
 without descriptions, and catalog descriptions
